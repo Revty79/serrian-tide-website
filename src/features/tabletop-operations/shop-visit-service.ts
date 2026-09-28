@@ -5,8 +5,8 @@ import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { campaign, campaignDerivedCurrency, campaignPlayer } from "@/db/campaign-schema";
 import { user } from "@/db/auth-schema";
-import { item } from "@/db/item-schema";
-import { campaignCharacter } from "@/db/realm-schema";
+import { item, itemCreatureGrant } from "@/db/item-schema";
+import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
 import { shop, shopOffering, shopStaffAssignment } from "@/db/shop-schema";
 import {
   campaignSessionSceneShop,
@@ -15,6 +15,7 @@ import {
   campaignSessionSceneTownShop,
 } from "@/db/tabletop-location-schema";
 import {
+  shopResaleCreature,
   campaignSessionSceneShopVisit,
   campaignSessionSceneShopVisitMember,
 } from "@/db/tabletop-shop-visit-schema";
@@ -32,6 +33,8 @@ import {
   type ShopCommerceView,
 } from "./shop-commerce-service";
 
+import { creatureFulfillment } from "@/features/creatures/creature-commerce-service";
+
 export type ShopVisitTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type ShopVisitMode = "roleplay" | "shopping";
 export type ShopVisitPlacement = { kind: "town"; townId: number } | { kind: "independent" };
@@ -45,7 +48,10 @@ export type ShopVisitOfferingView = Readonly<{
   category: string;
   family: string;
   description: string;
-  fulfillmentKind: "inventory-transfer" | "service-narrative";
+  fulfillmentKind: "inventory-transfer" | "service-narrative" | "creature-transfer";
+  grantedCreatureId?: number | null;
+  resaleCreatureId?: number | null;
+  creatureCharacterId?: number | null;
   unlimitedStock: boolean;
   limitedQuantity: number | null;
   canonicalPriceCredits: number | null;
@@ -329,6 +335,7 @@ async function readPublicShop(
     category: item.category,
     family: item.family,
     description: item.description,
+    grantedCreatureId: itemCreatureGrant.creatureId,
     fulfillmentKind: shopOffering.fulfillmentKind,
     unlimitedStock: shopOffering.unlimitedStock,
     limitedQuantity: shopOffering.limitedQuantity,
@@ -337,6 +344,7 @@ async function readPublicShop(
     buyingPriceOverrideCredits: shopOffering.buyingPriceOverrideCredits,
   }).from(shopOffering)
     .innerJoin(item, eq(item.id, shopOffering.itemId))
+    .leftJoin(itemCreatureGrant, eq(itemCreatureGrant.itemId, item.id))
     .where(and(
       eq(shopOffering.shopId, context.shopId),
       eq(shopOffering.campaignId, context.campaignId),
@@ -344,6 +352,15 @@ async function readPublicShop(
       isNull(item.archivedAt),
     ))
     .orderBy(asc(shopOffering.sortOrder), asc(item.name), asc(shopOffering.id));
+  const exactStock = await tx.select({ resaleCreatureId: shopResaleCreature.id, itemId: shopResaleCreature.itemId, characterId: campaignCharacter.id, name: campaignCharacter.name, creatureId: campaignCreatureNpcProfile.creatureId })
+    .from(shopResaleCreature).innerJoin(campaignCharacter, eq(campaignCharacter.id, shopResaleCreature.creatureCharacterId))
+    .innerJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
+    .where(and(eq(shopResaleCreature.shopId, context.shopId), eq(shopResaleCreature.campaignId, context.campaignId), eq(shopResaleCreature.status, "in-stock"), isNull(campaignCharacter.ownerCharacterId), isNull(campaignCharacter.archivedAt)))
+    .orderBy(asc(shopResaleCreature.id));
+  const displayOfferings = offerings.flatMap(entry => [
+    { ...entry, resaleCreatureId: null as number | null, creatureCharacterId: null as number | null },
+    ...exactStock.filter(stock => stock.itemId === entry.itemId && stock.creatureId === entry.grantedCreatureId && entry.fulfillmentKind !== "service-narrative").map(stock => ({ ...entry, name: `${stock.name} (#${stock.characterId}) | ${entry.name}`, resaleCreatureId: stock.resaleCreatureId, creatureCharacterId: stock.characterId, unlimitedStock: false, limitedQuantity: 1 })),
+  ]);
   return {
     id: context.shopId,
     name: context.shopName,
@@ -351,7 +368,7 @@ async function readPublicShop(
     description: context.shopDescription,
     storefrontState: context.storefrontState,
     staff,
-    offerings: offerings.map((entry) => ({
+    offerings: displayOfferings.map((entry) => ({
       id: entry.id,
       version: entry.version,
       itemId: entry.itemId,
@@ -360,7 +377,10 @@ async function readPublicShop(
       category: entry.category,
       family: entry.family,
       description: entry.description,
-      fulfillmentKind: entry.fulfillmentKind as "inventory-transfer" | "service-narrative",
+      fulfillmentKind: creatureFulfillment(entry.fulfillmentKind, entry.grantedCreatureId),
+      grantedCreatureId: entry.fulfillmentKind === "service-narrative" ? null : entry.grantedCreatureId,
+      resaleCreatureId: entry.resaleCreatureId,
+      creatureCharacterId: entry.creatureCharacterId,
       unlimitedStock: entry.unlimitedStock,
       limitedQuantity: entry.limitedQuantity,
       canonicalPriceCredits: entry.canonicalPriceCredits,

@@ -499,6 +499,8 @@ export type ItemUseAccessEntity = {
   campaignOwnerUserId: string;
   isNpc: boolean;
   isCampaignMember: boolean;
+  npcKind?: "race" | "creature";
+  ownerCharacterId?: number | null;
 };
 
 export function canExecuteItemUse(
@@ -516,12 +518,11 @@ export function canExecuteItemUse(
   }
   return (
     subject.roles.includes("player")
-    && source.characterId === target.characterId
     && !source.isNpc
-    && !target.isNpc
     && source.isCampaignMember
     && target.isCampaignMember
     && source.playerUserId === subject.userId
-    && target.playerUserId === subject.userId
+    && ((source.characterId === target.characterId && !target.isNpc && target.playerUserId === subject.userId)
+      || (target.isNpc && target.npcKind === "creature" && target.ownerCharacterId === source.characterId))
   );
 }

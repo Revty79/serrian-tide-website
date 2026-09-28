@@ -177,7 +177,8 @@ export function ItemUseDialog({
 
         {preparation ? <div className="item-use-content">
           <section className="item-use-target">
-            <label><span>Target</span>{preparation.canChooseTarget ? <select value={preparation.plan.target.characterId} disabled={busy} onChange={(event) => selectTarget(event.target.value)}>{preparation.targetOptions.map((target) => <option key={target.characterId} value={target.characterId}>{target.name}{target.isNpc ? ` · ${target.npcKind === "creature" ? "Creature NPC" : "NPC"}` : ""}</option>)}</select> : <strong>Self · {preparation.plan.target.name}</strong>}</label>
+            <p>Choose who receives the authored Item effects. Resources are spent from the source Character inventory. Players may target Self or a currently owned Creature outside encounters.</p>
+            <label><span>Target</span>{preparation.canChooseTarget ? <select aria-label="Target" value={preparation.plan.target.characterId} disabled={busy} onChange={(event) => selectTarget(event.target.value)}>{preparation.targetOptions.map((target) => <option key={target.characterId} value={target.characterId}>{target.name}{target.isNpc ? ` · ${target.npcKind === "creature" ? `Creature NPC #${target.characterId}` : `NPC #${target.characterId}`}` : ""}</option>)}</select> : <strong>Self · {preparation.plan.target.name}</strong>}</label>
           </section>
 
           <section className="item-use-resource"><h3>Resource preview</h3><p>{resourceSummary(preparation)}</p>{preparation.plan.item.useNotes ? <small>{preparation.plan.item.useNotes}</small> : null}{preparation.plan.item.rechargeNotes ? <small>Recharge rule: {preparation.plan.item.rechargeNotes} · descriptive only</small> : null}</section>

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { OwnedCreatures } from "./owned-creatures";
 import { useInventoryLocations } from "./inventory-location-controls";
 import { displayMeasurement } from "@/features/items/container-physics";
 import {
@@ -110,6 +112,11 @@ function displayEncumbrance(
 }
 
 export function CharacterSheet({ onInventoryVersionChange, aggregate, draft, selectedRace, section, showAttributeTable = true, showSkillTable = true, activeHealth, onActiveHealthChange, activeMana, onActiveManaChange, activeManaDisabled, itemUseDisabled, itemUseDisabledReason, onItemUseComplete, onDerivedAbilityChange, activeEffects, onActiveEffectsChange, equipmentState, onEquipmentStateChange, equipmentStateDisabled, chargeState, onChargeStateChange, chargeStateDisabled, godMode, canOperateRuntime }: Props) {
+  const [companionRevision, setCompanionRevision] = useState(0);
+  async function refreshAfterItemUse() {
+    await onItemUseComplete();
+    setCompanionRevision(value => value + 1);
+  }
   const locations = useInventoryLocations(aggregate.character.id, aggregate.profile.commerceVersion ?? 0, JSON.stringify(equipmentState), onInventoryVersionChange);
   const hp = getCharacterHp(
     draft.attributes.CON,
@@ -373,7 +380,8 @@ export function CharacterSheet({ onInventoryVersionChange, aggregate, draft, sel
 
       </> : null}
       {section === "equipment" ? <>
-        <OwnedEquipmentList locations={locations} ownerDisabled={equipmentStateDisabled || aggregate.character.archivedAt !== null} aggregate={aggregate} draft={draft} equipment={equipmentState} disabled={equipmentStateDisabled || !canOperateRuntime} useDisabled={itemUseDisabled || !canOperateRuntime} useDisabledReason={itemUseDisabledReason} includeEffectHistory={godMode} onEquipmentChange={onEquipmentStateChange} onEffectsChange={onActiveEffectsChange} onUseComplete={onItemUseComplete} />
+        <OwnedCreatures equipmentDisabled={equipmentStateDisabled || !canOperateRuntime} characterId={aggregate.character.id} revision={`${aggregate.profile.commerceVersion}:${companionRevision}`} onInventoryChange={refreshAfterItemUse} />
+        <OwnedEquipmentList locations={locations} ownerDisabled={equipmentStateDisabled || aggregate.character.archivedAt !== null} aggregate={aggregate} draft={draft} equipment={equipmentState} disabled={equipmentStateDisabled || !canOperateRuntime} useDisabled={itemUseDisabled || !canOperateRuntime} useDisabledReason={itemUseDisabledReason} includeEffectHistory={godMode} onEquipmentChange={onEquipmentStateChange} onEffectsChange={onActiveEffectsChange} onUseComplete={refreshAfterItemUse} />
         {draft.itemInstances.some(owned => aggregate.authorizedItems.some(item => item.id === owned.itemId && (item.isFirearm || item.isMagazine))) ? <details className="character-equipment-disclosure"><summary>Magazine & Firearm Setup</summary>
           <MagazinePanel characterId={aggregate.character.id} revision={String(aggregate.profile.commerceVersion)} disabled={equipmentStateDisabled || !canOperateRuntime} onChange={onItemUseComplete} />
           <FirearmSetupPanel characterId={aggregate.character.id} equipmentRevision={`${aggregate.profile.commerceVersion}:${JSON.stringify(equipmentState.instances)}`} disabled={equipmentStateDisabled || !canOperateRuntime} compact onChange={onItemUseComplete} />

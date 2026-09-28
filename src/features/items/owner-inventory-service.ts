@@ -62,6 +62,9 @@ export async function adjustOwnerInventory(command: OwnerInventoryCommand) {
     await requireOwner(tx, command.characterId, session.user.id);
     await assertCharacterCombatWritableInTransaction(tx, command.characterId);
     await assertOutsideCombatEquipmentHandling(tx, command.characterId);
+    // Creature ownership/commerce also lock the Campaign before its Characters.
+    // Wait here before holding a Character that those operations may need.
+    await requireOwner(tx, command.characterId, session.user.id, true);
     await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
     const target = await requireOwner(tx, command.characterId, session.user.id, true);
     const [profile] = await tx.select({ version: campaignCharacterProfile.commerceVersion }).from(campaignCharacterProfile)

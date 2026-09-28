@@ -14,12 +14,14 @@ import {
 } from "@/db/campaign-schema";
 import {
   item,
+  itemCreatureGrant,
   itemPowerResource,
   itemRuntimeProfile,
   weaponProfile,
 } from "@/db/item-schema";
 import {
   campaignCharacter,
+  campaignCreatureNpcProfile,
   campaignCharacterCurrencyHolding,
   campaignCharacterItem,
   campaignCharacterItemInstance,
@@ -39,6 +41,7 @@ import {
   shopMoneyEvent,
   shopResaleItemInstance,
   shopTransaction,
+  shopTransactionCreature,
   shopTransactionLine,
   shopTransactionRequest,
   shopTransactionRequestLine,
@@ -62,6 +65,8 @@ import {
   validateEquipmentOwnershipMutationInTransaction,
 } from "@/features/items/equipment-state-service";
 
+import { assertActiveGrant, creatureFulfillment, purchaseCreatures, readResaleCreature, readSaleCreature, recordCreatureReceipt, sellCreature } from "@/features/creatures/creature-commerce-service";
+
 export type ShopCommerceTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type ShopCommerceActor = Readonly<{ userId: string; roles: readonly SerrianRole[] }>;
 export type ShopCommerceRequestStatus = "pending" | "owner-review" | "completed" | "rejected" | "cancelled";
@@ -71,12 +76,15 @@ export type PurchaseLineInput = Readonly<{
   quantity: number;
   expectedOfferingVersion: number;
   quotedUnitPriceCredits: number;
-  quotedFulfillmentKind: "inventory-transfer" | "service-narrative";
+  quotedGrantedCreatureId?: number | null;
+  resaleCreatureId?: number | null;
+  quotedFulfillmentKind: "inventory-transfer" | "service-narrative" | "creature-transfer";
 }>;
 export type SaleLineInput = Readonly<{
   itemId: number;
   quantity: number;
   itemInstanceId?: number | null;
+  creatureCharacterId?: number | null;
 }>;
 export type RevisedRequestLineInput = Readonly<{
   requestLineId: number;
@@ -89,9 +97,11 @@ export type ShopCommerceLineView = Readonly<{
   offeringId: number | null;
   itemId: number;
   itemInstanceId: number | null;
+  creatureCharacterId?: number | null;
+  grantedCreatureId?: number | null;
   canonicalId: string;
   name: string;
-  fulfillmentKind: "inventory-transfer" | "service-narrative";
+  fulfillmentKind: "inventory-transfer" | "service-narrative" | "creature-transfer";
   quantity: number;
   quotedUnitPriceCredits: number;
   currentUnitPriceCredits: number;
@@ -132,12 +142,13 @@ export type ShopCommerceHistoryView = Readonly<{
     id: number;
     canonicalId: string;
     name: string;
-    fulfillmentKind: "inventory-transfer" | "service-narrative";
+    fulfillmentKind: "inventory-transfer" | "service-narrative" | "creature-transfer";
     quantity: number;
     unitPriceCredits: number;
     totalCredits: number;
     sourceItemInstanceId: number | null;
     acquiredItemInstanceId: number | null;
+    creatures?: readonly { characterId: number; creatureId: number; name: string }[];
   }[];
 }>;
 
@@ -175,6 +186,7 @@ export type ShopCommerceView = Readonly<{
     equipmentState: string;
     shopBuyingPriceCredits: number | null;
   }[];
+  ownedCreatures?: readonly { characterId: number; name: string; creatureId: number; itemId: number; listingName: string; shopBuyingPriceCredits: number | null }[];
   requests: readonly ShopCommerceRequestView[];
   history: readonly ShopCommerceHistoryView[];
   moneyEvents: readonly {
@@ -193,6 +205,7 @@ export type ShopCommerceView = Readonly<{
 type OperationKind = typeof shopCommerceOperation.$inferInsert.kind;
 type MoneyEventKind = typeof shopMoneyEvent.$inferInsert.kind;
 type ItemDefinition = Readonly<{
+  grantedCreatureId: number | null;
   id: number;
   canonicalId: string;
   name: string;
@@ -295,7 +308,7 @@ async function loadCurrencySnapshot(tx: ShopCommerceTransaction, campaignId: num
     ownerUserId: campaign.createdByUserId,
     currencySystem: campaign.currencySystem,
     archivedAt: campaign.archivedAt,
-  }).from(campaign).where(eq(campaign.id, positiveId(campaignId, "Campaign"))).limit(1);
+  }).from(campaign).where(eq(campaign.id, positiveId(campaignId, "Campaign"))).limit(1).for("update");
   if (!campaignRow) throw new Error("Campaign not found.");
   const derivedCurrencies = campaignRow.currencySystem === "Derived Currency"
     ? await tx.select({
@@ -473,12 +486,14 @@ async function loadItemDefinitions(
   itemIds: readonly number[],
 ): Promise<Map<number, ItemDefinition>> {
   if (!itemIds.length) return new Map();
+  await tx.select({ id: item.id }).from(item).where(inArray(item.id, [...itemIds])).orderBy(asc(item.id)).for("share");
   const rows = await tx.select({
     id: item.id,
     canonicalId: item.canonicalId,
     name: item.name,
     archivedAt: item.archivedAt,
     credits: item.credits,
+    grantedCreatureId: itemCreatureGrant.creatureId,
     useMode: itemRuntimeProfile.useMode,
     maximumCharges: itemRuntimeProfile.maximumCharges,
     quantityPerUse: itemRuntimeProfile.quantityPerUse,
@@ -496,6 +511,7 @@ async function loadItemDefinitions(
     isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from weapon_firing_modes where weapon_firing_modes.weapon_profile_id = ${weaponProfile.id})), false)`,
   }).from(campaignInventoryItem)
     .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
+    .leftJoin(itemCreatureGrant, eq(itemCreatureGrant.itemId, item.id))
     .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
     .leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
     .leftJoin(weaponProfile, eq(weaponProfile.itemId, item.id))
@@ -505,6 +521,7 @@ async function loadItemDefinitions(
     ));
   return new Map(rows.map((row) => [row.id, {
     id: row.id,
+    grantedCreatureId: row.grantedCreatureId,
     canonicalId: row.canonicalId,
     name: row.name,
     archivedAt: row.archivedAt,
@@ -779,7 +796,10 @@ async function insertRequest(
       offeringId?: number | null;
       itemId: number;
       itemInstanceId?: number | null;
-      fulfillmentKind: "inventory-transfer" | "service-narrative";
+      grantedCreatureId?: number | null;
+      creatureCharacterId?: number | null;
+      resaleCreatureId?: number | null;
+      fulfillmentKind: "inventory-transfer" | "service-narrative" | "creature-transfer";
       quantity: number;
       quotedUnitPriceCredits: number;
       currentUnitPriceCredits?: number;
@@ -809,6 +829,9 @@ async function insertRequest(
     offeringId: line.offeringId ?? null,
     itemId: line.itemId,
     itemInstanceId: line.itemInstanceId ?? null,
+    grantedCreatureId: line.grantedCreatureId ?? null,
+    creatureCharacterId: line.creatureCharacterId ?? null,
+    resaleCreatureId: line.resaleCreatureId ?? null,
     fulfillmentKind: line.fulfillmentKind,
     quantity: line.quantity,
     quotedUnitPriceCredits: line.quotedUnitPriceCredits,
@@ -1192,16 +1215,17 @@ async function refreshPurchaseTerms(
 ): Promise<{ changed: boolean; termsVersion: number }> {
   const offerings = await lockPurchaseOfferings(tx, context, lines);
   const byId = new Map(offerings.map((entry) => [entry.id, entry]));
+  const definitions = await loadItemDefinitions(tx, context.campaignId, lines.map(line => line.itemId));
   const changes = lines.flatMap((line) => {
     const offering = line.offeringId === null ? null : byId.get(line.offeringId);
     if (!offering || offering.itemId !== line.itemId) throw new Error("A requested Shop Offering no longer matches its Item.");
     const price = currentOfferingPrice(offering);
-    const fulfillmentKind = offering.fulfillmentKind === "service-narrative"
-      ? "service-narrative" as const
-      : "inventory-transfer" as const;
+    const fulfillmentKind = creatureFulfillment(offering.fulfillmentKind, definitions.get(line.itemId)?.grantedCreatureId ?? null);
+    const grantedCreatureId = fulfillmentKind === "creature-transfer" ? definitions.get(line.itemId)!.grantedCreatureId : null;
+    if (line.resaleCreatureId && (fulfillmentKind !== "creature-transfer" || line.grantedCreatureId !== grantedCreatureId)) throw new Error("The exact Creature listing changed. Submit a new selection.");
     return Math.abs(price - line.currentUnitPriceCredits) > MONEY_EPSILON
-      || fulfillmentKind !== line.fulfillmentKind
-      ? [{ line, price, fulfillmentKind }]
+      || fulfillmentKind !== line.fulfillmentKind || grantedCreatureId !== line.grantedCreatureId
+      ? [{ line, price, fulfillmentKind, grantedCreatureId }]
       : [];
   });
   if (!changes.length) return { changed: false, termsVersion: request.termsVersion };
@@ -1210,6 +1234,7 @@ async function refreshPurchaseTerms(
     await tx.update(shopTransactionRequestLine).set({
       currentUnitPriceCredits: change.price,
       fulfillmentKind: change.fulfillmentKind,
+      grantedCreatureId: change.grantedCreatureId,
     })
       .where(eq(shopTransactionRequestLine.id, change.line.id));
   }
@@ -1253,6 +1278,13 @@ async function executeRequest(
   if (definitions.size !== new Set(lines.map(({ itemId }) => itemId)).size || [...definitions.values()].some(({ archivedAt }) => archivedAt)) {
     throw new Error("A requested Item is archived, unavailable, or no longer authorized by this Campaign.");
   }
+  for (const line of lines) {
+    if (line.fulfillmentKind === "creature-transfer") {
+      if (definitions.get(line.itemId)?.grantedCreatureId !== line.grantedCreatureId) throw new Error("Creature grant terms changed. Submit a new request.");
+      await assertActiveGrant(tx, line.grantedCreatureId!);
+      if (input.request.kind === "sale") await readSaleCreature(tx, input.context.campaignId, input.context.characterId, line.creatureCharacterId!, line.grantedCreatureId);
+    }
+  }
   let purchaseOfferings: Awaited<ReturnType<typeof lockPurchaseOfferings>> = [];
   if (input.request.kind === "purchase") {
     purchaseOfferings = await lockPurchaseOfferings(tx, input.context, lines);
@@ -1260,12 +1292,13 @@ async function executeRequest(
     for (const line of lines) {
       const offering = line.offeringId === null ? null : offeringById.get(line.offeringId);
       if (!offering || offering.itemId !== line.itemId) throw new Error("A requested Shop Offering is no longer available.");
+      if (creatureFulfillment(offering.fulfillmentKind, definitions.get(line.itemId)!.grantedCreatureId) !== line.fulfillmentKind) throw new Error("Purchase fulfillment changed and must be reviewed.");
       if (Math.abs(currentOfferingPrice(offering) - line.currentUnitPriceCredits) > MONEY_EPSILON) {
         throw new Error("The purchase price changed and must be reviewed before charging the Character.");
       }
     }
     const quantityByOffering = new Map<number, number>();
-    for (const line of lines) quantityByOffering.set(line.offeringId!, (quantityByOffering.get(line.offeringId!) ?? 0) + line.quantity);
+    for (const line of lines.filter(line => line.resaleCreatureId === null)) quantityByOffering.set(line.offeringId!, (quantityByOffering.get(line.offeringId!) ?? 0) + line.quantity);
     for (const offering of purchaseOfferings) {
       const quantity = quantityByOffering.get(offering.id) ?? 0;
       if (!offering.unlimitedStock && (offering.limitedQuantity ?? 0) < quantity) {
@@ -1325,10 +1358,11 @@ async function executeRequest(
       currency: input.currency,
     });
     const quantityByOffering = new Map<number, number>();
-    for (const line of lines) quantityByOffering.set(line.offeringId!, (quantityByOffering.get(line.offeringId!) ?? 0) + line.quantity);
+    for (const line of lines.filter(line => line.resaleCreatureId === null)) quantityByOffering.set(line.offeringId!, (quantityByOffering.get(line.offeringId!) ?? 0) + line.quantity);
     for (const offering of purchaseOfferings) {
       if (!offering.unlimitedStock) {
         const quantity = quantityByOffering.get(offering.id) ?? 0;
+        if (!quantity) continue;
         const changed = await tx.update(shopOffering).set({
           limitedQuantity: (offering.limitedQuantity ?? 0) - quantity,
           version: offering.version + 1,
@@ -1346,6 +1380,7 @@ async function executeRequest(
       let acquiredItemInstanceId: number | null = null;
       let sourceItemInstanceId: number | null = null;
       let ownershipSnapshot: unknown = {};
+      let creatureIds: number[] = [];
       if (line.fulfillmentKind === "inventory-transfer") {
         if (ownershipStrategy(definition) === "stack") {
           await addStackOwnership(tx, input.context.characterId, line.itemId, line.quantity, line.currentUnitPriceCredits);
@@ -1365,10 +1400,13 @@ async function executeRequest(
           sourceItemInstanceId = acquired.sourceInstanceId;
           ownershipSnapshot = { strategy: "instance", acquiredItemInstanceId, sourceItemInstanceId };
         }
+      } else if (line.fulfillmentKind === "creature-transfer") {
+        creatureIds = await purchaseCreatures(tx, input.context, line, transaction.id);
+        ownershipSnapshot = { strategy: "creature", creatureIds };
       } else {
         ownershipSnapshot = { strategy: "service", narrativeNote: input.request.narrativeNote };
       }
-      await tx.insert(shopTransactionLine).values({
+      const [receipt] = await tx.insert(shopTransactionLine).values({
         transactionId: transaction.id,
         requestLineId: line.id,
         offeringId: line.offeringId,
@@ -1383,7 +1421,8 @@ async function executeRequest(
         itemNameSnapshot: line.itemNameSnapshot,
         ownershipSnapshotJson: ownershipSnapshot,
         sortOrder: line.sortOrder,
-      });
+      }).returning({ id: shopTransactionLine.id });
+      await recordCreatureReceipt(tx, input.context.campaignId, receipt.id, creatureIds);
     }
   } else {
     await writeShopMoneyEvent(tx, {
@@ -1414,31 +1453,33 @@ async function executeRequest(
       context: input.context,
       transactionId: transaction.id,
       actorUserId: input.actorUserId,
-      lines,
+      lines: lines.filter(line => line.fulfillmentKind !== "creature-transfer"),
       definitions,
     });
     const restockedOfferingIds = input.context.soldItemHandling === "add-to-shop-stock"
-      ? await ensureRestockListings(tx, input.context, lines)
+      ? await ensureRestockListings(tx, input.context, lines.filter(line => line.fulfillmentKind !== "creature-transfer"))
       : new Map<number, number>();
     for (const line of lines) {
-      await tx.insert(shopTransactionLine).values({
+      const creatureIds = line.fulfillmentKind === "creature-transfer" ? [await sellCreature(tx, input.context, line, transaction.id, input.actorUserId)] : [];
+      const [receipt] = await tx.insert(shopTransactionLine).values({
         transactionId: transaction.id,
         requestLineId: line.id,
         offeringId: restockedOfferingIds.get(line.itemId) ?? line.offeringId,
         itemId: line.itemId,
         sourceItemInstanceId: line.itemInstanceId,
         acquiredItemInstanceId: null,
-        fulfillmentKind: "inventory-transfer",
+        fulfillmentKind: line.fulfillmentKind,
         quantity: line.quantity,
         unitPriceCredits: line.currentUnitPriceCredits,
         totalCredits: moneyAmount(line.quantity * line.currentUnitPriceCredits, "Line total"),
         itemCanonicalIdSnapshot: line.itemCanonicalIdSnapshot,
         itemNameSnapshot: line.itemNameSnapshot,
-        ownershipSnapshotJson: line.itemInstanceId === null
+        ownershipSnapshotJson: creatureIds.length ? { strategy: "creature", creatureIds } : line.itemInstanceId === null
           ? { strategy: "stack", quantity: line.quantity }
           : snapshots.get(line.itemInstanceId) ?? { strategy: "instance" },
         sortOrder: line.sortOrder,
-      });
+      }).returning({ id: shopTransactionLine.id });
+      await recordCreatureReceipt(tx, input.context.campaignId, receipt.id, creatureIds);
     }
   }
   const now = new Date();
@@ -1461,36 +1502,38 @@ async function executeRequest(
 function normalizePurchaseLines(lines: readonly PurchaseLineInput[]) {
   if (!Array.isArray(lines) || !lines.length) throw new Error("Choose at least one Shop Offering.");
   if (lines.length > 100) throw new Error("A purchase can contain at most 100 selected offerings.");
-  const selections = new Map<number, {
-    offeringId: number;
-    quantity: number;
-    expectedOfferingVersion: number;
-    quotedUnitPriceCredits: number;
-    quotedFulfillmentKind: "inventory-transfer" | "service-narrative";
-  }>();
+  const selections = new Map<string, PurchaseLineInput>();
   for (const line of lines) {
     const offeringId = positiveId(line.offeringId, "Shop Offering");
     const expectedOfferingVersion = nonnegativeVersion(line.expectedOfferingVersion, "Displayed Shop Offering version");
     const quotedUnitPriceCredits = moneyAmount(line.quotedUnitPriceCredits, "Displayed offering price");
-    if (line.quotedFulfillmentKind !== "inventory-transfer" && line.quotedFulfillmentKind !== "service-narrative") {
+    if (line.quotedFulfillmentKind !== "inventory-transfer" && line.quotedFulfillmentKind !== "service-narrative" && line.quotedFulfillmentKind !== "creature-transfer") {
       throw new Error("Displayed offering fulfillment is invalid.");
     }
-    const existing = selections.get(offeringId);
+    const resaleCreatureId = line.resaleCreatureId == null ? null : positiveId(line.resaleCreatureId, "Exact Creature stock");
+    const quotedGrantedCreatureId = line.quotedFulfillmentKind === "creature-transfer" ? positiveId(line.quotedGrantedCreatureId!, "Displayed Creature definition") : null;
+    if (resaleCreatureId && (!quotedGrantedCreatureId || line.quantity !== 1)) throw new Error("Exact Creature purchases require quantity one and a Creature grant.");
+    const key = `${offeringId}:${resaleCreatureId ?? "generic"}`;
+    const existing = selections.get(key);
+    if (existing && resaleCreatureId) throw new Error("Select an exact Creature only once.");
     if (existing && (
       existing.expectedOfferingVersion !== expectedOfferingVersion
       || Math.abs(existing.quotedUnitPriceCredits - quotedUnitPriceCredits) > MONEY_EPSILON
+      || existing.quotedGrantedCreatureId !== (quotedGrantedCreatureId ?? undefined)
       || existing.quotedFulfillmentKind !== line.quotedFulfillmentKind
     )) throw new Error("One Shop Offering cannot be submitted with conflicting displayed terms.");
-    selections.set(offeringId, {
+    selections.set(key, {
       offeringId,
       quantity: (existing?.quantity ?? 0) + positiveQuantity(line.quantity),
       expectedOfferingVersion,
       quotedUnitPriceCredits,
       quotedFulfillmentKind: line.quotedFulfillmentKind,
+      ...(quotedGrantedCreatureId ? { quotedGrantedCreatureId } : {}),
+      ...(resaleCreatureId ? { resaleCreatureId } : {}),
     });
   }
   return [...selections.values()]
-    .sort((left, right) => left.offeringId - right.offeringId);
+    .sort((left, right) => left.offeringId - right.offeringId || (left.resaleCreatureId ?? 0) - (right.resaleCreatureId ?? 0));
 }
 
 async function buildPurchaseRequestLines(
@@ -1523,13 +1566,16 @@ async function buildPurchaseRequestLines(
       eq(shopOffering.campaignId, context.campaignId),
       inArray(shopOffering.id, requested.map(({ offeringId }) => offeringId)),
     )).orderBy(asc(shopOffering.id));
-  if (offerings.length !== requested.length) throw new Error("A selected Shop Offering is unavailable.");
+  if (offerings.length !== new Set(requested.map(line => line.offeringId)).size) throw new Error("A selected Shop Offering is unavailable.");
   const definitions = await loadItemDefinitions(tx, context.campaignId, offerings.map(({ itemId }) => itemId));
   const byId = new Map(offerings.map((entry) => [entry.id, entry]));
   const result: Array<{
     offeringId: number;
     itemId: number;
-    fulfillmentKind: "inventory-transfer" | "service-narrative";
+    grantedCreatureId: number | null;
+    creatureCharacterId: number | null;
+    resaleCreatureId: number | null;
+    fulfillmentKind: "inventory-transfer" | "service-narrative" | "creature-transfer";
     quantity: number;
     quotedUnitPriceCredits: number;
     currentUnitPriceCredits: number;
@@ -1546,15 +1592,17 @@ async function buildPurchaseRequestLines(
     const unitPrice = offering.sellingPriceOverrideCredits ?? offering.canonicalPriceCredits;
     if (unitPrice === null) throw new Error(`${offering.itemName} does not have a purchase price.`);
     const price = moneyAmount(unitPrice, `${offering.itemName} price`);
-    if (!offering.unlimitedStock && (offering.limitedQuantity ?? 0) < selected.quantity) {
+    if (!selected.resaleCreatureId && !offering.unlimitedStock && (offering.limitedQuantity ?? 0) < selected.quantity) {
       throw new Error(`${offering.itemName} does not have enough stock for that quantity.`);
     }
-    const fulfillmentKind = offering.fulfillmentKind === "service-narrative"
-      ? "service-narrative" as const
-      : "inventory-transfer" as const;
+    const fulfillmentKind = creatureFulfillment(offering.fulfillmentKind, definition.grantedCreatureId);
+    const grantedCreatureId = fulfillmentKind === "creature-transfer" ? definition.grantedCreatureId : null;
+    if (grantedCreatureId) await assertActiveGrant(tx, grantedCreatureId);
+    const resale = selected.resaleCreatureId ? await readResaleCreature(tx, context.campaignId, context.shopId, offering.itemId, selected.resaleCreatureId, grantedCreatureId) : null;
     if (
       offering.version !== selected.expectedOfferingVersion
       || Math.abs(price - selected.quotedUnitPriceCredits) > MONEY_EPSILON
+      || grantedCreatureId !== (selected.quotedGrantedCreatureId ?? null)
       || fulfillmentKind !== selected.quotedFulfillmentKind
     ) termsChanged = true;
     const splitExact = fulfillmentKind === "inventory-transfer" && ownershipStrategy(definition) === "instance";
@@ -1562,6 +1610,9 @@ async function buildPurchaseRequestLines(
       result.push({
         offeringId: offering.id,
         itemId: offering.itemId,
+        grantedCreatureId,
+        creatureCharacterId: resale?.characterId ?? null,
+        resaleCreatureId: resale?.id ?? null,
         fulfillmentKind,
         quantity: splitExact ? 1 : selected.quantity,
         quotedUnitPriceCredits: selected.quotedUnitPriceCredits,
@@ -1708,11 +1759,16 @@ function normalizeSaleLines(lines: readonly SaleLineInput[]) {
   if (!Array.isArray(lines) || !lines.length) throw new Error("Choose at least one owned Item to sell.");
   if (lines.length > 100) throw new Error("A sale request can contain at most 100 selected entries.");
   const stackQuantities = new Map<number, number>();
+  const creatures = new Map<number, { itemId: number; quantity: number; itemInstanceId: null; creatureCharacterId: number }>();
   const instances = new Map<number, { itemId: number; quantity: number; itemInstanceId: number }>();
   for (const line of lines) {
     const itemId = positiveId(line.itemId, "Item");
     const quantity = positiveQuantity(line.quantity);
-    if (line.itemInstanceId !== null && line.itemInstanceId !== undefined) {
+    if (line.creatureCharacterId != null) {
+      const id = positiveId(line.creatureCharacterId, "Individual Creature");
+      if (quantity !== 1 || line.itemInstanceId != null || creatures.has(id)) throw new Error("Select each individual Creature exactly once with quantity one.");
+      creatures.set(id, { itemId, quantity, itemInstanceId: null, creatureCharacterId: id });
+    } else if (line.itemInstanceId !== null && line.itemInstanceId !== undefined) {
       const itemInstanceId = positiveId(line.itemInstanceId, "Item copy");
       if (quantity !== 1) throw new Error("An exact Item copy must be sold one at a time.");
       if (instances.has(itemInstanceId)) throw new Error("An exact Item copy can only appear once in a sale request.");
@@ -1721,10 +1777,11 @@ function normalizeSaleLines(lines: readonly SaleLineInput[]) {
       stackQuantities.set(itemId, (stackQuantities.get(itemId) ?? 0) + quantity);
     }
   }
-  return [
+  return ([
     ...[...stackQuantities].map(([itemId, quantity]) => ({ itemId, quantity, itemInstanceId: null })),
     ...instances.values(),
-  ].sort((left, right) => left.itemId - right.itemId || (left.itemInstanceId ?? 0) - (right.itemInstanceId ?? 0));
+    ...creatures.values(),
+  ] as { itemId: number; quantity: number; itemInstanceId: number | null; creatureCharacterId?: number }[]).sort((left, right) => left.itemId - right.itemId || (left.itemInstanceId ?? 0) - (right.itemInstanceId ?? 0) || (left.creatureCharacterId ?? 0) - (right.creatureCharacterId ?? 0));
 }
 
 async function buildSaleRequestLines(
@@ -1734,6 +1791,7 @@ async function buildSaleRequestLines(
 ) {
   const itemIds = [...new Set(requested.map(({ itemId }) => itemId))];
   for (const selected of requested) {
+    if (selected.creatureCharacterId) continue;
     if (selected.itemInstanceId !== null) await assertExactInventoryAvailable(tx, context.characterId, selected.itemInstanceId);
     else await assertLooseStackAvailable(tx, context.characterId, selected.itemId, selected.quantity);
   }
@@ -1770,10 +1828,12 @@ async function buildSaleRequestLines(
     isNull(campaignCharacterItemInstance.retiredAt),
   )) : [];
   const instanceById = new Map(instanceRows.map((entry) => [entry.id, entry]));
-  return requested.map((selected) => {
+  return Promise.all(requested.map(async (selected) => {
     const definition = definitions.get(selected.itemId)!;
     const strategy = ownershipStrategy(definition);
-    if (selected.itemInstanceId === null) {
+    if (selected.creatureCharacterId) {
+      await readSaleCreature(tx, context.campaignId, context.characterId, selected.creatureCharacterId, definition.grantedCreatureId);
+    } else if (selected.itemInstanceId === null) {
       if (strategy !== "stack") throw new Error(`${definition.name} is exact-copy owned; choose the specific copy to sell.`);
       if ((stackByItem.get(selected.itemId) ?? 0) < selected.quantity) {
         throw new Error(`The Character does not own ${selected.quantity} available ${definition.name}.`);
@@ -1794,13 +1854,15 @@ async function buildSaleRequestLines(
       offeringId: offering?.id ?? null,
       itemId: selected.itemId,
       itemInstanceId: selected.itemInstanceId,
-      fulfillmentKind: "inventory-transfer" as const,
+      fulfillmentKind: selected.creatureCharacterId ? "creature-transfer" as const : "inventory-transfer" as const,
+      creatureCharacterId: selected.creatureCharacterId ?? null,
+      grantedCreatureId: selected.creatureCharacterId ? definition.grantedCreatureId : null,
       quantity: selected.quantity,
       quotedUnitPriceCredits: moneyAmount(rawPrice, `${definition.name} buying price`),
       itemCanonicalIdSnapshot: definition.canonicalId,
       itemNameSnapshot: definition.name,
     };
-  });
+  }));
 }
 
 export async function submitPlayerSaleInTransaction(
@@ -1976,7 +2038,7 @@ export async function reviewShopRequestInTransaction(
     let changed = false;
     for (const line of lines) {
       const revised = revisedById.get(line.id)!;
-      if (line.itemInstanceId !== null && revised.quantity !== 1) {
+      if ((line.itemInstanceId !== null || line.creatureCharacterId !== null) && revised.quantity !== 1) {
         throw new Error("An exact Item copy must remain a quantity of one.");
       }
       if (line.quantity !== revised.quantity || Math.abs(line.currentUnitPriceCredits - revised.unitPriceCredits) > MONEY_EPSILON) {
@@ -2405,6 +2467,14 @@ export async function readShopCommerceInTransaction(
         isNull(item.archivedAt),
       ))
       .orderBy(asc(item.name), asc(campaignCharacterItemInstance.id));
+  const ownedCreatures = await tx.select({ characterId: campaignCharacter.id, name: campaignCharacter.name, creatureId: campaignCreatureNpcProfile.creatureId,
+    itemId: item.id, listingName: item.name, canonicalPriceCredits: item.credits, buyingPriceOverrideCredits: shopOffering.buyingPriceOverrideCredits })
+    .from(campaignCharacter).innerJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
+    .innerJoin(itemCreatureGrant, eq(itemCreatureGrant.creatureId, campaignCreatureNpcProfile.creatureId)).innerJoin(item, eq(item.id, itemCreatureGrant.itemId))
+    .innerJoin(campaignInventoryItem, and(eq(campaignInventoryItem.campaignId, root.campaignId), eq(campaignInventoryItem.itemId, item.id)))
+    .leftJoin(shopOffering, and(eq(shopOffering.shopId, root.shopId), eq(shopOffering.itemId, item.id)))
+    .where(and(eq(campaignCharacter.ownerCharacterId, root.characterId), eq(campaignCharacter.campaignId, root.campaignId), isNull(campaignCharacter.archivedAt), isNull(item.archivedAt)))
+    .orderBy(asc(campaignCharacter.id), asc(item.id));
   const requestRows = await tx.select().from(shopTransactionRequest).where(and(
       eq(shopTransactionRequest.shopId, root.shopId),
       eq(shopTransactionRequest.characterId, root.characterId),
@@ -2444,6 +2514,7 @@ export async function readShopCommerceInTransaction(
   const transactionLines = historyIds.length ? await tx.select().from(shopTransactionLine)
     .where(inArray(shopTransactionLine.transactionId, historyIds))
     .orderBy(asc(shopTransactionLine.transactionId), asc(shopTransactionLine.sortOrder), asc(shopTransactionLine.id)) : [];
+  const creatureReceipts = transactionLines.length ? await tx.select().from(shopTransactionCreature).where(inArray(shopTransactionCreature.transactionLineId, transactionLines.map(line => line.id))) : [];
   const userIds = [...new Set([
     ...requestRows.map(({ requestedByUserId }) => requestedByUserId),
     ...historyRows.map(({ completedByUserId }) => completedByUserId),
@@ -2488,15 +2559,18 @@ export async function readShopCommerceInTransaction(
       equipmentState: entry.equipmentState,
       shopBuyingPriceCredits: entry.buyingPriceOverrideCredits ?? entry.canonicalPriceCredits,
     })),
+    ownedCreatures: ownedCreatures.map(row => ({ ...row, shopBuyingPriceCredits: row.buyingPriceOverrideCredits ?? row.canonicalPriceCredits })),
     requests: requestRows.map((request) => {
       const lines = (requestLinesByRequest.get(request.id) ?? []).map((line) => ({
         id: line.id,
         offeringId: line.offeringId,
         itemId: line.itemId,
         itemInstanceId: line.itemInstanceId,
+        creatureCharacterId: line.creatureCharacterId,
+        grantedCreatureId: line.grantedCreatureId,
         canonicalId: line.itemCanonicalIdSnapshot,
         name: line.itemNameSnapshot,
-        fulfillmentKind: line.fulfillmentKind as "inventory-transfer" | "service-narrative",
+        fulfillmentKind: line.fulfillmentKind as "inventory-transfer" | "service-narrative" | "creature-transfer",
         quantity: line.quantity,
         quotedUnitPriceCredits: line.quotedUnitPriceCredits,
         currentUnitPriceCredits: line.currentUnitPriceCredits,
@@ -2536,12 +2610,13 @@ export async function readShopCommerceInTransaction(
         id: line.id,
         canonicalId: line.itemCanonicalIdSnapshot,
         name: line.itemNameSnapshot,
-        fulfillmentKind: line.fulfillmentKind as "inventory-transfer" | "service-narrative",
+        fulfillmentKind: line.fulfillmentKind as "inventory-transfer" | "service-narrative" | "creature-transfer",
         quantity: line.quantity,
         unitPriceCredits: line.unitPriceCredits,
         totalCredits: line.totalCredits,
         sourceItemInstanceId: line.sourceItemInstanceId,
         acquiredItemInstanceId: line.acquiredItemInstanceId,
+        creatures: creatureReceipts.filter(row => row.transactionLineId === line.id).map(row => ({ characterId: row.creatureCharacterId, creatureId: row.creatureId, name: row.nameSnapshot })),
       })),
     })),
     moneyEvents: moneyRows.map((entry) => ({ ...entry, createdAt: entry.createdAt.toISOString() })),

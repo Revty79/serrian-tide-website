@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   doublePrecision,
@@ -18,6 +19,7 @@ import {
 
 import { user } from "./auth-schema";
 import { campaign } from "./campaign-schema";
+import { creature } from "./creature-schema";
 import { item } from "./item-schema";
 import { campaignCharacter, campaignCharacterItemInstance } from "./realm-schema";
 import { shop, shopOffering } from "./shop-schema";
@@ -342,6 +344,9 @@ export const shopTransactionRequestLine = pgTable(
     offeringId: integer("offering_id").references(() => shopOffering.id, { onDelete: "set null" }),
     itemId: integer("item_id").notNull().references(() => item.id, { onDelete: "restrict" }),
     itemInstanceId: integer("item_instance_id").references(() => campaignCharacterItemInstance.id, { onDelete: "restrict" }),
+    grantedCreatureId: integer("granted_creature_id").references(() => creature.id, { onDelete: "restrict" }),
+    creatureCharacterId: integer("creature_character_id").references(() => campaignCharacter.id, { onDelete: "restrict" }),
+    resaleCreatureId: integer("resale_creature_id").references((): AnyPgColumn => shopResaleCreature.id, { onDelete: "restrict" }),
     fulfillmentKind: text("fulfillment_kind").notNull(),
     quantity: integer("quantity").notNull(),
     quotedUnitPriceCredits: doublePrecision("quoted_unit_price_credits").notNull(),
@@ -354,7 +359,13 @@ export const shopTransactionRequestLine = pgTable(
     unique("shop_transaction_request_line_order_uq").on(table.requestId, table.sortOrder),
     index("shop_transaction_request_line_item_idx").on(table.itemId, table.requestId),
     index("shop_transaction_request_line_instance_idx").on(table.itemInstanceId),
-    check("shop_transaction_request_line_fulfillment_valid", sql`${table.fulfillmentKind} IN ('inventory-transfer','service-narrative')`),
+    check("shop_transaction_request_line_fulfillment_valid", sql`${table.fulfillmentKind} IN ('inventory-transfer','service-narrative','creature-transfer')`),
+    index("shop_request_line_creature_idx").on(table.creatureCharacterId),
+    check("shop_request_line_creature_valid", sql`(
+      (${table.fulfillmentKind} = 'creature-transfer' AND ${table.grantedCreatureId} IS NOT NULL AND ${table.itemInstanceId} IS NULL)
+      OR (${table.fulfillmentKind} <> 'creature-transfer' AND ${table.grantedCreatureId} IS NULL AND ${table.creatureCharacterId} IS NULL AND ${table.resaleCreatureId} IS NULL)
+    ) AND (${table.creatureCharacterId} IS NULL OR ${table.quantity} = 1)
+      AND (${table.resaleCreatureId} IS NULL OR ${table.creatureCharacterId} IS NOT NULL)`),
     check("shop_transaction_request_line_quantity_valid", sql`${table.quantity} > 0 AND (${table.itemInstanceId} IS NULL OR ${table.quantity} = 1)`),
     check("shop_transaction_request_line_prices_valid", sql`${table.quotedUnitPriceCredits} >= 0 AND ${table.currentUnitPriceCredits} >= 0`),
     check("shop_transaction_request_line_identity_nonblank", sql`length(trim(${table.itemCanonicalIdSnapshot})) > 0 AND length(trim(${table.itemNameSnapshot})) > 0`),
@@ -423,7 +434,7 @@ export const shopTransactionLine = pgTable(
     index("shop_transaction_line_item_idx").on(table.itemId, table.transactionId),
     index("shop_transaction_line_source_instance_idx").on(table.sourceItemInstanceId),
     index("shop_transaction_line_acquired_instance_idx").on(table.acquiredItemInstanceId),
-    check("shop_transaction_line_fulfillment_valid", sql`${table.fulfillmentKind} IN ('inventory-transfer','service-narrative')`),
+    check("shop_transaction_line_fulfillment_valid", sql`${table.fulfillmentKind} IN ('inventory-transfer','service-narrative','creature-transfer')`),
     check("shop_transaction_line_quantity_valid", sql`${table.quantity} > 0`),
     check("shop_transaction_line_price_valid", sql`${table.unitPriceCredits} >= 0 AND ${table.totalCredits} >= 0`),
     check("shop_transaction_line_identity_nonblank", sql`length(trim(${table.itemCanonicalIdSnapshot})) > 0 AND length(trim(${table.itemNameSnapshot})) > 0`),
@@ -431,6 +442,43 @@ export const shopTransactionLine = pgTable(
     check("shop_transaction_line_sort_valid", sql`${table.sortOrder} >= 0`),
   ],
 );
+
+/** One relational receipt entry per individual, even when a line bought quantity > 1. */
+export const shopTransactionCreature = pgTable("shop_transaction_creature", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().references(() => campaign.id, { onDelete: "cascade" }),
+  transactionLineId: integer("transaction_line_id").notNull().references(() => shopTransactionLine.id, { onDelete: "cascade" }),
+  creatureCharacterId: integer("creature_character_id").notNull(),
+  creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "restrict" }),
+  nameSnapshot: text("name_snapshot").notNull(),
+}, (table) => [
+  foreignKey({ columns: [table.creatureCharacterId, table.campaignId], foreignColumns: [campaignCharacter.id, campaignCharacter.campaignId], name: "shop_transaction_creature_campaign_fk" }).onDelete("restrict"),
+  unique("shop_transaction_creature_line_individual_uq").on(table.transactionLineId, table.creatureCharacterId),
+  index("shop_transaction_creature_individual_idx").on(table.creatureCharacterId),
+  check("shop_transaction_creature_name_valid", sql`length(trim(${table.nameSnapshot})) > 0`),
+]);
+
+/** Custody of the original living individual, never a replacement Item copy. */
+export const shopResaleCreature = pgTable("shop_resale_creature", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  shopId: integer("shop_id").notNull(),
+  itemId: integer("item_id").notNull().references(() => item.id, { onDelete: "restrict" }),
+  creatureCharacterId: integer("creature_character_id").notNull(),
+  sourceCharacterId: integer("source_character_id").notNull(),
+  acquiredTransactionId: integer("acquired_transaction_id").notNull().references(() => shopTransaction.id, { onDelete: "restrict" }),
+  soldTransactionId: integer("sold_transaction_id").references(() => shopTransaction.id, { onDelete: "restrict" }),
+  status: text("status").default("in-stock").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  foreignKey({ columns: [table.shopId, table.campaignId], foreignColumns: [shop.id, shop.campaignId], name: "shop_resale_creature_shop_campaign_fk" }).onDelete("restrict"),
+  foreignKey({ columns: [table.creatureCharacterId, table.campaignId], foreignColumns: [campaignCharacter.id, campaignCharacter.campaignId], name: "shop_resale_creature_individual_campaign_fk" }).onDelete("restrict"),
+  foreignKey({ columns: [table.sourceCharacterId, table.campaignId], foreignColumns: [campaignCharacter.id, campaignCharacter.campaignId], name: "shop_resale_creature_seller_campaign_fk" }).onDelete("restrict"),
+  uniqueIndex("shop_resale_creature_active_individual_uq").on(table.creatureCharacterId).where(sql`${table.status} = 'in-stock'`),
+  index("shop_resale_creature_stock_idx").on(table.shopId, table.itemId, table.status),
+  check("shop_resale_creature_lifecycle_valid", sql`(${table.status} = 'in-stock' AND ${table.soldTransactionId} IS NULL) OR (${table.status} = 'sold' AND ${table.soldTransactionId} IS NOT NULL)`),
+]);
 
 export const shopMoneyEvent = pgTable(
   "shop_money_event",

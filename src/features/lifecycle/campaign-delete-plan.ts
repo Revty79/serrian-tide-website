@@ -51,6 +51,8 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "campaign_creature_npc_profile", scope: "character" },
   { tableName: "campaign_derived_currency", scope: "campaign" },
   { tableName: "shop_money_event", scope: "campaign" },
+  { tableName: "shop_transaction_creature", scope: "campaign" },
+  { tableName: "shop_resale_creature", scope: "campaign" },
   { tableName: "shop_resale_item_instance", scope: "campaign" },
   { tableName: "shop_transaction_line", scope: "shop-transaction" },
   { tableName: "shop_transaction", scope: "campaign" },
@@ -125,8 +127,9 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "town", scope: "campaign" },
 ] as const satisfies readonly CampaignDeleteStep[];
 
-/** Nullable self-references must be detached before their table is removed. */
+/** Nullable self-references and receipt/custody cycles must be detached before deletion. */
 export const CAMPAIGN_GRAPH_SELF_REFERENCE_BREAKS = [
+  { tableName: "shop_transaction_request_line", columnName: "resale_creature_id", scope: "shop-request" },
   { tableName: "campaign_character", columnName: "owner_character_id", scope: "campaign" },
   { tableName: "campaign_character_skill_allocation", columnName: "parent_allocation_id", scope: "character" },
   { tableName: "campaign_session_encounter_action_declaration", columnName: "supersedes_declaration_id", scope: "campaign" },

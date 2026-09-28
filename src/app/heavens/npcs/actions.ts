@@ -77,6 +77,7 @@ import {
   type NpcOrigin,
 } from "@/features/npcs/npc-workflow";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
+import { setCreatureOwnerInTransaction, validateCreatureOwnerInTransaction } from "@/features/creatures/creature-ownership-service";
 
 export type CreatureNpcDraft = {
   characterId: number;
@@ -273,26 +274,6 @@ function requirePositiveId(value: number, label: string): void {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${label} must identify a saved record.`);
 }
 
-// Call only after locking and authorizing the Campaign in the same transaction.
-async function validateCreatureOwnerInTransaction(
-  tx: CreatureNpcConstructorTransaction,
-  campaignId: number,
-  ownerCharacterId: number | null,
-): Promise<void> {
-  if (ownerCharacterId === null) return;
-  requirePositiveId(ownerCharacterId, "Owning Character");
-  const [owner] = await tx.select({
-    id: campaignCharacter.id,
-    archivedAt: campaignCharacter.archivedAt,
-  }).from(campaignCharacter).where(and(
-    eq(campaignCharacter.id, ownerCharacterId),
-    eq(campaignCharacter.campaignId, campaignId),
-    or(eq(campaignCharacter.isNpc, false), eq(campaignCharacter.npcKind, "race")),
-  )).limit(1).for("update");
-  if (!owner) throw new Error("Choose a Player Character or Race NPC in this Campaign as the owner.");
-  if (owner.archivedAt) throw new Error("Restore the owning Character before assigning a Creature to it.");
-}
-
 export async function listCreatureOwners(campaignId: number): Promise<CreatureOwnerOption[]> {
   requirePositiveId(campaignId, "Campaign");
   await requireOwner(campaignId);
@@ -312,6 +293,7 @@ export async function setCreatureNpcOwner(input: {
   campaignId: number;
   characterId: number;
   ownerCharacterId: number | null;
+  expectedOwnerCharacterId?: number | null;
 }): Promise<void> {
   requirePositiveId(input.campaignId, "Campaign");
   requirePositiveId(input.characterId, "Creature NPC");
@@ -319,23 +301,7 @@ export async function setCreatureNpcOwner(input: {
   await db.transaction(async (tx) => {
     const manager = await requireOwnerInTransaction(tx, input.campaignId, access.session.user.id);
     if (manager.campaignArchivedAt) throw new Error("Restore this Campaign before changing Creature ownership.");
-    const [npc] = await tx.select({ archivedAt: campaignCharacter.archivedAt })
-      .from(campaignCharacter).where(and(
-        eq(campaignCharacter.id, input.characterId),
-        eq(campaignCharacter.campaignId, input.campaignId),
-        eq(campaignCharacter.isNpc, true),
-        eq(campaignCharacter.npcKind, "creature"),
-      )).limit(1).for("update");
-    if (!npc) throw new Error("Individual Creature NPC not found in this Campaign.");
-    assertNpcCanBeChanged({ archivedAt: npc.archivedAt, operation: "save" });
-    const [profile] = await tx.select({ characterId: campaignCreatureNpcProfile.characterId })
-      .from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, input.characterId));
-    if (!profile) throw new Error("The individual Creature profile is missing.");
-    await validateCreatureOwnerInTransaction(tx, input.campaignId, input.ownerCharacterId);
-    await tx.update(campaignCharacter).set({
-      ownerCharacterId: input.ownerCharacterId,
-      updatedAt: new Date(),
-    }).where(eq(campaignCharacter.id, input.characterId));
+    await setCreatureOwnerInTransaction(tx, input);
   });
   revalidatePath("/heavens/npcs");
   revalidatePath(`/heavens/npcs/${input.characterId}`);

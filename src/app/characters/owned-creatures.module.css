@@ -1,0 +1,11 @@
+.panel { padding: 1rem; border: 1px solid var(--st-border); border-radius: 1rem; background: var(--st-surface); color: var(--st-text); }
+.list { list-style: none; padding: 0; display: grid; gap: .75rem; }
+.list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; border-top: 1px solid var(--st-border); padding-top: .75rem; }
+.list li > div { display: grid; gap: .25rem; min-width: 0; overflow-wrap: anywhere; }
+.dialog { width: min(36rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; box-sizing: border-box; padding: 1.25rem; border: 1px solid var(--st-border); border-radius: 1rem; background: var(--st-surface); color: var(--st-text); }
+.dialog section { display: grid; gap: .75rem; min-width: 0; }
+.dialog li { overflow-wrap: anywhere; }
+.dialog li > div { display: flex; flex-wrap: wrap; gap: .5rem; }
+.dialog select { min-width: 0; max-width: 100%; }
+.dialog footer { display: flex; justify-content: end; }
+.dialog::backdrop { background: color-mix(in srgb, var(--st-page) 72%, transparent); }

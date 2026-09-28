@@ -4,7 +4,8 @@ import { resolveRuntimeMechanicalPlansInTransaction } from "@/features/incoming-
 import { readItemIncomingFactsInTransaction } from "@/features/incoming-effects/source-facts-service";
 import { resolveActiveHealthView } from "@/features/active-state/health-rules";
 
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { authorizeOwnedCreatureInTransaction } from "@/features/creatures/owned-creature-service";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
@@ -14,9 +15,10 @@ import { item, itemEffect, itemRuntimeProfile } from "@/db/item-schema";
 import {
   campaignCharacter,
   campaignCharacterItem,
+  campaignCreatureNpcProfile,
   campaignInventoryItem,
 } from "@/db/realm-schema";
-import { campaignSessionEncounterInitiative } from "@/db/tabletop-operations-schema";
+import { campaignSessionEncounterInitiative, campaignSessionEncounter, campaignSessionEncounterParticipant } from "@/db/tabletop-operations-schema";
 import {
   readActiveHealthInTransaction,
   type ActiveHealthTransaction,
@@ -78,6 +80,7 @@ type AccessEntity = {
   isNpc: boolean;
   npcKind: "race" | "creature";
   isCampaignMember: boolean;
+  ownerCharacterId: number | null;
 };
 
 type LoadedUse = {
@@ -159,6 +162,7 @@ async function loadAccessEntity(
       campaignOwnerUserId: campaign.createdByUserId,
       isNpc: campaignCharacter.isNpc,
       npcKind: campaignCharacter.npcKind,
+      ownerCharacterId: campaignCharacter.ownerCharacterId,
       membershipUserId: campaignPlayer.userId,
     })
     .from(campaignCharacter)
@@ -190,6 +194,7 @@ async function loadAccessEntity(
     isNpc: entity.isNpc,
     npcKind: entity.npcKind === "creature" ? "creature" : "race",
     isCampaignMember: entity.membershipUserId === userId,
+    ownerCharacterId: entity.ownerCharacterId,
   };
 }
 
@@ -339,14 +344,22 @@ async function listTargetOptions(
 ): Promise<{ options: ItemUseTargetOption[]; canChooseTarget: boolean }> {
   const canChooseTarget = roles.includes("god") && source.campaignOwnerUserId === userId;
   if (!canChooseTarget) {
+    const companions = !source.isNpc && source.playerUserId === userId && source.isCampaignMember && roles.includes("player")
+      ? await tx.select({ characterId: campaignCharacter.id, name: campaignCharacter.name })
+        .from(campaignCharacter).innerJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
+        .where(and(eq(campaignCharacter.campaignId, source.campaignId), eq(campaignCharacter.ownerCharacterId, source.characterId),
+          eq(campaignCharacter.isNpc, true), eq(campaignCharacter.npcKind, "creature"), isNull(campaignCharacter.archivedAt)))
+        .orderBy(asc(campaignCharacter.name), asc(campaignCharacter.id)) : [];
+    const activeIds = await activeEncounterCharacters(tx, [source.characterId, ...companions.map(row => row.characterId)], false);
+    const eligible = activeIds.has(source.characterId) ? [] : companions.filter(row => !activeIds.has(row.characterId));
     return {
-      canChooseTarget: false,
+      canChooseTarget: eligible.length > 0,
       options: [{
         characterId: source.characterId,
-        name: source.name,
+        name: eligible.length ? `Self · ${source.name}` : source.name,
         isNpc: source.isNpc,
         npcKind: source.npcKind,
-      }],
+      }, ...eligible.map(row => ({ ...row, isNpc: true, npcKind: "creature" as const }))],
     };
   }
   const rows = await tx
@@ -371,6 +384,30 @@ async function listTargetOptions(
       npcKind: row.npcKind === "creature" ? "creature" : "race",
     })),
   };
+}
+
+async function activeEncounterCharacters(tx: ActiveHealthTransaction, characterIds: number[], lock: boolean) {
+  const query = tx.select({ characterId: campaignSessionEncounterParticipant.characterId, status: campaignSessionEncounter.status })
+    .from(campaignSessionEncounterParticipant).innerJoin(campaignSessionEncounter, eq(campaignSessionEncounter.id, campaignSessionEncounterParticipant.encounterId))
+    .where(inArray(campaignSessionEncounterParticipant.characterId, characterIds)).orderBy(asc(campaignSessionEncounter.id));
+  const rows = await (lock ? query.for("share", { of: campaignSessionEncounter }) : query);
+  return new Set(rows.filter(row => row.status === "active").map(row => row.characterId));
+}
+
+/** Companion targeting is a narrow, out-of-combat permission over the existing NPC. */
+async function authorizeCompanionItemTarget(tx: ActiveHealthTransaction, request: ItemUseRequest, userId: string, lock: boolean) {
+  if (request.targetCharacterId === null || request.targetCharacterId === request.sourceCharacterId) return;
+  const source = await loadAccessEntity(tx, request.sourceCharacterId, userId, false);
+  const target = await loadAccessEntity(tx, request.targetCharacterId, userId, false);
+  const roles = (await tx.select({ role: userRole.role }).from(userRole).where(eq(userRole.userId, userId))).map(row => row.role);
+  if (!canExecuteItemUse({ userId, roles }, source, target)) throw new Error("You do not have permission to use this Item with that source and target.");
+  if (roles.includes("god") && source.campaignOwnerUserId === userId) return;
+  // Encounter locks precede Campaign/Character locks; ownership operations also serialize on the Campaign.
+  if ((await activeEncounterCharacters(tx, [source.characterId, target.characterId], lock)).size) {
+    throw new Error("Companion Item use is available outside active encounters. Encounter use is a later pass.");
+  }
+  const access = await authorizeOwnedCreatureInTransaction(tx, source.characterId, target.characterId, userId, lock);
+  if (!access.canChange) throw new Error("Restore the Campaign, Character, and Creature before using Items on this companion.");
 }
 
 export async function prepareCharacterItemUse(
@@ -412,6 +449,7 @@ export async function prepareCharacterItemUseInTransaction(
 ): Promise<ItemUsePreparation> {
   const request = validateRequest(input);
   await assertStandalonePlayerItemTiming(tx, request.sourceCharacterId, actingUserId);
+  await authorizeCompanionItemTarget(tx, request, actingUserId, false);
   const roles = await tx
     .select({ role: userRole.role })
     .from(userRole)
@@ -437,6 +475,7 @@ export async function executeCharacterItemUseInCallerTransaction(
 ): Promise<ItemUseExecutionResult> {
   const request = validateRequest(input);
   const liveContext = await assertStandalonePlayerItemTiming(tx, request.sourceCharacterId, actingUserId);
+  await authorizeCompanionItemTarget(tx, request, actingUserId, true);
   let loaded: LoadedUse | null = null;
   const result = await executeItemUseInTransaction(async (execute) => execute({
     loadAndPlan: async () => {

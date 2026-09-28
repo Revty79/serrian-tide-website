@@ -221,7 +221,7 @@ async function main(): Promise<void> {
     await openGodScene(godPage, baseUrl, fixture);
     for (let index = 0; index < playerPages.length; index += 1) {
       await playerPages[index]!.goto(`${baseUrl}/realms/tabletop?character=${fixture.characterIds[index]}`);
-      await playerPages[index]!.getByRole("heading", { name: "At the table" }).waitFor();
+      await playerPages[index]!.getByRole("heading", { name: "Alerts", exact: true }).waitFor();
     }
     const unauthorizedPage = await playerContexts[0]!.newPage();
     await unauthorizedPage.goto(`${baseUrl}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}&scene=${fixture.sceneId}`);
@@ -270,7 +270,7 @@ async function main(): Promise<void> {
     await playerPages[0]!.getByRole("heading", { name: "Brass Compass" }).waitFor({ timeout: 20_000 });
     await playerPages[1]!.getByRole("heading", { name: "Brass Compass" }).waitFor({ timeout: 20_000 });
     assert.equal(await playerPages[2]!.getByRole("heading", { name: "Brass Compass" }).count(), 0);
-    await playerPages[2]!.getByRole("heading", { name: "At the table" }).waitFor();
+    await playerPages[2]!.getByRole("heading", { name: "Alerts", exact: true }).waitFor();
 
     if (!focusedCorrections) {
       await godPage.goto(`${baseUrl}/heavens/tabletop?campaign=${fixture.campaignId}&session=${fixture.sessionId}&scene=${fixture.sceneId}&encounter=${fixture.encounterId}`);
@@ -615,8 +615,8 @@ async function main(): Promise<void> {
     await endDialog.getByLabel("Reason").fill("Closing time");
     await endDialog.getByRole("button", { name: "End Visit" }).click();
     await godPage.getByRole("heading", { name: "Enter Shop" }).waitFor();
-    await playerPages[0]!.getByRole("heading", { name: "At the table" }).waitFor({ timeout: 20_000 });
-    await playerPages[1]!.getByRole("heading", { name: "At the table" }).waitFor({ timeout: 20_000 });
+    await playerPages[0]!.getByRole("heading", { name: "Alerts", exact: true }).waitFor({ timeout: 20_000 });
+    await playerPages[1]!.getByRole("heading", { name: "Alerts", exact: true }).waitFor({ timeout: 20_000 });
     assert.equal(await godPage.locator(".tabletop-shop-visit-list article").filter({ hasText: "Brass Compass" }).count(), 0, "successful End Visit did not update the G.O.D. view");
 
     const repeatTownEntry = godPage.locator(".tabletop-shop-entry-list article").filter({ hasText: "Brass Compass" });
@@ -628,7 +628,7 @@ async function main(): Promise<void> {
     await godPage.getByRole("heading", { name: "Brass Compass" }).waitFor();
     await godPage.getByRole("button", { name: "Return to Scene" }).click();
     await playerPages[0]!.getByRole("button", { name: "Leave Shop" }).click();
-    await playerPages[0]!.getByRole("heading", { name: "At the table" }).waitFor({ timeout: 20_000 });
+    await playerPages[0]!.getByRole("heading", { name: "Alerts", exact: true }).waitFor({ timeout: 20_000 });
     await playerPages[1]!.getByRole("heading", { name: "Brass Compass" }).waitFor();
     await godPage.getByRole("heading", { name: "Enter Shop" }).waitFor();
     const firstVisitCard = godPage.locator(".tabletop-shop-visit-list article").filter({ hasText: "Brass Compass" });
@@ -655,8 +655,8 @@ async function main(): Promise<void> {
     const completeDialog = godPage.getByRole("dialog", { name: /Complete Scene 1/ });
     await completeDialog.getByRole("button", { name: "Complete Scene" }).click();
     await godPage.getByText("Scene 1 is now completed.").waitFor();
-    await playerPages[1]!.getByRole("heading", { name: "At the table" }).waitFor({ timeout: 20_000 });
-    await playerPages[2]!.getByRole("heading", { name: "At the table" }).waitFor({ timeout: 20_000 });
+    await playerPages[1]!.getByRole("heading", { name: "Alerts", exact: true }).waitFor({ timeout: 20_000 });
+    await playerPages[2]!.getByRole("heading", { name: "Alerts", exact: true }).waitFor({ timeout: 20_000 });
     const history = await pool.query("select status,count(*)::int count from campaign_session_scene_shop_visit where scene_id=$1 group by status", [fixture.sceneId]);
     assert.deepEqual(history.rows, [{ status: "ended", count: 3 }]);
     assert.equal(Number((await pool.query("select count(*)::int count from campaign_session_scene_shop_visit_member where scene_id=$1", [fixture.sceneId])).rows[0].count), 5);

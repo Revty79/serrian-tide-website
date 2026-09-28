@@ -58,6 +58,7 @@ test("every cross-table Campaign FK is deleted child before parent", () => {
     const child = snapshot.tables[`public.${childName}`];
     for (const foreignKey of Object.values(child.foreignKeys ?? {})) {
       if (foreignKey.tableTo === childName || !position.has(foreignKey.tableTo)) continue;
+      if (foreignKey.columnsFrom.every(column => !child.columns[column]?.notNull && CAMPAIGN_GRAPH_SELF_REFERENCE_BREAKS.some(reference => reference.tableName === childName && reference.columnName === column))) continue;
       assert.ok(
         (position.get(childName) ?? Infinity) < (position.get(foreignKey.tableTo) ?? -1),
         `${childName} must be removed before ${foreignKey.tableTo}`,

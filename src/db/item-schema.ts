@@ -31,6 +31,12 @@ export type EquipmentCatalogGroup = (typeof EQUIPMENT_GROUPS)[number];
 export type WeaponSkillGovernanceReviewState =
   (typeof WEAPON_SKILL_GOVERNANCE_REVIEW_STATES)[number];
 
+/** Explicit purchase fulfillment; unrelated to descriptive Related Creature properties. */
+export const itemCreatureGrant = pgTable("item_creature_grant", {
+  itemId: integer("item_id").primaryKey().references((): AnyPgColumn => item.id, { onDelete: "cascade" }),
+  creatureId: integer("creature_id").notNull().references(() => creature.id, { onDelete: "restrict" }),
+}, (table) => [index("item_creature_grant_creature_idx").on(table.creatureId)]);
+
 export const item = pgTable(
   "items",
   {

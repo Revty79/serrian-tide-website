@@ -250,13 +250,21 @@ test("creature area selection uses its real pool and unknown maximum remains val
   assert.equal(planned.finalHealth.tracks.some(({ key }) => key === "rightArm"), false);
 });
 
-test("Player authorization is own Player Character and self-target only", () => {
+test("Player authorization allows Self and only that source Character's Creature NPCs", () => {
   const player = { userId: "p1", roles: ["player"] };
   const own = { characterId: 1, campaignId: 7, playerUserId: "p1", campaignOwnerUserId: "god", isNpc: false, isCampaignMember: true };
   assert.equal(canExecuteItemUse(player, own, own), true);
   assert.equal(canExecuteItemUse(player, { ...own, characterId: 2, playerUserId: "p2" }, own), false);
   assert.equal(canExecuteItemUse(player, { ...own, isNpc: true }, { ...own, isNpc: true }), false);
   assert.equal(canExecuteItemUse(player, own, { ...own, characterId: 3 }), false);
+  const companion = { ...own, characterId: 4, playerUserId: "god", isNpc: true, npcKind: "creature" as const, ownerCharacterId: own.characterId };
+  assert.equal(canExecuteItemUse(player, own, companion), true);
+  assert.equal(canExecuteItemUse(player, own, { ...companion, ownerCharacterId: null }), false);
+  assert.equal(canExecuteItemUse(player, own, { ...companion, ownerCharacterId: 2 }), false);
+  assert.equal(canExecuteItemUse(player, own, { ...companion, npcKind: "race" }), false);
+  assert.equal(canExecuteItemUse(player, own, { ...companion, campaignId: 8 }), false);
+  assert.equal(canExecuteItemUse(player, { ...own, isCampaignMember: false }, companion), false);
+  assert.equal(canExecuteItemUse({ userId: "p2", roles: ["player"] }, own, companion), false);
 });
 
 test("G.O.D. authorization covers PC, Race NPC, and Creature NPC in owned Campaign only", () => {

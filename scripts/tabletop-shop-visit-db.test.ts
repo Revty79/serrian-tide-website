@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -70,7 +70,7 @@ test("Shop visits are scoped, repeat-safe, concurrent-safe, leaveable, and lifec
     process.env.DATABASE_URL = connectionString;
     seedPool = new pg.Pool({ connectionString });
     await migrate(drizzle(seedPool), { migrationsFolder: path.resolve(process.cwd(), "drizzle") });
-    assert.equal(Number((await seedPool.query("select count(*)::int value from drizzle.__drizzle_migrations")).rows[0].value), 41);
+    assert.equal(Number((await seedPool.query("select count(*)::int value from drizzle.__drizzle_migrations")).rows[0].value), JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")).entries.length);
 
     const god = "shop-visit-god";
     const otherGod = "shop-visit-other-god";

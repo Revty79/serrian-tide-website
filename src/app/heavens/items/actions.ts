@@ -26,6 +26,7 @@ import {
   armorProfile,
   EQUIPMENT_GROUPS,
   item,
+  itemCreatureGrant,
   itemArmorDamageModifier,
   itemEffect,
   itemPassiveEffect,
@@ -44,6 +45,7 @@ import {
   type EquipmentCatalogGroup,
   type ItemCatalogScope,
 } from "@/db/item-schema";
+import { shopResaleCreature } from "@/db/tabletop-shop-visit-schema";
 import { skill, skillExtension, skillRelationship } from "@/db/skill-schema";
 import { campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
 import {
@@ -192,6 +194,7 @@ export type ItemLineageSummary = {
 };
 
 export type ItemDraft = {
+  creatureGrant?: { creatureId: number; creatureName?: string } | null;
   id?: number;
   isMagical: boolean;
   runtimeProfile: ItemRuntimeProfile;
@@ -752,6 +755,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       .orderBy(asc(itemPower.sortOrder), asc(itemPower.id)),
     db.select().from(itemPowerResource).where(eq(itemPowerResource.itemId, id)).limit(1),
   ]);
+  const [grant] = await db.select({ creatureId: itemCreatureGrant.creatureId, creatureName: creature.canonicalName }).from(itemCreatureGrant).innerJoin(creature, eq(creature.id, itemCreatureGrant.creatureId)).where(eq(itemCreatureGrant.itemId, id));
   const [magazine] = await db.select().from(magazineProfile).where(eq(magazineProfile.itemId, id));
   const [container] = await db.select().from(containerProfile).where(eq(containerProfile.itemId, id));
   const magazineAmmo = magazine ? await db.select({ id: item.id, name: item.name }).from(magazineAmmunition).innerJoin(item, eq(item.id, magazineAmmunition.ammunitionItemId)).where(eq(magazineAmmunition.magazineItemId, id)) : [];
@@ -831,6 +835,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
   }));
   return {
     id: row.id,
+    creatureGrant: grant ?? null,
     isSystemCanon: row.isSystemCanon,
     createdByUserId: row.createdByUserId,
     archivedAt: row.archivedAt?.toISOString() ?? null,
@@ -943,6 +948,13 @@ export async function findRelatedCreatures(search: string): Promise<RelatedCreat
   return db.select({ canonicalId: creature.canonicalId, name: creature.canonicalName, family: creature.family, creatureType: creature.creatureType }).from(creature).where(await catalogCandidateWhere("creature", creature, session.user.id, [], ...conditions)).orderBy(asc(creature.canonicalName), asc(creature.id)).limit(20);
 }
 
+export async function findGrantCreatures(search: string) {
+  const { session } = await requireGodOrAdminAccessContext();
+  return db.select({ creatureId: creature.id, creatureName: creature.canonicalName }).from(creature)
+    .where(await catalogCandidateWhere("creature", creature, session.user.id, [], isNull(creature.archivedAt), ilike(creature.canonicalName, `%${clean(search)}%`)))
+    .orderBy(asc(creature.canonicalName), asc(creature.id)).limit(40);
+}
+
 async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boolean, allowLegacyNonActivatedMagic = false): Promise<ItemAggregate> {
   const { session, roles } = await requireGodOrAdminAccessContext();
   const normalized = normalize(input, allowUnreviewedNewModes, allowLegacyNonActivatedMagic);
@@ -984,7 +996,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         })
         .from(item)
         .where(eq(item.id, id))
-        .limit(1);
+        .limit(1).for("update");
       if (!stored) throw new Error("That Item no longer exists.");
       assertCanEditSharedLibraryRoot(
         { userId: session.user.id, roles },
@@ -1150,6 +1162,20 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         try { sourceDocument = parseSpellDocument(source.dataJson); resolveItemPowerConstruction(sourceDocument, power.fixedPowerLevel); } catch (error) { throw new Error(`Canonical Power source is invalid: ${error instanceof Error ? error.message : "Unreadable document."}`); }
         if (power.fixedPowerLevel !== null && !PRACTITIONER_LEVELS.includes(power.fixedPowerLevel as PractitionerLevel)) throw new Error("Canonical Power fixed level is invalid.");
       }
+    }
+    if (input.creatureGrant !== undefined) {
+      const [previous] = await tx.select().from(itemCreatureGrant).where(eq(itemCreatureGrant.itemId, id));
+      const nextId = input.creatureGrant?.creatureId ?? null;
+      if (nextId !== null && (!Number.isSafeInteger(nextId) || nextId <= 0)) throw new Error("Choose the exact Creature definition granted by this Item.");
+      if (nextId !== (previous?.creatureId ?? null)) {
+        const [custody] = await tx.select({ id: shopResaleCreature.id }).from(shopResaleCreature).where(and(eq(shopResaleCreature.itemId, id), eq(shopResaleCreature.status, "in-stock"))).limit(1);
+        if (custody) throw new Error("This Item holds exact Creature resale stock. Complete those sales before changing its grant definition.");
+      }
+      if (nextId !== null) {
+        const [allowed] = await tx.select({ id: creature.id }).from(creature).where(and(eq(creature.id, nextId), await catalogCandidateWhere("creature", creature, session.user.id, previous ? [previous.creatureId] : [], isNull(creature.archivedAt)))).limit(1);
+        if (!allowed) throw new Error("Choose an available Creature definition from the catalog.");
+        await tx.insert(itemCreatureGrant).values({ itemId: id, creatureId: nextId }).onConflictDoUpdate({ target: itemCreatureGrant.itemId, set: { creatureId: nextId } });
+      } else await tx.delete(itemCreatureGrant).where(eq(itemCreatureGrant.itemId, id));
     }
     await tx.insert(itemRuntimeProfile).values({
       itemId: id!,
