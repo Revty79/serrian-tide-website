@@ -10,6 +10,8 @@ import { PaperCharacterSheet } from "./paper-character-sheet";
 import { getPaperCharacterSheet } from "./paper-character-actions";
 import "./printable-character-sheet.css";
 import "./paper-character-sheet.css";
+import { FORM_ACCESS_LABELS } from "@/features/forms/form-access";
+import { selectedCharacterFormReferences } from "@/features/characters/character-form-print";
 
 type Props = { aggregate: CharacterAggregate; dirty?: boolean; godMode?: boolean };
 const PRESETS: Array<{id: UnifiedPrintPreset; label: string; description: string}> = [
@@ -28,12 +30,30 @@ export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}
   const [custom, setCustom] = useState<UnifiedPrintSelection>(DEFAULT_PRINT_SELECTION);
   const [theme, setTheme] = useState<PrintTheme>("Universal");
   const [headings, setHeadings] = useState<PrintHeadings>("standard");
+  const [formIds, setFormIds] = useState<number[]>([]);
+  const identity = `${aggregate.character.id}:${aggregate.profile.raceId}`;
+  const [recordIdentity, setRecordIdentity] = useState(identity);
+  const options = useRef<HTMLDetailsElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const requestId = useRef(0);
-  const selection = printPresetSelection(preset, paper, custom);
-  const labels = printSelectionLabels(selection);
+  if (recordIdentity !== identity) {
+    setRecordIdentity(identity); setPaper(null); setFormIds([]); setError(""); setLoading(false);
+  }
+  const currentPaper = paper?.raceId === aggregate.profile.raceId ? paper : null;
+  const forms = currentPaper?.formReferences ?? [];
+  const chosenForms = selectedCharacterFormReferences(forms, formIds);
+  const selection = {...printPresetSelection(preset, currentPaper, custom), formIds: chosenForms.map(row => row.preview.form.id)};
+  const labels = [...printSelectionLabels(selection), ...chosenForms.map(row => `Form reference: ${row.preview.form.name}`)];
   // Cancel a pending snapshot/print if this editor is replaced or unmounted.
-  useEffect(() => () => { requestId.current += 1; }, [aggregate.character.id]);
+  useEffect(() => () => { requestId.current += 1; }, [aggregate.character.id, aggregate.profile.raceId]);
+  useEffect(() => {
+    if (!options.current?.open) return;
+    let active = true;
+    void getPaperCharacterSheet(aggregate.character.id, godMode).then(snapshot => {
+      if (active) { setPaper(snapshot); setLoading(false); }
+    }).catch(problem => { if (active) { setError(problem instanceof Error ? problem.message : "The current saved Character could not be loaded."); setLoading(false); } });
+    return () => { active = false; };
+  }, [aggregate.character.id, aggregate.profile.raceId, godMode]);
 
   async function prepare(print = false) {
     const request = ++requestId.current;
@@ -41,6 +61,7 @@ export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}
     try {
       const snapshot = await getPaperCharacterSheet(aggregate.character.id, godMode);
       if (request !== requestId.current) return;
+      if (snapshot.raceId !== aggregate.profile.raceId) throw new Error("The saved Race changed. Reload the Character sheet to select its current Form references before printing.");
       flushSync(() => setPaper(snapshot));
       if (print) {
         await document.fonts.ready;
@@ -70,7 +91,7 @@ export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}
       <header><div><p>PRINT / EXPORT</p><h2 id="print-center-title">Print Character Sheet</h2><span>Print or save a PDF of the saved Character and current recorded resources.</span></div>
         <button type="button" className="is-primary" disabled={!labels.length || loading} onClick={() => dirty ? dialog.current?.showModal() : void prepare(true)}>Print / Save as PDF</button>
       </header>
-      <details className="character-print-center__options" onToggle={event => {if (event.currentTarget.open && !paper && !loading && !error) void prepare();}}>
+      <details ref={options} className="character-print-center__options" onToggle={event => {if (event.currentTarget.open && !currentPaper && !loading && !error) void prepare();}}>
         <summary>Print options</summary>
         <div className="character-print-center__presets">{PRESETS.map(option => <button type="button" key={option.id} aria-pressed={preset === option.id} className={preset === option.id ? "is-active" : undefined} disabled={loading} onClick={() => setPreset(option.id)}><strong>{option.label}</strong><span>{option.description}</span></button>)}</div>
         <div className="paper-appearance-controls">
@@ -84,6 +105,11 @@ export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}
           <p>Each selected book starts on its own page and includes your owned entries, including recorded skills without a construction document.</p>
           <fieldset className="character-print-center__custom"><legend>Full references</legend>{Object.entries(PRINT_REFERENCES).map(([key, label]) => <label key={key}><input type="checkbox" checked={custom.references.includes(key as keyof typeof PRINT_REFERENCES)} onChange={() => toggle("references", key as keyof typeof PRINT_REFERENCES)} />{label}</label>)}</fieldset>
         </div> : null}
+        {forms.length ? <fieldset className="character-print-center__custom paper-form-selection"><legend>Form references</legend>
+          <p>Optional reference pages from the saved current Race. These selections are independent of View Form and apply to any print preset. Printing does not grant access or change your state.</p>
+          <label><input type="checkbox" checked={chosenForms.length === forms.length} onChange={event => setFormIds(event.target.checked ? forms.map(row => row.preview.form.id) : [])} />Include all authored Forms (including Locked and Manual Review)</label>
+          {forms.map(row => <label key={row.preview.form.id}><input type="checkbox" checked={formIds.includes(row.preview.form.id)} onChange={event => setFormIds(ids => event.target.checked ? [...ids, row.preview.form.id] : ids.filter(id => id !== row.preview.form.id))} /><span>{row.preview.form.name} — {FORM_ACCESS_LABELS[row.access.status]}<small>{row.access.explanation}</small></span></label>)}
+        </fieldset> : null}
         <div className="paper-print-status" aria-live="polite">
           <p><strong>Prints the last saved Character and current recorded resources.</strong> Unsaved editor changes are not included.</p>
           {dirty ? <p>You have unsaved edits. Print the saved record, or return to editing and save your changes first.</p> : null}
@@ -93,7 +119,7 @@ export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}
         <footer aria-live="polite"><span>Selected:</span><strong>{labels.join(" · ") || "No printable sections"}</strong></footer>
       </details>
     </section>
-    {paper?.characterId === aggregate.character.id ? <PaperCharacterSheet data={paper} selection={selection} theme={theme} headings={headings} /> : <div className="paper-character-sheet"><p>Use Print / Save as PDF to load the saved Character before printing.</p></div>}
+    {currentPaper?.characterId === aggregate.character.id ? <PaperCharacterSheet data={currentPaper} selection={selection} theme={theme} headings={headings} /> : <div className="paper-character-sheet"><p>Use Print / Save as PDF to load the saved Character before printing.</p></div>}
     <dialog ref={dialog} className="paper-print-dialog" aria-labelledby="paper-print-confirm-title">
       <h2 id="paper-print-confirm-title">Print the last saved record?</h2><p>Your unsaved edits will stay in the editor. This printout uses the saved Character and current recorded HP, mana and equipment. To include edits, return to the sheet and save them first.</p>
       <div><button type="button" className="st-button" onClick={() => dialog.current?.close()}>Return to editing</button><button type="button" className="st-button is-primary" onClick={() => {dialog.current?.close(); void prepare(true);}}>Print saved record</button></div>

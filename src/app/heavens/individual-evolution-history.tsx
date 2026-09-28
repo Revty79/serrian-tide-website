@@ -16,7 +16,7 @@ export function IndividualEvolutionHistory({ characterId }: { characterId: numbe
   }
   return <><button className="st-button" type="button" onClick={() => void open()}>Evolution history</button>
     <dialog ref={dialog} className={styles.dialog} aria-label={`Evolution history for individual ${characterId}`}>
-      <h3>Evolution history — individual #{characterId}</h3><p>Historical evidence is available to the Campaign-owning G.O.D., including after archive. Events cannot be undone or edited.</p>
+      <h3>Evolution history — individual #{characterId}</h3><p>Historical evidence is available to the Campaign-owning G.O.D., including after archive. Events remain immutable. A reviewed Return records a new event referencing the original Evolution.</p>
       {busy ? <p role="status">Loading history…</p> : error ? <p role="alert">{error}</p> : entries.length ? <EvolutionHistory entries={entries} /> : <p>No Evolution events recorded.</p>}
       <button className="st-button" type="button" onClick={() => dialog.current?.close()}>Close history</button>
     </dialog></>;

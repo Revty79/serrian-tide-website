@@ -17,6 +17,7 @@ Catalog mana metadata is labeled separately from current casting cost. Books dis
 - Spellcraft, Talismanism, Faith, Psyonics and Bardic Resonance backs: ordinary skills plus the selected system's support/access skills, training and powers; both ability types and inventory appear on every selected back.
 - Independent books: Spell Book, Talisman Book, Prayer Book, Psyonic Skill Book and Song Book.
 - Independent full references: skills, Special Abilities, Derived Abilities, inventory, equipment and story/profile.
+- Explicit Form references: independently select any/all Forms of the saved exact current Race, including Locked and Needs G.O.D. Review Forms. Every preset defaults to no Form pages; selections add dedicated reference sections without changing Normal printing or View Form. Evolution/Return refreshes the current Race's choices and clears prior selections. The projection reuses `resolveCharacterFormPreview`; damage and equipment stay on the persistent Character. Race NPCs use the same print path. See [Evolution Pass 5](evolution-pass-five-report.md) for the complete projection and verification boundaries.
 
 Repeated skills, abilities and inventory across separately selected backs are intentional. General and system backs can have genuine continuation pages. Every selection starts on its own page; every page identifies the character, section, timestamp and page count. Large text can continue; there are no fixed clipping heights.
 

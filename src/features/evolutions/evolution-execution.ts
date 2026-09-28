@@ -7,6 +7,11 @@ export type EvolutionExecutionInput = {
   idempotencyKey: string; reviewToken: string; confirmedRequirementKeys: string[];
   confirmHealthConsequences: boolean; confirmReplaceOverrides: boolean;
 };
+export type EvolutionReturnInput = {
+  kind: EvolutionOwner; characterId: number; expectedEventId: number;
+  idempotencyKey: string; reviewToken: string;
+  confirmHealthConsequences: boolean; confirmReplaceOverrides: boolean;
+};
 export type EvolutionDefinitionSummary = { attributes?: string[]; abilities?: string[]; hpMultiplierSteps?: number; baseMovementSteps?: number; baseMagicSteps?: number; size: string; baseMagic: number | null; movement: string[]; attacks: string[]; protections: string[]; skills: string[]; forms: string[]; interactionRules: string[] };
 export type EvolutionExecutionPreview = {
   kind: EvolutionOwner; characterId: number; individualName: string; campaignId: number;
@@ -19,17 +24,25 @@ export type EvolutionExecutionPreview = {
     /** Written by new executions; older immutable events retain their before/after evidence. */
     appliedAdjustments?: AppliedRaceEvolutionAdjustments };
   hasIndividualOverrides: boolean; warnings: string[]; blockers: string[];
+  returning?: {
+    eventId: number; executedAt: string;
+    raceAdjustments?: { removed: AppliedRaceEvolutionAdjustments; before: RaceEvolutionIndividualMechanics; after: RaceEvolutionIndividualMechanics };
+  };
 };
+export type EvolutionReturnPreview = EvolutionExecutionPreview & { returning: NonNullable<EvolutionExecutionPreview["returning"]> };
 export type EvolutionEventEvidence = Omit<EvolutionExecutionPreview, "reviewToken"> & {
   actorName: string; confirmedRequirementKeys: string[];
   confirmedEvaluation: EvolutionEvaluation; confirmHealthConsequences: boolean; confirmReplaceOverrides: boolean;
 };
 export type EvolutionHistoryEntry = {
   kind: EvolutionOwner; id: number; characterId: number; executedAt: string; executedByUserId: string;
+  operation: "evolution" | "return"; reversesEventId: number | null;
   evidence: EvolutionEventEvidence;
   snapshots?: { sourceBaseline: string; sourceCurrent: string; destinationBaseline: string; destinationCurrent: string; hpAdjustment: number };
 };
 export type EvolutionExecutionResult = { event: EvolutionHistoryEntry; replayed: boolean };
+export type PendingIndividualEvolution = { operation: "evolution" | "return"; input: EvolutionExecutionInput | EvolutionReturnInput; preview: EvolutionExecutionPreview };
+export const individualEvolutionStorageKey = (characterId: number) => `individual-evolution:${characterId}`;
 
 /** Canonical object keys prevent JSON serialization order from creating false snapshot edits. */
 export function stableEvolutionJson(value: unknown): string {

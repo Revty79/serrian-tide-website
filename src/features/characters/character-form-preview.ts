@@ -11,7 +11,8 @@ export function availableCharacterForms(draft: Pick<CharacterDraft, "profile">, 
 
 /** Pure display projection. Normal/unknown/foreign selections produce no override.
  * The returned object is not a CharacterDraft or runtime Race definition and is
- * never consumed by save, readiness, equipment, effects, or print code.
+ * never consumed by save, readiness, equipment or effects. Explicit Form reference
+ * printing reuses this projection without changing the Normal Character print.
  */
 export function resolveCharacterFormPreview(draft: CharacterDraft, race: CharacterRaceAggregate | null, formId: number | null, skillCatalog: readonly CharacterSkillReference[], referenceCatalog: readonly CharacterAttributeReference[] = []) {
   const form = availableCharacterForms(draft, race).find(form => form.id === formId);

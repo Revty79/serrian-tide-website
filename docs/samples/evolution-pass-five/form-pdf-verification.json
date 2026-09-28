@@ -1,0 +1,36 @@
+[
+  {
+    "sample": "character-form-packet",
+    "pages": 11,
+    "form_start_pages": [
+      3,
+      6,
+      9
+    ],
+    "paragraphs_checked": 83,
+    "rows_checked": 79,
+    "clipping": false
+  },
+  {
+    "sample": "race-npc-form-packet",
+    "pages": 11,
+    "form_start_pages": [
+      3,
+      6,
+      9
+    ],
+    "paragraphs_checked": 83,
+    "rows_checked": 79,
+    "clipping": false
+  },
+  {
+    "sample": "player-locked-form",
+    "pages": 5,
+    "form_start_pages": [
+      3
+    ],
+    "paragraphs_checked": 30,
+    "rows_checked": 27,
+    "clipping": false
+  }
+]

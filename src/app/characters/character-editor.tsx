@@ -1,5 +1,5 @@
 "use client";
-import { IndividualEvolutionHistory } from "@/app/heavens/individual-evolution-history";
+import { IndividualEvolutionPanel } from "@/app/heavens/individual-evolution-panel";
 
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
@@ -860,7 +860,6 @@ export function CharacterEditor({
         <div className="character-header__actions">{!accessAsManager ? <Link href={tabletopHref} onClick={(event) => confirmNavigation(event, tabletopHref)}>Player Tabletop</Link> : null}<Link href={returnHref} onClick={(event) => confirmNavigation(event, returnHref)}>← {backLabel}</Link></div>
       </header>
 
-      {godMode && aggregate.sheetAccess?.canAccessPrivateGod ? <IndividualEvolutionHistory characterId={aggregate.character.id} /> : null}
       <CharacterPrintCenter aggregate={aggregate} dirty={dirty} godMode={accessAsManager} />
 
       <section className="character-status-strip" aria-live="polite">
@@ -900,7 +899,7 @@ export function CharacterEditor({
           {activeTab === "skills" && !playerLocked ? <SkillsTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} ranks={ranks} manaProfiles={manaProfiles} childrenByParent={childrenByParent} skillGroups={skillGroups} activeSkillGroup={activeSkillGroup} onSelectSkillGroup={(group) => void preserveScroll(() => setActiveSkillGroup(group))} onSetSkillPoints={setSkillPoints} onShowDescription={(skill) => void preserveScroll(() => setDescribedSkill(skill))} /> : null}
           {activeTab === "story" ? <StoryTab draft={draft} disabled={playerLocked || archivedNpc} onChange={change} /> : null}
           {activeTab === "equipment" && !aggregate.profile.creationCompletedAt ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked || archivedNpc} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={(filter) => void preserveScroll(() => setEquipmentFilter(filter))} onSearch={setEquipmentSearch} onQuantityChange={(itemId, quantity) => void preserveScroll(() => changeItemQuantity(itemId, quantity))} onRemoveInstance={(draftId) => void preserveScroll(() => removeItemInstance(draftId))} campaignMoney={campaignMoney} /> : null}
-          {activeTab === "god" && canAccessPrivateGod ? <><GodControlsTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} />
+          {activeTab === "god" && canAccessPrivateGod ? <>{canOperateRuntime ? <IndividualEvolutionPanel characterId={aggregate.character.id} disabled={dirty || saving || raceLoading} onChanged={refreshAfterRuntimeMutation} /> : null}<GodControlsTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} />
             <ActiveHealthPanel health={activeHealth} disabled={dirty || saving || archivedNpc} onHealthChange={setActiveHealth} />
             <ActiveManaPanel mana={activeMana} disabled={dirty || saving || archivedNpc} onManaChange={setActiveMana} />
             <ActiveEffectsPanel state={activeEffects} godMode={canOperateRuntime} disabled={dirty || saving || archivedNpc} skillOptions={aggregate.skillCatalog.filter(({ archived }) => !archived).map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={setActiveEffects} />

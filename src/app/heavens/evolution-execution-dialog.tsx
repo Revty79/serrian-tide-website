@@ -3,63 +3,94 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GuidedField } from "@/components/field-guidance";
 import { confirmEvolutionEvaluation, EVOLUTION_STATUS_LABELS, type EvolutionOwner } from "@/features/evolutions/evolution-requirements";
-import type { EvolutionExecutionInput, EvolutionExecutionPreview, EvolutionHistoryEntry } from "@/features/evolutions/evolution-execution";
+import type { EvolutionExecutionInput, EvolutionExecutionPreview, EvolutionHistoryEntry, EvolutionReturnInput, PendingIndividualEvolution } from "@/features/evolutions/evolution-execution";
+import { individualEvolutionStorageKey } from "@/features/evolutions/evolution-execution";
 import { appliedRaceEvolutionAdjustments } from "@/features/races/race-evolution-transition";
 import type { ActiveHealthView } from "@/features/active-state/models";
 import type { CreatureDraft } from "@/features/creatures/models";
 import { findEvolutionPreviewIndividuals as findCreatures } from "./creatures/evolution-actions";
 import { findEvolutionPreviewIndividuals as findCharacters } from "./races/evolution-actions";
-import { executeEvolution, getIndividualEvolutionHistory, getNextEvolutionPaths, previewEvolutionExecution } from "./evolution-execution-actions";
+import { executeEvolution, getIndividualEvolutionHistory, getNextEvolutionPaths, previewEvolutionExecution, previewEvolutionReturn, commitIndividualEvolution } from "./evolution-execution-actions";
 import styles from "./creatures/creature-evolutions.module.css";
 
 const definitionLabels = { attributes: "Attributes", movement: "Movement", attacks: "Attacks", abilities: "Abilities", protections: "Protection", skills: "Skills", forms: "Forms", interactionRules: "Interaction Rules" };
 const failure = (error: unknown) => error instanceof Error ? error.message : "Evolution could not be completed.";
 const executionKey = () => `evolve-${Array.from(crypto.getRandomValues(new Uint32Array(4)), value => value.toString(16).padStart(8, "0")).join("")}`;
-export function EvolutionExecutionDialog({ kind, sourceId, pathId, pathName, onClose }: { kind: EvolutionOwner; sourceId: number; pathId: number; pathName: string; onClose: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null), router = useRouter();
+export function EvolutionExecutionDialog({ kind, sourceId, pathId, pathName, onClose, individualId, returning = false, onExecuted, resume }: {
+  kind: EvolutionOwner; sourceId: number; pathId: number; pathName: string; onClose: () => void;
+  individualId?: number; returning?: boolean; onExecuted?: () => Promise<void>; resume?: PendingIndividualEvolution;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null), router = useRouter(), submitting = useRef(false);
   const request = useRef<EvolutionExecutionInput | null>(null);
+  const [pending, setPending] = useState<PendingIndividualEvolution | null>(resume ?? null);
   const [search, setSearch] = useState(""), [individuals, setIndividuals] = useState<Array<{ id: number; name: string; campaignName: string }>>([]);
-  const [id, setId] = useState(0), [selectedPath, setSelectedPath] = useState(pathId), [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const [preview, setPreview] = useState<EvolutionExecutionPreview | null>(null), [confirmed, setConfirmed] = useState<string[]>([]);
-  const [health, setHealth] = useState(false), [overrides, setOverrides] = useState(false), [message, setMessage] = useState("");
+  const [id, setId] = useState(individualId ?? 0), [selectedPath, setSelectedPath] = useState(pathId), [busy, setBusy] = useState(!!individualId && !resume), [error, setError] = useState("");
+  const [preview, setPreview] = useState<EvolutionExecutionPreview | null>(resume?.preview ?? null), [confirmed, setConfirmed] = useState<string[]>(resume && "confirmedRequirementKeys" in resume.input ? resume.input.confirmedRequirementKeys : []);
+  const [health, setHealth] = useState(resume?.input.confirmHealthConsequences ?? false), [overrides, setOverrides] = useState(resume?.input.confirmReplaceOverrides ?? false), [message, setMessage] = useState("");
   const [history, setHistory] = useState<EvolutionHistoryEntry[]>([]), [nextPaths, setNextPaths] = useState<Array<{ id: number; name: string }> | null>(null);
   useEffect(() => { dialog.current?.showModal(); }, []);
   useEffect(() => {
+    if (!individualId || resume) return;
+    let current = true;
+    void (returning ? previewEvolutionReturn(kind, individualId) : previewEvolutionExecution(kind, individualId, pathId))
+      .then(value => { if (current) setPreview(value); }).catch(reason => { if (current) setError(failure(reason)); }).finally(() => { if (current) setBusy(false); });
+    return () => { current = false; };
+  }, [kind, individualId, returning, pathId, resume]);
+  useEffect(() => {
+    if (individualId) return;
     let current = true;
     const timer = setTimeout(() => { void (kind === "race" ? findCharacters : findCreatures)(sourceId, search)
       .then(rows => { if (current) setIndividuals(rows); }).catch(reason => { if (current) setError(failure(reason)); }); }, 200);
     return () => { current = false; clearTimeout(timer); };
-  }, [kind, sourceId, search]);
+  }, [kind, sourceId, search, individualId]);
   function clearReview() { setPreview(null); setConfirmed([]); setHealth(false); setOverrides(false); request.current = null; }
   async function review(path = selectedPath) {
+    if (pending) return;
     setBusy(true); setError(""); clearReview();
     try {
-      setPreview(await previewEvolutionExecution(kind, id, path));
+      setPreview(await (returning ? previewEvolutionReturn(kind, id) : previewEvolutionExecution(kind, id, path)));
       setHistory(await getIndividualEvolutionHistory(id));
     } catch (reason) { setError(failure(reason)); } finally { setBusy(false); }
   }
   async function execute() {
-    if (!preview) return;
-    setBusy(true); setError("");
-    const details = { kind, characterId: id, pathId: preview.pathId, expectedVersion: preview.pathVersion, reviewToken: preview.reviewToken,
-      confirmedRequirementKeys: [...confirmed].sort(), confirmHealthConsequences: health, confirmReplaceOverrides: overrides };
-    // Retain the same complete request after a network failure. Changed confirmations get a new key.
-    if (!request.current || JSON.stringify({ ...request.current, idempotencyKey: undefined }) !== JSON.stringify({ ...details, idempotencyKey: undefined }))
-      request.current = { ...details, idempotencyKey: executionKey() };
+    if (!preview || submitting.current) return;
+    submitting.current = true; setBusy(true); setError("");
     try {
+      if (individualId) {
+        const operation = returning ? "return" : "evolution";
+        const base = { kind, characterId: id, reviewToken: preview.reviewToken, idempotencyKey: executionKey(), confirmHealthConsequences: health, confirmReplaceOverrides: overrides };
+        const input: EvolutionExecutionInput | EvolutionReturnInput = returning
+          ? { ...base, expectedEventId: preview.returning!.eventId }
+          : { ...base, pathId: preview.pathId, expectedVersion: preview.pathVersion, confirmedRequirementKeys: [...confirmed].sort() };
+        const envelope = pending ?? { operation, input, preview };
+        sessionStorage.setItem(individualEvolutionStorageKey(id), JSON.stringify(envelope)); setPending(envelope);
+        const response = await commitIndividualEvolution(envelope.operation, envelope.input);
+        if (!response.ok) {
+          if (!response.retrySameRequest) { sessionStorage.removeItem(individualEvolutionStorageKey(id)); setPending(null); }
+          setError(response.error); return;
+        }
+        setMessage(`${response.result.event.evidence.individualName} ${response.result.event.operation === "return" ? "returned" : "evolved"} to ${response.result.event.evidence.destinationName}. Event #${response.result.event.id}.`);
+        await onExecuted?.();
+        sessionStorage.removeItem(individualEvolutionStorageKey(id)); setPending(null); onClose();
+        return;
+      }
+      const details = { kind, characterId: id, pathId: preview.pathId, expectedVersion: preview.pathVersion, reviewToken: preview.reviewToken,
+        confirmedRequirementKeys: [...confirmed].sort(), confirmHealthConsequences: health, confirmReplaceOverrides: overrides };
+      if (!request.current || JSON.stringify({ ...request.current, idempotencyKey: undefined }) !== JSON.stringify({ ...details, idempotencyKey: undefined }))
+        request.current = { ...details, idempotencyKey: executionKey() };
       const result = await executeEvolution(request.current);
       setMessage(`${result.event.evidence.individualName} (#${id}) evolved into ${result.event.evidence.destinationName}. ${kind === "race" ? "Race" : "Creature"} Evolution event #${result.event.id}.`);
       setHistory(current => [result.event, ...current.filter(row => row.kind !== result.event.kind || row.id !== result.event.id)]);
-      clearReview(); router.refresh();
-      setNextPaths(await getNextEvolutionPaths(kind, id));
-      setSelectedPath(0);
-    } catch (reason) { setError(failure(reason)); } finally { setBusy(false); }
+      clearReview(); router.refresh(); setNextPaths(await getNextEvolutionPaths(kind, id)); setSelectedPath(0);
+    } catch (reason) { setError(failure(reason)); } finally { submitting.current = false; setBusy(false); }
   }
   const eligible = preview ? confirmEvolutionEvaluation(preview.evaluation, confirmed).status === "eligible" : false;
   return <dialog ref={dialog} className={styles.dialog} aria-labelledby="evolution-preview-title" onCancel={event => { if (busy) event.preventDefault(); else onClose(); }}>
-    <h3 id="evolution-preview-title">Eligibility preview — {pathName}</h3>
-    <p>The Campaign-owning G.O.D. can review and permanently evolve the same individual outside active Encounters. Checking eligibility does not perform Evolution.</p>
-    <fieldset className={styles.fields} disabled={busy}>
+    <h3 id="evolution-preview-title">{individualId ? returning ? "Review Return" : "Review Evolution" : "Eligibility preview"} — {pathName}</h3>
+    <p>The Campaign-owning G.O.D. can review this permanent change outside active Encounters. Reviewing does not change the individual.</p>
+    {individualId ? <p>Persistent individual #{individualId}. {busy && !preview ? "Loading saved state..." : ""}</p> : null}
+    {pending ? <p role="status">A request is awaiting confirmation. Retry resumes that exact transition.</p> : null}
+    {!individualId ? <fieldset className={styles.fields} disabled={busy}>
       {nextPaths === null ? <>
         <GuidedField className="st-field" label={kind === "race" ? "Find Character" : "Find individual Creature"} help="Shows up to 30 active individuals using this exact source in Campaigns you run.">
           <input className="st-control" value={search} onChange={event => { setSearch(event.target.value); setId(0); clearReview(); setHistory([]); }} />
@@ -75,36 +106,37 @@ export function EvolutionExecutionDialog({ kind, sourceId, pathId, pathName, onC
         </select>
       </GuidedField>}
       <button className="st-button" type="button" disabled={!id || !selectedPath} onClick={() => void review()}>Check eligibility</button>
-    </fieldset>
+    </fieldset> : <button className="st-button" type="button" disabled={busy || !!pending} onClick={() => void review()}>Refresh review</button>}
     {error ? <p role="alert">{error}</p> : null}{message ? <p role="status">{message}</p> : null}
     {preview ? <section className={styles.fields} aria-live="polite">
       <h4>{preview.individualName} (#{preview.characterId}): {preview.sourceName} → {preview.destinationName}</h4>
       <p>{preview.pathName} — path #{preview.pathId}, revision {preview.pathVersion}. Source #{preview.sourceId}; destination #{preview.destinationId}.</p>
+      {preview.returning ? <><p>Return from Evolution event #{preview.returning.eventId}, recorded {new Date(preview.returning.executedAt).toLocaleString()}.</p>{preview.returning.raceAdjustments ? <RaceReturnAdjustments values={preview.returning.raceAdjustments} /> : <p>The recorded prior Creature mechanics will be restored using the current HP Adjustment.</p>}</> : null}
       <h4>{EVOLUTION_STATUS_LABELS[preview.evaluation.status]}</h4><p>{preview.evaluation.explanation}</p>
       {preview.evaluation.groups.map(group => <section className={styles.card} key={group.groupNumber}>
         <h4>Group {group.groupNumber + 1}: {EVOLUTION_STATUS_LABELS[group.status]}</h4>
         {group.requirements.map(row => <div key={row.key}><p>{EVOLUTION_STATUS_LABELS[row.status]}: {row.explanation}</p>
-          {row.confirmable && row.status === "god-review" ? <label className={styles.confirmation}><input type="checkbox" disabled={busy} checked={confirmed.includes(row.key)} onChange={event => setConfirmed(current => event.target.checked ? [...current, row.key] : current.filter(key => key !== row.key))} />Confirm this requirement for this execution ({row.key})</label> : null}
+          {row.confirmable && row.status === "god-review" ? <label className={styles.confirmation}><input type="checkbox" disabled={busy || !!pending} checked={confirmed.includes(row.key)} onChange={event => setConfirmed(current => event.target.checked ? [...current, row.key] : current.filter(key => key !== row.key))} />Confirm this requirement for this execution ({row.key})</label> : null}
         </div>)}
       </section>)}
-      {preview.definitionChanges ? <section className={styles.card}><h4>Definition mechanics: before ? after</h4>
-        <p>Size: {preview.definitionChanges.before.size} ? {preview.definitionChanges.after.size}. {kind === "race" ? `Base magic: ${preview.definitionChanges.before.baseMagic ?? 0} ? ${preview.definitionChanges.after.baseMagic ?? 0}.` : `HP multiplier steps: ${preview.definitionChanges.before.hpMultiplierSteps} ? ${preview.definitionChanges.after.hpMultiplierSteps}. Movement steps: ${preview.definitionChanges.before.baseMovementSteps} ? ${preview.definitionChanges.after.baseMovementSteps}. Magic steps: ${preview.definitionChanges.before.baseMagicSteps} ? ${preview.definitionChanges.after.baseMagicSteps}.`}</p>
-        {(["attributes", "movement", "attacks", "abilities", "protections", "skills", "forms", "interactionRules"] as const).filter(key => preview.definitionChanges!.before[key] || preview.definitionChanges!.after[key]).map(key => <p key={key}>{definitionLabels[key]}: {preview.definitionChanges!.before[key]?.join(", ") || "None"} ? {preview.definitionChanges!.after[key]?.join(", ") || "None"}</p>)}
+      {preview.definitionChanges ? <section className={styles.card}><h4>Definition mechanics: before to after</h4>
+        <p>Size: {preview.definitionChanges.before.size} to {preview.definitionChanges.after.size}. {kind === "race" ? `Base magic: ${preview.definitionChanges.before.baseMagic ?? 0} to ${preview.definitionChanges.after.baseMagic ?? 0}.` : `HP multiplier steps: ${preview.definitionChanges.before.hpMultiplierSteps} to ${preview.definitionChanges.after.hpMultiplierSteps}. Movement steps: ${preview.definitionChanges.before.baseMovementSteps} to ${preview.definitionChanges.after.baseMovementSteps}. Magic steps: ${preview.definitionChanges.before.baseMagicSteps} to ${preview.definitionChanges.after.baseMagicSteps}.`}</p>
+        {(["attributes", "movement", "attacks", "abilities", "protections", "skills", "forms", "interactionRules"] as const).filter(key => preview.definitionChanges!.before[key] || preview.definitionChanges!.after[key]).map(key => <p key={key}>{definitionLabels[key]}: {preview.definitionChanges!.before[key]?.join(", ") || "None"} to {preview.definitionChanges!.after[key]?.join(", ") || "None"}</p>)}
       </section> : null}
       {preview.raceTransition ? <section className={styles.card}><h4>Permanent saved mechanics</h4>
         {preview.raceTransition.before.attributes.map(row => <p key={row.attributeKey}>{row.attributeKey}: {row.value} → {preview.raceTransition!.after.attributes.find(after => after.attributeKey === row.attributeKey)?.value}</p>)}
         <p>HP multiplier steps: {preview.raceTransition.before.hpMultiplierSteps} → {preview.raceTransition.after.hpMultiplierSteps}</p>
         <p>Movement steps: {preview.raceTransition.before.baseMovementSteps} → {preview.raceTransition.after.baseMovementSteps}</p>
         <p>Magic steps: {preview.raceTransition.before.baseMagicSteps} → {preview.raceTransition.after.baseMagicSteps}</p>
-      </section> : <p>The destination Creature&apos;s complete mechanics replace the current definition snapshot. HP Adjustment remains unchanged.</p>}
+      </section> : !returning && kind === "creature" ? <p>The destination Creature&apos;s complete mechanics replace the current definition snapshot. HP Adjustment remains unchanged.</p> : null}
       <p>The destination supplies its anatomy, movement, attacks, protections, Skills, abilities and Forms through the existing definition rules. No Form activates. Inventory, equipment, ownership, purchased Skills, Experience, effects, stored damage and injuries remain unchanged.</p>
-      <HealthSummary title="Before Evolution" view={preview.beforeHealth} /><HealthSummary title="After Evolution" view={preview.afterHealth} />
+      <HealthSummary title={returning ? "Before Return" : "Before Evolution"} view={preview.beforeHealth} /><HealthSummary title={returning ? "After Return" : "After Evolution"} view={preview.afterHealth} />
       {preview.warnings.map(warning => <p key={warning}>{warning}</p>)}
       {preview.blockers.map(blocker => <p key={blocker} role="alert">{blocker}</p>)}
-      <label className={styles.confirmation}><input type="checkbox" disabled={busy} checked={health} onChange={event => setHealth(event.target.checked)} />I have reviewed the permanent mechanical changes, health consequences and equipment fit. Existing damage and injuries will remain.</label>
-      {preview.hasIndividualOverrides ? <label className={styles.confirmation}><input type="checkbox" disabled={busy} checked={overrides} onChange={event => setOverrides(event.target.checked)} />I confirm replacing this Creature&apos;s individual mechanical edits with the destination definition and retaining the prior snapshots in history.</label> : null}
-      <p>This is permanent. A return transition requires another authored Evolution; there is no Undo.</p>
-      <button className="st-button is-primary" type="button" disabled={busy || !eligible || !health || (preview.hasIndividualOverrides && !overrides) || !!preview.blockers.length} onClick={() => void execute()}>Evolve {preview.individualName} into {preview.destinationName}</button>
+      <label className={styles.confirmation}><input type="checkbox" disabled={busy || !!pending} checked={health} onChange={event => setHealth(event.target.checked)} />I have reviewed the permanent mechanical changes, health consequences and equipment fit. Existing damage and injuries will remain.</label>
+      {preview.hasIndividualOverrides ? <label className={styles.confirmation}><input type="checkbox" disabled={busy || !!pending} checked={overrides} onChange={event => setOverrides(event.target.checked)} />{returning ? "I confirm replacing the mechanical edits made after Evolution with the recorded prior Creature state." : "I confirm replacing this Creature's individual mechanical edits with the destination definition and retaining the prior snapshots in history."}</label> : null}
+      <p>This changes the same persistent individual. Return is a separate reviewed history operation, one recorded step at a time.</p>
+      <button className="st-button is-primary" type="button" disabled={busy || !eligible || !health || (preview.hasIndividualOverrides && !overrides) || !!preview.blockers.length} onClick={() => void execute()}>{pending ? "Retry confirmed transition" : returning ? `Return ${preview.individualName} to ${preview.destinationName}` : `Evolve ${preview.individualName} into ${preview.destinationName}`}</button>
     </section> : null}
     <EvolutionHistory entries={history} />
     <button className="st-button" type="button" disabled={busy} onClick={onClose}>Close preview</button>
@@ -119,9 +151,11 @@ function HealthSummary({ title, view }: { title: string; view: ActiveHealthView 
 export function EvolutionHistory({ entries }: { entries: EvolutionHistoryEntry[] }) {
   if (!entries.length) return null;
   return <section className={styles.fields} aria-label="Individual Evolution history"><h4>Evolution history</h4>{entries.map(event => <details className={styles.card} key={`${event.kind}-${event.id}`}>
-    <summary>{event.evidence.sourceName} → {event.evidence.destinationName} — {event.kind} event #{event.id}</summary>
+    <summary>{event.operation === "return" ? "RETURNED" : "EVOLVED"}: {event.evidence.sourceName} → {event.evidence.destinationName} — {event.kind} event #{event.id}</summary>
     <p>{new Date(event.executedAt).toLocaleString()} · {event.evidence.actorName} ({event.executedByUserId})</p>
     <p>{event.evidence.pathName}, path #{event.evidence.pathId}, revision {event.evidence.pathVersion}. Individual #{event.characterId}.</p>
+    {event.operation === "return" ? <p>Returned from Evolution Event #{event.reversesEventId}.</p> : null}
+    {event.evidence.returning?.raceAdjustments ? <RaceReturnAdjustments values={event.evidence.returning.raceAdjustments} /> : null}
     <p>Confirmed requirement keys: {event.evidence.confirmedRequirementKeys.join(", ") || "None required"}.</p>
     {event.evidence.confirmedEvaluation.groups.flatMap(group => group.requirements.map(row => <p key={row.key}>{row.explanation}</p>))}
     {event.evidence.raceTransition ? <RaceAdjustmentHistory transition={event.evidence.raceTransition} /> : null}
@@ -157,4 +191,12 @@ function SnapshotSummary({ title, value }: { title: string; value: string }) {
     <p>Forms: {snapshot.forms?.map(row => row.name).join(", ") || "None"}</p>
     <details><summary>Full recorded snapshot data</summary><pre className={styles.prose}>{JSON.stringify(snapshot, null, 2)}</pre></details>
   </details>;
+}
+
+function RaceReturnAdjustments({ values }: { values: NonNullable<NonNullable<EvolutionExecutionPreview["returning"]>["raceAdjustments"]> }) {
+  return <section className={styles.card} aria-label="Race Return adjustments"><h4>Remove the recorded Evolution contribution</h4>
+    {values.before.attributes.map(row => <p key={row.attributeKey}>{row.attributeKey}: {row.value} to {values.after.attributes.find(next => next.attributeKey === row.attributeKey)?.value}. Remove {values.removed.attributeAdjustments[row.attributeKey as keyof typeof values.removed.attributeAdjustments] ?? 0}.</p>)}
+    {(["hpMultiplierSteps", "baseMovementSteps", "baseMagicSteps"] as const).map(key => <p key={key}>{{hpMultiplierSteps: "HP multiplier steps", baseMovementSteps: "Movement steps", baseMagicSteps: "Magic steps"}[key]}: {values.before[key]} to {values.after[key]}. Remove {values.removed[`${key}Adjustment`]}.</p>)}
+    <p>Later advancement is retained. These contributions come from the original event, not today&apos;s path.</p>
+  </section>;
 }

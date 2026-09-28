@@ -9,6 +9,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import { creatureDraftFixture, creatureFormFixture } from "./creature-form-fixture";
+import { verifyReturnHistoryUpgrade } from "./evolution-return-upgrade";
 
 async function main() {
   const parent = path.resolve(tmpdir()), root = path.resolve(await mkdtemp(path.join(parent,"serrian-evolution-")));
@@ -26,7 +27,8 @@ async function main() {
     execFileSync(exe("initdb"),["--auth=trust","--encoding=UTF8","--no-locale","--username=postgres","-D",data],{stdio:"pipe",windowsHide:true});
     execFileSync(exe("pg_ctl"),["-D",data,"-l",path.join(root,"postgres.log"),"-o",`-p ${port} -h 127.0.0.1`,"-w","start"],{stdio:"ignore",windowsHide:true}); started=true;
     pool = new pg.Pool({connectionString:url("postgres")});
-    for (const name of ["serrian_creature_evolution_dev","serrian_evolution_fresh_dev","serrian_creature_ownership_dev","serrian_creature_authoring_dev","serrian_race_authoring_dev"]) await pool.query(`create database ${name}`);
+    for (const name of ["serrian_creature_evolution_dev","serrian_evolution_fresh_dev","serrian_evolution_return_upgrade_dev","serrian_creature_ownership_dev","serrian_creature_authoring_dev","serrian_race_authoring_dev"]) await pool.query(`create database ${name}`);
+    await verifyReturnHistoryUpgrade(url("serrian_evolution_return_upgrade_dev"), root);
     await pool.end(); pool = new pg.Pool({connectionString:url("serrian_evolution_fresh_dev")});
     const journal = JSON.parse(await readFile("drizzle/meta/_journal.json","utf8"));
     await migrate(drizzle(pool),{migrationsFolder:"drizzle"});
@@ -91,6 +93,7 @@ async function main() {
     run("scripts/evolution-pass-two-db.test.mjs");
     run("scripts/evolution-pass-three-db.test.mjs");
     run("scripts/evolution-pass-four-db.test.mjs");
+    run("scripts/evolution-pass-five-db.test.mjs");
     if (!process.argv.includes("--focused")) {
       pool=new pg.Pool({connectionString:url("serrian_race_authoring_dev")}); await migrate(drizzle(pool),{migrationsFolder:"drizzle"}); await pool.end(); pool=null;
       for (const script of ["scripts/race-forms-db.test.mjs","scripts/race-form-mechanics-db.test.mjs","scripts/race-form-preview-db.test.mjs"]) run(script,{DATABASE_URL:url("serrian_race_authoring_dev"),SERRIAN_DISPOSABLE_RACE_AUTHORING:"true"});

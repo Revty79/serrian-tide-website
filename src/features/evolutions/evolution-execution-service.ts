@@ -1,7 +1,7 @@
 import { readRaceFormsInTransaction } from "@/features/races/race-form-service";
 import { readRaceNaturalAttacksInTransaction } from "@/features/races/race-natural-attack-service";
 import { readRaceNaturalProtectionInTransaction } from "@/features/races/race-natural-protection-service";
-import { appliedRaceEvolutionAdjustments, applyRaceEvolutionTransition, normalizeRaceEvolutionTransition } from "@/features/races/race-evolution-transition";
+import { appliedRaceEvolutionAdjustments, applyRaceEvolutionTransition, normalizeRaceEvolutionTransition, removeRaceEvolutionAdjustments } from "@/features/races/race-evolution-transition";
 import "server-only";
 import { createHash } from "node:crypto";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
@@ -26,7 +26,8 @@ import { readEvolutionRequirements as creatureRequirements } from "@/features/cr
 import { readEvolutionRequirements as raceRequirements } from "@/features/races/evolution-requirement-service";
 import { requireEvolutionId } from "@/features/creatures/creature-evolutions";
 import { confirmEvolutionEvaluation, type EvolutionOwner } from "./evolution-requirements";
-import { evolutionHealthWarnings, stableEvolutionJson, type EvolutionExecutionInput, type EvolutionExecutionPreview, type EvolutionExecutionResult, type EvolutionHistoryEntry } from "./evolution-execution";
+import { evolutionHealthWarnings, stableEvolutionJson, type EvolutionExecutionInput, type EvolutionExecutionPreview, type EvolutionExecutionResult, type EvolutionHistoryEntry, type EvolutionReturnInput, type EvolutionReturnPreview } from "./evolution-execution";
+import { readEvolutionPathReferencesInTransaction } from "./evolution-path-references";
 import { lockEvolutionFacts } from "./evolution-execution-locks";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -83,6 +84,18 @@ function raceDefinitionSummary(definition: Awaited<ReturnType<typeof raceDefinit
     attacks: definition.attacks.map(row => row.attackName), protections: definition.protections.map(row => `${row.name}: ${row.naturalSoak} Soak`),
     skills: definition.skills.map(row => `Skill #${row.skillId}: ${row.linkType} ${row.value ?? ""}`),
     forms: definition.forms.map(row => row.name), interactionRules: definition.root.interactionRules?.rules.map(row => row.name) ?? [] };
+}
+
+async function readEncounterBlockers(tx: Tx, characterId: number, campaignId: number) {
+  const memberships = await tx.select({ status: encounter.status, title: encounter.title, localState: participant.localStateJson,
+    snapshot: participant.creatureSnapshotJson, frozenAt: encounter.frozenAt, initiativeId: initiative.encounterId }).from(participant)
+    .innerJoin(encounter, eq(encounter.id, participant.encounterId)).leftJoin(initiative, eq(initiative.encounterId, encounter.id))
+    .where(and(eq(participant.characterId, characterId), eq(participant.campaignId, campaignId))).orderBy(asc(encounter.id));
+  const blockers = memberships.flatMap(row => row.status === "active"
+    ? [`This individual is participating in active Encounter “${row.title}”. Persistent Evolution or Return is unavailable until the Encounter is complete.`]
+    : row.status === "planned" && (row.snapshot !== null || row.localState !== null || row.initiativeId !== null || row.frozenAt !== null)
+      ? [`Planned Encounter “${row.title}” already has prepared runtime state. Resolve that preparation before Evolution or Return.`] : []);
+  return blockers;
 }
 
 async function readPreparation(tx: Tx, kind: EvolutionOwner, characterId: number, pathId: number, actor: SharedLibraryActor) {
@@ -143,14 +156,7 @@ async function readPreparation(tx: Tx, kind: EvolutionOwner, characterId: number
       destinationBaseline: JSON.stringify(destinationBaseline), destinationCurrent: JSON.stringify(destinationCurrent), hpAdjustment: npc.hpAdjustment };
     afterHealth = resolveActiveHealthView(resolveCreatureHealthAnatomy(destinationCurrent, npc.hpAdjustment), before.state);
   }
-  const memberships = await tx.select({ status: encounter.status, title: encounter.title, localState: participant.localStateJson,
-    snapshot: participant.creatureSnapshotJson, frozenAt: encounter.frozenAt, initiativeId: initiative.encounterId }).from(participant)
-    .innerJoin(encounter, eq(encounter.id, participant.encounterId)).leftJoin(initiative, eq(initiative.encounterId, encounter.id))
-    .where(and(eq(participant.characterId, characterId), eq(participant.campaignId, character.campaignId))).orderBy(asc(encounter.id));
-  const blockers = memberships.flatMap(row => row.status === "active"
-    ? [`This individual is participating in active Encounter “${row.title}”. Persistent Evolution is unavailable until the Encounter is complete.`]
-    : row.status === "planned" && (row.snapshot !== null || row.localState !== null || row.initiativeId !== null || row.frozenAt !== null)
-      ? [`Planned Encounter “${row.title}” already has prepared runtime state. Resolve that preparation before Evolution.`] : []);
+  const blockers = await readEncounterBlockers(tx, characterId, character.campaignId);
   const warnings = evolutionHealthWarnings(before.view, afterHealth);
   warnings.push("Equipment and custody remain unchanged. Review worn and wielded gear against the destination anatomy; Evolution does not reconcile equipment fit.");
   if (hasIndividualOverrides) warnings.push("This Creature has individual mechanical edits. Evolution replaces those mechanics with the destination definition. The prior snapshots remain in Evolution history.");
@@ -170,7 +176,7 @@ export async function previewPersistentEvolution(kind: EvolutionOwner, character
 type RaceEvent = typeof raceEvolutionEvent.$inferSelect;
 type CreatureEvent = typeof creatureEvolutionEvent.$inferSelect;
 function historyEntry(kind: EvolutionOwner, row: RaceEvent | CreatureEvent): EvolutionHistoryEntry {
-  return { kind, id: row.id, characterId: row.characterId, executedAt: row.executedAt.toISOString(), executedByUserId: row.executedByUserId,
+  return { kind, operation: row.operation, reversesEventId: row.reversesEventId, id: row.id, characterId: row.characterId, executedAt: row.executedAt.toISOString(), executedByUserId: row.executedByUserId,
     evidence: row.evidence, ...("sourceBaselineSnapshotJson" in row ? { snapshots: {
       sourceBaseline: row.sourceBaselineSnapshotJson, sourceCurrent: row.sourceCurrentSnapshotJson,
       destinationBaseline: row.destinationBaselineSnapshotJson, destinationCurrent: row.destinationCurrentSnapshotJson, hpAdjustment: row.hpAdjustment,
@@ -210,28 +216,7 @@ export async function executePersistentEvolution(input: EvolutionExecutionInput,
   const requestHash = digest({ kind: input.kind, characterId: input.characterId, pathId: input.pathId, expectedVersion: input.expectedVersion,
     reviewToken: input.reviewToken, confirmedRequirementKeys: [...input.confirmedRequirementKeys].sort(),
     confirmHealthConsequences: input.confirmHealthConsequences, confirmReplaceOverrides: input.confirmReplaceOverrides, actorId: actor.userId });
-  try {
-    return await db.transaction(async tx => {
-      await tx.execute(sql`SET LOCAL lock_timeout = '3s'`);
-      await tx.execute(sql`SET LOCAL statement_timeout = '15s'`);
-      // Cross-type key namespace. Same-key retries wait for the original transaction.
-      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`persistent-evolution:${input.idempotencyKey}`}, 0))`);
-      await authorize(tx, input.characterId, actor);
-      const [raceReplay] = await tx.select().from(raceEvolutionEvent).where(eq(raceEvolutionEvent.idempotencyKey, input.idempotencyKey));
-      const [creatureReplay] = await tx.select().from(creatureEvolutionEvent).where(eq(creatureEvolutionEvent.idempotencyKey, input.idempotencyKey));
-      const previous = raceReplay ?? creatureReplay;
-      if (previous) {
-        if (previous.requestHash !== requestHash) throw new Error("This execution key was already used with different input. Review the new transition separately.");
-        return { event: historyEntry(raceReplay ? "race" : "creature", previous), replayed: true };
-      }
-      await lockEvolutionFacts(tx);
-      const access = await authorize(tx, input.characterId, actor);
-      await tx.select({ id: campaign.id }).from(campaign).where(eq(campaign.id, access.character.campaignId)).for("update", { noWait: true });
-      await tx.select({ id: encounter.id }).from(encounter).where(eq(encounter.campaignId, access.character.campaignId)).orderBy(asc(encounter.id)).for("update", { noWait: true });
-      const individualIds = [input.characterId, ...(access.character.ownerCharacterId ? [access.character.ownerCharacterId] : [])].sort((a, b) => a - b);
-      await tx.select({ id: campaignCharacter.id }).from(campaignCharacter).where(inArray(campaignCharacter.id, individualIds)).orderBy(asc(campaignCharacter.id)).for("update", { noWait: true });
-      await tx.select().from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, input.characterId)).for("update", { noWait: true });
-      await tx.select().from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, input.characterId)).for("update", { noWait: true });
+  return withEvolutionLocks(input, actor, requestHash, async tx => {
       const pathTable = input.kind === "race" ? raceEvolutionPath : creatureEvolutionPath;
       await tx.select({ id: pathTable.id }).from(pathTable).where(eq(pathTable.id, input.pathId)).for("update", { noWait: true });
       const { preview, snapshots, authorized } = await readPreparation(tx, input.kind, input.characterId, input.pathId, actor);
@@ -270,6 +255,34 @@ export async function executePersistentEvolution(input: EvolutionExecutionInput,
         sourceBaselineSnapshotJson: snapshots.sourceBaseline, sourceCurrentSnapshotJson: snapshots.sourceCurrent,
         destinationBaselineSnapshotJson: snapshots.destinationBaseline, destinationCurrentSnapshotJson: snapshots.destinationCurrent, hpAdjustment: snapshots.hpAdjustment }).returning();
       return { event: historyEntry("creature", event), replayed: false };
+  });
+}
+
+/** Shared forward/Return fence, fresh authority, exact subject locks and durable replay. */
+async function withEvolutionLocks(input: { characterId: number; idempotencyKey: string }, actor: SharedLibraryActor, requestHash: string, execute: (tx: Tx) => Promise<EvolutionExecutionResult>): Promise<EvolutionExecutionResult> {
+  try {
+    return await db.transaction(async tx => {
+      await tx.execute(sql`SET LOCAL lock_timeout = '3s'`);
+      await tx.execute(sql`SET LOCAL statement_timeout = '15s'`);
+      // Cross-type key namespace. Same-key retries wait for the original transaction.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`persistent-evolution:${input.idempotencyKey}`}, 0))`);
+      await authorize(tx, input.characterId, actor);
+      const [raceReplay] = await tx.select().from(raceEvolutionEvent).where(eq(raceEvolutionEvent.idempotencyKey, input.idempotencyKey));
+      const [creatureReplay] = await tx.select().from(creatureEvolutionEvent).where(eq(creatureEvolutionEvent.idempotencyKey, input.idempotencyKey));
+      const previous = raceReplay ?? creatureReplay;
+      if (previous) {
+        if (previous.requestHash !== requestHash) throw new Error("This execution key was already used with different input. Review the new transition separately.");
+        return { event: historyEntry(raceReplay ? "race" : "creature", previous), replayed: true };
+      }
+      await lockEvolutionFacts(tx);
+      const access = await authorize(tx, input.characterId, actor);
+      await tx.select({ id: campaign.id }).from(campaign).where(eq(campaign.id, access.character.campaignId)).for("update", { noWait: true });
+      await tx.select({ id: encounter.id }).from(encounter).where(eq(encounter.campaignId, access.character.campaignId)).orderBy(asc(encounter.id)).for("update", { noWait: true });
+      const individualIds = [input.characterId, ...(access.character.ownerCharacterId ? [access.character.ownerCharacterId] : [])].sort((a, b) => a - b);
+      await tx.select({ id: campaignCharacter.id }).from(campaignCharacter).where(inArray(campaignCharacter.id, individualIds)).orderBy(asc(campaignCharacter.id)).for("update", { noWait: true });
+      await tx.select().from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, input.characterId)).for("update", { noWait: true });
+      await tx.select().from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, input.characterId)).for("update", { noWait: true });
+      return execute(tx);
     });
   } catch (error) {
     let current: unknown = error;
@@ -279,4 +292,178 @@ export async function executePersistentEvolution(input: EvolutionExecutionInput,
     }
     throw error;
   }
+}
+
+
+async function currentDefinition(tx: Tx, kind: EvolutionOwner, characterId: number) {
+  if (kind === "race") {
+    const [row] = await tx.select({ id: race.id, name: race.name, archivedAt: race.archivedAt }).from(campaignCharacterProfile)
+      .leftJoin(race, eq(race.id, campaignCharacterProfile.raceId)).where(eq(campaignCharacterProfile.characterId, characterId));
+    return row ?? { id: null, name: null, archivedAt: null };
+  }
+  const [row] = await tx.select({ id: creature.id, name: creature.canonicalName, archivedAt: creature.archivedAt }).from(campaignCreatureNpcProfile)
+    .innerJoin(creature, eq(creature.id, campaignCreatureNpcProfile.creatureId)).where(eq(campaignCreatureNpcProfile.characterId, characterId));
+  if (!row) throw new Error("This persistent Creature has no current definition profile.");
+  return row;
+}
+async function individualEvents(tx: Tx, kind: EvolutionOwner, characterId: number) {
+  return kind === "race"
+    ? tx.select().from(raceEvolutionEvent).where(eq(raceEvolutionEvent.characterId, characterId)).orderBy(desc(raceEvolutionEvent.id))
+    : tx.select().from(creatureEvolutionEvent).where(eq(creatureEvolutionEvent.characterId, characterId)).orderBy(desc(creatureEvolutionEvent.id));
+}
+async function returnCandidate(tx: Tx, kind: EvolutionOwner, characterId: number, currentId: number | null) {
+  const events = await individualEvents(tx, kind, characterId);
+  const reversed = new Set(events.filter(row => row.operation === "return").map(row => row.reversesEventId));
+  return events.find(row => row.operation === "evolution" && !reversed.has(row.id)
+    && ("destinationRaceId" in row ? row.destinationRaceId : row.destinationCreatureId) === currentId) ?? null;
+}
+function assertIndividualKind(kind: EvolutionOwner, character: typeof campaignCharacter.$inferSelect) {
+  if ((kind === "creature") !== (character.isNpc && character.npcKind === "creature")) throw new Error("Use this individual's current Race or Creature type.");
+}
+
+/** Exact current definition and server-selected history candidate, never client lineage. */
+export async function readIndividualEvolutionState(characterId: number, actor: SharedLibraryActor) {
+  requireEvolutionId(characterId, "Persistent individual");
+  return db.transaction(async tx => {
+    const access = await authorize(tx, characterId, actor);
+    const kind: EvolutionOwner = access.character.isNpc && access.character.npcKind === "creature" ? "creature" : "race";
+    const current = await currentDefinition(tx, kind, characterId);
+    const candidate = await returnCandidate(tx, kind, characterId, current.id);
+    const blockers = await readEncounterBlockers(tx, characterId, access.character.campaignId);
+    if (access.character.archivedAt || access.campaign.archivedAt) blockers.push("Restore the individual and Campaign before Evolution or Return.");
+    const history = (await individualEvents(tx, kind, characterId)).map(row => historyEntry(kind, row));
+    return { kind, characterId, individualName: access.character.name, currentId: current.id, currentName: current.name,
+      currentArchived: !!current.archivedAt, blockers,
+      paths: current.id === null ? [] : await readEvolutionPathReferencesInTransaction(tx, kind, current.id),
+      returnCandidate: candidate ? { eventId: candidate.id, priorId: "sourceRaceId" in candidate ? candidate.sourceRaceId : candidate.sourceCreatureId,
+        priorName: candidate.evidence.sourceName, executedAt: candidate.executedAt.toISOString(), available: blockers.length === 0 } : null,
+      returnStatus: candidate ? "Review the most recent unreversed Evolution from this current definition." : "No prior Evolution state is available to return to.", history };
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+
+async function readReturnPreparation(tx: Tx, kind: EvolutionOwner, characterId: number, actor: SharedLibraryActor) {
+  const authorized = await authorize(tx, characterId, actor), { character } = authorized;
+  assertIndividualKind(kind, character);
+  if (character.archivedAt || authorized.campaign.archivedAt) throw new Error("Restore the individual and Campaign before Return.");
+  const current = await currentDefinition(tx, kind, characterId);
+  const original = await returnCandidate(tx, kind, characterId, current.id);
+  if (!original || current.id === null) throw new Error("No prior Evolution state is available to return to.");
+  const destinationId = "sourceRaceId" in original ? original.sourceRaceId : original.sourceCreatureId;
+  const before = await readActiveHealthInTransaction(tx, characterId, character.npcKind);
+  let afterHealth = before.view, hasIndividualOverrides = false, definitionEvidence: unknown;
+  let definitionChanges: EvolutionExecutionPreview["definitionChanges"], snapshots: EvolutionHistoryEntry["snapshots"];
+  const returning: EvolutionReturnPreview["returning"] = { eventId: original.id, executedAt: original.executedAt.toISOString() };
+  const warnings: string[] = [];
+  if (kind === "race") {
+    const [destination] = await tx.select().from(race).where(eq(race.id, destinationId));
+    const [source] = await tx.select().from(race).where(eq(race.id, current.id));
+    if (!source || !destination) throw new Error("The exact historical Race definition is missing.");
+    const definition = await raceDefinitionEvidence(tx, destination);
+    const currentDefinition = await raceDefinitionEvidence(tx, source);
+    definitionEvidence = { definition, currentDefinition };
+    definitionChanges = { before: raceDefinitionSummary(currentDefinition), after: raceDefinitionSummary(definition) };
+    if (destination.archivedAt) warnings.push("The historical Race is archived. Return restores this exact previously used Race without offering it for new Character creation.");
+    const allowed = character.isNpc ? campaignRace : campaignAllowedRace;
+    const [enabled] = await tx.select({ id: allowed.raceId }).from(allowed).where(and(eq(allowed.campaignId, character.campaignId), eq(allowed.raceId, destinationId)));
+    if (!enabled) warnings.push("The historical Race is not currently offered by this Campaign for new creation. Return retains it for this individual; Campaign allowlists remain unchanged.");
+    const [profile] = await tx.select().from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, characterId));
+    const attributes = await tx.select({ attributeKey: campaignCharacterAttribute.attributeKey, value: campaignCharacterAttribute.value }).from(campaignCharacterAttribute)
+      .where(eq(campaignCharacterAttribute.characterId, characterId)).orderBy(asc(campaignCharacterAttribute.attributeKey));
+    const recorded = original.evidence.raceTransition;
+    if (!recorded) throw new Error("The original Evolution has no recorded permanent Race adjustment evidence. Return cannot guess its contribution.");
+    const removed = recorded.appliedAdjustments ?? appliedRaceEvolutionAdjustments(recorded.before, recorded.after);
+    const beforeMechanics = { attributes, hpMultiplierSteps: profile.hpMultiplierSteps, baseMovementSteps: profile.baseMovementSteps, baseMagicSteps: profile.baseMagicSteps };
+    const after = removeRaceEvolutionAdjustments(beforeMechanics, removed);
+    returning.raceAdjustments = { removed, before: beforeMechanics, after };
+    afterHealth = resolveActiveHealthView(resolveRaceHealthAnatomy(after.attributes.find(row => row.attributeKey === "CON")!.value, after.hpMultiplierSteps, destination.anatomy), before.state);
+  } else {
+    if (!("sourceBaselineSnapshotJson" in original)) throw new Error("The historical Creature snapshots are unavailable.");
+    const [destination] = await tx.select().from(creature).where(eq(creature.id, destinationId));
+    if (!destination) throw new Error("The exact historical Creature definition is missing.");
+    if (destination.archivedAt) warnings.push("The historical Creature definition is archived. Return restores its recorded prior snapshots on this same individual.");
+    const [npc] = await tx.select().from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, characterId));
+    const priorBaseline = parseCreatureNpcSnapshot(original.sourceBaselineSnapshotJson, "Historical source baseline", 0);
+    const priorCurrent = parseCreatureNpcSnapshot(original.sourceCurrentSnapshotJson, "Historical source individual", 0);
+    const currentBaseline = parseCreatureNpcSnapshot(npc.baselineSnapshotJson, "Current baseline", 0);
+    const currentSnapshot = parseCreatureNpcSnapshot(npc.currentSnapshotJson, "Current individual", 0);
+    const recordedDestination = parseCreatureNpcSnapshot(original.destinationCurrentSnapshotJson, "Recorded evolved individual", 0);
+    if (priorBaseline.id !== destinationId || priorCurrent.id !== destinationId || currentBaseline.id !== current.id || currentSnapshot.id !== current.id || recordedDestination.id !== current.id)
+      throw new Error("Creature history and current snapshots must match the exact definitions before Return.");
+    // HP Adjustment is deliberately excluded from the override comparison.
+    hasIndividualOverrides = stableEvolutionJson(meaningfulSnapshot(currentSnapshot)) !== stableEvolutionJson(meaningfulSnapshot(recordedDestination));
+    const restored = normalizeCreatureNpcSnapshot(structuredClone(priorCurrent), npc.hpAdjustment);
+    snapshots = { sourceBaseline: npc.baselineSnapshotJson, sourceCurrent: npc.currentSnapshotJson,
+      destinationBaseline: original.sourceBaselineSnapshotJson, destinationCurrent: JSON.stringify(restored), hpAdjustment: npc.hpAdjustment };
+    definitionChanges = { before: creatureDefinitionSummary(currentSnapshot), after: creatureDefinitionSummary(restored) };
+    definitionEvidence = { originalId: original.id, snapshots, archivedAt: destination.archivedAt };
+    afterHealth = resolveActiveHealthView(resolveCreatureHealthAnatomy(restored, npc.hpAdjustment), before.state);
+    if (hasIndividualOverrides) warnings.push("This Creature has individual mechanical edits made after Evolution. Returning will replace those definition-owned edits with its recorded prior Evolution state.");
+  }
+  warnings.push(...evolutionHealthWarnings(before.view, afterHealth));
+  warnings.push("Equipment, inventory and custody remain unchanged. Review worn and wielded gear against the restored anatomy; Return does not reconcile equipment fit.");
+  const preview: EvolutionReturnPreview = { kind, characterId, campaignId: character.campaignId, individualName: character.name,
+    sourceId: current.id, sourceName: current.name!, destinationId, destinationName: original.evidence.sourceName,
+    pathId: original.pathId, pathName: original.evidence.pathName, pathVersion: original.pathVersion,
+    returning, definitionChanges, beforeHealth: before.view, afterHealth, hasIndividualOverrides, warnings,
+    blockers: await readEncounterBlockers(tx, characterId, character.campaignId), reviewToken: "",
+    requirements: { mode: "unrestricted", requirements: [] },
+    evaluation: { status: "eligible", explanation: "Return uses this individual's immutable Evolution history; it does not re-evaluate an authored path.", groups: [] } };
+  preview.reviewToken = digest({ preview, definitionEvidence, snapshots, ownerCharacterId: character.ownerCharacterId });
+  return { preview, snapshots, authorized };
+}
+export async function previewPersistentEvolutionReturn(kind: EvolutionOwner, characterId: number, actor: SharedLibraryActor): Promise<EvolutionReturnPreview> {
+  validateSubject(kind, characterId);
+  return db.transaction(async tx => (await readReturnPreparation(tx, kind, characterId, actor)).preview, { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+export async function executePersistentEvolutionReturn(input: EvolutionReturnInput, actor: SharedLibraryActor): Promise<EvolutionExecutionResult> {
+  validateSubject(input.kind, input.characterId);
+  requireEvolutionId(input.expectedEventId, "Original Evolution event");
+  if (typeof input.idempotencyKey !== "string" || !/^[a-zA-Z0-9_-]{16,120}$/.test(input.idempotencyKey)
+    || typeof input.reviewToken !== "string" || !/^[a-f0-9]{64}$/.test(input.reviewToken)
+    || typeof input.confirmHealthConsequences !== "boolean" || typeof input.confirmReplaceOverrides !== "boolean") throw new Error("Review and confirm Return with a valid durable request identity first.");
+  const requestHash = digest({ operation: "return", kind: input.kind, characterId: input.characterId, expectedEventId: input.expectedEventId,
+    idempotencyKey: input.idempotencyKey, reviewToken: input.reviewToken, confirmHealthConsequences: input.confirmHealthConsequences,
+    confirmReplaceOverrides: input.confirmReplaceOverrides, actorId: actor.userId });
+  return withEvolutionLocks(input, actor, requestHash, async tx => {
+    const { preview, snapshots, authorized } = await readReturnPreparation(tx, input.kind, input.characterId, actor);
+    if (preview.returning.eventId !== input.expectedEventId) throw new Error("The next Return step changed. Review the current prior state again.");
+    if (preview.blockers.length) throw new Error(preview.blockers.join(" "));
+    if (preview.reviewToken !== input.reviewToken) throw new Error("The individual's state or Return consequences changed. Refresh the preview before returning.");
+    if (!input.confirmHealthConsequences) throw new Error("Confirm the displayed health and equipment consequences before Return.");
+    if (preview.hasIndividualOverrides && !input.confirmReplaceOverrides) throw new Error("Explicitly confirm replacing this Creature's mechanical edits made after Evolution.");
+    const { reviewToken: _token, ...evidence } = preview; void _token;
+    const common = { operation: "return" as const, reversesEventId: preview.returning.eventId, campaignId: preview.campaignId, characterId: input.characterId,
+      executedByUserId: actor.userId, pathId: preview.pathId, pathVersion: preview.pathVersion, idempotencyKey: input.idempotencyKey, requestHash,
+      evidence: { ...evidence, actorName: authorized.actorName, confirmedRequirementKeys: [], confirmedEvaluation: preview.evaluation,
+        confirmHealthConsequences: input.confirmHealthConsequences, confirmReplaceOverrides: input.confirmReplaceOverrides } };
+    if (input.kind === "race") {
+      const transition = preview.returning.raceAdjustments!;
+      await tx.update(campaignCharacterProfile).set({ raceId: preview.destinationId, hpMultiplierSteps: transition.after.hpMultiplierSteps,
+        baseMovementSteps: transition.after.baseMovementSteps, baseMagicSteps: transition.after.baseMagicSteps }).where(eq(campaignCharacterProfile.characterId, input.characterId));
+      for (const attribute of transition.after.attributes) if (transition.removed.attributeAdjustments[attribute.attributeKey as keyof typeof transition.removed.attributeAdjustments])
+        await tx.update(campaignCharacterAttribute).set({ value: attribute.value }).where(and(eq(campaignCharacterAttribute.characterId, input.characterId), eq(campaignCharacterAttribute.attributeKey, attribute.attributeKey)));
+      const [event] = await tx.insert(raceEvolutionEvent).values({ ...common, sourceRaceId: preview.sourceId, destinationRaceId: preview.destinationId }).returning();
+      return { event: historyEntry("race", event), replayed: false };
+    }
+    if (!snapshots) throw new Error("Historical Creature snapshots could not be prepared.");
+    await tx.update(campaignCreatureNpcProfile).set({ creatureId: preview.destinationId, baselineSnapshotJson: snapshots.destinationBaseline,
+      currentSnapshotJson: snapshots.destinationCurrent }).where(eq(campaignCreatureNpcProfile.characterId, input.characterId));
+    const [event] = await tx.insert(creatureEvolutionEvent).values({ ...common, sourceCreatureId: preview.sourceId, destinationCreatureId: preview.destinationId,
+      sourceBaselineSnapshotJson: snapshots.sourceBaseline, sourceCurrentSnapshotJson: snapshots.sourceCurrent,
+      destinationBaselineSnapshotJson: snapshots.destinationBaseline, destinationCurrentSnapshotJson: snapshots.destinationCurrent, hpAdjustment: snapshots.hpAdjustment }).returning();
+    return { event: historyEntry("creature", event), replayed: false };
+  });
+}
+
+/** A serialized fresh read distinguishes rollback from a lost commit acknowledgement. */
+export async function hasPersistentEvolutionReceipt(characterId: number, key: string, actor: SharedLibraryActor) {
+  if (typeof key !== "string" || !/^[a-zA-Z0-9_-]{16,120}$/.test(key)) return false;
+  return db.transaction(async tx => {
+    await tx.execute(sql`SET LOCAL lock_timeout = '3s'`);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`persistent-evolution:${key}`}, 0))`);
+    await authorize(tx, characterId, actor);
+    const [r] = await tx.select({ id: raceEvolutionEvent.id }).from(raceEvolutionEvent).where(eq(raceEvolutionEvent.idempotencyKey, key));
+    const [c] = await tx.select({ id: creatureEvolutionEvent.id }).from(creatureEvolutionEvent).where(eq(creatureEvolutionEvent.idempotencyKey, key));
+    return !!(r || c);
+  });
 }

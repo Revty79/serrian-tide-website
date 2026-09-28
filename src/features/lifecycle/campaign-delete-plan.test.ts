@@ -11,6 +11,7 @@ import {
 type SnapshotForeignKey = {
   tableTo: string;
   columnsFrom: string[];
+  onDelete?: string;
 };
 
 type SnapshotTable = {
@@ -86,7 +87,7 @@ test("delete scopes match a trusted Campaign predicate", () => {
   }
 });
 
-test("every Campaign-owned nullable self-reference has an explicit break step", () => {
+test("every Campaign-owned nullable self-reference has an explicit deletion strategy", () => {
   const configured = new Set<string>(
     CAMPAIGN_GRAPH_SELF_REFERENCE_BREAKS.map(
       ({ tableName, columnName }) => `${tableName}.${columnName}`,
@@ -98,6 +99,14 @@ test("every Campaign-owned nullable self-reference has an explicit break step", 
       if (foreignKey.tableTo !== tableName) continue;
       for (const columnName of foreignKey.columnsFrom) {
         if (table.columns[columnName]?.notNull) continue;
+        if (["race_evolution_events", "creature_evolution_events"].includes(tableName) && columnName === "reverses_event_id") {
+          // Immutable Return provenance cannot be detached. The trigger enforces the
+          // same Campaign, and NO ACTION permits deleting both rows in one statement.
+          assert.equal(foreignKey.onDelete, "no action");
+          assert.ok(CAMPAIGN_GRAPH_DELETE_STEPS.some(step => step.tableName === tableName && step.scope === "campaign"));
+          assert.equal(configured.has(`${tableName}.${columnName}`), false);
+          continue;
+        }
         assert.ok(
           configured.has(`${tableName}.${columnName}`),
           `self-reference ${tableName}.${columnName} is not detached`,

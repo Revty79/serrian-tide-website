@@ -180,3 +180,14 @@
   .paper-character-sheet[data-print-theme="Plain"] .paper-page-section { border: 0; padding: 5pt; }
   .paper-character-sheet[data-print-theme="Plain"] .paper-masthead-rule { display: none; }
 }
+/* Form references use the same paper palette and flow across pages without fixed heights. */
+.paper-form-selection > p { grid-column: 1 / -1; }
+.paper-form-selection small { display: block; }
+@media print {
+  .paper-form-reference { min-width: 0; overflow-wrap: anywhere; }
+  .paper-form-details { margin: 3pt 0; }
+  .paper-form-details > div { margin: 0 0 4pt; }
+  .paper-form-details dt { font-weight: bold; break-after: avoid; }
+  .paper-form-details dd { margin: 0 0 0 8pt; }
+  .paper-form-reference p { orphans: 2; widows: 2; }
+}

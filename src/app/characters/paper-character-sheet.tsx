@@ -4,6 +4,8 @@ import { DEFAULT_PRINT_SELECTION, PRINT_BOOKS, PRINT_REFERENCES, printPresentati
 import { PaperSheetMasthead } from "./paper-sheet-masthead";
 import { PaperSheetFront } from "./paper-sheet-front";
 import { Box, Lines, SkillTable, OwnedInventory, SpecialAbilities, DerivedAbilities, RecordedSkill, SpellEntry, Text } from "./paper-sheet-content";
+import { PaperFormReference } from "./paper-form-reference";
+import { selectedCharacterFormReferences } from "@/features/characters/character-form-print";
 
 const cssText = (value: string) => JSON.stringify(value.replace(/[\r\n]/g, " ")).replaceAll("<", "\\3c ");
 const sectionKey = (value: string) => `sheet-${value.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`;
@@ -60,6 +62,7 @@ export function PaperCharacterSheet({data, selection = DEFAULT_PRINT_SELECTION, 
     </>});
   }
   for (const reference of selection.references) sections.push({key: `reference-${reference}`, title: PRINT_REFERENCES[reference], content: <Reference data={data} kind={reference} />});
+  for (const form of selectedCharacterFormReferences(data.formReferences ?? [], selection.formIds ?? [])) sections.push({key: `form-${form.preview.form.id}`, title: `Form reference — ${form.preview.form.name}`, content: <PaperFormReference reference={form} />});
   const stamp = data.recordedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC");
   return <div className="paper-character-sheet" data-character-id={data.characterId} data-print-theme={theme} aria-label="Paper Character Sheet">
     <style>{sections.map(section => `@page ${sectionKey(section.key)} { size: letter portrait; margin: .45in .4in .43in; @top-left { content: ${cssText(data.name)}; font: 8pt Arial; color: #333; } @top-right { content: ${cssText(section.title)}; font: 8pt Arial; color: #333; } @bottom-left { content: ${cssText(`Recorded as of ${stamp}`)}; font: 8pt Arial; color: #333; } @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt Arial; color: #333; } }`).join("\n")}</style>

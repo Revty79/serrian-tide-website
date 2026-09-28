@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appliedRaceEvolutionAdjustments, applyRaceEvolutionTransition, emptyRaceEvolutionTransition, normalizeRaceEvolutionTransition, RACE_EVOLUTION_STEP_FIELDS } from "./race-evolution-transition";
+import { removeRaceEvolutionAdjustments, appliedRaceEvolutionAdjustments, applyRaceEvolutionTransition, emptyRaceEvolutionTransition, normalizeRaceEvolutionTransition, RACE_EVOLUTION_STEP_FIELDS } from "./race-evolution-transition";
 import { getCharacterHp } from "@/features/characters/character-rules";
 const before = { attributes: [{ attributeKey: "STR", value: 30 }, { attributeKey: "CON", value: 30 }], hpMultiplierSteps: 2, baseMovementSteps: 1, baseMagicSteps: 3 };
 test("authored add/set adjustments permanently project saved mechanics without creation caps or damage changes", () => {
@@ -36,4 +36,21 @@ test("invalid keys, duplicates, unknown fields, nonfinite values, negative outco
   assert.throws(() => applyRaceEvolutionTransition({ ...emptyRaceEvolutionTransition(), attributes: [{ key: "CON", operation: "add", value: -31 }] }, before), /Nothing will be clamped/);
   assert.throws(() => applyRaceEvolutionTransition({ ...emptyRaceEvolutionTransition(), attributes: [{ key: "DEX", operation: "set", value: 20 }] }, before), /Record DEX/);
   assert.throws(() => normalizeRaceEvolutionTransition({ ...emptyRaceEvolutionTransition(), attributes: [{ key: "STR", operation: "add", value: 1 }, { key: "STR", operation: "set", value: 2 }] }), /at most once/);
+});
+
+test("Return removes signed contributions from current values, retaining later gains and validating every saved field",()=>{
+  const current={attributes:['STR','DEX','CON','INT','WIS','CHR'].map(attributeKey=>({attributeKey,value:45})),hpMultiplierSteps:4,baseMovementSteps:2,baseMagicSteps:5};
+  const applied={attributeAdjustments:{STR:10,CON:-15},hpMultiplierStepsAdjustment:-2,baseMovementStepsAdjustment:0,baseMagicStepsAdjustment:2};
+  const restored=removeRaceEvolutionAdjustments(current,applied);
+  assert.equal(restored.attributes[0].value,35);assert.equal(restored.attributes[2].value,60);assert.equal(restored.hpMultiplierSteps,6);assert.equal(restored.baseMagicSteps,3);assert.equal(current.attributes[0].value,45);
+  for(const value of [NaN,Infinity,-Infinity,null]) assert.throws(()=>removeRaceEvolutionAdjustments(current,{...applied,attributeAdjustments:{STR:value as number}}),/valid/);
+  for(const value of [0.5,NaN,Infinity,6]) assert.throws(()=>removeRaceEvolutionAdjustments(current,{...applied,baseMagicStepsAdjustment:value}));
+  assert.throws(()=>removeRaceEvolutionAdjustments(current,{...applied,attributeAdjustments:{STR:46}}),/nothing will be clamped/);
+  assert.throws(()=>removeRaceEvolutionAdjustments({...current,attributes:current.attributes.slice(1)},applied),/one saved STR/);
+});
+
+test("legacy reversal evidence must contain finite saved values, unique Attributes and valid whole steps",()=>{
+  for(const value of [NaN,Infinity,null]) assert.throws(()=>appliedRaceEvolutionAdjustments({...before,attributes:[{attributeKey:'STR',value:value as number}]},before),/invalid/);
+  assert.throws(()=>appliedRaceEvolutionAdjustments({...before,hpMultiplierSteps:0.5},before),/invalid/);
+  assert.throws(()=>appliedRaceEvolutionAdjustments({...before,attributes:[...before.attributes,before.attributes[0]]},before),/invalid/);
 });

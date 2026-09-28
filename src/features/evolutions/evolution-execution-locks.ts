@@ -8,6 +8,7 @@ import * as racePaths from "@/db/race-evolution-schema";
 import * as creatureRequirements from "@/db/creature-evolution-schema";
 import * as access from "@/db/form-access-schema";
 import * as abilities from "@/db/derived-ability-schema";
+import { raceEvolutionEvent, creatureEvolutionEvent } from "@/db/evolution-event-schema";
 import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignAllowedSystem, campaignPlayer } from "@/db/campaign-schema";
@@ -29,6 +30,7 @@ import { campaignSessionEncounter, campaignSessionEncounterParticipant, campaign
 export const EVOLUTION_FACT_TABLES = [...new Map([
   ...Object.values(races), ...Object.values(creatures), ...Object.values(racePaths),
   ...Object.values(creatureRequirements), ...Object.values(access), ...Object.values(abilities),
+  raceEvolutionEvent, creatureEvolutionEvent,
   user, userRole, campaign, campaignAllowedSystem, campaignPlayer, campaignRace, campaignAllowedRace,
   campaignCharacter, campaignCharacterProfile, campaignCreatureNpcProfile, campaignCharacterAttribute, campaignCharacterSkillAllocation,
   campaignCharacterActiveCondition, campaignCharacterActiveHealth, campaignCharacterActiveHealthPool, campaignCharacterInjury,

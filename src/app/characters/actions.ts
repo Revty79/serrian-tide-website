@@ -1,4 +1,5 @@
 "use server";
+import { isRetainedHistoricalRace } from "@/features/evolutions/retained-historical-race";
 
 import { readRaceFormPreviewInTransaction } from "@/features/races/race-form-preview-service";
 
@@ -850,7 +851,10 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     : allowedRaceRows;
   const selectedRace = profileRow.raceId === null ? null : await readRaceAggregate(profileRow.raceId);
   if (profileRow.raceId !== null && !effectiveAllowedRaceRows.some(({ id }) => id === profileRow.raceId)) {
-    throw new Error("The Character references a Race that is not allowed by its Campaign.");
+    if (!selectedRace || !await isRetainedHistoricalRace(characterId, profileRow.raceId))
+      throw new Error("The Character references a Race that is not allowed by its Campaign.");
+    const [historicalRace] = await db.select({ archivedAt: race.archivedAt }).from(race).where(eq(race.id, profileRow.raceId));
+    effectiveAllowedRaceRows.push({ id: selectedRace.race.id, name: `${selectedRace.race.name} (current historical Race)`, archivedAt: historicalRace.archivedAt });
   }
 
   assertNoStackInstanceOwnershipCollision({
@@ -1150,7 +1154,10 @@ export async function getAllowedRaceForCharacter(
       ),
     )
     .limit(1);
-  if (!allowed) throw new Error("That Race is not allowed by this Campaign.");
+  if (!allowed) {
+    const [saved] = await db.select({ raceId: campaignCharacterProfile.raceId }).from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, characterId));
+    if (saved?.raceId !== raceId || !await isRetainedHistoricalRace(characterId, raceId)) throw new Error("That Race is not allowed by this Campaign.");
+  }
   const selectedRace = await readRaceAggregate(raceId);
   if (!selectedRace) throw new Error("The selected Race could not be loaded.");
   return selectedRace;

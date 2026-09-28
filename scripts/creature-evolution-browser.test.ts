@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { evolutionPassFiveBrowser } from "./evolution-pass-five-browser";
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
@@ -42,6 +43,7 @@ async function main() {
     const page=await context.newPage(); page.setDefaultTimeout(40_000); page.setDefaultNavigationTimeout(180_000);
     page.on("pageerror",error=>errors.push(error.message));
     const login=await context.request.post(`${base}/api/auth/sign-in/email`,{headers:{Origin:base},data:{email:`${userId}@example.invalid`,password}}); assert.equal(login.status(),200);
+    if (process.env.SERRIAN_EVOLUTION_SHEET_ONLY !== "true") {
     await page.goto(`${base}/heavens/creatures`);
     const openSource=async()=>{
       await page.locator("#creature-search").fill("Evolution Young Drake");
@@ -337,9 +339,12 @@ async function main() {
       }
     }
     console.log("PASS: Pass 4 Race/Creature destination creation, desktop/390px scrolling, canonical validation, full editor navigation, canon-only views, unsaved-edit-safe return, ordinary path editing, lost response and page-reload idempotency.");
+    }
+    await evolutionPassFiveBrowser({page,context,pool,base,password,artifacts});
     assert.deepEqual(errors,[]);
     console.log("PASS: real Race and Creature persistent execution, Race permanent adjustment authoring, health acknowledgement, event history, desktop/390px controls; real Race and Creature requirements AND/OR authoring, saved reload, Campaign G.O.D. eligibility and 390px scrolling; Creature authoring UI add/edit/reorder/reload/remove; exact variant selection; retained archived destination; phone dialog scrolling and shared theme; Forms and NPC snapshots unchanged; no browser errors.");
   } catch(error) {
+    console.error("Browser errors:",errors);
     const page=browser?.contexts()[0]?.pages()[0];
     if(page) { await page.screenshot({path:path.join(artifacts,"failure.png"),fullPage:true}).catch(()=>undefined); await writeFile(path.join(artifacts,"failure.txt"),await page.locator("body").innerText().catch(()=>"")); }
     throw error;

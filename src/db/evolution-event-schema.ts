@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { check, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
 import { campaign } from "./campaign-schema";
 import { campaignCharacter } from "./realm-schema";
@@ -19,9 +19,11 @@ const common = () => ({
   idempotencyKey: text("idempotency_key").notNull().unique(),
   requestHash: text("request_hash").notNull(),
   evidence: jsonb("evidence").$type<EvolutionEventEvidence>().notNull(),
+  operation: text("operation").$type<"evolution" | "return">().notNull().default("evolution"),
 });
 export const raceEvolutionEvent = pgTable("race_evolution_events", {
   ...common(),
+  reversesEventId: integer("reverses_event_id").references((): AnyPgColumn => raceEvolutionEvent.id, { onDelete: "no action" }),
   pathId: integer("path_id").notNull().references(() => raceEvolutionPath.id, { onDelete: "restrict" }),
   sourceRaceId: integer("source_race_id").notNull().references(() => race.id, { onDelete: "restrict" }),
   destinationRaceId: integer("destination_race_id").notNull().references(() => race.id, { onDelete: "restrict" }),
@@ -29,10 +31,13 @@ export const raceEvolutionEvent = pgTable("race_evolution_events", {
   index("race_evolution_event_individual").on(table.characterId, table.id),
   index("race_evolution_event_campaign").on(table.campaignId),
   index("race_evolution_event_path").on(table.pathId),
+  uniqueIndex("race_evolution_event_return_once").on(table.reversesEventId).where(sql`${table.reversesEventId} IS NOT NULL`),
+  check("race_evolution_event_operation", sql`(${table.operation} = 'evolution' AND ${table.reversesEventId} IS NULL) OR (${table.operation} = 'return' AND ${table.reversesEventId} IS NOT NULL AND ${table.reversesEventId} <> ${table.id})`),
   check("race_evolution_event_transition", sql`${table.sourceRaceId} <> ${table.destinationRaceId} AND ${table.pathVersion} > 0`),
 ]);
 export const creatureEvolutionEvent = pgTable("creature_evolution_events", {
   ...common(),
+  reversesEventId: integer("reverses_event_id").references((): AnyPgColumn => creatureEvolutionEvent.id, { onDelete: "no action" }),
   pathId: integer("path_id").notNull().references(() => creatureEvolutionPath.id, { onDelete: "restrict" }),
   sourceCreatureId: integer("source_creature_id").notNull().references(() => creature.id, { onDelete: "restrict" }),
   destinationCreatureId: integer("destination_creature_id").notNull().references(() => creature.id, { onDelete: "restrict" }),
@@ -45,5 +50,7 @@ export const creatureEvolutionEvent = pgTable("creature_evolution_events", {
   index("creature_evolution_event_individual").on(table.characterId, table.id),
   index("creature_evolution_event_campaign").on(table.campaignId),
   index("creature_evolution_event_path").on(table.pathId),
+  uniqueIndex("creature_evolution_event_return_once").on(table.reversesEventId).where(sql`${table.reversesEventId} IS NOT NULL`),
+  check("creature_evolution_event_operation", sql`(${table.operation} = 'evolution' AND ${table.reversesEventId} IS NULL) OR (${table.operation} = 'return' AND ${table.reversesEventId} IS NOT NULL AND ${table.reversesEventId} <> ${table.id})`),
   check("creature_evolution_event_transition", sql`${table.sourceCreatureId} <> ${table.destinationCreatureId} AND ${table.pathVersion} > 0`),
 ]);
