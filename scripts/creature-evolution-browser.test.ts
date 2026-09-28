@@ -110,8 +110,70 @@ async function main() {
     await page.getByRole("button",{name:"Evolutions",exact:true}).click();
     await area.getByRole("heading",{name:"Browser Frost evolution",exact:true}).waitFor();
     await page.screenshot({path:path.join(artifacts,"evolutions-phone.png"),fullPage:true});
+    // Pass 2: authenticate the Campaign G.O.D. used by both Race/Creature fixtures.
+    const requirementsUser="requirements-god";
+    await pool.query('update "user" set email_verified=true,username=$1,display_username=$1 where id=$1',[requirementsUser]);
+    await pool.query("insert into account(id,issuer,account_id,provider_id,user_id,password,updated_at) values($1,'local:credential',$2,'credential',$2,$3,now())",[`${requirementsUser}-credential`,requirementsUser,await hashPassword(password)]);
+    await context.request.post(`${base}/api/auth/sign-out`,{headers:{Origin:base},data:{}});
+    const secondLogin=await context.request.post(`${base}/api/auth/sign-in/email`,{headers:{Origin:base},data:{email:`${requirementsUser}@example.invalid`,password}});assert.equal(secondLogin.status(),200);
+    const raceDestination=(await query("select id from races where name='Evolution Elf'"))[0].id;
+    for(const kind of ["creature","race"] as const) {
+      const name=kind==="creature"?"Requirements Young Drake":"Evolution Human";
+      const pathName=kind==="creature"?"Mature":"Ascend";
+      const individualName=kind==="creature"?"Requirements Ember":"Evolution PC";
+      const selectedIndividual=(await query("select id from campaign_character where name=$1",[individualName]))[0].id;
+      await page.setViewportSize({width:1365,height:1000});
+      await page.goto(`${base}/heavens/${kind}s`);
+      await page.locator(`#${kind}-search`).fill(name);
+      await page.locator(".skill-library__row").filter({has:page.locator(".skill-library__row-name").filter({hasText:name})}).click();
+      await page.getByRole("button",{name:"Evolutions",exact:true}).click();
+      await area.getByRole("heading",{name:pathName,exact:true}).waitFor();
+      if(kind==="race") {
+        await area.getByRole("button",{name:"Add Evolution",exact:true}).click();
+        await dialog.getByLabel("Evolution name",{exact:true}).fill("Browser Race branch");
+        await dialog.getByLabel("Find destination Race",{exact:true}).fill("Evolution Elf");
+        await dialog.getByLabel("Destination Race",{exact:true}).selectOption(String(raceDestination));
+        await dialog.getByRole("button",{name:"Save Evolution",exact:true}).click();
+        await area.getByRole("heading",{name:"Browser Race branch",exact:true}).waitFor();
+        await area.getByRole("button",{name:"Move Browser Race branch up",exact:true}).click();
+        await area.getByText("Evolution order saved.",{exact:true}).waitFor();
+        await area.getByRole("button",{name:"Remove Browser Race branch",exact:true}).click();
+        await dialog.getByRole("button",{name:"Remove Evolution",exact:true}).click();
+        await area.getByRole("heading",{name:"Browser Race branch",exact:true}).waitFor({state:"hidden"});
+      }
+      await area.getByRole("button",{name:`Requirements for ${pathName}`,exact:true}).click();
+      await dialog.getByLabel("Requirement mode",{exact:true}).selectOption("unrestricted");
+      await dialog.getByLabel("Requirement mode",{exact:true}).selectOption("requirements");
+      await dialog.getByRole("button",{name:"Add requirement",exact:true}).click();
+      await dialog.getByLabel("Requirement notes",{exact:true}).fill("G.O.D. must confirm the story milestone.");
+      await dialog.getByRole("button",{name:"Add alternative group",exact:true}).click();
+      const secondGroup=dialog.getByRole("region",{name:"Requirement group 2",exact:true});
+      await secondGroup.getByRole("button",{name:"Add requirement",exact:true}).click();
+      await secondGroup.getByLabel("Requirement type",{exact:true}).selectOption("age");
+      await secondGroup.getByLabel("Required value",{exact:true}).fill("18");
+      await page.screenshot({path:path.join(artifacts,`${kind}-requirements-desktop.png`),fullPage:false});
+      await page.setViewportSize({width:390,height:844});
+      await dialog.getByRole("button",{name:"Save requirements",exact:true}).scrollIntoViewIfNeeded();
+      const requirementBounds=await dialog.boundingBox();assert.ok(requirementBounds && requirementBounds.x>=0 && requirementBounds.x+requirementBounds.width<=391 && requirementBounds.y>=0 && requirementBounds.y+requirementBounds.height<=845);
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+      await page.screenshot({path:path.join(artifacts,`${kind}-requirements-phone.png`),fullPage:false});
+      await dialog.getByRole("button",{name:"Save requirements",exact:true}).click();
+      await area.getByText("Evolution requirements saved.",{exact:true}).waitFor();
+      await area.getByRole("button",{name:`Requirements for ${pathName}`,exact:true}).click();
+      assert.equal(await dialog.getByLabel("Requirement notes",{exact:true}).first().inputValue(),"G.O.D. must confirm the story milestone.");
+      await dialog.getByRole("button",{name:"Close",exact:true}).click();
+      const stateBefore=await query("select to_jsonb(t) body from campaign_character_profile t order by character_id");
+      await area.getByRole("button",{name:`Preview eligibility for ${pathName}`,exact:true}).click();
+      await dialog.getByLabel(kind==="race"?"Character":"Individual Creature",{exact:true}).selectOption(String(selectedIndividual));
+      await dialog.getByRole("button",{name:"Check eligibility",exact:true}).click();
+      await dialog.getByRole("heading",{name:kind==="race"?"Eligible":"Requires G.O.D. review",exact:true}).waitFor();
+      await dialog.getByRole("button",{name:"Close preview",exact:true}).scrollIntoViewIfNeeded();
+      await page.screenshot({path:path.join(artifacts,`${kind}-eligibility-phone.png`),fullPage:false});
+      assert.deepEqual(await query("select to_jsonb(t) body from campaign_character_profile t order by character_id"),stateBefore);
+      await dialog.getByRole("button",{name:"Close preview",exact:true}).click();
+    }
     assert.deepEqual(errors,[]);
-    console.log("PASS: real Creature authoring UI add/edit/reorder/reload/remove; exact variant selection; retained archived destination; phone dialog scrolling and shared theme; Forms and NPC snapshots unchanged; no browser errors.");
+    console.log("PASS: real Race and Creature requirements AND/OR authoring, saved reload, Campaign G.O.D. eligibility and 390px scrolling; Creature authoring UI add/edit/reorder/reload/remove; exact variant selection; retained archived destination; phone dialog scrolling and shared theme; Forms and NPC snapshots unchanged; no browser errors.");
   } catch(error) {
     const page=browser?.contexts()[0]?.pages()[0];
     if(page) { await page.screenshot({path:path.join(artifacts,"failure.png"),fullPage:true}).catch(()=>undefined); await writeFile(path.join(artifacts,"failure.txt"),await page.locator("body").innerText().catch(()=>"")); }

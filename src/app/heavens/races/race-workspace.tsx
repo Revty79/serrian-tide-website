@@ -12,6 +12,7 @@ import { RaceAnatomyEditor } from "./race-anatomy-editor";
 import { RaceNaturalAttacksEditor } from "./race-natural-attacks-editor";
 import { RaceMovementEditor } from "./race-movement-editor";
 import { RaceSkillLinksEditor } from "./race-skill-links-editor";
+import { RaceEvolutionsEditor } from "./race-evolutions-editor";
 import { RaceFormsEditor } from "./race-forms-editor";
 import { raceHitLocations } from "@/features/races/race-anatomy";
 
@@ -34,7 +35,7 @@ import {
   type RaceSummary,
 } from "./actions";
 
-type Tab = "overview" | "mechanics" | "anatomy" | "attacks" | "forms" | "quirk" | "skills" | "culture" | "variants" | "preview";
+type Tab = "overview" | "mechanics" | "anatomy" | "attacks" | "forms" | "evolutions" | "quirk" | "skills" | "culture" | "variants" | "preview";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
@@ -42,6 +43,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "anatomy", label: "HP & Hit Locations" },
   { id: "attacks", label: "Natural Attacks" },
   { id: "forms", label: "Forms" },
+  { id: "evolutions", label: "Evolutions" },
   { id: "quirk", label: "Quirk" },
   { id: "skills", label: "Skills & Abilities" },
   { id: "culture", label: "Culture & Play" },
@@ -355,7 +357,8 @@ export function RaceWorkspace({
             {feedback ? <p className={`skill-editor__feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
             <nav className="skill-editor__tabs">{TABS.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setActiveTab(tab.id))}>{tab.label}</button>)}</nav>
             {activeTab === "variants" ? <div className="skill-editor__content race-editor__content"><Variants key={draft.id ?? "new"} draft={draft} busy={busy} archived={isArchived} onOpen={chooseRace} onCreate={requestVariant} /></div> : null}
-            <fieldset className="skill-editor__content race-editor__content lifecycle-editor-fields" disabled={isArchived || busy} hidden={activeTab === "variants"}>
+            {activeTab === "evolutions" ? <div className="skill-editor__content race-editor__content"><RaceEvolutionsEditor key={draft.id ?? "new"} sourceRaceId={draft.id} dirty={dirty || busy} archived={isArchived} /></div> : null}
+            <fieldset className="skill-editor__content race-editor__content lifecycle-editor-fields" disabled={isArchived || busy} hidden={activeTab === "variants" || activeTab === "evolutions"}>
               {activeTab === "overview" ? <Overview draft={draft} onChange={change} /> : null}
               {activeTab === "mechanics" ? <Mechanics draft={draft} onChange={change} /> : null}
               {activeTab === "anatomy" ? <RaceAnatomyEditor value={draft.core.anatomy ?? null} onChange={(anatomy) => change({ ...draft, core: { ...draft.core, anatomy } })} /> : null}

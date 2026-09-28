@@ -6,6 +6,8 @@ import { creature, creatureEvolutionPath as path } from "@/db/creature-schema";
 import { assertCanEditSharedLibraryRoot, canEditSharedLibraryRoot, type SharedLibraryActor } from "@/features/authorization/shared-library-access";
 import { catalogBrowseWhere, getCatalogBrowseState } from "@/features/catalog-visibility/catalog-query";
 import { normalizeEvolutionPath, requireEvolutionId, type CreatureEvolutionPath, type EvolutionDestination, type EvolutionPathInput } from "./creature-evolutions";
+import { cloneEvolutionRequirementRows, evolutionSourceChoices, readEvolutionRequirements, saveEvolutionRequirementRows, validateEvolutionReferences } from "./evolution-requirement-service";
+import type { EvolutionRequirements } from "./evolution-requirements";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const parent = alias(creature, "evolution_destination_parent");
@@ -20,6 +22,7 @@ export async function readCreatureEvolutionsInTransaction(tx: Transaction, sourc
   return tx.select({
     id: path.id, sourceCreatureId: path.sourceCreatureId, destinationCreatureId: path.destinationCreatureId,
     name: path.name, description: path.description, notes: path.notes, sortOrder: path.sortOrder, version: path.version,
+    requirementMode: path.requirementMode,
     destination: destinationColumns,
   }).from(path).innerJoin(creature, eq(creature.id, path.destinationCreatureId))
     .leftJoin(parent, eq(parent.id, creature.parentCreatureId))
@@ -113,8 +116,35 @@ export async function reorderCreatureEvolutions(input: { sourceCreatureId: numbe
 }
 
 /** Source clone is authorized by the existing variant action. Keep destinations, including retained archives. */
-export async function cloneCreatureEvolutionsInTransaction(tx: Transaction, sourceCreatureId: number, newSourceCreatureId: number) {
-  await tx.execute(sql`insert into creature_evolution_paths (source_creature_id, destination_creature_id, name, description, notes, sort_order)
-    select ${newSourceCreatureId}, destination_creature_id, name, description, notes, sort_order
-    from creature_evolution_paths where source_creature_id = ${sourceCreatureId} order by sort_order, id`);
+export async function cloneCreatureEvolutionsInTransaction(tx: Transaction, sourceCreatureId: number, newSourceCreatureId: number, abilityIds: ReadonlyMap<string, string> = new Map()) {
+  const paths = await tx.select().from(path).where(eq(path.sourceCreatureId, sourceCreatureId)).orderBy(asc(path.sortOrder), asc(path.id));
+  for (const original of paths) {
+    const [copied] = await tx.insert(path).values({ sourceCreatureId: newSourceCreatureId, destinationCreatureId: original.destinationCreatureId, name: original.name, description: original.description, notes: original.notes, sortOrder: original.sortOrder, requirementMode: original.requirementMode }).returning({ id: path.id });
+    await cloneEvolutionRequirementRows(tx, original.id, copied.id, abilityIds);
+  }
+}
+
+export async function readEvolutionRequirementAuthoring(sourceCreatureId: number, pathId: number, actor: SharedLibraryActor) {
+  requireEvolutionId(sourceCreatureId, "Source Creature"); requireEvolutionId(pathId, "Evolution path");
+  return db.transaction(async tx => {
+    const [source] = await tx.select().from(creature).where(eq(creature.id, sourceCreatureId));
+    if (!source) throw new Error("Source Creature no longer exists.");
+    const selected = (await readCreatureEvolutionsInTransaction(tx, sourceCreatureId)).find(row => row.id === pathId);
+    if (!selected) throw new Error("Evolution path no longer exists on this source Creature.");
+    return { path: selected, canEdit: !source.archivedAt && canEditSharedLibraryRoot(actor, source), ...await readEvolutionRequirements(tx, selected.id, selected.requirementMode), ...await evolutionSourceChoices(tx, sourceCreatureId) };
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+
+export async function saveEvolutionRequirements(input: { sourceCreatureId: number; pathId: number; expectedVersion: number; requirements: EvolutionRequirements }, actor: SharedLibraryActor) {
+  requireEvolutionId(input.pathId, "Evolution path");
+  return db.transaction(async tx => {
+    await lockSource(tx, input.sourceCreatureId, actor);
+    const [stored] = await tx.select().from(path).where(and(eq(path.id, input.pathId), eq(path.sourceCreatureId, input.sourceCreatureId)));
+    assertVersion(stored, input.expectedVersion);
+    const previous = await readEvolutionRequirements(tx, stored.id, stored.requirementMode);
+    const value = await validateEvolutionReferences(tx, input.sourceCreatureId, input.requirements, previous, actor.userId);
+    await saveEvolutionRequirementRows(tx, stored.id, value);
+    await tx.update(path).set({ requirementMode: value.mode, version: stored.version + 1, updatedAt: new Date() }).where(eq(path.id, stored.id));
+    return readCreatureEvolutionsInTransaction(tx, input.sourceCreatureId);
+  });
 }

@@ -1,4 +1,5 @@
 "use server";
+import { assertRaceEvolutionSourceReferences } from "@/features/races/evolution-requirement-service";
 import { getCatalogBrowseState, catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-lineage";
 
@@ -563,7 +564,9 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
       input.naturalAttacks === undefined ? await readRaceNaturalAttacksInTransaction(tx, id) : input.naturalAttacks,
       savedCore.anatomy);
     // Omission preserves Forms for older callers; retained references still follow saved Race Anatomy.
-    await saveRaceFormsInTransaction(tx, id, input.forms === undefined ? await readRaceFormsInTransaction(tx, id) : input.forms, {
+    const finalForms = input.forms === undefined ? await readRaceFormsInTransaction(tx, id) : input.forms;
+    await assertRaceEvolutionSourceReferences(tx, id, new Set(finalForms.map(form => form.key)));
+    await saveRaceFormsInTransaction(tx, id, finalForms, {
       anatomy: savedCore.anatomy, naturalAttacks: await readRaceNaturalAttacksInTransaction(tx, id),
       naturalProtections: await readRaceNaturalProtectionInTransaction(tx, id),
     });

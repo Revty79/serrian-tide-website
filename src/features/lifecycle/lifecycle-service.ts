@@ -351,6 +351,8 @@ function characterDependencySpecs(characterId: number, campaignId: number): Depe
 
 function raceDependencySpecs(id: number): DependencySpec[] {
   return [
+    { label: "Authored outgoing Evolution paths", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_evolution_paths where source_race_id = ${id}` },
+    { label: "Incoming Evolution paths", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_evolution_paths where destination_race_id = ${id}` },
     { label: "Child Race variants", blocking: true, query: sql<CountRow>`select count(*)::int as value from races where parent_race_id = ${id}` },
     { label: "Natural Protection definitions", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_natural_protections where race_id = ${id}` },
     { label: "Attribute caps", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_attribute_caps where race_id = ${id}` },
@@ -390,6 +392,8 @@ function skillDependencySpecs(id: number): DependencySpec[] {
     { label: "Form Skill additions", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_form_skill_links where skill_id = ${id}` },
     { label: "Race Form Access Skill prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_form_access_requirements where skill_id = ${id}` },
     { label: "Creature Form Access Skill prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_form_access_requirements where skill_id = ${id}` },
+    { label: "Evolution Skill prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_evolution_requirements where skill_id = ${id}` },
+    { label: "Race Evolution Skill prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_evolution_requirements where skill_id = ${id}` },
     { label: "Creature Form Skill links", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_form_skill_links where skill_id = ${id}` },
     { label: "Creature Skill links", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_skill_links where skill_id = ${id}` },
     { label: "Character Skill allocations", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_character_skill_allocation where skill_id = ${id}` },
@@ -446,6 +450,8 @@ function itemDependencySpecs(id: number): DependencySpec[] {
     { label: "Active and historical Item-sourced Conditions and Modifiers", blocking: true, query: sql<CountRow>`select ((select count(*) from campaign_character_active_condition where source_kind = 'item' and source_id = ${itemSourceId}) + (select count(*) from campaign_character_active_modifier where source_kind = 'item' and source_id = ${itemSourceId}))::int as value` },
     { label: "Tabletop Item action, effect-plan, and reaction history", blocking: true, query: sql<CountRow>`select ((select count(*) from campaign_session_encounter_pending_action_source where source_kind = 'item' and source_ref = ${itemActionSourceRef}) + (select count(*) from campaign_session_encounter_effect_plan where source_kind = 'item' and source_id = ${itemSourceId}) + (select count(*) from campaign_session_encounter_reaction where defending_item_id = ${id}))::int as value` },
     { label: "Shop transaction history", blocking: true, query: sql<CountRow>`select ((select count(*) from shop_transaction_request_line where item_id = ${id}) + (select count(*) from shop_transaction_line where item_id = ${id}) + (select count(*) from shop_resale_item_instance where item_id = ${id}) + (select count(*) from shop_resale_creature where item_id = ${id}))::int as value` },
+    { label: "Evolution Item prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_evolution_requirements where item_id = ${id}` },
+    { label: "Race Evolution Item prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_evolution_requirements where item_id = ${id}` },
   ];
 }
 
@@ -453,6 +459,7 @@ function derivedAbilityDependencySpecs(id: number): DependencySpec[] {
   return [
     { label: "Owned definition rows", blocking: false, query: sql<CountRow>`select ((select count(*) from derived_ability_requirement where derived_ability_id = ${id}) + (select count(*) from derived_ability_use_condition where derived_ability_id = ${id}) + (select count(*) from derived_ability_cost where derived_ability_id = ${id}) + (select count(*) from derived_ability_use_limit where derived_ability_id = ${id}) + (select count(*) from derived_ability_effect where derived_ability_id = ${id}) + (select count(*) from derived_ability_trigger where derived_ability_id = ${id}))::int as value` },
     { label: "Race Form Access Derived Ability prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_form_access_requirements where required_derived_ability_id = ${id}` },
+    { label: "Race Evolution Derived Ability prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_evolution_requirements where derived_ability_id = ${id}` },
     { label: "Other Derived Ability prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from derived_ability_requirement where required_derived_ability_id = ${id}` },
     { label: "Legacy Campaign allowlists", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_allowed_derived_ability where derived_ability_id = ${id}` },
     { label: "Character ownership history", blocking: true, query: sql<CountRow>`select count(*)::int as value from character_derived_ability where derived_ability_id = ${id}` },

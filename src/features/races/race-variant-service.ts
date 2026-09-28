@@ -1,4 +1,5 @@
 import "server-only";
+import { cloneRaceEvolutionsInTransaction } from "./race-evolution-service";
 
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -53,6 +54,7 @@ export async function createRaceVariantForActor(parentRaceId: number, variantNam
     // Copy saved definitions exactly, including retained archived Skill references.
     if (attacks.length) await tx.insert(raceNaturalAttack).values(attacks.map(row => ({ ...row, id: undefined, raceId: created.id })));
     await cloneRaceFormsInTransaction(tx, parentRaceId, created.id);
+    await cloneRaceEvolutionsInTransaction(tx, parentRaceId, created.id);
     return created.id;
   });
 }

@@ -1,4 +1,5 @@
 import type { FormAccessMode } from "@/features/forms/form-access";
+import type { EvolutionRequirementMode } from "@/features/creatures/evolution-requirements";
 import type { CreatureAttackAuthoring, CreatureAbilityAuthoring } from "@/features/creatures/creature-authoring";
 import type { CreatureFormMechanics } from "@/features/creatures/creature-forms";
 import type { FormTransformation } from "@/features/forms/form-transformation";
@@ -35,6 +36,7 @@ export const creatureEvolutionPath = pgTable("creature_evolution_paths", {
   notes: text("notes").notNull().default(""),
   sortOrder: integer("sort_order").notNull().default(0),
   version: integer("version").notNull().default(1),
+  requirementMode: text("requirement_mode").$type<EvolutionRequirementMode>().notNull().default("unrestricted"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, table => [
@@ -44,6 +46,7 @@ export const creatureEvolutionPath = pgTable("creature_evolution_paths", {
   check("creature_evolution_name", sql`length(trim(${table.name})) > 0`),
   check("creature_evolution_order", sql`${table.sortOrder} >= 0`),
   check("creature_evolution_version", sql`${table.version} > 0`),
+  check("creature_evolution_requirement_mode", sql`${table.requirementMode} IN ('unrestricted','requirements')`),
 ]);
 
 // Exact creatures.id includes independent authored variants. No parent-chain Form inheritance.

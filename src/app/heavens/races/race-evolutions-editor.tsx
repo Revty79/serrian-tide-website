@@ -1,64 +1,64 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
-import { evolutionDestinationLabel, type CreatureEvolutionPath, type EvolutionDestination, type EvolutionPathInput } from "@/features/creatures/creature-evolutions";
-import { getCreatureEvolutions, reorderEvolutionPaths, removeEvolutionPath, saveEvolutionPath, searchEvolutionDestinations } from "./evolution-actions";
-import styles from "./creature-evolutions.module.css";
+import { evolutionDestinationLabel, type RaceEvolutionPath, type EvolutionDestination, type EvolutionPathInput } from "@/features/races/race-evolutions";
+import { getRaceEvolutions, reorderEvolutionPaths, removeEvolutionPath, saveEvolutionPath, searchEvolutionDestinations } from "./evolution-actions";
+import styles from "../creatures/creature-evolutions.module.css";
 import { EvolutionEligibilityDialog, EvolutionRequirementsDialog } from "../evolution-requirements-editor";
 
-export function CreatureEvolutionsEditor({ sourceCreatureId, dirty, archived }: { sourceCreatureId?: number; dirty: boolean; archived: boolean }) {
-  const [paths, setPaths] = useState<CreatureEvolutionPath[]>([]);
+export function RaceEvolutionsEditor({ sourceRaceId, dirty, archived }: { sourceRaceId?: number; dirty: boolean; archived: boolean }) {
+  const [paths, setPaths] = useState<RaceEvolutionPath[]>([]);
   const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [editing, setEditing] = useState<{ path: CreatureEvolutionPath | null } | null>(null);
-  const [removing, setRemoving] = useState<CreatureEvolutionPath | null>(null);
-  const [requirements, setRequirements] = useState<CreatureEvolutionPath | null>(null);
-  const [preview, setPreview] = useState<CreatureEvolutionPath | null>(null);
+  const [editing, setEditing] = useState<{ path: RaceEvolutionPath | null } | null>(null);
+  const [removing, setRemoving] = useState<RaceEvolutionPath | null>(null);
+  const [requirements, setRequirements] = useState<RaceEvolutionPath | null>(null);
+  const [preview, setPreview] = useState<RaceEvolutionPath | null>(null);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
-    if (!sourceCreatureId) return;
+    if (!sourceRaceId) return;
     let current = true;
-    void getCreatureEvolutions(sourceCreatureId).then(result => {
+    void getRaceEvolutions(sourceRaceId).then(result => {
       if (current) { setPaths(result.paths); setCanEdit(result.canEdit); setError(""); }
     }).catch(reason => { if (current) setError(reason instanceof Error ? reason.message : "Could not load Evolutions."); })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
-  }, [sourceCreatureId, reload]);
+  }, [sourceRaceId, reload]);
 
   const disabled = busy || loading || dirty || archived || !canEdit;
   async function move(index: number, offset: number) {
-    if (!sourceCreatureId) return;
+    if (!sourceRaceId) return;
     const next = [...paths];
     [next[index], next[index + offset]] = [next[index + offset], next[index]];
     setBusy(true); setError(""); setMessage("");
     try {
-      setPaths(await reorderEvolutionPaths({ sourceCreatureId, paths: next.map(({ id, version }) => ({ id, version })) }));
+      setPaths(await reorderEvolutionPaths({ sourceRaceId, paths: next.map(({ id, version }) => ({ id, version })) }));
       setMessage("Evolution order saved.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not reorder Evolutions."); }
     finally { setBusy(false); }
   }
-  function saved(next: CreatureEvolutionPath[], message: string) {
+  function saved(next: RaceEvolutionPath[], message: string) {
     setPaths(next); setEditing(null); setRemoving(null); setRequirements(null); setError(""); setMessage(message);
   }
 
   return <section className={styles.area} aria-label="Evolution paths">
     <h3>Evolutions</h3>
-    <p>Define possible progressions from this Creature to another saved Creature. Forms are alternate states within a definition; Evolutions connect different definitions.</p>
+    <p>Define possible progressions from this Race to another saved Race. Forms are alternate states within a definition; Evolutions connect different definitions.</p>
     <p>Paths and requirements save separately. Eligibility previews check saved individual facts without changing them. Checking eligibility does not perform an Evolution.</p>
-    {!sourceCreatureId ? <p>Save this Creature before adding Evolution paths.</p> : <>
-      {dirty ? <p>Save your Creature changes before editing Evolutions.</p> : null}
-      {archived ? <p>Restore this Creature to edit its Evolution paths.</p> : !loading && !canEdit ? <p>You can view these paths. Editing follows the source Creature&apos;s authoring permissions.</p> : null}
+    {!sourceRaceId ? <p>Save this Race before adding Evolution paths.</p> : <>
+      {dirty ? <p>Save your Race changes before editing Evolutions.</p> : null}
+      {archived ? <p>Restore this Race to edit its Evolution paths.</p> : !loading && !canEdit ? <p>You can view these paths. Editing follows the source Race&apos;s authoring permissions.</p> : null}
       <div className={styles.actions}>
         <button className="st-button is-primary" type="button" disabled={disabled} onClick={() => setEditing({ path: null })}>Add Evolution</button>
         <button className="st-button" type="button" disabled={busy || loading} onClick={() => { setLoading(true); setReload(value => value + 1); }}>Reload Evolutions</button>
       </div>
       {error ? <p role="alert">{error}</p> : null}
       {message ? <p role="status">{message}</p> : null}
-      {loading ? <p role="status">Loading Evolutions…</p> : !paths.length ? <p>No Evolution paths authored for this exact Creature.</p> : <ol className={styles.paths}>
+      {loading ? <p role="status">Loading Evolutions…</p> : !paths.length ? <p>No Evolution paths authored for this exact Race.</p> : <ol className={styles.paths}>
         {paths.map((path, index) => <li key={path.id} className={styles.card}>
           <h4>{path.name}</h4>
           <p>{evolutionDestinationLabel(path.destination)}</p>
@@ -77,20 +77,20 @@ export function CreatureEvolutionsEditor({ sourceCreatureId, dirty, archived }: 
           </div>
         </li>)}
       </ol>}
-      {editing ? <EvolutionDialog sourceCreatureId={sourceCreatureId} path={editing.path} onClose={() => setEditing(null)} onSaved={next => saved(next, "Evolution path saved.")} /> : null}
+      {editing ? <EvolutionDialog sourceRaceId={sourceRaceId} path={editing.path} onClose={() => setEditing(null)} onSaved={next => saved(next, "Evolution path saved.")} /> : null}
       {removing ? <RemoveDialog path={removing} onClose={() => setRemoving(null)} onSaved={next => saved(next, "Evolution path removed.")} /> : null}
-      {requirements ? <EvolutionRequirementsDialog kind="creature" path={requirements} onClose={() => setRequirements(null)} onSaved={next => saved(next,"Evolution requirements saved.")} /> : null}
-      {preview ? <EvolutionEligibilityDialog kind="creature" path={preview} onClose={() => setPreview(null)} /> : null}
+      {requirements ? <EvolutionRequirementsDialog kind="race" path={requirements} onClose={() => setRequirements(null)} onSaved={next => saved(next,"Evolution requirements saved.")} /> : null}
+      {preview ? <EvolutionEligibilityDialog kind="race" path={preview} onClose={() => setPreview(null)} /> : null}
     </>}
   </section>;
 }
 
-function EvolutionDialog({ sourceCreatureId, path, onClose, onSaved }: {
-  sourceCreatureId: number; path: CreatureEvolutionPath | null; onClose: () => void; onSaved: (paths: CreatureEvolutionPath[]) => void;
+function EvolutionDialog({ sourceRaceId, path, onClose, onSaved }: {
+  sourceRaceId: number; path: RaceEvolutionPath | null; onClose: () => void; onSaved: (paths: RaceEvolutionPath[]) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [input, setInput] = useState<EvolutionPathInput>({
-    sourceCreatureId, id: path?.id, expectedVersion: path?.version, destinationCreatureId: path?.destinationCreatureId ?? 0,
+    sourceRaceId, id: path?.id, expectedVersion: path?.version, destinationRaceId: path?.destinationRaceId ?? 0,
     name: path?.name ?? "", description: path?.description ?? "", notes: path?.notes ?? "",
   });
   const [selected, setSelected] = useState(path?.destination ?? null);
@@ -104,13 +104,13 @@ function EvolutionDialog({ sourceCreatureId, path, onClose, onSaved }: {
   useEffect(() => {
     let current = true;
     const timer = setTimeout(() => {
-      void searchEvolutionDestinations(sourceCreatureId, search).then(rows => {
+      void searchEvolutionDestinations(sourceRaceId, search).then(rows => {
         if (current) { setCandidates(rows); setSearchError(""); }
-      }).catch(reason => { if (current) { setCandidates([]); setSearchError(reason instanceof Error ? reason.message : "Could not find Creatures."); } })
+      }).catch(reason => { if (current) { setCandidates([]); setSearchError(reason instanceof Error ? reason.message : "Could not find Races."); } })
         .finally(() => { if (current) setSearching(false); });
     }, 200);
     return () => { current = false; clearTimeout(timer); };
-  }, [sourceCreatureId, search]);
+  }, [sourceRaceId, search]);
   const choices = [selected, path?.destination, ...candidates].filter((row, index, all): row is EvolutionDestination => !!row && all.findIndex(other => other?.id === row.id) === index);
   async function save() {
     setBusy(true); setError("");
@@ -122,18 +122,18 @@ function EvolutionDialog({ sourceCreatureId, path, onClose, onSaved }: {
     <form onSubmit={event => { event.preventDefault(); void save(); }}>
       <h3 id="evolution-dialog-title">{path ? "Edit Evolution" : "Add Evolution"}</h3>
       <fieldset disabled={busy} className={styles.fields}>
-        <GuidedField className="st-field" label="Evolution name" help="Name this path, for example Mature into an Adult Fire Drake. The destination remains a separate saved Creature.">
+        <GuidedField className="st-field" label="Evolution name" help="Name this path, for example Awaken as an Ascended Human. The destination remains a separate saved Race.">
           <input className="st-control" required value={input.name} onChange={event => setInput({ ...input, name: event.target.value })} />
         </GuidedField>
-        <GuidedField className="st-field" label="Find destination Creature" help="Search by name or canonical ID. Results follow your Creature catalog visibility and include active definitions and exact variants. Refine the search when there are more than 30 matches.">
+        <GuidedField className="st-field" label="Find destination Race" help="Search by name. Results follow your Race catalog visibility and include active definitions and exact variants. Refine the search when there are more than 30 matches.">
           <input className="st-control" type="search" value={search} onChange={event => { setSearch(event.target.value); setSearching(true); setCandidates([]); }} />
         </GuidedField>
         {searchError ? <p role="alert">{searchError}</p> : null}
-        {searching ? <p role="status">Finding Creatures…</p> : <small>Showing up to 30 active matches, plus your selected destination.</small>}
-        <GuidedField className="st-field" label="Destination Creature" help="Select the exact saved Creature this path leads to. An existing archived or hidden reference remains available to retain; new destinations must be active and visible in your catalog.">
-          <select className="st-control" required value={input.destinationCreatureId || ""} onChange={event => {
+        {searching ? <p role="status">Finding Races…</p> : <small>Showing up to 30 active matches, plus your selected destination.</small>}
+        <GuidedField className="st-field" label="Destination Race" help="Select the exact saved Race this path leads to. An existing archived or hidden reference remains available to retain; new destinations must be active and visible in your catalog.">
+          <select className="st-control" required value={input.destinationRaceId || ""} onChange={event => {
             const target = choices.find(row => row.id === Number(event.target.value)) ?? null;
-            setSelected(target); setInput({ ...input, destinationCreatureId: target?.id ?? 0 });
+            setSelected(target); setInput({ ...input, destinationRaceId: target?.id ?? 0 });
           }}>
             <option value="">Choose a destination</option>
             {choices.map(target => <option key={target.id} value={target.id}>{evolutionDestinationLabel(target)}</option>)}
@@ -156,20 +156,20 @@ function EvolutionDialog({ sourceCreatureId, path, onClose, onSaved }: {
   </dialog>;
 }
 
-function RemoveDialog({ path, onClose, onSaved }: { path: CreatureEvolutionPath; onClose: () => void; onSaved: (paths: CreatureEvolutionPath[]) => void }) {
+function RemoveDialog({ path, onClose, onSaved }: { path: RaceEvolutionPath; onClose: () => void; onSaved: (paths: RaceEvolutionPath[]) => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => { dialog.current?.showModal(); }, []);
   async function remove() {
     setBusy(true); setError("");
-    try { onSaved(await removeEvolutionPath({ sourceCreatureId: path.sourceCreatureId, id: path.id, expectedVersion: path.version })); }
+    try { onSaved(await removeEvolutionPath({ sourceRaceId: path.sourceRaceId, id: path.id, expectedVersion: path.version })); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Could not remove Evolution."); }
     finally { setBusy(false); }
   }
   return <dialog ref={dialog} className={styles.dialog} aria-labelledby="remove-evolution-title" onCancel={event => { if (busy) event.preventDefault(); else onClose(); }}>
     <h3 id="remove-evolution-title">Remove {path.name}?</h3>
-    <p>This removes the authored path. Both Creature definitions and all individual Creatures remain unchanged.</p>
+    <p>This removes the authored path. Both Race definitions and all individual Races remain unchanged.</p>
     {error ? <p role="alert">{error}</p> : null}
     <div className={styles.actions}>
       <button className="st-button is-danger" type="button" disabled={busy} onClick={() => void remove()}>{busy ? "Removing…" : "Remove Evolution"}</button>

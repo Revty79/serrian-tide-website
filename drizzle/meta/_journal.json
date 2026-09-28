@@ -582,6 +582,20 @@
       "when": 1790571687706,
       "tag": "0082_creature_evolutions",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1790576391230,
+      "tag": "0083_creature_evolution_requirements",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1790577233552,
+      "tag": "0084_race_evolutions",
+      "breakpoints": true
     }
   ]
 }

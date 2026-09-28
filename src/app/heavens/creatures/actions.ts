@@ -4,6 +4,7 @@ import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-linea
 
 import { readCreatureFormsInTransaction, saveCreatureFormsInTransaction, cloneCreatureFormsInTransaction } from "@/features/creatures/creature-form-service";
 import { cloneCreatureEvolutionsInTransaction } from "@/features/creatures/creature-evolution-service";
+import { assertEvolutionSourceReferences } from "@/features/creatures/evolution-requirement-service";
 import { normalizeCreatureDefinition as normalize } from "@/features/creatures/creature-definition";
 
 import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
@@ -587,6 +588,8 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
     if (normalized.defenses.length) await tx.insert(creatureDefense).values(normalized.defenses.map((row) => ({ creatureId: id!, variantId: null, ...row })));
     if (normalized.uses.length) await tx.insert(creatureUse).values(normalized.uses.map((row) => ({ creatureId: id!, variantId: null, ...row })));
 
+    const finalForms = formsWithAssignedAccessIds ?? await readCreatureFormsInTransaction(tx, id!);
+    await assertEvolutionSourceReferences(tx, id!, new Set(normalized.abilities.map(row => row.canonicalId)), new Set(finalForms.map(form => form.key.trim())));
     await saveCreatureFormsInTransaction(tx, id!, formsWithAssignedAccessIds, { ...normalized, core: { ...normalized.core, parentCreatureName: input.core.parentCreatureName }, derivedCreatures: [] });
     return id;
   });
@@ -847,7 +850,7 @@ export async function createDerivedCreature(parentCreatureId: number, variantNam
       where source.creature_id = ${parentCreatureId} and source.variant_id is null
     `);
     await cloneCreatureFormsInTransaction(tx, parentCreatureId, created.id, new Map(accessAbilityCopies.rows.map(row => [row.source_id, row.copied_id])));
-    await cloneCreatureEvolutionsInTransaction(tx, parentCreatureId, created.id);
+    await cloneCreatureEvolutionsInTransaction(tx, parentCreatureId, created.id, new Map(accessAbilityCopies.rows.map(row => [row.source_id, row.copied_id])));
     return created.id;
   });
 
