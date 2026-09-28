@@ -1,4 +1,5 @@
 "use client";
+import { RaceEvolutionTransitionEditor } from "./race-evolution-transition-editor";
 import { useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
 import { evolutionDestinationLabel, type RaceEvolutionPath, type EvolutionDestination, type EvolutionPathInput } from "@/features/races/race-evolutions";
@@ -91,6 +92,7 @@ function EvolutionDialog({ sourceRaceId, path, onClose, onSaved }: {
   const dialog = useRef<HTMLDialogElement>(null);
   const [input, setInput] = useState<EvolutionPathInput>({
     sourceRaceId, id: path?.id, expectedVersion: path?.version, destinationRaceId: path?.destinationRaceId ?? 0,
+    transition: path?.transition ?? null,
     name: path?.name ?? "", description: path?.description ?? "", notes: path?.notes ?? "",
   });
   const [selected, setSelected] = useState(path?.destination ?? null);
@@ -146,6 +148,7 @@ function EvolutionDialog({ sourceRaceId, path, onClose, onSaved }: {
         <GuidedField className="st-field" label="Notes" help="Optional authoring notes for this path. Author requirements separately using the Requirements control. Notes do not change eligibility.">
           <textarea className="st-control" rows={3} value={input.notes} onChange={event => setInput({ ...input, notes: event.target.value })} />
         </GuidedField>
+        <RaceEvolutionTransitionEditor value={input.transition} onChange={transition => setInput({ ...input, transition })} />
       </fieldset>
       {error ? <p role="alert">{error}</p> : null}
       <div className={styles.actions}>

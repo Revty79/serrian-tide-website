@@ -1,3 +1,4 @@
+import { normalizeRaceEvolutionTransition, type RaceEvolutionTransition } from "./race-evolution-transition";
 /** Definition authoring DTOs. Never part of an individual Race snapshot. */
 import type { EvolutionRequirementMode } from "@/features/evolutions/evolution-requirements";
 export type EvolutionDestination = {
@@ -18,11 +19,13 @@ export type RaceEvolutionPath = {
   sortOrder: number;
   version: number;
   requirementMode: EvolutionRequirementMode;
+  transition?: RaceEvolutionTransition | null;
   destination: EvolutionDestination;
 };
 
 export type EvolutionPathInput = {
   sourceRaceId: number;
+  transition?: RaceEvolutionTransition | null;
   id?: number;
   expectedVersion?: number;
   destinationRaceId: number;
@@ -46,7 +49,7 @@ export function normalizeEvolutionPath(input: EvolutionPathInput) {
   }
   if (typeof input.name !== "string" || !input.name.trim()) throw new Error("Evolution name is required.");
   if (typeof input.description !== "string" || typeof input.notes !== "string") throw new Error("Evolution description and notes must be text.");
-  return { sourceRaceId, destinationRaceId, name: input.name.trim(), description: input.description.trim(), notes: input.notes.trim() };
+  return { sourceRaceId, destinationRaceId, ...(input.transition === undefined ? {} : { transition: normalizeRaceEvolutionTransition(input.transition) }), name: input.name.trim(), description: input.description.trim(), notes: input.notes.trim() };
 }
 
 export function evolutionDestinationLabel(target: EvolutionDestination): string {

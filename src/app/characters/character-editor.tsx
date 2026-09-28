@@ -1,4 +1,5 @@
 "use client";
+import { IndividualEvolutionHistory } from "@/app/heavens/individual-evolution-history";
 
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
@@ -859,6 +860,7 @@ export function CharacterEditor({
         <div className="character-header__actions">{!accessAsManager ? <Link href={tabletopHref} onClick={(event) => confirmNavigation(event, tabletopHref)}>Player Tabletop</Link> : null}<Link href={returnHref} onClick={(event) => confirmNavigation(event, returnHref)}>← {backLabel}</Link></div>
       </header>
 
+      {godMode && aggregate.sheetAccess?.canAccessPrivateGod ? <IndividualEvolutionHistory characterId={aggregate.character.id} /> : null}
       <CharacterPrintCenter aggregate={aggregate} dirty={dirty} godMode={accessAsManager} />
 
       <section className="character-status-strip" aria-live="polite">

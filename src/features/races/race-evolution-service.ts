@@ -1,3 +1,4 @@
+import { raceEvolutionEvent } from "@/db/evolution-event-schema";
 import "server-only";
 import { and, asc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -23,7 +24,7 @@ export async function readRaceEvolutionsInTransaction(tx: Transaction, sourceRac
   return tx.select({
     id: path.id, sourceRaceId: path.sourceRaceId, destinationRaceId: path.destinationRaceId,
     name: path.name, description: path.description, notes: path.notes, sortOrder: path.sortOrder, version: path.version,
-    requirementMode: path.requirementMode,
+    requirementMode: path.requirementMode, transition: path.transition,
     destination: destinationColumns,
   }).from(path).innerJoin(race, eq(race.id, path.destinationRaceId))
     .leftJoin(parent, eq(parent.id, race.parentRaceId))
@@ -95,6 +96,8 @@ export async function removeRaceEvolution(input: { sourceRaceId: number; id: num
     await lockSource(tx, input.sourceRaceId, actor);
     const [stored] = await tx.select().from(path).where(and(eq(path.id, input.id), eq(path.sourceRaceId, input.sourceRaceId)));
     assertVersion(stored, input.expectedVersion);
+    const [history] = await tx.select({ id: raceEvolutionEvent.id }).from(raceEvolutionEvent).where(eq(raceEvolutionEvent.pathId, stored.id)).limit(1);
+    if (history) throw new Error("This Evolution path is referenced by persistent individual history and cannot be removed. Its past events must remain readable.");
     await tx.delete(path).where(eq(path.id, stored.id));
     return readRaceEvolutionsInTransaction(tx, input.sourceRaceId);
   });
@@ -120,7 +123,7 @@ export async function reorderRaceEvolutions(input: { sourceRaceId: number; paths
 export async function cloneRaceEvolutionsInTransaction(tx: Transaction, sourceRaceId: number, newSourceRaceId: number) {
   const paths = await tx.select().from(path).where(eq(path.sourceRaceId, sourceRaceId)).orderBy(asc(path.sortOrder), asc(path.id));
   for (const original of paths) {
-    const [copied] = await tx.insert(path).values({ sourceRaceId: newSourceRaceId, destinationRaceId: original.destinationRaceId, name: original.name, description: original.description, notes: original.notes, sortOrder: original.sortOrder, requirementMode: original.requirementMode }).returning({ id: path.id });
+    const [copied] = await tx.insert(path).values({ sourceRaceId: newSourceRaceId, destinationRaceId: original.destinationRaceId, name: original.name, description: original.description, notes: original.notes, sortOrder: original.sortOrder, requirementMode: original.requirementMode, transition: original.transition }).returning({ id: path.id });
     await cloneEvolutionRequirementRows(tx, original.id, copied.id);
   }
 }

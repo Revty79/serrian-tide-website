@@ -1,5 +1,6 @@
+import type { RaceEvolutionTransition } from "@/features/races/race-evolution-transition";
 import { sql } from "drizzle-orm";
-import { check, doublePrecision, index, integer, pgTable, serial, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { check, doublePrecision, index, integer, jsonb, pgTable, serial, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { race } from "./race-schema";
 import { skill } from "./skill-schema";
 import { item } from "./item-schema";
@@ -15,12 +16,14 @@ export const raceEvolutionPath = pgTable("race_evolution_paths", {
   notes: text("notes").notNull().default(""),
   sortOrder: integer("sort_order").notNull().default(0),
   version: integer("version").notNull().default(1),
+  transition: jsonb("transition_json").$type<RaceEvolutionTransition>(),
   requirementMode: text("requirement_mode").$type<EvolutionRequirementMode>().notNull().default("unrestricted"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, table => [
   index("race_evolution_source_order").on(table.sourceRaceId, table.sortOrder, table.id),
   index("race_evolution_destination").on(table.destinationRaceId),
+  check("race_evolution_transition_shape", sql`${table.transition} IS NULL OR coalesce(jsonb_typeof(${table.transition}) = 'object' AND ${table.transition}->>'schemaVersion' = '1' AND jsonb_typeof(${table.transition}->'attributes') = 'array', false)`),
   check("race_evolution_not_self", sql`${table.sourceRaceId} <> ${table.destinationRaceId}`),
   check("race_evolution_name", sql`length(trim(${table.name})) > 0`),
   check("race_evolution_order", sql`${table.sortOrder} >= 0`),

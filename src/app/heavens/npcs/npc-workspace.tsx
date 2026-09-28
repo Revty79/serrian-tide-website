@@ -1,4 +1,5 @@
 "use client";
+import { IndividualEvolutionHistory } from "../individual-evolution-history";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -399,6 +400,7 @@ export function NpcWorkspace({
               {npc.archiveReason ? <small>Archive note: {npc.archiveReason}</small> : null}
               {npc.npcKind === "creature" ? <p>Owner: {npc.ownerCharacterId === null ? "Unassigned" : `${owners.find(({ id }) => id === npc.ownerCharacterId)?.name ?? "Character"} (#${npc.ownerCharacterId})`}</p> : null}
               <footer>
+                <IndividualEvolutionHistory characterId={npc.id} />
                 {npc.npcKind === "creature" ? <button type="button" disabled={busy || npc.status === "archived" || selectedCampaign?.archived} onClick={() => {
                   setOwnershipDraft({ npc, ownerId: npc.ownerCharacterId === null ? "" : String(npc.ownerCharacterId) });
                   setFeedback(null);

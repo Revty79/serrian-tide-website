@@ -31,7 +31,10 @@ export async function listRaceEvolutionPreviewIndividuals(sourceRaceId: number, 
 /** PCs and Race NPCs use saved Character mechanics; no aggregate loader with lazy state creation. */
 export async function previewRaceEvolutionForActor(characterId: number, pathId: number, actor: SharedLibraryActor): Promise<RaceEvolutionEligibility> {
   requireEvolutionGod(actor); requireEvolutionId(characterId, "Character"); requireEvolutionId(pathId, "Race Evolution path");
-  return db.transaction(async tx => {
+  return db.transaction(tx => readRaceEvolutionEligibilityInTransaction(tx, characterId, pathId, actor), { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+
+export async function readRaceEvolutionEligibilityInTransaction(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], characterId: number, pathId: number, actor: SharedLibraryActor): Promise<RaceEvolutionEligibility> {
     const [individual] = await tx.select({ character: campaignCharacter, profile: campaignCharacterProfile, campaignOwner: campaign.createdByUserId, campaignArchived: campaign.archivedAt }).from(campaignCharacter)
       .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId)).innerJoin(campaignCharacterProfile, eq(campaignCharacterProfile.characterId, campaignCharacter.id))
       .where(and(eq(campaignCharacter.id, characterId), raceIndividual));
@@ -58,5 +61,4 @@ export async function previewRaceEvolutionForActor(characterId: number, pathId: 
         currentExperience: individual.profile.experience, totalExperience: individual.profile.totalExperience,
         ownerPresent: false, ownerItemIds: null, individualItemIds: await usableEvolutionItems(tx, characterId), conditionNames: effects.conditions.map(row => row.name),
       }) };
-  }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }

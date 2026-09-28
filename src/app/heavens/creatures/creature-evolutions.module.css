@@ -14,3 +14,7 @@
   .actions button { min-height: 44px; }
   .dialog { padding: 1rem; }
 }
+
+.confirmation { display: flex; align-items: flex-start; gap: .65rem; overflow-wrap: anywhere; }
+.confirmation input { flex: 0 0 auto; width: auto; margin-top: .25rem; }
+.dialog pre { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }

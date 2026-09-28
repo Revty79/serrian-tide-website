@@ -254,6 +254,7 @@ async function countSerializedFrameworkSkillReferences(
 
 function campaignDependencySpecs(campaignId: number): DependencySpec[] {
   return [
+    { label: "Persistent Evolution history", blocking: false, query: sql<CountRow>`select ((select count(*) from race_evolution_events where campaign_id = ${campaignId}) + (select count(*) from creature_evolution_events where campaign_id = ${campaignId}))::int as value` },
     { label: "Creature commerce receipts and resale custody", blocking: false, query: sql<CountRow>`select ((select count(*) from shop_transaction_creature where campaign_id = ${campaignId}) + (select count(*) from shop_resale_creature where campaign_id = ${campaignId}))::int as value` },
     { label: "Scene and Session award history", blocking: false, query: sql<CountRow>`select ((select count(*) from tabletop_closeout_award where campaign_id = ${campaignId}) + (select count(*) from tabletop_closeout_award_decision where campaign_id = ${campaignId}))::int as value` },
     { label: "Tabletop Spell and Item ruling history", blocking: false, query: sql<CountRow>`select ((select count(*) from tabletop_source_use_request where campaign_id = ${campaignId}) + (select count(*) from tabletop_source_use_event e inner join tabletop_source_use_request r on r.id = e.request_id where r.campaign_id = ${campaignId}))::int as value` },
@@ -309,6 +310,7 @@ function campaignDependencySpecs(campaignId: number): DependencySpec[] {
 
 function characterDependencySpecs(characterId: number, campaignId: number): DependencySpec[] {
   return [
+    { label: "Persistent Evolution history", blocking: true, query: sql<CountRow>`select ((select count(*) from race_evolution_events where character_id = ${characterId}) + (select count(*) from creature_evolution_events where character_id = ${characterId}))::int as value` },
     { label: "Creature commerce identity and custody", blocking: true, query: sql<CountRow>`select ((select count(*) from shop_transaction_creature where creature_character_id = ${characterId}) + (select count(*) from shop_resale_creature where creature_character_id = ${characterId} or source_character_id = ${characterId}) + (select count(*) from shop_transaction_request_line where creature_character_id = ${characterId}))::int as value` },
     { label: "Owned Creatures (reassign or remove ownership before deleting this Character)", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_character where owner_character_id = ${characterId} and campaign_id = ${campaignId}` },
     { label: "Scene and Session award history", blocking: true, query: sql<CountRow>`select count(*)::int as value from tabletop_closeout_award where campaign_id = ${campaignId} and character_id = ${characterId}` },
@@ -351,6 +353,7 @@ function characterDependencySpecs(characterId: number, campaignId: number): Depe
 
 function raceDependencySpecs(id: number): DependencySpec[] {
   return [
+    { label: "Persistent Evolution history", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_evolution_events where source_race_id = ${id} or destination_race_id = ${id}` },
     { label: "Authored outgoing Evolution paths", blocking: false, query: sql<CountRow>`select count(*)::int as value from race_evolution_paths where source_race_id = ${id}` },
     { label: "Incoming Evolution paths", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_evolution_paths where destination_race_id = ${id}` },
     { label: "Child Race variants", blocking: true, query: sql<CountRow>`select count(*)::int as value from races where parent_race_id = ${id}` },
@@ -368,6 +371,7 @@ function raceDependencySpecs(id: number): DependencySpec[] {
 
 function creatureDependencySpecs(id: number): DependencySpec[] {
   return [
+    { label: "Persistent Evolution history", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_evolution_events where source_creature_id = ${id} or destination_creature_id = ${id}` },
     { label: "Variants and authored definition rows", blocking: false, query: sql<CountRow>`select ((select count(*) from creature_variants where creature_id = ${id}) + (select count(*) from creature_attributes where creature_id = ${id}) + (select count(*) from creature_movement where creature_id = ${id}) + (select count(*) from creature_hp_pools where creature_id = ${id}) + (select count(*) from creature_hit_locations where creature_id = ${id}) + (select count(*) from creature_attacks where creature_id = ${id}) + (select count(*) from creature_skill_links where creature_id = ${id}) + (select count(*) from creature_abilities where creature_id = ${id}) + (select count(*) from creature_defenses where creature_id = ${id}) + (select count(*) from creature_uses where creature_id = ${id}))::int as value` },
     { label: "Creature Forms", blocking: false, query: sql<CountRow>`select count(*)::int as value from creature_forms where creature_id = ${id}` },
     { label: "Authored outgoing Evolution paths", blocking: false, query: sql<CountRow>`select count(*)::int as value from creature_evolution_paths where source_creature_id = ${id}` },

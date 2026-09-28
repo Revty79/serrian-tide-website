@@ -1,7 +1,8 @@
 "use client";
+import { EvolutionExecutionDialog } from "./evolution-execution-dialog";
 import { useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
-import { emptyEvolutionRequirement, EVOLUTION_MANUAL_CATEGORIES, EVOLUTION_MANUAL_LABELS, EVOLUTION_OPERATOR_LABELS, EVOLUTION_REQUIREMENT_TYPES, EVOLUTION_STATUS_LABELS, EVOLUTION_TYPE_LABELS, isNumericEvolutionRequirement, type EvolutionEvaluation, type EvolutionRequirement, type EvolutionRequirements } from "@/features/evolutions/evolution-requirements";
+import { emptyEvolutionRequirement, EVOLUTION_MANUAL_CATEGORIES, EVOLUTION_MANUAL_LABELS, EVOLUTION_OPERATOR_LABELS, EVOLUTION_REQUIREMENT_TYPES, EVOLUTION_TYPE_LABELS, isNumericEvolutionRequirement, type EvolutionRequirement, type EvolutionRequirements } from "@/features/evolutions/evolution-requirements";
 import type { CreatureEvolutionPath } from "@/features/creatures/creature-evolutions";
 import { NUMERIC_REQUIREMENT_OPERATORS, POSSESSION_REQUIREMENT_OPERATORS } from "@/features/requirements/requirement-primitives";
 import * as creatureActions from "./creatures/evolution-actions";
@@ -112,24 +113,5 @@ function RequirementFields({ row, data, onChange, kind }: { kind: "race" | "crea
 }
 
 export function EvolutionEligibilityDialog(props: PreviewProps) {
-  const { path, onClose, kind } = props;
-  const sourceId = props.kind === "creature" ? props.path.sourceCreatureId : props.path.sourceRaceId;
-  const api = kind === "creature" ? creatureActions : raceActions;
-  const dialog=useRef<HTMLDialogElement>(null);
-  const [search,setSearch]=useState(""),[individuals,setIndividuals]=useState<Awaited<ReturnType<typeof creatureActions.findEvolutionPreviewIndividuals>>>([]);
-  const [id,setId]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState(""),[result,setResult]=useState<(EvolutionEvaluation & { pathId: number; pathVersion: number })|null>(null);
-  useEffect(()=>{dialog.current?.showModal();},[]);
-  useEffect(()=>{let current=true;const timer=setTimeout(()=>{void api.findEvolutionPreviewIndividuals(sourceId,search).then(rows=>{if(current){setIndividuals(rows);setError("");}}).catch(reason=>{if(current)setError(failure(reason));});},200);return()=>{current=false;clearTimeout(timer);};},[sourceId,search,api]);
-  async function preview(){setBusy(true);setError("");setResult(null);try{setResult(await api.previewEvolutionEligibility(id,path.id));}catch(reason){setError(failure(reason));}finally{setBusy(false);}}
-  return <dialog ref={dialog} className={styles.dialog} aria-labelledby="evolution-preview-title" onCancel={event=>{if(busy)event.preventDefault();else onClose();}}>
-    <h3 id="evolution-preview-title">Eligibility preview — {path.name}</h3><p>Campaign G.O.D. preview only. No Evolution, Form change, Item use or Experience spending occurs.</p>
-    <fieldset className={styles.fields} disabled={busy}>
-      <GuidedField className="st-field" label={kind === "race" ? "Find Character" : "Find individual Creature"} help="Shows up to 30 active individuals using this exact source definition in Campaigns you run as G.O.D."><input className="st-control" value={search} onChange={event=>{setSearch(event.target.value);setId(0);setResult(null);}} /></GuidedField>
-      <GuidedField className="st-field" label={kind === "race" ? "Character" : "Individual Creature"} help={kind === "race" ? "Uses this Character's current Race, saved profile, Skills, Derived Abilities, inventory and conditions." : "Uses this individual's saved current snapshot, profile, inventory and conditions."}><select className="st-control" value={id || ""} onChange={event=>{setId(Number(event.target.value));setResult(null);}}><option value="">Choose an individual</option>{individuals.map(row=><option key={row.id} value={row.id}>{row.name} (#{row.id}) — {row.campaignName}</option>)}</select></GuidedField>
-      <button className="st-button" type="button" disabled={!id} onClick={()=>void preview()}>Check eligibility</button>
-    </fieldset>
-    {error?<p role="alert">{error}</p>:null}
-    {result?<div aria-live="polite"><h4>{EVOLUTION_STATUS_LABELS[result.status]}</h4><p>{result.explanation}</p><p>Path #{result.pathId}, revision {result.pathVersion}. Saved facts at the time of this check.</p>{result.groups.map(group=><section key={group.groupNumber} className={styles.card}><h4>Group {group.groupNumber+1}: {EVOLUTION_STATUS_LABELS[group.status]}</h4>{group.requirements.map(row=><p key={row.key}>{EVOLUTION_STATUS_LABELS[row.status]}: {row.explanation}</p>)}</section>)}</div>:null}
-    <button className="st-button" type="button" disabled={busy} onClick={onClose}>Close preview</button>
-  </dialog>;
+  return <EvolutionExecutionDialog kind={props.kind} sourceId={props.kind === "race" ? props.path.sourceRaceId : props.path.sourceCreatureId} pathId={props.path.id} pathName={props.path.name} onClose={props.onClose} />;
 }

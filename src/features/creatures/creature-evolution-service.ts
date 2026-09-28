@@ -1,3 +1,4 @@
+import { creatureEvolutionEvent } from "@/db/evolution-event-schema";
 import "server-only";
 import { and, asc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -94,6 +95,8 @@ export async function removeCreatureEvolution(input: { sourceCreatureId: number;
     await lockSource(tx, input.sourceCreatureId, actor);
     const [stored] = await tx.select().from(path).where(and(eq(path.id, input.id), eq(path.sourceCreatureId, input.sourceCreatureId)));
     assertVersion(stored, input.expectedVersion);
+    const [history] = await tx.select({ id: creatureEvolutionEvent.id }).from(creatureEvolutionEvent).where(eq(creatureEvolutionEvent.pathId, stored.id)).limit(1);
+    if (history) throw new Error("This Evolution path is referenced by persistent individual history and cannot be removed. Its past events must remain readable.");
     await tx.delete(path).where(eq(path.id, stored.id));
     return readCreatureEvolutionsInTransaction(tx, input.sourceCreatureId);
   });

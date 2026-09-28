@@ -22,6 +22,7 @@ export default defineConfig({
     "./src/db/creature-schema.ts",
     "./src/db/creature-evolution-schema.ts",
     "./src/db/race-evolution-schema.ts",
+    "./src/db/evolution-event-schema.ts",
     "./src/db/derived-ability-schema.ts",
     "./src/db/item-schema.ts",
     "./src/db/magazine-schema.ts",

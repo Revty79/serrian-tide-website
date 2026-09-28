@@ -24,7 +24,10 @@ export async function listEvolutionPreviewIndividuals(sourceCreatureId: number, 
 /** One consistent, enforced read-only transaction. No health/profile/inventory lazy initialization. */
 export async function previewEvolutionForActor(characterId: number, pathId: number, actor: SharedLibraryActor): Promise<EvolutionEligibility> {
   requireEvolutionGod(actor); requireEvolutionId(characterId, "Individual Creature"); requireEvolutionId(pathId, "Evolution path");
-  return db.transaction(async tx => {
+  return db.transaction(tx => readCreatureEvolutionEligibilityInTransaction(tx, characterId, pathId, actor), { isolationLevel: "repeatable read", accessMode: "read only" });
+}
+
+export async function readCreatureEvolutionEligibilityInTransaction(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], characterId: number, pathId: number, actor: SharedLibraryActor): Promise<EvolutionEligibility> {
     const [individual] = await tx.select({ character: campaignCharacter, npc: campaignCreatureNpcProfile, campaignOwner: campaign.createdByUserId, campaignArchived: campaign.archivedAt }).from(campaignCharacter)
       .innerJoin(campaign, eq(campaign.id, campaignCharacter.campaignId)).innerJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
       .where(and(eq(campaignCharacter.id, characterId), eq(campaignCharacter.isNpc, true), eq(campaignCharacter.npcKind, "creature")));
@@ -48,5 +51,4 @@ export async function previewEvolutionForActor(characterId: number, pathId: numb
       ownerPresent: !!owner, creatureItemIds: await usableEvolutionItems(tx, characterId), ownerItemIds: owner && !owner.archivedAt ? await usableEvolutionItems(tx, owner.id) : null,
       conditionNames: effects.conditions.map(row => row.name),
     });
-  }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }

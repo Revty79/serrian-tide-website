@@ -57,17 +57,39 @@ async function main() {
     const pathsBefore=(await pool.query("select to_jsonb(t) body from creature_evolution_paths t")).rows;
     const tables=(await pool.query("select tablename from pg_tables where schemaname='public' and tablename <> 'creature_evolution_paths' order by tablename")).rows as {tablename:string}[];
     const readAll=()=>Promise.all(tables.map(({tablename})=>pool!.query(`select to_jsonb(t) body from "${tablename}" t order by to_jsonb(t)::text`)));
-    const before=await readAll(); await migrate(drizzle(pool),{migrationsFolder:"drizzle"}); const after=await readAll();
-    tables.forEach(({tablename},index)=>assert.deepEqual(after[index].rows,before[index].rows,`${tablename} unchanged by Pass 2`));
+    const before=await readAll();
+    // Stage the accepted Pass 2 upgrade before applying Pass 3 to populated paths/requirements.
+    const passTwo = path.join(root,"pass-two"); await mkdir(path.join(passTwo,"meta"),{recursive:true});
+    const passTwoEntries = journal.entries.filter((entry:{idx:number})=>entry.idx<85);
+    await writeFile(path.join(passTwo,"meta/_journal.json"),JSON.stringify({...journal,entries:passTwoEntries}));
+    for(const entry of passTwoEntries) await copyFile(path.resolve("drizzle",`${entry.tag}.sql`),path.join(passTwo,`${entry.tag}.sql`));
+    await migrate(drizzle(pool),{migrationsFolder:passTwo});
+    const r1=(await pool.query("insert into races(name) values('Upgrade Evolution source') returning id")).rows[0].id;
+    const r2=(await pool.query("insert into races(name) values('Upgrade Evolution destination') returning id")).rows[0].id;
+    const rp=(await pool.query("insert into race_evolution_paths(source_race_id,destination_race_id,name,version,requirement_mode) values($1,$2,'Retain authored Pass 2',4,'requirements') returning id",[r1,r2])).rows[0].id;
+    await pool.query("insert into race_evolution_requirements(path_id,requirement_key,group_number,sort_order,requirement_type,manual_category,notes) values($1,'milestone',0,0,'manual','milestone','Retain exact authored requirement')",[rp]);
+    const racePathsBefore=(await pool.query("select to_jsonb(t) body from race_evolution_paths t")).rows;
+    const requirementsBefore=(await pool.query("select to_jsonb(t) body from race_evolution_requirements t")).rows;
+    await migrate(drizzle(pool),{migrationsFolder:"drizzle"});
+    assert.deepEqual((await pool.query("select to_jsonb(t) - 'transition_json' body from race_evolution_paths t")).rows,racePathsBefore);
+    assert.deepEqual((await pool.query("select to_jsonb(t) body from race_evolution_requirements t")).rows,requirementsBefore);
+    assert.equal((await pool.query("select transition_json from race_evolution_paths where id=$1",[rp])).rows[0].transition_json,null);
+    // Remove only these temporary upgrade-only fixtures before comparing the original 0082 rows.
+    await pool.query("delete from race_evolution_paths where id=$1",[rp]);
+    await pool.query("delete from races where id in ($1,$2)",[r1,r2]);
+    const after=await readAll();
+    tables.forEach(({tablename},index)=>assert.deepEqual(after[index].rows,before[index].rows,`${tablename} unchanged by Pass 3`));
     assert.deepEqual((await pool.query("select to_jsonb(t) - 'requirement_mode' body from creature_evolution_paths t")).rows,pathsBefore);
     assert.equal((await pool.query("select requirement_mode from creature_evolution_paths")).rows[0].requirement_mode,"unrestricted");
     assert.equal((await pool.query("select count(*)::int n from creature_evolution_requirements")).rows[0].n,0);
     assert.equal((await pool.query("select count(*)::int n from race_evolution_paths")).rows[0].n,0);
-    console.log(`PASS: fresh ${journal.entries.length}-migration chain; populated 0082-to-Pass-2 upgrade preserves all ${tables.length} prior public tables and existing path identity/version, with no inferred requirements or Race paths.`);
+    for (const table of ["race_evolution_events", "creature_evolution_events"]) assert.equal((await pool.query(`select count(*)::int n from ${table}`)).rows[0].n, 0);
+    console.log(`PASS: fresh ${journal.entries.length}-migration chain; populated 0082-to-Pass-3 upgrade preserves all ${tables.length} prior public tables and existing path identity/version, with no inferred requirements or Race paths.`);
     await pool.end(); pool=null;
     const run=(script:string, extra:Partial<NodeJS.ProcessEnv>={})=>execFileSync(process.execPath,["--experimental-test-module-mocks","--conditions=react-server","--import","tsx","--test",script],{cwd:process.cwd(),env:{...env,...extra},stdio:"inherit",windowsHide:true,timeout:600_000});
     run("scripts/creature-evolution-db.test.mjs");
     run("scripts/evolution-pass-two-db.test.mjs");
+    run("scripts/evolution-pass-three-db.test.mjs");
     if (!process.argv.includes("--focused")) {
       pool=new pg.Pool({connectionString:url("serrian_race_authoring_dev")}); await migrate(drizzle(pool),{migrationsFolder:"drizzle"}); await pool.end(); pool=null;
       for (const script of ["scripts/race-forms-db.test.mjs","scripts/race-form-mechanics-db.test.mjs","scripts/race-form-preview-db.test.mjs"]) run(script,{DATABASE_URL:url("serrian_race_authoring_dev"),SERRIAN_DISPOSABLE_RACE_AUTHORING:"true"});

@@ -113,9 +113,9 @@ export function buildCreatureNpcSnapshot(template: CreatureDraft): CreatureDraft
 export async function readCreatureNpcTemplateInTransaction(
   tx: CreatureNpcConstructorTransaction,
   creatureId: number,
-  options: { activeOnly?: boolean } = {},
+  options: { activeOnly?: boolean; lock?: boolean } = {},
 ): Promise<CreatureDraft | null> {
-  const [row] = await tx.select({
+  const query = tx.select({
     canonicalId: creature.canonicalId,
     canonicalName: creature.canonicalName,
     family: creature.family,
@@ -140,7 +140,8 @@ export async function readCreatureNpcTemplateInTransaction(
   }).from(creature).where(and(
     eq(creature.id, creatureId),
     options.activeOnly === false ? undefined : isNull(creature.archivedAt),
-  )).limit(1).for("update");
+  )).limit(1);
+  const [row] = await (options.lock === false ? query : query.for("update"));
   if (!row) return null;
 
   let parentCreatureName: string | null = null;

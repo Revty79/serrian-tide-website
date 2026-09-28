@@ -71,7 +71,7 @@ export type EvolutionEligibilityStatus = "eligible" | "not-eligible" | "god-revi
 export const EVOLUTION_STATUS_LABELS: Record<EvolutionEligibilityStatus, string> = { eligible: "Eligible", "not-eligible": "Not eligible", "god-review": "Requires G.O.D. review" };
 export type EvolutionEvaluation = {
   status: EvolutionEligibilityStatus; explanation: string;
-  groups: Array<{ groupNumber: number; status: EvolutionEligibilityStatus; requirements: Array<{ key: string; status: EvolutionEligibilityStatus; explanation: string }> }>;
+  groups: Array<{ groupNumber: number; status: EvolutionEligibilityStatus; requirements: Array<{ key: string; status: EvolutionEligibilityStatus; explanation: string; confirmable?: boolean }> }>;
 };
 export type EvolutionFactContext = {
   owner: EvolutionOwner; unavailable?: boolean;
@@ -90,9 +90,9 @@ export function evaluateEvolutionGroups(input: EvolutionRequirements, facts: Evo
     if (facts.context.owner !== facts.owner) throw new Error("Evolution facts belong to a different definition type.");
     if (facts.unavailable) return { status: "not-eligible", explanation: "Restore the source, destination, individual and Campaign before checking Evolution readiness.", groups: [] };
     if (normalized.mode === "unrestricted") return { status: "eligible", explanation: "This path has no prerequisites. This is a preview; no Evolution is performed.", groups: [] };
-    const groups = new Map<number, Array<{ key: string; result: RequirementResult; explanation: string }>>();
+    const groups = new Map<number, Array<{ key: string; result: RequirementResult; explanation: string; confirmable: boolean }>>();
     for (const row of normalized.requirements) {
-      let result: RequirementResult = "unsatisfied", explanation = "";
+      let result: RequirementResult = "unsatisfied", explanation = "", confirmable = false;
       const label = row.referenceName ?? (row.skillId ? `Skill #${row.skillId}` : row.itemId ? `Item #${row.itemId}` : row.derivedAbilityId ? `Derived Ability #${row.derivedAbilityId}` : row.creatureAbilityCanonicalId ?? row.creatureFormKey ?? row.raceFormKey ?? row.conditionName ?? EVOLUTION_TYPE_LABELS[row.requirementType]);
       const numericSkill = row.requirementType === "skill" && NUMERIC_REQUIREMENT_OPERATORS.some(op => op === row.operator);
       if (isNumericEvolutionRequirement(row.requirementType) || numericSkill) {
@@ -101,14 +101,17 @@ export function evaluateEvolutionGroups(input: EvolutionRequirements, facts: Evo
         result = value === null || !Number.isFinite(value) || value < 0 ? "manual" : evaluateNumericComparison(value, row.operator!, row.requiredValue!);
         explanation = result === "manual" ? `${rule}; the saved individual value is unknown and needs G.O.D. review.` : `${rule}; saved individual value: ${value}.`;
       } else if (row.requirementType === "manual") {
-        result = "manual"; explanation = `${EVOLUTION_MANUAL_LABELS[row.manualCategory!]}: ${row.notes}`;
+        confirmable = true; result = "manual"; explanation = `${EVOLUTION_MANUAL_LABELS[row.manualCategory!]}: ${row.notes}`;
       } else if (row.requirementType === "form-access") {
         const form = facts.forms?.find(form => form.key === (facts.owner === "race" ? row.raceFormKey : row.creatureFormKey));
         if (!form) { result = facts.forms === undefined ? "manual" : "unsatisfied"; explanation = "This exact Form is not recorded in the authoritative source for this individual."; }
         else {
           const access = evaluateFormAccess(form.access, facts.context);
           result = access.status === "available" ? "satisfied" : access.status === "manual-review" ? "manual" : "unsatisfied";
-          explanation = `Qualifies for ${label}: ${access.explanation} No Form is activated.`;
+          // A ruling may satisfy authored manual Access clauses, never missing automatic facts.
+          confirmable = access.status === "manual-review" && access.groups.some(group => group.requirements.every(requirement =>
+            requirement.status === "available" || (requirement.status === "manual-review" && form.access?.requirements.some(rule => rule.key === requirement.key && rule.requirementType === "manual"))));
+          explanation = `Qualifies for ${label}: ${access.explanation} ${access.groups.map(group => `Group ${group.groupNumber + 1}: ${group.requirements.map(requirement => requirement.explanation).join("; ")}`).join(" OR ")} No Form is activated.`;
         }
       } else if (row.requirementType === "item") {
         const ids = row.itemHolder === "owner" ? facts.ownerItemIds : facts.individualItemIds;
@@ -122,11 +125,26 @@ export function evaluateEvolutionGroups(input: EvolutionRequirements, facts: Evo
         result = possessed === undefined ? "manual" : possessed === (row.operator === "possessed") ? "satisfied" : "unsatisfied";
         explanation = `${label}: ${EVOLUTION_OPERATOR_LABELS[row.operator!]}; ${possessed === undefined ? "needs G.O.D. review" : possessed ? "present" : "absent"} on this individual.`;
       }
-      const group = groups.get(row.groupNumber) ?? []; group.push({ key: row.key, result, explanation }); groups.set(row.groupNumber, group);
+      const group = groups.get(row.groupNumber) ?? []; group.push({ key: row.key, result, explanation, confirmable }); groups.set(row.groupNumber, group);
     }
     const results = [...groups.values()].map(rows => allRequirements(rows.map(row => row.result)));
     const status = statusFor(anyRequirementGroup(results));
     return { status, explanation: status === "eligible" ? "The individual meets every requirement in at least one group. Preview only; no Evolution is performed." : status === "god-review" ? "At least one group still needs G.O.D. review." : "The individual does not meet any complete requirement group.",
-      groups: [...groups].map(([groupNumber, rows], index) => ({ groupNumber, status: statusFor(results[index]), requirements: rows.map(({ key, result, explanation }) => ({ key, status: statusFor(result), explanation })) })) };
+      groups: [...groups].map(([groupNumber, rows], index) => ({ groupNumber, status: statusFor(results[index]), requirements: rows.map(({ key, result, explanation, confirmable }) => ({ key, status: statusFor(result), explanation, ...(confirmable ? { confirmable: true } : {}) })) })) };
   } catch (error) { return { status: "not-eligible", explanation: `Eligibility needs correction: ${error instanceof Error ? error.message : "Invalid requirements or facts."}`, groups: [] }; }
+}
+
+/** Apply this execution's explicit rulings using the same AND/OR primitives as preview. */
+export function confirmEvolutionEvaluation(evaluation: EvolutionEvaluation, confirmedKeys: readonly string[]): EvolutionEvaluation {
+  const allowed = new Set(evaluation.groups.flatMap(group => group.requirements.filter(row => row.confirmable && row.status === "god-review").map(row => row.key)));
+  if (new Set(confirmedKeys).size !== confirmedKeys.length || confirmedKeys.some(key => !allowed.has(key))) throw new Error("Confirm only the exact manual requirements shown in the current preview.");
+  const confirmed = new Set(confirmedKeys);
+  const toResult = (status: EvolutionEligibilityStatus): RequirementResult => status === "eligible" ? "satisfied" : status === "god-review" ? "manual" : "unsatisfied";
+  if (!evaluation.groups.length) return evaluation;
+  const groups = evaluation.groups.map(group => {
+    const requirements = group.requirements.map(row => confirmed.has(row.key) ? { ...row, status: "eligible" as const, explanation: `${row.explanation} Confirmed by the Campaign G.O.D. for this execution.` } : row);
+    return { ...group, requirements, status: statusFor(allRequirements(requirements.map(row => toResult(row.status)))) };
+  });
+  const status = statusFor(anyRequirementGroup(groups.map(group => toResult(group.status))));
+  return { status, groups, explanation: status === "eligible" ? "Every automatic prerequisite and required manual ruling in at least one group is satisfied for this execution." : "No complete group is satisfied. Correct unknown saved facts and confirm the required manual rulings." };
 }

@@ -122,6 +122,7 @@ async function main() {
       const pathName=kind==="creature"?"Mature":"Ascend";
       const individualName=kind==="creature"?"Requirements Ember":"Evolution PC";
       const selectedIndividual=(await query("select id from campaign_character where name=$1",[individualName]))[0].id;
+      if(kind === "race") for (const key of ["STR","DEX","CON","INT","WIS","CHR"]) await pool.query("insert into campaign_character_attribute(character_id,attribute_key,value) values($1,$2,30) on conflict do nothing",[selectedIndividual,key]);
       await page.setViewportSize({width:1365,height:1000});
       await page.goto(`${base}/heavens/${kind}s`);
       await page.locator(`#${kind}-search`).fill(name);
@@ -172,8 +173,72 @@ async function main() {
       assert.deepEqual(await query("select to_jsonb(t) body from campaign_character_profile t order by character_id"),stateBefore);
       await dialog.getByRole("button",{name:"Close preview",exact:true}).click();
     }
+    // Pass 3: actual permanent Race and Creature transitions under a third Campaign G.O.D.
+    const executionUser="execution-god";
+    await pool.query('update "user" set email_verified=true,username=$1,display_username=$1 where id=$1',[executionUser]);
+    await pool.query("insert into account(id,issuer,account_id,provider_id,user_id,password,updated_at) values($1,'local:credential',$2,'credential',$2,$3,now())",[`${executionUser}-credential`,executionUser,await hashPassword(password)]);
+    await context.request.post(`${base}/api/auth/sign-out`,{headers:{Origin:base},data:{}});
+    assert.equal((await context.request.post(`${base}/api/auth/sign-in/email`,{headers:{Origin:base},data:{email:`${executionUser}@example.invalid`,password}})).status(),200);
+    for(const kind of ["race","creature"] as const) {
+      const name=kind === "race" ? "Execution Human" : "Execution Young Drake";
+      const pathName=kind === "race" ? "Changed later" : "Mature permanently";
+      const table=kind === "race" ? "campaign_character_profile" : "campaign_creature_npc_profile", column=kind === "race" ? "race_id" : "creature_id";
+      const roots=await query(kind === "race" ? "select id from races where name=$1" : "select id from creatures where canonical_name=$1",[name]);
+      const candidates=await query(`select c.id from campaign_character c join ${table} p on p.character_id=c.id where p.${column}=$1 and c.archived_at is null and not exists(select 1 from campaign_session_encounter_participant ep where ep.character_id=c.id) order by c.id`,[roots[0].id]);
+      const subject=candidates[0].id;
+      await pool.query("update campaign_character set name=$2 where id=$1",[subject,`Browser persistent ${kind}`]);
+      if(kind === "creature") {
+        const stored=(await query("select current_snapshot_json from campaign_creature_npc_profile where character_id=$1",[subject]))[0];
+        const edited=JSON.parse(stored.current_snapshot_json);edited.attributes[0].value+=5;
+        await pool.query("update campaign_creature_npc_profile set current_snapshot_json=$2 where character_id=$1",[subject,JSON.stringify(edited)]);
+        const path=(await query("select id from creature_evolution_paths where source_creature_id=$1 and name=$2",[roots[0].id,pathName]))[0].id;
+        await pool.query("update creature_evolution_paths set requirement_mode='requirements',version=version+1 where id=$1",[path]);
+        await pool.query("insert into creature_evolution_requirements(path_id,requirement_key,group_number,sort_order,requirement_type,manual_category,notes) values($1,'browser-milestone',0,0,'manual','milestone','Confirm this companion completed its story milestone.')",[path]);
+      }
+      await page.setViewportSize({width:1365,height:1000});await page.goto(`${base}/heavens/${kind}s`);
+      await page.locator(`#${kind}-search`).fill(name);
+      await page.locator(".skill-library__row").filter({has:page.locator(".skill-library__row-name").filter({hasText:name})}).click();
+      await page.getByRole("button",{name:"Evolutions",exact:true}).click();
+      if(kind === "race") {
+        await area.getByRole("button",{name:`Edit ${pathName}`,exact:true}).click();
+        await dialog.getByLabel("STR change",{exact:true}).selectOption("add");
+        await dialog.getByLabel("STR value",{exact:true}).fill("10");
+        await dialog.getByLabel("CON change",{exact:true}).selectOption("add");
+        await dialog.getByLabel("CON value",{exact:true}).fill("15");
+        await page.setViewportSize({width:390,height:844});
+        await dialog.getByRole("button",{name:"Save Evolution",exact:true}).scrollIntoViewIfNeeded();
+        await page.screenshot({path:path.join(artifacts,"race-permanent-adjustments-phone.png")});
+        await dialog.getByRole("button",{name:"Save Evolution",exact:true}).click();
+      }
+      await area.getByRole("button",{name:`Preview eligibility for ${pathName}`,exact:true}).click();
+      await dialog.getByLabel(kind === "race" ? "Character" : "Individual Creature",{exact:true}).selectOption(String(subject));
+      await dialog.getByRole("button",{name:"Check eligibility",exact:true}).click();
+      await dialog.getByRole("heading",{name:kind === "creature" ? "Requires G.O.D. review" : "Eligible",exact:true}).waitFor();
+      await page.setViewportSize({width:1365,height:1000});
+      await page.screenshot({path:path.join(artifacts,`${kind}-execution-desktop.png`)});
+      await page.setViewportSize({width:390,height:844});
+      const execute=dialog.getByRole("button",{name:new RegExp(`^Evolve Browser persistent ${kind} into`)});
+      assert.equal(await execute.isDisabled(),true);
+      await dialog.getByLabel(/I have reviewed the permanent mechanical changes/).check();
+      if(kind === "creature") {
+        assert.equal(await execute.isDisabled(),true);
+        await dialog.getByLabel(/Confirm this requirement for this execution/).check();
+        assert.equal(await execute.isDisabled(),true,"replacement needs a separate acknowledgement");
+      }
+      const override=dialog.getByLabel(/I confirm replacing this Creature/);if(await override.count())await override.check();
+      await execute.scrollIntoViewIfNeeded();const rectangle=await execute.boundingBox();assert.ok(rectangle&&rectangle.x>=0&&rectangle.x+rectangle.width<=391);
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+      await page.screenshot({path:path.join(artifacts,`${kind}-execution-phone.png`)});
+      await execute.click();await dialog.getByRole("status").filter({hasText:/Evolution event #/}).waitFor();
+      assert.notEqual((await query(`select ${column} id from ${table} where character_id=$1`,[subject]))[0].id,roots[0].id);
+      const eventTable=kind === "race" ? "race_evolution_events" : "creature_evolution_events";
+      assert.equal(Number((await query(`select count(*) n from ${eventTable} where character_id=$1`,[subject]))[0].n),1);
+      await dialog.getByRole("region",{name:"Individual Evolution history"}).waitFor();
+      await page.screenshot({path:path.join(artifacts,`${kind}-execution-history-phone.png`)});
+      await dialog.getByRole("button",{name:"Close preview",exact:true}).click();
+    }
     assert.deepEqual(errors,[]);
-    console.log("PASS: real Race and Creature requirements AND/OR authoring, saved reload, Campaign G.O.D. eligibility and 390px scrolling; Creature authoring UI add/edit/reorder/reload/remove; exact variant selection; retained archived destination; phone dialog scrolling and shared theme; Forms and NPC snapshots unchanged; no browser errors.");
+    console.log("PASS: real Race and Creature persistent execution, Race permanent adjustment authoring, health acknowledgement, event history, desktop/390px controls; real Race and Creature requirements AND/OR authoring, saved reload, Campaign G.O.D. eligibility and 390px scrolling; Creature authoring UI add/edit/reorder/reload/remove; exact variant selection; retained archived destination; phone dialog scrolling and shared theme; Forms and NPC snapshots unchanged; no browser errors.");
   } catch(error) {
     const page=browser?.contexts()[0]?.pages()[0];
     if(page) { await page.screenshot({path:path.join(artifacts,"failure.png"),fullPage:true}).catch(()=>undefined); await writeFile(path.join(artifacts,"failure.txt"),await page.locator("body").innerText().catch(()=>"")); }

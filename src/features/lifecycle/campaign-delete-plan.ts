@@ -18,6 +18,8 @@ export type CampaignDeleteStep = {
  * conscious deletion-policy decision and a matching test update.
  */
 export const CAMPAIGN_GRAPH_DELETE_STEPS = [
+  { tableName: "race_evolution_events", scope: "campaign" },
+  { tableName: "creature_evolution_events", scope: "campaign" },
   { tableName: "tabletop_closeout_award", scope: "campaign" },
   { tableName: "tabletop_closeout_award_decision", scope: "campaign" },
   { tableName: "tabletop_source_use_event", scope: "source-use-request" },
