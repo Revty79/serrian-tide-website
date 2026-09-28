@@ -9,6 +9,13 @@ const lifecycle = {
 };
 
 const guides: Record<string, PageHelp> = {
+  profile: { title: "Your Profile", introduction: "Review your account information and choose your personal catalog browsing preferences.", steps: ["Choose one visibility mode for each catalog.", "Each change saves automatically. Wait for Saved before leaving; if it fails, your previous choice stays selected and you can try again.", "Your choices remain saved after logging out and signing back in."], topics: {
+    "Canon and Mine": "Canon means official Serrian Tide content. Mine means content you created, including your content that later becomes Canon. It does not mean all content created by other users.",
+    "Independent catalog settings": "Races, Creatures, Skills, Derived Abilities, Equipment and Inventory each remember their own selection. Choose Canon Only, Canon + Mine or Mine Only. Equipment and Inventory can have different settings.",
+    "Browsing and existing Campaigns": "These preferences are for catalog browsing and discovery. Hiding content from browsing does not delete it or remove it from existing Campaigns.",
+    "Current availability": "Your choices are saved now. Catalog browsing will begin using them in a future update; current catalog results stay the same.",
+    "Account information": "Name, username and email are read-only here. Profile belongs to your account and is available from any of your paths.",
+  } },
   race: { title: "Race authoring", introduction: "Define the racial information a Character uses without replacing the Character's own choices.", steps: authoring, fields: ["race", "interaction"], topics: { ...lifecycle,
     "HP & Hit Locations": "Keep Standard humanoid or choose Custom Race anatomy. Name shared HP pools, allocate percentages of character Total HP, and map results 0 through 9 to those pools. Repeated results share damage. Race changes apply to assigned Characters; removed pools keep their recorded damage and injuries. Review numbered protection and armor coverage when changing the table. Variant anatomy is an independent copy.",
     "Mechanics": "Attribute Caps are creation limits. Base Magic multiplies Mana. Movement supplies the base for each authored mode. Natural Protection uses one Soak value and its coverage.",
@@ -123,7 +130,8 @@ const guides: Record<string, PageHelp> = {
 
 export function getPageHelp(pathname: string): PageHelp {
   let key = "dashboard";
-  if (/\/(login|register|access)(\/|$)/.test(pathname)) key = "account";
+  if (pathname === "/profile") key = "profile";
+  else if (/\/(login|register|access)(\/|$)/.test(pathname)) key = "account";
   else if (pathname.startsWith("/admin")) key = "admin";
   else if (pathname.startsWith("/chat")) key = "chat";
   else if (/\/advance(?:\/|$)/.test(pathname)) key = "advance";

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "validate:profile-browser": "node --import tsx scripts/profile-disposable-browser.test.ts",
     "validate:catalog-visibility": "tsx --test src/features/catalog-visibility/*.test.ts",
     "validate:catalog-visibility-db": "node --import tsx scripts/catalog-visibility-disposable-db.test.ts",
     "validate:unit": "node scripts/run-feature-tests.mjs",

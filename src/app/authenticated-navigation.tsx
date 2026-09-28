@@ -12,6 +12,7 @@ import {
   getContextHomeHref,
   getContextNavigationItems,
   getNavigationBreadcrumbs,
+  getRoleDestinations,
   isNavigationItemActive,
   type AuthenticatedContext,
   type SerrianAppRole,
@@ -28,7 +29,7 @@ export function AuthenticatedNavigation({
   roles,
   username,
 }: {
-  context: AuthenticatedContext;
+  context: AuthenticatedContext | null;
   roles: SerrianAppRole[];
   username: string;
 }) {
@@ -38,21 +39,25 @@ export function AuthenticatedNavigation({
   const [signingOut, setSigningOut] = useState(false);
   const navigationRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDetailsElement>(null);
-  const navigationItems = getContextNavigationItems(context, pathname);
-  const contextHomeHref = getContextHomeHref(context);
-  const alternateRoleDestinations = getAlternateRoleDestinations(roles, context);
+  const contextName = context ? contextNames[context] : "Your Account";
+  const navigationItems = context ? getContextNavigationItems(context, pathname) : [{ label: "Choose Your Path", href: "/access" }];
+  const contextHomeHref = context ? getContextHomeHref(context) : "/access";
+  const alternateRoleDestinations = context ? getAlternateRoleDestinations(roles, context) : getRoleDestinations(roles);
   const characterSource = searchParams.get("source");
   const requestedCampaignId = Number(searchParams.get("campaign"));
   const campaignId = Number.isInteger(requestedCampaignId) && requestedCampaignId > 0
     ? requestedCampaignId
     : null;
-  const breadcrumbs = getNavigationBreadcrumbs(
+  const breadcrumbs = context ? getNavigationBreadcrumbs(
     pathname,
     context,
     characterSource,
     campaignId,
     searchParams.get("player"),
-  );
+  ) : [
+    { label: "Choose Your Path", href: "/access", current: false },
+    { label: "Profile", href: "/profile", current: true },
+  ];
 
   useEffect(() => {
     const navigation = navigationRef.current;
@@ -112,16 +117,16 @@ export function AuthenticatedNavigation({
   return (
     <div ref={navigationRef} className={`authenticated-navigation ${styles.navigation} st-surface-soft-bg sticky top-0 z-50 border-b border-white/10 shadow-2xl backdrop-blur-xl`}>
       <div className={`${styles.toolbar} mx-auto flex w-full max-w-[1500px] items-center gap-4 px-4 py-3 sm:px-6`}>
-        <Link href={contextHomeHref} className="shrink-0 border-r border-white/10 pr-4" aria-label={`${contextNames[context]} dashboard`}>
+        <Link href={contextHomeHref} className="shrink-0 border-r border-white/10 pr-4" aria-label={context ? `${contextName} dashboard` : "Choose Your Path"}>
           <strong className="font-evanescent st-brand block text-lg">
             SERRIAN TIDE
           </strong>
           <span className="mt-0.5 block text-xs uppercase tracking-[0.14em] text-purple-200/85">
-            {contextNames[context]}
+            {contextName}
           </span>
         </Link>
 
-        <nav className="hidden min-w-0 flex-1 flex-wrap items-center gap-1 lg:flex" aria-label={`${contextNames[context]} navigation`}>
+        <nav className="hidden min-w-0 flex-1 flex-wrap items-center gap-1 lg:flex" aria-label={`${contextName} navigation`}>
           {links}
         </nav>
 
@@ -135,7 +140,7 @@ export function AuthenticatedNavigation({
           <summary className="cursor-pointer list-none rounded-full border border-white/15 bg-black/30 px-4 py-2 text-sm text-slate-200">
             Navigate
           </summary>
-          <nav className={`${styles.mobileMenu} st-surface-raised-bg absolute right-0 top-12 grid gap-1 rounded-lg border border-white/15 p-3 shadow-2xl`} aria-label={`${contextNames[context]} mobile navigation`}>
+          <nav className={`${styles.mobileMenu} st-surface-raised-bg absolute right-0 top-12 grid gap-1 rounded-lg border border-white/15 p-3 shadow-2xl`} aria-label={`${contextName} mobile navigation`}>
             {links}
             {alternateRoleDestinations.length > 0 ? (
               <>
@@ -151,7 +156,9 @@ export function AuthenticatedNavigation({
               </>
             ) : null}
             <div className={`${styles.mobileAccount} border-t border-white/10 pt-2 md:hidden`}>
-              <span className="text-sm text-slate-300">{username}</span>
+              <Link href="/profile" onClick={closeDisclosure} className={styles.profileLink} aria-current={pathname === "/profile" ? "page" : undefined}>
+                <span>{username}</span><span className={styles.profileLabel}>Profile</span>
+              </Link>
               <button type="button" disabled={signingOut} onClick={() => void signOut()} className="st-button">
                 {signingOut ? "Signing out..." : "Log Out"}
               </button>
@@ -175,7 +182,9 @@ export function AuthenticatedNavigation({
               </div>
             </details>
           ) : null}
-          <span className="max-w-28 truncate text-xs text-slate-300" title={username}>{username}</span>
+          <Link href="/profile" className={styles.profileLink} title={username} aria-current={pathname === "/profile" ? "page" : undefined}>
+            <span>{username}</span><span className={styles.profileLabel}>Profile</span>
+          </Link>
           <button
             type="button"
             disabled={signingOut}

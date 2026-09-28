@@ -1,4 +1,4 @@
-# Catalog visibility foundation (Pass 1)
+# Catalog visibility (Passes 1 and 2)
 
 These concepts are independent:
 
@@ -37,8 +37,22 @@ For a signed-in user's ID, `isCatalogContentVisible` defines:
 
 ## Integration boundary and deployment
 
-Pass 1 adds no catalog, Profile, or Campaign UI and applies no automatic filtering to existing queries. No tags, named libraries, or community sharing change. Future browsing filters must never invalidate retained Campaign selections, Character references, or runtime mechanics; those paths continue resolving referenced content under their established rules.
+Pass 2 stores and exposes the preferences but does not yet apply them to catalog queries.
+
+Existing official content must be deliberately classified before catalog filtering is activated.
+
+Races, Creatures, Skills, Derived Abilities, Equipment, Inventory, and Campaign reference queries retain their existing behavior, including foreign-authored and imported non-canon records. No catalog selectors, tags, canon-management UI, named libraries, or community sharing change. Future browsing filters must never invalidate retained Campaign selections, Character references, or runtime mechanics; those paths continue resolving referenced content under their established rules.
 
 Apply migration 0077 before running the new application revision against a database: existing Drizzle full-root reads now select the added columns. Generation and disposable migration tests do not apply it to dev or production. Deliberate canon classification and catalog integration belong to later passes.
 
 Validation commands: `npm run validate:catalog-visibility` and `npm run validate:catalog-visibility-db`. The DB harness creates isolated PostgreSQL databases, checks the full fresh migration chain and an upgrade from 0076 with existing content, then runs canon/preference/variant and account-deletion regression tests. It never uses the configured application database.
+
+## Profile and controls (Pass 2)
+
+`/profile` uses the existing Better Auth session and redirects unsigned users to `/login`. It is available to every authenticated account, including accounts without a gameplay role. Name, username/display username, and email are read-only. Role assignments supply navigation destinations only; they do not gate the page. The shared navigation accepts a neutral context on Profile, links back to `/access`, and retains the existing three role destinations. Desktop and mobile account areas link to Profile, as does the access page for users with no assigned path.
+
+`CatalogVisibilityControl` in `src/features/catalog-visibility/catalog-visibility-control.tsx` is a controlled, reusable native radio group using the Pass 1 catalog/mode types. It accepts its label, current mode, change handler, optional description, and pending/error/status feedback. It has no Profile route or persistence dependency. Native checked state and arrow-key behavior remain accessible, and choices fit at 390px with comfortable tap targets. The Profile page's six controls use shared semantic theme colors and explain the modes, future browsing behavior, and retention of existing Campaign content. The page-guidance system supplies further help.
+
+`CatalogPreferencesEditor` reads initial values supplied by `getCurrentCatalogPreferences`. Each row calls `updateCurrentCatalogPreference` immediately on selection; there is no Save button or alternate storage. The row displays Saving and disables repeat submissions until completion. Success accepts only that catalog's value from the response; it never replaces the other five controls with an older response snapshot. Failure restores the prior selection and displays a visible retry message. State is scoped to the authenticated user, and persisted database choices survive reload and logout/login. Equipment and Inventory remain independent preferences.
+
+`npm run validate:profile-browser` builds the production app and exercises it in headless Chrome against a freshly migrated disposable database. Coverage includes anonymous/role/roleless access, defaults without backfill, per-catalog persistence, failure/retry, pending and keyboard behavior, account isolation, logout/login, desktop/mobile navigation, guidance, and existing Race/Campaign behavior with Mine Only saved. Screenshots are retained under `artifacts/guidance/profile-pass-two/`. This harness does not touch dev or production data and requires the local PostgreSQL and Chrome executables (overridable via `SERRIAN_TEST_POSTGRES_BIN` and `SERRIAN_TEST_CHROME`).

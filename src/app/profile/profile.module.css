@@ -1,0 +1,15 @@
+.page { width: min(100%, 58rem); margin-inline: auto; padding: 2rem 1rem 4rem; color: var(--st-text); }
+.page h1 { font-size: 2rem; font-weight: 600; color: var(--st-text-strong); }
+.page h2 { margin-bottom: 0.75rem; font-size: 1.3rem; font-weight: 600; color: var(--st-text-strong); }
+.page p { margin-block: 0.75rem; color: var(--st-text-secondary); line-height: 1.6; }
+.section { margin-top: 1.5rem; padding: 1.5rem; border: 1px solid var(--st-border); border-radius: 1rem; background: var(--st-surface-soft); }
+.account, .meanings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.account dt, .meanings dt { font-weight: 600; color: var(--st-text); }
+.account dd, .meanings dd { margin-top: 0.3rem; color: var(--st-muted); overflow-wrap: anywhere; }
+.meanings { margin-block: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--st-border); font-size: 0.875rem; }
+.page .notice { border-left: 3px solid var(--st-secondary); padding-left: 0.75rem; color: var(--st-secondary-soft-text); }
+@media (max-width: 640px) {
+  .page { padding-top: 1.5rem; }
+  .section { padding: 1rem; }
+  .account, .meanings { grid-template-columns: 1fr; }
+}

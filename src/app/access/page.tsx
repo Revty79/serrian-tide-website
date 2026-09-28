@@ -174,7 +174,8 @@ export default async function AccessPage() {
           </div>
         )}
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-center">
+          <Link href="/profile" className="st-button">Profile</Link>
           <Link
             href="/login"
             className="text-sm text-slate-400 transition hover:text-amber-200"
