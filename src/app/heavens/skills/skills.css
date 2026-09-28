@@ -1219,6 +1219,10 @@
 .skills-page a:focus-visible { outline: 3px solid var(--st-secondary); outline-offset: 2px; }
 
 @media (max-width: 680px) {
+  .skills-catalog-page .skill-editor__header { align-items: stretch; flex-direction: column; }
+  .skills-catalog-page .skill-editor__header > div { min-width: 0; }
+  .skills-catalog-page .skill-editor__header h2 { white-space: normal; overflow-wrap: anywhere; }
+  .skills-catalog-page .skill-library__selected-detail > header > div { display: grid; gap: 0.25rem; }
   .skills-workspace { min-width: 0; }
   .skill-library { min-height: 0; padding: 14px; }
   .skill-library__heading,

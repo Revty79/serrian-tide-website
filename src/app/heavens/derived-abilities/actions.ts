@@ -1,4 +1,6 @@
 "use server";
+import { getCatalogBrowseState, catalogBrowseWhere, catalogSourceLabel, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+
 
 import {
   and,
@@ -61,6 +63,7 @@ import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 export type DerivedAbilityDraft = DerivedAbilityAuthoringDraft;
 export type DerivedAbilityAggregate = DerivedAbilityAuthoringAggregate & {
+  isSystemCanon: boolean;
   createdByUserId: string | null;
   archivedAt: string | null;
   archiveReason: string;
@@ -76,6 +79,7 @@ export type DerivedAbilityLibraryFilters = {
 };
 
 export type DerivedAbilitySummary = {
+  catalogSource: CatalogSourceLabel;
   id: number;
   name: string;
   description: string;
@@ -89,6 +93,7 @@ export type DerivedAbilitySummary = {
 };
 
 export type DerivedAbilityLibraryResult = {
+  visibility: CatalogBrowseState;
   items: DerivedAbilitySummary[];
   total: number;
   page: number;
@@ -253,7 +258,8 @@ export async function getDerivedAbilityEditorReferences(
 export async function listDerivedAbilities(
   filters: DerivedAbilityLibraryFilters = {},
 ): Promise<DerivedAbilityLibraryResult> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
+  const visibility = await getCatalogBrowseState(session.user.id, "derivedAbility");
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
   const conditions: SQL[] = [
@@ -273,11 +279,13 @@ export async function listDerivedAbilities(
   if (filters.activationType) {
     conditions.push(eq(derivedAbility.activationType, filters.activationType));
   }
-  const where = conditions.length ? and(...conditions) : undefined;
+  const where = catalogBrowseWhere(derivedAbility, session.user.id, visibility, ...conditions);
   const [countRow] = await db.select({ value: count() }).from(derivedAbility).where(where);
   const total = Number(countRow?.value ?? 0);
   const rows = await db.select({
     id: derivedAbility.id,
+      isSystemCanon: derivedAbility.isSystemCanon,
+      createdByUserId: derivedAbility.createdByUserId,
     name: derivedAbility.name,
     description: derivedAbility.description,
     mechanicalEffect: derivedAbility.mechanicalEffect,
@@ -336,8 +344,10 @@ export async function listDerivedAbilities(
   }
 
   return {
+    visibility,
     items: catalog.map((ability) => ({
       id: ability.id,
+      catalogSource: catalogSourceLabel(rows.find((row) => row.id === ability.id)!, session.user.id),
       name: ability.name,
       description: ability.description,
       requirementSummary: getDerivedAbilityRequirementSummary(ability, references),
@@ -397,6 +407,7 @@ export async function getDerivedAbility(
   return {
     ...definitionToDerivedAbilityDraft(definition),
     id: definition.id,
+    isSystemCanon: row.isSystemCanon,
     createdByUserId: row.createdByUserId,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     archiveReason: row.archiveReason,

@@ -12,7 +12,7 @@ import "./creatures.css";
 import { CreatureWorkspace } from "./creature-workspace";
 
 export default async function CreaturesPage() {
-  const { session } = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
+  const { session, roles } = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const [initialLibrary, initialFacets, initialReferences] = await Promise.all([
     listCreatures({ page: 1, pageSize: 40 }),
     listCreatureFacets(),
@@ -21,6 +21,7 @@ export default async function CreaturesPage() {
 
   return (
     <CreatureWorkspace
+      canManageCanon={roles.includes("admin")}
       initialLibrary={initialLibrary}
       initialFacets={initialFacets}
       initialReferences={initialReferences}

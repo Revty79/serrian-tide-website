@@ -34,7 +34,7 @@ export default async function ProfilePage() {
       <section className={styles.section} aria-labelledby="profile-visibility">
         <h2 id="profile-visibility">Content Visibility</h2>
         <p>Choose what you want to discover when browsing each catalog. Each catalog remembers its own setting, even after you log out.</p>
-        <p className={styles.notice}>Your choices are saved now. Catalog browsing will begin using them in a future update; current catalog results stay the same.</p>
+        <p className={styles.notice}>Races, Creatures, Skills, and Derived Abilities use these choices after canon classification is completed for this environment. Equipment, Inventory, and Campaign Builder browsing will follow in a later update.</p>
         <p>Changing visibility does not delete content or remove anything already used by an existing Campaign.</p>
         <dl className={styles.meanings}>
           <div><dt>Canon Only</dt><dd>Official Serrian Tide content.</dd></div>

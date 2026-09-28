@@ -7,7 +7,7 @@ test("Profile guidance explains personal modes, persistence, and the deferred br
   const guide = getPageHelp("/profile");
   assert.equal(guide.title, "Your Profile");
   const copy = JSON.stringify(guide);
-  for (const meaning of [/official Serrian Tide content/, /content you created/, /does not mean all content created by other users/, /Equipment and Inventory can have different settings/, /logging out and signing back in/, /does not delete it or remove it from existing Campaigns/, /current catalog results stay the same/]) assert.match(copy, meaning);
+  for (const meaning of [/official Serrian Tide content/, /content you created/, /does not mean all content created by other users/, /Equipment and Inventory can have different settings/, /logging out and signing back in/, /does not delete it or remove it from existing Campaigns/, /after canon classification/]) assert.match(copy, meaning);
 });
 
 test("Profile uses the authenticated account and Pass 1 operations without a role gate", () => {
@@ -24,8 +24,8 @@ test("Profile uses the authenticated account and Pass 1 operations without a rol
   assert.match(editor, /setMode\(previousMode\)/);
 });
 
-test("Pass 2 leaves catalog and Campaign reference queries outside preference filtering", () => {
-  for (const file of ["races", "creatures", "skills", "derived-abilities", "items", "campaigns"]) {
+test("Pass 4 Item and Campaign reference queries remain outside preference filtering", () => {
+  for (const file of ["items", "campaigns"]) {
     const source = readFileSync(`src/app/heavens/${file}/actions.ts`, "utf8");
     assert.doesNotMatch(source, /catalog-visibility|catalog-preferences|userCatalogPreferences|isCatalogContentVisible|getCurrentCatalogPreferences/, `${file} must not apply preferences before deliberate canon classification`);
   }

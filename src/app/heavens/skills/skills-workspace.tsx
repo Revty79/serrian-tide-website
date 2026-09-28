@@ -1,7 +1,9 @@
 "use client";
+import { CanonDesignationControl } from "@/features/catalog-visibility/canon-designation-control";
+import { CatalogBrowseControl } from "@/features/catalog-visibility/catalog-browse-control";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import type { Tradition } from "@/features/spell-construction/models/spell";
@@ -14,6 +16,7 @@ import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 
 import {
   getRecursiveSkillLibrary,
+  getSkillEditorHierarchy,
   getSkill,
   getSkillFilterOptions,
   listSkills,
@@ -90,18 +93,23 @@ function preferredSavedPath(
 export function SkillsWorkspace({
   initialHierarchy,
   initialFilterOptions,
+  canManageCanon = false,
   initialLibrary,
   username,
 }: {
   initialHierarchy: RecursiveSkillLibrary;
   initialFilterOptions: SkillFilterOptions;
+  canManageCanon?: boolean;
   initialLibrary: SkillLibraryResult;
   username: string;
 }) {
   const [hierarchy, setHierarchy] = useState(initialHierarchy);
+  const [editorHierarchy, setEditorHierarchy] = useState(initialHierarchy);
   const [filterOptions, setFilterOptions] = useState(initialFilterOptions);
   const [filters, setFilters] = useState<SkillLibraryFilters>({ page: 1, pageSize: 40 });
   const [library, setLibrary] = useState(initialLibrary);
+  const libraryRequest = useRef(0);
+  const hierarchyRequest = useRef(0);
   const [view, setView] = useState<SkillLibraryView>("list");
   const [selectedPathKey, setSelectedPathKey] = useState<string | null>(null);
   const [selectedAttributeKey, setSelectedAttributeKey] = useState<string | null>(null);
@@ -124,16 +132,18 @@ export function SkillsWorkspace({
   const isArchived = Boolean(archivedAt);
 
   const loadList = useCallback(async (nextFilters: SkillLibraryFilters) => {
+    const request = ++libraryRequest.current;
     setLoadingLibrary(true);
     try {
-      setLibrary(await listSkills(nextFilters));
+      const result = await listSkills(nextFilters);
+      if (request === libraryRequest.current) setLibrary(result);
     } catch {
-      setFeedback({
+      if (request === libraryRequest.current) setFeedback({
         kind: "error",
         message: "The Skill Library could not be read from PostgreSQL.",
       });
     } finally {
-      setLoadingLibrary(false);
+      if (request === libraryRequest.current) setLoadingLibrary(false);
     }
   }, []);
 
@@ -149,20 +159,24 @@ export function SkillsWorkspace({
     [],
   );
 
-  async function refreshLibraries(): Promise<RecursiveSkillLibrary> {
+  async function refreshLibraries(nextFilters = filters): Promise<RecursiveSkillLibrary> {
+    const request = ++libraryRequest.current;
+    const graphRequest = ++hierarchyRequest.current;
     setLoadingLibrary(true);
     try {
       const [nextHierarchy, nextFilterOptions, nextList] = await Promise.all([
         getRecursiveSkillLibrary(),
-        getSkillFilterOptions(Boolean(filters.archived)),
-        listSkills(filters),
+        getSkillFilterOptions(Boolean(nextFilters.archived)),
+        listSkills(nextFilters),
       ]);
-      setHierarchy(nextHierarchy);
-      setFilterOptions(nextFilterOptions);
-      setLibrary(nextList);
+      if (graphRequest === hierarchyRequest.current) {
+        setHierarchy(nextHierarchy);
+        setFilterOptions(nextFilterOptions);
+      }
+      if (request === libraryRequest.current) setLibrary(nextList);
       return nextHierarchy;
     } finally {
-      setLoadingLibrary(false);
+      if (request === libraryRequest.current) setLoadingLibrary(false);
     }
   }
 
@@ -171,7 +185,8 @@ export function SkillsWorkspace({
       setLoadingEditor(true);
       setFeedback(null);
       try {
-        const aggregate = await getSkill(skillId);
+        const [aggregate, editingGraph] = await Promise.all([getSkill(skillId), getSkillEditorHierarchy()]);
+        setEditorHierarchy(editingGraph);
         if (!aggregate) throw new Error("That exact Skill identity no longer exists.");
         setDraft(aggregate);
         setSelectedPathKey(pathKey);
@@ -210,7 +225,8 @@ export function SkillsWorkspace({
 
   async function createNewSkill() {
     try {
-      const nextFilterOptions = await getSkillFilterOptions();
+      const [nextFilterOptions, editingGraph] = await Promise.all([getSkillFilterOptions(), getSkillEditorHierarchy()]);
+      setEditorHierarchy(editingGraph);
       setDraft(newSkillDraft());
       setFilters((current) => ({ ...current, archived: false, page: 1 }));
       setFilterOptions(nextFilterOptions);
@@ -263,7 +279,8 @@ export function SkillsWorkspace({
       setFeedback(null);
       try {
         const saved = await saveSkill(draft, { structuralChangeConfirmed });
-        const nextHierarchy = await refreshLibraries();
+        const [nextHierarchy, editingGraph] = await Promise.all([refreshLibraries(), getSkillEditorHierarchy()]);
+        setEditorHierarchy(editingGraph);
         const selectedPath = preferredSavedPath(
           nextHierarchy,
           saved,
@@ -367,7 +384,7 @@ export function SkillsWorkspace({
   ] as const : [];
 
   return (
-    <main className="skills-page">
+    <main className="skills-page skills-catalog-page">
       <header className="skills-page__header">
         <Link href="/heavens" className="skills-page__brand">
           <span className="font-evanescent">SERRIAN TIDE</span>
@@ -384,6 +401,14 @@ export function SkillsWorkspace({
 
       <div className="skills-workspace">
         <SkillLibrary
+          visibilityControl={<CatalogBrowseControl catalog="skill" visibility={library.visibility} onSaved={async () => {
+            await preserveScroll(async () => {
+              setSelectedPathKey(null);
+              setSelectedAttributeKey(null);
+              setFilters((current) => ({ ...current, page: 1 }));
+              await refreshLibraries({ ...filters, page: 1 });
+            });
+          }} />}
           page={library}
           filters={filters}
           filterOptions={filterOptions}
@@ -416,7 +441,7 @@ export function SkillsWorkspace({
           <SkillEditor
             key={draft?.id ?? "new-skill"}
             draft={draft}
-            hierarchy={hierarchy}
+            hierarchy={editorHierarchy}
             filterOptions={filterOptions}
             saving={saving}
             dirty={dirty}
@@ -429,14 +454,19 @@ export function SkillsWorkspace({
               setStructuralPreview(null);
             }}
             onSave={() => void preserveScroll(reviewAndSaveCurrentSkill)}
-            lifecycleControls={draft?.id ? (
+            lifecycleControls={<>
+              {canManageCanon && draft?.id && "isSystemCanon" in draft ? <CanonDesignationControl key={draft.id} root="skill" id={draft.id} isSystemCanon={draft.isSystemCanon} disabled={saving || dirty} onChanged={async (isSystemCanon, id) => {
+                    setDraft((current) => current?.id === id ? { ...current, isSystemCanon } : current);
+                    await preserveScroll(async () => { await refreshLibraries(); });
+                  }} /> : null}
+              {draft?.id ? (
               <LifecycleControls
                 target={{ entityKind: "skill", entityId: draft.id }}
                 archived={isArchived}
                 disabled={saving || dirty}
                 onCompleted={lifecycleCompleted}
               />
-            ) : null}
+            ) : null}</>}
             archiveReason={archiveReason}
             findFrameworkSkills={findFrameworkSkills}
           />

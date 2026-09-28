@@ -346,6 +346,9 @@
 }
 
 @media (max-width: 700px) {
+  .derived-abilities-page .skill-editor__header { align-items: stretch; flex-direction: column; }
+  .derived-abilities-page .skill-editor__header > div { min-width: 0; }
+  .derived-abilities-page .skill-editor__header h2 { white-space: normal; overflow-wrap: anywhere; }
   .derived-ability-form-grid,
   .derived-ability-metadata,
   .derived-ability-reference-select {

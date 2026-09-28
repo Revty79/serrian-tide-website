@@ -8,13 +8,14 @@ import "./races.css";
 import { RaceWorkspace } from "./race-workspace";
 
 export default async function RacesPage() {
-  const { session } = await requireGodOrAdminAccessContext()
+  const { session, roles } = await requireGodOrAdminAccessContext()
     .catch(() => redirect("/access"));
 
   const initialLibrary = await listRaces({ page: 1, pageSize: 40 });
 
   return (
     <RaceWorkspace
+      canManageCanon={roles.includes("admin")}
       initialLibrary={initialLibrary}
       username={session.user.username ?? session.user.name ?? "G.O.D."}
     />

@@ -11,7 +11,7 @@ export async function checkRaceFormMechanicsBrowser(page: Page, base: string) {
   const section = (title: string) => form.locator("details").filter({ has: page.locator("summary").filter({ hasText: new RegExp(`^${title} ·`) }) }).first();
   const expand = async (title: string) => { const target = section(title); if (!(await target.evaluate(element => (element as HTMLDetailsElement).open))) await target.locator(":scope > summary").click(); return target; };
   const save = async (raceName = name) => { await button("Save Race").click(); await page.getByText(`${raceName} was saved.`, { exact: true }).waitFor(); };
-  const open = async () => { await page.goto(`${base}/heavens/races`); await page.locator("#race-search").fill(name); await page.locator(".skill-library__row").filter({ hasText: name }).click(); await button("Forms").click(); };
+  const open = async () => { await page.goto(`${base}/heavens/races`); await page.locator("#race-search").fill(name); await page.locator(".skill-library__row").filter({ has: page.getByText(name, { exact: true }) }).click(); await button("Forms").click(); };
   await page.goto(`${base}/heavens/races`);
   await button("New Race").click(); await page.getByLabel("Name", { exact: true }).fill(name);
   await button("Forms").click();

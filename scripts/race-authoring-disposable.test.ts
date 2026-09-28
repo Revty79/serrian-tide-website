@@ -108,7 +108,12 @@ test("Race Soak migration, independent variants, protection integration and auth
     const beforeTransformationMigration = await Promise.all(transformationTables.map(table => pool!.query(`select to_jsonb(t) body from "${table}" t order by to_jsonb(t)::text`)));
     await migrate(drizzle(pool), { migrationsFolder: path.resolve("drizzle") });
     for (const [index, table] of transformationTables.entries()) {
-      const expected = table === "race_forms" ? beforeTransformationMigration[index].rows.map(row => ({ body: { ...row.body, transformation_json: null, access_mode: "unrestricted" } })) : beforeTransformationMigration[index].rows;
+      const expected = beforeTransformationMigration[index].rows.map(({ body }) => ({ body: {
+        ...body,
+        ...(table === "race_forms" ? { transformation_json: null, access_mode: "unrestricted" } : {}),
+        ...(["races", "creatures", "skill", "derived_ability", "items"].includes(table)
+          ? { is_system_canon: false, canon_marked_by_user_id: null, canon_marked_at: null } : {}),
+      } }));
       assert.deepEqual((await pool.query(`select to_jsonb(t) body from "${table}" t order by to_jsonb(t)::text`)).rows, expected, `${table} preserved by transformation migration`);
     }
     await assert.rejects(pool.query("update race_forms set transformation_json='{}'"), /transformation_shape/);
@@ -131,6 +136,8 @@ test("Race Soak migration, independent variants, protection integration and auth
     if (pool) await pool.end();
     if (started && existsSync(path.join(data, "postmaster.pid"))) execFileSync(exe("pg_ctl"), ["-D", data, "-m", "fast", "-w", "stop"], { stdio: "ignore", windowsHide: true });
     assert.equal(existsSync(path.join(data, "postmaster.pid")), false);
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(tmpdir()));
+    assert.ok(path.basename(root).startsWith("serrian-race-authoring-"));
     await rm(root, { recursive: true, force: true });
   }
 });

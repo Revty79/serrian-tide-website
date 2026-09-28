@@ -11,7 +11,7 @@ export async function checkRaceFormsBrowser(page: Page, base: string) {
   const open = async (raceName = name) => {
     await page.goto(`${base}/heavens/races`);
     await page.locator("#race-search").fill(raceName);
-    await page.locator(".skill-library__row").filter({ hasText: raceName }).click();
+    await page.locator(".skill-library__row").filter({ has: page.getByText(raceName, { exact: true }) }).click();
     await button("Forms").click();
   };
   await page.goto(`${base}/heavens/races`);

@@ -5,6 +5,13 @@ import { user } from "./auth-schema";
 
 const visibility = (name: string) => text(name).$type<CatalogVisibilityMode>().default("canon-and-mine").notNull();
 
+// A receipt is written only by the guarded, transactional classifier. Preferences
+// remain inert until this environment has completed the exact reviewed manifest.
+export const catalogVisibilityActivation = pgTable("catalog_visibility_activation", {
+  manifestHash: text("manifest_hash").primaryKey(),
+  classifiedAt: timestamp("classified_at").defaultNow().notNull(),
+});
+
 export const userCatalogPreferences = pgTable("user_catalog_preferences", {
   userId: text("user_id").primaryKey().references(() => user.id, { onDelete: "cascade" }),
   raceVisibility: visibility("race_visibility"),

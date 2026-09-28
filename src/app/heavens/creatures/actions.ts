@@ -1,4 +1,7 @@
 "use server";
+import { getCatalogBrowseState, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-lineage";
+
 import { readCreatureFormsInTransaction, saveCreatureFormsInTransaction, cloneCreatureFormsInTransaction } from "@/features/creatures/creature-form-service";
 import { normalizeCreatureDefinition as normalize } from "@/features/creatures/creature-definition";
 
@@ -68,6 +71,10 @@ export type CreatureLibraryFilters = {
 };
 
 export type CreatureSummary = {
+  catalogSource: CatalogSourceLabel;
+  parentId: number | null;
+  depth: number;
+  parentName: string | null;
   id: number;
   canonicalId: string;
   canonicalName: string;
@@ -80,6 +87,7 @@ export type CreatureSummary = {
 };
 
 export type CreatureLibraryResult = {
+  visibility: CatalogBrowseState;
   items: CreatureSummary[];
   total: number;
   page: number;
@@ -117,6 +125,7 @@ import type { CreatureDraft } from "@/features/creatures/models";
 
 export type CreatureAggregate = CreatureDraft & {
   id: number;
+  isSystemCanon?: boolean;
   createdByUserId: string | null;
   archivedAt: string | null;
   archiveReason: string;
@@ -131,7 +140,8 @@ function required(value: string | null | undefined, label: string) { const resul
 export async function listCreatures(
   filters: CreatureLibraryFilters = {},
 ): Promise<CreatureLibraryResult> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
+  const visibility = await getCatalogBrowseState(session.user.id, "creature");
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
   const conditions: SQL[] = [];
@@ -141,11 +151,14 @@ export async function listCreatures(
   if (clean(filters.creatureType)) conditions.push(eq(creature.creatureType, clean(filters.creatureType)));
   if (clean(filters.size)) conditions.push(eq(creature.size, clean(filters.size)));
   if (filters.challengeRating !== undefined && filters.challengeRating !== null) conditions.push(eq(creature.challengeRating, filters.challengeRating));
-  const where = conditions.length ? and(...conditions) : undefined;
+  const where = catalogBrowseWhere(creature, session.user.id, visibility, ...conditions);
   const [countRow] = await db.select({ value: count() }).from(creature).where(where);
   const total = Number(countRow?.value ?? 0);
   const items = await db.select({
     id: creature.id,
+      isSystemCanon: creature.isSystemCanon,
+      createdByUserId: creature.createdByUserId,
+      parentId: creature.parentCreatureId,
     canonicalId: creature.canonicalId,
     canonicalName: creature.canonicalName,
     family: creature.family,
@@ -155,9 +168,30 @@ export async function listCreatures(
     killXp: creature.killXp,
     archivedAt: creature.archivedAt,
   }).from(creature).where(where).orderBy(asc(creature.canonicalName), asc(creature.id)).limit(pageSize).offset((page - 1) * pageSize);
+  const matchIds = new Set(items.map((row) => row.id));
+  if (visibility.enabled) {
+    const ancestorIds = (await catalogAncestorIds("creature", [...matchIds])).filter((id) => !matchIds.has(id));
+    if (ancestorIds.length) items.push(...await db.select({
+    id: creature.id,
+      isSystemCanon: creature.isSystemCanon,
+      createdByUserId: creature.createdByUserId,
+      parentId: creature.parentCreatureId,
+    canonicalId: creature.canonicalId,
+    canonicalName: creature.canonicalName,
+    family: creature.family,
+    creatureType: creature.creatureType,
+    size: creature.size,
+    challengeRating: creature.challengeRating,
+    killXp: creature.killXp,
+    archivedAt: creature.archivedAt,
+  }).from(creature).where(inArray(creature.id, ancestorIds)));
+  }
+
   return {
-    items: items.map((entry) => ({
+    visibility,
+    items: orderCatalogLineage(items).map(({ isSystemCanon, createdByUserId, ...entry }) => ({
       ...entry,
+      catalogSource: catalogSourceLabel({ isSystemCanon, createdByUserId }, session.user.id, !matchIds.has(entry.id)),
       archivedAt: entry.archivedAt?.toISOString() ?? null,
     })),
     total,
@@ -168,8 +202,9 @@ export async function listCreatures(
 }
 
 export async function listCreatureFacets(archived = false): Promise<CreatureFacets> {
-  await requireGodOrAdminAccessContext();
-  const archiveCondition = archived ? isNotNull(creature.archivedAt) : isNull(creature.archivedAt);
+  const { session } = await requireGodOrAdminAccessContext();
+  const visibility = await getCatalogBrowseState(session.user.id, "creature");
+  const archiveCondition = catalogBrowseWhere(creature, session.user.id, visibility, archived ? isNotNull(creature.archivedAt) : isNull(creature.archivedAt));
   const [families, types] = await Promise.all([
     db.selectDistinct({ value: creature.family }).from(creature).where(archiveCondition).orderBy(asc(creature.family)),
     db.selectDistinct({ value: creature.creatureType }).from(creature).where(archiveCondition).orderBy(asc(creature.creatureType)),
@@ -222,6 +257,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     notes: creature.notes,
     interactionRules: creature.interactionRules,
     sourceSystem: creature.sourceSystem,
+    isSystemCanon: creature.isSystemCanon,
     createdByUserId: creature.createdByUserId,
     archivedAt: creature.archivedAt,
     archiveReason: creature.archiveReason,
@@ -269,6 +305,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
   const poolIdToCanonical = new Map(pools.map((pool) => [pool.id, pool.canonicalId]));
   const draft: CreatureAggregate = {
     id: row.id,
+    isSystemCanon: row.isSystemCanon,
     forms: await db.transaction(tx => readCreatureFormsInTransaction(tx, id)),
     createdByUserId: row.createdByUserId,
     archivedAt: row.archivedAt?.toISOString() ?? null,

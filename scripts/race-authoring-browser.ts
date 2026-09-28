@@ -160,7 +160,20 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId, character
   } finally {
     if (browser) await browser.close();
     if (server.pid && server.exitCode === null) {
-      if (process.platform === "win32") execFileSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" }); else server.kill("SIGTERM");
+      if (process.platform === "win32") {
+        try {
+          execFileSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { windowsHide: true, stdio: "ignore" });
+        } catch (error) {
+          // taskkill can report failure when a child exits during tree shutdown.
+          // Accept it only when our server process is actually gone.
+          let running = true;
+          try { process.kill(server.pid, 0); } catch (probeError) {
+            if ((probeError as NodeJS.ErrnoException).code !== "ESRCH") throw probeError;
+            running = false;
+          }
+          if (running) throw error;
+        }
+      } else server.kill("SIGTERM");
       await new Promise<void>((resolve) => { if (server.exitCode !== null) resolve(); else server.once("exit", () => resolve()); });
     }
     await writeFile(`${artifacts}/server.log`, logs);
@@ -168,6 +181,7 @@ export async function runRaceAuthoringBrowser({ parentId, actorUserId, character
     const current = await readFile("tsconfig.json", "utf8");
     const parsed = JSON.parse(current), original = JSON.parse(tsconfig);
     parsed.include = parsed.include.filter((entry: string) => !entry.startsWith(".next-race-authoring-browser/"));
-    if (JSON.stringify(parsed) === JSON.stringify(original)) await writeFile("tsconfig.json", tsconfig);
+    await writeFile("tsconfig.json", JSON.stringify(parsed) === JSON.stringify(original)
+      ? tsconfig : `${JSON.stringify(parsed, null, 2)}\n`.replaceAll("\n", tsconfig.includes("\r\n") ? "\r\n" : "\n"));
   }
 }

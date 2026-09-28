@@ -13,7 +13,7 @@ const guides: Record<string, PageHelp> = {
     "Canon and Mine": "Canon means official Serrian Tide content. Mine means content you created, including your content that later becomes Canon. It does not mean all content created by other users.",
     "Independent catalog settings": "Races, Creatures, Skills, Derived Abilities, Equipment and Inventory each remember their own selection. Choose Canon Only, Canon + Mine or Mine Only. Equipment and Inventory can have different settings.",
     "Browsing and existing Campaigns": "These preferences are for catalog browsing and discovery. Hiding content from browsing does not delete it or remove it from existing Campaigns.",
-    "Current availability": "Your choices are saved now. Catalog browsing will begin using them in a future update; current catalog results stay the same.",
+    "Current availability": "Races, Creatures, Skills, and Derived Abilities use these choices after canon classification is completed for this environment. Equipment, Inventory, and Campaign Builder browsing will follow in a later update.",
     "Account information": "Name, username and email are read-only here. Profile belongs to your account and is available from any of your paths.",
   } },
   race: { title: "Race authoring", introduction: "Define the racial information a Character uses without replacing the Character's own choices.", steps: authoring, fields: ["race", "interaction"], topics: { ...lifecycle,

@@ -24,25 +24,28 @@ function parseCanonChange(input: unknown): { root: SystemCanonRoot; id: number; 
 
 /** Trusted actor ID comes from the session boundary. Roles are always read from the DB. */
 export async function setSystemCanonForActor(actingUserId: string, input: unknown) {
+  return db.transaction((tx) => setSystemCanonInTransaction(tx, actingUserId, input));
+}
+
+/** Shared governance boundary for the atomic classifier and single-record action. */
+export async function setSystemCanonInTransaction(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], actingUserId: string, input: unknown) {
   const change = parseCanonChange(input);
   const table = canonRoots[change.root];
-  return db.transaction(async (tx) => {
-    // Hold the role row through the mutation so concurrent revocation cannot authorize a stale role.
-    const [admin] = await tx.select({ userId: userRole.userId }).from(userRole)
-      .where(and(eq(userRole.userId, actingUserId), eq(userRole.role, "admin"))).for("share");
-    if (!admin) throw new Error("Administrator access is required to change System Canon.");
-    const selection = { id: table.id, isSystemCanon: table.isSystemCanon, canonMarkedByUserId: table.canonMarkedByUserId, canonMarkedAt: table.canonMarkedAt };
-    const [record] = await tx.select(selection).from(table).where(eq(table.id, change.id)).for("update");
-    if (!record) throw new Error("Content record not found.");
-    // A repeated designation is a no-op; preserve the original current marking attribution.
-    if (record.isSystemCanon === change.isSystemCanon) return record;
-    const now = new Date();
-    const [updated] = await tx.update(table).set({
-      isSystemCanon: change.isSystemCanon,
-      canonMarkedByUserId: change.isSystemCanon ? actingUserId : null,
-      canonMarkedAt: change.isSystemCanon ? now : null,
-      updatedAt: now,
-    }).where(eq(table.id, change.id)).returning(selection);
-    return updated;
-  });
+  // Hold the role row through the mutation so concurrent revocation cannot authorize a stale role.
+  const [admin] = await tx.select({ userId: userRole.userId }).from(userRole)
+    .where(and(eq(userRole.userId, actingUserId), eq(userRole.role, "admin"))).for("share");
+  if (!admin) throw new Error("Administrator access is required to change System Canon.");
+  const selection = { id: table.id, isSystemCanon: table.isSystemCanon, canonMarkedByUserId: table.canonMarkedByUserId, canonMarkedAt: table.canonMarkedAt };
+  const [record] = await tx.select(selection).from(table).where(eq(table.id, change.id)).for("update");
+  if (!record) throw new Error("Content record not found.");
+  // A repeated designation is a no-op; preserve the original current marking attribution.
+  if (record.isSystemCanon === change.isSystemCanon) return record;
+  const now = new Date();
+  const [updated] = await tx.update(table).set({
+    isSystemCanon: change.isSystemCanon,
+    canonMarkedByUserId: change.isSystemCanon ? actingUserId : null,
+    canonMarkedAt: change.isSystemCanon ? now : null,
+    updatedAt: now,
+  }).where(eq(table.id, change.id)).returning(selection);
+  return updated;
 }

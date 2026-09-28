@@ -9,7 +9,7 @@ import { captureFormViewport } from "./forms-audit-browser";
 export async function checkRaceFormPreviewBrowser(page: Page, base: string, actorUserId: string, existingCharacterId: number) {
   assert.equal(process.env.SERRIAN_DISPOSABLE_RACE_AUTHORING, "true");
   const name = "Form Mechanics Browser Race";
-  const open = async () => { await page.goto(`${base}/heavens/races`); await page.locator("#race-search").fill(name); await page.locator(".skill-library__row").filter({ hasText: name }).click(); await page.getByRole("button", { name: "Forms", exact: true }).click(); };
+  const open = async () => { await page.goto(`${base}/heavens/races`); await page.locator("#race-search").fill(name); await page.locator(".skill-library__row").filter({ has: page.getByText(name, { exact: true }) }).click(); await page.getByRole("button", { name: "Forms", exact: true }).click(); };
   const [accessSkill] = (await pool.query("insert into skill(name,classification,tier) values('Browser Shift Forms Access','Special Ability',null) returning id")).rows;
   await open();
   const form = page.getByRole("article", { name: "Form 1", exact: true });

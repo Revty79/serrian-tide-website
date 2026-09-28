@@ -1,7 +1,10 @@
 "use client";
+import { CanonDesignationControl } from "@/features/catalog-visibility/canon-designation-control";
+import { CatalogBrowseControl } from "@/features/catalog-visibility/catalog-browse-control";
+import { CatalogSourceBadge } from "@/features/catalog-visibility/catalog-source-badge";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import { createDefaultDerivedAbilityDraft } from "@/features/derived-abilities/derived-ability-authoring";
@@ -26,10 +29,12 @@ import {
 import { DerivedAbilityConstructor } from "./derived-ability-constructor";
 
 export function DerivedAbilityWorkspace({
+  canManageCanon = false,
   initialLibrary,
   references,
   username,
 }: {
+  canManageCanon?: boolean;
   initialLibrary: DerivedAbilityLibraryResult;
   references: DerivedAbilityEditorReferences;
   username: string;
@@ -39,6 +44,7 @@ export function DerivedAbilityWorkspace({
     pageSize: 40,
   });
   const [library, setLibrary] = useState(initialLibrary);
+  const libraryRequest = useRef(0);
   const [editorReferences, setEditorReferences] = useState(references);
   const [draft, setDraft] = useState<DerivedAbilityDraft | DerivedAbilityAggregate | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -58,18 +64,20 @@ export function DerivedAbilityWorkspace({
   const isArchived = Boolean(archivedAt);
 
   const loadLibrary = useCallback(async (next: DerivedAbilityLibraryFilters) => {
+    const request = ++libraryRequest.current;
     setLoadingLibrary(true);
     try {
-      setLibrary(await listDerivedAbilities(next));
+      const result = await listDerivedAbilities(next);
+      if (request === libraryRequest.current) setLibrary(result);
     } catch (error) {
-      setFeedback({
+      if (request === libraryRequest.current) setFeedback({
         kind: "error",
         message: error instanceof Error
           ? error.message
           : "The Derived Ability Library could not be loaded.",
       });
     } finally {
-      setLoadingLibrary(false);
+      if (request === libraryRequest.current) setLoadingLibrary(false);
     }
   }, []);
 
@@ -228,6 +236,7 @@ export function DerivedAbilityWorkspace({
               New Ability
             </button>
           </div>
+          <CatalogBrowseControl catalog="derivedAbility" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
           <div className="skill-library__search">
             <label htmlFor="derived-ability-search">Search</label>
             <input
@@ -294,6 +303,7 @@ export function DerivedAbilityWorkspace({
                 onClick={() => choose(entry)}
               >
                 <span className="skill-library__row-name">{entry.name}</span>
+                  <CatalogSourceBadge source={entry.catalogSource} />
                 {entry.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
                 <span className="derived-ability-library-badges">
                   <em>{entry.acquisitionType}</em>
@@ -338,6 +348,10 @@ export function DerivedAbilityWorkspace({
                 <span>{isArchived ? `Archived${archiveReason ? ` · ${archiveReason}` : ""}` : dirty ? "Unsaved changes" : draft.id ? "Saved" : "Not yet persisted"}</span>
               </div>
               <div className="skill-editor__actions">
+                {canManageCanon && draft?.id && "isSystemCanon" in draft ? <CanonDesignationControl key={draft.id} root="derivedAbility" id={draft.id} isSystemCanon={draft.isSystemCanon} disabled={saving || dirty} onChanged={async (isSystemCanon, id) => {
+                    setDraft((current) => current?.id === id ? { ...current, isSystemCanon } : current);
+                    await preserveScroll(async () => { await loadLibrary(filters); });
+                  }} /> : null}
                 {draft.id ? <LifecycleControls target={{ entityKind: "derived-ability", entityId: draft.id }} archived={isArchived} disabled={saving || dirty} onCompleted={lifecycleCompleted} /> : null}
                 <button className="skills-primary-button" type="button" disabled={saving || isArchived} onClick={() => void persist()}>
                   {saving ? "Saving…" : "Save Ability"}

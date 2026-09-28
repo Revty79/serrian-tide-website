@@ -1,4 +1,7 @@
 "use server";
+import { getCatalogBrowseState, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-lineage";
+
 
 import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
 
@@ -50,6 +53,10 @@ export type RaceLibraryFilters = {
 };
 
 export type RaceSummary = {
+  catalogSource: CatalogSourceLabel;
+  parentId: number | null;
+  depth: number;
+  parentName: string | null;
   id: number;
   name: string;
   size: string;
@@ -62,6 +69,7 @@ export type RaceSummary = {
 };
 
 export type RaceLibraryResult = {
+  visibility: CatalogBrowseState;
   items: RaceSummary[];
   total: number;
   page: number;
@@ -131,6 +139,7 @@ export type RaceAggregate = RaceDraft & {
   id: number;
   forms: SavedRaceForm[];
   variants: Array<{ id: number; name: string; archivedAt: string | null }>;
+  isSystemCanon: boolean;
   createdByUserId: string | null;
   archivedAt: string | null;
   archiveReason: string;
@@ -260,7 +269,8 @@ function normalizeRace(input: RaceDraft) {
 export async function listRaces(
   filters: RaceLibraryFilters = {},
 ): Promise<RaceLibraryResult> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
+  const visibility = await getCatalogBrowseState(session.user.id, "race");
 
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
@@ -270,13 +280,16 @@ export async function listRaces(
   const size = cleanText(filters.size);
   if (search) conditions.push(ilike(race.name, `%${search}%`));
   if (size) conditions.push(eq(race.size, size));
-  const where = conditions.length ? and(...conditions) : undefined;
+  const where = catalogBrowseWhere(race, session.user.id, visibility, ...conditions);
 
   const [countRow] = await db.select({ value: count() }).from(race).where(where);
   const total = Number(countRow?.value ?? 0);
   const baseRows = await db
     .select({
       id: race.id,
+      isSystemCanon: race.isSystemCanon,
+      createdByUserId: race.createdByUserId,
+      parentId: race.parentRaceId,
       name: race.name,
       size: race.size,
       ageRangeText: race.ageRangeText,
@@ -288,10 +301,26 @@ export async function listRaces(
     .orderBy(asc(race.name), asc(race.id))
     .limit(pageSize)
     .offset((page - 1) * pageSize);
+  const matchIds = new Set(baseRows.map((row) => row.id));
+  if (visibility.enabled) {
+    const ancestorIds = (await catalogAncestorIds("race", [...matchIds])).filter((id) => !matchIds.has(id));
+    if (ancestorIds.length) baseRows.push(...await db.select({
+      id: race.id,
+      isSystemCanon: race.isSystemCanon,
+      createdByUserId: race.createdByUserId,
+      parentId: race.parentRaceId,
+      name: race.name,
+      size: race.size,
+      ageRangeText: race.ageRangeText,
+      baseMagic: race.baseMagic,
+      archivedAt: race.archivedAt,
+    }).from(race).where(inArray(race.id, ancestorIds)));
+  }
+
 
   const ids = baseRows.map(({ id }) => id);
   if (!ids.length) {
-    return { items: [], total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
+    return { visibility, items: [], total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
   }
 
   const [caps, movements, links] = await Promise.all([
@@ -310,8 +339,10 @@ export async function listRaces(
   const linkCounts = countBy(links);
 
   return {
-    items: baseRows.map((row) => ({
+    visibility,
+    items: orderCatalogLineage(baseRows).map(({ isSystemCanon, createdByUserId, ...row }) => ({
       ...row,
+      catalogSource: catalogSourceLabel({ isSystemCanon, createdByUserId }, session.user.id, !matchIds.has(row.id)),
       archivedAt: row.archivedAt?.toISOString() ?? null,
       attributeCapCount: capCounts.get(row.id) ?? 0,
       movementModeCount: movementCounts.get(row.id) ?? 0,
@@ -353,6 +384,7 @@ export async function getRace(id: number): Promise<RaceAggregate | null> {
 
   return {
     id: row.id,
+    isSystemCanon: row.isSystemCanon,
     createdByUserId: row.createdByUserId,
     archivedAt: row.archivedAt?.toISOString() ?? null,
     archiveReason: row.archiveReason,

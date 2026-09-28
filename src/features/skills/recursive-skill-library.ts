@@ -19,6 +19,8 @@ export type CanonicalSkillDefinition = Readonly<{
 }>;
 
 export type RecursiveSkillDefinition = CanonicalSkillDefinition & Readonly<{
+  catalogSource?: "canon" | "mine" | "context" | "other";
+  archived?: boolean;
   definition?: string;
   sourceSystem?: string | null;
   sourceExternalId?: string | null;

@@ -1,4 +1,6 @@
 "use client";
+import type { ReactNode } from "react";
+import { CatalogSourceBadge } from "@/features/catalog-visibility/catalog-source-badge";
 
 import { useMemo, useState } from "react";
 
@@ -23,6 +25,7 @@ import { CORE_SKILL_ATTRIBUTES, skillAttributeOptions } from "./skill-attributes
 export type SkillLibraryView = "list" | "tree";
 
 type SkillLibraryProps = {
+  visibilityControl?: ReactNode;
   page: SkillLibraryResult;
   filters: SkillLibraryFilters;
   filterOptions: SkillFilterOptions;
@@ -55,6 +58,7 @@ function attributeLabel(key: string, fallback: string): string {
 
 function metadata(skill: RecursiveSkillNode): string {
   return [
+    ...(skill.archived ? ["Archived"] : []),
     skill.classification,
     skill.tier === null ? "Tier N/A" : `Tier ${skill.tier}`,
     skill.primaryAttribute ? `Authored ${skill.primaryAttribute}` : "No authored Attribute",
@@ -62,6 +66,7 @@ function metadata(skill: RecursiveSkillNode): string {
 }
 
 export function SkillLibrary({
+  visibilityControl,
   page,
   filters,
   filterOptions,
@@ -101,7 +106,7 @@ export function SkillLibrary({
     ? library.attributeGroups.find(({ key }) => key === selectedAttributeKey) ?? null
     : null;
   const searchResults = useMemo(
-    () => searchRecursiveSkillLibrary(library, treeSearch),
+    () => searchRecursiveSkillLibrary(library, treeSearch).filter((result) => result.skill.catalogSource !== "context"),
     [library, treeSearch],
   );
   const children = selectedPath ? getRecursiveSkillChildren(library, selectedPath) : [];
@@ -135,6 +140,7 @@ export function SkillLibrary({
         </button>
       </div>
 
+      {visibilityControl}
       <div className="skill-library__toolbar">
         <div className="skill-library__toolbar-groups">
         <div className="skill-library__view-toggle" aria-label="Skill lifecycle view">
@@ -177,7 +183,7 @@ export function SkillLibrary({
           </button>
         </div>
         </div>
-        <span>{(view === "list" ? page.total : library.skills.length).toLocaleString()} skills</span>
+        <span>{(view === "list" ? page.total : library.skills.filter((row) => row.catalogSource !== "context").length).toLocaleString()} skills</span>
       </div>
 
       {view === "list" ? (
@@ -248,6 +254,7 @@ export function SkillLibrary({
                 onClick={() => onSelectList(skill)}
               >
                 <span className="skill-library__row-name">{skill.name} <code>#{skill.id}</code></span>
+                  <CatalogSourceBadge source={skill.catalogSource} />
                 {skill.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
                 <span className="skill-library__row-meta">
                   {skill.classification}{skill.tier ? ` · Tier ${skill.tier}` : " · N/A"}{skill.hasSpellConstruction ? " · Spell Construction" : ""}
@@ -310,6 +317,7 @@ export function SkillLibrary({
                   }}
                 >
                   <span><strong>{result.skill.name}</strong> <code>#{result.skill.id}</code></span>
+                  <CatalogSourceBadge source={result.skill.catalogSource} />
                   <small>{attributeLabel(result.path.attributeGroupKey, result.path.attributeGroupKey)}</small>
                   <span>{result.lineageLabel}</span>
                   {result.path.reviewReasons.length ? <em>{result.path.reviewReasons.length} review warning{result.path.reviewReasons.length === 1 ? "" : "s"}</em> : null}
@@ -359,7 +367,7 @@ export function SkillLibrary({
                         disabled={current}
                         onClick={() => path && onSelectTree(node, path)}
                       >
-                        {node.name} <code>#{node.id}</code>
+                        {node.name} <code>#{node.id}</code> <CatalogSourceBadge source={node.catalogSource} />
                       </button>
                     </span>
                   );
@@ -370,7 +378,7 @@ export function SkillLibrary({
                 <header>
                   <div>
                     <p>SELECTED IDENTITY</p>
-                    <h3>{selectedSkill.name}</h3>
+                    <h3>{selectedSkill.name}</h3><CatalogSourceBadge source={selectedSkill.catalogSource} />
                     <code>Skill #{selectedSkill.id}</code>
                   </div>
                 </header>
@@ -400,7 +408,7 @@ export function SkillLibrary({
                   <h3>Sibling Skills</h3>
                   <div>{siblings.map((path) => {
                     const sibling = skillsById.get(path.endpointSkillId)!;
-                    return <button type="button" key={path.key} onClick={() => onSelectTree(sibling, path)}>{sibling.name} <code>#{sibling.id}</code></button>;
+                    return <button type="button" key={path.key} onClick={() => onSelectTree(sibling, path)}>{sibling.name} <code>#{sibling.id}</code> <CatalogSourceBadge source={sibling.catalogSource} /></button>;
                   })}</div>
                 </section>
               ) : null}
@@ -415,6 +423,7 @@ export function SkillLibrary({
                   return (
                     <button type="button" key={path.key} onClick={() => onSelectTree(child, path)}>
                       <span><strong>{child.name}</strong> <code>#{child.id}</code></span>
+                  <CatalogSourceBadge source={child.catalogSource} />
                       <small>{metadata(child)}</small>
                       {child.reviewReasons.length ? <em>Review required</em> : null}
                     </button>
@@ -442,6 +451,7 @@ export function SkillLibrary({
                   return (
                     <button type="button" key={rootId} onClick={() => path && onSelectTree(root, path)}>
                       <span><strong>{root.name}</strong> <code>#{root.id}</code></span>
+                  <CatalogSourceBadge source={root.catalogSource} />
                       <small>{metadata(root)}</small>
                       <em>{rootSummary.immediateChildCount} immediate {rootSummary.immediateChildCount === 1 ? "child" : "children"}</em>
                       {rootSummary.reviewReasons.length ? <b>Review</b> : null}

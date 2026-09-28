@@ -1,3 +1,4 @@
+import { runCatalogPassThreeBrowserChecks } from "./catalog-pass-three-browser-checks";
 import assert from "node:assert/strict";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -275,13 +276,16 @@ async function main() {
     await save(page, "Races", "Mine Only");
     await page.goto(`${baseUrl}/heavens/races`);
     for (const name of ["Profile Own Race", "Profile Foreign Race", "Profile Imported Race"]) await page.getByText(name, { exact: true }).waitFor();
-    assert.equal(await page.getByRole("radio", { name: "Mine Only", exact: true }).count(), 0);
+    assert.equal(await page.getByRole("radio", { name: "Mine Only", exact: true }).isChecked(), true);
+    await page.getByText(/Browsing keeps the full catalog/).waitFor();
     await page.goto(`${baseUrl}/heavens/campaigns?campaign=${campaign.id}`);
     await page.getByRole("button", { name: "Allowed Races", exact: true }).click();
     for (const name of ["Profile Own Race", "Profile Foreign Race", "Profile Imported Race"]) await page.getByRole("checkbox", { name: `Select ${name}`, exact: true }).waitFor();
     assert.equal((await pool.query("select count(*)::int n from races where is_system_canon")).rows[0].n, 0);
     assert.deepEqual(errors, []);
-    console.log("PASS: Mine Only does not yet filter Race browsing or Campaign references; no content was promoted to canon.");
+    console.log("PASS: the activation guard preserves the unclassified Race catalog and Campaign references; preferences alone cannot promote content.");
+    await runCatalogPassThreeBrowserChecks({ page, pool, databaseUrl, baseUrl, screenshots, login });
+    assert.deepEqual(errors, []);
   } finally {
     await browser?.close();
     if (server?.pid && server.exitCode === null) {

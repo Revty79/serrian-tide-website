@@ -17,7 +17,7 @@
     "validate:creatures": "tsx --test src/features/creatures/*.test.ts",
     "validate:creature-browser": "node --env-file=.env.local --conditions=react-server --import tsx scripts/creature-new-draft-browser.test.ts",
     "validate:creature-ability": "tsx --test src/features/creatures/creature-ability.test.ts",
-    "validate:derived-abilities": "tsx --test src/features/derived-abilities/*.test.ts",
+    "validate:derived-abilities": "node --import ./scripts/register-test-css.mjs --import tsx --test src/features/derived-abilities/*.test.ts",
     "validate:derived-ability-effects-db": "node --env-file=.env.local --import tsx --test scripts/derived-ability-effects-db.test.ts",
     "validate:derived-ability-runtime-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/derived-ability-runtime-db.test.ts",
     "validate:baseline": "node scripts/verify-squashed-baseline.mjs",
@@ -117,7 +117,8 @@
     "validate:recursive-skills-browser": "node --import tsx scripts/recursive-skill-library-browser.test.ts",
     "validate:in-place-scroll-browser": "node --import tsx scripts/in-place-scroll-browser.test.ts",
     "db:import:canon": "node scripts/import-ststandalone-skills.mjs && node scripts/import-ststandalone-canon.mjs",
-    "validate:race-authoring": "node --import tsx --test scripts/race-authoring-disposable.test.ts"
+    "validate:race-authoring": "node --import tsx --test scripts/race-authoring-disposable.test.ts",
+    "validate:catalog-pass-three": "node --import ./scripts/register-test-css.mjs --import tsx --test src/features/catalog-visibility/*.test.ts src/features/races/*.test.ts src/features/creatures/*.test.ts src/features/skills/*.test.ts src/features/derived-abilities/*.test.ts src/features/authorization/shared-library-access.test.ts src/features/navigation/*.test.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.1",

@@ -36,3 +36,15 @@
   .choices { gap: 0.35rem; }
   .option { flex-direction: column; gap: 0.35rem; padding-inline: 0.25rem; }
 }
+.sourceBadge {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--st-muted);
+  overflow-wrap: anywhere;
+}
+.canonControl { display: grid; gap: 0.3rem; max-width: 22rem; min-width: 0; font-size: 0.75rem; color: var(--st-muted); }
+.canonControl button { white-space: normal; }
+.canonError { color: var(--st-danger); }

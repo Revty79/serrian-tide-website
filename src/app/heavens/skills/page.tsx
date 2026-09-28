@@ -11,7 +11,7 @@ import "./skills.css";
 import { SkillsWorkspace } from "./skills-workspace";
 
 export default async function SkillsPage() {
-  const { session } = await requireGodOrAdminAccessContext()
+  const { session, roles } = await requireGodOrAdminAccessContext()
     .catch(() => redirect("/access"));
 
   const [initialHierarchy, initialFilterOptions, initialLibrary] = await Promise.all([
@@ -24,6 +24,7 @@ export default async function SkillsPage() {
     <SkillsWorkspace
       initialHierarchy={initialHierarchy}
       initialFilterOptions={initialFilterOptions}
+      canManageCanon={roles.includes("admin")}
       initialLibrary={initialLibrary}
       username={session.user.username ?? session.user.name ?? "G.O.D."}
     />

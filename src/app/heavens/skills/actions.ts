@@ -1,4 +1,7 @@
 "use server";
+import { loadVisibleRecursiveSkillLibrary } from "@/features/catalog-visibility/skill-catalog-service";
+import { getCatalogBrowseState, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+
 
 import {
   and,
@@ -29,7 +32,6 @@ import { withCalculationSnapshot } from "@/features/spell-construction/utilities
 import { lockSpellFrameworkSkillReferenceInTransaction } from "@/features/skills/skill-framework-reference-service";
 import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
 import {
-  buildRecursiveSkillLibrary,
   previewSkillStructureChange,
   type RecursiveSkillLibrary,
   type SkillStructureChangePreview,
@@ -58,6 +60,7 @@ export type SkillLibraryFilters = {
 };
 
 export type SkillLibraryItem = {
+  catalogSource?: CatalogSourceLabel;
   id: number;
   name: string;
   classification: string;
@@ -78,6 +81,7 @@ export type SkillRelationshipEdge = {
 };
 
 export type SkillLibraryResult = {
+  visibility: CatalogBrowseState;
   items: SkillLibraryItem[];
   relationships: SkillRelationshipEdge[];
   total: number;
@@ -124,6 +128,7 @@ export type SkillDraft = {
 
 export type SkillAggregate = SkillDraft & {
   id: number;
+  isSystemCanon: boolean;
   createdByUserId: string | null;
   archivedAt: string | null;
   archiveReason: string;
@@ -144,18 +149,14 @@ export type SkillMutationPreview = SkillStructureChangePreview & {
 };
 
 export async function getRecursiveSkillLibrary(): Promise<RecursiveSkillLibrary> {
+  const { session } = await requireGodOrAdminAccessContext();
+  return loadVisibleRecursiveSkillLibrary(session.user.id);
+}
+
+// Editing references and structural previews retain the established complete graph.
+export async function getSkillEditorHierarchy(): Promise<RecursiveSkillLibrary> {
   await requireGodOrAdminAccessContext();
-  const library = await loadRecursiveSkillLibrary();
-  const activeRows = await db
-    .select({ id: skill.id })
-    .from(skill)
-    .where(isNull(skill.archivedAt));
-  const activeIds = new Set(activeRows.map(({ id }) => id));
-  return buildRecursiveSkillLibrary(
-    library.skills.filter(({ id }) => activeIds.has(id)),
-    library.relationships.filter(({ skillId, relatedSkillId }) =>
-      activeIds.has(skillId) && activeIds.has(relatedSkillId)),
-  );
+  return loadRecursiveSkillLibrary();
 }
 
 async function buildSkillMutationPreview(
@@ -478,7 +479,8 @@ async function querySpellFrameworkSkills(
 export async function listSkills(
   filters: SkillLibraryFilters = {},
 ): Promise<SkillLibraryResult> {
-  await requireGodOrAdminAccessContext();
+  const { session } = await requireGodOrAdminAccessContext();
+  const visibility = await getCatalogBrowseState(session.user.id, "skill");
 
   const page = Math.max(
     1,
@@ -558,10 +560,7 @@ export async function listSkills(
     );
   }
 
-  const where =
-    conditions.length > 0
-      ? and(...conditions)
-      : undefined;
+  const where = catalogBrowseWhere(skill, session.user.id, visibility, ...conditions);
 
   const [countRow] = await db
     .select({
@@ -577,6 +576,8 @@ export async function listSkills(
   const baseRows = await db
     .select({
       id: skill.id,
+      isSystemCanon: skill.isSystemCanon,
+      createdByUserId: skill.createdByUserId,
       name: skill.name,
       classification:
         skill.classification,
@@ -598,6 +599,26 @@ export async function listSkills(
     .offset(
       (page - 1) * pageSize,
     );
+  const matchIds = new Set(baseRows.map((row) => row.id));
+  if (visibility.enabled) {
+    const ancestorIds = (await catalogAncestorIds("skill", [...matchIds])).filter((id) => !matchIds.has(id));
+    if (ancestorIds.length) baseRows.push(...await db.select({
+      id: skill.id,
+      isSystemCanon: skill.isSystemCanon,
+      createdByUserId: skill.createdByUserId,
+      name: skill.name,
+      classification:
+        skill.classification,
+      tier: skill.tier,
+      primaryAttribute:
+        skill.primaryAttribute,
+      secondaryAttribute:
+        skill.secondaryAttribute,
+      archivedAt:
+        skill.archivedAt,
+    }).from(skill).where(inArray(skill.id, ancestorIds)));
+  }
+
 
   const ids =
     baseRows.map(
@@ -606,6 +627,7 @@ export async function listSkills(
 
   if (ids.length === 0) {
     return {
+      visibility,
       items: [],
       relationships: [],
       total,
@@ -747,8 +769,9 @@ export async function listSkills(
     );
 
   return {
+    visibility,
     items: baseRows.map(
-      (row) => {
+      ({ isSystemCanon, createdByUserId, ...row }) => {
         const relationships =
           relationshipsBySkill.get(
             row.id,
@@ -756,6 +779,7 @@ export async function listSkills(
 
         return {
           ...row,
+          catalogSource: catalogSourceLabel({ isSystemCanon, createdByUserId }, session.user.id, !matchIds.has(row.id)),
 
           archivedAt:
             row.archivedAt?.toISOString() ?? null,
@@ -813,8 +837,9 @@ export async function listSkills(
 
 export async function getSkillFilterOptions(archived = false):
 Promise<SkillFilterOptions> {
-  await requireGodOrAdminAccessContext();
-  const archiveCondition = archived ? isNotNull(skill.archivedAt) : isNull(skill.archivedAt);
+  const { session } = await requireGodOrAdminAccessContext();
+  const visibility = await getCatalogBrowseState(session.user.id, "skill");
+  const archiveCondition = catalogBrowseWhere(skill, session.user.id, visibility, archived ? isNotNull(skill.archivedAt) : isNull(skill.archivedAt));
 
   const [
     classifications,
@@ -1075,6 +1100,7 @@ export async function getSkill(
 
   return {
     id: row.id,
+    isSystemCanon: row.isSystemCanon,
 
     createdByUserId:
       row.createdByUserId,

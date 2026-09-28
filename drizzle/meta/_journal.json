@@ -547,6 +547,13 @@
       "when": 1790550868855,
       "tag": "0077_catalog_visibility_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1790555434782,
+      "tag": "0078_catalog_visibility_activation",
+      "breakpoints": true
     }
   ]
 }
