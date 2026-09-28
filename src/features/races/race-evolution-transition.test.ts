@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyRaceEvolutionTransition, emptyRaceEvolutionTransition, normalizeRaceEvolutionTransition } from "./race-evolution-transition";
+import { appliedRaceEvolutionAdjustments, applyRaceEvolutionTransition, emptyRaceEvolutionTransition, normalizeRaceEvolutionTransition, RACE_EVOLUTION_STEP_FIELDS } from "./race-evolution-transition";
 import { getCharacterHp } from "@/features/characters/character-rules";
 const before = { attributes: [{ attributeKey: "STR", value: 30 }, { attributeKey: "CON", value: 30 }], hpMultiplierSteps: 2, baseMovementSteps: 1, baseMagicSteps: 3 };
 test("authored add/set adjustments permanently project saved mechanics without creation caps or damage changes", () => {
@@ -9,6 +9,26 @@ test("authored add/set adjustments permanently project saved mechanics without c
   assert.equal(after.hpMultiplierSteps, 4); assert.equal(after.baseMagicSteps, 3); assert.equal(after.baseMovementSteps, 0);
   assert.ok(getCharacterHp(45, 4) > getCharacterHp(30, 2)); assert.equal(before.attributes[0].value, 30);
   assert.deepEqual(applyRaceEvolutionTransition(null, before), before);
+});
+test("history snapshots actual deltas, including signed decreases, unchanged values and Set differences", () => {
+  const original = { ...before, attributes: [...before.attributes, { attributeKey: "CHR", value: 30 }] };
+  const transition = { ...emptyRaceEvolutionTransition(), attributes: [{ key: "STR" as const, operation: "set" as const, value: 40 }, { key: "CHR" as const, operation: "add" as const, value: -5 }], hpMultiplierSteps: { operation: "set" as const, value: 0 }, baseMagicSteps: { operation: "add" as const, value: 1 } };
+  const after = applyRaceEvolutionTransition(transition, original);
+  const applied = appliedRaceEvolutionAdjustments(original, after);
+  assert.deepEqual(applied, { attributeAdjustments: { STR: 10, CON: 0, CHR: -5 }, hpMultiplierStepsAdjustment: -2, baseMovementStepsAdjustment: 0, baseMagicStepsAdjustment: 1 });
+  transition.attributes[0].value = 100;
+  assert.equal(applied.attributeAdjustments.STR, 10, "recorded adjustment is independent of later authoring");
+  assert.deepEqual(appliedRaceEvolutionAdjustments(original, after), applied, "older before/after evidence resolves without the path");
+});
+test("explicit zero adjustments preserve saved mechanics and every negative step result rejects without mutating the input", () => {
+  const zero = { operation: "add" as const, value: 0 };
+  const profile = { ...emptyRaceEvolutionTransition(), attributes: [{ key: "STR" as const, ...zero }], hpMultiplierSteps: zero, baseMovementSteps: zero, baseMagicSteps: zero };
+  assert.deepEqual(applyRaceEvolutionTransition(profile, before), before);
+  const original = structuredClone(before);
+  for (const key of RACE_EVOLUTION_STEP_FIELDS) {
+    assert.throws(() => applyRaceEvolutionTransition({ ...profile, attributes: [{ key: "STR", operation: "add", value: 10 }], [key]: { operation: "add", value: -before[key] - 1 } }, before), /Nothing will be clamped/);
+    assert.deepEqual(before, original);
+  }
 });
 test("invalid keys, duplicates, unknown fields, nonfinite values, negative outcomes and fractional steps fail closed", () => {
   for (const value of [Infinity, NaN, -Infinity]) assert.throws(() => normalizeRaceEvolutionTransition({ ...emptyRaceEvolutionTransition(), attributes: [{ key: "STR", operation: "add", value }] }));

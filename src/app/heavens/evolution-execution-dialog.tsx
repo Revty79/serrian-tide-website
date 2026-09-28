@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { GuidedField } from "@/components/field-guidance";
 import { confirmEvolutionEvaluation, EVOLUTION_STATUS_LABELS, type EvolutionOwner } from "@/features/evolutions/evolution-requirements";
 import type { EvolutionExecutionInput, EvolutionExecutionPreview, EvolutionHistoryEntry } from "@/features/evolutions/evolution-execution";
+import { appliedRaceEvolutionAdjustments } from "@/features/races/race-evolution-transition";
 import type { ActiveHealthView } from "@/features/active-state/models";
 import type { CreatureDraft } from "@/features/creatures/models";
 import { findEvolutionPreviewIndividuals as findCreatures } from "./creatures/evolution-actions";
@@ -123,13 +124,23 @@ export function EvolutionHistory({ entries }: { entries: EvolutionHistoryEntry[]
     <p>{event.evidence.pathName}, path #{event.evidence.pathId}, revision {event.evidence.pathVersion}. Individual #{event.characterId}.</p>
     <p>Confirmed requirement keys: {event.evidence.confirmedRequirementKeys.join(", ") || "None required"}.</p>
     {event.evidence.confirmedEvaluation.groups.flatMap(group => group.requirements.map(row => <p key={row.key}>{row.explanation}</p>))}
-    {event.evidence.raceTransition ? <p>Saved Attribute changes: {event.evidence.raceTransition.authored.attributes.map(row => `${row.key} ${row.operation} ${row.value}`).join(", ") || "None"}. HP / movement / magic steps: {event.evidence.raceTransition.before.hpMultiplierSteps} / {event.evidence.raceTransition.before.baseMovementSteps} / {event.evidence.raceTransition.before.baseMagicSteps} → {event.evidence.raceTransition.after.hpMultiplierSteps} / {event.evidence.raceTransition.after.baseMovementSteps} / {event.evidence.raceTransition.after.baseMagicSteps}.</p> : null}
+    {event.evidence.raceTransition ? <RaceAdjustmentHistory transition={event.evidence.raceTransition} /> : null}
     <HealthSummary title="Recorded result" view={event.evidence.afterHealth} />
     {event.snapshots ? <details><summary>Inspect recorded Creature mechanics</summary><p>Preserved HP Adjustment: {event.snapshots.hpAdjustment}</p>
       <SnapshotSummary title="Source baseline" value={event.snapshots.sourceBaseline} /><SnapshotSummary title="Source individual" value={event.snapshots.sourceCurrent} />
       <SnapshotSummary title="Destination baseline" value={event.snapshots.destinationBaseline} /><SnapshotSummary title="Destination individual" value={event.snapshots.destinationCurrent} />
     </details> : null}
   </details>)}</section>;
+}
+function RaceAdjustmentHistory({ transition }: { transition: NonNullable<EvolutionHistoryEntry["evidence"]["raceTransition"]> }) {
+  // Older immutable events already contain both saved states. Do not consult the current path.
+  const applied = transition.appliedAdjustments ?? appliedRaceEvolutionAdjustments(transition.before, transition.after);
+  const signed = (value: number) => value > 0 ? `+${value}` : `${value}`;
+  return <section aria-label="Applied permanent Character changes">
+    <p>Applied Attribute adjustments: {Object.entries(applied.attributeAdjustments).map(([key, value]) => `${key} ${signed(value)}`).join(", ") || "None"}.</p>
+    <p>Applied step adjustments: HP multiplier {signed(applied.hpMultiplierStepsAdjustment)}, base movement {signed(applied.baseMovementStepsAdjustment)}, base magic {signed(applied.baseMagicStepsAdjustment)}.</p>
+    <p>Recorded HP / movement / magic steps: {transition.before.hpMultiplierSteps} / {transition.before.baseMovementSteps} / {transition.before.baseMagicSteps} → {transition.after.hpMultiplierSteps} / {transition.after.baseMovementSteps} / {transition.after.baseMagicSteps}.</p>
+  </section>;
 }
 function SnapshotSummary({ title, value }: { title: string; value: string }) {
   const snapshot = JSON.parse(value) as CreatureDraft;

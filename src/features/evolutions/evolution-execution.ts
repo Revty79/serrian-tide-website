@@ -1,4 +1,4 @@
-import type { RaceEvolutionTransition, RaceEvolutionIndividualMechanics } from "@/features/races/race-evolution-transition";
+import type { AppliedRaceEvolutionAdjustments, RaceEvolutionTransition, RaceEvolutionIndividualMechanics } from "@/features/races/race-evolution-transition";
 import type { ActiveHealthView } from "@/features/active-state/models";
 import type { EvolutionEvaluation, EvolutionOwner, EvolutionRequirements } from "./evolution-requirements";
 
@@ -15,7 +15,9 @@ export type EvolutionExecutionPreview = {
   definitionChanges?: { before: EvolutionDefinitionSummary; after: EvolutionDefinitionSummary };
   evaluation: EvolutionEvaluation; requirements: EvolutionRequirements;
   beforeHealth: ActiveHealthView; afterHealth: ActiveHealthView;
-  raceTransition?: { authored: RaceEvolutionTransition; before: RaceEvolutionIndividualMechanics; after: RaceEvolutionIndividualMechanics };
+  raceTransition?: { authored: RaceEvolutionTransition; before: RaceEvolutionIndividualMechanics; after: RaceEvolutionIndividualMechanics;
+    /** Written by new executions; older immutable events retain their before/after evidence. */
+    appliedAdjustments?: AppliedRaceEvolutionAdjustments };
   hasIndividualOverrides: boolean; warnings: string[]; blockers: string[];
 };
 export type EvolutionEventEvidence = Omit<EvolutionExecutionPreview, "reviewToken"> & {

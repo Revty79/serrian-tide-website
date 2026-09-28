@@ -122,7 +122,10 @@ async function main() {
       const pathName=kind==="creature"?"Mature":"Ascend";
       const individualName=kind==="creature"?"Requirements Ember":"Evolution PC";
       const selectedIndividual=(await query("select id from campaign_character where name=$1",[individualName]))[0].id;
-      if(kind === "race") for (const key of ["STR","DEX","CON","INT","WIS","CHR"]) await pool.query("insert into campaign_character_attribute(character_id,attribute_key,value) values($1,$2,30) on conflict do nothing",[selectedIndividual,key]);
+      if(kind === "race") {
+        for (const key of ["STR","DEX","CON","INT","WIS","CHR"]) await pool.query("insert into campaign_character_attribute(character_id,attribute_key,value) values($1,$2,30) on conflict do nothing",[selectedIndividual,key]);
+        for(const table of ["campaign_race","campaign_allowed_race"]) await pool.query(`insert into ${table}(campaign_id,race_id,sort_order) select c.campaign_id,p.destination_race_id,coalesce((select max(sort_order) from ${table} where campaign_id=c.campaign_id),-1)+1 from campaign_character c join campaign_character_profile cp on cp.character_id=c.id join race_evolution_paths p on p.source_race_id=cp.race_id and p.name=$2 where c.id=$1 on conflict(campaign_id,race_id) do nothing`,[selectedIndividual,pathName]);
+      }
       await page.setViewportSize({width:1365,height:1000});
       await page.goto(`${base}/heavens/${kind}s`);
       await page.locator(`#${kind}-search`).fill(name);
@@ -201,10 +204,19 @@ async function main() {
       await page.getByRole("button",{name:"Evolutions",exact:true}).click();
       if(kind === "race") {
         await area.getByRole("button",{name:`Edit ${pathName}`,exact:true}).click();
+        await dialog.getByRole("heading",{name:"Permanent Character Changes",exact:true}).waitFor();
+        for(const key of ["DEX","INT","WIS","CHR"]) assert.equal(await dialog.getByLabel(`${key} value`,{exact:true}).inputValue(),"0","unconfigured signed adjustments are visible as zero");
         await dialog.getByLabel("STR change",{exact:true}).selectOption("add");
         await dialog.getByLabel("STR value",{exact:true}).fill("10");
         await dialog.getByLabel("CON change",{exact:true}).selectOption("add");
         await dialog.getByLabel("CON value",{exact:true}).fill("15");
+        await dialog.getByLabel("CHR value",{exact:true}).fill("-5");
+        await dialog.getByLabel("HP multiplier steps change",{exact:true}).selectOption("add");
+        await dialog.getByLabel("HP multiplier steps value",{exact:true}).fill("1");
+        await dialog.getByLabel("Base movement steps value",{exact:true}).fill("1");
+        await dialog.getByLabel("Base magic steps value",{exact:true}).fill("2");
+        await dialog.getByRole("heading",{name:"Permanent Character Changes",exact:true}).scrollIntoViewIfNeeded();
+        await page.screenshot({path:path.join(artifacts,"race-permanent-adjustments-desktop.png")});
         await page.setViewportSize({width:390,height:844});
         await dialog.getByRole("button",{name:"Save Evolution",exact:true}).scrollIntoViewIfNeeded();
         await page.screenshot({path:path.join(artifacts,"race-permanent-adjustments-phone.png")});
@@ -234,6 +246,14 @@ async function main() {
       const eventTable=kind === "race" ? "race_evolution_events" : "creature_evolution_events";
       assert.equal(Number((await query(`select count(*) n from ${eventTable} where character_id=$1`,[subject]))[0].n),1);
       await dialog.getByRole("region",{name:"Individual Evolution history"}).waitFor();
+      if(kind === "race") {
+        await dialog.getByRole("region",{name:"Individual Evolution history"}).locator("summary").first().click();
+        const changes=dialog.getByRole("region",{name:"Applied permanent Character changes"});
+        await changes.waitFor();
+        assert.match(await changes.innerText(),/STR \+10/);assert.match(await changes.innerText(),/CHR -5/);
+        assert.match(await changes.innerText(),/HP multiplier \+1, base movement \+1, base magic \+2/);
+        await changes.scrollIntoViewIfNeeded();
+      }
       await page.screenshot({path:path.join(artifacts,`${kind}-execution-history-phone.png`)});
       await dialog.getByRole("button",{name:"Close preview",exact:true}).click();
     }

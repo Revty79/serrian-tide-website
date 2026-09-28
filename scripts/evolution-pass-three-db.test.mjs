@@ -24,8 +24,10 @@ const lifecycle = await import("../src/features/lifecycle/lifecycle-service.ts")
 const { creatureDraftFixture, creatureFormFixture } = await import("./creature-form-fixture.ts");
 const { emptyRaceEvolutionTransition } = await import("../src/features/races/race-evolution-transition.ts");
 const { emptyEvolutionRequirement } = await import("../src/features/evolutions/evolution-requirements.ts");
+const { getCharacterHp } = await import("../src/features/characters/character-rules.ts");
+const { readActiveHealthInTransaction } = await import("../src/features/active-state/active-health-service.ts");
 const actor = { userId: god, roles: ["god"] };
-let campaignId, owner, sourceRace, targetRace, sourceCreature, targetCreature, racePath, creaturePath, itemId;
+let campaignId, owner, sourceRace, targetRace, sourceCreature, targetCreature, racePath, creaturePath, itemId, equipmentId;
 const allRows = async () => {
   const tables = await rows("select tablename from pg_tables where schemaname='public' order by tablename");
   return Object.fromEntries(await Promise.all(tables.map(async ({ tablename }) => [tablename, await rows(`select to_jsonb(t) body from "${tablename}" t order by to_jsonb(t)::text`)])));
@@ -33,6 +35,9 @@ const allRows = async () => {
 const command = preview => ({ kind: preview.kind, characterId: preview.characterId, pathId: preview.pathId, expectedVersion: preview.pathVersion,
   reviewToken: preview.reviewToken, idempotencyKey: randomUUID(), confirmedRequirementKeys: [], confirmHealthConsequences: true, confirmReplaceOverrides: true });
 const prepare = (kind, id, pathId = kind === "race" ? racePath : creaturePath) => api.previewPersistentEvolution(kind, id, pathId, actor);
+async function enableRace(raceId, campaign = campaignId) {
+  for(const table of ["campaign_race","campaign_allowed_race"]) await pool.query(`insert into ${table}(campaign_id,race_id,sort_order) select $1,$2,coalesce(max(sort_order),-1)+1 from ${table} where campaign_id=$1`,[campaign,raceId]);
+}
 async function character(kind = "race", npc = false) {
   let id;
   if (kind === "creature") id = (await npcs.createNpc({ campaignId, origin: "creature", buildMode: "detailed", sourceId: sourceCreature.id, name: "Persistent Ember", roleLabel: "Companion", notes: "Unchanged story", ownerCharacterId: owner })).characterId;
@@ -44,7 +49,7 @@ async function character(kind = "race", npc = false) {
   await pool.query("insert into campaign_character_active_health(character_id,total_damage) values($1,111) on conflict(character_id) do update set total_damage=111", [id]);
   await pool.query("insert into campaign_character_active_health_pool(character_id,pool_key,pool_name_snapshot,damage) values($1,'old-wing','Old wing',13)", [id]);
   await pool.query("insert into campaign_character_injury(character_id,pool_key,pool_name_snapshot,name,notes,damage_amount) values($1,'old-wing','Old wing','Broken wing','Preserved injury',13)", [id]);
-  await pool.query("insert into campaign_character_item_instance(character_id,item_id,current_charges,equipment_state,unit_cost_credits) values($1,$2,0,'worn',2)", [id, itemId]);
+  await pool.query("insert into campaign_character_item_instance(character_id,item_id,current_charges,equipment_state,unit_cost_credits) values($1,$2,0,'worn',2)", [id, equipmentId]);
   return id;
 }
 before(async () => {
@@ -57,6 +62,7 @@ before(async () => {
   owner = (await one("insert into campaign_character(campaign_id,player_user_id,name) values($1,$2,'Companion owner') returning id", [campaignId, player])).id;
   sourceRace = (await one("insert into races(name,size,created_by_user_id) values('Execution Human','Medium',$1) returning id", [god])).id;
   targetRace = (await one("insert into races(name,size,base_magic,created_by_user_id) values('Execution Ascended','Large',12,$1) returning id", [god])).id;
+  await enableRace(sourceRace); await enableRace(targetRace);
   const transition = { ...emptyRaceEvolutionTransition(), attributes: [{ key: "STR", operation: "add", value: 10 }, { key: "CON", operation: "add", value: -15 }], hpMultiplierSteps: { operation: "set", value: 0 }, baseMagicSteps: { operation: "add", value: 2 } };
   racePath = (await races.saveRaceEvolution({ sourceRaceId: sourceRace, destinationRaceId: targetRace, name: "Permanent ascension", description: "", notes: "", transition }, actor))[0].id;
   const source = creatureDraftFixture(); source.core.canonicalName = "Execution Young Drake"; source.forms = [creatureFormFixture()];
@@ -69,6 +75,8 @@ before(async () => {
   targetCreature = await creatures.saveCreature(destination);
   creaturePath = (await one("insert into creature_evolution_paths(source_creature_id,destination_creature_id,name) values($1,$2,'Mature permanently') returning id", [sourceCreature.id, targetCreature.id])).id;
   itemId = (await one("insert into items(canonical_id,name,catalog_scope,record_type,family,category,credits,price_basis) values('EXECUTION-HARNESS','Harness','equipment','misc','Gear','Gear',2,'Each') returning id")).id;
+  equipmentId = (await one("insert into items(canonical_id,name,catalog_scope,record_type,family,category,credits,price_basis) values('EXECUTION-CHARGED-HARNESS','Charged Harness','equipment','misc','Gear','Gear',2,'Each') returning id")).id;
+  await pool.query("insert into item_runtime_profiles(item_id,use_mode,maximum_charges,charges_per_use) values($1,'charges',2,1)",[equipmentId]);
 });
 after(() => pool.end());
 
@@ -86,6 +94,7 @@ test("Race PC and Race NPC execute authored permanent mechanics; only declared r
     assert.equal(profile.race_id, targetRace); assert.equal(profile.hp_multiplier_steps, 0); assert.equal(profile.base_magic_steps, 5);
     assert.equal(profile.experience, 7); assert.equal(profile.total_experience, 44); assert.equal(profile.personality, "Unchanged personality");
     assert.equal(result.event.characterId, id); assert.equal(result.event.evidence.afterHealth.totalDamage, 111);
+    assert.equal(result.event.evidence.raceTransition.appliedAdjustments.hpMultiplierStepsAdjustment,-2,"Set zero records the actual -2 delta");
     assert.equal((await api.readEvolutionHistory(id, actor))[0].id, result.event.id);
   }
 });
@@ -110,6 +119,8 @@ test("Creature replaces complete mechanics using the constructor, preserves exac
   assert.deepEqual(current.forms.map(row => row.key), ["adult-form"]); assert.equal(baseline.core.hpMultiplierSteps, 1);
   assert.equal(result.event.snapshots.sourceCurrent, JSON.stringify(edited)); assert.equal(result.event.snapshots.sourceBaseline, original.baseline_snapshot_json);
   assert.equal(result.event.snapshots.destinationCurrent, profile.current_snapshot_json);
+  assert.equal(preview.raceTransition, undefined);
+  assert.equal(result.event.evidence.raceTransition, undefined, "Creature mechanics use destination snapshots, never Race adjustments");
   const retained = { ...after.campaign_creature_npc_profile.find(row => row.body.character_id === id).body };
   const beforeProfile = before.campaign_creature_npc_profile.find(row => row.body.character_id === id).body;
   const oldRetained = { ...beforeProfile };
@@ -211,7 +222,7 @@ test("concurrent Encounter start/enrollment and fact writers cannot race through
     await assert.rejects(api.executePersistentEvolution(input,actor),/another operation/);
     await client.query("commit"); await assert.rejects(api.executePersistentEvolution(input,actor),/active Encounter/);
     const fresh = await character(), prepared = command(await prepare("race",fresh));
-    for (const table of ["campaign_session_encounter_participant", "campaign_character_item", "campaign_character_active_condition", "campaign_character_profile", "race_evolution_paths", "creatures", "user_role"]) {
+    for (const table of ["campaign_session_encounter_participant", "campaign_character_item", "campaign_character_active_condition", "campaign_character_profile", "race_evolution_paths", "creatures", "user_role", "campaign_race", "campaign_allowed_race"]) {
       await client.query("begin"); await client.query(`lock table ${table} in row exclusive mode`);
       await assert.rejects(api.executePersistentEvolution(prepared,actor),/another operation/); await client.query("rollback");
     }
@@ -285,10 +296,104 @@ test("fresh automatic facts defeat old eligible previews, including XP, Skills, 
   const before=await allRows();await assert.rejects(prepare("race",id,bad.id),/invalid STR/);assert.deepEqual(await allRows(),before);
 });
 
+test("signed Race adjustments persist together, retain purchases, use destination mechanics and snapshot exact immutable deltas", async () => {
+  const { createHumanoidRaceAnatomy } = await import("../src/features/races/race-anatomy.ts");
+  const { getCharacter } = await import("../src/app/characters/actions.ts");
+  const anatomy = createHumanoidRaceAnatomy();
+  anatomy.hpPools.push({ canonicalId: "new-wing", poolName: "New wing", hpPercentage: 25, notes: "", sortOrder: anatomy.hpPools.length });
+  anatomy.hitLocations[9] = { ...anatomy.hitLocations[9], locationName: "New wing", bodyPartsIncluded: "New wing", hpPoolCanonicalId: "new-wing" };
+  const destination = (await one("insert into races(name,size,base_magic,anatomy_json,created_by_user_id) values('Supplement Ascended','Large',12,$1,$2) returning id", [anatomy,god])).id;
+  await enableRace(destination);
+  const skill = (await one("insert into skill(name,classification,tier) values('Supplement purchased Skill','Physical',1) returning id")).id;
+  await pool.query("insert into race_attribute_caps(race_id,attribute_key,max_value) values($1,'STR',5)", [destination]);
+  await pool.query("insert into race_movement_modes(race_id,movement_mode,base_value) values($1,'Flight',4)", [destination]);
+  await pool.query("insert into race_skill_links(race_id,skill_id,link_type,value) values($1,$2,'predisposition',5)", [destination,skill]);
+  const transition = { ...emptyRaceEvolutionTransition(), attributes: Object.entries({ STR:10, DEX:0, CON:5, INT:0, WIS:5, CHR:-5 }).map(([key,value]) => ({ key,operation:"add",value })),
+    hpMultiplierSteps:{operation:"add",value:1}, baseMovementSteps:{operation:"add",value:-1}, baseMagicSteps:{operation:"add",value:2} };
+  const path = (await races.saveRaceEvolution({ sourceRaceId:sourceRace,destinationRaceId:destination,name:"Supplement signed adjustments",description:"",notes:"",transition },actor)).find(row=>row.name==="Supplement signed adjustments");
+  const expected = { attributeAdjustments:{ STR:10, DEX:0, CON:5, INT:0, WIS:5, CHR:-5 }, hpMultiplierStepsAdjustment:1, baseMovementStepsAdjustment:-1, baseMagicStepsAdjustment:2 };
+  for (const npc of [false,true]) {
+    const id = await character("race",npc);
+    await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,17)",[id,skill]);
+    const initial = await allRows(), preview = await prepare("race",id,path.id), input = command(preview);
+    assert.equal(preview.afterHealth.total.maximumHp,getCharacterHp(35,3));
+    assert.notEqual(preview.afterHealth.total.maximumHp,preview.beforeHealth.total.maximumHp);
+    assert.deepEqual(preview.raceTransition.appliedAdjustments,expected);
+    const result = await api.executePersistentEvolution(input,actor), state = await allRows();
+    const attributes = Object.fromEntries((await rows("select attribute_key,value from campaign_character_attribute where character_id=$1",[id])).map(row=>[row.attribute_key,row.value]));
+    assert.deepEqual(attributes,{STR:40,DEX:30,CON:35,INT:30,WIS:35,CHR:25});
+    const profile = await one("select * from campaign_character_profile where character_id=$1",[id]);
+    assert.equal(profile.race_id,destination); assert.equal(profile.hp_multiplier_steps,3); assert.equal(profile.base_movement_steps,0); assert.equal(profile.base_magic_steps,5);
+    for (const table of Object.keys(initial)) if (!["campaign_character_profile","campaign_character_attribute","race_evolution_events"].includes(table)) assert.deepEqual(state[table],initial[table],`${table} remains exact, including purchased Skills, health and inventory`);
+    const health = await db.transaction(tx=>readActiveHealthInTransaction(tx,id,"race"));
+    assert.equal(health.view.total.maximumHp,getCharacterHp(35,3));
+    assert.equal(health.view.totalDamage,111); assert.ok(health.view.tracks.some(row=>row.key==="old-wing"&&row.orphaned&&row.damage===13));
+    assert.ok(health.view.tracks.some(row=>row.key==="new-wing"&&!row.orphaned&&row.damage===0));
+    const sheet = await getCharacter(id,true);
+    assert.equal(sheet.selectedRace.race.id,destination); assert.equal(sheet.selectedRace.race.size,"Large"); assert.equal(sheet.selectedRace.race.baseMagic,12);
+    assert.deepEqual(sheet.selectedRace.race.anatomy,anatomy);
+    assert.ok(sheet.selectedRace.movementModes.some(row=>row.movementMode==="Flight"&&row.baseValue===4));
+    assert.ok(sheet.selectedRace.skillLinks.some(row=>row.skillId===skill&&row.value===5));
+    assert.equal(sheet.selectedRace.attributeCaps.find(row=>row.attributeKey==="STR").maxValue,5);
+    assert.equal(attributes.STR,40,"destination creation cap never replaces the saved evolved score");
+    assert.deepEqual(result.event.evidence.raceTransition.appliedAdjustments,expected);
+    assert.deepEqual((await one("select evidence from race_evolution_events where id=$1",[result.event.id])).evidence.raceTransition.appliedAdjustments,expected);
+    assert.equal((await api.executePersistentEvolution(input,actor)).replayed,true);
+    assert.deepEqual(await allRows(),state,"retry never applies an adjustment twice");
+  }
+  const events = await rows("select evidence from race_evolution_events where path_id=$1 order by id",[path.id]);
+  await races.saveRaceEvolution({...path,expectedVersion:path.version,transition:{...transition,attributes:[{key:"STR",operation:"add",value:100}]}},actor);
+  assert.deepEqual(await rows("select evidence from race_evolution_events where path_id=$1 order by id",[path.id]),events,"history owns exact applied values after the authored path changes");
+});
+
+test("zero adjustments change only the Race assignment; negative Attributes and every negative step result reject without partial Evolution", async () => {
+  const zero = { ...emptyRaceEvolutionTransition(),attributes:["STR","DEX","CON","INT","WIS","CHR"].map(key=>({key,operation:"add",value:0})),
+    hpMultiplierSteps:{operation:"add",value:0},baseMovementSteps:{operation:"add",value:0},baseMagicSteps:{operation:"add",value:0} };
+  const path = (await races.saveRaceEvolution({sourceRaceId:sourceRace,destinationRaceId:targetRace,name:"Supplement zero",description:"",notes:"",transition:zero},actor)).find(row=>row.name==="Supplement zero");
+  const id = await character(), original = await allRows();
+  const result = await api.executePersistentEvolution(command(await prepare("race",id,path.id)),actor);
+  const after = await allRows();
+  assert.deepEqual(result.event.evidence.raceTransition.before,result.event.evidence.raceTransition.after);
+  for(const table of Object.keys(original)) if(!["campaign_character_profile","race_evolution_events"].includes(table)) assert.deepEqual(after[table],original[table]);
+  assert.deepEqual(await one("select to_jsonb(t)-'race_id' body from campaign_character_profile t where character_id=$1",[id]),
+    {body:Object.fromEntries(Object.entries(original.campaign_character_profile.find(row=>row.body.character_id===id).body).filter(([key])=>key!=="race_id"))});
+  for (const [field,column,current] of [["CHR","CHR",3],["hpMultiplierSteps","hp_multiplier_steps",2],["baseMovementSteps","base_movement_steps",1],["baseMagicSteps","base_magic_steps",3]]) {
+    const transition = {...emptyRaceEvolutionTransition(),attributes:[{key:"STR",operation:"add",value:10},{key:"CON",operation:"add",value:5}]};
+    if(field==="CHR") transition.attributes.push({key:"CHR",operation:"add",value:-5});
+    else transition[field]={operation:"add",value:-current-1};
+    const invalid = (await races.saveRaceEvolution({sourceRaceId:sourceRace,destinationRaceId:targetRace,name:`Supplement invalid ${field}`,description:"",notes:"",transition},actor)).find(row=>row.name===`Supplement invalid ${field}`);
+    const subject = await character();
+    // Preview from a valid starting value, then reduce that saved value before execution.
+    if(field!=="CHR") await pool.query(`update campaign_character_profile set ${column}=10 where character_id=$1`,[subject]);
+    const input = command(await prepare("race",subject,invalid.id));
+    if(field==="CHR") await pool.query("update campaign_character_attribute set value=3 where character_id=$1 and attribute_key='CHR'",[subject]);
+    else await pool.query(`update campaign_character_profile set ${column}=$2 where character_id=$1`,[subject,current]);
+    const beforeFailure = await allRows();
+    await assert.rejects(api.executePersistentEvolution(input,actor),/invalid .*Nothing will be clamped/);
+    await assert.rejects(prepare("race",subject,invalid.id),/invalid .*Nothing will be clamped/);
+    assert.deepEqual(await allRows(),beforeFailure,"race_id, all Attributes, all steps and history stay unchanged on invalid result");
+  }
+});
+
+test("Race destination must remain Campaign-enabled for the exact PC or NPC before any mechanics change", async () => {
+  for(const npc of [false,true]) {
+    const id=await character("race",npc), input=command(await prepare("race",id));
+    const table=npc?"campaign_race":"campaign_allowed_race";
+    const enabled=await one(`delete from ${table} where campaign_id=$1 and race_id=$2 returning sort_order`,[campaignId,targetRace]);
+    try {
+      const before=await allRows();
+      await assert.rejects(prepare("race",id),new RegExp(`Enable the destination Race for ${npc?"NPCs":"Player Characters"}`));
+      await assert.rejects(api.executePersistentEvolution(input,actor),/Enable the destination Race/);
+      assert.deepEqual(await allRows(),before,"destination removal after preview cannot break the Character sheet or partially evolve");
+    } finally { await pool.query(`insert into ${table}(campaign_id,race_id,sort_order) values($1,$2,$3)`,[campaignId,targetRace,enabled.sort_order]); }
+  }
+});
+
 test("explicit Campaign graph deletion removes only its Evolution history and preserves shared definitions and other events", async () => {
   const name="Evolution history deletion rehearsal";
   const isolated=(await one("insert into campaign(name,attribute_points,skill_points,max_starting_skill,points_to_unlock_next_tier,max_points_in_skill,starting_credit_amount,currency_system,fate_point_method,created_by_user_id) values($1,100,100,50,10,100,0,'Credits','Assigned',$2) returning id",[name,god])).id;
   await pool.query("insert into campaign_player(campaign_id,user_id) values($1,$2),($1,$3)",[isolated,player,god]);
+  await enableRace(sourceRace,isolated); await enableRace(targetRace,isolated);
   for(const kind of ["race","creature"]) {
     const id=await character(kind);
     await pool.query("update campaign_character set owner_character_id=null,campaign_id=$2 where id=$1",[id,isolated]);

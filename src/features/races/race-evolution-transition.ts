@@ -13,6 +13,30 @@ export type RaceEvolutionIndividualMechanics = {
   attributes: Array<{ attributeKey: string; value: number }>;
   hpMultiplierSteps: number; baseMovementSteps: number; baseMagicSteps: number;
 };
+export type AppliedRaceEvolutionAdjustments = {
+  attributeAdjustments: Partial<Record<CharacterAttributeKey, number>>;
+  hpMultiplierStepsAdjustment: number;
+  baseMovementStepsAdjustment: number;
+  baseMagicStepsAdjustment: number;
+};
+
+/** Snapshot actual saved-value differences, including the delta of an authored Set.
+ * Historical callers use only the event's own before/after values, never today's path.
+ */
+export function appliedRaceEvolutionAdjustments(before: RaceEvolutionIndividualMechanics, after: RaceEvolutionIndividualMechanics): AppliedRaceEvolutionAdjustments {
+  const attributeAdjustments: AppliedRaceEvolutionAdjustments["attributeAdjustments"] = {};
+  for (const key of CHARACTER_ATTRIBUTE_KEYS) {
+    const previous = before.attributes.find(row => row.attributeKey === key);
+    const next = after.attributes.find(row => row.attributeKey === key);
+    if (!previous && !next) continue;
+    if (!previous || !next) throw new Error(`Missing recorded ${key} value for permanent Evolution adjustments.`);
+    attributeAdjustments[key] = next.value - previous.value;
+  }
+  return { attributeAdjustments,
+    hpMultiplierStepsAdjustment: after.hpMultiplierSteps - before.hpMultiplierSteps,
+    baseMovementStepsAdjustment: after.baseMovementSteps - before.baseMovementSteps,
+    baseMagicStepsAdjustment: after.baseMagicSteps - before.baseMagicSteps };
+}
 export function emptyRaceEvolutionTransition(): RaceEvolutionTransition {
   return { schemaVersion: 1, attributes: [], hpMultiplierSteps: null, baseMovementSteps: null, baseMagicSteps: null };
 }

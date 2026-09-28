@@ -122,6 +122,20 @@ An initial **unfiltered** combat harness stopped in the unrelated legacy `magazi
 
 Build and browser fixtures use disposable PostgreSQL, never DEV/production. Logs and screenshots are in ignored `artifacts/guidance/evolution-pass-three/` and `artifacts/guidance/creature-evolutions/`.
 
+## Supplemental permanent Race adjustment audit
+
+The supplemental amendment builds on shipped Pass 3 commit `829a8ab`; it does not restart execution or add another Evolution system.
+
+- The **Permanent Character Changes** editor now exposes all six signed Attribute fields and all three signed step fields, with zero shown for unconfigured adjustments. Add preserves the purchased value and adds the authored delta; zero adds nothing. The existing Set option remains explicitly labeled as replacement, with separate guidance that Set zero replaces the value with zero.
+- Every new Race execution snapshots `raceTransition.appliedAdjustments`: `attributeAdjustments` by key, `hpMultiplierStepsAdjustment`, `baseMovementStepsAdjustment`, and `baseMagicStepsAdjustment`. These are the actual differences between saved before/after values, including zero changes and the actual delta of any Set operation. Authored rules and complete before/after values remain alongside this evidence.
+- History displays the applied signed deltas. Older immutable events remain readable using only their own before/after evidence; the reader never consults today's path and does not rewrite historical rows. No reversal operation has been added.
+- Integration through the existing Character sheet exposed a missing Campaign boundary. Race execution now requires the destination in the existing Campaign Race list for NPCs, or the playable Race list for PCs. Both preview and execution enforce this and tell the G.O.D. what to enable. The transaction fence includes both lists, preventing a removal between validation and commit. Evolution never changes Campaign configuration itself.
+- Expanded disposable coverage verifies STR increases, CHR decreases, simultaneous Attribute changes, CON/HP-step effects through the existing Active Health reader, signed movement/magic step changes, explicit zeros, retained purchased Skill rows, destination anatomy/movement/Skills/base magic through the real Character sheet, caps below evolved scores, unchanged stored damage/injuries, undamaged new anatomy, exact applied history after path edits, duplicate retries, negative Attribute and each negative step result, rollback, independent clones and Creature snapshot isolation. Campaign-list removal after preview and concurrent writers also fail without partial changes.
+
+Supplemental verification passed: **125/125** focused domain tests; **33/33** disposable Evolution scenarios (9 Pass 1, 9 Pass 2, 15 Pass 3); fresh/staged migration rehearsals; desktop and 390px browser checks with screenshots inspected; TypeScript, changed-file ESLint, Drizzle metadata check, whitespace check and the production build. Evidence is in `artifacts/guidance/evolution-pass-three/supplement-*.log`. The broader validation counts above describe the original Pass 3 release, not additional reruns for this amendment.
+
+The amendment changes no Drizzle schema, SQL migration, snapshot or journal. Its additional evidence fits the existing event JSON. The original `0085_evolution_persistent_execution` migration is still required wherever the Pass 3 schema has not been applied. No live database migrations or deployment were performed for this amendment.
+
 ## Live migration audit and rollout still required
 
 Read-only audit on 2026-09-28 used `default_transaction_read_only=on` and repeatable-read/read-only transactions. Applied Evolution migration hashes matched checked-in files.

@@ -1,7 +1,7 @@
 import { readRaceFormsInTransaction } from "@/features/races/race-form-service";
 import { readRaceNaturalAttacksInTransaction } from "@/features/races/race-natural-attack-service";
 import { readRaceNaturalProtectionInTransaction } from "@/features/races/race-natural-protection-service";
-import { applyRaceEvolutionTransition, normalizeRaceEvolutionTransition } from "@/features/races/race-evolution-transition";
+import { appliedRaceEvolutionAdjustments, applyRaceEvolutionTransition, normalizeRaceEvolutionTransition } from "@/features/races/race-evolution-transition";
 import "server-only";
 import { createHash } from "node:crypto";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
@@ -9,7 +9,7 @@ import { db } from "@/db";
 import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
 import { campaign } from "@/db/campaign-schema";
-import { campaignCharacter, campaignCharacterProfile, campaignCreatureNpcProfile, campaignCharacterAttribute } from "@/db/realm-schema";
+import { campaignCharacter, campaignCharacterProfile, campaignCreatureNpcProfile, campaignCharacterAttribute, campaignRace, campaignAllowedRace } from "@/db/realm-schema";
 import { race, raceMovementMode, raceSkillLink, raceAttributeCap } from "@/db/race-schema";
 import { creature, creatureEvolutionPath } from "@/db/creature-schema";
 import { raceEvolutionPath } from "@/db/race-evolution-schema";
@@ -104,6 +104,11 @@ async function readPreparation(tx: Tx, kind: EvolutionOwner, characterId: number
   let definitionEvidence: unknown;
   let raceTransition: EvolutionExecutionPreview["raceTransition"];
   if (kind === "race") {
+    // Match the Character sheet's Campaign Race authority, including the stricter PC list.
+    const allowed = character.isNpc ? campaignRace : campaignAllowedRace;
+    const [enabled] = await tx.select({ raceId: allowed.raceId }).from(allowed)
+      .where(and(eq(allowed.campaignId, character.campaignId), eq(allowed.raceId, destinationId)));
+    if (!enabled) throw new Error(`Enable the destination Race for ${character.isNpc ? "NPCs" : "Player Characters"} in this Campaign before Evolution. Its Character sheet must be able to resolve the destination.`);
     const roots = await tx.select().from(race).where(inArray(race.id, [sourceId, destinationId]));
     const source = roots.find(row => row.id === sourceId), destination = roots.find(row => row.id === destinationId);
     if (!source || !destination || source.archivedAt || destination.archivedAt) throw new Error("The exact source and destination must both be active.");
@@ -117,7 +122,7 @@ async function readPreparation(tx: Tx, kind: EvolutionOwner, characterId: number
     const authored = normalizeRaceEvolutionTransition(authoredPath.transition);
     const beforeMechanics = { attributes, hpMultiplierSteps: profile.hpMultiplierSteps, baseMovementSteps: profile.baseMovementSteps, baseMagicSteps: profile.baseMagicSteps };
     const after = applyRaceEvolutionTransition(authored, beforeMechanics);
-    raceTransition = { authored, before: beforeMechanics, after };
+    raceTransition = { authored, before: beforeMechanics, after, appliedAdjustments: appliedRaceEvolutionAdjustments(beforeMechanics, after) };
     afterHealth = resolveActiveHealthView(resolveRaceHealthAnatomy(after.attributes.find(row => row.attributeKey === "CON")!.value, after.hpMultiplierSteps, destination.anatomy), before.state);
   } else {
     const roots = await tx.select().from(creature).where(inArray(creature.id, [sourceId, destinationId]));

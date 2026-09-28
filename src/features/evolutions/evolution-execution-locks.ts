@@ -11,7 +11,7 @@ import * as abilities from "@/db/derived-ability-schema";
 import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignAllowedSystem, campaignPlayer } from "@/db/campaign-schema";
-import { campaignCharacter, campaignCharacterProfile, campaignCreatureNpcProfile, campaignCharacterAttribute, campaignCharacterSkillAllocation,
+import { campaignRace, campaignAllowedRace, campaignCharacter, campaignCharacterProfile, campaignCreatureNpcProfile, campaignCharacterAttribute, campaignCharacterSkillAllocation,
   campaignCharacterActiveCondition, campaignCharacterActiveHealth, campaignCharacterActiveHealthPool, campaignCharacterInjury,
   campaignCharacterItem, campaignCharacterItemInstance } from "@/db/realm-schema";
 import { item } from "@/db/item-schema";
@@ -29,7 +29,7 @@ import { campaignSessionEncounter, campaignSessionEncounterParticipant, campaign
 export const EVOLUTION_FACT_TABLES = [...new Map([
   ...Object.values(races), ...Object.values(creatures), ...Object.values(racePaths),
   ...Object.values(creatureRequirements), ...Object.values(access), ...Object.values(abilities),
-  user, userRole, campaign, campaignAllowedSystem, campaignPlayer,
+  user, userRole, campaign, campaignAllowedSystem, campaignPlayer, campaignRace, campaignAllowedRace,
   campaignCharacter, campaignCharacterProfile, campaignCreatureNpcProfile, campaignCharacterAttribute, campaignCharacterSkillAllocation,
   campaignCharacterActiveCondition, campaignCharacterActiveHealth, campaignCharacterActiveHealthPool, campaignCharacterInjury,
   campaignCharacterItem, campaignCharacterItemInstance, item, skill, containerProfile,
