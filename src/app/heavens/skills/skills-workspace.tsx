@@ -165,8 +165,8 @@ export function SkillsWorkspace({
     setLoadingLibrary(true);
     try {
       const [nextHierarchy, nextFilterOptions, nextList] = await Promise.all([
-        getRecursiveSkillLibrary(),
-        getSkillFilterOptions(Boolean(nextFilters.archived)),
+        getRecursiveSkillLibrary(nextFilters.adminBrowse),
+        getSkillFilterOptions(Boolean(nextFilters.archived), nextFilters.adminBrowse),
         listSkills(nextFilters),
       ]);
       if (graphRequest === hierarchyRequest.current) {
@@ -266,6 +266,7 @@ export function SkillsWorkspace({
     void preserveScroll(() => {
       setView(nextView);
       if (nextView === "tree") {
+        if (filters.adminBrowse?.sortBy === "user") setFilters((current) => ({ ...current, adminBrowse: { ...current.adminBrowse, sortBy: "name" } }));
         setSelectedPathKey(null);
         setSelectedAttributeKey(null);
       }
@@ -346,7 +347,7 @@ export function SkillsWorkspace({
       setDirty(false);
       setFeedback(null);
       try {
-        setFilterOptions(await getSkillFilterOptions(archived));
+        setFilterOptions(await getSkillFilterOptions(archived, filters.adminBrowse));
       } catch (error) {
         setFeedback({
           kind: "error",
@@ -401,7 +402,12 @@ export function SkillsWorkspace({
 
       <div className="skills-workspace">
         <SkillLibrary
-          visibilityControl={<CatalogBrowseControl canManageActivation={canManageCanon} catalog="skill" visibility={library.visibility} onSaved={async () => {
+          visibilityControl={<CatalogBrowseControl adminBrowse={filters.adminBrowse} onAdminBrowseChange={async (adminBrowse) => {
+            const next = { ...filters, adminBrowse, page: 1 };
+            setFilters(next);
+            if (adminBrowse.sortBy === "user") setView("list");
+            await refreshLibraries(next);
+          }} canManageActivation={canManageCanon} catalog="skill" visibility={library.visibility} onSaved={async () => {
             await preserveScroll(async () => {
               setSelectedPathKey(null);
               setSelectedAttributeKey(null);

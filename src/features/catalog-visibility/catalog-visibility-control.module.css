@@ -9,6 +9,9 @@
 .control legend { padding-inline: 0.35rem; color: var(--st-text-strong); font-weight: 600; }
 .description { margin: 0 0 0.75rem; color: var(--st-muted); font-size: 0.875rem; }
 .choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.adminChoices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.adminFilters { display: grid; gap: 0.5rem; min-width: 0; border: 0; padding: 0; margin: 0.75rem 0; }
+.adminFilters select { width: 100%; min-width: 0; }
 .option {
   display: flex;
   align-items: center;

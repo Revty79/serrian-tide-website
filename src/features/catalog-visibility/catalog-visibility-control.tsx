@@ -2,6 +2,7 @@
 
 import { useId } from "react";
 import type { CatalogKey, CatalogVisibilityMode } from "./catalog-visibility";
+import type { CatalogBrowseMode } from "./admin-catalog-browse";
 import styles from "./catalog-visibility-control.module.css";
 
 export const CATALOG_VISIBILITY_CHOICES: ReadonlyArray<{ mode: CatalogVisibilityMode; label: string; description: string }> = [
@@ -11,12 +12,13 @@ export const CATALOG_VISIBILITY_CHOICES: ReadonlyArray<{ mode: CatalogVisibility
 ];
 
 /** Controlled native radio group; persistence belongs to the caller. */
-export function CatalogVisibilityControl({ catalog, mode, label, description, onChange, pending = false, status, error }: {
+export function CatalogVisibilityControl({ catalog, mode, label, description, onChange, pending = false, status, error, allowAll = false }: {
   catalog: CatalogKey;
-  mode: CatalogVisibilityMode;
+  mode: CatalogBrowseMode;
   label: string;
   description?: string;
-  onChange: (mode: CatalogVisibilityMode) => void;
+  onChange: (mode: CatalogBrowseMode) => void;
+  allowAll?: boolean;
   pending?: boolean;
   status?: string;
   error?: string;
@@ -25,8 +27,8 @@ export function CatalogVisibilityControl({ catalog, mode, label, description, on
   return <fieldset className={styles.control} disabled={pending} aria-busy={pending} aria-describedby={`${id}-feedback${description ? ` ${id}-description` : ""}`}>
     <legend>{label}</legend>
     {description ? <p className={styles.description} id={`${id}-description`}>{description}</p> : null}
-    <div className={styles.choices}>
-      {CATALOG_VISIBILITY_CHOICES.map((choice) => <label key={choice.mode} className={styles.option}>
+    <div className={`${styles.choices}${allowAll ? ` ${styles.adminChoices}` : ""}`}>
+      {[...CATALOG_VISIBILITY_CHOICES, ...(allowAll ? [{ mode: "all" as const, label: "All", description: "Canon and content created by every user, including records with no recorded creator." }] : [])].map((choice) => <label key={choice.mode} className={styles.option}>
         <input type="radio" name={`${catalog}-${id}`} value={choice.mode} checked={mode === choice.mode}
           aria-labelledby={`${id}-${choice.mode}-label`}
           aria-describedby={`${id}-${choice.mode}-meaning`} onChange={() => onChange(choice.mode)} />

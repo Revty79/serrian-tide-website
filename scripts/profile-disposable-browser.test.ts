@@ -1,3 +1,4 @@
+import { runAdminCatalogBrowserChecks } from "./admin-catalog-browser-checks";
 import { runCatalogPassThreeBrowserChecks } from "./catalog-pass-three-browser-checks";
 import { runCatalogPassFourBrowserChecks } from "./catalog-pass-four-browser-checks";
 import assert from "node:assert/strict";
@@ -11,7 +12,7 @@ import { hashPassword } from "better-auth/crypto";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
-import { chromium, type Page, type Route } from "playwright-core";
+import { chromium, type BrowserContext, type Page, type Route } from "playwright-core";
 
 const labels = ["Races", "Creatures", "Skills", "Derived Abilities", "Equipment", "Inventory"];
 const defaults = labels.map(() => "canon-and-mine");
@@ -137,9 +138,16 @@ async function main() {
     assert.equal(await page.getByRole("group", { name: "Races", exact: true }).count(), 0);
     console.log("PASS: anonymous Profile access redirects to login.");
 
+    if (process.argv.includes("--admin-only")) {
+      await login(page, baseUrl, "all");
+      await runAdminCatalogBrowserChecks({ page, pool, baseUrl, screenshots, login });
+      assert.deepEqual(errors, []);
+      return;
+    }
+
     for (const identity of ["player", "god", "admin", "none"]) {
-      const roleContext = await browser.newContext();
-      const rolePage = await roleContext.newPage();
+      const roleContext: BrowserContext = await browser.newContext();
+      const rolePage: Page = await roleContext.newPage();
       rolePage.on("pageerror", (error) => errors.push(error.message));
       await login(rolePage, baseUrl, identity);
       await rolePage.getByRole("link", { name: "Profile", exact: true }).click();
@@ -276,9 +284,11 @@ async function main() {
     await page.goto(`${baseUrl}/profile`);
     await save(page, "Races", "Mine Only");
     await page.goto(`${baseUrl}/heavens/races`);
+    await page.getByText("Profile Own Race", { exact: true }).waitFor();
+    assert.equal(await page.getByText("Profile Foreign Race", { exact: true }).count(), 0);
+    await page.getByRole("radio", { name: "All", exact: true }).check();
     for (const name of ["Profile Own Race", "Profile Foreign Race", "Profile Imported Race"]) await page.getByText(name, { exact: true }).waitFor();
-    assert.equal(await page.getByRole("radio", { name: "Mine Only", exact: true }).isChecked(), true);
-    await page.getByText(/Browsing keeps the full catalog/).waitFor();
+    assert.equal(await page.getByRole("radio", { name: "All", exact: true }).isChecked(), true);
     await page.goto(`${baseUrl}/heavens/campaigns?campaign=${campaign.id}`);
     await page.getByRole("button", { name: "Allowed Races", exact: true }).click();
     for (const name of ["Profile Own Race", "Profile Foreign Race", "Profile Imported Race"]) await page.getByRole("checkbox", { name: `Select ${name}`, exact: true }).waitFor();
@@ -287,6 +297,7 @@ async function main() {
     console.log("PASS: the activation guard preserves the unclassified Race catalog and Campaign references; preferences alone cannot promote content.");
     await runCatalogPassThreeBrowserChecks({ page, pool, databaseUrl, baseUrl, screenshots, login });
     await runCatalogPassFourBrowserChecks({ page, pool, baseUrl, screenshots, login });
+    await runAdminCatalogBrowserChecks({ page, pool, baseUrl, screenshots, login });
     assert.deepEqual(errors, []);
   } finally {
     await browser?.close();

@@ -1,4 +1,4 @@
-# Catalog visibility (Passes 1-4)
+# Catalog visibility and administrator views
 
 These concepts are independent:
 
@@ -88,6 +88,18 @@ Any current Administrator can enable or disable filtering separately on each cat
 Normal workflow: author/review records, mark official definitions System Canon individually, then enable that catalog when ready. Inactive catalogs retain full browsing while saving personal preferences. Active catalogs immediately use those same saved choices. Controls explain their database-wide effect; normal G.O.D.s do not receive mutation controls. Canon designation, personal preference, and activation are independent concepts.
 
 DEV and Production each use their own rows, Item IDs, content, preferences and canon designations. No deployment or runtime code synchronizes them. Apply migrations only to a verified target; manual canon and activation work without bulk classification.
+
+## Administrator catalog browsing
+
+Administrators have Canon Only, Canon + Mine, Mine Only, and All on all six authoring catalogs. The three personal modes still save to Profile. All, Created by, and Sort by are local to the current page visit and never enter the persisted personal preference or Campaign discovery path. Administrator views apply even before public filtering is activated. The normal active/archived selector still determines which lifecycle state is listed.
+
+`getCatalogManagementState` checks the current database Admin role on every request. Non-admin requests with administrative options reject; ordinary requests retain the existing activation and preference behavior. Catalog lists, matching counts, facets and Skill trees use the same creator filter. User ordering occurs in SQL before pagination, with record name and identity tie breakers. Skill user sorting selects the list; its tree retains authored hierarchy ordering. Required ancestry remains visible as Context and does not consume matching page slots.
+
+Created by means the original record creator, including for promoted Canon records. Admin results show the creator's displayed username, username or name; absent attribution is labelled No recorded creator. Creator selection uses exact account IDs. These views do not change record ownership, edit authorization, canon flags, saved game references or database-wide activation. No schema change or migration is needed.
+
+Validation coverage lives in `scripts/admin-catalog-db.test.mjs` and `scripts/admin-catalog-browser-checks.ts`, called by the existing disposable catalog database and Profile browser harnesses. Run the focused browser coverage with `npm.cmd run validate:profile-browser -- --admin-only`.
+
+Verified on 2026-09-28: 297 catalog/authoring tests, 41 disposable database tests (including eight administrator regressions), the full Profile/catalog browser suite, and the focused administrator browser run passed. The focused run includes immediate selection, disabled controls during a delayed save, and rollback after a failed save. Production builds, TypeScript, changed-file lint and whitespace checks passed. All six 390px administrator panels were visually reviewed. Browser coverage used headless Chrome at desktop and phone widths; DEV and Production data were not changed.
 
 ## Active authoring catalogs and context
 

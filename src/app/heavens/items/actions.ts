@@ -1,4 +1,5 @@
 "use server";
+import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
 import { loadItemCatalog, loadItemFacets, itemTagDiscoveryWhere } from "@/features/catalog-visibility/item-catalog-service";
 import { catalogCandidateWhere, itemDiscoveryWhere, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 import { storedSkillReferenceIds } from "@/features/catalog-visibility/catalog-reference-ids";
@@ -106,6 +107,7 @@ import { validateStructuredWeaponRange, type WeaponRangeMode } from "@/features/
 import { defaultWeaponProfileRecordType, isSupportedWeaponDamageSource, isSupportedWeaponHandedness, isSupportedWeaponProfileRecordType, isSupportedWeaponType } from "@/features/items/weapon-profile-authoring";
 
 export type ItemLibraryFilters = {
+  adminBrowse?: AdminCatalogBrowse;
   needsCanonReview?: boolean;
   catalogScope: ItemCatalogScope;
   search?: string;
@@ -119,6 +121,7 @@ export type ItemLibraryFilters = {
 };
 
 export type ItemSummary = {
+  creatorLabel?: string;
   catalogSource: CatalogSourceLabel;
   parentId: number | null;
   parentName: string | null;
@@ -495,9 +498,9 @@ export async function listItems(filters: ItemLibraryFilters): Promise<ItemLibrar
   return loadItemCatalog(session.user.id, filters);
 }
 
-export async function listItemFacets(catalogScope: ItemCatalogScope, archived = false, needsCanonReview = false): Promise<ItemFacets> {
+export async function listItemFacets(catalogScope: ItemCatalogScope, archived = false, needsCanonReview = false, adminBrowse?: AdminCatalogBrowse): Promise<ItemFacets> {
   const { session } = await requireGodOrAdminAccessContext();
-  return loadItemFacets(session.user.id, catalogScope, archived, needsCanonReview);
+  return loadItemFacets(session.user.id, catalogScope, archived, needsCanonReview, adminBrowse);
 }
 
 export async function listItemAuthoringReferences(

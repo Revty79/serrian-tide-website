@@ -32,7 +32,7 @@ test("nested lineage is ordered once, with bounded cycle handling and no inferre
 test("authoring filtering uses one server predicate while retained game references stay outside it", () => {
   for (const folder of ["races", "creatures", "skills", "derived-abilities"]) {
     const actions = readFileSync(`src/app/heavens/${folder}/actions.ts`, "utf8");
-    assert.match(actions, /getCatalogBrowseState\(session\.user\.id/);
+    assert.match(actions, /getCatalogManagementState\(session\.user\.id/);
     assert.match(actions, /catalogBrowseWhere/);
   }
   for (const file of ["src/app/characters/actions.ts", "src/features/creatures/creature-npc-constructor-service.ts", "src/features/derived-abilities/character-derived-ability-service.ts", "src/features/skills/recursive-skill-library-service.ts", "src/app/heavens/campaigns/actions.ts", "src/app/heavens/items/actions.ts"]) {

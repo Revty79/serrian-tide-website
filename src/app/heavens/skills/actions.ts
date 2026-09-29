@@ -1,6 +1,8 @@
 "use server";
+import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
+import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
 import { loadVisibleRecursiveSkillLibrary } from "@/features/catalog-visibility/skill-catalog-service";
-import { getCatalogBrowseState, catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 
 
 import {
@@ -50,6 +52,7 @@ import {
 } from "./constants";
 
 export type SkillLibraryFilters = {
+  adminBrowse?: AdminCatalogBrowse;
   search?: string;
   classification?: string;
   tier?: number | null;
@@ -61,6 +64,7 @@ export type SkillLibraryFilters = {
 };
 
 export type SkillLibraryItem = {
+  creatorLabel?: string;
   catalogSource?: CatalogSourceLabel;
   id: number;
   name: string;
@@ -149,9 +153,9 @@ export type SkillMutationPreview = SkillStructureChangePreview & {
   consumers: SkillConsumerImpact;
 };
 
-export async function getRecursiveSkillLibrary(): Promise<RecursiveSkillLibrary> {
+export async function getRecursiveSkillLibrary(adminBrowse?: AdminCatalogBrowse): Promise<RecursiveSkillLibrary> {
   const { session } = await requireGodOrAdminAccessContext();
-  return loadVisibleRecursiveSkillLibrary(session.user.id);
+  return loadVisibleRecursiveSkillLibrary(session.user.id, adminBrowse);
 }
 
 // Editing references and structural previews retain the established complete graph.
@@ -485,7 +489,7 @@ export async function listSkills(
   filters: SkillLibraryFilters = {},
 ): Promise<SkillLibraryResult> {
   const { session } = await requireGodOrAdminAccessContext();
-  const visibility = await getCatalogBrowseState(session.user.id, "skill");
+  const visibility = await getCatalogManagementState(session.user.id, "skill", filters.adminBrowse);
 
   const page = Math.max(
     1,
@@ -596,16 +600,13 @@ export async function listSkills(
     })
     .from(skill)
     .where(where)
-    .orderBy(
-      asc(skill.name),
-      asc(skill.id),
-    )
+    .orderBy(...catalogManagementOrder(skill, skill.name, visibility))
     .limit(pageSize)
     .offset(
       (page - 1) * pageSize,
     );
   const matchIds = new Set(baseRows.map((row) => row.id));
-  if (visibility.enabled) {
+  if (visibility.enabled || visibility.admin) {
     const ancestorIds = (await catalogAncestorIds("skill", [...matchIds])).filter((id) => !matchIds.has(id));
     if (ancestorIds.length) baseRows.push(...await db.select({
       id: skill.id,
@@ -784,6 +785,7 @@ export async function listSkills(
 
         return {
           ...row,
+          creatorLabel: catalogCreatorLabel(visibility, createdByUserId),
           catalogSource: catalogSourceLabel({ isSystemCanon, createdByUserId }, session.user.id, !matchIds.has(row.id)),
 
           archivedAt:
@@ -840,10 +842,10 @@ export async function listSkills(
   };
 }
 
-export async function getSkillFilterOptions(archived = false):
+export async function getSkillFilterOptions(archived = false, adminBrowse?: AdminCatalogBrowse):
 Promise<SkillFilterOptions> {
   const { session } = await requireGodOrAdminAccessContext();
-  const visibility = await getCatalogBrowseState(session.user.id, "skill");
+  const visibility = await getCatalogManagementState(session.user.id, "skill", adminBrowse);
   const archiveCondition = catalogBrowseWhere(skill, session.user.id, visibility, archived ? isNotNull(skill.archivedAt) : isNull(skill.archivedAt));
 
   const [

@@ -1,5 +1,7 @@
 "use server";
-import { getCatalogBrowseState, catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
+import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
+import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 
 
 import {
@@ -70,6 +72,7 @@ export type DerivedAbilityAggregate = DerivedAbilityAuthoringAggregate & {
 };
 
 export type DerivedAbilityLibraryFilters = {
+  adminBrowse?: AdminCatalogBrowse;
   search?: string;
   acquisitionType?: DerivedAbilityAcquisitionType | "";
   activationType?: DerivedAbilityActivationType | "";
@@ -79,6 +82,7 @@ export type DerivedAbilityLibraryFilters = {
 };
 
 export type DerivedAbilitySummary = {
+  creatorLabel?: string;
   catalogSource: CatalogSourceLabel;
   id: number;
   name: string;
@@ -261,7 +265,7 @@ export async function listDerivedAbilities(
   filters: DerivedAbilityLibraryFilters = {},
 ): Promise<DerivedAbilityLibraryResult> {
   const { session } = await requireGodOrAdminAccessContext();
-  const visibility = await getCatalogBrowseState(session.user.id, "derivedAbility");
+  const visibility = await getCatalogManagementState(session.user.id, "derivedAbility", filters.adminBrowse);
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
   const conditions: SQL[] = [
@@ -298,7 +302,7 @@ export async function listDerivedAbilities(
     archivedAt: derivedAbility.archivedAt,
   }).from(derivedAbility)
     .where(where)
-    .orderBy(asc(derivedAbility.name), asc(derivedAbility.id))
+    .orderBy(...catalogManagementOrder(derivedAbility, derivedAbility.name, visibility))
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
@@ -349,6 +353,7 @@ export async function listDerivedAbilities(
     visibility,
     items: catalog.map((ability) => ({
       id: ability.id,
+      creatorLabel: catalogCreatorLabel(visibility, rows.find((row) => row.id === ability.id)!.createdByUserId),
       catalogSource: catalogSourceLabel(rows.find((row) => row.id === ability.id)!, session.user.id),
       name: ability.name,
       description: ability.description,

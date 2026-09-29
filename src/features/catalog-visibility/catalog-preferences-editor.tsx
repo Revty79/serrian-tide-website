@@ -51,7 +51,7 @@ export function CatalogPreferenceRow({ catalog, initialMode, description, onSave
     }
   }
 
-  return <CatalogVisibilityControl catalog={catalog} label={labels[catalog]} description={description} mode={mode} onChange={(next) => void save(next)} pending={pending} status={status} error={error} />;
+  return <CatalogVisibilityControl catalog={catalog} label={labels[catalog]} description={description} mode={mode} onChange={(next) => { if (next !== "all") void save(next); }} pending={pending} status={status} error={error} />;
 }
 
 export function CatalogPreferencesEditor({ initialPreferences }: { initialPreferences: CatalogPreferences }) {

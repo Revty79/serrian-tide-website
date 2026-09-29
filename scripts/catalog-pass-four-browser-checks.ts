@@ -47,7 +47,7 @@ export async function runCatalogPassFourBrowserChecks({ page, pool, baseUrl, scr
     await page.goto(`${baseUrl}/heavens/${scope}`);
     assert.equal(await page.getByRole("radio", { name: "Mine Only", exact: true }).isChecked(), true);
     await page.locator("#item-search").fill(`P4 ${scope}`);
-    await row(`P4 ${scope} Foreign`).waitFor();
+    await row(`P4 ${scope} Foreign`).waitFor({ state: "detached" });
     await page.getByRole("button", { name: "Enable visibility filtering", exact: true }).click();
     await row(`P4 ${scope} Foreign`).waitFor({ state: "detached" });
     await row(`P4 ${scope} Middle`).getByText("Context", { exact: true }).waitFor();

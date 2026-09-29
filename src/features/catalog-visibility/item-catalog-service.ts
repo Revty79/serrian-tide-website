@@ -1,4 +1,6 @@
 import "server-only";
+import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "./admin-catalog-query";
+import type { AdminCatalogBrowse } from "./admin-catalog-browse";
 import { and, asc, count, eq, ilike, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
@@ -8,15 +10,15 @@ import type { ItemUseMode } from "@/features/items/item-runtime";
 import { catalogAncestorIds, catalogBrowseWhere, catalogSourceLabel, getCatalogBrowseState, itemDiscoveryWhere } from "./catalog-query";
 import { orderCatalogLineage } from "./catalog-lineage";
 
-async function itemPool(actorId: string, scope: ItemCatalogScope, archived: boolean, review: boolean) {
+async function itemPool(actorId: string, scope: ItemCatalogScope, archived: boolean, review: boolean, adminBrowse?: AdminCatalogBrowse) {
   if (!["equipment", "inventory"].includes(scope)) throw new Error("Unknown Item catalog scope.");
-  const visibility = await getCatalogBrowseState(actorId, scope);
+  const visibility = await getCatalogManagementState(actorId, scope, adminBrowse);
   if (review) {
     const [admin] = await db.select({ id: userRole.userId }).from(userRole).where(and(eq(userRole.userId, actorId), eq(userRole.role, "admin")));
     if (!admin) throw new Error("Administrator access is required for Needs Canon Review.");
   }
   const conditions = [eq(item.catalogScope, scope), archived ? isNotNull(item.archivedAt) : isNull(item.archivedAt)];
-  return { visibility, where: review ? and(...conditions, eq(item.isSystemCanon, false)) : catalogBrowseWhere(item, actorId, visibility, ...conditions) };
+  return { visibility, where: review ? catalogBrowseWhere(item, actorId, { ...visibility, admin: { ...visibility.admin!, options: { ...visibility.admin!.options, all: true } } }, ...conditions, eq(item.isSystemCanon, false)) : catalogBrowseWhere(item, actorId, visibility, ...conditions) };
 }
 
 const summaryFields = {
@@ -27,7 +29,7 @@ const summaryFields = {
 };
 
 export async function loadItemCatalog(actorId: string, filters: ItemLibraryFilters): Promise<ItemLibraryResult> {
-  const { visibility, where: poolWhere } = await itemPool(actorId, filters.catalogScope, Boolean(filters.archived), Boolean(filters.needsCanonReview));
+  const { visibility, where: poolWhere } = await itemPool(actorId, filters.catalogScope, Boolean(filters.archived), Boolean(filters.needsCanonReview), filters.adminBrowse);
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
   const conditions: (SQL | undefined)[] = [poolWhere];
@@ -41,9 +43,9 @@ export async function loadItemCatalog(actorId: string, filters: ItemLibraryFilte
   const [countRow] = await db.select({ value: count() }).from(item).where(where);
   const total = Number(countRow?.value ?? 0);
   const rows = await db.select(summaryFields).from(item).leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
-    .where(where).orderBy(asc(item.name), asc(item.id)).limit(pageSize).offset((page - 1) * pageSize);
+    .where(where).orderBy(...catalogManagementOrder(item, item.name, visibility)).limit(pageSize).offset((page - 1) * pageSize);
   const matches = new Set(rows.map(({ id }) => id));
-  if (visibility.enabled || filters.needsCanonReview) {
+  if (visibility.enabled || visibility.admin || filters.needsCanonReview) {
     const context = (await catalogAncestorIds("item", [...matches])).filter((id) => !matches.has(id));
     if (context.length) rows.push(...await db.select(summaryFields).from(item).leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id)).where(inArray(item.id, context)));
   }
@@ -55,7 +57,7 @@ export async function loadItemCatalog(actorId: string, filters: ItemLibraryFilte
   ]) : [[], [], []];
   return { visibility, total, page, pageSize, pageCount: Math.max(1, Math.ceil(total / pageSize)),
     items: orderCatalogLineage(rows).map(({ isSystemCanon, createdByUserId, ...row }) => ({
-      ...row, catalogSource: catalogSourceLabel({ isSystemCanon, createdByUserId }, actorId, !matches.has(row.id)),
+      ...row, creatorLabel: catalogCreatorLabel(visibility, createdByUserId), catalogSource: catalogSourceLabel({ isSystemCanon, createdByUserId }, actorId, !matches.has(row.id)),
       archivedAt: row.archivedAt?.toISOString() ?? null, useMode: (row.useMode ?? "none") as ItemUseMode,
       tags: tags.filter((tag) => tag.itemId === row.id).map(({ name }) => name),
       hasWeaponProfile: weapons.some(({ itemId }) => itemId === row.id), hasArmorProfile: armor.some(({ itemId }) => itemId === row.id),
@@ -63,8 +65,8 @@ export async function loadItemCatalog(actorId: string, filters: ItemLibraryFilte
   };
 }
 
-export async function loadItemFacets(actorId: string, scope: ItemCatalogScope, archived = false, review = false): Promise<ItemFacets> {
-  const { where } = await itemPool(actorId, scope, archived, review);
+export async function loadItemFacets(actorId: string, scope: ItemCatalogScope, archived = false, review = false, adminBrowse?: AdminCatalogBrowse): Promise<ItemFacets> {
+  const { where } = await itemPool(actorId, scope, archived, review, adminBrowse);
   const [types, categories, tags] = await Promise.all([
     db.selectDistinct({ value: item.recordType }).from(item).where(where).orderBy(asc(item.recordType)),
     db.selectDistinct({ value: item.category }).from(item).where(where).orderBy(asc(item.category)),

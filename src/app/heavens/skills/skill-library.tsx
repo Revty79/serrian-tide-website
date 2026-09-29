@@ -254,7 +254,7 @@ export function SkillLibrary({
                 onClick={() => onSelectList(skill)}
               >
                 <span className="skill-library__row-name">{skill.name} <code>#{skill.id}</code></span>
-                  <CatalogSourceBadge source={skill.catalogSource} />
+                  <CatalogSourceBadge source={skill.catalogSource} creatorLabel={skill.creatorLabel} />
                 {skill.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
                 <span className="skill-library__row-meta">
                   {skill.classification}{skill.tier ? ` · Tier ${skill.tier}` : " · N/A"}{skill.hasSpellConstruction ? " · Spell Construction" : ""}
@@ -317,7 +317,7 @@ export function SkillLibrary({
                   }}
                 >
                   <span><strong>{result.skill.name}</strong> <code>#{result.skill.id}</code></span>
-                  <CatalogSourceBadge source={result.skill.catalogSource} />
+                  <CatalogSourceBadge source={result.skill.catalogSource} creatorLabel={result.skill.creatorLabel} />
                   <small>{attributeLabel(result.path.attributeGroupKey, result.path.attributeGroupKey)}</small>
                   <span>{result.lineageLabel}</span>
                   {result.path.reviewReasons.length ? <em>{result.path.reviewReasons.length} review warning{result.path.reviewReasons.length === 1 ? "" : "s"}</em> : null}
@@ -367,7 +367,7 @@ export function SkillLibrary({
                         disabled={current}
                         onClick={() => path && onSelectTree(node, path)}
                       >
-                        {node.name} <code>#{node.id}</code> <CatalogSourceBadge source={node.catalogSource} />
+                        {node.name} <code>#{node.id}</code> <CatalogSourceBadge source={node.catalogSource} creatorLabel={node.creatorLabel} />
                       </button>
                     </span>
                   );
@@ -378,7 +378,7 @@ export function SkillLibrary({
                 <header>
                   <div>
                     <p>SELECTED IDENTITY</p>
-                    <h3>{selectedSkill.name}</h3><CatalogSourceBadge source={selectedSkill.catalogSource} />
+                    <h3>{selectedSkill.name}</h3><CatalogSourceBadge source={selectedSkill.catalogSource} creatorLabel={selectedSkill.creatorLabel} />
                     <code>Skill #{selectedSkill.id}</code>
                   </div>
                 </header>
@@ -408,7 +408,7 @@ export function SkillLibrary({
                   <h3>Sibling Skills</h3>
                   <div>{siblings.map((path) => {
                     const sibling = skillsById.get(path.endpointSkillId)!;
-                    return <button type="button" key={path.key} onClick={() => onSelectTree(sibling, path)}>{sibling.name} <code>#{sibling.id}</code> <CatalogSourceBadge source={sibling.catalogSource} /></button>;
+                    return <button type="button" key={path.key} onClick={() => onSelectTree(sibling, path)}>{sibling.name} <code>#{sibling.id}</code> <CatalogSourceBadge source={sibling.catalogSource} creatorLabel={sibling.creatorLabel} /></button>;
                   })}</div>
                 </section>
               ) : null}
@@ -423,7 +423,7 @@ export function SkillLibrary({
                   return (
                     <button type="button" key={path.key} onClick={() => onSelectTree(child, path)}>
                       <span><strong>{child.name}</strong> <code>#{child.id}</code></span>
-                  <CatalogSourceBadge source={child.catalogSource} />
+                  <CatalogSourceBadge source={child.catalogSource} creatorLabel={child.creatorLabel} />
                       <small>{metadata(child)}</small>
                       {child.reviewReasons.length ? <em>Review required</em> : null}
                     </button>
@@ -451,7 +451,7 @@ export function SkillLibrary({
                   return (
                     <button type="button" key={rootId} onClick={() => path && onSelectTree(root, path)}>
                       <span><strong>{root.name}</strong> <code>#{root.id}</code></span>
-                  <CatalogSourceBadge source={root.catalogSource} />
+                  <CatalogSourceBadge source={root.catalogSource} creatorLabel={root.creatorLabel} />
                       <small>{metadata(root)}</small>
                       <em>{rootSummary.immediateChildCount} immediate {rootSummary.immediateChildCount === 1 ? "child" : "children"}</em>
                       {rootSummary.reviewReasons.length ? <b>Review</b> : null}

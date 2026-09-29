@@ -1,6 +1,8 @@
 "use server";
+import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
+import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
 import { assertRaceEvolutionSourceReferences } from "@/features/races/evolution-requirement-service";
-import { getCatalogBrowseState, catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-lineage";
 
 
@@ -45,6 +47,7 @@ import type { RaceForm, SavedRaceForm } from "@/features/races/race-forms";
 import { readRaceFormsInTransaction, saveRaceFormsInTransaction } from "@/features/races/race-form-service";
 
 export type RaceLibraryFilters = {
+  adminBrowse?: AdminCatalogBrowse;
   search?: string;
   size?: RaceSize | "";
   page?: number;
@@ -53,6 +56,7 @@ export type RaceLibraryFilters = {
 };
 
 export type RaceSummary = {
+  creatorLabel?: string;
   catalogSource: CatalogSourceLabel;
   parentId: number | null;
   depth: number;
@@ -270,7 +274,7 @@ export async function listRaces(
   filters: RaceLibraryFilters = {},
 ): Promise<RaceLibraryResult> {
   const { session } = await requireGodOrAdminAccessContext();
-  const visibility = await getCatalogBrowseState(session.user.id, "race");
+  const visibility = await getCatalogManagementState(session.user.id, "race", filters.adminBrowse);
 
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
@@ -298,11 +302,11 @@ export async function listRaces(
     })
     .from(race)
     .where(where)
-    .orderBy(asc(race.name), asc(race.id))
+    .orderBy(...catalogManagementOrder(race, race.name, visibility))
     .limit(pageSize)
     .offset((page - 1) * pageSize);
   const matchIds = new Set(baseRows.map((row) => row.id));
-  if (visibility.enabled) {
+  if (visibility.enabled || visibility.admin) {
     const ancestorIds = (await catalogAncestorIds("race", [...matchIds])).filter((id) => !matchIds.has(id));
     if (ancestorIds.length) baseRows.push(...await db.select({
       id: race.id,
@@ -342,6 +346,7 @@ export async function listRaces(
     visibility,
     items: orderCatalogLineage(baseRows).map(({ isSystemCanon, createdByUserId, ...row }) => ({
       ...row,
+      creatorLabel: catalogCreatorLabel(visibility, createdByUserId),
       catalogSource: catalogSourceLabel({ isSystemCanon, createdByUserId }, session.user.id, !matchIds.has(row.id)),
       archivedAt: row.archivedAt?.toISOString() ?? null,
       attributeCapCount: capCounts.get(row.id) ?? 0,

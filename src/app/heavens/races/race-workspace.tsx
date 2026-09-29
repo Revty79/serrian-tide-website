@@ -321,7 +321,7 @@ export function RaceWorkspace({
             <div><p>MASTER CONTENT</p><h2>Race Library</h2></div>
             <button className="skills-primary-button" type="button" disabled={busy} onClick={beginNew}>New Race</button>
           </div>
-          <CatalogBrowseControl canManageActivation={canManageCanon} catalog="race" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
+          <CatalogBrowseControl adminBrowse={filters.adminBrowse} onAdminBrowseChange={(adminBrowse) => setFilters((current) => ({ ...current, adminBrowse, page: 1 }))} canManageActivation={canManageCanon} catalog="race" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
           <div className="skill-library__search">
             <label htmlFor="race-search">Search</label>
             <input id="race-search" type="search" value={filters.search ?? ""} placeholder="Search by name" onChange={(event) => setFilters({ ...filters, search: event.target.value, page: 1 })} />
@@ -340,7 +340,7 @@ export function RaceWorkspace({
             {library.items.map((entry) => (
               <button key={entry.id} type="button" style={{ paddingInlineStart: `${1 + Math.min(entry.depth, 4) * 0.6}rem` }} className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseRace(entry)}>
                 <span className="skill-library__row-name">{entry.name}</span>
-                <CatalogSourceBadge source={entry.catalogSource} />
+                <CatalogSourceBadge source={entry.catalogSource} creatorLabel={entry.creatorLabel} />
                 {entry.parentName ? <span className="skill-library__row-parents">Variant of {entry.parentName}</span> : null}
                 {entry.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
                 <span className="skill-library__row-meta">{entry.size || "Size N/A"}{entry.ageRangeText ? ` · ${entry.ageRangeText}` : ""}</span>

@@ -20,6 +20,7 @@ export type CanonicalSkillDefinition = Readonly<{
 
 export type RecursiveSkillDefinition = CanonicalSkillDefinition & Readonly<{
   canDiscover?: boolean;
+  creatorLabel?: string;
   catalogSource?: "canon" | "mine" | "context" | "other";
   archived?: boolean;
   definition?: string;

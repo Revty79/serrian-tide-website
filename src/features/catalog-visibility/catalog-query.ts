@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db";
 import { catalogVisibilityScopeActivation } from "@/db/catalog-preferences-schema";
@@ -7,7 +7,9 @@ import { item } from "@/db/item-schema";
 import { bindCatalogPreferenceOperations } from "./catalog-preference-service";
 import { classifyCatalogContent, type CatalogKey, type CatalogContentSource, type CatalogVisibilityMode } from "./catalog-visibility";
 
-export type CatalogBrowseState = { mode: CatalogVisibilityMode; enabled: boolean };
+import { UNATTRIBUTED_CREATOR, type AdminCatalogBrowse, type CatalogCreator } from "./admin-catalog-browse";
+
+export type CatalogBrowseState = { mode: CatalogVisibilityMode; enabled: boolean; admin?: { options: AdminCatalogBrowse; creators: CatalogCreator[] } };
 export type CatalogSourceLabel = "canon" | "mine" | "context" | "other";
 
 export async function getCatalogBrowseState(currentUserId: string, catalog: CatalogKey): Promise<CatalogBrowseState> {
@@ -25,7 +27,10 @@ export function catalogVisibilityPredicate(table: { isSystemCanon: AnyPgColumn; 
 }
 
 export function catalogBrowseWhere(table: { isSystemCanon: AnyPgColumn; createdByUserId: AnyPgColumn }, currentUserId: string, state: CatalogBrowseState, ...conditions: (SQL | undefined)[]) {
-  return and(...conditions, state.enabled ? catalogVisibilityPredicate(table, currentUserId, state.mode) : undefined);
+  const creatorId = state.admin?.options.creatorId;
+  return and(...conditions,
+    state.admin?.options.all ? undefined : state.enabled || state.admin ? catalogVisibilityPredicate(table, currentUserId, state.mode) : undefined,
+    creatorId ? creatorId === UNATTRIBUTED_CREATOR ? isNull(table.createdByUserId) : eq(table.createdByUserId, creatorId) : undefined);
 }
 
 /** Discovery across both Item scopes uses two independent preferences/activations. */

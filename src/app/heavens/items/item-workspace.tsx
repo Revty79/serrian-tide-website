@@ -303,7 +303,7 @@ export function ItemWorkspace({
     const request = ++libraryRequest.current;
     setLoadingLibrary(true);
     try {
-      const [result, nextFacets] = await Promise.all([listItems(next), listItemFacets(scope, Boolean(next.archived), Boolean(next.needsCanonReview))]);
+      const [result, nextFacets] = await Promise.all([listItems(next), listItemFacets(scope, Boolean(next.archived), Boolean(next.needsCanonReview), next.adminBrowse)]);
       if (request === libraryRequest.current) { setLibrary(result); setFacets(nextFacets); }
     } catch (error) {
       if (request === libraryRequest.current) setFeedback({ kind: "error", message: error instanceof Error ? error.message : `The ${label} Library could not be loaded.` });
@@ -548,7 +548,7 @@ export function ItemWorkspace({
     <div className="skills-workspace items-workspace">
       <aside className="skill-library" data-preserve-scroll="master-content">
         <div className="skill-library__heading"><div><p>MASTER CONTENT</p><h2>{label} Library</h2></div><button className="skills-primary-button" type="button" disabled={workspaceBusy} onClick={beginNew}>New {scope === "equipment" ? "Equipment" : "Item"}</button></div>
-        <CatalogBrowseControl catalog={scope} visibility={library.visibility} canManageActivation={canManageCanon} onSaved={async () => {
+        <CatalogBrowseControl adminBrowse={filters.adminBrowse} onAdminBrowseChange={(adminBrowse) => setFilters((current) => ({ ...current, adminBrowse, page: 1, needsCanonReview: false }))} catalog={scope} visibility={library.visibility} canManageActivation={canManageCanon} onSaved={async () => {
           await preserveScroll(async () => { setFilters((current) => ({ ...current, page: 1 })); await loadLibrary({ ...filters, page: 1 }); await refreshReferences(draft?.id); });
         }} />
         {canManageCanon ? <div className="item-canon-review"><label className="st-field"><span>Administrative review</span><select className="st-control" value={filters.needsCanonReview ? "review" : "browse"} onChange={(event) => setFilters((current) => ({ ...current, needsCanonReview: event.target.value === "review", page: 1, tag: undefined, category: undefined, recordType: undefined }))}><option value="browse">Browse with my preference</option><option value="review">Needs Canon Review</option></select></label><p>Review non-canon Items in this scope. Homebrew may stay non-canon; this view does not change your saved preference.</p></div> : null}
@@ -569,7 +569,7 @@ export function ItemWorkspace({
         <div data-preserve-scroll={`${scope}-library-results`} className={`skill-library__results${loadingLibrary ? " is-loading" : ""}`}>
           {library.items.map((entry) => <button key={entry.id} type="button" disabled={workspaceBusy} style={{ paddingInlineStart: `${1 + Math.min(entry.depth, 4) * 0.6}rem` }} className={`skill-library__row${draft?.id === entry.id ? " is-selected" : ""}`} onClick={() => chooseItem(entry)}>
             <span className="skill-library__row-name">{entry.name}</span>
-            <CatalogSourceBadge source={entry.catalogSource} />
+            <CatalogSourceBadge source={entry.catalogSource} creatorLabel={entry.creatorLabel} />
             {entry.parentName ? <span className="skill-library__row-parents">Variant of {entry.parentName}</span> : null}
             {entry.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
             <span className="skill-library__row-meta">{entry.recordType} · {entry.category}{entry.equipmentGroup ? ` · ${entry.equipmentGroup}` : ""}</span>

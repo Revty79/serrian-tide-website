@@ -236,7 +236,7 @@ export function DerivedAbilityWorkspace({
               New Ability
             </button>
           </div>
-          <CatalogBrowseControl canManageActivation={canManageCanon} catalog="derivedAbility" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
+          <CatalogBrowseControl adminBrowse={filters.adminBrowse} onAdminBrowseChange={(adminBrowse) => setFilters((current) => ({ ...current, adminBrowse, page: 1 }))} canManageActivation={canManageCanon} catalog="derivedAbility" visibility={library.visibility} onSaved={() => setFilters((current) => ({ ...current, page: 1 }))} />
           <div className="skill-library__search">
             <label htmlFor="derived-ability-search">Search</label>
             <input
@@ -303,7 +303,7 @@ export function DerivedAbilityWorkspace({
                 onClick={() => choose(entry)}
               >
                 <span className="skill-library__row-name">{entry.name}</span>
-                  <CatalogSourceBadge source={entry.catalogSource} />
+                  <CatalogSourceBadge source={entry.catalogSource} creatorLabel={entry.creatorLabel} />
                 {entry.archivedAt ? <span className="skill-library__row-status">Archived</span> : null}
                 <span className="derived-ability-library-badges">
                   <em>{entry.acquisitionType}</em>

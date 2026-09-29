@@ -1,5 +1,7 @@
 "use server";
-import { getCatalogBrowseState, catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
+import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
+import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-lineage";
 
 import { readCreatureFormsInTransaction, saveCreatureFormsInTransaction } from "@/features/creatures/creature-form-service";
@@ -61,6 +63,7 @@ import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 export type CreatureLibraryFilters = {
+  adminBrowse?: AdminCatalogBrowse;
   search?: string;
   family?: string;
   creatureType?: string;
@@ -72,6 +75,7 @@ export type CreatureLibraryFilters = {
 };
 
 export type CreatureSummary = {
+  creatorLabel?: string;
   catalogSource: CatalogSourceLabel;
   parentId: number | null;
   depth: number;
@@ -141,7 +145,7 @@ export async function listCreatures(
   filters: CreatureLibraryFilters = {},
 ): Promise<CreatureLibraryResult> {
   const { session } = await requireGodOrAdminAccessContext();
-  const visibility = await getCatalogBrowseState(session.user.id, "creature");
+  const visibility = await getCatalogManagementState(session.user.id, "creature", filters.adminBrowse);
   const page = Math.max(1, Math.trunc(filters.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Math.trunc(filters.pageSize ?? 40)));
   const conditions: SQL[] = [];
@@ -167,9 +171,9 @@ export async function listCreatures(
     challengeRating: creature.challengeRating,
     killXp: creature.killXp,
     archivedAt: creature.archivedAt,
-  }).from(creature).where(where).orderBy(asc(creature.canonicalName), asc(creature.id)).limit(pageSize).offset((page - 1) * pageSize);
+  }).from(creature).where(where).orderBy(...catalogManagementOrder(creature, creature.canonicalName, visibility)).limit(pageSize).offset((page - 1) * pageSize);
   const matchIds = new Set(items.map((row) => row.id));
-  if (visibility.enabled) {
+  if (visibility.enabled || visibility.admin) {
     const ancestorIds = (await catalogAncestorIds("creature", [...matchIds])).filter((id) => !matchIds.has(id));
     if (ancestorIds.length) items.push(...await db.select({
     id: creature.id,
@@ -191,6 +195,7 @@ export async function listCreatures(
     visibility,
     items: orderCatalogLineage(items).map(({ isSystemCanon, createdByUserId, ...entry }) => ({
       ...entry,
+      creatorLabel: catalogCreatorLabel(visibility, createdByUserId),
       catalogSource: catalogSourceLabel({ isSystemCanon, createdByUserId }, session.user.id, !matchIds.has(entry.id)),
       archivedAt: entry.archivedAt?.toISOString() ?? null,
     })),
@@ -201,9 +206,9 @@ export async function listCreatures(
   };
 }
 
-export async function listCreatureFacets(archived = false): Promise<CreatureFacets> {
+export async function listCreatureFacets(archived = false, adminBrowse?: AdminCatalogBrowse): Promise<CreatureFacets> {
   const { session } = await requireGodOrAdminAccessContext();
-  const visibility = await getCatalogBrowseState(session.user.id, "creature");
+  const visibility = await getCatalogManagementState(session.user.id, "creature", adminBrowse);
   const archiveCondition = catalogBrowseWhere(creature, session.user.id, visibility, archived ? isNotNull(creature.archivedAt) : isNull(creature.archivedAt));
   const [families, types] = await Promise.all([
     db.selectDistinct({ value: creature.family }).from(creature).where(archiveCondition).orderBy(asc(creature.family)),
