@@ -87,6 +87,7 @@ export function normalizeSimpleNpcValues(input: {
   roleLabel: string;
   personalityDescription: string;
   notes: string;
+  replacementRaceId?: number;
 }) {
   return {
     characterId: positiveId(input.characterId, "NPC"),
@@ -95,6 +96,9 @@ export function normalizeSimpleNpcValues(input: {
     roleLabel: requiredText(input.roleLabel, "NPC Role / Label"),
     personalityDescription: input.personalityDescription.trim(),
     notes: input.notes.trim(),
+    ...(input.replacementRaceId === undefined ? {} : {
+      replacementRaceId: positiveId(input.replacementRaceId, "Replacement Race"),
+    }),
   };
 }
 

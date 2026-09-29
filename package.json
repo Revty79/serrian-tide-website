@@ -108,6 +108,7 @@
     "validate:lifecycle-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/lifecycle-service-db.test.ts scripts/skill-framework-reference-db.test.ts",
     "validate:admin-account-db": "node --import tsx scripts/admin-account-lifecycle-disposable-db.test.ts",
     "validate:npc-lifecycle-browser": "node --import tsx scripts/npc-lifecycle-browser.test.ts",
+    "validate:npc-race-recovery-browser": "node --import tsx scripts/npc-lifecycle-disposable-browser.test.ts --race-recovery-only",
     "validate:tabletop-lifecycle-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/tabletop-lifecycle-db.test.ts",
     "validate:runtime-db": "node --env-file=.env.local --conditions=react-server --import tsx --test scripts/runtime-foundation-db.test.ts",
     "db:seed:runtime-dev": "tsx scripts/seed-runtime-foundation-dev.ts",

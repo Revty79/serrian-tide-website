@@ -77,6 +77,15 @@ test("Campaign owner G.O.D. and Admin can manage NPCs while all other roles are 
   assert.throws(() => assertCanManageNpc({ actorUserId: "other", campaignOwnerUserId: "owner", roles: ["god"] }), /Campaign creator or an administrator/);
 });
 
+test("simple NPC Race recovery requires an explicit valid saved Race identity", () => {
+  const input = { characterId: 9, campaignId: 4, name: "Mira", roleLabel: "Guide", personalityDescription: "Calm.", notes: "Friendly." };
+  assert.equal(normalizeSimpleNpcValues(input).replacementRaceId, undefined);
+  assert.equal(normalizeSimpleNpcValues({ ...input, replacementRaceId: 12 }).replacementRaceId, 12);
+  for (const replacementRaceId of [0, -1, 1.5, NaN]) {
+    assert.throws(() => normalizeSimpleNpcValues({ ...input, replacementRaceId }), /Replacement Race must identify a saved record/);
+  }
+});
+
 test("NPC archive search matches name, role label, or source master", () => {
   const record = { name: "Mira", roleLabel: "Harbor Guide", sourceName: "Coastal Human" };
   assert.equal(matchesNpcSearch(record, "mira"), true);

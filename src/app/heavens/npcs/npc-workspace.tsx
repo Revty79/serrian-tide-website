@@ -27,7 +27,7 @@ import {
   type NpcArchiveRecord,
   type NpcCampaignSummary,
   type NpcOriginOption,
-  type SimpleNpcDraft,
+  type SimpleNpcSaveInput,
   type CreatureOwnerOption,
 } from "./actions";
 
@@ -92,7 +92,7 @@ export function NpcWorkspace({
   const [search, setSearch] = useState("");
   const [sourceSearch, setSourceSearch] = useState("");
   const [creation, setCreation] = useState(EMPTY_CREATE_FORM);
-  const [simpleDraft, setSimpleDraft] = useState<SimpleNpcDraft | null>(null);
+  const [simpleDraft, setSimpleDraft] = useState<SimpleNpcSaveInput | null>(null);
   const [loading, setLoading] = useState(Boolean(initialCampaign));
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -142,6 +142,7 @@ export function NpcWorkspace({
   }, []);
 
   const selectedCampaign = campaigns.find(({ id }) => String(id) === campaignId) ?? null;
+  const availableRaces = origins.filter((entry) => entry.origin === "race");
   const matchingOrigins = useMemo(() => origins.filter((entry) => (
     entry.origin === creation.origin
     && (!sourceSearch.trim() || [entry.name, entry.detail].some((value) => (
@@ -428,6 +429,16 @@ export function NpcWorkspace({
         <label><span>Name</span><input disabled={simpleDraft.status === "archived"} value={simpleDraft.name} onChange={(event) => setSimpleDraft({ ...simpleDraft, name: event.target.value })} /></label>
         <label><span>Role / Label</span><input disabled={simpleDraft.status === "archived"} value={simpleDraft.roleLabel} onChange={(event) => setSimpleDraft({ ...simpleDraft, roleLabel: event.target.value })} /></label>
         <label><span>Origin</span><input disabled value={`${simpleDraft.npcKind === "creature" ? "Creature" : "Race"}: ${simpleDraft.sourceName}`} /></label>
+        {simpleDraft.npcKind === "race" && simpleDraft.sourceId === null ? <div className="is-wide">
+          <p className="npcs-readonly-note">This NPC&apos;s original Race is unavailable. Choose a replacement and save before upgrading to Detailed.</p>
+          <GuidedField label="Replacement Race" help="Choose an active Race from this Campaign's available Races, then select Save Simple NPC. This keeps the NPC's identity, personality, and notes.">
+            <select className="st-control" disabled={busy || simpleDraft.status === "archived"} value={simpleDraft.replacementRaceId ?? ""} onChange={(event) => setSimpleDraft({ ...simpleDraft, replacementRaceId: event.target.value ? Number(event.target.value) : undefined })}>
+              <option value="">Choose a Campaign Race</option>
+              {availableRaces.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+            </select>
+          </GuidedField>
+          {!availableRaces.length && simpleDraft.status === "active" ? <p className="npcs-readonly-note">No active Races are available. Add a Race to this Campaign&apos;s available Races, then reopen this page.</p> : null}
+        </div> : null}
         <label className="is-wide"><span>Short Personality / Description</span><textarea rows={3} disabled={simpleDraft.status === "archived"} value={simpleDraft.personalityDescription} onChange={(event) => setSimpleDraft({ ...simpleDraft, personalityDescription: event.target.value })} /></label>
         <label className="is-wide"><span>Notes</span><textarea rows={4} disabled={simpleDraft.status === "archived"} value={simpleDraft.notes} onChange={(event) => setSimpleDraft({ ...simpleDraft, notes: event.target.value })} /></label>
       </div>

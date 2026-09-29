@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 
 import { hashPassword } from "better-auth/crypto";
@@ -276,6 +276,10 @@ async function seedFixture(pool: pg.Pool): Promise<Fixture> {
         + "values ($1,$2,0)",
       [campaignRow.id, raceRow.id],
     );
+    await client.query(
+      "insert into campaign_race (campaign_id,race_id,sort_order) values ($1,$2,0)",
+      [campaignRow.id, raceRow.id],
+    );
 
     const creatureName = "Source Creature " + MARKER;
     const creatureCanonicalId = ("NPC-LIFECYCLE-" + Date.now()).toUpperCase();
@@ -471,7 +475,7 @@ async function createSimpleNpc(
   await dialog.getByLabel(input.origin, { exact: true }).check();
   await dialog.getByLabel("Simple", { exact: true }).check();
   await dialog.getByLabel("Find Source Master").fill(input.sourceName);
-  const sourceSelect = dialog.locator("select");
+  const sourceSelect = dialog.getByRole("combobox", { name: "Source Master", exact: true });
   const sourceOption = sourceSelect.locator("option").filter({
     hasText: input.sourceName,
   });
@@ -485,7 +489,7 @@ async function createSimpleNpc(
   await dialog.getByLabel("NPC Name").fill(input.name);
   await dialog.getByLabel("Role / Label").fill(input.roleLabel);
   await dialog.getByLabel("Short Personality / Description").fill(input.personality);
-  await dialog.getByLabel("Notes").fill(input.notes);
+  await dialog.getByLabel("Notes", { exact: true }).fill(input.notes);
   await dialog.getByRole("button", { name: "Create Simple NPC", exact: true }).click();
   await page.getByRole("status").filter({
     hasText: input.name + " was created as a Simple NPC.",
@@ -516,7 +520,7 @@ async function createDetailedNpc(
   await dialog.getByLabel(input.origin, { exact: true }).check();
   await dialog.getByLabel("Detailed", { exact: true }).check();
   await dialog.getByLabel("Find Source Master").fill(input.sourceName);
-  const sourceSelect = dialog.locator("select");
+  const sourceSelect = dialog.getByRole("combobox", { name: "Source Master", exact: true });
   const sourceOption = sourceSelect.locator("option").filter({
     hasText: input.sourceName,
   });
@@ -690,6 +694,51 @@ async function main(): Promise<void> {
       racePersonality + " Saved in place.",
     );
     assert.equal(raceNpcSaved.backstory, raceNotes + " Saved in place.");
+    await raceEditor.getByRole("button", { name: "Close", exact: true }).click();
+
+    // Reproduce a legacy NPC whose old Race reference no longer exists.
+    await pool.query("update campaign_character_profile set race_id=null where character_id=$1", [raceNpcInitial.id]);
+    await npcCard(ownerPage, raceNpcName).getByRole("button", { name: "Open Simple Editor", exact: true }).click();
+    const replacementRace = raceEditor.getByRole("combobox", { name: "Replacement Race", exact: true });
+    await replacementRace.waitFor();
+    assert.equal(await replacementRace.inputValue(), "", "Do not silently assign a Race.");
+    await replacementRace.selectOption(String(fixture.raceId));
+    await mkdir("artifacts/npc-simple-editor", { recursive: true });
+    for (const width of [1280, 390]) {
+      await ownerPage.setViewportSize({ width, height: 844 });
+      await raceEditor.scrollIntoViewIfNeeded();
+      await raceEditor.screenshot({ path: `artifacts/npc-simple-editor/replacement-race-${width}.png` });
+      assert.equal(await raceEditor.evaluate((element) => element.scrollWidth <= element.clientWidth), true);
+    }
+
+    // Stale options are checked on the server and must not partially save the draft.
+    await pool.query("update races set archived_at=now() where id=$1", [fixture.raceId]);
+    await raceEditor.getByLabel("Notes").fill("This rejected edit must roll back.");
+    await saveRace.click();
+    await ownerPage.getByRole("alert").filter({ hasText: "replacement Race is archived or no longer exists" }).waitFor();
+    assert.deepEqual(await readNpc(pool, fixture.campaignId, raceNpcName), { ...raceNpcSaved, race_id: null });
+    await pool.query("update races set archived_at=null where id=$1", [fixture.raceId]);
+    await pool.query("delete from campaign_race where campaign_id=$1 and race_id=$2", [fixture.campaignId, fixture.raceId]);
+    await saveRace.click();
+    await ownerPage.getByRole("alert").filter({ hasText: "replacement Race is not in this Campaign" }).waitFor();
+    assert.deepEqual(await readNpc(pool, fixture.campaignId, raceNpcName), { ...raceNpcSaved, race_id: null });
+    await pool.query("insert into campaign_race(campaign_id,race_id,sort_order) values($1,$2,0)", [fixture.campaignId, fixture.raceId]);
+    await raceEditor.getByLabel("Notes").fill(raceNpcSaved.backstory);
+    await saveRace.click();
+    await ownerPage.getByRole("status").filter({ hasText: raceNpcName + " was saved." }).waitFor();
+    assert.deepEqual(await readNpc(pool, fixture.campaignId, raceNpcName), raceNpcSaved);
+    assert.equal(await replacementRace.count(), 0);
+    await raceEditor.getByRole("button", { name: "Close", exact: true }).click();
+    await npcCard(ownerPage, raceNpcName).getByRole("button", { name: "Open Simple Editor", exact: true }).click();
+    await eventually(async () => await raceEditor.getByLabel("Origin", { exact: true }).inputValue() === `Race: ${fixture.raceName}`, "The replacement Race was not retained after reopening.");
+
+    if (process.argv.includes("--race-recovery-only")) {
+      await raceEditor.getByRole("button", { name: "Upgrade to Detailed", exact: true }).click();
+      await ownerPage.waitForURL((url) => url.pathname === `/heavens/characters/${raceNpcInitial.id}`);
+      assert.deepEqual(await readNpc(pool, fixture.campaignId, raceNpcName), { ...raceNpcSaved, npc_build_mode: "detailed" });
+      console.log("PASS: Missing Race replacement, stale Race rejection and rollback, desktop/mobile layout, persistence, and upgrade.");
+      return;
+    }
     await raceEditor.getByRole("button", { name: "Close", exact: true }).click();
 
     await ownerPage.setViewportSize({ width: 1280, height: 760 });

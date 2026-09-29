@@ -159,6 +159,8 @@ export type SimpleNpcDraft = NpcArchiveRecord & {
   notes: string;
 };
 
+export type SimpleNpcSaveInput = SimpleNpcDraft & { replacementRaceId?: number };
+
 export type CreateNpcResult = {
   characterId: number;
   campaignId: number;
@@ -625,7 +627,7 @@ export async function getSimpleNpc(characterId: number): Promise<SimpleNpcDraft>
   };
 }
 
-export async function saveSimpleNpc(input: SimpleNpcDraft): Promise<SimpleNpcDraft> {
+export async function saveSimpleNpc(input: SimpleNpcSaveInput): Promise<SimpleNpcDraft> {
   const normalized = normalizeSimpleNpcValues({
     characterId: input.id,
     campaignId: input.campaignId,
@@ -633,6 +635,7 @@ export async function saveSimpleNpc(input: SimpleNpcDraft): Promise<SimpleNpcDra
     roleLabel: input.roleLabel,
     personalityDescription: input.personalityDescription,
     notes: input.notes,
+    replacementRaceId: input.replacementRaceId,
   });
   const access = await requireGodOrAdminAccessContext();
   await db.transaction(async (tx) => {
@@ -655,6 +658,9 @@ export async function saveSimpleNpc(input: SimpleNpcDraft): Promise<SimpleNpcDra
       updatedAt: new Date(),
     }).where(eq(campaignCharacter.id, normalized.characterId));
     if (locked.npcKind === "creature") {
+      if (normalized.replacementRaceId !== undefined) {
+        throw new Error("Only Race NPCs can be assigned a replacement Race.");
+      }
       const updated = await tx.update(campaignCreatureNpcProfile).set({
         personality: normalized.personalityDescription,
         instanceNotes: normalized.notes,
@@ -663,7 +669,28 @@ export async function saveSimpleNpc(input: SimpleNpcDraft): Promise<SimpleNpcDra
         .returning({ characterId: campaignCreatureNpcProfile.characterId });
       if (!updated.length) throw new Error("Creature NPC profile is missing.");
     } else {
+      if (normalized.replacementRaceId !== undefined) {
+        const [profile] = await tx.select({ raceId: campaignCharacterProfile.raceId })
+          .from(campaignCharacterProfile)
+          .where(eq(campaignCharacterProfile.characterId, normalized.characterId))
+          .limit(1).for("update");
+        if (!profile) throw new Error("Race NPC profile is missing.");
+        if (profile.raceId !== null && profile.raceId !== normalized.replacementRaceId) {
+          throw new Error("This NPC already has a Race. Reopen the Simple Editor to see its current Race.");
+        }
+        const [source] = await tx.select({ id: race.id }).from(race)
+          .where(and(eq(race.id, normalized.replacementRaceId), isNull(race.archivedAt)))
+          .limit(1).for("update");
+        if (!source) throw new Error("The selected replacement Race is archived or no longer exists.");
+        const [allowed] = await tx.select({ raceId: campaignRace.raceId }).from(campaignRace)
+          .where(and(
+            eq(campaignRace.campaignId, normalized.campaignId),
+            eq(campaignRace.raceId, normalized.replacementRaceId),
+          )).limit(1).for("update");
+        if (!allowed) throw new Error("The selected replacement Race is not in this Campaign's available race catalog.");
+      }
       const updated = await tx.update(campaignCharacterProfile).set({
+        ...(normalized.replacementRaceId === undefined ? {} : { raceId: normalized.replacementRaceId }),
         personality: normalized.personalityDescription,
         backstory: normalized.notes,
         updatedAt: new Date(),
