@@ -18,7 +18,7 @@ export function SkillPreview({ draft }: { draft: SkillDraft }) {
   const spellExtension = draft.extensions.find(
     ({ extensionType }) => extensionType === SPELL_CONSTRUCTION_EXTENSION,
   );
-  const spell = spellExtension?.data as SpellDocument | undefined;
+  const spell = spellExtension?.readStatus === "invalid" || spellExtension?.readStatus === "unsupported" ? undefined : spellExtension?.data as SpellDocument | undefined;
   const calculation = spell ? calculateSpell(spell) : null;
   const validation = spell && calculation
     ? validateSpell(spell, undefined, calculation)
@@ -44,6 +44,14 @@ export function SkillPreview({ draft }: { draft: SkillDraft }) {
         <h4>Definition</h4>
         <p>{draft.core.definition || "No definition has been written."}</p>
       </section>
+
+      {draft.extensions.filter(extension => extension.diagnostics?.length).map(extension => (
+        <section key={extension.extensionType} role="status">
+          <h4>{extension.extensionType === "special-ability-mechanics" ? "Special Ability Mechanics" : extension.extensionType}</h4>
+          {extension.diagnostics?.map((message, index) => <p key={index}>{message}</p>)}
+          <p>Saving Skill details preserves this attached document.</p>
+        </section>
+      ))}
 
       <section>
         <h4>Path Information</h4>

@@ -25,13 +25,13 @@ import {
   skillRelationship,
 } from "@/db/skill-schema";
 import { SPELL_IDENTITY_BY_TRADITION } from "@/features/spell-construction/data/spellIdentity";
-import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import {
-  SPELL_SCHEMA_VERSION,
   type Tradition,
 } from "@/features/spell-construction/models/spell";
-import { withCalculationSnapshot } from "@/features/spell-construction/utilities/spellFactory";
-import { lockSpellFrameworkSkillReferenceInTransaction } from "@/features/skills/skill-framework-reference-service";
+import { assertSkillRevision, readSkillExtension, readSkillWriteState, saveSkillExtensionMutations } from "@/features/skills/skill-extension-persistence";
+import { lockMechanicsReferenceGraph } from "@/features/special-abilities/reference-service";
+import type { SkillExtensionDraft, SkillExtensionMutation } from "@/features/skills/skill-extension-draft";
+export type { SkillExtensionDraft } from "@/features/skills/skill-extension-draft";
 import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
 import {
   buildRecursiveSkillLibrary,
@@ -109,14 +109,10 @@ export type SkillRelationshipDraft = {
   sortOrder: number;
 };
 
-export type SkillExtensionDraft = {
-  extensionType: string;
-  schemaVersion: number;
-  data: unknown;
-};
-
 export type SkillDraft = {
   id?: number;
+  revision?: string;
+  extensionMutations?: SkillExtensionMutation[];
   core: {
     name: string;
     classification: string;
@@ -966,196 +962,26 @@ Promise<SkillFilterOptions> {
   };
 }
 
-export async function getSkill(
-  id: number,
-): Promise<SkillAggregate | null> {
+export async function getSkill(id: number): Promise<SkillAggregate | null> {
   await requireGodOrAdminAccessContext();
-
-  const [row] = await db
-    .select()
-    .from(skill)
-    .where(
-      eq(
-        skill.id,
-        id,
-      ),
-    )
-    .limit(1);
-
-  if (!row) {
-    return null;
-  }
-
-  const [
-    relationshipRows,
-    extensionRows,
-  ] = await Promise.all([
-    db
-      .select({
-        relatedSkillId:
-          skillRelationship.relatedSkillId,
-        relationshipType:
-          skillRelationship.relationshipType,
-        sortOrder:
-          skillRelationship.sortOrder,
-      })
-      .from(skillRelationship)
-      .where(
-        eq(
-          skillRelationship.skillId,
-          id,
-        ),
-      )
-      .orderBy(
-        asc(
-          skillRelationship.sortOrder,
-        ),
-        asc(
-          skillRelationship.id,
-        ),
-      ),
-
-    db
-      .select({
-        extensionType:
-          skillExtension.extensionType,
-        schemaVersion:
-          skillExtension.schemaVersion,
-        dataJson:
-          skillExtension.dataJson,
-      })
-      .from(skillExtension)
-      .where(
-        eq(
-          skillExtension.skillId,
-          id,
-        ),
-      )
-      .orderBy(
-        asc(
-          skillExtension.extensionType,
-        ),
-      ),
-  ]);
-
-  const relatedIds =
-    relationshipRows.map(
-      ({
-        relatedSkillId,
-      }) =>
-        relatedSkillId,
-    );
-
-  const relatedRows =
-    relatedIds.length
-      ? await db
-          .select({
-            id: skill.id,
-            name: skill.name,
-          })
-          .from(skill)
-          .where(
-            inArray(
-              skill.id,
-              relatedIds,
-            ),
-          )
-      : [];
-
-  const relatedNames =
-    new Map(
-      relatedRows.map(
-        (candidate) => [
-          candidate.id,
-          candidate.name,
-        ],
-      ),
-    );
-
-  const extensions =
-    extensionRows.map(
-      (extension) => {
-        let data: unknown;
-
-        try {
-          data =
-            extension.extensionType ===
-            SPELL_CONSTRUCTION_EXTENSION
-              ? parseSpellDocument(
-                  extension.dataJson,
-                )
-              : JSON.parse(
-                  extension.dataJson,
-                );
-        } catch (error) {
-          throw new Error(
-            error instanceof Error
-              ? error.message
-              : `The ${extension.extensionType} extension contains unreadable data.`,
-          );
-        }
-
-        return {
-          extensionType:
-            extension.extensionType,
-          schemaVersion:
-            extension.schemaVersion,
-          data,
-        };
-      },
-    );
-
-  return {
-    id: row.id,
-    isSystemCanon: row.isSystemCanon,
-
-    createdByUserId:
-      row.createdByUserId,
-
-    archivedAt:
-      row.archivedAt?.toISOString() ?? null,
-
-    archiveReason:
-      row.archiveReason,
-
-    core: {
-      name: row.name,
-      classification:
-        row.classification,
-      tier: row.tier,
-      primaryAttribute:
-        row.primaryAttribute,
-      secondaryAttribute:
-        row.secondaryAttribute,
-      definition:
-        row.definition,
-      sourceSystem:
-        row.sourceSystem,
-      sourceExternalId:
-        row.sourceExternalId,
-    },
-
-    relationships:
-      relationshipRows.map(
-        (relationship) => ({
-          ...relationship,
-
-          relatedSkillName:
-            relatedNames.get(
-              relationship.relatedSkillId,
-            ) ??
-            `Skill ${relationship.relatedSkillId}`,
-        }),
-      ),
-
-    extensions,
-
-    createdAt:
-      row.createdAt.toISOString(),
-
-    updatedAt:
-      row.updatedAt.toISOString(),
-  };
+  return db.transaction(async tx => {
+    const [exists] = await tx.select({ id: skill.id }).from(skill).where(eq(skill.id, id));
+    if (!exists) return null;
+    const state = await readSkillWriteState(tx, id);
+    const row = state.root;
+    const relationshipRows = [...state.relationships].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+    const ids = relationshipRows.map(row => row.relatedSkillId);
+    const names = new Map((ids.length ? await tx.select({ id: skill.id, name: skill.name }).from(skill).where(inArray(skill.id, ids)) : []).map(row => [row.id, row.name]));
+    return {
+      id: row.id, revision: state.revision, isSystemCanon: row.isSystemCanon, createdByUserId: row.createdByUserId,
+      archivedAt: row.archivedAt?.toISOString() ?? null, archiveReason: row.archiveReason,
+      core: { name: row.name, classification: row.classification, tier: row.tier, primaryAttribute: row.primaryAttribute,
+        secondaryAttribute: row.secondaryAttribute, definition: row.definition, sourceSystem: row.sourceSystem, sourceExternalId: row.sourceExternalId },
+      relationships: relationshipRows.map(row => ({ relatedSkillId: row.relatedSkillId, relatedSkillName: names.get(row.relatedSkillId) ?? `Skill ${row.relatedSkillId}`, relationshipType: row.relationshipType, sortOrder: row.sortOrder })),
+      extensions: state.extensions.map(readSkillExtension), extensionMutations: [],
+      createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
+    };
+  }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 
 export async function listRelationshipCandidates(
@@ -1347,127 +1173,15 @@ export async function saveSkill(
     }
   }
 
-  const seenExtensions =
-    new Set<string>();
-
-  const extensions:
-    Array<{
-      extensionType: string;
-      schemaVersion: number;
-      dataJson: string;
-    }> = [];
-
-  let spellFrameworkReference: {
-    frameworkSkillId: number;
-    tradition: Tradition;
-  } | null = null;
-
-  for (
-    const extension
-    of input.extensions
-  ) {
-    const extensionType =
-      extension.extensionType.trim();
-
-    if (!extensionType) {
-      throw new Error(
-        "Skill extension type is required.",
-      );
-    }
-
-    if (
-      seenExtensions.has(
-        extensionType,
-      )
-    ) {
-      throw new Error(
-        `Only one ${extensionType} extension may be attached to a Skill.`,
-      );
-    }
-
-    seenExtensions.add(
-      extensionType,
-    );
-
-    if (
-      !Number.isInteger(
-        extension.schemaVersion,
-      ) ||
-      extension.schemaVersion < 1
-    ) {
-      throw new Error(
-        "Skill extension schema version is invalid.",
-      );
-    }
-
-    if (
-      extensionType ===
-      SPELL_CONSTRUCTION_EXTENSION
-    ) {
-      const document =
-        withCalculationSnapshot({
-          ...parseSpellDocument(
-            extension.data,
-          ),
-          name: core.name,
-        });
-
-      if (document.frameworkSkillId) {
-        spellFrameworkReference = {
-          frameworkSkillId: document.frameworkSkillId,
-          tradition: document.tradition,
-        };
-      }
-
-      extensions.push({
-        extensionType,
-
-        schemaVersion:
-          SPELL_SCHEMA_VERSION,
-
-        dataJson:
-          JSON.stringify(
-            document,
-          ),
-      });
-
-      continue;
-    }
-
-    let dataJson: string;
-
-    try {
-      dataJson =
-        JSON.stringify(
-          extension.data,
-        );
-    } catch {
-      throw new Error(
-        `The ${extensionType} extension cannot be serialized.`,
-      );
-    }
-
-    extensions.push({
-      extensionType,
-
-      schemaVersion:
-        extension.schemaVersion,
-
-      dataJson,
-    });
-  }
-
   const savedId =
     await db.transaction(
       async (tx) => {
-        if (spellFrameworkReference) {
-          await lockSpellFrameworkSkillReferenceInTransaction(
-            tx,
-            spellFrameworkReference.frameworkSkillId,
-            spellFrameworkReference.tradition,
-          );
+        await lockMechanicsReferenceGraph(tx);
+        const previousState = input.id === undefined ? null : await readSkillWriteState(tx, input.id, true);
+        if (previousState) {
+          assertCanEditSharedLibraryRoot({ userId: session.user.id, roles }, previousState.root, "Skill");
+          assertSkillRevision(input.revision, previousState.revision);
         }
-
         let id = input.id;
 
         const existingRelationshipRows = input.id === undefined
@@ -1605,17 +1319,6 @@ export async function saveSkill(
             ),
           );
 
-        await tx
-          .delete(
-            skillExtension,
-          )
-          .where(
-            eq(
-              skillExtension.skillId,
-              id,
-            ),
-          );
-
         if (
           relationships.length >
           0
@@ -1644,30 +1347,10 @@ export async function saveSkill(
             );
         }
 
-        if (
-          extensions.length > 0
-        ) {
-          await tx
-            .insert(
-              skillExtension,
-            )
-            .values(
-              extensions.map(
-                (extension) => ({
-                  skillId: id!,
-
-                  extensionType:
-                    extension.extensionType,
-
-                  schemaVersion:
-                    extension.schemaVersion,
-
-                  dataJson:
-                    extension.dataJson,
-                }),
-              ),
-            );
-        }
+        await saveSkillExtensionMutations(tx, {
+          skillId: id!, name: core.name, classification: core.classification,
+          actor: { userId: session.user.id, roles }, previous: previousState?.extensions ?? [], mutations: input.extensionMutations,
+        });
 
         return id;
       },

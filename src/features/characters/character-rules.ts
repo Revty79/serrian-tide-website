@@ -165,7 +165,7 @@ export function normalizeSkillAttributeKey(
     : null;
 }
 
-export function isSpecialAbilitySkill(skill: CharacterSkillReference): boolean {
+export function isSpecialAbilitySkill(skill: Pick<CharacterSkillReference, "classification">): boolean {
   const classification = skill.classification.trim().toLowerCase();
   return classification === "special ability" || classification === "special abilities";
 }

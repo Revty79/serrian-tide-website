@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { changeSkillExtension } from "@/features/skills/skill-extension-draft";
 
 import type { SpellDocument, Tradition } from "@/features/spell-construction/models/spell";
 import { createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
@@ -30,32 +31,11 @@ export function SkillConstructionEditor({
   function attachSpellConstruction() {
     const spell = { ...createEmptySpell(), name: draft.core.name };
 
-    onChange({
-      ...draft,
-      extensions: [
-        ...draft.extensions,
-        {
-          extensionType: SPELL_CONSTRUCTION_EXTENSION,
-          schemaVersion: spell.schemaVersion,
-          data: spell,
-        },
-      ],
-    });
+    onChange(changeSkillExtension(draft, { operation: "upsert", extensionType: SPELL_CONSTRUCTION_EXTENSION, schemaVersion: spell.schemaVersion, data: spell }));
   }
 
   function updateDocument(document: SpellDocument) {
-    onChange({
-      ...draft,
-      extensions: draft.extensions.map((candidate, index) =>
-        index === extensionIndex
-          ? {
-              ...candidate,
-              schemaVersion: document.schemaVersion,
-              data: document,
-            }
-          : candidate,
-      ),
-    });
+    onChange(changeSkillExtension(draft, { operation: "upsert", extensionType: SPELL_CONSTRUCTION_EXTENSION, schemaVersion: document.schemaVersion, data: document }));
   }
 
   if (!extension) {
@@ -78,6 +58,13 @@ export function SkillConstructionEditor({
   }
 
   const document = extension.data as SpellDocument;
+  if (extension.readStatus === "unsupported" || extension.readStatus === "invalid") return (
+    <section className="skill-construction-empty" role="status">
+      <h3>Spell Construction is unavailable in this editor</h3>
+      {extension.diagnostics?.map((message, index) => <p key={index}>{message}</p>)}
+      <p>You can save Skill details while the attached construction remains preserved. Use a compatible editor to change it.</p>
+    </section>
+  );
 
   return (
     <div className="skill-construction">
@@ -95,13 +82,7 @@ export function SkillConstructionEditor({
               className="skills-danger-button"
               type="button"
               onClick={() => void preserveScroll(() => {
-                onChange({
-                  ...draft,
-                  extensions: draft.extensions.filter(
-                    ({ extensionType }) =>
-                      extensionType !== SPELL_CONSTRUCTION_EXTENSION,
-                  ),
-                });
+                onChange(changeSkillExtension(draft, { operation: "remove", extensionType: SPELL_CONSTRUCTION_EXTENSION }));
                 setConfirmDetach(false);
               })}
             >

@@ -62,6 +62,7 @@ import type {
 } from "@/features/derived-abilities/models";
 import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
+import { lockMechanicsReferenceGraph } from "@/features/special-abilities/reference-service";
 
 export type DerivedAbilityDraft = DerivedAbilityAuthoringDraft;
 export type DerivedAbilityAggregate = DerivedAbilityAuthoringAggregate & {
@@ -430,6 +431,9 @@ export async function saveDerivedAbility(
   const { session, roles } = await requireGodOrAdminAccessContext();
   const normalized = normalizeDerivedAbilityAuthoringDraft(input);
   const savedId = await db.transaction(async (tx) => {
+    // Use the same order as Skill authoring/lifecycle before taking a Derived
+    // root lock or inserting prerequisite FKs back to a referenced Skill.
+    await lockMechanicsReferenceGraph(tx);
     let id = normalized.id;
     if (id === undefined) {
       const [created] = await tx.insert(derivedAbility).values({

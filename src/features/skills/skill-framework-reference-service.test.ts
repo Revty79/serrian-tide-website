@@ -52,9 +52,12 @@ test("spell-construction extension validation and locking share the Skill write 
   assert.ok(start >= 0, "saveSkill must exist");
   const block = skillWriterSource.slice(start);
   const transaction = block.indexOf("db.transaction");
-  const lock = block.indexOf("lockSpellFrameworkSkillReferenceInTransaction", transaction);
-  const extensionWrite = block.indexOf(".insert(\n              skillExtension", lock);
-  assert.ok(transaction >= 0 && lock > transaction && extensionWrite > lock);
+  const save = block.indexOf("saveSkillExtensionMutations(tx", transaction);
+  assert.ok(transaction >= 0 && save > transaction);
+  const persistence = readFileSync("src/features/skills/skill-extension-persistence.ts", "utf8");
+  const lock = persistence.indexOf("await lockSpellFrameworkSkillReferenceInTransaction");
+  const extensionWrite = persistence.indexOf("await tx.insert(skillExtension)", lock);
+  assert.ok(lock >= 0 && extensionWrite > lock);
   assert.doesNotMatch(
     block.slice(0, transaction),
     /await querySpellFrameworkSkills/,

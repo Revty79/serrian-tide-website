@@ -1,4 +1,5 @@
 import "server-only";
+import { countMechanicsDependencies, lockMechanicsReferenceGraph } from "@/features/special-abilities/reference-service";
 
 import { and, eq, isNotNull, isNull, sql, type SQL } from "drizzle-orm";
 
@@ -387,6 +388,7 @@ function creatureDependencySpecs(id: number): DependencySpec[] {
 function skillDependencySpecs(id: number): DependencySpec[] {
   const frameworkSkillKey = '%"frameworkSkillId"%';
   return [
+    { label: "Special Ability mechanics references or unreadable dependency documents", blocking: true, loadCount: tx => countMechanicsDependencies(tx, { kind: "skill", skillId: id }) },
     { label: "Skill extensions", blocking: false, query: sql<CountRow>`select count(*)::int as value from skill_extension where skill_id = ${id}` },
     { label: "Parent relationships", blocking: true, query: sql<CountRow>`select count(*)::int as value from skill_relationship where skill_id = ${id}` },
     { label: "Child relationships", blocking: true, query: sql<CountRow>`select count(*)::int as value from skill_relationship where related_skill_id = ${id}` },
@@ -461,6 +463,7 @@ function itemDependencySpecs(id: number): DependencySpec[] {
 
 function derivedAbilityDependencySpecs(id: number): DependencySpec[] {
   return [
+    { label: "Special Ability mechanics references or unreadable dependency documents", blocking: true, loadCount: tx => countMechanicsDependencies(tx, { kind: "derived-ability", derivedAbilityId: id }) },
     { label: "Owned definition rows", blocking: false, query: sql<CountRow>`select ((select count(*) from derived_ability_requirement where derived_ability_id = ${id}) + (select count(*) from derived_ability_use_condition where derived_ability_id = ${id}) + (select count(*) from derived_ability_cost where derived_ability_id = ${id}) + (select count(*) from derived_ability_use_limit where derived_ability_id = ${id}) + (select count(*) from derived_ability_effect where derived_ability_id = ${id}) + (select count(*) from derived_ability_trigger where derived_ability_id = ${id}))::int as value` },
     { label: "Race Form Access Derived Ability prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_form_access_requirements where required_derived_ability_id = ${id}` },
     { label: "Race Evolution Derived Ability prerequisites", blocking: true, query: sql<CountRow>`select count(*)::int as value from race_evolution_requirements where derived_ability_id = ${id}` },
@@ -541,6 +544,7 @@ async function buildPreview(
     throw new Error("G.O.D. or administrator access is required.");
   }
 
+  if (lock && (target.entityKind === "skill" || target.entityKind === "derived-ability")) await lockMechanicsReferenceGraph(tx);
   const root = await loadRootSnapshot(tx, target, lock);
   if (!isSharedEntityKind(target.entityKind)) {
     // Campaign dependency inventories are private to their owner and admins;
