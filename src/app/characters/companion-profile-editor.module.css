@@ -1,0 +1,11 @@
+.editor { display: grid; gap: .75rem; min-width: 0; padding: 1rem; margin-block: 1rem; border: 1px solid var(--st-border); border-radius: .6rem; background: var(--st-surface-soft); color: var(--st-text); overflow-wrap: anywhere; }
+.editor p, .editor h4 { margin: 0; }
+.editor input:not([type="checkbox"]), .editor select, .editor textarea { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.editor fieldset { min-width: 0; display: grid; gap: .75rem; padding: .75rem; border: 1px solid var(--st-border); }
+.roles { display: flex; flex-wrap: wrap; gap: .5rem 1rem; }
+.roles label { display: flex; align-items: center; gap: .5rem; min-height: 44px; }
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.error { color: var(--st-danger); }
+.lookup { grid-column: 1 / -1; min-width: 0; display: grid; gap: .5rem; color: var(--st-text); }
+.lookup p { margin: 0; overflow-wrap: anywhere; }
+.lookup button { justify-self: start; }

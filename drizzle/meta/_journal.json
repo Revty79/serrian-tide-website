@@ -624,6 +624,13 @@
       "when": 1790788644519,
       "tag": "0088_owned_creature_disposition",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1790791985686,
+      "tag": "0089_companion_profiles",
+      "breakpoints": true
     }
   ]
 }

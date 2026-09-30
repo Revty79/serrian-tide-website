@@ -255,6 +255,7 @@ async function countSerializedFrameworkSkillReferences(
 
 function campaignDependencySpecs(campaignId: number): DependencySpec[] {
   return [
+    { label: "Companion Profiles, roles and history", blocking: false, query: sql<CountRow>`select ((select count(*) from companion_profile where campaign_id = ${campaignId}) + (select count(*) from companion_profile_role where character_id in (select character_id from companion_profile where campaign_id = ${campaignId})) + (select count(*) from companion_profile_event where campaign_id = ${campaignId}))::int as value` },
     { label: "Companion travel settings, Vessel bindings and history", blocking: false, query: sql<CountRow>`select ((select count(*) from owned_creature_disposition where campaign_id = ${campaignId}) + (select count(*) from companion_disposition_event where campaign_id = ${campaignId}))::int as value` },
     { label: "Persistent Evolution history", blocking: false, query: sql<CountRow>`select ((select count(*) from race_evolution_events where campaign_id = ${campaignId}) + (select count(*) from creature_evolution_events where campaign_id = ${campaignId}))::int as value` },
     { label: "Creature commerce receipts and resale custody", blocking: false, query: sql<CountRow>`select ((select count(*) from shop_transaction_creature where campaign_id = ${campaignId}) + (select count(*) from shop_resale_creature where campaign_id = ${campaignId}))::int as value` },
@@ -312,6 +313,7 @@ function campaignDependencySpecs(campaignId: number): DependencySpec[] {
 
 function characterDependencySpecs(characterId: number, campaignId: number): DependencySpec[] {
   return [
+    { label: "Companion Profile, roles and history", blocking: false, query: sql<CountRow>`select ((select count(*) from companion_profile where character_id = ${characterId}) + (select count(*) from companion_profile_role where character_id = ${characterId}) + (select count(*) from companion_profile_event where character_id = ${characterId}))::int as value` },
     { label: "Creature Vessel bindings (unbind through Animals & Companions)", blocking: true, query: sql<CountRow>`select count(*)::int as value from owned_creature_disposition d where d.vessel_instance_id is not null and (d.character_id = ${characterId} or d.vessel_instance_id in (select id from campaign_character_item_instance where character_id = ${characterId}))` },
     { label: "Companion travel settings and history", blocking: false, query: sql<CountRow>`select ((select count(*) from owned_creature_disposition where character_id = ${characterId}) + (select count(*) from companion_disposition_event where character_id = ${characterId}))::int as value` },
     { label: "Persistent Evolution history", blocking: true, query: sql<CountRow>`select ((select count(*) from race_evolution_events where character_id = ${characterId}) + (select count(*) from creature_evolution_events where character_id = ${characterId}))::int as value` },
@@ -761,6 +763,7 @@ async function deleteCampaignGraph(
   for (const reference of CAMPAIGN_GRAPH_SELF_REFERENCE_BREAKS) {
     // Full Campaign deletion explicitly removes companion relationships before breaking ownership.
     if (reference.tableName === "campaign_character" && reference.columnName === "owner_character_id") {
+      await tx.execute(sql`delete from companion_profile where campaign_id = ${campaignId}`);
       await tx.execute(sql`delete from owned_creature_disposition where campaign_id = ${campaignId}`);
     }
     await tx.execute(sql`
@@ -800,6 +803,8 @@ async function deleteNonCampaignRoot(
       // Explicit root destruction removes location metadata before ownership
       // cascades. Individual Item removal keeps its restrictive guards.
       await tx.execute(sql`delete from companion_disposition_event where character_id = ${target.entityId}`);
+      await tx.execute(sql`delete from companion_profile_event where character_id = ${target.entityId}`);
+      await tx.execute(sql`delete from companion_profile where character_id = ${target.entityId}`);
       await tx.execute(sql`delete from owned_creature_disposition where character_id = ${target.entityId}`);
       await tx.execute(sql`delete from inventory_custody_event where character_id = ${target.entityId}`);
       await tx.execute(sql`delete from inventory_container_access where character_id = ${target.entityId}`);

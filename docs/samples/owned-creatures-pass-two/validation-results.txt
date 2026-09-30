@@ -1,0 +1,29 @@
+Owned Creatures Upgrade Pass 2: Companion Profiles & Intended Behavior
+Approved base: 66e3804d1a3aacff5be857c5a422d55b4682496f
+Validation date: 2026-09-30
+
+PASS: Fresh 90-migration chain on temporary PostgreSQL.
+PASS: Populated 0088 -> 0089 upgrade preserves all 195 prior public tables, including Pass 1 binding/history.
+PASS: No inferred Companion Profile, role or behavioral choice.
+PASS: Existing Pass 1 companion disposition/Vessel integration, 13/13.
+PASS: New Profile integration scenarios, 15/15.
+PASS: All-table comparison permits changes only in the three new Profile tables when configuring every role and all nine control/preference combinations.
+PASS: Existing Evolution/Forms/ownership/commerce/equipment/Item-use/lifecycle wrapper, 136/136 inner tests.
+PASS: Existing Container/containment/custody/inventory/lifecycle wrapper, 232/232 inner tests.
+PASS: Existing account-deletion disposable integration, 1/1.
+PASS: Google Chrome desktop 1365x1000 and phone-width 390x844 workflows.
+PASS: G.O.D. simple/detailed configuration, Other, multiple roles, Mount removal confirmation, ownership review.
+PASS: Player notes-only permissions, legacy notes without inferred behavior, Vessel lookup, separate history views, reload persistence.
+PASS: Shared help interaction; no horizontal overflow, gameplay action buttons or page JavaScript errors in checked flows.
+PASS: Production Next build against temporary PostgreSQL, including TypeScript and 28 static pages.
+PASS: Standalone TypeScript, changed-file ESLint, Drizzle metadata and git diff --check.
+
+PARTIAL: Broad feature suite with existing CSS loader: 1762 passed, 2 failed, 1764 total.
+Unchanged Pass 1 baseline failures:
+- appearance-source.test.ts includes paper-character-sheet.css print colors in its screen-palette assertion.
+- appearance-source.test.ts requires an old exact phrase missing from the existing theme-development.md.
+
+No shared DEV or Production database access. No shared migration, data classification or deployment.
+Migration 0088 unchanged; 0089 is additive. Gameplay runtime unchanged. Pass 3 not started.
+Chrome automation is not human acceptance, physical-device testing, Firefox or Safari coverage.
+Details and reproduction commands: ../../architecture/owned-creatures-pass-two-report.md

@@ -39,11 +39,11 @@ export async function readCompanionDispositionInTransaction(tx: Transaction, cha
     vessel, updatedAt: row?.updatedAt.toISOString() ?? null };
 }
 
-async function assertManagementOutsideCombat(tx: Transaction, ownerId: number, creatureId: number) {
+export async function assertManagementOutsideCombat(tx: Transaction, ownerId: number, creatureId: number, label = "Travel disposition and Vessel bindings") {
   for (const id of [ownerId, creatureId].sort((a, b) => a - b)) {
     await assertCharacterCombatWritableInTransaction(tx, id);
     try { await assertOutsideCombatEquipmentHandling(tx, id); }
-    catch { throw new Error("Travel disposition and Vessel bindings can be changed only outside active encounters for both the owner and Creature."); }
+    catch { throw new Error(`${label} can be changed only outside active encounters for both the owner and Creature.`); }
   }
 }
 

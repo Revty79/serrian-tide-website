@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { LifecycleControls } from "@/app/heavens/lifecycle-controls";
 import { GuidedField } from "@/components/field-guidance";
+import { CompanionProfileEditor } from "@/app/characters/companion-profile-editor";
 import { CompanionDispositionEditor } from "@/app/characters/companion-disposition-editor";
 import {
   getDetailedNpcHref,
@@ -447,7 +448,7 @@ export function NpcWorkspace({
         <span>Upgrade is one-way. It preserves this record and opens the full editor.</span>
         <div><button type="button" disabled={busy || simpleDraft.status === "archived"} onClick={() => void saveSimple()}>{busy ? "Working…" : "Save Simple NPC"}</button><button type="button" disabled={busy || simpleDraft.status === "archived"} onClick={() => void upgradeSimple()}>Upgrade to Detailed</button></div>
       </footer>
-      {simpleDraft.npcKind === "creature" && simpleDraft.ownerCharacterId !== null ? <CompanionDispositionEditor key={`${simpleDraft.id}:${simpleDraft.ownerCharacterId}`} ownerCharacterId={simpleDraft.ownerCharacterId} creatureCharacterId={simpleDraft.id} disabled={busy} /> : null}
+      {simpleDraft.npcKind === "creature" && simpleDraft.ownerCharacterId !== null ? <><CompanionDispositionEditor key={`${simpleDraft.id}:${simpleDraft.ownerCharacterId}`} ownerCharacterId={simpleDraft.ownerCharacterId} creatureCharacterId={simpleDraft.id} disabled={busy} /><CompanionProfileEditor key={`profile-${simpleDraft.id}:${simpleDraft.ownerCharacterId}`} ownerCharacterId={simpleDraft.ownerCharacterId} creatureCharacterId={simpleDraft.id} disabled={busy} /></> : null}
     </section> : null}
 
     <dialog ref={createDialogRef} className="npcs-dialog" aria-labelledby="create-npc-heading" onCancel={(event) => { event.preventDefault(); closeCreator(); }}>

@@ -5,6 +5,7 @@ import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { creature } from "@/db/creature-schema";
 import { readCompanionDispositionInTransaction } from "./companion-disposition-service";
+import { readCompanionProfileInTransaction } from "./companion-profile-service";
 import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
 import { readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
 import { readActiveEffectsInTransaction } from "@/features/active-state/active-effects-service";
@@ -26,7 +27,8 @@ async function authorizeOwner(tx: Transaction, ownerCharacterId: number, userId:
   const owningPlayer = !owner.isNpc && owner.playerUserId === userId && !!member && roles.some(row => row.role === "player");
   if (!canManage && !owningPlayer) throw new Error("You may view only your Character's owned Creatures.");
   const canOperate = owningPlayer || roles.some(row => row.role === "god" && root.createdByUserId === userId);
-  return { campaignId: root.id, canManage, canOperate, canRename: !root.archivedAt && !owner.archivedAt };
+  const canConfigureProfile = roles.some(row => row.role === "god" && root.createdByUserId === userId);
+  return { campaignId: root.id, canManage, canOperate, canConfigureProfile, canRename: !root.archivedAt && !owner.archivedAt };
 }
 
 export async function readOwnedCreaturesForActor(ownerCharacterId: number, userId: string) {
@@ -45,6 +47,7 @@ export async function readOwnedCreaturesForActor(ownerCharacterId: number, userI
       // Deliberate Player-safe projection. No private NPC notes, sources, or editable snapshots.
       individuals.push({ ...row, archivedAt: row.archivedAt?.toISOString() ?? null,
         travel: await readCompanionDispositionInTransaction(tx, row.characterId, ownerCharacterId),
+        companionProfile: await readCompanionProfileInTransaction(tx, row.characterId),
         health: { current: view.total.remainingHp, maximum: view.total.maximumHp, damage: view.total.damage, injuries: view.unresolvedInjuryCount },
         conditions: effects.conditions.map(condition => ({ name: condition.name, description: condition.description })),
         canRename: access.canRename && !row.archivedAt,
