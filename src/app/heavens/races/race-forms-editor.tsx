@@ -1,5 +1,6 @@
 "use client";
 import { FormAccessEditor } from "@/components/forms/form-access-editor";
+import { FormEditorCard } from "@/components/forms/form-editor-card";
 
 import { RaceFormTransformationEditor } from "./race-form-transformation-editor";
 import { GuidedField } from "@/components/field-guidance";
@@ -21,21 +22,18 @@ export function RaceFormsEditor({ value, race, onChange }: { value: RaceForm[]; 
   return <section className={styles.editor} aria-label="Race Forms">
     <p>The Race itself is the normal state. Forms are alternate states available to this Race.</p>
     <p>You can describe Forms and preview them. Changing into a Form during play is not automated yet.</p>
+    <p>Use Collapse Form to keep just its heading and controls in view. Expand Form reopens its fields.</p>
     <button type="button" className="st-button" onClick={() => {
       const key = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
       update([...value, emptyRaceForm(key)]);
     }}>Add Form</button>
     {!value.length ? <p>No alternate Forms. This Race uses its normal body and abilities.</p> : null}
     {validation ? <p role="alert" className={styles.error}>{validation}</p> : null}
-    {value.map((form, index) => <article key={form.key} className={styles.card} aria-label={`Form ${index + 1}`}>
-      <header>
-        <h3>{form.name || `Form ${index + 1}`}</h3>
-        <div className={styles.actions}>
+    {value.map((form, index) => <FormEditorCard key={`${race.id ?? "new"}:${form.key}`} name={form.name} index={index} owner="race" actions={<>
           <button type="button" className="st-button" disabled={index === 0} onClick={() => move(index, -1)}>Move Up</button>
           <button type="button" className="st-button" disabled={index === value.length - 1} onClick={() => move(index, 1)}>Move Down</button>
           <button type="button" className="st-button is-danger" onClick={() => update(value.filter(row => row.key !== form.key))}>Remove Form</button>
-        </div>
-      </header>
+      </>}>
       <GuidedField className="st-field" label="Form Name" help="Give this alternate state a name, such as Wolf Form or Aquatic Form. A name is required.">
         <input className="st-control" value={form.name} onChange={event => patch(form.key, { name: event.target.value })} />
       </GuidedField>
@@ -48,6 +46,6 @@ export function RaceFormsEditor({ value, race, onChange }: { value: RaceForm[]; 
       <FormAccessEditor owner="race" value={form.access} onChange={access => patch(form.key, { access })} />
       <RaceFormMechanicsEditor value={form.mechanics} race={race} onChange={mechanics => patch(form.key, { mechanics })} />
       <RaceFormTransformationEditor value={form.transformation} onChange={transformation => patch(form.key, { transformation })} />
-    </article>)}
+    </FormEditorCard>)}
   </section>;
 }

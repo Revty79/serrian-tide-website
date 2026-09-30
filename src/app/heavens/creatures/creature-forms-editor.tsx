@@ -1,5 +1,6 @@
 "use client";
 import { FormAccessEditor } from "@/components/forms/form-access-editor";
+import { FormEditorCard } from "@/components/forms/form-editor-card";
 
 import type { ReactNode } from "react";
 import { GuidedField } from "@/components/field-guidance";
@@ -62,17 +63,17 @@ export function CreatureFormsEditor({ draft, onChange }: { draft: CreatureDraft;
   const set = (rows: CreatureForm[]) => onChange({ ...draft, forms: rows.map((row, sortOrder) => ({ ...row, sortOrder })) });
   const move = (index: number, offset: number) => { const rows = [...forms]; [rows[index], rows[index + offset]] = [rows[index + offset], rows[index]]; set(rows); };
   return <div className={styles.editor} aria-label="Creature Forms editor"><p><strong>Creature itself is the Normal state.</strong> Forms belong to this Creature, including if it is a Variant. Later changes to a parent Creature do not change these Forms.</p><p>You can describe Forms and preview them. Changing into a Form during play is not automated yet.</p>
+    <p>Use Collapse Form to keep just its heading and controls in view. Expand Form reopens its fields.</p>
     {!forms.length && <p>No alternate Forms. This Creature uses its normal body and abilities.</p>}
     {forms.map((form, index) => {
       const patch = (change: Partial<CreatureForm>) => set(forms.map((row, i) => i === index ? { ...row, ...change } : row));
       let error = ""; try { normalizeCreatureForm(form, draft, index); } catch (failure) { error = failure instanceof Error ? failure.message : "Check Form fields."; }
-      return <article className={styles.card} key={form.key} data-creature-form><header><h3>{form.name || `Form ${index + 1}`}</h3><div className={styles.actions}><button className="st-button" type="button" disabled={index === 0} onClick={() => move(index, -1)}>Move up</button><button className="st-button" type="button" disabled={index === forms.length - 1} onClick={() => move(index, 1)}>Move down</button><button className="st-button" type="button" onClick={() => set(forms.filter((_, i) => i !== index))}>Remove Form</button></div></header>
+      return <FormEditorCard key={`${draft.id ?? "new"}:${form.key}`} name={form.name} index={index} owner="creature" error={error} actions={<><button className="st-button" type="button" disabled={index === 0} onClick={() => move(index, -1)}>Move up</button><button className="st-button" type="button" disabled={index === forms.length - 1} onClick={() => move(index, 1)}>Move down</button><button className="st-button" type="button" onClick={() => set(forms.filter((_, i) => i !== index))}>Remove Form</button></>}>
         <Text label="Form Name" value={form.name} help="A name for an alternate state of this Creature, not a Variant or Evolution." onChange={name => patch({ name })} /><Text label="Form Description" value={form.description} help="Describe the Form's appearance and purpose." onChange={description => patch({ description })} /><Text label="Form Notes" value={form.notes} help="Additional authoring notes for the G.O.D." onChange={notes => patch({ notes })} />
-        {error && <p role="alert" className={styles.error}>{error}</p>}
         <FormAccessEditor owner="creature" value={form.access} creatureAbilities={draft.abilities} onChange={access => patch({ access })} />
         <Mechanics draft={draft} form={form} onChange={mechanics => patch({ mechanics })} />
         <FormTransformationEditor value={form.transformation} onChange={transformation => patch({ transformation })} />
-      </article>;
+      </FormEditorCard>;
     })}<button className="st-button" type="button" onClick={() => set([...forms, { key: createCreatureCanonicalIdentity(), name: "", description: "", notes: "", sortOrder: forms.length, mechanics: emptyCreatureFormMechanics(), transformation: null }])}>Add Form</button>
   </div>;
 }
