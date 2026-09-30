@@ -2,6 +2,7 @@ import { formatMechanicalEffectSummary } from "@/features/mechanical-effects/sum
 import type { MechanicsReference, MechanicsRule } from "./models";
 import type { MechanicalEffect, RuntimeDuration } from "@/features/mechanical-effects/models";
 import type { DefinitionAmount } from "./v2-models";
+import { CHARACTER_ATTRIBUTE_LABELS, type CharacterAttributeKey } from "@/features/characters/models";
 export function definitionAmountSummary(amount: DefinitionAmount | { kind: "full" }): string {
   return amount.kind === "full" ? "Full refill definition" : amount.kind === "fixed" ? String(amount.amount) : amount.kind === "manual" ? `G.O.D.: ${amount.guidance}`
     : `Provisional progression threshold ${amount.threshold}, contribution ${amount.contribution}; meaning not finalized`;
@@ -12,7 +13,12 @@ function effectSummary(effect: MechanicalEffect, label: ReferenceLabel): string 
   const summary = formatMechanicalEffectSummary(effect);
   if (effect.kind === "manual") return `${summary}: ${effect.description}`;
   if (effect.kind === "condition.apply") return `${summary}: ${effect.description}; duration: ${durationSummary(effect.duration)}`;
-  if (effect.kind === "modifier.apply") return `${summary}; ${effect.channel} target: ${effect.channel === "skill" ? label({ kind: "skill", skillId: Number(effect.targetKey.slice(6)) }) : effect.targetKey}; duration: ${durationSummary(effect.duration)}`;
+  if (effect.kind === "modifier.apply") {
+    const target = effect.channel === "skill" ? label({ kind: "skill", skillId: Number(effect.targetKey.slice(6)) })
+      : effect.channel === "attribute" ? `${CHARACTER_ATTRIBUTE_LABELS[effect.targetKey as CharacterAttributeKey]} (${effect.targetKey})`
+      : effect.channel === "movement" ? effect.targetKey.slice(9) : "Self";
+    return `${summary}; ${effect.channel} target: ${target}; duration: ${durationSummary(effect.duration)}`;
+  }
   return `${summary}${effect.timing?.mode === "over-time" ? `; first application: ${effect.timing.firstApplication?.replaceAll("-", " ")}` : "; immediate"}`;
 }
 export function v2RuleSummary(rule: MechanicsRule, rules: readonly MechanicsRule[] = [], label: ReferenceLabel = ref => ref.kind === "skill" ? "Skill definition" : "Derived Ability definition"): string[] {
@@ -26,7 +32,7 @@ export function v2RuleSummary(rule: MechanicsRule, rules: readonly MechanicsRule
       ...rule.maximumChanges.map(change => `Maximum contribution: ${definitionAmountSummary(change.amount)}; ${change.when.mode === "always" ? "always when possessed" : `${change.when.groups.length} qualification way(s)`}; ${change.notes}`),
       ...rule.recovery.map(recovery => `Recovery (${recovery.scope}${recovery.event ? `: ${recovery.event}` : ""}): ${definitionAmountSummary(recovery.amount)}; ${recovery.notes}`), "No current balance is stored."];
     case "modifier": return [effectSummary(rule.effect, label), rule.adjudication && `G.O.D.: ${rule.adjudication}`, "Intrinsic contribution only; no Form body replacement or modifier application."].filter(Boolean);
-    case "interaction": return [`${rule.interaction.ruleType} · ${rule.interaction.scope}${rule.interaction.percentage === null ? "" : ` · ${rule.interaction.percentage}%`}; match ${rule.interaction.match}`, ...rule.interaction.conditions.map(condition => {
+    case "interaction": return [`${rule.interaction.ruleType} · ${rule.interaction.scope}${rule.interaction.percentage === null ? "" : ` · ${rule.interaction.percentage}%`}; match ${rule.interaction.match === "ANY" ? "ANY (OR)" : "ALL (AND)"}`, ...rule.interaction.conditions.map(condition => {
       if (condition.kind === "damage-type") return `Damage type: ${condition.damageType}`;
       if (condition.kind === "magical") return `Magical: ${condition.magical ? "Yes" : "No"}`;
       if (condition.kind === "source-kind") return `Source: ${condition.sourceKind}${condition.weaponFamily ? ` (${condition.weaponFamily})` : ""}`;

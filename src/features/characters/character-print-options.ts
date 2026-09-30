@@ -24,7 +24,7 @@ export function printPresetSelection(preset: UnifiedPrintPreset, data: PaperChar
   if (preset === "quick" || !data) return DEFAULT_PRINT_SELECTION;
   const references: PrintReference[] = [];
   if (data.skills.some(skill => !skill.special)) references.push("skills");
-  if (data.skills.some(skill => skill.special)) references.push("specialAbilities");
+  if (data.skills.some(skill => skill.special) || data.specialAbilityMechanics?.abilities.length) references.push("specialAbilities");
   if (data.abilities.length) references.push("derivedAbilities");
   if (data.inventory.length) references.push("inventory");
   if (data.gear.some(item => item.equipment)) references.push("equipment");

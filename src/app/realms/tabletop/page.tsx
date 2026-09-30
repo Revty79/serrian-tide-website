@@ -135,5 +135,5 @@ export default async function PlayerTabletopPage({
     derivedAbilityUses: runtime.derivedAbilityUses,
   };
 
-  return <PlayerTabletopWorkspace key={characterId} characters={characters} view={view} equipmentState={runtime.equipment} shopVisit={shopVisit} shopCommerce={shopCommerce} combatEncounters={combatEncounters} sourceUses={sourceUses} closeoutAwards={closeoutAwards} />;
+  return <PlayerTabletopWorkspace key={characterId} characters={characters} view={view} specialAbilityMechanics={aggregate.specialAbilityMechanics} equipmentState={runtime.equipment} shopVisit={shopVisit} shopCommerce={shopCommerce} combatEncounters={combatEncounters} sourceUses={sourceUses} closeoutAwards={closeoutAwards} />;
 }

@@ -138,6 +138,12 @@ test("Shared character sheet: real actions, owner controls, player totals, print
       assert.deepEqual(errors,[]);
       return;
     }
+    if (process.env.SERRIAN_SPECIAL_ABILITY_READ_ONLY === "true") {
+      const { rehearseSpecialAbilityReading } = await import("./special-ability-reading-browser");
+      await rehearseSpecialAbilityReading(pool, login, baseUrl, characters);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.env.SERRIAN_PAPER_ONLY === "true") {
       const { rehearsePaperCharacterSheets } = await import("./character-paper-browser");
       await rehearsePaperCharacterSheets(pool, login, baseUrl);

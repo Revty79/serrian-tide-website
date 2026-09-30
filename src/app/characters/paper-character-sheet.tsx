@@ -5,6 +5,7 @@ import { PaperSheetMasthead } from "./paper-sheet-masthead";
 import { PaperSheetFront } from "./paper-sheet-front";
 import { Box, Lines, SkillTable, OwnedInventory, SpecialAbilities, DerivedAbilities, RecordedSkill, SpellEntry, Text } from "./paper-sheet-content";
 import { PaperFormReference } from "./paper-form-reference";
+import { CharacterSpecialAbilityReference } from "@/features/special-abilities/character-reference";
 import { selectedCharacterFormReferences } from "@/features/characters/character-form-print";
 
 const cssText = (value: string) => JSON.stringify(value.replace(/[\r\n]/g, " ")).replaceAll("<", "\\3c ");
@@ -39,7 +40,7 @@ function Back({data, back}: {data: PaperCharacterData; back: PrintBack}) {
   </>;
 }
 function Reference({data, kind}: {data: PaperCharacterData; kind: PrintReference}) {
-  if (kind === "specialAbilities") return <SpecialAbilities data={data} />;
+  if (kind === "specialAbilities") return data.specialAbilityMechanics ? <CharacterSpecialAbilityReference view={data.specialAbilityMechanics} print /> : <SpecialAbilities data={data} />;
   if (kind === "derivedAbilities") return <DerivedAbilities data={data} detailed />;
   if (kind === "skills") return <>{data.skills.filter(skill => !skill.special).map(skill => <article key={skill.id} className="paper-entry"><h3>{skill.name}</h3><Text>{skill.definition || "No definition recorded."}</Text>{skill.manaCost != null ? <Text>Catalog metadata mana: {skill.manaCost}. For a constructed spell, use its current Known Spell casting value.</Text> : null}</article>)}</>;
   if (kind === "story") return <>{data.story.length ? data.story.map(entry => <article className="paper-entry" key={entry.name}><h3>{entry.name}</h3><Text>{entry.text}</Text></article>) : <p>No story recorded.</p>}</>;

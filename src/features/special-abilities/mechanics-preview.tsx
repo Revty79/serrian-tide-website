@@ -1,4 +1,3 @@
-"use client";
 import type { SkillDraft } from "@/app/heavens/skills/actions";
 import { mechanicsDraftState, mechanicsValidationMessage, progressionComparisonLabels, type MechanicsEditorReferences } from "./authoring";
 import { referenceKey, type MechanicsConditions, type MechanicsReference, type MechanicsRule } from "./models";

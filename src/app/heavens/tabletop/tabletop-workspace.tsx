@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { getNextSessionSequence, type SessionMetadataInput } from "@/features/tabletop-operations/session-foundation";
 import type { SessionRosterEntityKind } from "@/features/tabletop-operations/session-roster";
+import { SavedSpecialAbilityInspector } from "@/features/special-abilities/saved-inspector";
 import type { RollWorkspaceView } from "@/features/tabletop-operations/roll-runtime-service";
 import type { SessionCloseoutView } from "@/features/tabletop-operations/session-closeout-service";
 import type { CalledCheckWorkspaceView } from "@/features/tabletop-operations/called-check-service";
@@ -190,6 +191,7 @@ function SessionRosterCard({
         >↓</button>
       </div> : null}
     </header>
+    <SavedSpecialAbilityInspector characterId={entry.characterId} />
     <label>
       <span>Private prep notes</span>
       <textarea

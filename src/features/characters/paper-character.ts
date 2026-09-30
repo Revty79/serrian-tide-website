@@ -108,7 +108,7 @@ export function buildPaperCharacter(aggregate: CharacterAggregate, runtime: Pape
   const invalidSpells = [...data.skills.filter((row) => row.spellDocumentJson && !data.spells.some((spell) => spell.key === `catalog:${row.id}`)).map((row) => row.name),
     ...aggregate.personalSpellbook.filter((row) => !data.spells.some((spell) => spell.key === `personal:${row.id}`)).map((row) => row.name)];
   return {
-    raceId: aggregate.profile.raceId, formReferences: buildCharacterFormReferences(aggregate),
+    raceId: aggregate.profile.raceId, formReferences: buildCharacterFormReferences(aggregate), specialAbilityMechanics: aggregate.specialAbilityMechanics,
     characterId: aggregate.character.id, name: aggregate.character.name, player: aggregate.character.playerUsername, campaign: aggregate.campaign.name,
     recordedAt, race: aggregate.selectedRace?.race.name ?? "Not recorded", identity: [profile.age != null ? `Age ${profile.age}` : "", profile.sex,
       profile.heightFeet != null ? `${profile.heightFeet} ft ${profile.heightInches ?? 0} in` : "", profile.weight != null ? `Weight ${profile.weight}` : "", profile.deity ? `Deity: ${profile.deity}` : ""].filter(Boolean).join(" · "),

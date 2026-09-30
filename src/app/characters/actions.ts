@@ -1,4 +1,5 @@
 "use server";
+import { getCharacterSpecialAbilityMechanics } from "@/features/special-abilities/read-service";
 import { isRetainedHistoricalRace } from "@/features/evolutions/retained-historical-race";
 
 import { readRaceFormPreviewInTransaction } from "@/features/races/race-form-preview-service";
@@ -936,6 +937,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
   });
 
   const aggregate: CharacterAggregate = {
+    specialAbilityMechanics: await getCharacterSpecialAbilityMechanics(characterId),
     sheetAccess: { canAccessPrivateGod: canManageCharacterSheet(session.user.id, row.campaignOwnerUserId) },
     character: {
       id: core.id,

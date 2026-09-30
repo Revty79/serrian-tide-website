@@ -32,7 +32,8 @@ export async function seedPaperReview(pool:pg.Pool, file:string, password:string
   return {snapshot,email};
 }
 
-export async function capturePaperPdf(page:Page,label:string,expected:{name:string;campaign:string}) {
+export async function capturePaperPdf(page:Page,label:string,expected:{name:string;campaign:string}, outputDirectory=output) {
+  const output=outputDirectory;
   await mkdir(output,{recursive:true});
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -41,7 +42,7 @@ export async function capturePaperPdf(page:Page,label:string,expected:{name:stri
     })));
   });
   const root=page.locator('.paper-character-sheet');
-  const paragraphs=await root.locator('[data-paper-check="text"]').allTextContents();
+  const paragraphs=await root.locator('[data-paper-check="text"], .special-ability-reference p, .special-ability-reference li, .special-ability-reference h3, .special-ability-reference h4').allTextContents();
   const rows=await root.locator('[data-paper-check="row"]').evaluateAll(elements=>elements.map(element=>Array.from(element.querySelectorAll('th,td')).map(cell=>cell.textContent??'')));
   const sections=await root.locator('[data-print-section]').evaluateAll(elements=>elements.map(element=>({key:element.getAttribute('data-print-section'),title:element.querySelector('.paper-sheet-title span')?.textContent,text:element.textContent})));
   const manifest={...expected,paragraphs,rows,sections,checks:paragraphs,rowIds:[],rowCount:rows.length};

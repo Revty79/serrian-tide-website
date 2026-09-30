@@ -56,6 +56,7 @@ import { FirearmSetupPanel } from "./firearm-setup-panel";
 import { MagazinePanel } from "./magazine-panel";
 import { ItemChargePanel } from "./item-charge-panel";
 import { DerivedAbilityPanel } from "./derived-ability-panel";
+import { CharacterSpecialAbilityReference } from "@/features/special-abilities/character-reference";
 
 type Props = {
   onInventoryVersionChange: (version: number) => void;
@@ -344,6 +345,7 @@ export function CharacterSheet({ onInventoryVersionChange, aggregate, draft, sel
 
       </> : null}
       {section === "skills" ? <>
+        {aggregate.specialAbilityMechanics && <CharacterSpecialAbilityReference view={aggregate.specialAbilityMechanics} />}
         {showSkillTable ? <>
         <section className="character-sheet__section character-sheet__training">
           <div className="character-sheet__section-heading"><p>TRAINING RECORD</p><h3>Skills & Abilities</h3></div>

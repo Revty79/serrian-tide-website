@@ -287,6 +287,7 @@ export type CharacterAuthorizedItem = {
 };
 
 export type CharacterAggregate = {
+  specialAbilityMechanics?: import("@/features/special-abilities/character-models").CharacterSpecialAbilityView;
   sheetAccess?: { canAccessPrivateGod: boolean };
   character: CharacterCore;
   profile: CharacterProfile;

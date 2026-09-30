@@ -1,5 +1,7 @@
 # Special Ability Mechanics: Pass 4 expanded authoring toolbox
 
+Follow-up: the approved read-only presentation pass is recorded in [Pass 5](special-ability-mechanics-pass-5.md). This report preserves the Pass 4 review boundary and results below.
+
 September 30, 2026. Implements the user's expanded-toolbox brief on reviewed Pass 3 commit `33496378e873fc20e3d4cda2a43f9e74c2442cd8`. The earlier suggested display pass is superseded by that brief. **Authoring only. Pass 5 has not started.**
 
 ## Completion report

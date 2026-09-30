@@ -21,7 +21,8 @@ const { db, pool } = await import("../src/db/index.ts");
 const { getSkill, saveSkill } = await import("../src/app/heavens/skills/actions.ts");
 const { getDerivedAbility, saveDerivedAbility } = await import("../src/app/heavens/derived-abilities/actions.ts");
 const lifecycle = await import("../src/features/lifecycle/lifecycle-service.ts");
-const { getSpecialAbilityMechanicsProjection } = await import("../src/features/special-abilities/read-service.ts");
+const { getSpecialAbilityMechanicsProjection, getCharacterSpecialAbilityMechanics } = await import("../src/features/special-abilities/read-service.ts");
+const { readSavedSpecialAbilityMechanics } = await import("../src/features/special-abilities/read-actions.ts");
 const { getMechanicsEditorReferences } = await import("../src/features/special-abilities/editor-actions.ts");
 const { createEmptySpell } = await import("../src/features/spell-construction/utilities/spellFactory.ts");
 const { lockMechanicsReferenceGraph } = await import("../src/features/special-abilities/reference-service.ts");
@@ -335,4 +336,75 @@ test("v2 nested modifier, choice and maximum-condition references each enforce l
     assert.equal((await lifecycle.previewLifecycleEntityForActor(selected, actor)).canDelete, true);
     await lifecycle.permanentlyDeleteLifecycleEntityForActor(selected, actor);
   }
+});
+
+test("batched Character presentation preserves all states, saved possession and exact references without runtime writes", async () => {
+  const campaignId = (await pool.query("insert into campaign(name,attribute_points,skill_points,max_starting_skill,points_to_unlock_next_tier,max_points_in_skill,starting_credit_amount,currency_system,fate_point_method,created_by_user_id) values('Synthetic presentation campaign',1,1,1,1,100,0,'Credits','Rolled',$1) returning id", [god])).rows[0].id;
+  await pool.query("insert into campaign_player(campaign_id,user_id) values($1,$2)", [campaignId, player]);
+  const characterId = (await pool.query("insert into campaign_character(campaign_id,player_user_id,name) values($1,$2,'Synthetic mechanics reader') returning id", [campaignId, player])).rows[0].id;
+  const race = (await pool.query("insert into races(name,created_by_user_id) values('Synthetic presentation Race',$1) returning id", [god])).rows[0].id;
+  await pool.query("insert into campaign_character_profile(character_id,race_id) values($1,$2)", [characterId, race]);
+  await pool.query("insert into campaign_character_active_health(character_id,total_damage) values($1,5)", [characterId]);
+  await pool.query("insert into campaign_character_active_mana(character_id,system,mana_spent) values($1,'Spellcraft',4)", [characterId]);
+  const selected = await saveSkill(fresh("Synthetic readable target")), derived = await makeDerived("Synthetic readable Derived");
+  const ids = {};
+  for (const state of ["legacy", "empty", "v1", "v2", "invalid", "future", "unpossessed", "zero-allocation"]) {
+    const input = state === "empty" ? { schemaVersion: 1, rules: [] } : state === "v1" ? document([{ kind: "skill", skillId: selected.id }]) : state === "v2" ? syntheticToolbox(selected.id, derived) : null;
+    const saved = await saveSkill(fresh(`Synthetic presentation ${state}`, input ? [upsert(input, type, input.schemaVersion)] : [])); ids[state] = saved.id;
+    if (["invalid", "future"].includes(state)) await pool.query("insert into skill_extension(skill_id,extension_type,schema_version,data_json) values($1,$2,$3,$4)", [saved.id, type, state === "invalid" ? 2 : 99, state === "invalid" ? "{" : '{"schemaVersion":99,"future":true}']);
+    if (state === "v1") await pool.query("insert into race_skill_links(race_id,skill_id,link_type,value) values($1,$2,'Granted',0)", [race, saved.id]);
+    else if (state !== "unpossessed") await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,$3)", [characterId, saved.id, state === "zero-allocation" ? 0 : 3]);
+  }
+  // Same Skill through two paths: one document and the established maximum, not a sum.
+  await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,parent_allocation_id,points) select $1,$2,id,7 from campaign_character_skill_allocation where character_id=$1 and skill_id=$3", [characterId, ids.v2, ids.legacy]);
+  await pool.query("update skill set archived_at=now(),archived_by_user_id=$1 where id=$2", [god, selected.id]);
+  const fields = (await pool.query("select table_name from information_schema.tables where table_schema='public' and (table_name='campaign_character' or starts_with(table_name,'campaign_character_') or starts_with(table_name,'character_derived_ability') or starts_with(table_name,'campaign_session') or starts_with(table_name,'item_') or starts_with(table_name,'inventory_') or starts_with(table_name,'character_form')) order by table_name")).rows;
+  const snapshot = async () => { const values = {}; for (const { table_name: table } of fields) { assert.match(table, /^[a-z_]+$/); values[table] = (await pool.query(`select to_jsonb(t) body from "${table}" t order by to_jsonb(t)::text`)).rows; } return values; };
+  const before = await snapshot();
+  const { Client } = await import("pg"); const originalQuery = Client.prototype.query;
+  let queries = [];
+  const spy = mock.method(Client.prototype, "query", function(...args) { queries.push(typeof args[0] === "string" ? args[0] : args[0].text); return originalQuery.apply(this, args); });
+  let result, queryCount;
+  try {
+    result = await actors.run(player, () => readSavedSpecialAbilityMechanics(characterId));
+    queryCount = queries.filter(sql => /^select/i.test(sql)).length;
+    assert.ok(queries.some(sql => /read only/i.test(sql)), "database must enforce read-only");
+    assert.equal(queries.filter(sql => /^select/i.test(sql) && /"skill_extension"/.test(sql)).length, 1, "one source/extension batch");
+  } finally { spy.mock.restore(); }
+  assert.equal(result.context, "saved-normal"); assert.equal(result.runtimeSupported, false); assert.equal(result.abilities.length, 6);
+  const byId = new Map(result.abilities.map(ability => [ability.mechanics.source.id, ability]));
+  assert.equal(byId.get(ids.legacy).mechanics.documentStatus, "absent"); assert.equal(byId.get(ids.empty).mechanics.empty, true);
+  assert.equal(byId.get(ids.invalid).mechanics.documentStatus, "invalid"); assert.equal(byId.get(ids.future).mechanics.documentStatus, "unsupported");
+  assert.equal(byId.get(ids.v1).mechanics.progression.value, 0); assert.equal(byId.get(ids.v1).possession.racial, true); assert.equal(byId.get(ids.v1).mechanics.rules[0].status, "matched");
+  assert.equal(byId.get(ids.v2).mechanics.progression.value, 7); assert.equal(byId.get(ids.v2).possession.purchased, true);
+  assert.ok(byId.get(ids.v2).mechanics.references.some(ref => ref.name === "Synthetic readable target" && ref.status === "archived"));
+  assert.ok(!byId.has(ids.unpossessed)); assert.ok(!byId.has(ids["zero-allocation"]));
+  assert.deepEqual(await actors.run(god, () => getCharacterSpecialAbilityMechanics(characterId)), result);
+  assert.deepEqual(await actors.run(admin, () => getCharacterSpecialAbilityMechanics(characterId)), result);
+  await assert.rejects(actors.run(other, () => getCharacterSpecialAbilityMechanics(characterId)), /permission/);
+  await assert.rejects(getCharacterSpecialAbilityMechanics(-1), /saved Character/);
+  await assert.rejects(actors.run(player, () => getCharacterSpecialAbilityMechanics(2147483647)), /permission/);
+  assert.deepEqual(await snapshot(), before);
+  // Simulate a historical missing link without weakening lifecycle validation.
+  const dangling = syntheticToolbox(2147483647, derived);
+  await pool.query("update skill_extension set data_json=$2 where skill_id=$1 and extension_type=$3", [ids.v2, JSON.stringify(dangling), type]);
+  assert.ok((await actors.run(player, () => getCharacterSpecialAbilityMechanics(characterId))).abilities.find(row => row.mechanics.source.id === ids.v2).mechanics.references.some(ref => ref.status === "missing" && ref.name === null));
+  // Expansion adds rows, not per-ability queries. Raw synthetic inserts preserve archived refs for this read test.
+  for (let i = 0; i < 12; i++) {
+    const saved = await saveSkill(fresh(`Synthetic batch ${i}`));
+    await pool.query("insert into skill_extension(skill_id,extension_type,schema_version,data_json) values($1,$2,2,$3)", [saved.id, type, JSON.stringify(dangling)]);
+    await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,1)", [characterId, saved.id]);
+  }
+  queries = [];
+  const batchSpy = mock.method(Client.prototype, "query", function(...args) { queries.push(typeof args[0] === "string" ? args[0] : args[0].text); return originalQuery.apply(this, args); });
+  try { assert.equal((await actors.run(player, () => getCharacterSpecialAbilityMechanics(characterId))).abilities.length, 18); assert.equal(queries.filter(sql => /^select/i.test(sql)).length, queryCount); console.log(`Batched mechanics: ${queryCount} SELECTs for both 6 and 18 possessed abilities, including Derived facts.`); }
+  finally { batchSpy.mock.restore(); }
+  // Evolved Race uses current saved links; no Evolution-specific mechanics adapter.
+  const nextRace = (await pool.query("insert into races(name,created_by_user_id) values('Synthetic evolved Race',$1) returning id", [god])).rows[0].id;
+  await pool.query("update campaign_character_profile set race_id=$2 where character_id=$1", [characterId, nextRace]);
+  assert.ok(!(await actors.run(player, () => getCharacterSpecialAbilityMechanics(characterId))).abilities.some(row => row.mechanics.source.id === ids.v1));
+  await pool.query("update campaign_character set is_npc=true,npc_kind='creature',npc_build_mode='simple' where id=$1", [characterId]);
+  const native = await actors.run(god, () => getCharacterSpecialAbilityMechanics(characterId));
+  assert.equal(native.context, "native-creature-unavailable"); assert.deepEqual(native.abilities, []);
+  await assert.rejects(actors.run(player, () => getCharacterSpecialAbilityMechanics(characterId)), /permission/);
 });

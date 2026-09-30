@@ -26,6 +26,8 @@ import { SpellReport } from "./spell-report-panel";
 import { ItemReport } from "./item-report-panel";
 import { attackReportSignature } from "./attack-report";
 import { ForceEndDialog } from "./force-end-dialog";
+import { SavedSpecialAbilityInspector } from "@/features/special-abilities/saved-inspector";
+import { CREATURE_MECHANICS_CONTEXT } from "@/features/special-abilities/presentation";
 
 export function combatMessage(message: string) {
   return message.replace(/simultaneous declaration checkpoint/gi, "simultaneous choices").replace(/checkpoint/gi, "simultaneous choices")
@@ -201,6 +203,9 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
       <section className={styles.window} aria-label="Selected combatant detail"><h2>{selected?.name ?? selectedRoster?.name ?? "Select a combatant"}</h2>
         {selected ? <p className={selected.condition.status === "able" ? styles.muted : styles.notice}>{selected.condition.status === "able" ? selected.participation.departed ? (selected.participation.departureKind === "surrender" ? "Surrendered / yielded: " : "Withdrawn: ") + selected.participation.reason : "In combat" : combatMessage(combatConditionMessage(selected.condition)!)} · {selected.canControl ? "You control this combatant." : "Its Player chooses its actions."}</p> : null}
         {information ? <CombatResources information={information} /> : <p className={styles.muted}>{loading ? "Loading information…" : "Information becomes available after Initiative enrollment."}</p>}
+        {selectedRoster && (scope.role === "god" || selectedRoster.participantId === scope.characterId) ? selectedRoster.kind === "creature"
+          ? <p>{CREATURE_MECHANICS_CONTEXT}</p>
+          : <SavedSpecialAbilityInspector characterId={selectedRoster.participantId} /> : null}
         {selected?.limbConditions.map((limb) => <p className={`${styles.notice} ${styles.error}`} key={limb.poolKey}>{limb.name} incapacitated — this limb cannot be used.</p>)}
         {selected?.currentAction ? <p className={styles.notice}>{selected.currentAction.label}: {selected.currentAction.remaining} Initiative remaining; expected finish {selected.currentAction.expectedFinish}.</p> : null}
         {selected?.canControl ? <nav className={styles.commands} aria-label="Combat commands">{COMBAT_COMMANDS.map((entry) => <button className="st-button" key={entry} aria-pressed={command === entry} onClick={() => setCommand(entry)}>{entry}</button>)}</nav> : null}

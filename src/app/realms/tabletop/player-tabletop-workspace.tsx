@@ -24,6 +24,8 @@ import type { CharacterEquipmentStateView } from "@/features/items/equipment-sta
 import type { SourceUseRequestView } from "@/features/tabletop-operations/source-use";
 import { SourceUseQueue } from "@/features/tabletop-operations/source-use-queue";
 import type { PlayerCloseoutAward } from "@/features/tabletop-operations/closeout-awards";
+import { CharacterSpecialAbilityReference } from "@/features/special-abilities/character-reference";
+import type { CharacterSpecialAbilityView } from "@/features/special-abilities/character-models";
 
 function dateTime(value: string): string {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -56,6 +58,7 @@ function Section({
 }
 
 export function PlayerTabletopWorkspace({
+  specialAbilityMechanics,
   combatEncounters = [],
   characters,
   view,
@@ -65,6 +68,7 @@ export function PlayerTabletopWorkspace({
   sourceUses,
   closeoutAwards,
 }: {
+  specialAbilityMechanics?: CharacterSpecialAbilityView;
   characters: readonly PlayerTabletopCharacterOption[];
   combatEncounters?: readonly PlayerTabletopEncounter[];
   view: PlayerTabletopConsoleView;
@@ -223,6 +227,7 @@ export function PlayerTabletopWorkspace({
       </PlayerTabletopPanel>
 
       <PlayerTabletopPanel id="abilities">
+      {specialAbilityMechanics && <Section id="tabletop-special-abilities" eyebrow="SAVED CHARACTER REFERENCE" title="Special Abilities"><CharacterSpecialAbilityReference view={specialAbilityMechanics} /></Section>}
       <Section id="tabletop-abilities" eyebrow="DERIVED ABILITIES" title="Possessed abilities">
         {view.derivedAbilities.length ? <div className={styles.cardGrid}>{view.derivedAbilities.map((ability) => <article className={styles.sourceCard} key={ability.id}>
           <header><div><span>{titleCase(ability.activation)}</span><h3>{ability.name}</h3></div><strong>{ability.availability}</strong></header>
