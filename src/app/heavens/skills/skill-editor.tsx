@@ -3,7 +3,12 @@
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { isSpecialAbilitySkill } from "@/features/characters/character-rules";
+import { SPECIAL_ABILITY_MECHANICS_EXTENSION } from "@/features/special-abilities/models";
+import type { MechanicsEditorReferences } from "@/features/special-abilities/authoring";
+import { MechanicsEditor } from "@/features/special-abilities/mechanics-editor";
+import "@/features/special-abilities/mechanics.css";
 
 import type { Tradition } from "@/features/spell-construction/models/spell";
 import type { RecursiveSkillLibrary } from "@/features/skills/recursive-skill-library";
@@ -19,7 +24,7 @@ import { SkillConstructionEditor } from "./skill-construction-editor";
 import { SkillPathEditor } from "./skill-path-editor";
 import { SkillPreview } from "./skill-preview";
 
-type SkillEditorTab = "core" | "pathing" | "construction" | "preview";
+type SkillEditorTab = "core" | "pathing" | "construction" | "mechanics" | "preview";
 
 type SkillEditorProps = {
   draft: SkillDraft | null;
@@ -34,12 +39,15 @@ type SkillEditorProps = {
   onSave: () => void;
   lifecycleControls: ReactNode;
   findFrameworkSkills: (tradition: Tradition) => Promise<SpellFrameworkSkill[]>;
+  findMechanicsReferences?: (skillId?: number) => Promise<MechanicsEditorReferences>;
+  onReload?: () => void;
 };
 
 const TABS: readonly { id: SkillEditorTab; label: string }[] = [
   { id: "core", label: "Core Details" },
   { id: "pathing", label: "Pathing" },
   { id: "construction", label: "Construction" },
+  { id: "mechanics", label: "Special Ability Mechanics" },
   { id: "preview", label: "Preview" },
 ];
 
@@ -101,8 +109,24 @@ export function SkillEditor({
   onSave,
   lifecycleControls,
   findFrameworkSkills,
+  findMechanicsReferences,
+  onReload,
 }: SkillEditorProps) {
   const [activeTab, setActiveTab] = useState<SkillEditorTab>("core");
+  const [references, setReferences] = useState<MechanicsEditorReferences | null>(null);
+  const [referenceError, setReferenceError] = useState<string | null>(null);
+  const [referenceAttempt, setReferenceAttempt] = useState(0);
+  const showMechanics = !!draft && (isSpecialAbilitySkill(draft.core) || draft.extensions.some(row => row.extensionType === SPECIAL_ABILITY_MECHANICS_EXTENSION));
+  const tab = activeTab === "mechanics" && !showMechanics ? "core" : activeTab;
+  const skillId = draft?.id, revision = draft?.revision;
+  useEffect(() => {
+    if (!showMechanics || !findMechanicsReferences || (tab !== "mechanics" && tab !== "preview")) return;
+    let cancelled = false;
+    void findMechanicsReferences(skillId).then(result => {
+      if (!cancelled) { setReferences(result); setReferenceError(null); }
+    }, error => { if (!cancelled) setReferenceError(error instanceof Error ? error.message : "References could not be loaded."); });
+    return () => { cancelled = true; };
+  }, [findMechanicsReferences, skillId, revision, showMechanics, tab, referenceAttempt]);
   const preserveScroll = useInPlaceScrollPreservation();
 
   if (!draft) {
@@ -175,23 +199,28 @@ export function SkillEditor({
           {feedback.message}
         </p>
       )}
+      {feedback?.kind === "error" && /changed after it was opened|revision is missing/.test(feedback.message) && <div role="status">
+        <p>Your draft is still here. Review or copy your edits before reloading the saved Skill.</p>
+        {onReload && <button className="st-button" type="button" disabled={saving} onClick={onReload}>Review Reload of Saved Skill</button>}
+      </div>}
+      {showMechanics && !isSpecialAbilitySkill(draft.core) && <p className="skill-editor__feedback is-error" role="alert">Mechanics remain attached. Restore Special Ability classification or use Special Ability Mechanics to explicitly detach them before saving.</p>}
 
       <nav className="skill-editor__tabs" aria-label="Skill editor sections">
-        {TABS.map((tab) => (
+        {TABS.filter(row => row.id !== "mechanics" || showMechanics).map((item) => (
           <button
-            key={tab.id}
+            key={item.id}
             type="button"
-            className={activeTab === tab.id ? "is-active" : ""}
-            aria-pressed={activeTab === tab.id}
-            onClick={() => void preserveScroll(() => setActiveTab(tab.id))}
+            className={tab === item.id ? "is-active" : ""}
+            aria-pressed={tab === item.id}
+            onClick={() => void preserveScroll(() => setActiveTab(item.id))}
           >
-            {tab.label}
+            {item.label}
           </button>
         ))}
       </nav>
 
-      <fieldset className="skill-editor__content lifecycle-editor-fields" disabled={archived}>
-        {activeTab === "core" && (
+      <fieldset className="skill-editor__content lifecycle-editor-fields" disabled={archived || saving}>
+        {tab === "core" && (
           <div className="skill-core-editor">
             <div className="skill-editor__intro">
               <p>Universal information shared by every Serrian Tide Skill.</p>
@@ -284,7 +313,7 @@ export function SkillEditor({
           </div>
         )}
 
-        {activeTab === "pathing" && (
+        {tab === "pathing" && (
           <SkillPathEditor
             skillId={draft.id}
             skillName={draft.core.name}
@@ -295,7 +324,7 @@ export function SkillEditor({
           />
         )}
 
-        {activeTab === "construction" && (
+        {tab === "construction" && (
           <SkillConstructionEditor
             draft={draft}
             onChange={onChange}
@@ -303,7 +332,9 @@ export function SkillEditor({
           />
         )}
 
-        {activeTab === "preview" && <SkillPreview draft={draft} />}
+        {showMechanics && (tab === "mechanics" || tab === "preview") && referenceError && <div role="alert"><p>{referenceError}</p><button className="st-button" type="button" onClick={() => setReferenceAttempt(value => value + 1)}>Retry Reference Loading</button></div>}
+        {tab === "mechanics" && showMechanics && <MechanicsEditor draft={draft} onChange={onChange} references={references} />}
+        {tab === "preview" && <SkillPreview draft={draft} mechanicsReferences={references} />}
       </fieldset>
     </section>
   );

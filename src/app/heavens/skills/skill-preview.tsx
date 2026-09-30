@@ -7,6 +7,10 @@ import type { SpellDocument } from "@/features/spell-construction/models/spell";
 import type { SkillDraft } from "./actions";
 import { SPELL_CONSTRUCTION_EXTENSION } from "./constants";
 import { SpellPreview } from "./spell-preview";
+import { isSpecialAbilitySkill } from "@/features/characters/character-rules";
+import { MechanicsPreview } from "@/features/special-abilities/mechanics-preview";
+import { SPECIAL_ABILITY_MECHANICS_EXTENSION } from "@/features/special-abilities/models";
+import type { MechanicsEditorReferences } from "@/features/special-abilities/authoring";
 
 const MAGIC_CLASSIFICATIONS = new Set([
   "spell",
@@ -14,7 +18,7 @@ const MAGIC_CLASSIFICATIONS = new Set([
   "reverberation",
 ]);
 
-export function SkillPreview({ draft }: { draft: SkillDraft }) {
+export function SkillPreview({ draft, mechanicsReferences = null }: { draft: SkillDraft; mechanicsReferences?: MechanicsEditorReferences | null }) {
   const spellExtension = draft.extensions.find(
     ({ extensionType }) => extensionType === SPELL_CONSTRUCTION_EXTENSION,
   );
@@ -45,13 +49,14 @@ export function SkillPreview({ draft }: { draft: SkillDraft }) {
         <p>{draft.core.definition || "No definition has been written."}</p>
       </section>
 
-      {draft.extensions.filter(extension => extension.diagnostics?.length).map(extension => (
+      {draft.extensions.filter(extension => extension.extensionType !== SPECIAL_ABILITY_MECHANICS_EXTENSION && extension.diagnostics?.length).map(extension => (
         <section key={extension.extensionType} role="status">
           <h4>{extension.extensionType === "special-ability-mechanics" ? "Special Ability Mechanics" : extension.extensionType}</h4>
           {extension.diagnostics?.map((message, index) => <p key={index}>{message}</p>)}
           <p>Saving Skill details preserves this attached document.</p>
         </section>
       ))}
+      {(isSpecialAbilitySkill(draft.core) || draft.extensions.some(row => row.extensionType === SPECIAL_ABILITY_MECHANICS_EXTENSION)) && <MechanicsPreview draft={draft} references={mechanicsReferences} />}
 
       <section>
         <h4>Path Information</h4>

@@ -22,6 +22,7 @@ const { getSkill, saveSkill } = await import("../src/app/heavens/skills/actions.
 const { getDerivedAbility, saveDerivedAbility } = await import("../src/app/heavens/derived-abilities/actions.ts");
 const lifecycle = await import("../src/features/lifecycle/lifecycle-service.ts");
 const { getSpecialAbilityMechanicsProjection } = await import("../src/features/special-abilities/read-service.ts");
+const { getMechanicsEditorReferences } = await import("../src/features/special-abilities/editor-actions.ts");
 const { createEmptySpell } = await import("../src/features/spell-construction/utilities/spellFactory.ts");
 const { lockMechanicsReferenceGraph } = await import("../src/features/special-abilities/reference-service.ts");
 const { saveSkillExtensionMutations } = await import("../src/features/skills/skill-extension-persistence.ts");
@@ -50,6 +51,30 @@ before(async () => {
   }
 });
 after(async () => { await pool.end(); });
+
+test("mechanics pickers authorize discovery, retain exact archived identities, and honor catalog visibility", async () => {
+  const selected = await saveSkill(fresh("Synthetic picker retained"));
+  const derived = await makeDerived("Synthetic picker derived");
+  const owner = await saveSkill(fresh("Synthetic picker owner", [upsert(document([{ kind: "skill", skillId: selected.id }, { kind: "derived-ability", derivedAbilityId: derived }]))]));
+  await lifecycle.archiveLifecycleEntityForActor(target("skill", selected.id), actor, "Synthetic picker archive");
+  await lifecycle.archiveLifecycleEntityForActor(target("derived-ability", derived), actor, "Synthetic picker archive");
+  const unselected = await saveSkill(fresh("Synthetic unselected archive"));
+  await lifecycle.archiveLifecycleEntityForActor(target("skill", unselected.id), actor, "Synthetic archive");
+  const refs = await getMechanicsEditorReferences(owner.id);
+  assert.ok(refs.options.some(row => row.kind === "skill" && row.skillId === selected.id && row.archived));
+  assert.ok(refs.options.some(row => row.kind === "derived-ability" && row.derivedAbilityId === derived && row.archived));
+  assert.ok(!refs.options.some(row => row.kind === "skill" && row.skillId === unselected.id));
+  assert.ok(!(await getMechanicsEditorReferences()).options.some(row => row.archived));
+  await assert.rejects(actors.run(player, () => getMechanicsEditorReferences(owner.id)), /access/);
+  await assert.rejects(getMechanicsEditorReferences(-1), /saved Skill/);
+  const hidden = await actors.run(other, () => saveSkill(fresh("Synthetic other creator picker choice")));
+  await pool.query("insert into catalog_visibility_scope_activation(catalog_key,activation_method,activated_by_user_id) values('skill','manual',$1)", [god]);
+  try {
+    assert.ok(!(await getMechanicsEditorReferences(owner.id)).options.some(row => row.kind === "skill" && row.skillId === hidden.id));
+    await pool.query("update skill set is_system_canon=true,canon_marked_by_user_id=$2,canon_marked_at=now() where id=$1", [hidden.id, admin]);
+    assert.ok((await getMechanicsEditorReferences(owner.id)).options.some(row => row.kind === "skill" && row.skillId === hidden.id));
+  } finally { await pool.query("delete from catalog_visibility_scope_activation where catalog_key='skill'"); }
+});
 
 test("real Skill actions preserve unrelated bytes and IDs; explicit family edits and detach remain independent", async () => {
   const spell = createEmptySpell();

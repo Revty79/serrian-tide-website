@@ -2,6 +2,8 @@
 
 September 30, 2026. Pass 2 is implemented for review; Pass 3 has not started.
 
+Follow-up: Brannan and Ember approved Pass 3 against commit `659705a2464a236b0b871c136794d41196733873`. See the [Pass 3 authoring implementation and handoff](special-ability-mechanics-pass-3.md). The original Pass 2 evidence below remains historical.
+
 This pass adds storage, validation, safe saves, reference protection and read-only resolution. It adds no full mechanics editor, gameplay execution or authored catalog mechanics. The [Pass 1 contract](special-ability-mechanics-pass-1.md) and [Production matrix](../reports/special-ability-mechanics-production-matrix-2026-09-30.md) remain design inputs. The matrix is a requirements inventory, **never a source for generated mechanics**. No ability IDs or names control behavior.
 
 The later Pass 2 instruction supersedes Pass 1's progression recommendation: saved purchased points are a **provisional v1 resolution source**, not an approved universal interpretation of Special Ability progression.

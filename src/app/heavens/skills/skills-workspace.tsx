@@ -33,6 +33,7 @@ import {
   type SpellFrameworkSkill,
 } from "./actions";
 import { SkillEditor } from "./skill-editor";
+import { getMechanicsEditorReferences } from "@/features/special-abilities/editor-actions";
 import { SkillLibrary, type SkillLibraryView } from "./skill-library";
 
 type PendingEditorChange =
@@ -475,6 +476,8 @@ export function SkillsWorkspace({
             ) : null}</>}
             archiveReason={archiveReason}
             findFrameworkSkills={findFrameworkSkills}
+            findMechanicsReferences={getMechanicsEditorReferences}
+            onReload={() => { if (draft?.id) setPendingEditorChange({ kind: "open", skillId: draft.id, pathKey: selectedPathKey }); }}
           />
         )}
       </div>

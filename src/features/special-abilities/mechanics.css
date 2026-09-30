@@ -1,0 +1,35 @@
+.mechanics-editor, .mechanics-preview, .mechanics-rule-fields, .mechanics-conditions, .mechanics-picker {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.mechanics-editor p, .mechanics-preview p { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.mechanics-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 1rem; }
+.mechanics-card, .mechanics-group, .mechanics-condition {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: 0.75rem;
+  background: var(--st-surface);
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+}
+.mechanics-group legend { padding: 0 0.4rem; color: var(--st-text-strong); font-weight: 600; }
+.mechanics-condition { background: var(--st-surface-soft); }
+.mechanics-summary { display: grid; gap: 0.65rem; min-width: 0; }
+.mechanics-summary h4 { margin: 0; overflow-wrap: anywhere; }
+.mechanics-summary .mechanics-type { color: var(--st-text-secondary); text-transform: capitalize; }
+.mechanics-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: end; }
+.mechanics-actions > * { min-width: 0; max-width: 100%; }
+.mechanics-editor .st-control { width: 100%; min-width: 0; max-width: 100%; }
+.mechanics-editor .st-button { min-height: 44px; white-space: normal; overflow-wrap: anywhere; }
+.mechanics-notice { border-left: 3px solid var(--st-warning); padding: 0.8rem; background: color-mix(in srgb, var(--st-warning) 10%, var(--st-surface)); color: var(--st-text); }
+.mechanics-hint { color: var(--st-text-secondary); font-size: 0.9rem; }
+.mechanics-join { font-weight: 700; padding: 0.65rem 0; color: var(--st-text-strong); }
+.mechanics-detach { border-top: 1px solid var(--st-border); padding-top: 1rem; display: grid; gap: 1rem; }
+@media (max-width: 540px) {
+  .mechanics-card, .mechanics-group, .mechanics-condition { padding: 0.7rem; }
+  .mechanics-actions { align-items: stretch; }
+  .mechanics-actions > * { flex: 1 1 100%; }
+}

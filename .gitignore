@@ -16,6 +16,7 @@
 # next.js
 /.next/
 /.next-npc-lifecycle-browser/
+/.next-special-ability-authoring/
 /artifacts/npc-simple-editor/
 /.next-crossroads-navigation-browser/
 /.next-combat-screens-browser/
