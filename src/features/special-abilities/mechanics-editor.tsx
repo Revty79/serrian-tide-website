@@ -10,22 +10,37 @@ import { mechanicsDraftState, mechanicsValidationMessage, moveMechanicsChild, ne
 import { MechanicsConditionsEditor } from "./mechanics-conditions-editor";
 import { MechanicsReferencePicker } from "./mechanics-reference-picker";
 import { MechanicsRuleSummary } from "./mechanics-preview";
+import { V2_RULE_KINDS, type MechanicsV2Fields } from "./v2-models";
+import { addRuleLabel, newV2Rule, RULE_FAMILY_HELP, RULE_FAMILY_LABELS, upgradeMechanicsDocument } from "./v2-authoring";
+import { SelectField } from "./v2-fields";
+import { V2RuleEditor } from "./v2-rule-editor";
 
 export function MechanicsEditor({ draft, onChange, references }: { draft: SkillDraft; onChange: (draft: SkillDraft) => void; references: MechanicsEditorReferences | null }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [confirmDetach, setConfirmDetach] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [newFamily, setNewFamily] = useState<MechanicsV2Fields["kind"]>("resource");
+  const [upgradeFamily, setUpgradeFamily] = useState<MechanicsV2Fields["kind"] | null>(null);
   const state = mechanicsDraftState(draft);
   const eligible = isSpecialAbilitySkill(draft.core);
-  function write(document: SpecialAbilityMechanicsDocument) { onChange(changeSkillExtension(draft, { operation: "upsert", extensionType: SPECIAL_ABILITY_MECHANICS_EXTENSION, schemaVersion: 1, data: document })); }
+  function write(document: SpecialAbilityMechanicsDocument) { onChange(changeSkillExtension(draft, { operation: "upsert", extensionType: SPECIAL_ABILITY_MECHANICS_EXTENSION, schemaVersion: document.schemaVersion, data: document })); }
   function updateRule(rule: MechanicsRule) {
     if (state.kind === "editable") write({ ...state.document, rules: state.document.rules.map(row => row.key === rule.key ? rule : row) });
   }
-  function addRule(kind: MechanicsRule["kind"]) {
+  function addRule(kind: "capability" | "manual") {
     if (state.kind !== "editable") return;
     const rule = newMechanicsRule(kind);
     write({ ...state.document, rules: [...state.document.rules, rule] });
     setExpanded(current => new Set([...current, rule.key]));
+  }
+  function addV2Rule(kind: MechanicsV2Fields["kind"], confirmed = false) {
+    if (state.kind !== "editable") return;
+    if (state.document.schemaVersion === 1 && !confirmed) { setUpgradeFamily(kind); return; }
+    const document = state.document.schemaVersion === 1 ? upgradeMechanicsDocument(state.document) : state.document;
+    const rule = newV2Rule(kind);
+    write({ ...document, rules: [...document.rules, rule] });
+    setExpanded(current => new Set([...current, rule.key]));
+    setUpgradeFamily(null);
   }
   return <section className="mechanics-editor" aria-label="Special Ability Mechanics">
     <h3>Special Ability Mechanics</h3>
@@ -47,8 +62,14 @@ export function MechanicsEditor({ draft, onChange, references }: { draft: SkillD
             <button className="st-button" type="button" disabled={state.document.rules.length >= MECHANICS_LIMITS.rules} onClick={() => addRule("capability")}>Add Capability Rule</button>
             <button className="st-button" type="button" disabled={state.document.rules.length >= MECHANICS_LIMITS.rules} onClick={() => addRule("manual")}>Add Manual / G.O.D. Rule</button>
           </div>
+          <SelectField label="Expanded rule family" value={newFamily} options={V2_RULE_KINDS.map(value => ({ value, label: RULE_FAMILY_LABELS[value] }))} onChange={setNewFamily} help={RULE_FAMILY_HELP[newFamily]} />
+          <button className="st-button" type="button" disabled={state.document.rules.length >= MECHANICS_LIMITS.rules} onClick={() => addV2Rule(newFamily)}>{addRuleLabel(newFamily)}</button>
+          {upgradeFamily && <div className="mechanics-notice" role="alert"><p>Adding {RULE_FAMILY_LABELS[upgradeFamily]} requires mechanics version 2. Upgrade this draft and add the rule? Existing authored rules and their identities are preserved. The upgrade is saved only when you Save Skill.</p><div className="mechanics-actions">
+            <button className="st-button" type="button" onClick={() => setUpgradeFamily(null)}>Keep Version 1</button>
+            <button className="st-button" type="button" onClick={() => addV2Rule(upgradeFamily, true)}>Upgrade and Add Rule</button>
+          </div></div>}
           {state.document.rules.map((rule, index) => <article key={rule.key} data-rule-key={rule.key} className="mechanics-card">
-            <MechanicsRuleSummary rule={rule} references={references} compact />
+            <MechanicsRuleSummary rule={rule} rules={state.document.rules} references={references} compact />
             <div className="mechanics-actions">
               <button className="st-button" type="button" aria-expanded={expanded.has(rule.key)} onClick={() => setExpanded(current => { const next = new Set(current); if (next.has(rule.key)) next.delete(rule.key); else next.add(rule.key); return next; })}>{expanded.has(rule.key) ? "Collapse Rule" : "Edit Rule"}</button>
               <button className="st-button" type="button" disabled={index === 0} onClick={() => write({ ...state.document, rules: moveMechanicsChild(state.document.rules, index, -1) })}>Move Rule Up</button>
@@ -69,6 +90,7 @@ export function MechanicsEditor({ draft, onChange, references }: { draft: SkillD
               </>}
               <MechanicsConditionsEditor when={rule.when} references={references} onChange={when => updateRule({ ...rule, when })} />
               {rule.kind === "manual" && <GuidedField label="G.O.D. Determination" help="State what the G.O.D. decides. Manual mechanics are supported authored rules and remain manual even when their requirements match."><textarea className="st-control" rows={3} maxLength={MECHANICS_LIMITS.text} value={rule.adjudication} onChange={event => updateRule({ ...rule, adjudication: event.target.value })} /></GuidedField>}
+              <V2RuleEditor rule={rule} rules={state.document.rules} references={references} onChange={updateRule} />
               <GuidedField label="Limitations" help="Describe restrictions or exceptions intrinsic to this mechanic. Optional."><textarea className="st-control" rows={2} maxLength={MECHANICS_LIMITS.text} value={rule.limitations} onChange={event => updateRule({ ...rule, limitations: event.target.value })} /></GuidedField>
               <GuidedField label="Notes" help="Add optional guidance for readers. Notes do not change automated rules."><textarea className="st-control" rows={2} maxLength={MECHANICS_LIMITS.text} value={rule.notes} onChange={event => updateRule({ ...rule, notes: event.target.value })} /></GuidedField>
               <fieldset className="mechanics-group"><legend>Documentation References</legend>

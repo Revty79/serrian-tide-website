@@ -7,13 +7,14 @@ import pg from "pg";
 import { hashPassword } from "better-auth/crypto";
 import { chromium, type Page, type Locator } from "playwright-core";
 import { createEmptySpell } from "../src/features/spell-construction/utilities/spellFactory";
+import { checkToolboxAuthoring } from "./special-ability-toolbox-browser";
 
 assert.equal(process.env.SERRIAN_MECHANICS_DISPOSABLE, "true");
 assert.match(process.env.DATABASE_URL ?? "", /^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_mechanics_authoring_dev$/);
 const port = Number(process.env.MECHANICS_BROWSER_PORT), url = `http://localhost:${port}`;
 assert.ok(port > 0);
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-const artifacts = path.resolve("artifacts/guidance/special-ability-pass-3"), distName = ".next-special-ability-authoring", dist = path.resolve(distName);
+const artifacts = path.resolve("artifacts/guidance/special-ability-pass-4"), distName = ".next-special-ability-authoring", dist = path.resolve(distName);
 const user = "synthetic-mechanics-author", password = "Synthetic-Mechanics-Only-123!", type = "special-ability-mechanics";
 async function eventually(check: () => Promise<boolean>, message: string) {
   for (let i = 0; i < 120; i++) { if (await check()) return; await new Promise(resolve => setTimeout(resolve, 250)); }
@@ -193,6 +194,15 @@ async function main() {
     assert.deepEqual(await extension(ability, "synthetic-future-family"), untouched); assert.deepEqual(await extension(ability, "spell-construction"), originalSpell);
     assert.equal(await extension(ordinary), undefined);
     checks.push("rule removal; classification-change warning; deliberate detach and cancel; Spell Construction/unknown bytes survive");
+    const toolbox = await seedSkill("Synthetic Toolbox Ability");
+    const toolboxDerived = (await pool.query("insert into derived_ability(name,created_by_user_id) values('Synthetic Toolbox Derived',$1) returning id", [user])).rows[0].id;
+    await store(toolbox, type, 1, JSON.stringify({ schemaVersion: 1, rules: [rule] }));
+    await store(toolbox, "spell-construction", spell.schemaVersion, JSON.stringify(spell));
+    await store(toolbox, "synthetic-future-family", 9, ' { "keep" : "exact v2 bytes" } ');
+    const toolboxSpell = await extension(toolbox, "spell-construction"), toolboxUnknown = await extension(toolbox, "synthetic-future-family");
+    await open("Synthetic Toolbox Ability"); await tab("Special Ability Mechanics").click();
+    checks.push(...await checkToolboxAuthoring({ page: p, targetId: target, derivedId: toolboxDerived, artifacts, save, read: () => extension(toolbox) }));
+    assert.deepEqual(await extension(toolbox, "spell-construction"), toolboxSpell); assert.deepEqual(await extension(toolbox, "synthetic-future-family"), toolboxUnknown);
     assert.deepEqual(errors, []);
     await writeFile(path.join(artifacts, "report.json"), JSON.stringify({ checks, browserErrors: errors, widths: [1365, 390], database: "disposable only" }, null, 2));
     console.log(JSON.stringify({ passed: checks.length, checks }, null, 2));

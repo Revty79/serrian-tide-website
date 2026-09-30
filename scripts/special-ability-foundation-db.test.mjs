@@ -26,6 +26,7 @@ const { getMechanicsEditorReferences } = await import("../src/features/special-a
 const { createEmptySpell } = await import("../src/features/spell-construction/utilities/spellFactory.ts");
 const { lockMechanicsReferenceGraph } = await import("../src/features/special-abilities/reference-service.ts");
 const { saveSkillExtensionMutations } = await import("../src/features/skills/skill-extension-persistence.ts");
+const { syntheticToolbox } = await import("../src/features/special-abilities/v2-fixtures.ts");
 const actor = { userId: god, roles: ["god"] }, type = "special-ability-mechanics";
 const rule = (references = []) => ({ key: "same-stable-key", kind: "capability", domain: "other", title: "Synthetic capability", description: "Synthetic description only.",
   when: { mode: "always" }, limitations: "", notes: "", references });
@@ -280,6 +281,58 @@ test("authorized Character projection reads racial zero-point possession and exi
   assert.equal(view.possessed, true); assert.equal(view.progression.value, 0); assert.equal(view.progression.provisional, true);
   assert.equal(view.rules[0].status, "matched"); assert.equal(view.runtimeSupported, false);
   assert.deepEqual(await snapshot(), before);
+  // Expanded definitions must also remain entirely read-only for a possessed owner.
+  await update(ability.id, [upsert(syntheticToolbox(ability.id, derived), type, 2)]);
+  const expanded = await actors.run(player, () => getSpecialAbilityMechanicsProjection(ability.id, characterId));
+  assert.equal(expanded.runtimeSupported, false); assert.ok(expanded.rules.every(rule => rule.status === "manual"));
+  assert.deepEqual(await snapshot(), before);
   await assert.rejects(actors.run(other, () => getSpecialAbilityMechanicsProjection(ability.id, characterId)), /permission/);
   await assert.rejects(actors.run(player, () => getSpecialAbilityMechanicsProjection(ability.id)), /access/);
+});
+
+test("v2 explicit saves preserve v1 history and unrelated bytes, reject downgrade and stale or dangling writes", async () => {
+  const selected = await saveSkill(fresh("Synthetic toolbox target")), derived = await makeDerived("Synthetic toolbox derived");
+  const spell = createEmptySpell();
+  const owner = await saveSkill(fresh("Synthetic toolbox owner", [upsert(), upsert(spell, "spell-construction", spell.schemaVersion)]));
+  await pool.query("insert into skill_extension(skill_id,extension_type,schema_version,data_json) values($1,'synthetic-opaque',99,$2)", [owner.id, ' { "opaque" : true } ']);
+  await pool.query("update skill_extension set data_json=$2 where skill_id=$1 and extension_type=$3", [owner.id, ' ' + JSON.stringify(document()) + '\n', type]);
+  const original = await raw(owner.id);
+  await getSkill(owner.id); await update(owner.id, [], { definition: "Core only, no migration." });
+  assert.deepEqual(await raw(owner.id), original);
+  const stale = await getSkill(owner.id), v2 = syntheticToolbox(selected.id, derived);
+  v2.rules.unshift(document().rules[0]);
+  await update(owner.id, [upsert(v2, type, 2)]);
+  const saved = await raw(owner.id), current = saved.find(row => row.extension_type === type);
+  assert.equal(current.schema_version, 2); assert.equal(current.id, original.find(row => row.extension_type === type).id);
+  assert.deepEqual(JSON.parse(current.data_json), v2);
+  assert.deepEqual(saved.filter(row => row.extension_type !== type), original.filter(row => row.extension_type !== type));
+  await assert.rejects(saveSkill(stale), /changed|Reload/);
+  await assert.rejects(update(owner.id, [upsert()]), /downgraded/);
+  await assert.rejects(update(owner.id, [upsert({ ...v2, rules: v2.rules.filter(rule => rule.kind !== "resource") }, type, 2)], { definition: "Must roll back" }), /missing/);
+  assert.deepEqual(await raw(owner.id), saved); assert.notEqual((await getSkill(owner.id)).core.definition, "Must roll back");
+  await update(owner.id, [], { definition: "Core preserves v2 bytes." }); assert.deepEqual(await raw(owner.id), saved);
+});
+
+test("v2 nested modifier, choice and maximum-condition references each enforce lifecycle and archived retention", async () => {
+  for (const location of ["modifier", "intrinsic-modifier", "skill-choice", "derived-choice", "maximum-condition"]) {
+    const skill = await saveSkill(fresh(`Synthetic ${location} target`)), derived = await makeDerived(`Synthetic ${location} derived`);
+    const full = syntheticToolbox(skill.id, derived);
+    let rule;
+    if (location === "modifier") rule = full.rules.find(rule => rule.kind === "modifier");
+    if (location === "intrinsic-modifier") rule = { ...full.rules.find(rule => rule.kind === "activated"), choiceKeys: [], costs: [], effects: [{ key: "effect", effect: full.rules.find(rule => rule.kind === "modifier").effect }] };
+    if (location === "skill-choice" || location === "derived-choice") rule = { ...full.rules.find(rule => rule.kind === "choice"), selection: location === "skill-choice" ? { kind: "skill", skillIds: [skill.id] } : { kind: "derived-ability", derivedAbilityIds: [derived] } };
+    if (location === "maximum-condition") rule = full.rules.find(rule => rule.kind === "resource");
+    const input = { schemaVersion: 2, rules: [rule] }, selected = location === "derived-choice" ? target("derived-ability", derived) : target("skill", skill.id);
+    const owner = await saveSkill(fresh(`Synthetic ${location} owner`, [upsert(input, type, 2)]));
+    assert.equal((await lifecycle.previewLifecycleEntityForActor(selected, actor)).canDelete, false);
+    await assert.rejects(lifecycle.permanentlyDeleteLifecycleEntityForActor(selected, actor), /mechanics|referenced/);
+    await lifecycle.archiveLifecycleEntityForActor(selected, actor, "Synthetic nested reference archive");
+    await update(owner.id, [upsert(input, type, 2)]);
+    const refs = await getMechanicsEditorReferences(owner.id);
+    assert.ok(refs.options.some(row => row.archived && (row.kind === "skill" ? row.skillId === skill.id : row.derivedAbilityId === derived)));
+    await assert.rejects(saveSkill(fresh(`Synthetic new ${location} archived link`, [upsert(input, type, 2)])), /Archived reference/);
+    await update(owner.id, [remove(type)]);
+    assert.equal((await lifecycle.previewLifecycleEntityForActor(selected, actor)).canDelete, true);
+    await lifecycle.permanentlyDeleteLifecycleEntityForActor(selected, actor);
+  }
 });

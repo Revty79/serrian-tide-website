@@ -61,13 +61,13 @@ export function resolveSpecialAbilityMechanics(input: {
     const result = anyRequirementGroup(groups.map(row => row.result));
     const missingDocumentation = rule.references.some(ref => !refMap.has(referenceKey(ref)) || ["missing", "unavailable"].includes(refMap.get(referenceKey(ref))!.status));
     const ruleStatus: MechanicsRuleStatus = !eligible ? "unavailable" : result === "unsatisfied" ? "not-matched"
-      : rule.kind === "manual" || missingDocumentation ? "manual" : status(result);
+      : rule.kind !== "capability" || missingDocumentation ? "manual" : status(result);
     return { key: rule.key, title: rule.title, kind: rule.kind, status: ruleStatus, groups,
       explanation: !classificationValid ? "This Skill is not classified as a Special Ability."
         : !eligible ? possessed === false ? "The owner does not possess this Special Ability." : "Owner facts are unavailable; this is a definition-only view."
         : ruleStatus === "manual" ? "G.O.D. determination or additional facts are required."
         : ruleStatus === "matched" ? "Authored conditions match. Nothing has been activated, paid, applied or granted." : "Authored conditions do not match.",
-      summary: summarizeMechanicsRule(rule), authored: rule };
+      summary: summarizeMechanicsRule(rule, read.document.rules), authored: rule };
   }) : [];
   return structuredClone({ source: input.source, documentStatus: classificationValid ? read.status : "invalid" as const, schemaVersion: read.schemaVersion,
     empty: read.status === "ready" && read.document.rules.length === 0, context: input.owner ? "owner" as const : "definition" as const,

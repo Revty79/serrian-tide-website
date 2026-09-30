@@ -28,6 +28,8 @@
 .mechanics-hint { color: var(--st-text-secondary); font-size: 0.9rem; }
 .mechanics-join { font-weight: 700; padding: 0.65rem 0; color: var(--st-text-strong); }
 .mechanics-detach { border-top: 1px solid var(--st-border); padding-top: 1rem; display: grid; gap: 1rem; }
+.mechanics-check { display: flex; align-items: center; gap: 0.6rem; min-height: 44px; overflow-wrap: anywhere; }
+.mechanics-check input { flex: 0 0 auto; }
 @media (max-width: 540px) {
   .mechanics-card, .mechanics-group, .mechanics-condition { padding: 0.7rem; }
   .mechanics-actions { align-items: stretch; }

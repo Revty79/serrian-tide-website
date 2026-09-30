@@ -23,7 +23,7 @@ test("empty, absent, authored and future documents remain distinct; reads retain
   assert.equal(readSpecialAbilityMechanics(null).status, "absent");
   assert.equal(resolveSpecialAbilityMechanics({ source, stored: stored(doc()), owner }).empty, true);
   assert.deepEqual(parseSpecialAbilityMechanics(doc(capability(), manual())), doc(capability(), manual()));
-  const future = { schemaVersion: 2, dataJson: ' { "schemaVersion": 2, "rules": [], "newConcept": { "value": 3 } } ' };
+  const future = { schemaVersion: 99, dataJson: ' { "schemaVersion": 99, "rules": [], "newConcept": { "value": 3 } } ' };
   const before = structuredClone(future);
   assert.equal(readSpecialAbilityMechanics(future).status, "unsupported");
   assert.deepEqual(future, before);

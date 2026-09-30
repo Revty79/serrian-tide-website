@@ -1,6 +1,6 @@
 import type { SkillDraft } from "@/app/heavens/skills/actions";
 import { parseSpecialAbilityMechanics } from "./codec";
-import { SPECIAL_ABILITY_MECHANICS_EXTENSION, type MechanicsCondition, type MechanicsConditions, type MechanicsReference, type MechanicsRule, type SpecialAbilityMechanicsDocument } from "./models";
+import { SPECIAL_ABILITY_MECHANICS_EXTENSION, SPECIAL_ABILITY_MECHANICS_VERSION, type MechanicsCondition, type MechanicsConditions, type MechanicsReference, type MechanicsRule, type SpecialAbilityMechanicsDocument } from "./models";
 
 export type MechanicsReferenceOption = MechanicsReference & { name: string; archived: boolean; classification?: string };
 export type MechanicsEditorReferences = { options: MechanicsReferenceOption[] };
@@ -8,7 +8,7 @@ export const progressionComparisonLabels = { gte: "at least", gt: "more than", l
 
 // getRandomValues also works on plain HTTP LAN browsers, unlike randomUUID.
 export const newMechanicsKey = () => Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
-export function newMechanicsRule(kind: MechanicsRule["kind"]): MechanicsRule {
+export function newMechanicsRule(kind: "capability" | "manual"): MechanicsRule {
   const base = { key: newMechanicsKey(), title: "", description: "", when: { mode: "requirements" as const, groups: [] }, limitations: "", notes: "", references: [] };
   return kind === "capability" ? { ...base, kind, domain: "other" } : { ...base, kind, adjudication: "" };
 }
@@ -43,13 +43,15 @@ export function mechanicsValidationMessage(document: unknown): string | null {
       .replace(/\.when\.groups/g, " requirements").replace(/\.conditions/g, " conditions")
       .replace(/\.(?:skillId|derivedAbilityId)/g, " selected definition").replace(/\.adjudication/g, " G.O.D. determination")
       .replace(/\.(title|description|notes)/g, " $1").replace(/^\$:/, "Mechanics:")
+      .replace(/\.([a-zA-Z]+)\[(\d+)\]/g, (_, field, index) => `, ${field.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()} ${Number(index) + 1}`)
+      .replace(/\.([a-z][a-zA-Z]*)/g, (_, field) => ` ${field.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()}`)
       .replace("Expected a positive database ID.", "Choose an existing definition.");
   }
 }
 export function mechanicsDraftState(draft: SkillDraft) {
   const extension = draft.extensions.find(row => row.extensionType === SPECIAL_ABILITY_MECHANICS_EXTENSION);
   if (!extension) return { kind: "absent" as const };
-  if (extension.readStatus === "invalid" || extension.readStatus === "unsupported" || extension.schemaVersion > 1) {
+  if (extension.readStatus === "invalid" || extension.readStatus === "unsupported" || extension.schemaVersion > SPECIAL_ABILITY_MECHANICS_VERSION) {
     return { kind: "protected" as const, diagnostics: extension.diagnostics ?? ["This mechanics format is not supported by this editor. The saved document is preserved."] };
   }
   const mutation = draft.extensionMutations?.find(row => row.extensionType === SPECIAL_ABILITY_MECHANICS_EXTENSION);

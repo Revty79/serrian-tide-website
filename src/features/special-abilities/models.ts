@@ -1,7 +1,8 @@
 import type { NUMERIC_REQUIREMENT_OPERATORS, POSSESSION_REQUIREMENT_OPERATORS } from "@/features/requirements/requirement-primitives";
+import type { MechanicsV2Fields } from "./v2-models";
 
 export const SPECIAL_ABILITY_MECHANICS_EXTENSION = "special-ability-mechanics";
-export const SPECIAL_ABILITY_MECHANICS_VERSION = 1 as const;
+export const SPECIAL_ABILITY_MECHANICS_VERSION = 2 as const;
 export const CAPABILITY_DOMAINS = ["sense", "movement", "breathing", "communication", "other"] as const;
 export type NumericOperator = typeof NUMERIC_REQUIREMENT_OPERATORS[number];
 export type PossessionOperator = typeof POSSESSION_REQUIREMENT_OPERATORS[number];
@@ -29,16 +30,17 @@ export type MechanicsRule = {
 } & (
   | { kind: "capability"; domain: typeof CAPABILITY_DOMAINS[number] }
   | { kind: "manual"; adjudication: string }
+  | MechanicsV2Fields
 );
 export type SpecialAbilityMechanicsDocument = {
-  schemaVersion: typeof SPECIAL_ABILITY_MECHANICS_VERSION;
+  schemaVersion: 1 | 2;
   rules: MechanicsRule[];
 };
 export type StoredMechanics = { schemaVersion: number; dataJson: string };
 export type MechanicsDiagnostic = { code: string; path: string; message: string };
 export type MechanicsRead =
   | { status: "absent"; schemaVersion: null; document: null; diagnostics: MechanicsDiagnostic[] }
-  | { status: "ready"; schemaVersion: 1; document: SpecialAbilityMechanicsDocument; diagnostics: MechanicsDiagnostic[] }
+  | { status: "ready"; schemaVersion: 1 | 2; document: SpecialAbilityMechanicsDocument; diagnostics: MechanicsDiagnostic[] }
   | { status: "invalid" | "unsupported"; schemaVersion: number; document: null; diagnostics: MechanicsDiagnostic[] };
 export function emptySpecialAbilityMechanics(): SpecialAbilityMechanicsDocument {
   return { schemaVersion: 1, rules: [] };

@@ -1,6 +1,6 @@
 # Special Ability Mechanics: Pass 3 authoring interface
 
-September 30, 2026. Built on reviewed foundation commit `659705a2464a236b0b871c136794d41196733873` and the [Pass 2 contract](special-ability-mechanics-pass-2.md). This is the completion report and handoff for Pass 3. Pass 4 is not implemented.
+September 30, 2026. Built on reviewed foundation commit `659705a2464a236b0b871c136794d41196733873` and the [Pass 2 contract](special-ability-mechanics-pass-2.md). This is the historical completion report for Pass 3. The user subsequently authorized an expanded authoring toolbox for [Pass 4](special-ability-mechanics-pass-4.md), superseding the display recommendation below and moving that work to Pass 5.
 
 ## Interface and workflows
 
@@ -99,6 +99,8 @@ Brannan and Ember still need to settle Special Ability progression before numeri
 Reference choices are snapshots; a later archive/delete can still cause a save rejection, which the server safely reports. Stale recovery is an explicit reload, not a merge editor. Skill/Derived catalog mutation serialization and conservative deletion blocking for unreadable documents remain the documented Pass 2 tradeoffs. Native Creature and active Form context adapters remain deferred. No requirement has been silently satisfied by inventing facts for those contexts.
 
 ## Exact recommended Pass 4
+
+Historical recommendation, superseded by the user's approved expanded-toolbox brief. See [Pass 4's completion report and exact Pass 5 scope](special-ability-mechanics-pass-4.md).
 
 Recommend a **read-only Character display pass** using `getSpecialAbilityMechanicsProjection`: show authored Capability/Manual information on the saved Normal Character sheet and its printable reference, under existing Character permissions. Reuse the same possession gate, provisional progression label, qualification explanations, archived/missing-reference diagnostics, and legacy/empty/invalid/unsupported states. Do not parse raw mechanics JSON separately in each consumer.
 
