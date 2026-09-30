@@ -9,3 +9,5 @@
 .lookup { grid-column: 1 / -1; min-width: 0; display: grid; gap: .5rem; color: var(--st-text); }
 .lookup p { margin: 0; overflow-wrap: anywhere; }
 .lookup button { justify-self: start; }
+.binding { display: grid; gap: .75rem; min-width: 0; }
+.binding select { width: 100%; min-width: 0; max-width: 100%; }

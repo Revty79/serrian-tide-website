@@ -85,3 +85,6 @@ next-env.d.ts
 
 /.next-companion-profile-browser/
 /.next-companion-profile-build/
+
+/.next-companion-management-browser/
+/.next-companion-management-build/

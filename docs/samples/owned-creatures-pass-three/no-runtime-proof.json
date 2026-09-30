@@ -1,0 +1,351 @@
+{
+  "method": "Compare every row in every public table; only five companion tables and explicitly listed ownership columns may differ. Lifecycle, custody and Evolution are tested separately because those existing operations intentionally change their own state.",
+  "tables": [
+    "account",
+    "armor_location_reference",
+    "armor_locations",
+    "armor_profiles",
+    "attribute_score_reference",
+    "campaign",
+    "campaign_allowed_derived_ability",
+    "campaign_allowed_race",
+    "campaign_allowed_system",
+    "campaign_character",
+    "campaign_character_active_condition",
+    "campaign_character_active_health",
+    "campaign_character_active_health_pool",
+    "campaign_character_active_mana",
+    "campaign_character_active_modifier",
+    "campaign_character_attribute",
+    "campaign_character_currency_holding",
+    "campaign_character_firearm_event",
+    "campaign_character_firearm_preparation",
+    "campaign_character_firearm_state",
+    "campaign_character_injury",
+    "campaign_character_item",
+    "campaign_character_item_equipment_state",
+    "campaign_character_item_instance",
+    "campaign_character_profile",
+    "campaign_character_skill_allocation",
+    "campaign_character_spell_document",
+    "campaign_character_weapon_override",
+    "campaign_creature_npc_profile",
+    "campaign_derived_currency",
+    "campaign_inventory_item",
+    "campaign_inventory_tag",
+    "campaign_player",
+    "campaign_race",
+    "campaign_session",
+    "campaign_session_called_check_batch",
+    "campaign_session_called_check_event",
+    "campaign_session_called_check_request",
+    "campaign_session_effect_duration_binding",
+    "campaign_session_encounter",
+    "campaign_session_encounter_action_declaration",
+    "campaign_session_encounter_action_declaration_event",
+    "campaign_session_encounter_declaration_checkpoint",
+    "campaign_session_encounter_effect",
+    "campaign_session_encounter_effect_plan",
+    "campaign_session_encounter_effect_plan_event",
+    "campaign_session_encounter_firearm_attack",
+    "campaign_session_encounter_firearm_attack_event",
+    "campaign_session_encounter_firearm_bullet",
+    "campaign_session_encounter_initiative",
+    "campaign_session_encounter_initiative_participant",
+    "campaign_session_encounter_participant",
+    "campaign_session_encounter_pending_action",
+    "campaign_session_encounter_pending_action_source",
+    "campaign_session_encounter_reaction",
+    "campaign_session_encounter_reaction_event",
+    "campaign_session_encounter_responder_opportunity",
+    "campaign_session_encounter_reward",
+    "campaign_session_encounter_reward_decision",
+    "campaign_session_high_low_event",
+    "campaign_session_high_low_request",
+    "campaign_session_periodic_health_effect",
+    "campaign_session_player_ruling_request",
+    "campaign_session_player_ruling_request_event",
+    "campaign_session_prepared_shop",
+    "campaign_session_prepared_town",
+    "campaign_session_roll",
+    "campaign_session_roll_amendment",
+    "campaign_session_roster",
+    "campaign_session_scene",
+    "campaign_session_scene_member",
+    "campaign_session_scene_shop",
+    "campaign_session_scene_shop_visit",
+    "campaign_session_scene_shop_visit_member",
+    "campaign_session_scene_town",
+    "campaign_session_scene_town_npc",
+    "campaign_session_scene_town_place",
+    "campaign_session_scene_town_shop",
+    "catalog_visibility_activation",
+    "catalog_visibility_scope_activation",
+    "challenge_rating_reference",
+    "character_derived_ability",
+    "character_derived_ability_recharge",
+    "character_derived_ability_use",
+    "chat_message",
+    "chat_room",
+    "chat_room_member",
+    "companion_disposition_event",
+    "companion_profile",
+    "companion_profile_event",
+    "companion_profile_role",
+    "container_profiles",
+    "creature_abilities",
+    "creature_ability_effects",
+    "creature_attacks",
+    "creature_attributes",
+    "creature_defenses",
+    "creature_evolution_events",
+    "creature_evolution_paths",
+    "creature_evolution_requirements",
+    "creature_form_access_requirements",
+    "creature_form_skill_links",
+    "creature_forms",
+    "creature_hit_locations",
+    "creature_hp_pools",
+    "creature_movement",
+    "creature_skill_links",
+    "creature_uses",
+    "creature_variants",
+    "creature_vessel_profile",
+    "creatures",
+    "defense_skill_path_mapping",
+    "derived_ability",
+    "derived_ability_cost",
+    "derived_ability_effect",
+    "derived_ability_requirement",
+    "derived_ability_trigger",
+    "derived_ability_use_condition",
+    "derived_ability_use_limit",
+    "evolution_destination_creation",
+    "firearm_magazine_attachment",
+    "inventory_container_access",
+    "inventory_container_substance",
+    "inventory_custody_event",
+    "inventory_instance_custody",
+    "inventory_instance_location",
+    "inventory_stack_custody",
+    "inventory_stack_location",
+    "item_armor_damage_modifiers",
+    "item_creature_grant",
+    "item_effects",
+    "item_passive_effects",
+    "item_power_constructions",
+    "item_power_effects",
+    "item_power_resources",
+    "item_power_sources",
+    "item_powers",
+    "item_properties",
+    "item_rules",
+    "item_runtime_profiles",
+    "item_tag_links",
+    "item_tags_catalog",
+    "items",
+    "lifecycle_audit_event",
+    "magazine_ammunition",
+    "magazine_inventory_operation",
+    "magazine_profiles",
+    "owned_creature_disposition",
+    "race_attribute_caps",
+    "race_evolution_events",
+    "race_evolution_paths",
+    "race_evolution_requirements",
+    "race_form_access_requirements",
+    "race_form_movement_modes",
+    "race_form_natural_attacks",
+    "race_form_natural_protection_locations",
+    "race_form_natural_protections",
+    "race_form_skill_links",
+    "race_forms",
+    "race_movement_modes",
+    "race_natural_attacks",
+    "race_natural_protection_locations",
+    "race_natural_protections",
+    "race_skill_links",
+    "races",
+    "session",
+    "shop",
+    "shop_commerce_operation",
+    "shop_money_event",
+    "shop_offering",
+    "shop_resale_creature",
+    "shop_resale_item_instance",
+    "shop_staff_assignment",
+    "shop_transaction",
+    "shop_transaction_creature",
+    "shop_transaction_line",
+    "shop_transaction_request",
+    "shop_transaction_request_line",
+    "site_appearance_setting",
+    "skill",
+    "skill_extension",
+    "skill_relationship",
+    "tabletop_closeout_award",
+    "tabletop_closeout_award_decision",
+    "tabletop_source_use_event",
+    "tabletop_source_use_request",
+    "town",
+    "town_npc_association",
+    "town_place",
+    "town_shop_membership",
+    "user",
+    "user_catalog_preferences",
+    "user_role",
+    "verification",
+    "weapon_firing_modes",
+    "weapon_magazines",
+    "weapon_profiles",
+    "weapon_skill_path_mappings"
+  ],
+  "evidence": [
+    {
+      "label": "Pass 1/2 configuration, notes, reads, exact copies, retries and denial",
+      "tablesCompared": 198,
+      "changed": [
+        "companion_disposition_event",
+        "companion_profile",
+        "companion_profile_event",
+        "companion_profile_role",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": []
+    },
+    {
+      "label": "Pass 3 ownership removal and inspection",
+      "tablesCompared": 198,
+      "changed": [
+        "campaign_character",
+        "companion_disposition_event",
+        "companion_profile",
+        "companion_profile_event",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": [
+        {
+          "id": 50,
+          "columns": [
+            "owner_character_id",
+            "updated_at"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Reassign Race NPC, explicit review, Mount/Familiar and exact Vessel",
+      "tablesCompared": 198,
+      "changed": [
+        "campaign_character",
+        "companion_profile",
+        "companion_profile_event",
+        "companion_profile_role"
+      ],
+      "characterColumns": [
+        {
+          "id": 50,
+          "columns": [
+            "owner_character_id",
+            "updated_at"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Race NPC travel/binding and current owner permissions",
+      "tablesCompared": 198,
+      "changed": [
+        "companion_disposition_event",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": []
+    },
+    {
+      "label": "31 notes and travel changes with bounded read histories",
+      "tablesCompared": 198,
+      "changed": [
+        "companion_disposition_event",
+        "companion_profile",
+        "companion_profile_event",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": []
+    },
+    {
+      "label": "Vessel-side Not Yet Set binding and identical retry",
+      "tablesCompared": 198,
+      "changed": [
+        "companion_disposition_event",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": []
+    },
+    {
+      "label": "Vessel-side accompanying binding and identical retry",
+      "tablesCompared": 198,
+      "changed": [
+        "companion_disposition_event",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": []
+    },
+    {
+      "label": "Vessel-side away binding and identical retry",
+      "tablesCompared": 198,
+      "changed": [
+        "companion_disposition_event",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": []
+    },
+    {
+      "label": "Vessel authorization and concurrent exact-copy commands",
+      "tablesCompared": 198,
+      "changed": [
+        "companion_disposition_event",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": []
+    },
+    {
+      "label": "Stale Vessel selection cannot replace a newer disposition",
+      "tablesCompared": 198,
+      "changed": [
+        "companion_disposition_event",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": []
+    },
+    {
+      "label": "Campaign-owning G.O.D. binds the same exact copy",
+      "tablesCompared": 198,
+      "changed": [
+        "companion_disposition_event",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": []
+    },
+    {
+      "label": "Concurrent Vessel choices for one exact Creature have one winner",
+      "tablesCompared": 198,
+      "changed": [
+        "companion_disposition_event",
+        "owned_creature_disposition"
+      ],
+      "characterColumns": []
+    },
+    {
+      "label": "Active encounter blocks Vessel-side binding without runtime writes",
+      "tablesCompared": 198,
+      "changed": [],
+      "characterColumns": []
+    },
+    {
+      "label": "Active encounter blocks Vessel-side binding without runtime writes",
+      "tablesCompared": 198,
+      "changed": [],
+      "characterColumns": []
+    }
+  ]
+}

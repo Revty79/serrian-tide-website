@@ -11,7 +11,7 @@ import { readActiveHealthInTransaction } from "@/features/active-state/active-he
 import { readActiveEffectsInTransaction } from "@/features/active-state/active-effects-service";
 import type { CreatureNpcConstructorTransaction as Transaction } from "./creature-npc-constructor-service";
 
-async function authorizeOwner(tx: Transaction, ownerCharacterId: number, userId: string, lock = true) {
+export async function authorizeCompanionOwnerInTransaction(tx: Transaction, ownerCharacterId: number, userId: string, lock = true) {
   if (!Number.isSafeInteger(ownerCharacterId) || ownerCharacterId <= 0) throw new Error("Choose a saved owning Character.");
   const [candidate] = await tx.select({ campaignId: campaignCharacter.campaignId }).from(campaignCharacter).where(eq(campaignCharacter.id, ownerCharacterId));
   if (!candidate) throw new Error("Character not found.");
@@ -33,7 +33,7 @@ async function authorizeOwner(tx: Transaction, ownerCharacterId: number, userId:
 
 export async function readOwnedCreaturesForActor(ownerCharacterId: number, userId: string) {
   return db.transaction(async tx => {
-    const access = await authorizeOwner(tx, ownerCharacterId, userId);
+    const access = await authorizeCompanionOwnerInTransaction(tx, ownerCharacterId, userId);
     const rows = await tx.select({ characterId: campaignCharacter.id, name: campaignCharacter.name, archivedAt: campaignCharacter.archivedAt,
       creatureId: creature.id, definitionName: creature.canonicalName, canonicalId: creature.canonicalId })
       .from(campaignCharacter).innerJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
@@ -62,7 +62,7 @@ export async function renameOwnedCreatureForActor(input: { ownerCharacterId: num
   if (!name || name.length > 120) throw new Error("Use an individual name between 1 and 120 characters.");
   if (!Number.isSafeInteger(input.creatureCharacterId) || input.creatureCharacterId <= 0) throw new Error("Choose an individual Creature.");
   await db.transaction(async tx => {
-    const access = await authorizeOwner(tx, input.ownerCharacterId, userId);
+    const access = await authorizeCompanionOwnerInTransaction(tx, input.ownerCharacterId, userId);
     if (!access.canRename) throw new Error("Restore the Campaign and owning Character before naming a Creature.");
     const [individual] = await tx.select().from(campaignCharacter).where(and(eq(campaignCharacter.id, input.creatureCharacterId), eq(campaignCharacter.campaignId, access.campaignId),
       eq(campaignCharacter.ownerCharacterId, input.ownerCharacterId), eq(campaignCharacter.isNpc, true), eq(campaignCharacter.npcKind, "creature"))).for("update");
@@ -73,7 +73,7 @@ export async function renameOwnedCreatureForActor(input: { ownerCharacterId: num
 
 /** Internal narrow scope, never an authorization grant to general NPC/active-state APIs. */
 export async function authorizeOwnedCreatureInTransaction(tx: Transaction, ownerCharacterId: number, creatureCharacterId: number, userId: string, lock = true) {
-  const access = await authorizeOwner(tx, ownerCharacterId, userId, lock);
+  const access = await authorizeCompanionOwnerInTransaction(tx, ownerCharacterId, userId, lock);
   const query = tx.select({ archivedAt: campaignCharacter.archivedAt }).from(campaignCharacter)
     .innerJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
     .where(and(eq(campaignCharacter.id, creatureCharacterId), eq(campaignCharacter.campaignId, access.campaignId), eq(campaignCharacter.ownerCharacterId, ownerCharacterId),

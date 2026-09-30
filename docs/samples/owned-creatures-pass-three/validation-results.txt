@@ -1,0 +1,37 @@
+﻿Owned Creatures Upgrade Pass 3 - management audit and runtime handoff
+Approved base: 7d9823fccae6594b1e44cead7b474a0fef57b59b
+Validation date: 2026-09-30
+
+PASS: Fresh 90-migration chain; populated 0088 -> 0089 preserves 195 existing tables.
+PASS: Pass 1 disposition/Vessel scenarios, 13/13.
+PASS: Pass 2 Companion Profile scenarios, 15/15.
+PASS: Pass 3 integration scenarios, 9/9 (including 20 requested inverse-binding assertions grouped by workflow).
+PASS: 14 all-table comparisons over 198 public tables. Only five companion tables may change; explicit ownership cases allow only owner_character_id/updated_at on the named individual.
+PASS: Evolution/Forms/ownership/commerce/equipment/Item-use/lifecycle, 136/136 inner tests.
+PASS: Containment/custody/inventory/lifecycle, 232/232 inner tests plus passing wrapper.
+PASS: Account deletion, 1/1 integration test.
+PASS: Actual Chrome desktop 1365x1000 and phone width 390x844; inherited Pass 2 workflows and new inverse binding/unowned inspection.
+PASS: Not Yet Set, Accompanying, Away -> Vessel-bound; exact duplicate-name choices; immediate reverse lookup; Creature-side unbind.
+PASS: Read-only retained profile in simple/detailed G.O.D. editors and expandable before/after history; no page errors or horizontal overflow in checked flows.
+PASS: Production Next build using temporary PostgreSQL; TypeScript and all 28 static pages.
+PASS: Standalone TypeScript, changed-file ESLint with zero warnings/errors, Drizzle metadata, git diff --check.
+PARTIAL: Broad feature suite with existing CSS loader: 1,762 pass / 1,764 total.
+BASELINE: appearance-source.test.ts flags fixed print palette in paper-character-sheet.css.
+BASELINE: appearance-source.test.ts expects old exact phrase "print/export rules remain fixed" in unchanged theme-development.md.
+No weakening of baseline tests or Appearance redesign. Hosted CI status is not asserted.
+
+Reproduction (PowerShell; temporary PostgreSQL tools must be available):
+node --import tsx scripts/companion-management-disposable.test.ts
+node --import tsx scripts/companion-management-disposable.test.ts --browser --build
+node --import tsx scripts/creature-evolution-disposable.test.ts
+node --import tsx scripts/inventory-containment-disposable.test.ts
+node --import tsx scripts/admin-account-lifecycle-disposable-db.test.ts
+$env:NODE_OPTIONS='--import ./scripts/register-test-css.mjs'
+node scripts/run-feature-tests.mjs
+npx.cmd tsc --noEmit
+npx.cmd eslint <changed .ts/.tsx/.mjs paths from changed-files.txt>
+npx.cmd drizzle-kit check
+git diff --check
+
+All database harnesses and the browser/build ran against disposable synthetic loopback PostgreSQL clusters with validated temporary cleanup. No shared DEV/Production database connection, write, migration, or deployment. No Pass 3 schema/migration change; 0088/0089 untouched. Runtime integration, capture, release/recall and atomic transfer-with-Vessel remain deferred.
+Automatic ownership companion events remain explicitly unattributed; authored management commands record their real authenticated actor. Both history views deliberately display the latest 30 events. Automated evidence does not replace human acceptance. Physical phones, Firefox and Safari were not exercised.

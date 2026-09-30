@@ -234,7 +234,7 @@ test("actual Evolution and historical Return preserve Profile and exact Vessel i
 
 test("authorized exact Vessel reverse lookup and readable travel history do not expose private NPC data",async()=>{
   const id=(await create({name:"Storm"})).characterId,copy=await newCopy();await bind(id,copy);
-  const found=await management.readVesselCompanionForActor(ownerA,copy,player);assert.equal(found.creatureName,"Storm");assert.match(found.label,/Calling Stone/);assert.deepEqual(Object.keys(found).sort(),["creatureName","label"]);
+  const found=await management.readVesselCompanionForActor(ownerA,copy,player);assert.equal(found.creatureName,"Storm");assert.match(found.label,/Calling Stone/);assert.deepEqual(Object.keys(found).sort(),["canBind","creatureIdentity","creatureName","label"]);
   await assert.rejects(management.readVesselCompanionForActor(ownerB,copy,player));await assert.rejects(management.readVesselCompanionForActor(ownerA,copy,otherPlayer));await assert.rejects(management.readCompanionTravelHistoryForActor(ownerA,id,otherPlayer));
   await set(id,"away",{awayNote:"At home",acknowledgeUnbind:true});const history=await management.readCompanionTravelHistoryForActor(ownerA,id,player);assert.match(history[0].before,/Vessel-bound.*Calling Stone/);assert.equal(history[0].after,"Away · At home");assert.equal(history[0].actor,god.replace("god","player"));
   assert.equal((await management.readVesselCompanionForActor(ownerA,copy,player)).creatureName,null);

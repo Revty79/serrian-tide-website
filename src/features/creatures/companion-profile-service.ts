@@ -1,8 +1,8 @@
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
-import { asc, desc, eq, and, sql } from "drizzle-orm";
+import { asc, eq, and, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { user } from "@/db/auth-schema";
+import { readCompanionProfileHistoryInTransaction } from "./companion-profile-history";
 import { companionProfile as profile, companionProfileRole as role, companionProfileEvent as event } from "@/db/companion-profile-schema";
 import { authorizeOwnedCreatureInTransaction } from "./owned-creature-service";
 import { assertManagementOutsideCombat } from "./companion-disposition-service";
@@ -22,18 +22,13 @@ export async function readCompanionProfileInTransaction(tx: Transaction, charact
 export async function readCompanionProfileForActor(ownerCharacterId: number, creatureCharacterId: number, userId: string) {
   return db.transaction(async tx => {
     const access = await authorizeOwnedCreatureInTransaction(tx, ownerCharacterId, creatureCharacterId, userId);
-    const history = await tx.select({ id: event.id, revision: event.revision, actor: user.name, createdAt: event.createdAt, command: event.command })
-      .from(event).leftJoin(user, eq(user.id, event.actorUserId)).where(eq(event.characterId, creatureCharacterId)).orderBy(desc(event.revision)).limit(30);
     const active = await tx.execute(sql`select 1 from campaign_session_encounter e join campaign_session_encounter_participant p on p.encounter_id=e.id
       where e.status='active' and p.character_id in (${ownerCharacterId},${creatureCharacterId}) limit 1`);
     return { ...await readCompanionProfileInTransaction(tx, creatureCharacterId),
       canEditNotes: access.canChange, canConfigure: access.canChange && access.canConfigureProfile && !active.rows.length,
       blockedReason: !access.canChange ? "Only the owning Player or Campaign G.O.D. can edit notes on an active companion."
         : access.canConfigureProfile && active.rows.length ? "Finish the owner and Creature's active encounters before changing behavior settings." : "",
-      history: history.map(row => ({ id: row.id, revision: row.revision, actor: row.actor ?? "Ownership change (actor not recorded)",
-        createdAt: row.createdAt.toISOString(), summary: row.command.operation === "notes" ? "Relationship notes updated."
-          : row.command.operation === "ownership-review" ? "Ownership changed; authored profile retained for G.O.D. review."
-          : row.command.confirmOwnerReview ? "Profile configured and reviewed for the current owner." : "Companion roles and intended behavior configured." })) };
+      history: await readCompanionProfileHistoryInTransaction(tx, creatureCharacterId) };
   });
 }
 

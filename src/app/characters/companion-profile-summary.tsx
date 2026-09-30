@@ -1,9 +1,9 @@
 import { companionRoleLabel, CONTROL_LABELS, COMBAT_PREFERENCE_LABELS, type CompanionRoleData, type CompanionControl, type CompanionCombatPreference } from "@/features/creatures/companion-profile";
 
-export function CompanionProfileSummary({ profile }: { profile: { configured: boolean; requiresOwnerReview: boolean; roles: CompanionRoleData[]; controlModel: CompanionControl | null; combatPreference: CompanionCombatPreference | null; relationshipNotes: string } }) {
+export function CompanionProfileSummary({ profile, ownerAssigned = true }: { ownerAssigned?: boolean; profile: { configured: boolean; requiresOwnerReview: boolean; roles: CompanionRoleData[]; controlModel: CompanionControl | null; combatPreference: CompanionCombatPreference | null; relationshipNotes: string } }) {
   const mount = profile.roles.find(role => role.role === "mount");
   return <div aria-label="Companion Profile summary">
-    {profile.requiresOwnerReview ? <p><strong>G.O.D. review required after ownership change.</strong> These retained settings have not been approved for the current owner.</p> : null}
+    {profile.requiresOwnerReview ? <p><strong>G.O.D. review required after ownership change.</strong> {ownerAssigned ? "These retained settings have not been approved for the current owner." : "These retained settings require review after an owner is assigned."}</p> : null}
     {!profile.configured ? <p>Companion behavior not yet configured</p> : <>
       <p><strong>Roles:</strong> {profile.roles.map(companionRoleLabel).join(" · ") || "None selected"}</p>
       <p><strong>Control:</strong> {profile.controlModel ? CONTROL_LABELS[profile.controlModel] : "Not configured"}</p>

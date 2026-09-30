@@ -1,0 +1,22 @@
+﻿# Owned Creatures management acceptance — Brannan and Ember
+
+Use an approved test environment with migrations through 0089. Pass 3 adds no migration. Record the browser/device, exact Character/Creature/copy identities and any confusing wording. Automated coverage is complete only as described in the Pass 3 report; these checks remain human acceptance, not previously confirmed results.
+
+- [ ] As G.O.D., create three companions for one Character from the same master; give at least two the same individual name. Confirm each has a distinct Individual number and independent profile/history.
+- [ ] Configure A: Accompanying, Companion + Mount, Owner Commands, Normally Stays Out. Set intended riders and Mount notes. Configure B: Vessel-bound, Guard / Combat, Player Directed, Normally Joins Combat. Configure C: Away, Familiar + Scout / Utility, G.O.D. Directed, Decide When Combat Starts. Confirm none changes the others or grants mechanics.
+- [ ] Acquire two empty copies of the same Vessel Item. Identify them by Copy identity. On an empty exact-copy row use **View Vessel binding → Bind Creature**. Check duplicate-name choices, the prior-travel warning, and the resulting exact Creature identity immediately after save.
+- [ ] Repeat Vessel-side binding for Not Yet Set, Accompanying and Away. Confirm only the selected Creature changes to Vessel-bound and each save creates one Travel / Vessel event. Confirm the Creature-side chooser creates the same bond.
+- [ ] Confirm an already-bound Creature is excluded from the simple inverse chooser. Deliberate unbind/rebind through the Creature editor must still require acknowledgement. Try two browser tabs competing for one copy or changing one Creature; a stale attempt must not overwrite the winner.
+- [ ] As Player, save notes on a legacy unconfigured companion and on a reviewed/configured one. Confirm roles, control, preference, rider count and review confirmation cannot be edited. Rename only through existing allowed controls.
+- [ ] As owning G.O.D., use both simple and detailed Creature NPC editors. Check Other labels, Mount data-clear acknowledgement, Familiar and multiple roles, and readable before/after profile history.
+- [ ] Assign a Creature to a Race NPC owner. Check G.O.D.-managed profile, travel and exact-copy binding. Confirm no Player control is granted by the Race NPC's controller identity.
+- [ ] Deliberately unbind before changing ownership. Check retained settings, pending-review explanation, Player notes that leave review pending, and explicit G.O.D. approval for the new owner.
+- [ ] Remove ownership. In both NPC editor modes inspect retained roles, behavior, Mount details, notes and both histories. Confirm no fake owner or edit controls appear. Assign a valid owner and review again.
+- [ ] Archive/restore a Creature, owner and Vessel definition through permitted lifecycle controls. Confirm configuration/history survive and new changes are restricted while inactive. Bound exact copies must resist destructive retirement/deletion; no separate copy archive workflow is assumed.
+- [ ] Put a Vessel in an open/closed container; mark custody dropped/lost/stolen; move it to another holder where permitted. Confirm an existing bond survives and its custody description changes. Confirm inaccessible/archived/retired/wrong-holder empty copies cannot establish new bonds.
+- [ ] Evolve and perform historical Return on a configured, bound Creature in the approved test environment. Verify the same individual, owner, exact Vessel, roles, notes, Mount data, review flag and both histories remain.
+- [ ] Open travel and profile histories separately. Verify timestamps, revisions, readable before/after detail and truthful attribution. Automatic ownership events intentionally say actor not recorded; only the latest 30 events of each stream are displayed.
+- [ ] Repeat the main Player/G.O.D. workflows at desktop and around 390px. Check labels, help, keyboard navigation, saved-state refresh and duplicate-copy clarity. Report any management task that needs explanation outside the interface.
+- [ ] Confirm these management actions do not place Creatures into Scenes/combat or execute attacks, commands, release/recall, mounting, capture or movement. Review the unresolved questions in the runtime handoff before authorizing any later integration project.
+
+Stop after management acceptance. Runtime requires its own agreed decisions and scope.

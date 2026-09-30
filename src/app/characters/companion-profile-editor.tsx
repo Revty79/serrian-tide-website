@@ -4,7 +4,7 @@ import { GuidedField } from "@/components/field-guidance";
 import { COMPANION_ROLES, ROLE_LABELS, CONTROL_LABELS, COMBAT_PREFERENCE_LABELS, type CompanionRole, type CompanionRoleData, type CompanionProfileCommand, type CompanionControl, type CompanionCombatPreference } from "@/features/creatures/companion-profile";
 import { changeCompanionProfile, readCompanionProfile } from "./companion-profile-actions";
 import { CompanionProfileSummary } from "./companion-profile-summary";
-import { CompanionTravelHistory } from "./companion-management-history";
+import { CompanionTravelHistory, CompanionProfileHistory } from "./companion-management-history";
 import styles from "./companion-profile-editor.module.css";
 type View = Awaited<ReturnType<typeof readCompanionProfile>>;
 
@@ -93,7 +93,7 @@ export function CompanionProfileEditor({ ownerCharacterId, creatureCharacterId, 
       </div>
       {settingsChanged ? <p>Use Save Companion Profile to save your role or behavior edits together with the notes.</p> : null}
       {attempt && !busy ? <p>The attempted change is retained for a safe retry. Refresh to read the saved state before editing again.</p> : null}
-      <details><summary>Companion Profile change history</summary><p>Latest 30 profile changes. Refresh the profile to update this list.</p>{view.history.length ? <ol>{view.history.map(row => <li key={row.id}><p>{row.summary}</p><small>{row.actor} · {new Date(row.createdAt).toLocaleString()} · Revision {row.revision}</small></li>)}</ol> : <p>No profile changes recorded.</p>}</details>
+      <CompanionProfileHistory rows={view.history} />
     </>}
     <CompanionTravelHistory ownerCharacterId={ownerCharacterId} creatureCharacterId={creatureCharacterId} />
     {error ? <p className={styles.error} role="alert">{error}</p> : null}{saved ? <p role="status">{saved}</p> : null}
