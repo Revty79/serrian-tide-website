@@ -992,7 +992,9 @@
 
 .character-item-instances > div {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(130px, auto) minmax(0, 1fr) auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  min-width: 0;
+  overflow-wrap: anywhere;
   align-items: center;
   gap: 9px;
   padding: 9px 10px;

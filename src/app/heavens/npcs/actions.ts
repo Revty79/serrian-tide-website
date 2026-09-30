@@ -1,4 +1,5 @@
 "use server";
+import { assertCreatureVesselsUnboundInTransaction } from "@/features/creatures/creature-vessel-guards";
 
 import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
 
@@ -119,6 +120,7 @@ export type CreatureNpcDraft = {
     isFirearm: boolean;
     isMagazine?: boolean;
     isContainer?: boolean;
+    isCreatureVessel?: boolean;
     archived: boolean;
   }>;
 };
@@ -833,6 +835,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       weaponProfileId: weaponProfile.id,
       isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isContainer: sql<boolean>`exists(select 1 from container_profiles where container_profiles.item_id = ${item.id})`,
+      isCreatureVessel: sql<boolean>`exists(select 1 from creature_vessel_profile where creature_vessel_profile.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
     })
       .from(campaignCharacterItem)
@@ -859,6 +862,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       weaponProfileId: weaponProfile.id,
       isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isContainer: sql<boolean>`exists(select 1 from container_profiles where container_profiles.item_id = ${item.id})`,
+      isCreatureVessel: sql<boolean>`exists(select 1 from creature_vessel_profile where creature_vessel_profile.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
     })
       .from(campaignCharacterItemInstance)
@@ -894,6 +898,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       weaponProfileId: weaponProfile.id,
       isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
       isContainer: sql<boolean>`exists(select 1 from container_profiles where container_profiles.item_id = ${item.id})`,
+      isCreatureVessel: sql<boolean>`exists(select 1 from creature_vessel_profile where creature_vessel_profile.item_id = ${item.id})`,
       isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
     }).from(campaignInventoryItem)
       .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
@@ -906,8 +911,8 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
 
   assertNoStackInstanceOwnershipCollision({
     definitions: [
-      ...ownedItems.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges }, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true || entry.isContainer === true })),
-      ...ownedItemInstances.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges }, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true || entry.isContainer === true })),
+      ...ownedItems.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges }, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true || entry.isContainer === true || entry.isCreatureVessel === true })),
+      ...ownedItemInstances.map((entry) => ({ itemId: entry.itemId, runtimeProfile: readItemRuntimeProfile(entry), powerResource: entry.powerMaximumCharges === null ? null : { maximumCharges: entry.powerMaximumCharges }, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true || entry.isContainer === true || entry.isCreatureVessel === true })),
     ],
     stacks: ownedItems,
     instances: ownedItemInstances,
@@ -956,6 +961,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
       isFirearm: entry.isFirearm,
       isMagazine: entry.isMagazine,
       isContainer: entry.isContainer,
+      isCreatureVessel: entry.isCreatureVessel,
       archived: entry.archivedAt !== null,
     })),
   };
@@ -1044,7 +1050,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       throw new Error("Archived Items cannot be added to or increased in Creature NPC inventory.");
     }
     assertItemOwnershipStrategy(source.runtimeProfile, "stack", source.name, {
-      requiresExactInstance: source.isFirearm === true || source.isMagazine === true || source.isContainer === true,
+      requiresExactInstance: source.isFirearm === true || source.isMagazine === true || source.isContainer === true || source.isCreatureVessel === true,
       allowLegacyExactStack: true,
       powerResource: source.powerResource,
     });
@@ -1069,7 +1075,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     const source = authorizedById.get(entry.itemId);
     if (!source) throw new Error("Creature NPC Item instances must use Campaign-authorized Items.");
     assertItemOwnershipStrategy(source.runtimeProfile, "instance", source.name, {
-      requiresExactInstance: source.isFirearm === true || source.isMagazine === true || source.isContainer === true,
+      requiresExactInstance: source.isFirearm === true || source.isMagazine === true || source.isContainer === true || source.isCreatureVessel === true,
       powerResource: source.powerResource,
     });
     if (entry.instanceId === null) {
@@ -1077,7 +1083,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       if (source.archived) throw new Error("Archived Items cannot be added as new Creature NPC instances.");
       return {
         ...entry,
-        currentCharges: getStartingItemInstanceCharges(source.runtimeProfile, source.isFirearm === true || source.isMagazine === true || source.isContainer === true, source.powerResource),
+        currentCharges: getStartingItemInstanceCharges(source.runtimeProfile, source.isFirearm === true || source.isMagazine === true || source.isContainer === true || source.isCreatureVessel === true, source.powerResource),
         unitCostCredits: source.credits ?? entry.unitCostCredits,
         acquiredAt: null,
       };
@@ -1099,7 +1105,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
     return entry;
   });
   assertNoStackInstanceOwnershipCollision({
-    definitions: current.authorizedItems.map((entry) => ({ itemId: entry.id, runtimeProfile: entry.runtimeProfile, powerResource: entry.powerResource, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true || entry.isContainer === true })),
+    definitions: current.authorizedItems.map((entry) => ({ itemId: entry.id, runtimeProfile: entry.runtimeProfile, powerResource: entry.powerResource, requiresExactInstance: entry.isFirearm === true || entry.isMagazine === true || entry.isContainer === true || entry.isCreatureVessel === true })),
     stacks: items,
     instances: itemInstances,
   });
@@ -1223,6 +1229,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       });
     }
     if (removedInstanceIds.length) {
+      await assertCreatureVesselsUnboundInTransaction(tx, removedInstanceIds);
       await tx.delete(campaignCharacterItemInstance).where(and(
         eq(campaignCharacterItemInstance.characterId, input.characterId),
         inArray(campaignCharacterItemInstance.id, removedInstanceIds),

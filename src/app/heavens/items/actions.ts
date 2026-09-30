@@ -20,6 +20,7 @@ import {
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db";
+import { creatureVesselProfile, ownedCreatureDisposition } from "@/db/companion-schema";
 import { creature } from "@/db/creature-schema";
 import {
   armorLocation,
@@ -198,6 +199,7 @@ export type ItemLineageSummary = {
 
 export type ItemDraft = {
   creatureGrant?: { creatureId: number; creatureName?: string } | null;
+  creatureVessel?: boolean;
   id?: number;
   isMagical: boolean;
   runtimeProfile: ItemRuntimeProfile;
@@ -760,6 +762,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
   ]);
   const [grant] = await db.select({ creatureId: itemCreatureGrant.creatureId, creatureName: creature.canonicalName }).from(itemCreatureGrant).innerJoin(creature, eq(creature.id, itemCreatureGrant.creatureId)).where(eq(itemCreatureGrant.itemId, id));
   const [magazine] = await db.select().from(magazineProfile).where(eq(magazineProfile.itemId, id));
+  const [vessel] = await db.select().from(creatureVesselProfile).where(eq(creatureVesselProfile.itemId, id));
   const [container] = await db.select().from(containerProfile).where(eq(containerProfile.itemId, id));
   const magazineAmmo = magazine ? await db.select({ id: item.id, name: item.name }).from(magazineAmmunition).innerJoin(item, eq(item.id, magazineAmmunition.ammunitionItemId)).where(eq(magazineAmmunition.magazineItemId, id)) : [];
   const compatibleMagazines = weaponRows[0] ? await db.select({ id: item.id, name: item.name }).from(weaponMagazine).innerJoin(item, eq(item.id, weaponMagazine.magazineItemId)).where(eq(weaponMagazine.weaponProfileId, weaponRows[0].id)) : [];
@@ -839,6 +842,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
   return {
     id: row.id,
     creatureGrant: grant ?? null,
+    creatureVessel: vessel?.enabled ?? false,
     isSystemCanon: row.isSystemCanon,
     createdByUserId: row.createdByUserId,
     archivedAt: row.archivedAt?.toISOString() ?? null,
@@ -1164,6 +1168,22 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         let sourceDocument;
         try { sourceDocument = parseSpellDocument(source.dataJson); resolveItemPowerConstruction(sourceDocument, power.fixedPowerLevel); } catch (error) { throw new Error(`Canonical Power source is invalid: ${error instanceof Error ? error.message : "Unreadable document."}`); }
         if (power.fixedPowerLevel !== null && !PRACTITIONER_LEVELS.includes(power.fixedPowerLevel as PractitionerLevel)) throw new Error("Canonical Power fixed level is invalid.");
+      }
+    }
+    if (input.creatureVessel !== undefined) {
+      if (typeof input.creatureVessel !== "boolean") throw new Error("Creature Vessel must be enabled or disabled.");
+      const [previous] = await tx.select().from(creatureVesselProfile).where(eq(creatureVesselProfile.itemId, id!));
+      if (input.creatureVessel && !previous) {
+        const [stack] = await tx.select({ id: campaignCharacterItem.characterId }).from(campaignCharacterItem).where(eq(campaignCharacterItem.itemId, id!)).limit(1);
+        if (stack) throw new Error("Resolve existing quantity stacks before enabling Creature Vessel. This capability requires exact Item copies; existing stacks are not converted automatically.");
+      }
+      if (!input.creatureVessel) {
+        const [binding] = await tx.select({ id: ownedCreatureDisposition.characterId }).from(ownedCreatureDisposition).where(eq(ownedCreatureDisposition.vesselItemId, id!)).limit(1);
+        if (binding) throw new Error("Unbind the owned Creatures before disabling this Item's Creature Vessel capability.");
+      }
+      if (input.creatureVessel || previous) {
+        await tx.insert(creatureVesselProfile).values({ itemId: id!, enabled: input.creatureVessel })
+          .onConflictDoUpdate({ target: creatureVesselProfile.itemId, set: { enabled: input.creatureVessel } });
       }
     }
     if (input.creatureGrant !== undefined) {

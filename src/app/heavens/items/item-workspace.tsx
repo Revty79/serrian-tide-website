@@ -144,6 +144,7 @@ function newItemDraft(scope: ItemCatalogScope): ItemDraft {
     powers: [],
     powerResource: null,
     creatureGrant: null,
+    creatureVessel: false,
     containerProfile: null,
     core: {
       canonicalId: "",
@@ -710,6 +711,11 @@ function Overview({
     <Field label="Subtype"><input value={core.subtype} onChange={(e) => setCore({ subtype: e.target.value })} /></Field>
     <Field label="Credits"><OptionalNumber value={core.credits} min={0} onChange={(credits) => setCore({ credits })} /></Field>
     <CreatureGrantFields value={draft.creatureGrant ?? null} onChange={creatureGrant => onChange({ ...draft, creatureGrant })} />
+    <section className="item-field--wide item-vessel-capability">
+      <Field label="Creature Vessel"><input type="checkbox" checked={draft.creatureVessel ?? false} onChange={event => onChange({ ...draft, creatureVessel: event.target.checked })} /></Field>
+      <p>Allows an exact copy of this Item to be bound to one exact owned Creature. This defines storage capability only. Release, recall and combat behavior are not implemented here.</p>
+      <p>Existing quantity stacks must be resolved first. Disabling requires unbinding all Creatures; existing exact copies keep their identity and tracking.</p>
+    </section>
     <Field label="Price Basis"><input value={core.priceBasis} onChange={(e) => setCore({ priceBasis: e.target.value })} /></Field>
     <Field label="Weight"><OptionalNumber value={core.weight} min={0} onChange={(weight) => setCore({ weight })} /></Field>
     <Field label="Weight Unit"><input value={core.weightUnit} onChange={(e) => setCore({ weightUnit: e.target.value })} /></Field>
@@ -1512,6 +1518,7 @@ function Preview({ draft }: { draft: ItemDraft }) {
     <header><p>{draft.core.catalogScope}{draft.core.equipmentGroup ? ` / ${draft.core.equipmentGroup}` : ""}</p><h3>{draft.core.name || "Untitled Item"}</h3><span>{draft.core.canonicalId || "Record ID assigned on save"} · {draft.core.recordType} · {draft.core.category}</span><div className="item-preview__classification"><span>{draft.isMagical ? "Magical Item" : "Mundane Item"}</span>{draft.runtimeProfile.useMode !== "none" ? <span>{draft.runtimeProfile.useMode === "consume-item" ? "Consumable" : draft.runtimeProfile.useMode === "charges" ? "Charged" : "Unlimited"}</span> : null}</div></header>
     <div className="item-preview__facts"><div><dt>Credits</dt><dd>{draft.core.credits ?? "—"}</dd></div><div><dt>Price Basis</dt><dd>{draft.core.priceBasis || "—"}</dd></div><div><dt>Weight</dt><dd>{draft.core.weight === null ? "—" : `${draft.core.weight} ${draft.core.weightUnit}`}</dd></div><div><dt>Size</dt><dd>{draft.core.size || "—"}</dd></div><div><dt>Durability</dt><dd>{draft.core.durability ?? "—"}</dd></div></div>
     <section><h4>Description</h4><p>{draft.core.description || "No description."}</p></section>
+    {draft.creatureVessel ? <section><h4>Creature Vessel</h4><p>An exact copy can bind one owned Creature. Release, recall and combat behavior are not connected.</p></section> : null}
     {draft.creatureGrant ? <section><h4>Grants Creature on Purchase</h4><p>{draft.creatureGrant.creatureName ?? `Creature definition #${draft.creatureGrant.creatureId}`} ? One persistent individual per purchased unit.</p></section> : null}
     <section><h4>Runtime Use</h4><p><strong>Activated Use:</strong> {formatItemActivatedUse(draft.runtimeProfile)}</p><p><strong>Activation:</strong> {draft.runtimeProfile.activationLabel || "Use"}</p>{draft.runtimeProfile.useNotes ? <p>{draft.runtimeProfile.useNotes}</p> : null}</section>
     <section><h4>Activated Mechanical Effects</h4>{draft.effects.length ? <ul>{draft.effects.map((effect, index) => <li key={index}><strong>{formatMechanicalEffectSummary(effect)}</strong>{effect.kind === "manual" ? <span> — {effect.description}</span> : null}</li>)}</ul> : <p>No activated Mechanical Effects.</p>}</section>

@@ -1,0 +1,30 @@
+Owned Creatures Upgrade Pass 1
+Reviewed base: ca7c920ce41a56cfe74dc6c7f999f87b439da06d
+Validation date: 2026-09-30
+
+PASS: Fresh 89-migration chain in temporary PostgreSQL.
+PASS: Populated upgrade preserved full row snapshots across all 192 pre-existing public tables.
+PASS: No inferred disposition or Vessel profile for legacy records.
+PASS: New companion disposable integration scenarios, 13/13.
+PASS: Existing Evolution/Forms/ownership/commerce/lifecycle wrapper, 136/136 inner tests.
+PASS: Existing physical Container/containment/custody/inventory/lifecycle wrapper, 232/232 inner tests.
+PASS: Existing account-deletion disposable integration, 1/1.
+PASS: Actual Google Chrome desktop (1365x1000) and phone-width (390x844) flows.
+PASS: Item capability save/reload; all companion states; same-name exact copies; unbind acknowledgement.
+PASS: Player management, G.O.D. detailed/simple Creature NPC management, Race NPC owner.
+PASS: No horizontal overflow or page JavaScript errors in checked flows.
+PASS: Production Next build against temporary PostgreSQL, including TypeScript and 28 static pages.
+PASS: Standalone TypeScript, changed-file ESLint (no errors/warnings), Drizzle metadata check, git diff --check.
+
+PARTIAL: Broad feature suite with existing register-test-css loader: 1762 passed, 2 failed, 1764 total.
+Both failures are unchanged from the reviewed base:
+- appearance-source.test.ts: screen palette assertion includes existing paper-character-sheet.css print colors.
+- appearance-source.test.ts: guide assertion requires a phrase absent from the existing theme-development.md.
+The raw run without the CSS loader also has four direct-Node CSS-import failures; use the loader.
+
+All database validation used disposable synthetic loopback clusters. No shared DEV or Production access.
+Migration 0088 was not applied to shared databases. No deployment occurred.
+Chrome automation is not Brannan/Ember human acceptance, physical device testing, Firefox, or Safari coverage.
+No gameplay runtime integration was added. Owned Creatures Pass 2 and Special Ability Pass 6 remain deferred.
+
+Commands and lifecycle/design details: ../../architecture/owned-creatures-pass-one-report.md

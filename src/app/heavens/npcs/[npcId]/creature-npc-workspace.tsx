@@ -1,5 +1,6 @@
 "use client";
 import { IndividualEvolutionPanel } from "@/app/heavens/individual-evolution-panel";
+import { CompanionDispositionEditor } from "@/app/characters/companion-disposition-editor";
 import { CreatureFormPreviewViewer } from "./creature-form-preview";
 
 import { GuidedField } from "@/components/field-guidance";
@@ -204,7 +205,7 @@ export function CreatureNpcWorkspace({ initialDraft, initialActiveHealth, initia
     <CreatureFormPreviewViewer key={`${draft.characterId}:${draft.creatureId}`} snapshot={draft.currentSnapshot} normalSnapshot={accessSnapshot} hpAdjustment={draft.hpAdjustment} />
     <div className="creature-npc-layout"><nav className="creature-npc-tabs">{TABS.filter(entry => entry.id !== "evolution" || canOperateRuntime).map((entry) => <button type="button" key={entry.id} className={tab === entry.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setTab(entry.id))}>{entry.label}</button>)}</nav><section className="creature-npc-editor">
       {tab === "evolution" && canOperateRuntime ? <IndividualEvolutionPanel characterId={draft.characterId} disabled={dirty || saving} onChanged={refreshRuntimeState} /> : null}
-      {tab === "identity" ? <Identity draft={draft} onChange={change} /> : null}
+      {tab === "identity" ? <><Identity draft={draft} onChange={change} />{draft.ownerCharacterId !== null ? <CompanionDispositionEditor key={`${draft.characterId}:${draft.ownerCharacterId}`} ownerCharacterId={draft.ownerCharacterId} creatureCharacterId={draft.characterId} disabled={dirty || saving} /> : null}</> : null}
       {tab === "current" ? <><ActiveHealthPanel health={activeHealth} disabled={!canOperateRuntime} onHealthChange={setActiveHealth} context="creature" /><ActiveEffectsPanel state={activeEffects} godMode disabled={!canOperateRuntime} skillOptions={draft.currentSnapshot.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} movementModes={draft.currentSnapshot.movement.map(({ movementMode }) => movementMode)} onChange={setActiveEffects} /><EquipmentStatePanel state={equipmentState} disabled={dirty || saving || !canOperateRuntime} includeEffectHistory onChange={setEquipmentState} onActiveEffectsChange={setActiveEffects} /><MagazinePanel characterId={draft.characterId} disabled={dirty || saving || !canOperateRuntime} onChange={refreshRuntimeState} /><ItemChargePanel state={chargeState} disabled={dirty || saving || !canOperateRuntime} onChange={acceptChargeState} /></> : null}
       {tab === "stats" ? <Stats snapshot={draft.currentSnapshot} onChange={changeSnapshot} /> : null}
       {tab === "hp" ? <Hp snapshot={draft.currentSnapshot} hpAdjustment={draft.hpAdjustment} onChange={changeSnapshot} /> : null}
@@ -254,13 +255,13 @@ function Inventory({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (dr
   function addSelectedItem() {
     const selected = draft.authorizedItems.find(({ id }) => id === Number(itemId));
     if (!selected) return;
-    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true || selected.isContainer === true, selected.powerResource) === "instance") {
+    if (getItemOwnershipStrategy(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true || selected.isContainer === true || selected.isCreatureVessel === true, selected.powerResource) === "instance") {
       const [created] = createDraftOwnedItemInstances({
         itemId: selected.id,
         quantity: 1,
         unitCostCredits: selected.credits ?? 0,
         runtimeProfile: selected.runtimeProfile,
-        requiresExactInstance: selected.isFirearm === true || selected.isMagazine === true || selected.isContainer === true,
+        requiresExactInstance: selected.isFirearm === true || selected.isMagazine === true || selected.isContainer === true || selected.isCreatureVessel === true,
         powerResource: selected.powerResource,
         createDraftId: () => nextInstanceDraftId.current--,
       });
@@ -268,7 +269,7 @@ function Inventory({ draft, onChange }: { draft: CreatureNpcDraft; onChange: (dr
         ...draft,
         itemInstances: [...draft.itemInstances, {
           ...created,
-          currentCharges: getStartingItemInstanceCharges(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true || selected.isContainer === true, selected.powerResource),
+          currentCharges: getStartingItemInstanceCharges(selected.runtimeProfile, selected.isFirearm === true || selected.isMagazine === true || selected.isContainer === true || selected.isCreatureVessel === true, selected.powerResource),
           acquiredAt: null,
         }],
       });

@@ -1,3 +1,15 @@
+.item-vessel-capability {
+  display: grid;
+  gap: .65rem;
+  padding: 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: .5rem;
+  background: var(--st-surface-soft);
+  color: var(--st-text);
+}
+.item-vessel-capability p { margin: 0; color: var(--st-text-secondary); font-size: .85rem; line-height: 1.5; }
+.item-vessel-capability input[type="checkbox"] { width: 1.25rem; height: 1.25rem; min-height: 1.25rem; }
+
 .item-magical-toggle {
   display: flex;
   align-items: center;

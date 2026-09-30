@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { creature } from "@/db/creature-schema";
+import { readCompanionDispositionInTransaction } from "./companion-disposition-service";
 import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
 import { readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
 import { readActiveEffectsInTransaction } from "@/features/active-state/active-effects-service";
@@ -43,6 +44,7 @@ export async function readOwnedCreaturesForActor(ownerCharacterId: number, userI
       const effects = await readActiveEffectsInTransaction(tx, row.characterId);
       // Deliberate Player-safe projection. No private NPC notes, sources, or editable snapshots.
       individuals.push({ ...row, archivedAt: row.archivedAt?.toISOString() ?? null,
+        travel: await readCompanionDispositionInTransaction(tx, row.characterId, ownerCharacterId),
         health: { current: view.total.remainingHp, maximum: view.total.maximumHp, damage: view.total.damage, injuries: view.unresolvedInjuryCount },
         conditions: effects.conditions.map(condition => ({ name: condition.name, description: condition.description })),
         canRename: access.canRename && !row.archivedAt,

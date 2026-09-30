@@ -60,6 +60,9 @@ next-env.d.ts
 /.next-creature-authoring-browser/
 /.next-creature-ownership-browser/
 /.next-creature-ownership-build/
+/.next-companion-browser/
+/.next-companion-build/
+/artifacts/companion-*.log
 /.next-evolution-browser/
 /.next-evolution-build/
 /.next-creature-authoring-build/

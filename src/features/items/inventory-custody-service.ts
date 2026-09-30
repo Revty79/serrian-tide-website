@@ -1,3 +1,4 @@
+import { assertCreatureVesselsUnboundInTransaction } from "@/features/creatures/creature-vessel-guards";
 import "server-only";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { isDeepStrictEqual } from "node:util";
@@ -84,6 +85,7 @@ export async function handleInventoryInTransaction(tx: Tx, userId: string, comma
     if (!copy) throw new Error("Choose an exact container to resolve destruction.");
     const [model] = await tx.select({ profile: containerProfile, magical: item.isMagical }).from(containerProfile).innerJoin(item, eq(item.id, containerProfile.itemId)).where(eq(item.id, copy.itemId));
     if (!model) throw new Error("Only containers support this explicit spill resolution.");
+    await assertCreatureVesselsUnboundInTransaction(tx, [copy.instanceId]);
     const p = model.profile;
     const special = model.magical || p.weightCapacityMode !== "normal" || p.volumeCapacityMode !== "normal" || p.containedWeightBehavior !== "normal" || p.timeBehavior !== "normal" || p.livingContentsAllowed || p.source?.mode === "infinite";
     if (special && command.confirmMagicalSpill !== true) throw new Error("Magical or special container destruction needs an explicit G.O.D. ruling that spilling these contents is safe. No destruction effect is inferred.");

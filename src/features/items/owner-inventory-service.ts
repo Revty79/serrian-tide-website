@@ -1,3 +1,4 @@
+import { assertCreatureVesselsUnboundInTransaction } from "@/features/creatures/creature-vessel-guards";
 import "server-only";
 
 import { and, asc, eq, isNull, or, sql } from "drizzle-orm";
@@ -75,6 +76,7 @@ export async function adjustOwnerInventory(command: OwnerInventoryCommand) {
         id: item.id, runtime: itemRuntimeProfile, maximumCharges: itemPowerResource.maximumCharges,
         isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
         isContainer: sql<boolean>`exists(select 1 from container_profiles where container_profiles.item_id = ${item.id})`,
+        isCreatureVessel: sql<boolean>`exists(select 1 from creature_vessel_profile where creature_vessel_profile.item_id = ${item.id})`,
         isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from ${weaponFiringMode} where ${weaponFiringMode.weaponProfileId} = ${weaponProfile.id})), false)`,
       }).from(campaignInventoryItem).innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
         .leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id)).leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id))
@@ -85,7 +87,7 @@ export async function adjustOwnerInventory(command: OwnerInventoryCommand) {
         .for("update", { of: [item, campaignInventoryItem] });
       if (!definition) throw new Error("That item is not currently available to this Campaign.");
       const runtime = (definition.runtime ?? DEFAULT_ITEM_RUNTIME_PROFILE) as ItemRuntimeProfile;
-      const exact = definition.isFirearm || definition.isMagazine || definition.isContainer;
+      const exact = definition.isFirearm || definition.isMagazine || definition.isContainer || definition.isCreatureVessel;
       const powerResource = definition.maximumCharges === null ? null : { maximumCharges: definition.maximumCharges };
       const strategy = getItemOwnershipStrategy(runtime, exact, powerResource);
       const [stack] = await tx.select().from(campaignCharacterItem).where(and(eq(campaignCharacterItem.characterId, command.characterId), eq(campaignCharacterItem.itemId, command.itemId))).for("update");
@@ -112,6 +114,7 @@ export async function adjustOwnerInventory(command: OwnerInventoryCommand) {
         if (!Number.isSafeInteger(command.instanceId) || command.instanceId <= 0 || command.quantity !== 1) throw new Error("Choose one exact owned copy.");
         const [copy] = await tx.select().from(campaignCharacterItemInstance).where(and(eq(campaignCharacterItemInstance.id, command.instanceId), eq(campaignCharacterItemInstance.characterId, command.characterId), eq(campaignCharacterItemInstance.itemId, command.itemId), isNull(campaignCharacterItemInstance.retiredAt))).for("update");
         if (!copy) throw new Error("That exact copy is no longer owned by this Character.");
+        await assertCreatureVesselsUnboundInTransaction(tx, [copy.id]);
         if (copy.equipmentState !== command.state) throw new Error("This copy's equipment state changed. Reload before removing it.");
         const [attachment] = await tx.select({ id: firearmMagazineAttachment.weaponInstanceId }).from(firearmMagazineAttachment).where(or(eq(firearmMagazineAttachment.weaponInstanceId, copy.id), eq(firearmMagazineAttachment.magazineInstanceId, copy.id)));
         if (attachment) throw new Error("Detach the magazine through the existing firearm controls before removing this copy.");

@@ -1,5 +1,6 @@
 import "server-only";
 import { and, eq, or } from "drizzle-orm";
+import { ownedCreatureDisposition } from "@/db/companion-schema";
 import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
 import { shopResaleCreature } from "@/db/tabletop-shop-visit-schema";
 import { assertNpcCanBeChanged } from "@/features/npcs/npc-workflow";
@@ -31,6 +32,10 @@ export async function setCreatureOwnerInTransaction(tx: CreatureNpcConstructorTr
       eq(campaignCharacter.isNpc, true), eq(campaignCharacter.npcKind, "creature"),
     )).limit(1).for("update");
   if (!npc) throw new Error("Individual Creature NPC not found in this Campaign.");
+  if (npc.ownerCharacterId !== input.ownerCharacterId) {
+    const [travel] = await tx.select().from(ownedCreatureDisposition).where(eq(ownedCreatureDisposition.characterId, input.characterId));
+    if (travel?.vesselInstanceId) throw new Error("Unbind this Creature in Animals & Companions and change its travel disposition before transferring, selling, or removing ownership. Its Vessel will not move automatically.");
+  }
   assertNpcCanBeChanged({ archivedAt: npc.archivedAt, operation: "save" });
   if (input.expectedOwnerCharacterId !== undefined && npc.ownerCharacterId !== input.expectedOwnerCharacterId) {
     throw new Error("This Creature's owner changed. Refresh before continuing.");

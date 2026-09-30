@@ -1,0 +1,5 @@
+.editor { display: grid; gap: .75rem; min-width: 0; margin-block: 1rem; padding: 1rem; border: 1px solid var(--st-border); border-radius: .6rem; background: var(--st-surface-soft); color: var(--st-text); overflow-wrap: anywhere; }
+.editor p, .editor h4 { margin: 0; }
+.editor input:not([type="checkbox"]), .editor select { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.error { color: var(--st-danger); }

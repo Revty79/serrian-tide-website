@@ -581,6 +581,7 @@ export const campaignCharacterItemInstance = pgTable(
       table.characterId,
       table.itemId,
     ),
+    unique("campaign_character_item_instance_definition_uq").on(table.id, table.itemId),
     check("owned_magazine_contents_valid", sql`${table.loadedRounds} >= 0 AND ${table.loadedAmmunitionUnitCostCredits} >= 0 AND ((${table.loadedRounds} = 0 AND ${table.loadedAmmunitionItemId} IS NULL AND ${table.loadedAmmunitionUnitCostCredits} = 0) OR (${table.loadedRounds} > 0 AND ${table.loadedAmmunitionItemId} IS NOT NULL))`),
     index("campaign_character_item_instance_character_idx").on(
       table.characterId,

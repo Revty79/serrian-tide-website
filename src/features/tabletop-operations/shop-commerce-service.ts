@@ -1,3 +1,4 @@
+import { assertCreatureVesselsUnboundInTransaction } from "@/features/creatures/creature-vessel-guards";
 import { assertExactInventoryAvailable, assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import "server-only";
 
@@ -222,6 +223,7 @@ type ItemDefinition = Readonly<{
   isFirearm: boolean;
   isMagazine?: boolean;
   isContainer?: boolean;
+  isCreatureVessel?: boolean;
 }>;
 
 const MONEY_EPSILON = 0.000001;
@@ -508,6 +510,7 @@ async function loadItemDefinitions(
     ammunitionItemId: weaponProfile.ammunitionItemId,
     isMagazine: sql<boolean>`exists(select 1 from magazine_profiles where magazine_profiles.item_id = ${item.id})`,
     isContainer: sql<boolean>`exists(select 1 from container_profiles where container_profiles.item_id = ${item.id})`,
+    isCreatureVessel: sql<boolean>`exists(select 1 from creature_vessel_profile where creature_vessel_profile.item_id = ${item.id})`,
     isFirearm: sql<boolean>`coalesce(lower(trim(${weaponProfile.profileRecordType})) <> 'ammunition' and (${weaponProfile.ammunitionItemId} is not null or exists(select 1 from weapon_firing_modes where weapon_firing_modes.weapon_profile_id = ${weaponProfile.id})), false)`,
   }).from(campaignInventoryItem)
     .innerJoin(item, eq(item.id, campaignInventoryItem.itemId))
@@ -539,6 +542,7 @@ async function loadItemDefinitions(
     isFirearm: row.isFirearm,
     isMagazine: row.isMagazine,
     isContainer: row.isContainer,
+    isCreatureVessel: row.isCreatureVessel,
   }]));
 }
 
@@ -555,7 +559,7 @@ function runtimeProfile(definition: ItemDefinition) {
 }
 
 function ownershipStrategy(definition: ItemDefinition): "stack" | "instance" {
-  return getItemOwnershipStrategy(runtimeProfile(definition), definition.isFirearm === true || definition.isMagazine === true || definition.isContainer === true, definition.powerResource);
+  return getItemOwnershipStrategy(runtimeProfile(definition), definition.isFirearm === true || definition.isMagazine === true || definition.isContainer === true || definition.isCreatureVessel === true, definition.powerResource);
 }
 
 type LockedCommerceContext = Readonly<{
@@ -901,7 +905,7 @@ async function createOwnedInstance(
     itemId: input.definition.id,
     currentCharges: input.currentCharges ?? getStartingItemInstanceCharges(
       runtimeProfile(input.definition),
-      input.definition.isFirearm === true || input.definition.isMagazine === true || input.definition.isContainer === true,
+      input.definition.isFirearm === true || input.definition.isMagazine === true || input.definition.isContainer === true || input.definition.isCreatureVessel === true,
       input.definition.powerResource,
     ),
     unitCostCredits: input.unitCostCredits,
@@ -1072,6 +1076,7 @@ async function removeSoldOwnership(
       isNull(campaignCharacterItemInstance.retiredAt),
     )).orderBy(asc(campaignCharacterItemInstance.id)).for("update");
     if (instances.length !== instanceIds.length) throw new Error("An exact Item copy is no longer owned by this Character.");
+    await assertCreatureVesselsUnboundInTransaction(tx, instanceIds);
     const firearmStates = await tx.select().from(campaignCharacterFirearmState)
       .where(inArray(campaignCharacterFirearmState.itemInstanceId, instanceIds));
     const firearmByInstance = new Map(firearmStates.map((state) => [state.itemInstanceId, state]));

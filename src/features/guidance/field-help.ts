@@ -114,6 +114,7 @@ const interaction: Record<string, string> = {
 };
 
 const item: Record<string, string> = {
+  "Creature Vessel": "Enable this to allow one exact Item copy to bind one already owned Creature. This is separate from Grants Creature on Purchase and ordinary container contents. Existing stacks must be resolved before enabling it. Disable only after unbinding every Creature; existing exact-copy tracking is retained. No release, recall, capture, healing, or combat rule is added.",
   "Canonical ID": "The unique ID used to identify this Item in the library. Keep it when editing the same Item. Use Name to change what people see.",
   "Equipment Group": "Choose the equipment grouping used by the library. An Item needs the appropriate profile and owned equipment state before it can be used in play.",
   "Record Type": "Choose what this catalog record represents. Weapon, Ammunition, Armor and other types expose their corresponding editing tools.",

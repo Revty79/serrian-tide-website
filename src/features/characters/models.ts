@@ -261,6 +261,7 @@ export type CharacterAuthorizedItem = {
   isFirearm?: boolean;
   isMagazine?: boolean;
   isContainer?: boolean;
+  isCreatureVessel?: boolean;
   weaponType: string | null;
   handedness: string | null;
   damageSource: string | null;
