@@ -88,8 +88,8 @@ export function resolveIncomingEffectProposal(proposal: ActionEffectProposal, so
     const poolKey = target.applicationLocations?.find(({ number }) => number === application.hitLocationNumber)?.poolKey;
     if (poolKey) proposal = { ...proposal, finalValue: { ...final, application: { ...application, poolKey } } };
   }
-  const facts = incomingFactsForEffect(incomingFactsFromFrozenSource(source), effect);
   const instruction = incomingObject(incomingObject(proposal.authoredValue).instruction);
+  const facts = incomingFactsForEffect(incomingFactsFromFrozenSource(source), effect, instruction);
   const harmful = effect.kind === "health.damage" ? true : typeof instruction.harmful === "boolean" ? instruction.harmful : null;
   // Unknown harmfulness matters only if an applicable Requirement/Immunity
   // could change this non-damage effect. Beneficial/ordinary state effects keep

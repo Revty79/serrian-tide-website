@@ -12,6 +12,8 @@ import type {
 import { createContainer } from "@/features/spell-construction/utilities/spellFactory";
 import { createStableId } from "@/features/spell-construction/utilities/ids";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
+import { DamageTypeSelect } from "@/components/damage-type-select";
+import { GuidedField } from "@/components/field-guidance";
 
 type SpellContainerEditorProps = {
   container: SpellContainer;
@@ -64,6 +66,13 @@ function EffectSelectionEditor({
           />
         </label>
       )}
+
+      {effect.ruleId === "damage" ? (
+        <GuidedField label="Damage Type" help="Choose the types dealt by this Damage effect. Unspecified leaves the type unknown. This does not change Mana, Mastery, casting time, or damage amount. For mixed damage, describe any split; otherwise type-specific defenses may need a G.O.D. ruling.">
+          <DamageTypeSelect value={effect.damageType ?? ""} multiple
+            onChange={(damageType) => onChange({ ...effect, damageType })} />
+        </GuidedField>
+      ) : null}
 
       {effect.ruleId === "healing" ? (
         <label>

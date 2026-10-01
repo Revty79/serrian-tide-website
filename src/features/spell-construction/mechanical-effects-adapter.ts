@@ -7,6 +7,7 @@ import {
 } from "@/features/mechanical-effects";
 
 import { rulesById } from "./data/spellRules";
+import { normalizeDamageTypes } from "@/features/damage-types/damage-types";
 import { resolveProgressiveSpellForLevel } from "./engine/progressiveSpell";
 import { validateSpell } from "./engine/validateSpell";
 import type { PractitionerLevel } from "./models/rules";
@@ -21,6 +22,7 @@ export type SpellMechanicalEffectAdapterIssue = {
     | "duplicate-effect-id"
     | "invalid-effect-id"
     | "invalid-effect-quantity"
+    | "invalid-damage-type"
     | "unknown-effect-rule"
     | "invalid-mechanical-effect";
   message: string;
@@ -36,7 +38,18 @@ export type AdaptedSpellMechanicalEffect = {
   containerId: string;
   containerPath: readonly string[];
   definition: MechanicalEffectDefinition;
+  damageType?: string;
 };
+
+/** Frozen per-effect source metadata; the universal Health effect stays unchanged. */
+export function spellEffectSourceMetadata(entry: AdaptedSpellMechanicalEffect) {
+  return {
+    spellEffectId: entry.spellEffectId,
+    ruleId: entry.ruleId,
+    containerPath: entry.containerPath,
+    ...(entry.ruleId === "damage" ? { damageType: entry.damageType ?? "" } : {}),
+  };
+}
 
 export type SpellMechanicalEffectsAdapterResult =
   | {
@@ -147,6 +160,14 @@ export function adaptSpellToMechanicalEffects(
   const seenIds = new Set<string>();
 
   for (const located of locatedEffects) {
+    if (located.effect.damageType !== undefined) {
+      try {
+        if (located.effect.ruleId !== "damage") throw new Error("Damage Type belongs only to a Spell Damage effect.");
+        normalizeDamageTypes(located.effect.damageType, { multiple: true, label: "Spell Damage Type" });
+      } catch (error) {
+        issues.push(issueFor(located, "invalid-damage-type", error instanceof Error ? error.message : "Invalid Spell Damage Type."));
+      }
+    }
     if (!located.effect.id.trim()) {
       issues.push(issueFor(located, "invalid-effect-id", "Spell effect identity must not be blank."));
     } else if (seenIds.has(located.effect.id)) {
@@ -209,6 +230,9 @@ export function adaptSpellToMechanicalEffects(
       ruleId: located.effect.ruleId,
       containerId: located.containerId,
       containerPath: located.containerPath,
+      ...(located.effect.ruleId === "damage" && located.effect.damageType !== undefined ? {
+        damageType: normalizeDamageTypes(located.effect.damageType, { multiple: true }),
+      } : {}),
       definition: {
         schemaVersion: MECHANICAL_EFFECT_SCHEMA_VERSION,
         effect: validation.effect,

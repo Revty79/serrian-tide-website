@@ -29,6 +29,11 @@ export function projectileIncomingFacts(damageType: string | null, firearm: bool
   return { sourceKind: "weapon", weaponFamily: firearm ? "firearm" : "none", damageType: text(damageType), magical: null, itemProperties: null, itemTags: null };
 }
 
-export function incomingFactsForEffect(source: FrozenIncomingSourceFacts, effect: MechanicalEffect): IncomingSourceFacts {
-  return { ...structuredClone(source), mechanicalEffectKind: effect.kind, conditionName: effect.kind === "condition.apply" ? effect.name : null };
+export function incomingFactsForEffect(source: FrozenIncomingSourceFacts, effect: MechanicalEffect, instruction: Readonly<Record<string, unknown>> = {}): IncomingSourceFacts {
+  // Spell constructions (including Item Magic) can contain differently typed damage effects.
+  // Only this exact frozen Spell effect can override its source's type; never mutate the source.
+  const spellDamage = effect.kind === "health.damage" && instruction.ruleId === "damage"
+    && typeof instruction.spellEffectId === "string" && typeof instruction.damageType === "string";
+  return { ...structuredClone(source), ...(spellDamage ? { damageType: text(instruction.damageType) } : {}),
+    mechanicalEffectKind: effect.kind, conditionName: effect.kind === "condition.apply" ? effect.name : null };
 }

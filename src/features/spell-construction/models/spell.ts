@@ -25,6 +25,8 @@ export interface EffectSelection {
   ruleId: string;
   quantity: number;
   description?: string;
+  /** Optional shared damage vocabulary for this Damage effect; never a calculation input. */
+  damageType?: string;
   healingScope?: 'full-body' | 'area';
 }
 

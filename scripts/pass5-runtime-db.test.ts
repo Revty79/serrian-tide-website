@@ -372,9 +372,9 @@ for (const activationType of ["reaction", "triggered"] as const) isolated(`Playe
   assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find((participant) => participant.characterId === f.heroId)!.currentInitiative, 17);
 });
 
-for (const kind of ["custom", "canonical"] as const) isolated(`${kind} construction-backed Item Ability rejects a mundane Item and freezes Magical true`, async (tx, f) => {
+for (const kind of ["custom", "canonical"] as const) for (const damageType of [undefined, "Fire"]) isolated(`${kind} construction-backed Item Ability (${damageType ?? "unspecified"}) rejects a mundane Item and freezes Magical true`, async (tx, f) => {
   const document = { ...createEmptySpell(), name: "No name-based magic inference", castingSystem: "Spellcraft" as const, sphere: "Force", frameworkSkillId: f.skillId,
-    containers: [{ ...createContainer("target"), id: "magic-target", effects: [{ id: "magic-damage", ruleId: "damage", quantity: 2, description: "" }] }] };
+    containers: [{ ...createContainer("target"), id: "magic-target", effects: [{ id: "magic-damage", ruleId: "damage", quantity: 2, description: "", damageType }] }] };
   const authored: ItemPower = { id: null, name: "Construction", description: "", trigger: "activated", activationLabel: "", initiativeCost: 4,
     resourceCostKind: "none", resourceCostAmount: null, requiredEquipmentState: null, resolutionMode: "automatic", fixedRollTarget: null,
     fixedPowerLevel: null, effects: [], sortOrder: 0,
@@ -408,4 +408,5 @@ for (const kind of ["custom", "canonical"] as const) isolated(`${kind} construct
   const [row] = await tx.select().from(effect).where(eq(effect.planId, planId));
   const result = storedIncomingResolution(row.authoredValueJson)!;
   assert.equal(result.input.source.magical, true); assert.equal(result.status, "resolved"); assert.ok(result.finalEffect!.damage > 0);
+  assert.equal(result.input.source.damageType, damageType ?? null, "Item Magic uses the exact Spell effect's type, including an unspecified legacy effect");
 });

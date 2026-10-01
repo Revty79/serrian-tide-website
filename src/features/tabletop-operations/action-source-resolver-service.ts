@@ -47,7 +47,7 @@ import {
 } from "@/features/characters/character-spell-runtime-service";
 import { resolveSpellCastTargetSelection, type SpellCastSourceRequest } from "@/features/characters/character-spell-runtime";
 import { CHARACTER_ATTRIBUTE_KEYS, type CharacterAttributeKey } from "@/features/characters/models";
-import { adaptSpellToMechanicalEffects } from "@/features/spell-construction/mechanical-effects-adapter";
+import { adaptSpellToMechanicalEffects, spellEffectSourceMetadata } from "@/features/spell-construction/mechanical-effects-adapter";
 import { resolveProgressiveSpellForLevel } from "@/features/spell-construction/engine/progressiveSpell";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import { resolveItemPowerConstruction } from "@/features/items/item-powers";
@@ -633,6 +633,7 @@ async function resolveItemPower(
       if (group.kind === "aoe") {
         const key = `item-power:${row.power.id}:magic:${adapted.spellEffectId}`;
         areaEffectTemplates.push(structuredEffect(key, adapted.definition.effect, [], false, {
+          ...spellEffectSourceMetadata(adapted),
           targetGroupId: groupId, targetGroupKind: "aoe", containerPath: group.containerPath,
           ...(row.power.resolutionMode === "fixed-roll" && adapted.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
           applicationByTarget: Object.fromEntries(groupTargets.map((id) => [id, itemSelections[`${key}:target:${id}`] ?? {}])),
@@ -642,6 +643,7 @@ async function resolveItemPower(
         const key = `item-power:${row.power.id}:magic:${adapted.spellEffectId}`;
         const selectionKey = `${key}:target:${targetId}`;
         effects.push(structuredEffect(key, adapted.definition.effect, [targetId], false, {
+          ...spellEffectSourceMetadata(adapted),
           selectionKey,
           targetGroupId: groupId,
           targetGroupKind: group.kind,
@@ -768,7 +770,7 @@ async function resolveSpell(
         if (group?.kind === "aoe") {
           const aoeGroupId = groupId!;
           areaEffectTemplates.push({ ...structuredEffect(`spell-effect:${entry.spellEffectId}`, entry.definition.effect, [], false, {
-            spellEffectId: entry.spellEffectId, ruleId: entry.ruleId, containerPath: entry.containerPath,
+            ...spellEffectSourceMetadata(entry),
             targetGroupId: aoeGroupId, targetGroupKind: "aoe",
             ...(spellSkill && entry.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
             applicationByTarget: Object.fromEntries((selectedTargetGroups[aoeGroupId] ?? []).map((id) => [id, spellSelections[`${entry.spellEffectId}:${id}`] ?? {}])),
@@ -779,9 +781,7 @@ async function resolveSpell(
             [targetId],
             false,
             {
-              spellEffectId: entry.spellEffectId,
-              ruleId: entry.ruleId,
-              containerPath: entry.containerPath,
+              ...spellEffectSourceMetadata(entry),
               targetGroupId: aoeGroupId,
               targetGroupKind: "aoe",
               ...(spellSkill && entry.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
@@ -798,9 +798,7 @@ async function resolveSpell(
           [targetId],
           groupId === undefined && draft.targetCharacterIds.length > 0,
           {
-            spellEffectId: entry.spellEffectId,
-            ruleId: entry.ruleId,
-            containerPath: entry.containerPath,
+            ...spellEffectSourceMetadata(entry),
             ...(spellSkill && entry.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
             application: spellSkill && entry.definition.effect.kind === "health.damage" ? {} : isRecord(spellSelections[`${entry.spellEffectId}:${targetId}`])
               ? spellSelections[`${entry.spellEffectId}:${targetId}`] as Record<string, unknown>

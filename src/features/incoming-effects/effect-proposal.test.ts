@@ -7,6 +7,7 @@ import type { IncomingEffectTarget } from "./models";
 import { resolveIncomingEffectProposal, storedIncomingResolution, recalculateFrozenIncoming } from "./effect-proposal";
 import { incomingFactsFromFrozenSource, projectileIncomingFacts } from "./source-facts";
 import { playerIncomingAuthoredValue, playerIncomingFinalValue } from "./public-evidence";
+import { incomingFactsForEffect } from "./source-facts";
 
 const rule = (ruleType: InteractionRule["ruleType"], percentage: number | null = null): InteractionRule => ({ key: "rule", name: "Secret rule", ruleType, percentage,
   conditions: [{ key: "magic", kind: "magical", magical: true }], scope: "damage", match: "ALL", notes: "Private G.O.D. notes", sortOrder: 0 });
@@ -17,6 +18,47 @@ const proposal = (amount = 12): ActionEffectProposal => ({ effectKey: "damage", 
   authoredValue: { effect: { kind: "health.damage", amount, application: "localized" } }, calculatedValue: amount,
   finalValue: { effect: { kind: "health.damage", amount, application: "localized" }, application: { hitLocationNumber: 0, poolKey: "body" } },
   applicationSupported: true, godReviewRequired: false, status: "calculated", amendmentReason: "", unit: "Health", resource: "" });
+
+for (const [type, percentage, status, damage, healing] of [
+  ["requirement", null, "resolved", 12, 0], ["immunity", null, "prevented", 0, 0], ["resistance", 50, "resolved", 6, 0],
+  ["vulnerability", 50, "resolved", 18, 0], ["absorption", 50, "absorbed", 0, 6],
+] as const) test(`exact Spell effect Fire reaches ${type} without contaminating another effect or global source`, () => {
+  const fireRule = { ...rule(type, percentage), conditions: [{ key: "fire", kind: "damage-type" as const, damageType: "Fire" }] };
+  const global = { ...source(), incomingSourceFacts: incomingFactsFromFrozenSource(source()) };
+  const before = structuredClone(global);
+  const input = (damageType: string) => ({ ...proposal(), authoredValue: { effect: (proposal().authoredValue as { effect: unknown }).effect,
+    instruction: { spellEffectId: damageType, ruleId: "damage", damageType } } });
+  const fire = resolveIncomingEffectProposal(input("Fire"), global, target([fireRule]));
+  const result = storedIncomingResolution(fire.authoredValue)!;
+  assert.equal(result.input.source.damageType, "Fire"); assert.equal(result.status, status);
+  assert.equal(result.finalEffect?.damage, damage); assert.equal(result.finalEffect?.healing, healing);
+  const cold = storedIncomingResolution(resolveIncomingEffectProposal(input("Cold"), global, target([fireRule])).authoredValue)!;
+  assert.equal(cold.input.source.damageType, "Cold");
+  assert.equal(cold.finalEffect?.damage, type === "requirement" ? 0 : 12);
+  assert.deepEqual(global, before); assert.equal(global.incomingSourceFacts.damageType, null);
+});
+
+test("mixed Spell damage requires a ruling for an unsplit percentage defense; unspecified stays unknown", () => {
+  const fireRule = { ...rule("resistance", 50), conditions: [{ key: "fire", kind: "damage-type" as const, damageType: "Fire" }] };
+  for (const damageType of ["Blunt / Fire", ""]) {
+    const input = { ...proposal(), authoredValue: { instruction: { spellEffectId: "one", ruleId: "damage", damageType } } };
+    const result = resolveIncomingEffectProposal(input, source(), target([fireRule]));
+    assert.equal(result.status, "requires-god-ruling"); assert.equal(result.applicationSupported, false);
+    assert.equal(storedIncomingResolution(result.authoredValue)!.input.source.damageType, damageType || null);
+  }
+  const legacy = storedIncomingResolution(resolveIncomingEffectProposal(proposal(), source(), target()).authoredValue)!;
+  assert.equal(legacy.input.source.damageType, null); assert.equal(legacy.finalEffect?.damage, 12);
+});
+
+test("Item Spell damage overrides only its own type and ordinary effects retain source facts", () => {
+  const facts = incomingFactsFromFrozenSource({ kind: "item", authoredData: { damageType: "Blunt" } });
+  const effect = { kind: "health.damage" as const, amount: 12, application: "localized" as const };
+  assert.equal(incomingFactsForEffect(facts, effect, { spellEffectId: "fire", ruleId: "damage", damageType: "Fire" }).damageType, "Fire");
+  assert.equal(incomingFactsForEffect(facts, effect, { spellEffectId: "unknown", ruleId: "damage", damageType: "" }).damageType, null);
+  assert.equal(incomingFactsForEffect(facts, effect, { damageType: "Fire" }).damageType, "Blunt");
+  assert.equal(incomingFactsForEffect(facts, { kind: "condition.apply", name: "Burning", description: "", duration: { kind: "scene" } }, { spellEffectId: "fire", ruleId: "damage", damageType: "Fire" }).damageType, "Blunt");
+  assert.equal(facts.damageType, "Blunt");
+});
 
 for (const [type, percentage, status, damage, healing] of [
   ["requirement", null, "resolved", 12, 0], ["immunity", null, "prevented", 0, 0], ["resistance", 25, "resolved", 9, 0],

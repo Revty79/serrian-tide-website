@@ -20,6 +20,8 @@ import {
   type SpellCastingSystem,
 } from "./models/spell";
 import { createStableId } from "./utilities/ids";
+import { normalizeDamageTypes } from "@/features/damage-types/damage-types";
+import type { EffectSelection } from "./models/spell";
 
 type LegacyScaledAddOnSelection = {
   id?: string;
@@ -119,6 +121,19 @@ function normalizeScaledSelection(
   };
 }
 
+function normalizeEffect(effect: EffectSelection): EffectSelection {
+  if (effect.damageType !== undefined && effect.ruleId !== "damage") {
+    throw new Error("Damage Type belongs only to a Spell Damage effect.");
+  }
+  return {
+    ...effect,
+    description: effect.description ?? "",
+    ...(effect.damageType === undefined ? {} : {
+      damageType: normalizeDamageTypes(effect.damageType, { multiple: true, label: "Spell Damage Type" }),
+    }),
+  };
+}
+
 function normalizeContainer(container: PersistedContainer): SpellContainer {
   const { shape, duration, durations, children, ...rest } = container;
   const normalizedDurations =
@@ -141,10 +156,7 @@ function normalizeContainer(container: PersistedContainer): SpellContainer {
   return {
     ...rest,
     effects: Array.isArray(rest.effects)
-      ? rest.effects.map((effect) => ({
-          ...effect,
-          description: effect.description ?? "",
-        }))
+      ? rest.effects.map(normalizeEffect)
       : [],
     modifiers: Array.isArray(rest.modifiers)
       ? rest.modifiers.map((modifier) => ({
@@ -175,10 +187,7 @@ function normalizeProgressiveChange(change: ProgressiveChange): ProgressiveChang
     case "set-effect":
       return {
         ...change,
-        effect: {
-          ...change.effect,
-          description: change.effect.description ?? "",
-        },
+        effect: normalizeEffect(change.effect),
       };
     case "set-range":
       return { ...change, rangeDescription: change.rangeDescription ?? "" };

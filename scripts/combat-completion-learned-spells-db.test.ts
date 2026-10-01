@@ -17,11 +17,95 @@ import { completionServiceFixture } from "./fixtures/combat-completion-service-f
 import { addLearnedCombatSpell } from "./fixtures/combat-learned-spell-fixture";
 import { skillExtension } from "@/db/skill-schema";
 import { createModifierSelection } from "@/features/spell-construction/utilities/spellFactory";
+import { storedIncomingResolution } from "@/features/incoming-effects/effect-proposal";
+import { parseLockedActionDeclarationSnapshot } from "@/features/tabletop-operations/action-declaration";
+import { saveSkillExtensionMutations, readSkillExtension } from "@/features/skills/skill-extension-persistence";
+import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
+import type { SpellDocument } from "@/features/spell-construction/models/spell";
 
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the disposable combat completion harness.");
 after(() => pool.end());
 const rollback = new Error("ROLLBACK_LEARNED_SPELL");
 const expected = (error: unknown) => { if (error !== rollback) console.error(error); return error === rollback; };
+
+test("Spell extension persistence accepts optional shared types and rejects unapproved submitted types before writing", async () => {
+  await assert.rejects(db.transaction(async tx => {
+    const f = await completionServiceFixture(tx, "spell-type-save");
+    const learned = await addLearnedCombatSpell(tx, f);
+    const document: SpellDocument = { ...learned.spell, frameworkSkillId: undefined };
+    const originalCalculation = calculateSpell(document);
+    for (const damageType of [undefined, "", "Fire", "supernatural / Fire"]) {
+      document.containers[0].effects[0].damageType = damageType;
+      await saveSkillExtensionMutations(tx, { skillId: learned.spellSkill.id, name: document.name, classification: "standard", actor: { userId: f.godId, roles: ["god"] },
+        previous: [], mutations: [{ operation: "upsert", extensionType: "spell-construction", schemaVersion: document.schemaVersion, data: document }] });
+      const [saved] = await tx.select().from(skillExtension).where(eq(skillExtension.skillId, learned.spellSkill.id));
+      const decoded = readSkillExtension(saved); assert.equal(decoded.readStatus, "ready");
+      const roundTrip = decoded.data as SpellDocument;
+      assert.equal(roundTrip.id, document.id); assert.equal(roundTrip.containers[0].id, "bolt-target");
+      assert.equal(roundTrip.containers[0].effects[0].id, "bolt-damage");
+      assert.equal(roundTrip.containers[0].effects[0].damageType, damageType === "supernatural / Fire" ? "Fire / Supernatural" : damageType);
+      assert.equal(roundTrip.calculation!.totalMana, originalCalculation.totalMana);
+      assert.equal(roundTrip.calculation!.spellMastery, originalCalculation.spellMastery);
+      assert.equal(roundTrip.calculation!.castingTime, originalCalculation.castingTime);
+    }
+    const before = await tx.select().from(skillExtension).where(eq(skillExtension.skillId, learned.spellSkill.id));
+    document.containers[0].effects[0].damageType = "Pow";
+    await assert.rejects(saveSkillExtensionMutations(tx, { skillId: learned.spellSkill.id, name: document.name, classification: "standard", actor: { userId: f.godId, roles: ["god"] },
+      previous: before, mutations: [{ operation: "upsert", extensionType: "spell-construction", schemaVersion: document.schemaVersion, data: document }] }), /Damage Type/);
+    assert.deepEqual(await tx.select().from(skillExtension).where(eq(skillExtension.skillId, learned.spellSkill.id)), before);
+    throw rollback;
+  }), expected);
+});
+
+for (const scenario of ["legacy", "Fire", "Cold", "Blunt / Fire", "two-types", "area"] as const) test(`Spell Damage Type ${scenario} survives frozen targeting and consequence application`, async () => {
+  await assert.rejects(db.transaction(async tx => {
+    const f = await completionServiceFixture(tx, `spell-types-${scenario}`);
+    await tx.insert(userRole).values([{ userId: f.godId, role: "god" }, { userId: f.godId, role: "player" }]);
+    const learned = await addLearnedCombatSpell(tx, f, { area: scenario === "area", fixed: true });
+    const document: SpellDocument = learned.spell;
+    if (scenario !== "legacy") document.containers[0].effects[0].damageType = ["area", "two-types"].includes(scenario) ? "Fire" : scenario;
+    if (scenario === "two-types") document.containers[0].effects.push({ id: "cold-damage", ruleId: "damage", quantity: 2, damageType: "Cold" });
+    await tx.update(skillExtension).set({ dataJson: JSON.stringify(document) }).where(eq(skillExtension.skillId, learned.spellSkill.id));
+    await tx.update(initiativeParticipant).set({ participationStatus: "active" }).where(and(eq(initiativeParticipant.encounterId, f.encounterId), eq(initiativeParticipant.characterId, f.heroId)));
+    if (scenario !== "legacy") await tx.update(member).set({ creatureSnapshotJson: { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core,
+      interactionRules: { schemaVersion: 1, rules: [{ key: "fire-resistance", name: "Fire Resistance", ruleType: "resistance", scope: "damage", match: "ALL", percentage: 50, sortOrder: 0, notes: "",
+        conditions: [{ key: "fire", kind: "damage-type", damageType: "Fire" }], crImpact: "None" }] } },
+    } }).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, f.occurrences[0])));
+    const area = scenario === "area";
+    const choice: CombatChoice = { participantId: f.heroId, source: { kind: "spell", ref: `catalog:${learned.allocation.id}`, instanceId: null, itemId: null, name: document.name, description: "" },
+      targetIds: area ? [] : [f.occurrences[0]], spellSelections: { targetGroups: { "bolt-target": area ? [] : [f.occurrences[0]] }, applications: {} } };
+    const preview = await previewCombatChoiceInTransaction(tx, f.context, f.player, choice); assert.equal(preview.kind, "declaration"); if (preview.kind !== "declaration") throw new Error("Expected spell preview");
+    const submitted = await submitCombatChoiceInTransaction(tx, f.context, f.player, { choice, requestKey: crypto.randomUUID(), roll: { method: "entered", enteredTotal: 70 } });
+    assert.ok("declarationId" in submitted);
+    const [action] = await tx.select().from(declaration).where(eq(declaration.id, submitted.declarationId));
+    const frozen = parseLockedActionDeclarationSnapshot(action.lockedSnapshotJson).authoredSource!;
+    assert.equal(frozen.incomingSourceFacts?.damageType, null, "no Spell-wide type");
+    if (!area) assert.deepEqual(frozen.effects.map(e => [e.instruction.spellEffectId, e.instruction.damageType]), document.containers[0].effects.map(e => [e.id, e.damageType ?? ""]));
+    // A later catalog edit must not alter already frozen per-effect types.
+    const edited = structuredClone(document); edited.containers[0].effects[0].damageType = "Acid";
+    await tx.update(skillExtension).set({ dataJson: JSON.stringify(edited) }).where(eq(skillExtension.skillId, learned.spellSkill.id));
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, action.id);
+    const engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 22 - preview.snapshot.initiativeCost));
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, action.id, undefined, area ? { "bolt-target": [f.occurrences[0]] } : {});
+    const plan = (await readActionEffectWorkspaceInTransaction(tx, f.context)).plans.find(p => p.id === planId)!;
+    const effects = plan.effects.filter(e => e.effectType === "health.damage"); assert.equal(effects.length, document.containers[0].effects.length);
+    let totalDamage = 0;
+    for (const [index, effect] of effects.entries()) {
+      const resolution = storedIncomingResolution(effect.authoredValue)!; assert.ok(resolution);
+      const type = document.containers[0].effects[index].damageType ?? null;
+      assert.equal(resolution.input.source.damageType, type);
+      if (scenario === "Blunt / Fire") { assert.equal(effect.status, "requires-god-ruling"); assert.equal(effect.applicationSupported, false); }
+      else { const damage = type === "Fire" ? Math.ceil(resolution.input.effect.amount! / 2) : resolution.input.effect.amount!;
+        assert.equal(resolution.finalEffect!.damage, damage); totalDamage += damage; }
+    }
+    const result = await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, action.id, planId);
+    assert.equal(result.status, scenario === "Blunt / Fire" ? "requires-god-ruling" : "applied");
+    const [target] = await tx.select().from(member).where(and(eq(member.encounterId, f.encounterId), eq(member.characterId, f.occurrences[0])));
+    assert.equal((target.localStateJson as { health: { totalDamage: number } }).health.totalDamage, totalDamage);
+    throw rollback;
+  }), expected);
+});
 
 for (const scenario of ["scaled", "static", "progressive-scaled", "progressive-static", "failed", "area", "area-static", "area-failed", "area-critical", "unlearned"] as const) test(`learned spell ${scenario}: actual Skill, original Roll, automatic location or area report`, async () => {
   await assert.rejects(db.transaction(async (tx) => {
