@@ -44,7 +44,7 @@ export async function checkToolboxAuthoring({ page, targetId, derivedId, artifac
   await field(modifier, "Duration").selectOption("combat-rounds"); await field(modifier, "Duration count").fill("3");
   const interaction = await add("interaction", "Synthetic interaction");
   await field(interaction, "Interaction type").selectOption("resistance"); await field(interaction, "Interaction percentage").fill("25");
-  await button(interaction, "Add Incoming Condition").click(); await field(interaction, "Matching Damage Type").fill("Synthetic type");
+  await button(interaction, "Add Incoming Condition").click(); await field(interaction, "Matching Damage Type").selectOption("Fire");
   const choice = await add("choice", "Synthetic choice");
   await field(choice, "Choice type").selectOption("skill"); await button(choice, "Add Candidate").click();
   await field(choice, "Selected Skill").selectOption(String(targetId));

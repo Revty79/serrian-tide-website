@@ -1,4 +1,6 @@
 "use client";
+import { DamageTypeSelect } from "@/components/damage-type-select";
+import { DAMAGE_TYPE_HELP } from "@/features/damage-types/damage-types";
 
 import { useEffect, useState, type ReactNode } from "react";
 import { GuidedField } from "@/components/field-guidance";
@@ -46,7 +48,7 @@ function AttackRow({ attack, anatomy, skillOptions, onChange }: {
     <div className={styles.fields}>
       <Field label="Attack Name" help="Name this inherent attack, such as Bite, Claws or Tail Strike."><input className="st-control" value={attack.attackName} onChange={event => patch({ attackName: event.target.value })} /></Field>
       <Field label="Damage" help="Enter the authored damage value or expression. Leave blank when the damage has not been decided."><input className="st-control" value={attack.damage ?? ""} onChange={event => patch({ damage: event.target.value || null })} /></Field>
-      <Field label="Damage Type" help="Use the damage category specified by the attack, such as Slashing, Piercing or Fire."><input className="st-control" value={attack.damageType} onChange={event => patch({ damageType: event.target.value })} /></Field>
+      <Field label="Damage Type" help={DAMAGE_TYPE_HELP}><DamageTypeSelect multiple value={attack.damageType} onChange={damageType => patch({ damageType })} /></Field>
       <Field label="Attack Initiative" help="Enter a positive Initiative cost, including a fractional cost when authored. Blank leaves the cost unresolved."><input className="st-control" type="number" min={0.01} step="any" value={data.initiativeCost ?? ""} onChange={event => mechanics({ initiativeCost: event.target.value === "" ? null : Number(event.target.value) })} /></Field>
       <Field label="Attack Mode" help="Melee uses reach, ranged uses distance bands, and hybrid supports both. AoE supports range to the area; describe its shape and size in Notes or Magic Construction."><select className="st-control" value={data.mode ?? ""} onChange={event => mechanics({ mode: event.target.value as AttackAuthoring["mode"] || null })}><option value="">Unspecified</option>{ATTACK_MODES.map(mode => <option key={mode} value={mode}>{mode === "aoe" ? "AoE" : mode[0].toUpperCase() + mode.slice(1)}</option>)}</select></Field>
       <Field label="Magical" help="State whether this attack itself is magical or supernatural. Unspecified preserves an undecided value. Race Base Magic does not set this field; an attached Magic Construction establishes magical nature."><select className="st-control" value={data.magical === null ? "" : String(data.magical)} onChange={event => mechanics({ magical: event.target.value === "" ? null : event.target.value === "true" })}><option value="">Unspecified</option><option value="true">Yes</option><option value="false" disabled={!!data.magic}>No</option></select></Field>

@@ -65,7 +65,7 @@ test("ALL Magical + Fire and ANY Silver OR Magical stay within each independent 
   const value = input([rule("requirement", null, { conditions: [magic, fire] })]);
   assert.equal(resolveIncomingEffect(value).status, "prevented");
   value.source.magical = true; assert.equal(resolveIncomingEffect(value).status, "resolved");
-  value.source.damageType = "Ice"; assert.equal(resolveIncomingEffect(value).status, "prevented");
+  value.source.damageType = "Cold"; assert.equal(resolveIncomingEffect(value).status, "prevented");
   value.target.interactionRules!.rules = [rule("requirement", null, { match: "ANY", conditions: [silver, magic] })];
   assert.equal(resolveIncomingEffect(value).status, "resolved");
   value.source.magical = false; assert.equal(resolveIncomingEffect(value).status, "prevented");

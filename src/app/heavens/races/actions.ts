@@ -1,4 +1,5 @@
 "use server";
+import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
 import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
 import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
 import { assertRaceEvolutionSourceReferences } from "@/features/races/evolution-requirement-service";
@@ -453,6 +454,7 @@ export async function listNaturalAttackSkillCandidates(search = ""): Promise<Rac
 
 export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
   const { session, roles } = await requireGodOrAdminAccessContext();
+  input = normalizeAuthoredDamageTypes(input, input.id === undefined ? undefined : await getRace(input.id), "Race");
   const normalized = normalizeRace(input);
 
   const savedId = await db.transaction(async (tx) => {

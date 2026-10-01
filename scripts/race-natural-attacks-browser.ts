@@ -24,7 +24,7 @@ export async function checkRaceNaturalAttacksBrowser(page: Page, base: string) {
   assert.equal(await row(1).getByLabel("Attack %", { exact: true }).count(), 0);
   await row(1).getByLabel("Attack Name", { exact: true }).fill("Bite");
   await row(1).getByLabel("Damage", { exact: true }).fill("4");
-  await row(1).getByLabel("Damage Type", { exact: true }).fill("Piercing");
+  await row(1).getByLabel("Damage Type", { exact: true }).selectOption("Piercing");
   await row(1).getByLabel("Attack Mode", { exact: true }).selectOption("melee");
   assert.equal(await row(1).getByLabel("Short Range", { exact: true }).count(), 0);
   await row(1).getByLabel("Reach", { exact: true }).fill("2");

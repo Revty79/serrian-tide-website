@@ -1,4 +1,5 @@
 "use client";
+import { DamageTypeSelect } from "@/components/damage-type-select";
 
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { GuidedField } from "@/components/field-guidance";
@@ -113,7 +114,7 @@ function InteractionRuleCard({ rule, owner, catalog, listId, index, count, onMov
           if (e.target.value === "advanced") { setAdvanced(true); return; }
           changeCondition(newCondition(e.target.value as InteractionCondition["kind"], condition.key));
         }}>{COMMON_CONDITIONS.map((kind) => <option key={kind} value={kind}>{labels[kind]}</option>)}{!COMMON_CONDITIONS.some((kind) => kind === condition.kind) && <option value={condition.kind}>{labels[condition.kind]}</option>}<option value="advanced">More matching options...</option></select></Field>
-        {condition.kind === "damage-type" && <Field label="Damage Type"><input value={condition.damageType} onChange={(e) => changeCondition({ ...condition, damageType: e.target.value })} /></Field>}
+        {condition.kind === "damage-type" && <Field label="Damage Type"><DamageTypeSelect value={condition.damageType} onChange={damageType => changeCondition({ ...condition, damageType })} /></Field>}
         {condition.kind === "magical" && <Field label="Magical"><select value={String(condition.magical)} onChange={(e) => changeCondition({ ...condition, magical: e.target.value === "true" })}><option value="true">Yes</option><option value="false">No</option></select></Field>}
         {condition.kind === "item-property" && <>
           <Field label="Property Name"><input list={`${listId}-properties`} value={condition.propertyName} onChange={(e) => changeCondition({ ...condition, propertyName: e.target.value })} /></Field>

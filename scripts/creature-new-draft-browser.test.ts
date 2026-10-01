@@ -117,13 +117,13 @@ async function main(): Promise<void> {
 
     await page.getByRole("button", { name: "Abilities & Defenses", exact: true }).click();
     const interactions = page.getByRole("region", { name: "Interaction Rules", exact: true });
-    for (const ruleName of ["Fire resistance", "Ice resistance"]) {
+    for (const ruleName of ["Fire resistance", "Cold resistance"]) {
       await interactions.getByRole("button", { name: "Add Interaction Rule", exact: true }).click();
       const rule = interactions.locator("[data-interaction-rule]").last();
       await rule.getByLabel("Rule Name", { exact: true }).fill(ruleName);
       await rule.getByLabel("Rule Type", { exact: true }).selectOption("resistance");
       await rule.getByLabel("Amount (%)", { exact: true }).fill("25");
-      await rule.getByLabel("Damage Type", { exact: true }).fill(ruleName.split(" ")[0]);
+      await rule.getByLabel("Damage Type", { exact: true }).selectOption(ruleName.split(" ")[0]);
       await rule.getByRole("button", { name: "Add Condition", exact: true }).click();
       const addedCondition = rule.locator("[data-interaction-condition]").last();
       const key = await addedCondition.getAttribute("data-interaction-condition");
@@ -138,7 +138,7 @@ async function main(): Promise<void> {
     await page.getByRole("button", { name: "Save Creature" }).click();
     await page.getByText("Hotfix Browser Creature was saved.", { exact: true }).waitFor();
     const stored = await pool.query<{ interaction_rules_json: InteractionRuleProfile }>("select interaction_rules_json from creatures where created_by_user_id=$1", [userId]);
-    assert.deepEqual(stored.rows[0]!.interaction_rules_json.rules.map((rule) => rule.name), ["Fire resistance", "Ice resistance"]);
+    assert.deepEqual(stored.rows[0]!.interaction_rules_json.rules.map((rule) => rule.name), ["Fire resistance", "Cold resistance"]);
     assert.deepEqual(stored.rows[0]!.interaction_rules_json.rules.flatMap((rule) => [rule.key, ...rule.conditions.map((condition) => condition.key)]), keys);
     await page.reload();
     await page.locator(".skill-library__row").filter({ hasText: "Hotfix Browser Creature" }).click();

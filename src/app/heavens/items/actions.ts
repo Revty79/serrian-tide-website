@@ -1,4 +1,5 @@
 "use server";
+import { normalizeWeaponDamageType, normalizeArmorDamageTypes } from "@/features/items/item-damage-types";
 import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
 import { loadItemCatalog, loadItemFacets, itemTagDiscoveryWhere } from "@/features/catalog-visibility/item-catalog-service";
 import { catalogCandidateWhere, itemDiscoveryWhere, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
@@ -1067,6 +1068,11 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         capacity: storedWeaponProfile?.capacity ?? normalized.weapon.capacity,
       };
       validateWeaponProfileChoices(normalized.weapon, storedWeaponProfile);
+      normalized.weapon.damageType = normalizeWeaponDamageType(normalized.weapon, storedWeaponProfile);
+    }
+    if (normalized.armor) {
+      const storedModifiers = input.id === undefined ? [] : await tx.select().from(itemArmorDamageModifier).where(eq(itemArmorDamageModifier.itemId, id!));
+      normalized.armor.damageModifiers = normalizeArmorDamageTypes(normalized.armor.damageModifiers, storedModifiers);
     }
     const storedRelatedItemIds = new Set([
       ...storedPropertyReferences.flatMap(({ relatedItemId }) => relatedItemId === null ? [] : [relatedItemId]),

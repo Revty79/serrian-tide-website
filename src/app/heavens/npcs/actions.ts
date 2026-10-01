@@ -1,4 +1,5 @@
 "use server";
+import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
 import { assertCreatureVesselsUnboundInTransaction } from "@/features/creatures/creature-vessel-guards";
 
 import { assertInteractionRuleReferences } from "@/features/interaction-rules/interaction-rule-references";
@@ -970,6 +971,7 @@ export async function getCreatureNpc(characterId: number): Promise<CreatureNpcDr
 export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<CreatureNpcDraft> {
   const access = await requireGodOrAdminAccessContext();
   const current = await getCreatureNpc(input.characterId);
+  input = { ...input, currentSnapshot: normalizeAuthoredDamageTypes(input.currentSnapshot, current.currentSnapshot, "Creature NPC") };
   if (current.campaignId !== input.campaignId || current.creatureId !== input.creatureId) {
     throw new Error("Creature NPC identity cannot be changed.");
   }

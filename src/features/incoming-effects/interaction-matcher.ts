@@ -1,4 +1,5 @@
 import type { InteractionCondition, InteractionRule } from "@/features/interaction-rules/interaction-rules";
+import { matchDamageType } from "@/features/damage-types/damage-types";
 import type { ConditionMatch, IncomingSourceFacts, MatchOutcome } from "./models";
 
 const categorical = (value: string) => value.trim().toLowerCase();
@@ -11,7 +12,7 @@ export function matchInteractionCondition(condition: InteractionCondition, facts
   switch (condition.kind) {
     case "damage-type":
       description = `Damage Type = ${condition.damageType}`;
-      value = facts.damageType === null ? null : equal(facts.damageType, condition.damageType);
+      value = matchDamageType(facts.damageType, condition.damageType);
       break;
     case "magical":
       description = `Magical = ${condition.magical}`;
@@ -46,7 +47,9 @@ export function matchInteractionCondition(condition: InteractionCondition, facts
       break;
   }
   return { key: condition.key, outcome: value === null ? "unknown" : value ? "match" : "no-match", description,
-    reason: value === null ? `Authoritative source fact missing: ${description}.` : value ? `Source satisfies ${description}.` : `Source does not satisfy ${description}.` };
+    reason: value === null ? condition.kind === "damage-type" && facts.damageType !== null
+      ? `Damage types need review or an explicit mixed-damage ruling: ${facts.damageType}; ${description}.`
+      : `Authoritative source fact missing: ${description}.` : value ? `Source satisfies ${description}.` : `Source does not satisfy ${description}.` };
 }
 
 export function matchInteractionRule(rule: InteractionRule, facts: IncomingSourceFacts) {

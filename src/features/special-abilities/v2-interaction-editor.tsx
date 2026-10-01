@@ -1,4 +1,7 @@
 "use client";
+import { DamageTypeSelect } from "@/components/damage-type-select";
+import { GuidedField } from "@/components/field-guidance";
+import { DAMAGE_TYPE_MATCH_HELP } from "@/features/damage-types/damage-types";
 import { INTERACTION_RULE_TYPES, INTERACTION_SCOPES, INTERACTION_SOURCE_KINDS, usesInteractionPercentage } from "@/features/interaction-rules/interaction-rules";
 import type { AbilityInteraction, AbilityInteractionCondition } from "./v2-models";
 import { newMechanicsKey } from "./authoring";
@@ -23,7 +26,7 @@ export function InteractionDefinitionEditor({ value, onChange }: { value: Abilit
     <SelectField label="Match incoming conditions" value={value.match} options={[{ value: "ALL", label: "All conditions (AND)" }, { value: "ANY", label: "Any condition (OR)" }]} onChange={match => onChange({ ...value, match })} help="These match incoming effect descriptors. The rule's Applies When conditions separately describe the ability owner's requirements." />
     <ChildList label="Incoming matching conditions" singular="Incoming Condition" rows={value.conditions} onChange={conditions => onChange({ ...value, conditions })} create={() => matchingCondition("damage-type", newMechanicsKey())}>{(condition, change) => <>
       <SelectField label="Incoming condition type" value={condition.kind} options={humanOptions(["damage-type", "magical", "source-kind", "mechanical-effect-kind", "condition-name"] as const)} onChange={kind => change(matchingCondition(kind, condition.key))} help="Shared descriptor matching only. Item tags and properties need additional identity protection and remain Manual/G.O.D. here." />
-      {condition.kind === "damage-type" && <TextField label="Matching Damage Type" short value={condition.damageType} onChange={damageType => change({ ...condition, damageType })} help="Use the Damage Type name from the incoming effect's definition; this does not create a Damage Type." />}
+      {condition.kind === "damage-type" && <GuidedField label="Matching Damage Type" help={DAMAGE_TYPE_MATCH_HELP}><DamageTypeSelect value={condition.damageType} onChange={damageType => change({ ...condition, damageType })} /></GuidedField>}
       {condition.kind === "condition-name" && <TextField label="Matching Condition name" short value={condition.conditionName} onChange={conditionName => change({ ...condition, conditionName })} help="Use the existing Condition name to match." />}
       {condition.kind === "magical" && <SelectField label="Magical incoming effect" value={condition.magical ? "yes" : "no"} options={humanOptions(["yes", "no"] as const)} onChange={value => change({ ...condition, magical: value === "yes" })} help="Match the incoming descriptor's explicit magical status." />}
       {condition.kind === "source-kind" && <>

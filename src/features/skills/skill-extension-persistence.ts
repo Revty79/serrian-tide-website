@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
 import { createHash } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
 import type { db } from "@/db";
@@ -95,8 +96,8 @@ export async function saveSkillExtensionMutations(tx: Transaction, input: {
       // this editor's limits; a read diagnostic is never downgrade permission.
       if (previous && previous.schemaVersion > SPECIAL_ABILITY_MECHANICS_VERSION) throw new Error("A newer mechanics document cannot be replaced by this editor. Use a compatible editor.");
       if (previous && mutation.schemaVersion < previous.schemaVersion) throw new Error("Mechanics cannot be downgraded. Keep the saved version or explicitly detach the document.");
-      const document = parseSpecialAbilityMechanics(mutation.data, mutation.schemaVersion);
       const old = previous ? readSpecialAbilityMechanics(previous) : null;
+      const document = normalizeAuthoredDamageTypes(parseSpecialAbilityMechanics(mutation.data, mutation.schemaVersion), old?.status === "ready" ? old.document : undefined, "Special Ability");
       await validateMechanicsReferencesInTransaction(tx, document, old?.status === "ready" ? old.document : null, input.actor);
       dataJson = JSON.stringify(document);
     } else if (mutation.extensionType === SPELL) {

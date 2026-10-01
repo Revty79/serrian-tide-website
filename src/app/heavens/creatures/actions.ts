@@ -1,4 +1,5 @@
 "use server";
+import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
 import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
 import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
 import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
@@ -372,6 +373,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
 
 export async function saveCreature(input: CreatureDraft): Promise<CreatureAggregate> {
   const { session, roles } = await requireGodOrAdminAccessContext();
+  input = normalizeAuthoredDamageTypes(input, input.id === undefined ? undefined : await getCreature(input.id), "Creature");
   const normalized = normalize(input);
   const assignedIds = resolveSystemAssignedCreatureIds(normalized, input.id === undefined);
   const accessAbilityIds = new Map(normalized.abilities.map((row, index) => [row.canonicalId, assignedIds.abilityCanonicalIds[index]!]));

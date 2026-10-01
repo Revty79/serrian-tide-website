@@ -1183,7 +1183,7 @@ try {
     await field("Weapon Type").selectOption("Sword");
     await field("Handedness").selectOption("One-Handed");
     await field("Damage Source").selectOption("Weapon");
-    await field("Damage").fill("1d8"); await field("Damage Type").fill("Slashing"); await field("Initiative Cost").fill("4");
+    await field("Damage").fill("1d8"); await field("Damage Type").selectOption("Slashing"); await field("Initiative Cost").fill("4");
     await editor.getByText("Save the Weapon Profile before authoring canonical Skill eligibility.", { exact: true }).waitFor();
     await editor.getByRole("button", { name: "Retry Governing Skill Paths", exact: true }).click();
     await editor.getByText("Save the Weapon Profile before authoring canonical Skill eligibility.", { exact: true }).waitFor();
@@ -1282,7 +1282,7 @@ try {
     await editor.getByRole("button", { name: "Weapon / Ammunition", exact: true }).click();
     await editor.getByRole("button", { name: "Add Weapon / Ammunition Profile", exact: true }).click();
     await field("Weapon Type").selectOption("Sword"); await field("Handedness").selectOption("One-Handed"); await field("Damage Source").selectOption("Weapon");
-    await field("Damage").fill("1d6"); await field("Damage Type").fill("Slashing"); await field("Initiative Cost").fill("3");
+    await field("Damage").fill("1d6"); await field("Damage Type").selectOption("Slashing"); await field("Initiative Cost").fill("3");
     await editor.getByRole("button", { name: "Save Item", exact: true }).click();
     await editor.getByRole("heading", { name: "Governing Skill Paths", exact: true }).waitFor();
     assert.equal(await editor.getByText("Unreviewed · Missing path · Requires G.O.D. review. No mapping has been inferred.", { exact: true }).count(), 1);
@@ -1316,7 +1316,7 @@ try {
     await field("Weapon Type").selectOption("Sword");
     await field("Damage Source").selectOption("Weapon");
     await field("Damage").fill("1d8");
-    await field("Damage Type").fill("Slashing");
+    await field("Damage Type").selectOption("Slashing");
     await field("Initiative Cost").fill("4");
     await field("Range Mode").selectOption("melee");
     await field("Distance Unit").fill("feet");

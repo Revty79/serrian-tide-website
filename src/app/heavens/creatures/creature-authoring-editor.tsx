@@ -1,4 +1,5 @@
 "use client";
+import { DamageTypeSelect } from "@/components/damage-type-select";
 
 import { CREATURE_CR_IMPACTS, type CreatureCrImpact } from "@/db/creature-schema";
 import { LegacyAuthoringData } from "@/app/heavens/legacy-authoring-data";
@@ -62,7 +63,7 @@ export function CreatureAttackAuthoringEditor({ attack, skillOptions, onChange, 
       <Field name="Attack %"><input className="st-control" type="number" step="any" value={attack.attackPercentage ?? ""} onChange={(e) => onChange({ ...attack, attackPercentage: e.target.value === "" ? null : Number(e.target.value) })} /></Field>
       <NumberField name="Attack Initiative" min={0.01} value={data.initiativeCost} onChange={(initiativeCost) => patch({ initiativeCost })} />
       <Field name="Damage"><input className="st-control" value={attack.damage ?? ""} onChange={(e) => onChange({ ...attack, damage: e.target.value || null })} /></Field>
-      <Field name="Damage Type"><input className="st-control" value={attack.damageType} onChange={(e) => onChange({ ...attack, damageType: e.target.value })} /></Field>
+      <Field name="Damage Type"><DamageTypeSelect multiple value={attack.damageType} onChange={damageType => onChange({ ...attack, damageType })} /></Field>
       <Field name="Attack Mode"><select className="st-control" value={data.mode ?? ""} onChange={(event) => patch({ mode: event.target.value as CreatureAttackAuthoring["mode"] || null })}><option value="">Unspecified</option>{CREATURE_ATTACK_MODES.map((mode) => <option value={mode} key={mode}>{label(mode)}</option>)}</select></Field>
       <Magical value={data.magical} construction={Boolean(data.magic)} onChange={(magical) => patch({ magical })} />
     </div>

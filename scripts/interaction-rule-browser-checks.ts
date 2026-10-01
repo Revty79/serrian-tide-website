@@ -41,13 +41,13 @@ export async function authorInteractionRules(page: Page, owner: "race" | "creatu
   await silver.getByLabel("Magical", { exact: true }).selectOption("true");
   assert.equal(await silver.getByLabel(/^(Amount|Healing) \(\%\)$/).count(), 0);
   const immune = await add("Fire Immunity", "immunity");
-  await immune.getByLabel("Damage Type", { exact: true }).fill("Fire");
+  await immune.getByLabel("Damage Type", { exact: true }).selectOption("Fire");
   assert.equal(await immune.getByLabel(/^(Amount|Healing) \(\%\)$/).count(), 0);
-  for (const [name, type, damage, percentage] of [["Fire Resistance 25%", "resistance", "Fire", "25"], ["Water Vulnerability 150%", "vulnerability", "Water", "150"], ["Fire Absorption 50%", "absorption", "Fire", "50"]]) {
+  for (const [name, type, damage, percentage] of [["Fire Resistance 25%", "resistance", "Fire", "25"], ["Cold Vulnerability 150%", "vulnerability", "Cold", "150"], ["Fire Absorption 50%", "absorption", "Fire", "50"]]) {
     const rule = await add(name, type);
     assert.equal(await rule.getByLabel(/^(Amount|Healing) \(\%\)$/).inputValue(), "", "No percentage default");
     assert.equal(await rule.getByLabel(/^(Amount|Healing) \(\%\)$/).getAttribute("max"), null);
-    await rule.getByLabel("Damage Type", { exact: true }).fill(damage);
+    await rule.getByLabel("Damage Type", { exact: true }).selectOption(damage);
     await rule.getByLabel(/^(Amount|Healing) \(\%\)$/).fill(percentage);
     assert.equal(await rule.getByLabel("Applies To", { exact: true }).count(), 0);
   }

@@ -11,7 +11,7 @@ const facts: IncomingSourceFacts = { damageType: " Fire ", magical: true, source
 type WithoutKey<T> = T extends unknown ? Omit<T, "key"> : never;
 const cases: Array<[string, WithoutKey<InteractionCondition>, boolean]> = [
   ["Damage Type normalized", { kind: "damage-type", damageType: "fire" }, true],
-  ["Damage Type mismatch", { kind: "damage-type", damageType: "ice" }, false],
+  ["Damage Type mismatch", { kind: "damage-type", damageType: "cold" }, false],
   ["Magical true", { kind: "magical", magical: true }, true],
   ["Magical false", { kind: "magical", magical: false }, false],
   ["Source Kind", { kind: "source-kind", sourceKind: "weapon" }, true],
@@ -58,8 +58,8 @@ for (const match of ["ANY", "ALL"] as const) test(`${match} uses three-valued ma
   assert.equal(matchInteractionRule(rule, facts).outcome, "match");
   assert.equal(matchInteractionRule(rule, { ...facts, magical: false }).outcome, match === "ANY" ? "match" : "no-match");
   assert.equal(matchInteractionRule(rule, { ...facts, magical: null }).outcome, match === "ANY" ? "match" : "unknown");
-  assert.equal(matchInteractionRule(rule, { ...facts, damageType: "Ice", magical: null }).outcome, match === "ANY" ? "unknown" : "no-match");
-  assert.equal(matchInteractionRule(rule, { ...facts, damageType: "Ice", magical: false }).outcome, "no-match");
+  assert.equal(matchInteractionRule(rule, { ...facts, damageType: "Cold", magical: null }).outcome, match === "ANY" ? "unknown" : "no-match");
+  assert.equal(matchInteractionRule(rule, { ...facts, damageType: "Cold", magical: false }).outcome, "no-match");
 });
 test("all supported source and mechanical effect kinds use the same matcher", () => {
   for (const sourceKind of INTERACTION_SOURCE_KINDS) assert.equal(matchInteractionCondition({ key: "s", kind: "source-kind", sourceKind }, { ...facts, sourceKind }).outcome, "match");

@@ -61,7 +61,7 @@ export async function checkRaceFormMechanicsBrowser(page: Page, base: string) {
   await rules.getByLabel("Rule Name", { exact: true }).fill("Cold resistance");
   await rules.getByLabel("Rule Type", { exact: true }).selectOption("resistance");
   await rules.getByLabel("Amount (%)", { exact: true }).fill("25");
-  await rules.getByLabel("Damage Type", { exact: true }).fill("Cold");
+  await rules.getByLabel("Damage Type", { exact: true }).selectOption("Cold");
   const physical = await expand("Using the body and equipment");
   await physical.getByLabel("Using hands, tools & objects", { exact: true }).selectOption("none");
   await physical.getByLabel("Using hands, tools & objects Notes", { exact: true }).fill("Paws");

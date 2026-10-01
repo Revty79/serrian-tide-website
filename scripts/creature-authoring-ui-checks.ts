@@ -35,7 +35,7 @@ export async function checkOrdinaryCreatureUi(page: Page, base: string, artifact
   await attack.getByLabel("Attack %", { exact: true }).fill("60");
   await attack.getByLabel("Attack Initiative", { exact: true }).fill("3");
   await attack.getByLabel("Damage", { exact: true }).fill("4");
-  await attack.getByLabel("Damage Type", { exact: true }).fill("Slashing");
+  await attack.getByLabel("Damage Type", { exact: true }).selectOption("Slashing");
   await attack.getByLabel("Attack Mode", { exact: true }).selectOption("melee");
   await attack.getByLabel("Magical", { exact: true }).selectOption("false");
   assert.equal(await attack.getByLabel("Reach", { exact: true }).inputValue(), "");
