@@ -340,7 +340,7 @@ async function resolveWeapon(
     reach: row.reachText,
     ammunitionItemId: row.ammunitionItemId,
     rulesText: row.rulesText,
-    nonautomation: "Full weapon damage, ammunition, armor, soak, hit location, recoil, and Called Shot rules are deferred.",
+    nonautomation: "Supported numeric ordinary Weapon attacks calculate damage for the resolved hit location and account for supported Armor/Soak. Health changes when the reviewed consequences are applied. Unsupported damage, Called Shot locations, and narrative exceptions require a G.O.D. ruling; firearms use their own attack controls.",
   }, allTargets(draft))];
   const weaponHitRows = await tx.select({
     powerId: itemPower.id,
@@ -1036,7 +1036,7 @@ async function resolveCreatureSource(
           damageType: attack.damageType ?? "",
           specialEffect: attack.specialEffect ?? "",
           requirements: attack.requirements ?? "",
-          nonautomation: "Attack damage, armor, soak, hit location, and narrative consequences remain deferred.",
+          nonautomation: "Supported numeric Creature Attacks calculate damage for the resolved hit location and account for supported Armor/Soak. Health changes when the reviewed consequences are applied. Unsupported damage, Called Shot locations, and narrative consequences require a G.O.D. ruling.",
         }, targets), ...normalizeCreatureEffects(isRecord(attack.authoring) ? attack.authoring.onHitEffects : []).map((entry) =>
           structuredEffect(`creature-hit:${entry.effectKey}`, entry.effect, targets, false, { creatureHit: true }))],
         warnings: [

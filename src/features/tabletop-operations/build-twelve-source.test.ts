@@ -69,10 +69,19 @@ test("browser actions accept identities and rulings, never proposed Roll outcome
 });
 
 
-test("complete firearm damage and ammunition automation remain outside Pass 8", () => {
+test("ordinary attack wording matches consequence routing while firearms keep their separate pipeline", () => {
   const resolver = read("src/features/tabletop-operations/action-source-resolver-service.ts");
   const service = read("src/features/tabletop-operations/action-effect-plan-service.ts");
-  assert.match(resolver, /Full weapon damage, ammunition, armor, soak, hit location, recoil, and Called Shot rules are deferred/);
+  for (const label of ["ordinary Weapon attacks", "Creature Attacks"]) {
+    assert.ok(resolver.includes(`Supported numeric ${label} calculate damage for the resolved hit location`));
+  }
+  assert.match(resolver, /account for supported Armor\/Soak/);
+  assert.match(resolver, /Health changes when the reviewed consequences are applied/);
+  assert.match(resolver, /Unsupported damage, Called Shot locations, and narrative consequences require a G\.O\.D\. ruling/);
+  assert.match(resolver, /firearms use their own attack controls/);
+  assert.doesNotMatch(resolver, /rules are deferred|consequences remain deferred/);
+  assert.match(service, /source\.kind === "weapon" \|\| source\.kind === "creature-attack"[\s\S]*locked\.weapon\?\.firingModeId == null && governingRoll[\s\S]*buildOrdinaryAttackConsequenceProposalInTransaction/);
+  assert.match(service, /resolveIncomingEffectPlanInTransaction/);
   assert.doesNotMatch(service, /consumeAmmunition|calculateBurstDamage|applyArmorSoak|calledShotDexBonus/);
 });
 

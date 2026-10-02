@@ -35,6 +35,7 @@ export const CAMPAIGN_GRAPH_DELETE_STEPS = [
   { tableName: "campaign_race", scope: "campaign" },
   { tableName: "campaign_allowed_race", scope: "campaign" },
   { tableName: "campaign_allowed_system", scope: "campaign" },
+  { tableName: "campaign_skill_exclusion", scope: "campaign" },
   { tableName: "campaign_character_active_health_pool", scope: "character" },
   { tableName: "campaign_character_active_mana", scope: "character" },
   { tableName: "campaign_character_currency_holding", scope: "character" },

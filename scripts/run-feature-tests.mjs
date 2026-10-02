@@ -13,7 +13,7 @@ async function discoverTests(directory) {
     const entryPath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
       tests.push(...await discoverTests(entryPath));
-    } else if (entry.isFile() && entry.name.endsWith(".test.ts")) {
+    } else if (entry.isFile() && /\.test\.tsx?$/.test(entry.name)) {
       tests.push(path.relative(repositoryRoot, entryPath));
     }
   }
@@ -23,7 +23,7 @@ async function discoverTests(directory) {
 
 const testFiles = (await discoverTests(featuresRoot)).sort();
 if (testFiles.length === 0) {
-  console.error("validate:unit failed: no src/features/**/*.test.ts files were found.");
+  console.error("validate:unit failed: no src/features/**/*.test.ts or .test.tsx files were found.");
   process.exitCode = 1;
 } else {
   console.log(`validate:unit discovered ${testFiles.length} feature test files.`);
@@ -31,7 +31,7 @@ if (testFiles.length === 0) {
   const exitCode = await new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
-      ["--import", "tsx", "--test", ...testFiles],
+      ["--import", "./scripts/register-test-css.mjs", "--import", "tsx", "--test", ...testFiles],
       { cwd: repositoryRoot, stdio: "inherit" },
     );
     child.once("error", reject);

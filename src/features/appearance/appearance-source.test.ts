@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import postcss from "postcss";
 
 function read(path: string): string {
   return readFileSync(path, "utf8");
@@ -13,6 +14,43 @@ function filesBelow(directory: string): string[] {
     return entry.isDirectory() ? filesBelow(path) : [path];
   });
 }
+
+// Both files also contain screen UI, which must keep using semantic colors.
+function withoutCurrentPrintRules(path: string, css: string): string {
+  const root = postcss.parse(css);
+  if (path === join("src", "app", "characters", "paper-character-sheet.css")) {
+    root.walkAtRules("media", (rule) => {
+      if (rule.params.trim() === "print") rule.remove();
+    });
+  }
+  if (path === join("src", "features", "special-abilities", "reference.css")) {
+    const printInkSelectors = new Set([
+      ".special-ability-reference--print",
+      ".special-ability-reference--print .special-ability-reference__notice",
+    ]);
+    root.walkRules((rule) => {
+      if (rule.selectors.every((selector) => printInkSelectors.has(selector))) {
+        rule.remove();
+      }
+    });
+  }
+  return root.toString();
+}
+
+test("fixed print ink exceptions retain screen rules and do not exempt other stylesheets", () => {
+  const paperPath = join("src", "app", "characters", "paper-character-sheet.css");
+  const referencePath = join("src", "features", "special-abilities", "reference.css");
+  const paperCss = ".paper-print-dialog { color: #123; } @media print { @page { @top-left { color: #456; } } .paper-character-sheet { color: #789; } }";
+  assert.match(withoutCurrentPrintRules(paperPath, paperCss), /#123/);
+  assert.doesNotMatch(withoutCurrentPrintRules(paperPath, paperCss), /#456|#789/);
+  const referenceCss = ".special-ability-reference--print { color: #000; } .special-ability-reference { color: #123; } .special-ability-reference--printer { color: #456; } .special-ability-reference--print p, .screen { color: #789; } .special-ability-reference--print + .screen { color: #abc; }";
+  const screened = withoutCurrentPrintRules(referencePath, referenceCss);
+  assert.doesNotMatch(screened, /#000/);
+  for (const literal of ["#123", "#456", "#789", "#abc"]) assert.ok(screened.includes(literal));
+  const unrelatedPath = join("src", "app", "unrelated.css");
+  assert.equal(withoutCurrentPrintRules(unrelatedPath, paperCss), paperCss);
+  assert.equal(withoutCurrentPrintRules(unrelatedPath, referenceCss), referenceCss);
+});
 
 test("appearance persistence is a constrained singleton at migration 0037", () => {
   const schema = read("src/db/appearance-schema.ts");
@@ -81,7 +119,7 @@ test("screen styles contain no independent color palettes", () => {
 
   const screenCss = stylesheets
     .filter((path) => !intentionalExceptions.has(path))
-    .map(read)
+    .map((path) => withoutCurrentPrintRules(path, read(path)))
     .join("\n");
   assert.doesNotMatch(
     screenCss,
@@ -132,5 +170,5 @@ test("the permanent repository standard documents and enforces shared theme deve
   assert.match(guide, /getAppearanceCssVariables/);
   assert.match(guide, /data-appearance-theme-scope/);
   assert.match(guide, /--st-health/);
-  assert.match(guide, /print\/export rules remain fixed/);
+  assert.match(guide, /Dedicated print\/export rules use fixed ink colors/);
 });

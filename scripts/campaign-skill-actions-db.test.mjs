@@ -18,6 +18,43 @@ const service = await import("../src/features/campaigns/campaign-skill-access-se
 const constructor = await import("../src/features/creatures/creature-npc-constructor-service.ts");
 after(() => pool.end());
 
+test("lifecycle explains exclusion-only Skill dependencies and deletes only the owning Campaign exclusions", async () => {
+  const lifecycle = await import("../src/features/lifecycle/lifecycle-service.ts");
+  const ownerId = "exclusion-lifecycle-owner";
+  const owner = { userId: ownerId, roles: ["god"] };
+  await pool.query(`insert into "user" (id,name,email,email_verified,created_at,updated_at) values ($1,'Exclusion Owner','exclusion-owner@test.invalid',true,now(),now())`, [ownerId]);
+  const skillId = (await pool.query("insert into skill(name,classification,tier,primary_attribute,definition,created_by_user_id) values('Exclusion only','standard',1,'INT','',$1) returning id", [ownerId])).rows[0].id;
+  const campaignIds = [];
+  for (const name of ["Exclusion lifecycle Campaign", "Independent exclusion Campaign"]) {
+    const id = (await pool.query("insert into campaign(name,created_by_user_id,attribute_points,skill_points,max_starting_skill,points_to_unlock_next_tier,max_points_in_skill,starting_credit_amount,currency_system,fate_point_method,assigned_fate_points) values($1,$2,100,100,25,10,100,0,'Credits','Assigned',0) returning id", [name, ownerId])).rows[0].id;
+    campaignIds.push(id);
+    await pool.query("insert into campaign_skill_exclusion(campaign_id,skill_id,path_key) values($1,$2,$3)", [id, skillId, String(skillId)]);
+  }
+  const target = { entityKind: "skill", entityId: skillId };
+  const preview = await lifecycle.previewLifecycleEntityForActor(target, owner);
+  assert.equal(preview.canDelete, false);
+  assert.deepEqual(preview.dependencies.filter(({ blocking, count }) => blocking && count > 0), [
+    { label: "Campaign Skill exclusions", blocking: true, count: 2 },
+  ]);
+  assert.ok(preview.blockers.includes("Campaign Skill exclusions: 2"));
+  await assert.rejects(lifecycle.permanentlyDeleteLifecycleEntityForActor(target, owner), /referenced: Campaign Skill exclusions \(2\)/);
+  await assert.rejects(pool.query("delete from skill where id=$1", [skillId]), { constraint: "campaign_skill_exclusion_skill_id_skill_id_fk" });
+  const campaignTarget = { entityKind: "campaign", entityId: campaignIds[0] };
+  const campaignPreview = await lifecycle.previewLifecycleEntityForActor(campaignTarget, owner);
+  assert.equal(campaignPreview.canDelete, true);
+  assert.deepEqual(campaignPreview.dependencies.find(({ label }) => label === "Campaign Skill exclusions"), {
+    label: "Campaign Skill exclusions", blocking: false, count: 1,
+  });
+  await lifecycle.permanentlyDeleteLifecycleEntityForActor(campaignTarget, owner, "Exclusion lifecycle Campaign");
+  assert.deepEqual((await pool.query("select campaign_id from campaign_skill_exclusion where skill_id=$1", [skillId])).rows, [{ campaign_id: campaignIds[1] }]);
+  assert.equal((await lifecycle.previewLifecycleEntityForActor(target, owner)).dependencies.find(({ label }) => label === "Campaign Skill exclusions").count, 1);
+  // Exercise the unchanged database cascade separately from the explicit service plan.
+  await pool.query("delete from campaign where id=$1", [campaignIds[1]]);
+  assert.equal((await lifecycle.previewLifecycleEntityForActor(target, owner)).canDelete, true);
+  await lifecycle.permanentlyDeleteLifecycleEntityForActor(target, owner);
+  assert.equal((await pool.query("select count(*)::int n from skill where id=$1", [skillId])).rows[0].n, 0);
+});
+
 test("create/edit/reload, exact server allocation/XP enforcement, historical preservation, and grants", async () => {
   await pool.query(`insert into "user" (id,name,email,email_verified,created_at,updated_at) values ('skill-owner','Owner','skill-owner@test.invalid',true,now(),now()),('skill-player','Player','skill-player@test.invalid',true,now(),now())`);
   await pool.query("insert into user_role(user_id,role) values ('skill-owner','god'),('skill-owner','player'),('skill-player','player')");

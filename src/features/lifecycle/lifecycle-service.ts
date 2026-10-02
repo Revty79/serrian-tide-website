@@ -255,6 +255,7 @@ async function countSerializedFrameworkSkillReferences(
 
 function campaignDependencySpecs(campaignId: number): DependencySpec[] {
   return [
+    { label: "Campaign Skill exclusions", blocking: false, query: sql<CountRow>`select count(*)::int as value from campaign_skill_exclusion where campaign_id = ${campaignId}` },
     { label: "Companion Profiles, roles and history", blocking: false, query: sql<CountRow>`select ((select count(*) from companion_profile where campaign_id = ${campaignId}) + (select count(*) from companion_profile_role where character_id in (select character_id from companion_profile where campaign_id = ${campaignId})) + (select count(*) from companion_profile_event where campaign_id = ${campaignId}))::int as value` },
     { label: "Companion travel settings, Vessel bindings and history", blocking: false, query: sql<CountRow>`select ((select count(*) from owned_creature_disposition where campaign_id = ${campaignId}) + (select count(*) from companion_disposition_event where campaign_id = ${campaignId}))::int as value` },
     { label: "Persistent Evolution history", blocking: false, query: sql<CountRow>`select ((select count(*) from race_evolution_events where campaign_id = ${campaignId}) + (select count(*) from creature_evolution_events where campaign_id = ${campaignId}))::int as value` },
@@ -408,6 +409,7 @@ function skillDependencySpecs(id: number): DependencySpec[] {
     { label: "Creature Form Skill links", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_form_skill_links where skill_id = ${id}` },
     { label: "Creature Skill links", blocking: true, query: sql<CountRow>`select count(*)::int as value from creature_skill_links where skill_id = ${id}` },
     { label: "Character Skill allocations", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_character_skill_allocation where skill_id = ${id}` },
+    { label: "Campaign Skill exclusions", blocking: true, query: sql<CountRow>`select count(*)::int as value from campaign_skill_exclusion where skill_id = ${id}` },
     { label: "Derived Ability requirements", blocking: true, query: sql<CountRow>`select count(*)::int as value from derived_ability_requirement where skill_id = ${id}` },
     { label: "Weapon Skill-path mappings", blocking: true, query: sql<CountRow>`select count(*)::int as value from weapon_skill_path_mappings where endpoint_skill_id = ${id}` },
     { label: "Defense Skill-path mappings", blocking: true, query: sql<CountRow>`select count(*)::int as value from defense_skill_path_mapping where endpoint_skill_id = ${id}` },

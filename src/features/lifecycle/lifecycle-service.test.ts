@@ -122,6 +122,7 @@ test("shared library previews enumerate every protected reference family", () =>
     "Child relationships",
     "Race grants",
     "Character Skill allocations",
+    "Campaign Skill exclusions",
     "Saved Character spell documents using this framework Skill",
     "Other spell-construction Skill extensions using this framework Skill",
     "Campaign inventory authorization",

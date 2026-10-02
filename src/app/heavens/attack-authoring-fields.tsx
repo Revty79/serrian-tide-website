@@ -30,10 +30,10 @@ export function AttackMagicConstructionEditor({ value, name, onChange, authoring
   const calculation = value ? calculateSpell(value.document) : null;
   const adapter = value ? adaptSpellToMechanicalEffects(value.document) : null;
   return <details className="creature-authoring__magic"><summary>Magic Construction{value ? ` — ${value.document.name || "Untitled"}` : " (optional)"}</summary>
-    <p>{authoringOnly ? "Author a spell construction for this inherent attack. This saves the construction for later use; it does not enable Character attacks or casting." : "Use the shared Spell Construction tools for complex magic. Supported constructed effects are used during Creature action resolution; unsupported effects need a G.O.D. ruling."}</p>
+    <p>{authoringOnly ? "Author a spell construction for this inherent attack. This saves the construction for later use; it does not enable Character attacks or casting." : "Use the shared Spell Construction tools to save complex magic and preview its calculation. An attached construction makes this Creature Attack or Ability magical, but its constructed effects do not execute automatically during Creature action resolution. Resolve those effects with a G.O.D. ruling."}</p>
     {value ? <><button type="button" className="st-button" onClick={() => onChange(null)}>Remove Magic Construction</button>
       <SpellConstructionEditor document={value.document} onChange={(document) => onChange({ document })} findFrameworkSkills={listSpellFrameworkSkills} />
-      <p>Calculator: {calculation?.baseSpellManaCost} Mana; {calculation?.baseCombatCastingTime} Initiative. {adapter?.valid ? `${adapter.effects.length} supported effects.` : "Some effects require manual review."} The authored action cost above remains separate.</p>
+      <p>Calculator: {calculation?.baseSpellManaCost} Mana; {calculation?.baseCombatCastingTime} Initiative. {adapter?.valid ? `${adapter.effects.length} effects recognized by the spell calculator. This preview does not enable their execution for this source.` : "Some effects require manual review."} The authored action cost above remains separate.</p>
     </> : <button type="button" className="st-button" onClick={() => onChange({ document: { ...createEmptySpell(), name: name || (authoringOnly ? "Natural Attack Magic" : "Creature Magic") } })}>Build Magic Construction</button>}
   </details>;
 }

@@ -246,15 +246,16 @@ test("authored Item quantity and exact-instance Charge costs enter the shared ap
   }
 });
 
-test("weapon and Creature attack damage remain explicit non-automated instructions", () => {
+test("the fallback planner preserves historical manual attack instructions exactly", () => {
   for (const kind of ["weapon", "creature-attack"] as const) {
+    const instruction = { damage: "2d10", nonautomation: "Armor, soak, ammunition, and Hit Location are deferred." };
     const plan = buildActionEffectPlanProposal({
       source: source({
         kind,
         identity: `${kind}:exact-id`,
         effects: [{
           key: "damage-instruction", effect: null,
-          instruction: { damage: "2d10", nonautomation: "Armor, soak, ammunition, and Hit Location are deferred." },
+          instruction: structuredClone(instruction),
           applicationSupported: false, requiresGodReview: true, targetParticipantIds: [9],
         }],
       }),
@@ -263,5 +264,6 @@ test("weapon and Creature attack damage remain explicit non-automated instructio
     });
     assert.equal(plan.effects[0]?.effectType, "manual");
     assert.equal(plan.effects[0]?.applicationSupported, false);
+    assert.deepEqual(plan.effects[0]?.authoredValue, { effect: null, instruction });
   }
 });

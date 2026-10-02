@@ -87,6 +87,16 @@ test("delete scopes match a trusted Campaign predicate", () => {
   }
 });
 
+test("Campaign Skill exclusions retain Campaign cascade and restrictive Skill ownership", () => {
+  const exclusions = snapshot.tables["public.campaign_skill_exclusion"];
+  const foreignKeys = Object.values(exclusions.foreignKeys);
+  assert.equal(foreignKeys.find(({ tableTo }) => tableTo === "campaign")?.onDelete, "cascade");
+  assert.equal(foreignKeys.find(({ tableTo }) => tableTo === "skill")?.onDelete, "restrict");
+  assert.deepEqual(CAMPAIGN_GRAPH_DELETE_STEPS.find(({ tableName }) => tableName === "campaign_skill_exclusion"), {
+    tableName: "campaign_skill_exclusion", scope: "campaign",
+  });
+});
+
 test("every Campaign-owned nullable self-reference has an explicit deletion strategy", () => {
   const configured = new Set<string>(
     CAMPAIGN_GRAPH_SELF_REFERENCE_BREAKS.map(
