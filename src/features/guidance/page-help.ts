@@ -128,13 +128,19 @@ const guides: Record<string, PageHelp> = {
     "Conversation and recipient": "The currently selected conversation determines who can read the message. Opening another conversation does not send the draft.",
     "Messages versus gameplay": "Chat discusses play. Writing an attack, purchase or award in a message does not execute that operation; use the corresponding game control.",
   } },
-  account: { title: "Signing in and choosing a path", introduction: "Use your account to enter the paths available to your assigned roles.", steps: ["Sign in with your account, or register if you need one.", "After signing in, choose an available path on Access.", "The Heavens contains G.O.D. tools; The Realms contains player tools; Administration requires its corresponding access."], topics: {
+  account: { title: "Signing in and choosing a path", introduction: "Use your account to enter the paths available to your assigned roles.", steps: ["Sign in with your account, or register if you need one.", "After signing in, choose an available path on Access.", "The Heavens contains G.O.D. tools; The Realms contains player tools; Worlds is the narrative world-building destination. Administration requires its corresponding access."], topics: {
     Username: "Use the account name requested by the sign-in form. This identifies the account; it is separate from a Character's name.",
     Password: "Enter your account password. Registration requires the form's stated password rules and confirmation; do not use a Character name as a substitute.",
     "Unavailable paths": "Access follows the account's assigned roles. Creating an account does not automatically grant administrative or G.O.D. access.",
   } },
+  worlds: { title: "Worlds and world building", introduction: "Worlds is the narrative home for the people, places, histories, and lore around your games.", steps: ["Enter Worlds from Choose Your Path or Switch Path.", "This first screen introduces the space; writing and organizing tools are coming next.", "Use Return to Paths to choose another destination."], topics: {
+    "Narrative overlays": "Worlds is intended for the stories and descriptions around the existing game. Its future tools will add narrative context without rewriting Skills, statistics, combat rules, or live Character state.",
+    "Available tools": "The Worlds landing screen is available now. It does not yet create, edit, or save world entries.",
+    "Access": "Worlds requires a G.O.D. or Admin role. Player-only accounts cannot enter Worlds, including through a direct link.",
+  } },
   dashboard: { title: "Finding your way", introduction: "Use the dashboard for your current role and campaign, then open the appropriate workspace.", steps: ["Choose the campaign or content area you want to work with.", "Use the navigation and breadcrumbs to move between related screens.", "Open Help with this page for the current workflow, or use a field's ? for its specific meaning."], topics: {
     "The Heavens": "G.O.D. authoring and campaign-management tools, including Races, Creatures, Skills, Items, NPCs and tabletop operations.",
+    "Worlds": "The narrative world-building destination, with writing and organizing tools to follow.",
     "The Realms": "Player campaign access, Characters and the available live tabletop workflows.",
     "Access and Switch Path": "Return to Access or use Switch Path to enter another role available to your account. This does not change the selected Character's game rules.",
   } },
@@ -144,6 +150,7 @@ export function getPageHelp(pathname: string): PageHelp {
   let key = "dashboard";
   if (pathname === "/profile") key = "profile";
   else if (/\/(login|register|access)(\/|$)/.test(pathname)) key = "account";
+  else if (/^\/worlds(?:\/|$)/.test(pathname)) key = "worlds";
   else if (pathname.startsWith("/admin")) key = "admin";
   else if (pathname.startsWith("/chat")) key = "chat";
   else if (/\/advance(?:\/|$)/.test(pathname)) key = "advance";

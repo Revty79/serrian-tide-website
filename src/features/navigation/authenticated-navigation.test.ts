@@ -71,7 +71,7 @@ test("Realms exposes the complete tool set while working inside a Character", ()
 });
 
 test("every authenticated context exposes Crossroads exactly once, including Character routes", () => {
-  for (const context of ["admin", "heavens", "realms"] as const) {
+  for (const context of ["admin", "heavens", "realms", "worlds"] as const) {
     const items = getContextNavigationItems(context);
     assert.equal(items.filter(({ href }) => href === "/chat").length, 1);
   }
@@ -154,19 +154,26 @@ test("Character sub-tools return to the selected Character context", () => {
 test("role destinations expose only authorized application contexts", () => {
   assert.deepEqual(
     getRoleDestinations(["god", "player"]).map(({ label }) => label),
-    ["Heavens", "Realms"],
+    ["Heavens", "Realms", "Worlds"],
   );
   assert.deepEqual(
     getRoleDestinations(["admin", "god", "player"]).map(({ label }) => label),
-    ["Admin", "Heavens", "Realms"],
+    ["Admin", "Heavens", "Realms", "Worlds"],
   );
   assert.deepEqual(
     getAlternateRoleDestinations(["admin", "god", "player"], "heavens").map(
       ({ label }) => label,
     ),
-    ["Admin", "Realms"],
+    ["Admin", "Realms", "Worlds"],
   );
-  assert.deepEqual(getAlternateRoleDestinations(["god"], "heavens"), []);
+  assert.deepEqual(getAlternateRoleDestinations(["god"], "heavens"), [{ label: "Worlds", href: "/worlds" }]);
+  assert.deepEqual(getRoleDestinations([]), []);
+  assert.deepEqual(getRoleDestinations(["player"]).map(({ href }) => href), ["/realms"]);
+  assert.deepEqual(getRoleDestinations(["admin"]).map(({ href }) => href), ["/admin", "/worlds"]);
+  assert.deepEqual(getRoleDestinations(["god"]).map(({ href }) => href), ["/heavens", "/worlds"]);
+  assert.deepEqual(getAlternateRoleDestinations(["god"], "worlds"), [{ role: "god", label: "Heavens", href: "/heavens" }]);
+  assert.equal(getContextHomeHref("worlds"), "/worlds");
+  assert.deepEqual(getNavigationBreadcrumbs("/worlds", "worlds"), [{ label: "Worlds", href: "/worlds", current: true }]);
   assert.equal(
     getAlternateRoleDestinations(["admin", "god", "player"], "heavens")
       .some(({ href }) => href === "/chat"),
@@ -195,7 +202,7 @@ test("library pages breadcrumb directly back to their Heavens library context", 
 });
 
 test("Add Player remains an inline action rather than an authenticated destination", () => {
-  const allDestinations = ["admin", "heavens", "realms"] as const;
+  const allDestinations = ["admin", "heavens", "realms", "worlds"] as const;
   assert.equal(
     allDestinations
       .flatMap((context) => getContextNavigationItems(context))

@@ -116,7 +116,7 @@ async function login(context: BrowserContext, email: string): Promise<Page> {
 }
 
 async function accessCardHrefs(page: Page): Promise<string[]> {
-  const destinationHrefs = ["/admin", "/heavens", "/realms", "/chat"];
+  const destinationHrefs = ["/admin", "/heavens", "/realms", "/worlds", "/chat"];
   return page.locator("main a").evaluateAll((links, expected) => links
     .map((link) => link.getAttribute("href"))
     .filter((href): href is string => Boolean(href && expected.includes(href))), destinationHrefs);
@@ -128,7 +128,7 @@ async function verifyPathsLayout(
   prefix: string,
 ): Promise<void> {
   const viewports = [
-    { width: 1440, height: 900, expectedRows: 1 },
+    { width: 1440, height: 900, expectedRows: expectedCardCount === 5 ? 2 : 1 },
     { width: 390, height: 844, expectedRows: expectedCardCount },
   ];
   if (SCREENSHOT_DIRECTORY) await mkdir(SCREENSHOT_DIRECTORY, { recursive: true });
@@ -158,7 +158,7 @@ async function verifyPathsLayout(
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
           || document.body.scrollWidth > document.documentElement.clientWidth,
       };
-    }, ["/admin", "/heavens", "/realms", "/chat"]);
+    }, ["/admin", "/heavens", "/realms", "/worlds", "/chat"]);
     assert.equal(layout.cardCount, expectedCardCount);
     assert.equal(
       layout.rowCount,
@@ -175,7 +175,7 @@ async function verifyPathsLayout(
   }
 }
 
-async function verifySharedNavigation(page: Page, path: "/admin" | "/heavens" | "/realms") {
+async function verifySharedNavigation(page: Page, path: "/admin" | "/heavens" | "/realms" | "/worlds") {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${BASE_URL}${path}`);
   const navigation = page.locator(".authenticated-navigation");
@@ -226,25 +226,65 @@ async function main(): Promise<void> {
     const allRolePage = await login(allRoleContext, fixture.allRoleEmail);
     const playerPage = await login(playerContext, fixture.playerEmail);
 
-    assert.deepEqual(await accessCardHrefs(allRolePage), ["/admin", "/heavens", "/realms", "/chat"]);
+    assert.deepEqual(await accessCardHrefs(allRolePage), ["/admin", "/heavens", "/realms", "/worlds", "/chat"]);
     assert.deepEqual(await accessCardHrefs(playerPage), ["/realms", "/chat"]);
     assert.equal(allRolePage.url(), `${BASE_URL}/access`);
     assert.equal(playerPage.url(), `${BASE_URL}/access`);
-    await verifyPathsLayout(allRolePage, 4, "paths-all-roles");
+    await verifyPathsLayout(allRolePage, 5, "paths-all-roles");
     await verifyPathsLayout(playerPage, 2, "paths-player-role");
 
-    for (const path of ["/admin", "/heavens", "/realms"] as const) {
+    for (const path of ["/admin", "/heavens", "/realms", "/worlds"] as const) {
       await verifySharedNavigation(allRolePage, path);
     }
+
+    await allRolePage.goto(`${BASE_URL}/access`);
+    await allRolePage.locator('main a[href="/worlds"]').click();
+    await allRolePage.getByRole("heading", { name: "Worlds", exact: true }).waitFor();
+    await allRolePage.getByRole("heading", { name: "World-building tools", exact: true }).waitFor();
+    for (const width of [1440, 768, 390]) {
+      await allRolePage.setViewportSize({ width, height: 900 });
+      assert.equal(await allRolePage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+      await allRolePage.getByRole("button", { name: "Help with this page" }).click();
+      await allRolePage.getByRole("dialog", { name: "Worlds and world building" }).waitFor();
+      assert.equal(await allRolePage.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+      await allRolePage.keyboard.press("Escape");
+      if (SCREENSHOT_DIRECTORY) await allRolePage.screenshot({ path: join(SCREENSHOT_DIRECTORY, `worlds-${width}.png`), fullPage: true });
+    }
+    await allRolePage.getByRole("link", { name: "Return to Paths", exact: true }).click();
+    await allRolePage.waitForURL(`${BASE_URL}/access`);
+    await playerPage.goto(`${BASE_URL}/realms`);
+    assert.equal(await playerPage.locator('.authenticated-navigation a[href="/worlds"]').count(), 0);
+    await playerPage.goto(`${BASE_URL}/worlds`);
+    await playerPage.waitForURL(`${BASE_URL}/access`);
+    assert.equal(await playerPage.locator('main a[href="/worlds"]').count(), 0);
+    for (const role of ["god", "admin"] as const) {
+      await pool.query("delete from user_role where user_id = $1", [ALL_ROLE_ID]);
+      await pool.query("insert into user_role (user_id, role) values ($1, $2)", [ALL_ROLE_ID, role]);
+      await allRolePage.goto(`${BASE_URL}/access`);
+      assert.equal(await allRolePage.locator('main a[href="/worlds"]').count(), 1);
+      await allRolePage.locator('main a[href="/worlds"]').click();
+      await allRolePage.getByRole("heading", { name: "Worlds", exact: true }).waitFor();
+    }
+    await pool.query("delete from user_role where user_id = $1", [ALL_ROLE_ID]);
+    await allRolePage.goto(`${BASE_URL}/worlds`);
+    await allRolePage.waitForURL(`${BASE_URL}/access`);
+    assert.equal(await allRolePage.locator('main a[href="/worlds"]').count(), 0);
+    const visitor = await browser.newContext();
+    const visitorPage = await visitor.newPage();
+    await visitorPage.goto(`${BASE_URL}/worlds`);
+    await visitorPage.waitForURL(`${BASE_URL}/login`);
+    await visitor.close();
 
     await Promise.all([allRoleContext.close(), playerContext.close()]);
     console.log(JSON.stringify({
       passed: true,
       verified: [
-        "four-card all-role Paths",
-        "two-card single-role Paths",
+        "five-card all-role Paths",
+        "two-card Player-only Paths",
         "desktop Crossroads navigation",
         "mobile Crossroads navigation",
+        "Worlds card, landing page, responsive layout, help, and return path",
+        "Worlds allows G.O.D.-only and Admin-only accounts; blocks Player-only, roleless, and signed-out visitors",
       ],
     }, null, 2));
   } finally {

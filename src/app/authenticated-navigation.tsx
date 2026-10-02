@@ -22,6 +22,7 @@ const contextNames: Record<AuthenticatedContext, string> = {
   admin: "Administration",
   heavens: "The Heavens",
   realms: "The Realms",
+  worlds: "Worlds",
 };
 
 export function AuthenticatedNavigation({

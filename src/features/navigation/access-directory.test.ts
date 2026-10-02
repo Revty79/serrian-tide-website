@@ -14,11 +14,11 @@ const expectedByRole: Array<{
   titles: string[];
 }> = [
   { role: "player", titles: ["THE REALMS", "THE CROSSROADS"] },
-  { role: "god", titles: ["THE HEAVENS", "THE CROSSROADS"] },
-  { role: "admin", titles: ["ADMIN", "THE CROSSROADS"] },
+  { role: "god", titles: ["THE HEAVENS", "WORLDS", "THE CROSSROADS"] },
+  { role: "admin", titles: ["ADMIN", "WORLDS", "THE CROSSROADS"] },
 ];
 
-test("each single Serrian role receives its role destination and one universal Crossroads card", () => {
+test("single-role Paths reserves Worlds for G.O.D. and Admin accounts", () => {
   for (const expectation of expectedByRole) {
     const cards = getAccessDestinationCards([expectation.role]);
     assert.deepEqual(cards.map(({ title }) => title), expectation.titles);
@@ -32,6 +32,7 @@ test("multi-role Paths stays ordered and never duplicates the universal destinat
     "ADMIN",
     "THE HEAVENS",
     "THE REALMS",
+    "WORLDS",
     "THE CROSSROADS",
   ]);
   assert.equal(cards.filter(({ key }) => key === "crossroads").length, 1);
@@ -45,11 +46,12 @@ test("Crossroads has a stable non-role identity and roleless Users receive no us
   assert.deepEqual(getAccessDestinationCards([]), []);
 });
 
-test("two, three, and four-card Paths grids use explicit responsive layouts", () => {
+test("two through five-card Paths grids use explicit responsive layouts", () => {
   const stylesheet = readFileSync(join(process.cwd(), "src/app/access/access.module.css"), "utf8");
   assert.match(stylesheet, /data-card-count="2"/);
   assert.match(stylesheet, /data-card-count="3"/);
   assert.match(stylesheet, /data-card-count="4"/);
+  assert.match(stylesheet, /data-card-count="5"/);
   assert.match(stylesheet, /repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(stylesheet, /repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(stylesheet, /repeat\(4, minmax\(0, 1fr\)\)/);

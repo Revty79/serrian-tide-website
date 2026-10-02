@@ -1,7 +1,7 @@
 import { getCampaignControlHref } from "@/features/campaigns/campaign-workflow";
 
 export type SerrianAppRole = "admin" | "god" | "player";
-export type AuthenticatedContext = "admin" | "heavens" | "realms";
+export type AuthenticatedContext = "admin" | "heavens" | "realms" | "worlds";
 
 export type AuthenticatedNavigationItem = {
   label: string;
@@ -37,6 +37,10 @@ const CONTEXT_ITEMS: Record<AuthenticatedContext, AuthenticatedNavigationItem[]>
     { label: "NPCs", href: "/heavens/npcs" },
     { label: "Shops", href: "/heavens/shops" },
     { label: "Towns", href: "/heavens/towns" },
+  ],
+  worlds: [
+    { label: "Worlds", href: "/worlds" },
+    CROSSROADS_ITEM,
   ],
   realms: [
     { label: "Realms Dashboard", href: "/realms" },
@@ -87,7 +91,11 @@ export function getContextNavigationItems(
 
 export function getRoleDestinations(roles: readonly SerrianAppRole[]) {
   const roleSet = new Set(roles);
-  return ROLE_DESTINATIONS.filter(({ role }) => roleSet.has(role));
+  if (roleSet.size === 0) return [];
+  return [
+    ...ROLE_DESTINATIONS.filter(({ role }) => roleSet.has(role)),
+    ...(roleSet.has("god") || roleSet.has("admin") ? [{ label: "Worlds", href: "/worlds" }] : []),
+  ];
 }
 
 export function getAlternateRoleDestinations(
@@ -119,7 +127,7 @@ export function isNavigationItemActive(
   ) {
     return true;
   }
-  if (item.href === "/heavens" || item.href === "/realms" || item.href === "/admin") {
+  if (item.href === "/heavens" || item.href === "/realms" || item.href === "/admin" || item.href === "/worlds") {
     return false;
   }
   return pathname.startsWith(`${item.href}/`);

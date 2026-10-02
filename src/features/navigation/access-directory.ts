@@ -36,6 +36,14 @@ const ROLE_ACCESS_CARDS: readonly AccessDestinationCard[] = [
   },
 ];
 
+export const WORLDS_ACCESS_CARD: AccessDestinationCard = {
+  key: "worlds",
+  title: "WORLDS",
+  subtitle: "World Building",
+  href: "/worlds",
+  description: "Discover the narrative home for your worlds: their people, places, histories, and stories.",
+};
+
 export const CROSSROADS_ACCESS_CARD: AccessDestinationCard = {
   key: "crossroads",
   title: "THE CROSSROADS",
@@ -51,6 +59,7 @@ export function getAccessDestinationCards(
   if (roleSet.size === 0) return [];
   return [
     ...ROLE_ACCESS_CARDS.filter((card) => card.role && roleSet.has(card.role)),
+    ...(roleSet.has("god") || roleSet.has("admin") ? [WORLDS_ACCESS_CARD] : []),
     CROSSROADS_ACCESS_CARD,
   ];
 }

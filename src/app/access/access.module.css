@@ -17,21 +17,43 @@
   max-width: 64rem;
 }
 
-.cardGrid[data-card-count="4"] {
+.cardGrid[data-card-count="4"],
+.cardGrid[data-card-count="5"] {
   max-width: 72rem;
 }
 
 @media (min-width: 40rem) {
   .cardGrid[data-card-count="2"],
   .cardGrid[data-card-count="3"],
-  .cardGrid[data-card-count="4"] {
+  .cardGrid[data-card-count="4"],
+  .cardGrid[data-card-count="5"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 40rem) and (max-width: 63.999rem) {
+  .cardGrid[data-card-count="5"] > :last-child {
+    grid-column: 1 / -1;
   }
 }
 
 @media (min-width: 64rem) {
   .cardGrid[data-card-count="3"] {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .cardGrid[data-card-count="5"] {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .cardGrid[data-card-count="5"] > * {
+    grid-column: span 2;
+  }
+
+  .cardGrid[data-card-count="5"] > :nth-last-child(-n + 2) {
+    grid-column: span 3;
   }
 }
 
