@@ -1,0 +1,1370 @@
+{
+  "reviewedCommit": "f619e2f",
+  "database": "serrian_tide_dev",
+  "auditedAt": "2026-10-02T23:05:45.642Z",
+  "readOnly": true,
+  "productionInspected": false,
+  "coverage": {
+    "sourceFiles": 924,
+    "applicationModules": 717,
+    "nextEntrypoints": 41,
+    "reachableApplicationModules": 702,
+    "tables": 199,
+    "emptyTables": 146,
+    "columns": 2305,
+    "constraints": 1489,
+    "explicitIndexes": 404,
+    "enums": 51,
+    "foreignKeys": 516,
+    "populatedForeignKeysChecked": 95,
+    "orphans": 0,
+    "migrationLedger": {
+      "expected": 91,
+      "applied": 91
+    },
+    "migrationLedgerMatches": true,
+    "schemaParityPassed": true
+  },
+  "validation": {
+    "typecheck": "passed",
+    "defaultUnit": {
+      "discoveredFiles": 205,
+      "passed": 1755,
+      "failed": 9,
+      "failureClasses": {
+        "missingCssLoaderFiles": 5,
+        "staleAppearanceAssertions": 2,
+        "campaignExclusionLifecyclePlan": 2
+      }
+    },
+    "loaderAndOmittedTsxRerun": {
+      "passed": 47,
+      "failed": 0
+    }
+  },
+  "modulesOutsideProductionGraph": [
+    {
+      "file": "src/app/characters/printable-character-sheet.tsx",
+      "supportReferenced": false,
+      "incoming": []
+    },
+    {
+      "file": "src/app/heavens/tabletop/closeout-actions.ts",
+      "supportReferenced": false,
+      "incoming": []
+    },
+    {
+      "file": "src/app/heavens/tabletop/combat-aid-actions.ts",
+      "supportReferenced": false,
+      "incoming": []
+    },
+    {
+      "file": "src/app/heavens/tabletop/combat-projection-actions.ts",
+      "supportReferenced": false,
+      "incoming": []
+    },
+    {
+      "file": "src/app/heavens/tabletop/combat-xp-actions.ts",
+      "supportReferenced": false,
+      "incoming": []
+    },
+    {
+      "file": "src/app/heavens/tabletop/firearm-attack-actions.ts",
+      "supportReferenced": false,
+      "incoming": []
+    },
+    {
+      "file": "src/app/heavens/tabletop/weapon-governance-actions.ts",
+      "supportReferenced": false,
+      "incoming": []
+    },
+    {
+      "file": "src/app/realms/characters/[characterId]/encounter/actions.ts",
+      "supportReferenced": false,
+      "incoming": []
+    },
+    {
+      "file": "src/app/realms/tabletop/combat-projection-actions.ts",
+      "supportReferenced": false,
+      "incoming": []
+    },
+    {
+      "file": "src/features/campaigns/campaign-race-state.ts",
+      "supportReferenced": false,
+      "incoming": []
+    },
+    {
+      "file": "src/features/catalog-visibility/canon-classification-service.ts",
+      "supportReferenced": true,
+      "incoming": [
+        "scripts/catalog-pass-three-db.test.ts",
+        "scripts/classify-system-canon.ts"
+      ]
+    },
+    {
+      "file": "src/features/catalog-visibility/canon-manifest.ts",
+      "supportReferenced": true,
+      "incoming": [
+        "src/features/catalog-visibility/canon-classification-service.ts",
+        "src/features/catalog-visibility/catalog-pass-three.test.ts",
+        "scripts/catalog-pass-three-db.test.ts"
+      ]
+    },
+    {
+      "file": "src/features/characters/character-deletion.ts",
+      "supportReferenced": true,
+      "incoming": [
+        "src/features/characters/character-deletion.test.ts"
+      ]
+    },
+    {
+      "file": "src/features/special-abilities/v2-fixtures.ts",
+      "supportReferenced": true,
+      "incoming": [
+        "src/features/special-abilities/presentation.test.tsx",
+        "src/features/special-abilities/v2-mechanics.test.ts",
+        "scripts/special-ability-foundation-db.test.mjs",
+        "scripts/special-ability-reading-browser.ts"
+      ]
+    },
+    {
+      "file": "src/features/tabletop-operations/player-encounter-notifications.ts",
+      "supportReferenced": true,
+      "incoming": [
+        "src/features/tabletop-operations/player-encounter-notifications.test.ts"
+      ]
+    }
+  ],
+  "tablesWithoutApplicationConsumers": [
+    {
+      "symbol": "itemRule",
+      "table": "item_rules",
+      "file": "src/db/item-schema.ts",
+      "consumers": []
+    }
+  ],
+  "tables": [
+    {
+      "name": "account",
+      "rows": 6,
+      "applicationConsumerCount": 29
+    },
+    {
+      "name": "armor_location_reference",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "armor_locations",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "armor_profiles",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "attribute_score_reference",
+      "rows": 400,
+      "applicationConsumerCount": 1
+    },
+    {
+      "name": "campaign",
+      "rows": 4,
+      "applicationConsumerCount": 250
+    },
+    {
+      "name": "campaign_allowed_derived_ability",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "campaign_allowed_race",
+      "rows": 37,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "campaign_allowed_system",
+      "rows": 28,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "campaign_character",
+      "rows": 17,
+      "applicationConsumerCount": 88
+    },
+    {
+      "name": "campaign_character_active_condition",
+      "rows": 0,
+      "applicationConsumerCount": 11
+    },
+    {
+      "name": "campaign_character_active_health",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "campaign_character_active_health_pool",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "campaign_character_active_mana",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "campaign_character_active_modifier",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "campaign_character_attribute",
+      "rows": 102,
+      "applicationConsumerCount": 16
+    },
+    {
+      "name": "campaign_character_currency_holding",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "campaign_character_firearm_event",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "campaign_character_firearm_preparation",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "campaign_character_firearm_state",
+      "rows": 0,
+      "applicationConsumerCount": 13
+    },
+    {
+      "name": "campaign_character_injury",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "campaign_character_item",
+      "rows": 0,
+      "applicationConsumerCount": 28
+    },
+    {
+      "name": "campaign_character_item_equipment_state",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "campaign_character_item_instance",
+      "rows": 0,
+      "applicationConsumerCount": 34
+    },
+    {
+      "name": "campaign_character_profile",
+      "rows": 17,
+      "applicationConsumerCount": 30
+    },
+    {
+      "name": "campaign_character_skill_allocation",
+      "rows": 11,
+      "applicationConsumerCount": 17
+    },
+    {
+      "name": "campaign_character_spell_document",
+      "rows": 0,
+      "applicationConsumerCount": 9
+    },
+    {
+      "name": "campaign_character_weapon_override",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "campaign_creature_npc_profile",
+      "rows": 0,
+      "applicationConsumerCount": 35
+    },
+    {
+      "name": "campaign_derived_currency",
+      "rows": 2,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "campaign_inventory_item",
+      "rows": 0,
+      "applicationConsumerCount": 11
+    },
+    {
+      "name": "campaign_inventory_tag",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "campaign_player",
+      "rows": 9,
+      "applicationConsumerCount": 37
+    },
+    {
+      "name": "campaign_race",
+      "rows": 48,
+      "applicationConsumerCount": 9
+    },
+    {
+      "name": "campaign_session",
+      "rows": 0,
+      "applicationConsumerCount": 37
+    },
+    {
+      "name": "campaign_session_called_check_batch",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "campaign_session_called_check_event",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "campaign_session_called_check_request",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "campaign_session_effect_duration_binding",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "campaign_session_encounter",
+      "rows": 0,
+      "applicationConsumerCount": 35
+    },
+    {
+      "name": "campaign_session_encounter_action_declaration",
+      "rows": 0,
+      "applicationConsumerCount": 25
+    },
+    {
+      "name": "campaign_session_encounter_action_declaration_event",
+      "rows": 0,
+      "applicationConsumerCount": 12
+    },
+    {
+      "name": "campaign_session_encounter_declaration_checkpoint",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "campaign_session_encounter_effect",
+      "rows": 0,
+      "applicationConsumerCount": 11
+    },
+    {
+      "name": "campaign_session_encounter_effect_plan",
+      "rows": 0,
+      "applicationConsumerCount": 12
+    },
+    {
+      "name": "campaign_session_encounter_effect_plan_event",
+      "rows": 0,
+      "applicationConsumerCount": 9
+    },
+    {
+      "name": "campaign_session_encounter_firearm_attack",
+      "rows": 0,
+      "applicationConsumerCount": 9
+    },
+    {
+      "name": "campaign_session_encounter_firearm_attack_event",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "campaign_session_encounter_firearm_bullet",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "campaign_session_encounter_initiative",
+      "rows": 0,
+      "applicationConsumerCount": 24
+    },
+    {
+      "name": "campaign_session_encounter_initiative_participant",
+      "rows": 0,
+      "applicationConsumerCount": 14
+    },
+    {
+      "name": "campaign_session_encounter_participant",
+      "rows": 0,
+      "applicationConsumerCount": 57
+    },
+    {
+      "name": "campaign_session_encounter_pending_action",
+      "rows": 0,
+      "applicationConsumerCount": 22
+    },
+    {
+      "name": "campaign_session_encounter_pending_action_source",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "campaign_session_encounter_reaction",
+      "rows": 0,
+      "applicationConsumerCount": 17
+    },
+    {
+      "name": "campaign_session_encounter_reaction_event",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "campaign_session_encounter_responder_opportunity",
+      "rows": 0,
+      "applicationConsumerCount": 16
+    },
+    {
+      "name": "campaign_session_encounter_reward",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "campaign_session_encounter_reward_decision",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "campaign_session_high_low_event",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "campaign_session_high_low_request",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "campaign_session_periodic_health_effect",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "campaign_session_player_ruling_request",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "campaign_session_player_ruling_request_event",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "campaign_session_prepared_shop",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "campaign_session_prepared_town",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "campaign_session_roll",
+      "rows": 0,
+      "applicationConsumerCount": 17
+    },
+    {
+      "name": "campaign_session_roll_amendment",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "campaign_session_roster",
+      "rows": 0,
+      "applicationConsumerCount": 16
+    },
+    {
+      "name": "campaign_session_scene",
+      "rows": 0,
+      "applicationConsumerCount": 27
+    },
+    {
+      "name": "campaign_session_scene_member",
+      "rows": 0,
+      "applicationConsumerCount": 18
+    },
+    {
+      "name": "campaign_session_scene_shop",
+      "rows": 0,
+      "applicationConsumerCount": 9
+    },
+    {
+      "name": "campaign_session_scene_shop_visit",
+      "rows": 0,
+      "applicationConsumerCount": 9
+    },
+    {
+      "name": "campaign_session_scene_shop_visit_member",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "campaign_session_scene_town",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "campaign_session_scene_town_npc",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "campaign_session_scene_town_place",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "campaign_session_scene_town_shop",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "campaign_skill_exclusion",
+      "rows": 0,
+      "applicationConsumerCount": 1
+    },
+    {
+      "name": "catalog_visibility_activation",
+      "rows": 0,
+      "applicationConsumerCount": 1
+    },
+    {
+      "name": "catalog_visibility_scope_activation",
+      "rows": 1,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "challenge_rating_reference",
+      "rows": 50,
+      "applicationConsumerCount": 2
+    },
+    {
+      "name": "character_derived_ability",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "character_derived_ability_recharge",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "character_derived_ability_use",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "chat_message",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "chat_room",
+      "rows": 5,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "chat_room_member",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "companion_disposition_event",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "companion_profile",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "companion_profile_event",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "companion_profile_role",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "container_profiles",
+      "rows": 1,
+      "applicationConsumerCount": 13
+    },
+    {
+      "name": "creature_abilities",
+      "rows": 1,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "creature_ability_effects",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "creature_attacks",
+      "rows": 64,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "creature_attributes",
+      "rows": 192,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "creature_defenses",
+      "rows": 32,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "creature_evolution_events",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "creature_evolution_paths",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "creature_evolution_requirements",
+      "rows": 0,
+      "applicationConsumerCount": 2
+    },
+    {
+      "name": "creature_form_access_requirements",
+      "rows": 0,
+      "applicationConsumerCount": 2
+    },
+    {
+      "name": "creature_form_skill_links",
+      "rows": 0,
+      "applicationConsumerCount": 2
+    },
+    {
+      "name": "creature_forms",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "creature_hit_locations",
+      "rows": 320,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "creature_hp_pools",
+      "rows": 209,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "creature_movement",
+      "rows": 37,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "creature_skill_links",
+      "rows": 65,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "creature_uses",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "creature_variants",
+      "rows": 0,
+      "applicationConsumerCount": 1
+    },
+    {
+      "name": "creature_vessel_profile",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "creatures",
+      "rows": 32,
+      "applicationConsumerCount": 195
+    },
+    {
+      "name": "defense_skill_path_mapping",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "derived_ability",
+      "rows": 6,
+      "applicationConsumerCount": 23
+    },
+    {
+      "name": "derived_ability_cost",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "derived_ability_effect",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "derived_ability_requirement",
+      "rows": 6,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "derived_ability_trigger",
+      "rows": 6,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "derived_ability_use_condition",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "derived_ability_use_limit",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "evolution_destination_creation",
+      "rows": 0,
+      "applicationConsumerCount": 1
+    },
+    {
+      "name": "firearm_magazine_attachment",
+      "rows": 0,
+      "applicationConsumerCount": 10
+    },
+    {
+      "name": "inventory_container_access",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "inventory_container_substance",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "inventory_custody_event",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "inventory_instance_custody",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "inventory_instance_location",
+      "rows": 0,
+      "applicationConsumerCount": 11
+    },
+    {
+      "name": "inventory_stack_custody",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "inventory_stack_location",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "item_armor_damage_modifiers",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "item_creature_grant",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "item_effects",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "item_passive_effects",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "item_power_constructions",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "item_power_effects",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "item_power_resources",
+      "rows": 0,
+      "applicationConsumerCount": 10
+    },
+    {
+      "name": "item_power_sources",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "item_powers",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "item_properties",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "item_rules",
+      "rows": 0,
+      "applicationConsumerCount": 0
+    },
+    {
+      "name": "item_runtime_profiles",
+      "rows": 1,
+      "applicationConsumerCount": 12
+    },
+    {
+      "name": "item_tag_links",
+      "rows": 17,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "item_tags_catalog",
+      "rows": 17,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "items",
+      "rows": 1,
+      "applicationConsumerCount": 207
+    },
+    {
+      "name": "lifecycle_audit_event",
+      "rows": 1,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "magazine_ammunition",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "magazine_inventory_operation",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "magazine_profiles",
+      "rows": 0,
+      "applicationConsumerCount": 11
+    },
+    {
+      "name": "owned_creature_disposition",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "race_attribute_caps",
+      "rows": 252,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "race_evolution_events",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "race_evolution_paths",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "race_evolution_requirements",
+      "rows": 0,
+      "applicationConsumerCount": 2
+    },
+    {
+      "name": "race_form_access_requirements",
+      "rows": 15,
+      "applicationConsumerCount": 2
+    },
+    {
+      "name": "race_form_movement_modes",
+      "rows": 21,
+      "applicationConsumerCount": 1
+    },
+    {
+      "name": "race_form_natural_attacks",
+      "rows": 30,
+      "applicationConsumerCount": 2
+    },
+    {
+      "name": "race_form_natural_protection_locations",
+      "rows": 0,
+      "applicationConsumerCount": 1
+    },
+    {
+      "name": "race_form_natural_protections",
+      "rows": 11,
+      "applicationConsumerCount": 1
+    },
+    {
+      "name": "race_form_skill_links",
+      "rows": 0,
+      "applicationConsumerCount": 2
+    },
+    {
+      "name": "race_forms",
+      "rows": 15,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "race_movement_modes",
+      "rows": 43,
+      "applicationConsumerCount": 9
+    },
+    {
+      "name": "race_natural_attacks",
+      "rows": 30,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "race_natural_protection_locations",
+      "rows": 0,
+      "applicationConsumerCount": 1
+    },
+    {
+      "name": "race_natural_protections",
+      "rows": 8,
+      "applicationConsumerCount": 2
+    },
+    {
+      "name": "race_skill_links",
+      "rows": 146,
+      "applicationConsumerCount": 13
+    },
+    {
+      "name": "races",
+      "rows": 42,
+      "applicationConsumerCount": 144
+    },
+    {
+      "name": "session",
+      "rows": 23,
+      "applicationConsumerCount": 197
+    },
+    {
+      "name": "shop",
+      "rows": 0,
+      "applicationConsumerCount": 40
+    },
+    {
+      "name": "shop_commerce_operation",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "shop_money_event",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "shop_offering",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "shop_resale_creature",
+      "rows": 0,
+      "applicationConsumerCount": 6
+    },
+    {
+      "name": "shop_resale_item_instance",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "shop_staff_assignment",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "shop_transaction",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "shop_transaction_creature",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "shop_transaction_line",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "shop_transaction_request",
+      "rows": 0,
+      "applicationConsumerCount": 8
+    },
+    {
+      "name": "shop_transaction_request_line",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "site_appearance_setting",
+      "rows": 1,
+      "applicationConsumerCount": 2
+    },
+    {
+      "name": "skill",
+      "rows": 1138,
+      "applicationConsumerCount": 198
+    },
+    {
+      "name": "skill_extension",
+      "rows": 742,
+      "applicationConsumerCount": 13
+    },
+    {
+      "name": "skill_relationship",
+      "rows": 1030,
+      "applicationConsumerCount": 15
+    },
+    {
+      "name": "tabletop_closeout_award",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "tabletop_closeout_award_decision",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "tabletop_source_use_event",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "tabletop_source_use_request",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "town",
+      "rows": 1,
+      "applicationConsumerCount": 24
+    },
+    {
+      "name": "town_npc_association",
+      "rows": 0,
+      "applicationConsumerCount": 4
+    },
+    {
+      "name": "town_place",
+      "rows": 0,
+      "applicationConsumerCount": 7
+    },
+    {
+      "name": "town_shop_membership",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    },
+    {
+      "name": "user",
+      "rows": 6,
+      "applicationConsumerCount": 219
+    },
+    {
+      "name": "user_catalog_preferences",
+      "rows": 1,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "user_role",
+      "rows": 12,
+      "applicationConsumerCount": 47
+    },
+    {
+      "name": "verification",
+      "rows": 0,
+      "applicationConsumerCount": 1
+    },
+    {
+      "name": "weapon_firing_modes",
+      "rows": 0,
+      "applicationConsumerCount": 16
+    },
+    {
+      "name": "weapon_magazines",
+      "rows": 0,
+      "applicationConsumerCount": 3
+    },
+    {
+      "name": "weapon_profiles",
+      "rows": 0,
+      "applicationConsumerCount": 24
+    },
+    {
+      "name": "weapon_skill_path_mappings",
+      "rows": 0,
+      "applicationConsumerCount": 5
+    }
+  ],
+  "catalog": {
+    "extensions": [
+      {
+        "extension_type": "spell-construction",
+        "schema_version": 6,
+        "count": 370
+      },
+      {
+        "extension_type": "spell-construction",
+        "schema_version": 7,
+        "count": 1
+      },
+      {
+        "extension_type": "spell-import-source",
+        "schema_version": 1,
+        "count": 371
+      }
+    ],
+    "spellAdapter": {
+      "valid": 371,
+      "invalid": 0,
+      "withManualEffects": 349,
+      "onlyAutomaticEffects": 22,
+      "withoutEffects": 0,
+      "issues": []
+    },
+    "spellEffects": {
+      "decelerate-slow": 26,
+      "grapple-restrain": 30,
+      "healing": 28,
+      "buff": 113,
+      "reveal-detect": 36,
+      "debuff": 125,
+      "spatial-bubble": 37,
+      "damage": 92,
+      "transform-alter": 26,
+      "create-destroy-basic": 14,
+      "teleportation": 14,
+      "counter-cancel": 20,
+      "anchor-lock": 18,
+      "immobilize": 41,
+      "pull": 10,
+      "knockdown": 18,
+      "temporal-stasis": 16,
+      "link-bind": 22,
+      "stun-daze": 18,
+      "illusion-mask": 39,
+      "summon-minor": 12,
+      "create-destroy-major": 20,
+      "blind-deaf-silence": 3,
+      "banish": 5,
+      "transfer-life-force": 7,
+      "accelerate-hasten": 14,
+      "summon-major": 10,
+      "push": 10,
+      "disarm": 3,
+      "pocket-space": 1
+    },
+    "spellEffectRuntime": {
+      "totalRuleTypes": 30,
+      "automatic": [
+        "damage",
+        "healing"
+      ],
+      "manual": [
+        "buff",
+        "debuff",
+        "summon-minor",
+        "summon-major",
+        "create-destroy-basic",
+        "create-destroy-major",
+        "transform-alter",
+        "illusion-mask",
+        "reveal-detect",
+        "counter-cancel",
+        "accelerate-hasten",
+        "decelerate-slow",
+        "link-bind",
+        "transfer-life-force",
+        "teleportation",
+        "banish",
+        "pocket-space",
+        "spatial-bubble",
+        "temporal-stasis",
+        "push",
+        "pull",
+        "grapple-restrain",
+        "immobilize",
+        "stun-daze",
+        "disarm",
+        "knockdown",
+        "blind-deaf-silence",
+        "anchor-lock"
+      ]
+    },
+    "creatureConstructionProbe": {
+      "persisted": false,
+      "standaloneSpellKinds": [
+        "health.damage"
+      ],
+      "constructionOnly": {
+        "valid": false,
+        "issues": [
+          "This Creature Ability has no structured or descriptive runtime consequence."
+        ],
+        "effectKinds": []
+      },
+      "withDescription": {
+        "valid": true,
+        "effectKinds": [
+          "manual"
+        ]
+      }
+    },
+    "forms": [
+      {
+        "count": 15,
+        "races": 5
+      }
+    ],
+    "naturalAttacks": [
+      {
+        "count": 30,
+        "races": 7
+      }
+    ],
+    "creatureAbilityAuthoring": [
+      {
+        "total": 1,
+        "structured": 0,
+        "passive": 0,
+        "magic": 0,
+        "limited": 0
+      }
+    ],
+    "creatureAttackAuthoring": [
+      {
+        "total": 64,
+        "structured": 43,
+        "magic": 0,
+        "missingpercentage": 0,
+        "missingdamage": 0
+      }
+    ],
+    "skillClassifications": [
+      {
+        "classification": "discipline",
+        "count": 9
+      },
+      {
+        "classification": "magic access",
+        "count": 5
+      },
+      {
+        "classification": "magic regeneration",
+        "count": 4
+      },
+      {
+        "classification": "magic stabalization",
+        "count": 4
+      },
+      {
+        "classification": "psionic skill",
+        "count": 108
+      },
+      {
+        "classification": "resonance",
+        "count": 6
+      },
+      {
+        "classification": "reverberation",
+        "count": 71
+      },
+      {
+        "classification": "special ability",
+        "count": 86
+      },
+      {
+        "classification": "spell",
+        "count": 192
+      },
+      {
+        "classification": "sphere",
+        "count": 16
+      },
+      {
+        "classification": "standard",
+        "count": 637
+      }
+    ],
+    "legacyAbilityFallback": [
+      {
+        "count": 0
+      }
+    ],
+    "legacyCampaigns": [
+      {
+        "legacy_derived_ability_compatibility_resolved": true,
+        "count": 4
+      }
+    ],
+    "retiredChargedItems": [
+      {
+        "count": 0
+      }
+    ],
+    "expiredSessionCounts": [
+      {
+        "total": 23,
+        "expired": 2
+      }
+    ],
+    "extensionValidationStates": {
+      "spell-import-source:json-valid": 371,
+      "spell-construction:parsed": 371
+    },
+    "invalidExtensions": [],
+    "skillParentCycles": [],
+    "invalidAllocationParents": [],
+    "duplicateSkillNamesWithinClassificationAndTier": []
+  },
+  "limits": [
+    "Local DEV only; Production was not inspected.",
+    "Module-level import reachability includes type-only edges and excludes raw source-text test reads.",
+    "Empty tables and absent runtime do not establish permission or safety to delete authored data.",
+    "No deployed browser/combat acceptance or destructive operation was performed."
+  ]
+}
