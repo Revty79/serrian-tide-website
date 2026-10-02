@@ -1,4 +1,5 @@
 import { buildCharacterPrintData, selectCharacterQuickRolls } from "./character-print";
+import { armorLocationLabel } from "@/features/items/armor-coverage";
 import { CHARACTER_ATTRIBUTE_KEYS, type CharacterAggregate } from "./models";
 import { characterAggregateToDraft, getAttributeModifier, getAttributeRollTarget, getBaseInitiative, getCharacterMovementBaseValue, getMovementInitiative, getNamedSupernaturalSkillSystems, normalizeSkillAttributeKey } from "./character-rules";
 import { getCharacterAttributeCardDetails } from "./character-attribute-card";
@@ -90,7 +91,7 @@ export function buildPaperCharacter(aggregate: CharacterAggregate, runtime: Pape
   const currency = purse.entries.map(({name, quantity}) => ({name, quantity}));
   const protection = [
     ...runtime.protection.worn.map((entry) => ({ name: entry.itemName, state: `Worn ×${entry.activeQuantity}`, soak: paperNumber(entry.baseSoak), rules: entry.rulesText,
-      coverage: entry.coveredLocationKeys.map((key) => runtime.protection.locations.find((location) => location.key === key)?.name ?? key).join(", ") || entry.coverage || "Not recorded",
+      coverage: entry.coveredLocationKeys.map((key) => armorLocationLabel(key, runtime.protection.locations.map(({ key, name }) => ({ key, label: name })))).join(", ") || entry.coverage || "Not recorded",
       summary: entry.damageModifiers.length ? entry.damageModifiers.map((modifier) => `${modifier.modifierText || `${modifier.damageType} ${modifier.modifier}`}${modifier.notes ? ` (${modifier.notes})` : ""}`).join("; ") : entry.damageModifiersSourceText,
       details: [entry.rulesText, entry.damageModifiersSourceText, ...entry.damageModifiers.map((modifier) => `${modifier.damageType}: ${modifier.modifierText || modifier.modifier} ${modifier.notes}`)].filter(Boolean) })),
     ...runtime.protection.natural.map((entry) => ({ name: entry.name, state: "Natural", soak: paperNumber(entry.soak), rules: "",

@@ -107,6 +107,8 @@ import { parseSpellDocument } from "@/features/spell-construction/spellDocumentC
 import { PRACTITIONER_LEVELS, type PractitionerLevel } from "@/features/spell-construction/models/rules";
 import { validateStructuredWeaponRange, type WeaponRangeMode } from "@/features/items/weapon-range";
 import { defaultWeaponProfileRecordType, isSupportedWeaponDamageSource, isSupportedWeaponHandedness, isSupportedWeaponProfileRecordType, isSupportedWeaponType } from "@/features/items/weapon-profile-authoring";
+import { armorCoverageDraftKey, normalizeArmorCoverageKeys, STANDARD_ARMOR_LOCATIONS } from "@/features/items/armor-coverage";
+import { saveArmorCoverageReferences } from "@/features/items/armor-coverage-service";
 
 export type ItemLibraryFilters = {
   adminBrowse?: AdminCatalogBrowse;
@@ -455,7 +457,7 @@ function normalize(input: ItemDraft, allowUnreviewedNewModes = false, allowLegac
       notes: clean(row.notes),
       sortOrder,
     })),
-    coveredBodyLocationKeys: [...new Set(input.armorProfile.coveredBodyLocationKeys.map(clean).filter(Boolean))],
+    coveredBodyLocationKeys: normalizeArmorCoverageKeys(input.armorProfile.coveredBodyLocationKeys),
     rulesText: clean(input.armorProfile.rulesText),
   } : null;
 
@@ -558,7 +560,7 @@ export async function listItemAuthoringReferences(
   ]);
   return {
     tags,
-    armorBodyLocations: locations,
+    armorBodyLocations: [...STANDARD_ARMOR_LOCATIONS, ...locations.filter((location) => !STANDARD_ARMOR_LOCATIONS.some(({ key }) => key === location.key))],
     skills: allSkills
       .filter((candidate) => eligibleIds.has(candidate.id))
       .map((candidate) => ({
@@ -730,7 +732,9 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       .orderBy(asc(weaponFiringMode.sortOrder), asc(weaponFiringMode.id)),
     db.select().from(armorProfile).where(eq(armorProfile.itemId, id)).limit(1),
     db.select().from(itemArmorDamageModifier).where(eq(itemArmorDamageModifier.itemId, id)).orderBy(asc(itemArmorDamageModifier.sortOrder), asc(itemArmorDamageModifier.id)),
-    db.select({ key: armorLocation.locationCode }).from(armorLocation).where(eq(armorLocation.itemId, id)).orderBy(asc(armorLocation.sortOrder)),
+    db.select({ key: armorLocation.locationCode, label: armorLocationReference.locationName }).from(armorLocation)
+      .leftJoin(armorLocationReference, eq(armorLocationReference.locationCode, armorLocation.locationCode))
+      .where(eq(armorLocation.itemId, id)).orderBy(asc(armorLocation.sortOrder)),
     db.select({ name: itemTagCatalog.name }).from(itemTagLink).innerJoin(itemTagCatalog, eq(itemTagCatalog.id, itemTagLink.tagId)).where(eq(itemTagLink.itemId, id)).orderBy(asc(itemTagCatalog.name)),
     db.select({ id: item.id, canonicalId: item.canonicalId, name: item.name, catalogScope: item.catalogScope, archivedAt: item.archivedAt }).from(item).where(eq(item.parentItemId, id)).orderBy(asc(item.name), asc(item.id)),
     db.select().from(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id)).limit(1),
@@ -906,7 +910,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       armorType: armor.armorType, coverage: armor.coverage, baseSoak: armor.baseSoak,
       damageModifiersSourceText: armor.damageModifiersSourceText,
       damageModifiers: modifiers.map(({ modifierText, damageType, modifier, notes, sortOrder }) => ({ modifierText, damageType, modifier, notes, sortOrder })),
-      coveredBodyLocationKeys: locations.map(({ key }) => key), rulesText: armor.rulesText,
+      coveredBodyLocationKeys: locations.map(({ key, label }) => armorCoverageDraftKey(key, label)), rulesText: armor.rulesText,
     } : null,
     tags: tags.map(({ name }) => name),
     variants: variants.map((entry) => ({
@@ -1383,7 +1387,8 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
     if (normalized.armor) {
       await tx.insert(armorProfile).values({ itemId: id!, armorType: normalized.armor.armorType, coverage: normalized.armor.coverage, baseSoak: normalized.armor.baseSoak, damageModifiersSourceText: normalized.armor.damageModifiersSourceText, rulesText: normalized.armor.rulesText });
       if (normalized.armor.damageModifiers.length) await tx.insert(itemArmorDamageModifier).values(normalized.armor.damageModifiers.map((modifier) => ({ itemId: id!, ...modifier })));
-      if (normalized.armor.coveredBodyLocationKeys.length) await tx.insert(armorLocation).values(normalized.armor.coveredBodyLocationKeys.map((locationCode, sortOrder) => ({ itemId: id!, locationCode, sortOrder })));
+      const coverageKeys = await saveArmorCoverageReferences(tx, normalized.armor.coveredBodyLocationKeys);
+      if (coverageKeys.length) await tx.insert(armorLocation).values(coverageKeys.map((locationCode, sortOrder) => ({ itemId: id!, locationCode, sortOrder })));
     }
     if (normalized.tags.length) {
       const tagRows = await tx.select({ id: itemTagCatalog.id, name: itemTagCatalog.name }).from(itemTagCatalog).where(inArray(itemTagCatalog.name, normalized.tags));

@@ -1,4 +1,5 @@
 import { assertExactInventoryAvailable } from "@/features/items/inventory-access-service";
+import { armorCoversLocation } from "@/features/items/armor-coverage";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import { playerIncomingAuthoredValue } from "@/features/incoming-effects/public-evidence";
@@ -1109,7 +1110,8 @@ async function persistentCharacterProtection(
     return { armor: null, soak: null, supported: false, snapshot: { participantKind: "campaign-character", hitLocationNumber: null }, rulingReasons: ["Armor and soak require an exact Hit Location."] };
   }
   const equipment = await readCharacterEquipmentStateInTransaction(tx, positiveId(preview.target.participantId, "Target Character"));
-  const relevantArmor = equipment.wornArmor.filter(({ coveredLocationKeys }) => coveredLocationKeys.includes(String(hitLocationNumber)));
+  const location = preview.target.anatomy?.hitLocations.find(({ result }) => result === hitLocationNumber);
+  const relevantArmor = equipment.wornArmor.filter(({ coveredLocationKeys }) => armorCoversLocation(coveredLocationKeys, { key: String(hitLocationNumber), name: location?.name ?? "" }));
   const itemIds = [...new Set(relevantArmor.map(({ itemId }) => itemId))];
   const damageModifiers = itemIds.length ? await tx.select().from(itemArmorDamageModifier)
     .where(inArray(itemArmorDamageModifier.itemId, itemIds)).orderBy(asc(itemArmorDamageModifier.itemId), asc(itemArmorDamageModifier.sortOrder), asc(itemArmorDamageModifier.id)) : [];
@@ -1574,7 +1576,7 @@ async function createFirearmEffectPlan(
       if (!bullet || bullet.grossDamage === null) continue;
       const locationKey = resolution.input.hitLocationKey, layers = resolution.input.target.protection;
       const natural = layers.natural.filter(({ coverage }) => coverage.kind === "all" || coverage.locationKeys.includes(locationKey ?? ""));
-      const worn = layers.worn.filter(({ coveredLocationKeys }) => coveredLocationKeys.includes(locationKey ?? ""));
+      const worn = layers.worn.filter(({ coveredLocationKeys }) => armorCoversLocation(coveredLocationKeys, layers.locations.find(({ key }) => key === locationKey)));
       const temporary = layers.temporary.filter(({ coverage, modifier }) => !modifier.endedAt && !modifier.expiredAt && (coverage.kind === "all" || coverage.kind === "locations" && coverage.locationKeys.includes(locationKey ?? "")));
       const armor = natural.length <= 1 && worn.length <= 1 && natural.every(({ armor }) => armor !== null) && worn.every(({ baseSoak }) => baseSoak !== null)
         ? (natural[0]?.armor ?? 0) + (worn[0]?.baseSoak ?? 0) : null;

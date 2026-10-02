@@ -12,6 +12,15 @@ const worn: WornProtection = { ownershipKey: "stack:5", instanceId: null, itemId
   coverage: "Chest", coveredLocationKeys: ["9"], armorType: "Plate", rulesText: "Authored armor", damageModifiersSourceText: "Fire +2", damageModifiers: [{ id: 7, damageType: "Fire", modifier: "+2", modifierText: "Fire +2", notes: "Keep descriptive" }] };
 const ward = { label: "Temporary Ward", channel: "soak", targetKey: "self", amount: 1, effectPlanEffectId: 44, sourceIdentity: { name: "Ward spell" }, duration: { kind: "scene" } };
 
+test("named worn armor follows the actual Race and Creature body location", () => {
+  const armor = { ...worn, coveredLocationKeys: ["custom:Tail"], damageModifiers: [] };
+  const character = buildProtectionLayers({ target: { kind: "character", characterId: 1 }, locations: [{ key: "9", name: "Tail" }, { key: "0", name: "Head" }], worn: [armor] });
+  assert.equal(protectionAtLocation(character, "9").worn[0].baseSoak, 5);
+  assert.equal(protectionAtLocation(character, "0").worn.length, 0);
+  const creature = buildProtectionLayers({ target: { kind: "character", characterId: 2 }, creature: { identity: "npc:2", snapshot: { core: {}, hitLocations: [{ hitLocationNumber: 4, locationName: "tail" }] } }, worn: [armor] });
+  assert.equal(protectionAtLocation(creature, "4").worn.length, 1);
+});
+
 test("direct Creature uses exact frozen anatomy, preserves values and has no worn layer", () => {
   const before = structuredClone(snapshot);
   const profile = buildProtectionLayers({ target: { kind: "encounter-participant", campaignId: 1, encounterId: 2, participantId: -1 }, creature: { snapshot, identity: "occurrence:1" } });

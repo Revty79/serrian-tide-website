@@ -1,4 +1,5 @@
 import type { ActiveModifier } from "@/features/active-state/active-effects";
+import { armorCoversLocation } from "@/features/items/armor-coverage";
 import type { WornArmorRuntimeContext } from "@/features/items/equipment-state";
 import { creatureProtectionValue } from "@/features/tabletop-operations/creature-protection";
 import { NATURAL_PROTECTION_LOCATIONS, type NaturalProtectionCoverage, type RaceNaturalProtection } from "@/features/races/race-natural-protection";
@@ -109,7 +110,7 @@ export function protectionAtLocation(profile: ProtectionLayers, locationKey: str
   const location = profile.locations.find(({ key }) => key === locationKey);
   if (!location) throw new Error("Choose a hit location in this target's anatomy.");
   const covers = (coverage: TemporaryProtection["coverage"]) => coverage.kind === "all" || coverage.kind === "locations" && coverage.locationKeys.includes(locationKey);
-  return { location, worn: profile.worn.filter(({ coveredLocationKeys }) => coveredLocationKeys.includes(locationKey)),
+  return { location, worn: profile.worn.filter(({ coveredLocationKeys }) => armorCoversLocation(coveredLocationKeys, location)),
     natural: profile.natural.filter(({ coverage }) => covers(coverage)), temporary: profile.temporary.filter(({ coverage }) => covers(coverage)),
     unresolvedTemporary: profile.temporary.filter(({ coverage }) => coverage.kind === "unresolved"), issues: [...profile.issues] };
 }

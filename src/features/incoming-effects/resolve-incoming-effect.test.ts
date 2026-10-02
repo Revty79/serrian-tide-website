@@ -18,6 +18,16 @@ function natural(value: IncomingEffectInput, armor = 2, soak = 1) {
   value.target.protection.natural.push({ source: { kind: "creature-snapshot", id: "creature:1:hide", name: "Test Creature" }, name: "Scales", coverage: { kind: "all" }, armor, soak });
 }
 
+test("custom Tail armor reduces damage only at the named anatomy location", () => {
+  const value = input([], 12);
+  value.target.protection = buildProtectionLayers({ target: { kind: "character", characterId: 1 },
+    locations: [{ key: "8", name: "Tail" }, { key: "9", name: "Chest" }], worn: [{ ...worn(3), coveredLocationKeys: ["custom:tail"] }] });
+  value.hitLocationKey = "8";
+  assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 9);
+  value.hitLocationKey = "9";
+  assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 12);
+});
+
 test("Race Soak is the sole natural reduction, respects coverage, and ignores obsolete Armor", () => {
   const value = input([], 12);
   value.target.protection = buildProtectionLayers({ target: { kind: "character", characterId: 1 }, worn: [worn(3)],

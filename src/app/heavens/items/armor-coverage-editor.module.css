@@ -1,0 +1,12 @@
+.editor { display: grid; gap: 12px; min-width: 0; }
+.editor p { margin: 0; }
+.controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.controls > div { flex: 1 1 200px; min-width: 0; }
+.controls button { min-height: 44px; }
+.editor :global(.st-control) { background: var(--st-input); color: var(--st-text); border-color: var(--st-border-strong); }
+.list { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--st-border); border-radius: 6px; padding: 8px 12px; background: var(--st-surface-soft); color: var(--st-text); }
+.list span { min-width: 0; overflow-wrap: anywhere; }
+.list button { flex-shrink: 0; min-height: 44px; }
+.error { color: var(--st-danger); }
+@media (max-width: 600px) { .controls { display: grid; grid-template-columns: minmax(0, 1fr); } .controls button { justify-self: start; } }

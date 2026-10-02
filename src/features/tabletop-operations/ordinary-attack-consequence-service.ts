@@ -1,4 +1,5 @@
 import "server-only";
+import { armorCoversLocation } from "@/features/items/armor-coverage";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { db } from "@/db";
 import { campaignCharacter } from "@/db/realm-schema";
@@ -109,7 +110,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
       totalMaximumHp = health.anatomy.totalMaximumHp;
       if (sharedIncoming) { armor = 0; soak = 0; } else {
       const equipment = await readCharacterEquipmentStateInTransaction(tx, targetParticipantId);
-      const protection = equipment.wornArmor.filter(({ coveredLocationKeys }) => coveredLocationKeys.includes(String(hitLocationNumber)));
+      const protection = equipment.wornArmor.filter(({ coveredLocationKeys }) => armorCoversLocation(coveredLocationKeys, { key: String(hitLocationNumber), name: locationName }));
       armor = protection.length === 0 ? 0 : protection.length === 1 ? protection[0].baseSoak : null;
       const armorIds = protection.map(({ itemId }) => itemId);
       const modifiers = armorIds.length ? await tx.select().from(itemArmorDamageModifier).where(inArray(itemArmorDamageModifier.itemId, armorIds)).orderBy(asc(itemArmorDamageModifier.id)) : [];

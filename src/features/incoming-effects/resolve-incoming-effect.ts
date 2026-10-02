@@ -1,4 +1,5 @@
 import { INTERACTION_EFFECT_LABELS, INTERACTION_SOURCE_KINDS, normalizeInteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
+import { armorCoversLocation } from "@/features/items/armor-coverage";
 import { interactionRuleInScope, matchInteractionRule } from "./interaction-matcher";
 import { ExactAmount } from "./exact-amount";
 import type { IncomingEffectInput, IncomingEffectResolution, ResolutionEntry, ResolutionStage, ResolutionStageKey } from "./models";
@@ -90,7 +91,7 @@ export function resolveIncomingEffect(supplied: IncomingEffectInput): IncomingEf
 
   const layers = target.protection;
   const covers = (coverage: { kind: string; locationKeys?: string[] }) => coverage.kind === "all" || coverage.kind === "locations" && hitLocationKey !== null && coverage.locationKeys?.includes(hitLocationKey);
-  const worn = layers.worn.filter(({ coveredLocationKeys }) => hitLocationKey !== null && coveredLocationKeys.includes(hitLocationKey));
+  const worn = layers.worn.filter(({ coveredLocationKeys }) => armorCoversLocation(coveredLocationKeys, layers.locations.find(({ key }) => key === hitLocationKey)));
   const natural = layers.natural.filter(({ coverage }) => covers(coverage));
   const activeTemporary = layers.temporary.filter(({ modifier }) => !modifier.endedAt && !modifier.expiredAt);
   const temporary = activeTemporary.filter(({ coverage }) => covers(coverage));

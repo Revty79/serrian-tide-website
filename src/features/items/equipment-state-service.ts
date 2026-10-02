@@ -1,6 +1,7 @@
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import { publishCharacterStateInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import "server-only";
+import { armorCoverageDraftKey } from "./armor-coverage";
 
 import { and, asc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 
@@ -9,6 +10,7 @@ import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import {
   armorLocation,
+  armorLocationReference,
   armorProfile,
   item,
   itemPassiveEffect,
@@ -332,7 +334,9 @@ export async function readCharacterEquipmentStateInTransaction(
     value: campaignCharacterAttribute.value,
   }).from(campaignCharacterAttribute)
     .where(eq(campaignCharacterAttribute.characterId, characterId));
-  const locationRows = activeItemIds.length ? await tx.select({ itemId: armorLocation.itemId, locationCode: armorLocation.locationCode }).from(armorLocation).where(inArray(armorLocation.itemId, activeItemIds)).orderBy(asc(armorLocation.itemId), asc(armorLocation.sortOrder)) : [];
+  const locationRows = activeItemIds.length ? await tx.select({ itemId: armorLocation.itemId, locationCode: armorLocation.locationCode, label: armorLocationReference.locationName }).from(armorLocation)
+    .leftJoin(armorLocationReference, eq(armorLocationReference.locationCode, armorLocation.locationCode))
+    .where(inArray(armorLocation.itemId, activeItemIds)).orderBy(asc(armorLocation.itemId), asc(armorLocation.sortOrder)) : [];
   const armorByItem = new Map(armorRows.map((row) => [row.itemId, row]));
   const weaponByItem = new Map(weaponRows.map((row) => [row.itemId, row]));
   const ammunitionByItem = new Map(ammunitionRows.map((row) => [row.itemId, row]));
@@ -409,7 +413,7 @@ export async function readCharacterEquipmentStateInTransaction(
     };
   };
   const locationsByItem = new Map<number, string[]>();
-  for (const row of locationRows) locationsByItem.set(row.itemId, [...(locationsByItem.get(row.itemId) ?? []), row.locationCode]);
+  for (const row of locationRows) locationsByItem.set(row.itemId, [...(locationsByItem.get(row.itemId) ?? []), armorCoverageDraftKey(row.locationCode, row.label)]);
 
   const activeManualPassives: ActiveManualPassiveEffect[] = passives.flatMap((entry) => (
     entry.effect.kind === "manual"
