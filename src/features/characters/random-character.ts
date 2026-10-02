@@ -1,3 +1,4 @@
+import { characterCampaignSkillAccess, characterSkillChoiceAccess } from "./character-campaign-skill-access";
 import type { CampaignSystem } from "@/db/campaign-schema";
 
 import {
@@ -21,8 +22,8 @@ import {
   getEffectiveSkillPoints,
   getRaceAttributeCap,
   getRacialSkillGrant,
-  getSkillUnlockThreshold,
   isSkillAllowedByCampaign,
+  getSkillUnlockThreshold,
   normalizeSkillAttributeKey,
   reconcileRacialSkillAnchors,
   requiresCastingLevel,
@@ -233,6 +234,7 @@ function generateSkills(
     race,
     aggregate.skillRelationships,
     () => nextDraftId--,
+    characterCampaignSkillAccess(aggregate),
   );
   const activeSkills = aggregate.skillCatalog.filter(({ archived }) => !archived);
   const skillsById = new Map(activeSkills.map((skill) => [skill.id, skill]));
@@ -253,7 +255,8 @@ function generateSkills(
     let cursor = allocation;
     const visited = new Set<number>();
     while (cursor.parentDraftId !== null) {
-      if (!visited.add(cursor.draftId)) return null;
+      if (visited.has(cursor.draftId)) return null;
+      visited.add(cursor.draftId);
       const parent = allocations.find(({ draftId }) => draftId === cursor.parentDraftId);
       if (!parent) return null;
       cursor = parent;
@@ -277,7 +280,7 @@ function generateSkills(
       const allocation = allocations.find(({ skillId, parentDraftId }) =>
         skillId === skill.id && parentDraftId === null);
       const racial = getRacialSkillGrant(race, skill.id);
-      if (!isSkillAllowedByCampaign(skill, skill, aggregate.campaign.allowedSystems, true, racial.granted)) continue;
+      if (!characterSkillChoiceAccess(aggregate, allocations, skill.id, null).allowed || !isSkillAllowedByCampaign(skill, skill, aggregate.campaign.allowedSystems)) continue;
       const maximum = getCreationPurchasedSkillMaximum(
         skill,
         aggregate.campaign.maxStartingSkill,
@@ -302,7 +305,7 @@ function generateSkills(
           && getEffectiveSkillPoints(parent.points, race, parent.skillId) + 0.000001 < threshold) {
           continue;
         }
-        if (!isSkillAllowedByCampaign(skill, rootSkill, aggregate.campaign.allowedSystems, true, racial.granted)) continue;
+        if (!characterSkillChoiceAccess(aggregate, allocations, skill.id, parent.draftId).allowed || !isSkillAllowedByCampaign(skill, rootSkill, aggregate.campaign.allowedSystems)) continue;
         if (requiresCastingLevel(skill, rootSkill)) {
           const magicSystem = getCharacterMagicSystem(rootSkill);
           const accessLevel = magicSystem
@@ -516,6 +519,8 @@ export function generateRandomCharacterDraft(
   random: () => number = Math.random,
 ): RandomCharacterResult {
   const warnings: string[] = [];
+  const access = characterCampaignSkillAccess(aggregate);
+  if (race?.skillLinks.some(link => !access.canGrant(link.skillId))) throw new Error("This Race grants Skills restricted by the Campaign. Choose another Race or review Campaign restrictions.");
   const attributes = generateAttributes(aggregate, race, answers.focus, random);
   const skills = generateSkills(aggregate, race, baseDraft, answers.focus, answers.magic, random);
   const possessions = generateItems(aggregate, answers.equipment, random);

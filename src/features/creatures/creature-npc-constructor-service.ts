@@ -1,6 +1,7 @@
 import { readCreatureFormsInTransaction } from "./creature-form-service";
 import { normalizeCreatureAttackAuthoring, normalizeCreatureAbilityAuthoring } from "./creature-authoring";
 import "server-only";
+import { assertCampaignSkillGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 
 import { normalizeInteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 
@@ -380,6 +381,7 @@ export async function createCreatureNpcInTransaction(
   const name = input.name.trim();
   if (!name) throw new Error("Creature NPC name is required.");
   const snapshot = normalizeCreatureNpcSnapshot(input.snapshot, 0);
+  await assertCampaignSkillGrantsInTransaction(tx, input.campaignId, snapshot.skillLinks);
   await tx.insert(campaignPlayer).values({
     campaignId: input.campaignId,
     userId: input.controllerUserId,

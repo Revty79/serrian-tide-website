@@ -631,6 +631,13 @@
       "when": 1790791985686,
       "tag": "0089_companion_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1790956268666,
+      "tag": "0090_campaign_skill_exclusions",
+      "breakpoints": true
     }
   ]
 }

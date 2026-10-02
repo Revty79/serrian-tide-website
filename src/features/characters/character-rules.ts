@@ -1,3 +1,6 @@
+import { characterCampaignSkillAccess, characterSkillChoiceAccess } from "./character-campaign-skill-access";
+import { getSkillRootSystems, skillSystemsAllow } from "@/features/campaigns/campaign-skill-access";
+export { getNamedSupernaturalSkillSystems } from "@/features/campaigns/campaign-skill-access";
 import type { CampaignSystem } from "@/db/campaign-schema";
 import {
   assertItemOwnershipStrategy,
@@ -410,30 +413,7 @@ export function getCharacterMagicSystem(
   return null;
 }
 
-function rootSystems(skill: CharacterSkillReference): CampaignSystem[] | null {
-  const classification = skill.classification.trim().toLowerCase();
-  if (classification === "standard") return [];
-  if (isSpecialAbilitySkill(skill)) return ["Special Abilities"];
-  return getNamedSupernaturalSkillSystems(skill.name);
-}
-
-/** Shared canonical access/support names, independent of catalog classification. */
-export function getNamedSupernaturalSkillSystems(skillName: string): CharacterMagicSystem[] | null {
-  const name = skillName.trim().toLowerCase();
-  if (name === "spellcraft") return ["Spellcraft"];
-  if (name === "talismanism") return ["Talismanism"];
-  if (["faith", "prayer", "devotion"].includes(name)) return ["Faith"];
-  if (["psionic focus", "psionic meditation", "psionic channeling"].includes(name)) {
-    return ["Psyonics"];
-  }
-  if (["resonant performance", "resonance attunement", "harmonic awareness"].includes(name)) {
-    return ["Bardic Resonance"];
-  }
-  if (["channeling", "meditation"].includes(name)) {
-    return ["Spellcraft", "Talismanism"];
-  }
-  return null;
-}
+const rootSystems = getSkillRootSystems;
 
 const ONE_POINT_UNLOCK_SYSTEMS = new Set<CampaignSystem>([
   "Spellcraft",
@@ -460,25 +440,8 @@ export function isSkillAllowedByCampaign(
   enforceCampaignTierLimits = true,
   raciallyGranted = false,
 ) {
-  if (raciallyGranted) return true;
-  const systems = rootSystems(rootSkill);
-  const usesSupernaturalTierProgression =
-    skill.tier !== null &&
-    skill.tier > 1 &&
-    systems?.some((system) => ONE_POINT_UNLOCK_SYSTEMS.has(system));
-  if (
-    enforceCampaignTierLimits &&
-    !usesSupernaturalTierProgression &&
-    skill.tier !== null &&
-    !allowedSystems.includes(`Tier ${skill.tier}` as CampaignSystem)
-  ) {
-    return false;
-  }
-  return (
-    systems !== null &&
-    (systems.length === 0 ||
-      systems.some((system) => allowedSystems.includes(system)))
-  );
+  void raciallyGranted; // Grants never override Campaign restrictions.
+  return skillSystemsAllow(skill, rootSkill, allowedSystems, enforceCampaignTierLimits);
 }
 
 export function canAccessSpellAtLevel(
@@ -529,6 +492,7 @@ export function reconcileRacialSkillAnchors(
   race: CharacterRaceAggregate | null,
   relationships: ReadonlyArray<CharacterAggregate["skillRelationships"][number]>,
   createDraftId: () => number,
+  campaignAccess?: ReturnType<typeof characterCampaignSkillAccess>,
 ): CharacterSkillAllocationDraft[] {
   let result = allocations.map((allocation) => ({ ...allocation }));
   const required = new Set<number>();
@@ -575,7 +539,17 @@ export function reconcileRacialSkillAnchors(
   }
 
   for (const link of race?.skillLinks ?? []) {
-    if ((link.value ?? 0) > 0) ensurePath(link.skillId);
+    if ((link.value ?? 0) <= 0) continue;
+    if (!campaignAccess) { ensurePath(link.skillId); continue; }
+    const path = campaignAccess.pathsForSkill(link.skillId).find(path => campaignAccess.resolve(path.key).allowed);
+    if (!path) continue;
+    let parentDraftId: number | null = null;
+    for (const skillId of path.rootToEndpointIds) {
+      let row = result.find(row => row.skillId === skillId && row.parentDraftId === parentDraftId);
+      if (!row) { row = { draftId: createDraftId(), skillId, parentDraftId, points: 0 }; result.push(row); }
+      required.add(row.draftId);
+      parentDraftId = row.draftId;
+    }
   }
 
   let removed = true;
@@ -586,6 +560,7 @@ export function reconcileRacialSkillAnchors(
     );
     const filtered = result.filter((allocation) => {
       const removable =
+        allocation.draftId < 0 &&
         allocation.points === 0 &&
         !required.has(allocation.draftId) &&
         !parentIds.has(allocation.draftId);
@@ -911,6 +886,12 @@ export function evaluateCharacterReadiness(
       continue;
     }
 
+    const campaignAccess = characterSkillChoiceAccess(aggregate, draft.skillAllocations, allocation.skillId, allocation.parentDraftId);
+    if (!campaignAccess.allowed) {
+      const retained = aggregate.skillAllocations.find(row => row.id === allocation.draftId);
+      if (retained && retained.skillId === allocation.skillId && retained.parentAllocationId === allocation.parentDraftId && retained.points === allocation.points) continue;
+      skillRulesValid = false;
+    }
     const racial = getRacialSkillGrant(race, allocation.skillId);
     const maximum = getCreationPurchasedSkillMaximum(
       skill,
@@ -936,7 +917,7 @@ export function evaluateCharacterReadiness(
     if (
       allocation.parentDraftId === null &&
       skill.tier !== null &&
-      skill.tier !== 1
+      skill.tier > 1 && skill.tier <= 3
     ) {
       skillRulesValid = false;
     }

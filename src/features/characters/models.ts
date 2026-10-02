@@ -167,6 +167,7 @@ export type CharacterCampaignRules = {
   fatePointMethod: "Assigned" | "Rolled";
   assignedFatePoints: number | null;
   allowedSystems: CampaignSystem[];
+  skillExclusions?: import("@/features/campaigns/campaign-skill-access").CampaignSkillExclusion[];
   derivedCurrencies: Array<{
     id: number;
     campaignId: number;

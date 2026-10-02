@@ -1,5 +1,6 @@
 export const CAMPAIGN_SETTINGS_TABS = [
   { id: "rules", label: "Rules & Systems" },
+  { id: "skills", label: "Allowed Skills" },
   { id: "races", label: "Allowed Races" },
   { id: "inventory", label: "Inventory Access" },
 ] as const;

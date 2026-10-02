@@ -1,4 +1,7 @@
 "use server";
+import { readCampaignSkillExclusions, loadCampaignSkillAccessInTransaction, assertCampaignRaceGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
+import { allocationSkillPath, assertCampaignSkillAllocationChanges } from "@/features/campaigns/campaign-skill-access";
+import { draftSkillAllocations } from "@/features/characters/character-campaign-skill-access";
 import { assertCreatureVesselsUnboundInTransaction } from "@/features/creatures/creature-vessel-guards";
 import { getCharacterSpecialAbilityMechanics } from "@/features/special-abilities/read-service";
 import { isRetainedHistoricalRace } from "@/features/evolutions/retained-historical-race";
@@ -1052,6 +1055,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       fatePointMethod: core.fatePointMethod,
       assignedFatePoints: core.assignedFatePoints,
       allowedSystems,
+      skillExclusions: await readCampaignSkillExclusions(db, core.campaignId),
       derivedCurrencies: currencies,
     },
     allowedRaces: effectiveAllowedRaceRows.map(({ archivedAt, ...entry }) => ({
@@ -1444,6 +1448,7 @@ export async function saveCharacter(
         : "Archived Characters are read-only. Restore this Character before you save it.");
     }
     const [lockedProfile] = await tx.select({
+      raceId: campaignCharacterProfile.raceId,
       commerceVersion: campaignCharacterProfile.commerceVersion,
       fame: campaignCharacterProfile.fame,
       experience: campaignCharacterProfile.experience,
@@ -1492,6 +1497,10 @@ export async function saveCharacter(
       }
     }
 
+    const { access: campaignSkillAccess } = await loadCampaignSkillAccessInTransaction(tx, aggregate.campaign.id);
+    const currentSkillAllocations = await tx.select().from(campaignCharacterSkillAllocation).where(eq(campaignCharacterSkillAllocation.characterId, characterId)).for("update");
+    assertCampaignSkillAllocationChanges(campaignSkillAccess, currentSkillAllocations, draftSkillAllocations(draft.skillAllocations));
+    if (draft.profile.raceId !== lockedProfile.raceId) await assertCampaignRaceGrantsInTransaction(tx, aggregate.campaign.id, draft.profile.raceId);
     const allocationMap = new Map(draft.skillAllocations.map((entry) => [entry.draftId, entry]));
     const storedAllocationMap = new Map(
       aggregate.skillAllocations.map((entry) => [entry.id, entry]),
@@ -1919,6 +1928,8 @@ export async function advanceCharacterSkills(
       selectedRace,
       profile.baseMagicSteps,
     );
+    const { access: campaignSkillAccess } = await loadCampaignSkillAccessInTransaction(tx, characterContext.campaignId);
+    assertCampaignSkillAllocationChanges(campaignSkillAccess, allocationRows, projectedAllocations);
     let totalExperienceCost = 0;
     for (const resolved of resolvedRequests) {
       const target = catalogById.get(resolved.request.skillId);
@@ -1934,6 +1945,9 @@ export async function advanceCharacterSkills(
           `${target.name} must be permanently owned before a Player can advance it with Experience.`,
         );
       }
+      const campaignPath = allocationSkillPath(resolved.targetAllocationId, projectedAllocations);
+      const pathAccess = campaignSkillAccess.resolve(campaignPath ?? []);
+      if (!pathAccess.allowed) throw new Error(pathAccess.reason!);
       const racialGrant = getRacialSkillGrant(selectedRace, target.id);
       let root = target;
       let parent: ProjectedAllocation | null = null;
@@ -1978,7 +1992,7 @@ export async function advanceCharacterSkills(
             throw new Error("The planned Skill ancestry has a missing parent.");
           }
         }
-      } else if (target.tier !== null && target.tier !== 1) {
+      } else if (target.tier !== null && target.tier > 1 && target.tier <= 3) {
         throw new Error("Tier 2 and Tier 3 Skills require a parent allocation.");
       }
 

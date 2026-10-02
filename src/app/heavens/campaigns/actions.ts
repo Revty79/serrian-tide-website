@@ -1,5 +1,8 @@
 "use server";
 import { loadCampaignCatalogReferences, loadCampaignItemChoices } from "@/features/catalog-visibility/campaign-catalog-service";
+import type { CampaignSkillExclusion } from "@/features/campaigns/campaign-skill-access";
+import type { RecursiveSkillLibrary } from "@/features/skills/recursive-skill-library";
+import { getCampaignSkillConflicts, readCampaignSkillExclusions, saveCampaignSkillExclusionsInTransaction, type CampaignSkillConflict } from "@/features/campaigns/campaign-skill-access-service";
 import type { CampaignRaceEntry } from "@/features/campaigns/campaign-race-tree";
 
 import {
@@ -87,6 +90,8 @@ export type CampaignAdminDraft = {
   fatePointMethod: "Assigned" | "Rolled";
   assignedFatePoints: number | null;
   allowedSystems: CampaignSystem[];
+  skillExclusions: CampaignSkillExclusion[];
+  skillConflicts: CampaignSkillConflict[];
   derivedCurrencies: Array<{
     id?: number;
     name: string;
@@ -100,6 +105,7 @@ export type CampaignAdminDraft = {
 };
 
 export type CampaignReferenceData = {
+  skillLibrary: RecursiveSkillLibrary;
   races: CampaignRaceEntry[];
   tags: Array<{ id: number; name: string; tagGroup: string; description: string }>;
 };
@@ -223,6 +229,8 @@ export async function getCampaignAdmin(campaignId: number): Promise<CampaignAdmi
   ]);
   const inventorySelection = restoreCampaignInventoryPersistence(tags, items);
   return {
+    skillExclusions: await readCampaignSkillExclusions(db, campaignId),
+    skillConflicts: await getCampaignSkillConflicts(campaignId),
     id: core.id,
     name: core.name,
     overview: core.overview,
@@ -432,6 +440,7 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
     });
 
     await tx.delete(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, input.id));
+    await saveCampaignSkillExclusionsInTransaction(tx, input.id, input.skillExclusions);
     if (allowedSystems.length) await tx.insert(campaignAllowedSystem).values(allowedSystems.map((system, sortOrder) => ({ campaignId: input.id, system, sortOrder })));
 
     const existingCurrencies = await tx.select({ id: campaignDerivedCurrency.id }).from(campaignDerivedCurrency).where(eq(campaignDerivedCurrency.campaignId, input.id));

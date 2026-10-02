@@ -1,4 +1,5 @@
 import "server-only";
+import { assertCampaignSkillGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 
 import { normalizeInteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
@@ -263,6 +264,7 @@ async function spawnEncounterCreaturesInternal(tx: RuntimeIntegrationTransaction
   }
   const template = await loadCreatureAggregateInTransaction(tx, input.creatureId);
   const snapshot = buildCreatureNpcSnapshot(template);
+  await assertCampaignSkillGrantsInTransaction(tx, context.campaignId, snapshot.skillLinks);
   await tx.execute(sql`select pg_advisory_xact_lock(${context.encounterId}, ${template.id})`);
   const existingOccurrences = await tx.select({
     participantId: campaignSessionEncounterParticipant.participantId,

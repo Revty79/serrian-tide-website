@@ -157,7 +157,7 @@ function aggregate(): CharacterAggregate {
       currencySystem: "Credits",
       fatePointMethod: "Assigned",
       assignedFatePoints: 3,
-      allowedSystems: ["Tier 1"],
+      allowedSystems: ["Tier 1", "Special Abilities"],
       derivedCurrencies: [],
     },
     allowedRaces: [{ id: 3, name: "Human" }],
@@ -295,6 +295,16 @@ test("permanently owned children remain visible and are never pruned", () => {
     ),
     true,
   );
+});
+
+test("a restricted learned branch is retained but omitted from advancement choices", () => {
+  const character = aggregate();
+  character.skillAllocations.push(allocation(12, character.skillCatalog[1], 1, 10));
+  character.campaign.skillExclusions = [{ skillId: 2, pathKey: "1>2" }];
+  const original = getInitialAdvancementAllocations(character);
+  assert.equal(buildCharacterAdvancementTree(character, original).some(row => row.skill.id === 2), false);
+  assert.deepEqual(pruneUnavailableProjectedAllocations(character, original), original);
+  assert.deepEqual(setProjectedSkillNumber({ aggregate: character, projectedAllocations: original, skillId: 2, parentDraftId: 10, requestedSkillNumber: 5, newDraftId: -1 }), original);
 });
 
 test("the same shared Skill remains branch-specific in a projected plan", () => {

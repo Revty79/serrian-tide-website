@@ -1,4 +1,5 @@
 "use client";
+import { characterCampaignSkillAccess, characterSkillChoiceAccess } from "@/features/characters/character-campaign-skill-access";
 import { VesselCompanionLookup } from "./companion-management-history";
 import { IndividualEvolutionPanel } from "@/app/heavens/individual-evolution-panel";
 
@@ -243,19 +244,11 @@ function SkillBranch({
 }: SkillBranchProps) {
   if (visited.has(skill.id)) return null;
   const racialGrant = getRacialSkillGrant(selectedRace, skill.id);
-  if (
-    !isSkillAllowedByCampaign(
-      skill,
-      rootSkill,
-      aggregate.campaign.allowedSystems,
-      enforceCampaignTierLimits,
-      racialGrant.granted,
-    )
-  ) {
-    return null;
-  }
-
   const allocation = allocationFor(draft, skill.id, parentDraftId);
+  const pathAccess = characterSkillChoiceAccess(aggregate, draft.skillAllocations, skill.id, parentDraftId);
+  const creationAllowed = isSkillAllowedByCampaign(skill, rootSkill, aggregate.campaign.allowedSystems, enforceCampaignTierLimits);
+  if ((!pathAccess.allowed || !creationAllowed) && !allocation) return null;
+
   const points = allocation?.points ?? 0;
   const effectivePoints = getEffectiveSkillPoints(points, selectedRace, skill.id);
   const hasPoints = hasSkillPoints(effectivePoints);
@@ -284,7 +277,7 @@ function SkillBranch({
   const visibleChildren = children.filter(
     (child) =>
       (!child.archived || draft.skillAllocations.some(({ skillId }) => skillId === child.id)) &&
-      (effectivePoints >= unlockThreshold ||
+      (draft.skillAllocations.some(row => row.skillId === child.id && row.parentDraftId === allocation?.draftId) || effectivePoints >= unlockThreshold ||
         getRacialSkillGrant(selectedRace, child.id).granted) &&
       (administrativeOverride ||
         canAccessSupernaturalSkillAtLevel(child, rootSkill, spellAccessLevel)),
@@ -350,7 +343,7 @@ function SkillBranch({
             min={racialGrant.minimum}
             max={maxTotal}
             step={1}
-            disabled={disabled || skill.archived}
+            disabled={disabled || skill.archived || !pathAccess.allowed || !creationAllowed}
             value={effectivePoints}
             onChange={(event) =>
               onPointsChange(
@@ -360,6 +353,7 @@ function SkillBranch({
               )
             }
           />
+          {!pathAccess.allowed ? <small>{pathAccess.reason} Historical points are frozen.</small> : null}
           {racialGrant.granted ? <small>{displayNumber(points)} purchased</small> : null}
         </label>
         <div><span>Rank</span><strong>{displayNumber(rank)}</strong></div>
@@ -468,6 +462,7 @@ export function CharacterEditor({
         initialAggregate.selectedRace,
         initialAggregate.skillRelationships,
         () => initialDraftId--,
+        characterCampaignSkillAccess(initialAggregate),
       ),
     };
   });
@@ -553,15 +548,7 @@ export function CharacterEditor({
     for (const skill of aggregate.skillCatalog) {
       if (skill.archived && !draft.skillAllocations.some(({ skillId }) => skillId === skill.id)) continue;
       if (childIds.has(skill.id) || (skill.tier !== null && skill.tier > 1)) continue;
-      if (
-        !isSkillAllowedByCampaign(
-          skill,
-          skill,
-          aggregate.campaign.allowedSystems,
-          enforceCampaignTierLimits,
-          getRacialSkillGrant(selectedRace, skill.id).granted,
-        )
-      ) continue;
+      if (!characterSkillChoiceAccess(aggregate, draft.skillAllocations, skill.id, null).allowed && !draft.skillAllocations.some(row => row.skillId === skill.id)) continue;
       const key = getCharacterSkillGroupKey(skill);
       const rows = groups.get(key) ?? [];
       rows.push(skill);
@@ -576,7 +563,7 @@ export function CharacterEditor({
       { key: "SPECIAL", label: "Special Abilities", skills: (groups.get("SPECIAL") ?? []).sort((left, right) => left.name.localeCompare(right.name)) },
       { key: "OTHER", label: "Other Skills", skills: (groups.get("OTHER") ?? []).sort((left, right) => left.name.localeCompare(right.name)) },
     ].filter((group) => group.skills.length > 0);
-  }, [aggregate, draft.skillAllocations, enforceCampaignTierLimits, selectedRace]);
+  }, [aggregate, draft.skillAllocations]);
 
   function change(updater: (current: CharacterDraft) => CharacterDraft) {
     if (playerLocked || archivedNpc) return;
@@ -593,7 +580,7 @@ export function CharacterEditor({
         change((current) => ({
           ...current,
           profile: { ...current.profile, raceId: null },
-          skillAllocations: reconcileRacialSkillAnchors(current.skillAllocations, null, aggregate.skillRelationships, () => nextDraftId.current--),
+          skillAllocations: reconcileRacialSkillAnchors(current.skillAllocations, null, aggregate.skillRelationships, () => nextDraftId.current--, characterCampaignSkillAccess(aggregate)),
         }));
         return;
       }
@@ -612,7 +599,7 @@ export function CharacterEditor({
             ...current,
             attributes,
             profile: { ...current.profile, raceId: race.race.id },
-            skillAllocations: reconcileRacialSkillAnchors(current.skillAllocations, race, aggregate.skillRelationships, () => nextDraftId.current--),
+            skillAllocations: reconcileRacialSkillAnchors(current.skillAllocations, race, aggregate.skillRelationships, () => nextDraftId.current--, characterCampaignSkillAccess(aggregate)),
           };
         });
       } catch (error) {
@@ -797,7 +784,7 @@ export function CharacterEditor({
         setSelectedRace(saved.selectedRace);
         setDraft({
           ...savedDraft,
-          skillAllocations: reconcileRacialSkillAnchors(savedDraft.skillAllocations, saved.selectedRace, saved.skillRelationships, () => nextDraftId.current--),
+          skillAllocations: reconcileRacialSkillAnchors(savedDraft.skillAllocations, saved.selectedRace, saved.skillRelationships, () => nextDraftId.current--, characterCampaignSkillAccess(saved)),
         });
         setDirty(false);
         setConfirmCompletion(false);
@@ -841,6 +828,7 @@ export function CharacterEditor({
           refreshed.selectedRace,
           refreshed.skillRelationships,
           () => nextDraftId.current--,
+          characterCampaignSkillAccess(refreshed),
         ),
       });
       setFeedback({ kind: "success", message: "Character runtime state was refreshed." });
@@ -1084,7 +1072,7 @@ function SkillsTab({ draft, aggregate, race, disabled, godMode, enforceCampaignT
   const used = getSkillPointsUsed(draft);
   const selectedGroup = skillGroups.find((group) => group.key === activeSkillGroup) ?? skillGroups[0];
   const activeManaProfiles = manaProfiles.filter((profile) => aggregate.campaign.allowedSystems.includes(profile.system));
-  return <div className="character-section"><SectionHeading eyebrow="CURRENT SKILL CATALOG" title="Skills & Abilities" detail={godMode ? `${displayNumber(used)} invested points` : `${displayNumber(used)} / ${displayNumber(aggregate.campaign.skillPoints)} points`} /><div className="character-rule-ledger"><span>Max Starting Points per Skill <strong>{displayNumber(aggregate.campaign.maxStartingSkill)}</strong></span><span>Unlock Next Tier <strong>{displayNumber(aggregate.campaign.pointsToUnlockNextTier)}</strong><small>Supernatural systems require 1.</small></span><span>Standard Skill Maximum <strong>{displayNumber(aggregate.campaign.maxPointsInSkill)}</strong></span><span>Special Ability Maximum <strong>{displayNumber(SPECIAL_ABILITY_EFFECTIVE_MAXIMUM)}</strong></span><span>Allowed <strong>{aggregate.campaign.allowedSystems.join(" · ") || "None"}</strong></span></div><p className="character-notice">Ordinary branches use the Campaign Tier permissions. Supernatural branches unlock at 1 parent point, then use their authorized system and Mana/mastery access.</p>{activeManaProfiles.length ? <section className="character-mana-ledger"><header><div><p>SUPERNATURAL CAPACITY</p><h3>Mana & Spell Access</h3></div><span>Base Magic {displayNumber(getCharacterBaseMagic(race?.race.baseMagic, draft.profile.baseMagicSteps))}</span></header><div>{activeManaProfiles.map((profile) => <article key={profile.system}><span>{profile.system}</span><strong>{displayNumber(profile.manaPool)} Mana</strong><small>{profile.spellAccessLevel ?? "Below Apprentice"} spell access · {displayNumber(profile.sourceSkillPoints)} {profile.sourceSkillName}</small>{profile.nextLevel && profile.nextRequiredMana !== null ? <em>{displayNumber(profile.nextRequiredMana - profile.manaPool)} more Mana to unlock {profile.nextLevel} spells</em> : <em>All spell levels unlocked</em>}</article>)}</div></section> : null}{!aggregate.campaign.allowedSystems.includes("Special Abilities") ? <p className="character-notice">General Special Ability purchasing is disabled. Racially granted Special Abilities still appear and may be improved.</p> : null}<nav className="character-skill-group-tabs" role="tablist" aria-label="Skill Attribute groups">{skillGroups.map((group) => <button key={group.key} type="button" role="tab" aria-selected={selectedGroup?.key === group.key} className={selectedGroup?.key === group.key ? "is-active" : ""} onClick={() => onSelectSkillGroup(group.key)}><span>{group.label}</span><small>{group.skills.length}</small></button>)}</nav><div className="character-skill-groups" role="tabpanel">{selectedGroup ? <section className="character-skill-group"><header><span>{selectedGroup.label}</span><small>{selectedGroup.skills.length} root {selectedGroup.skills.length === 1 ? "Skill" : "Skills"}</small></header><div>{selectedGroup.skills.map((skill) => <SkillBranch key={skill.id} skill={skill} rootSkill={skill} parentDraftId={null} parentRank={null} depth={0} visited={new Set()} aggregate={aggregate} draft={draft} ranks={ranks} childrenByParent={childrenByParent} selectedRace={race} administrativeOverride={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} manaProfiles={manaProfiles} disabled={disabled} onPointsChange={onSetSkillPoints} onShowDescription={onShowDescription} />)}</div></section> : <p className="character-notice">This Campaign does not currently authorize any root Skills.</p>}</div></div>;
+  return <div className="character-section"><SectionHeading eyebrow="CURRENT SKILL CATALOG" title="Skills & Abilities" detail={godMode ? `${displayNumber(used)} invested points` : `${displayNumber(used)} / ${displayNumber(aggregate.campaign.skillPoints)} points`} /><div className="character-rule-ledger"><span>Max Starting Points per Skill <strong>{displayNumber(aggregate.campaign.maxStartingSkill)}</strong></span><span>Unlock Next Tier <strong>{displayNumber(aggregate.campaign.pointsToUnlockNextTier)}</strong><small>Supernatural systems require 1.</small></span><span>Standard Skill Maximum <strong>{displayNumber(aggregate.campaign.maxPointsInSkill)}</strong></span><span>Special Ability Maximum <strong>{displayNumber(SPECIAL_ABILITY_EFFECTIVE_MAXIMUM)}</strong></span><span>Allowed <strong>{aggregate.campaign.allowedSystems.join(" · ") || "None"}</strong></span></div><p className="character-notice">Ordinary branches use the Campaign Tier permissions. Supernatural branches unlock at 1 parent point, then use their authorized system and Mana/mastery access.</p>{activeManaProfiles.length ? <section className="character-mana-ledger"><header><div><p>SUPERNATURAL CAPACITY</p><h3>Mana & Spell Access</h3></div><span>Base Magic {displayNumber(getCharacterBaseMagic(race?.race.baseMagic, draft.profile.baseMagicSteps))}</span></header><div>{activeManaProfiles.map((profile) => <article key={profile.system}><span>{profile.system}</span><strong>{displayNumber(profile.manaPool)} Mana</strong><small>{profile.spellAccessLevel ?? "Below Apprentice"} spell access · {displayNumber(profile.sourceSkillPoints)} {profile.sourceSkillName}</small>{profile.nextLevel && profile.nextRequiredMana !== null ? <em>{displayNumber(profile.nextRequiredMana - profile.manaPool)} more Mana to unlock {profile.nextLevel} spells</em> : <em>All spell levels unlocked</em>}</article>)}</div></section> : null}{!aggregate.campaign.allowedSystems.includes("Special Abilities") ? <p className="character-notice">General Special Ability purchasing is disabled. Existing grants remain recorded; restricted paths cannot receive new investment.</p> : null}<nav className="character-skill-group-tabs" role="tablist" aria-label="Skill Attribute groups">{skillGroups.map((group) => <button key={group.key} type="button" role="tab" aria-selected={selectedGroup?.key === group.key} className={selectedGroup?.key === group.key ? "is-active" : ""} onClick={() => onSelectSkillGroup(group.key)}><span>{group.label}</span><small>{group.skills.length}</small></button>)}</nav><div className="character-skill-groups" role="tabpanel">{selectedGroup ? <section className="character-skill-group"><header><span>{selectedGroup.label}</span><small>{selectedGroup.skills.length} root {selectedGroup.skills.length === 1 ? "Skill" : "Skills"}</small></header><div>{selectedGroup.skills.map((skill) => <SkillBranch key={skill.id} skill={skill} rootSkill={skill} parentDraftId={null} parentRank={null} depth={0} visited={new Set()} aggregate={aggregate} draft={draft} ranks={ranks} childrenByParent={childrenByParent} selectedRace={race} administrativeOverride={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} manaProfiles={manaProfiles} disabled={disabled} onPointsChange={onSetSkillPoints} onShowDescription={onShowDescription} />)}</div></section> : <p className="character-notice">This Campaign does not currently authorize any root Skills.</p>}</div></div>;
 }
 
 function StoryTab({ draft, disabled, onChange }: { draft: CharacterDraft; disabled: boolean; onChange: (updater: (current: CharacterDraft) => CharacterDraft) => void }) {

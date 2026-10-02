@@ -15,11 +15,11 @@ test("Independent books and multiple backs survive custom selection without an i
   const custom: UnifiedPrintSelection = {front: false, backs: ["Faith", "Bardic Resonance"], books: ["Psyonics"], references: ["derivedAbilities"]};
   for (const preset of ["custom", "paper"] as const) assert.deepEqual(printPresetSelection(preset, null, custom), custom);
 });
-test("Canonical support classification is available for printing without changing campaign eligibility", () => {
+test("Canonical support mappings govern printing and campaign eligibility", () => {
   assert.deepEqual(getNamedSupernaturalSkillSystems("Channeling"), ["Spellcraft", "Talismanism"]);
   assert.deepEqual(getNamedSupernaturalSkillSystems("Psionic Channeling"), ["Psyonics"]);
   assert.deepEqual(getNamedSupernaturalSkillSystems("Resonance Attunement"), ["Bardic Resonance"]);
   assert.equal(getNamedSupernaturalSkillSystems("Mental"), null);
   const skill: CharacterSkillReference = {id: 1, name: "Channeling", classification: "standard", tier: 1, primaryAttribute: "INT", secondaryAttribute: null, definition: "", spellLevel: null, manaCost: null, spellDocumentJson: null};
-  assert.equal(isSkillAllowedByCampaign(skill, skill, ["Tier 1"]), true, "Existing standard classification still governs gameplay");
+  assert.equal(isSkillAllowedByCampaign(skill, skill, ["Tier 1"]), false, "A standard classification cannot bypass the support Skill system mapping");
 });

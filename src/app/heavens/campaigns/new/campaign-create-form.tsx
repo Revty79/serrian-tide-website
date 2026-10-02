@@ -3,6 +3,9 @@
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
 
+import { CampaignSkillSelector } from "../campaign-skill-selector";
+import type { CampaignSkillExclusion } from "@/features/campaigns/campaign-skill-access";
+import type { CampaignSystem } from "@/db/campaign-schema";
 import { useState } from "react";
 
 import { getCampaignControlHref } from "@/features/campaigns/campaign-workflow";
@@ -55,6 +58,8 @@ export function CampaignCreateForm({
       },
     ]);
 
+  const [skillExclusions, setSkillExclusions] = useState<CampaignSkillExclusion[]>([]);
+  const [allowedSystems, setAllowedSystems] = useState<CampaignSystem[]>([]);
   const [raceSearch, setRaceSearch] = useState("");
   const [campaignRaceIds, setCampaignRaceIds] = useState<number[]>([]);
   const [allowedRaceIds, setAllowedRaceIds] = useState<number[]>([]);
@@ -134,6 +139,7 @@ export function CampaignCreateForm({
         <input key={`item-${id}`} type="hidden" name="inventoryItemIds" value={id} />
       ))}
 
+      <input type="hidden" name="skillExclusions" value={JSON.stringify(skillExclusions)} />
       {/* CAMPAIGN BASICS */}
       <section
         className="
@@ -611,6 +617,8 @@ export function CampaignCreateForm({
                   type="checkbox"
                   name="allowedSystems"
                   value={system}
+                  checked={allowedSystems.includes(system)}
+                  onChange={event => setAllowedSystems(current => event.target.checked ? [...current, system] : current.filter(entry => entry !== system))}
                   className="h-4 w-4 accent-amber-300"
                 />
 
@@ -623,6 +631,7 @@ export function CampaignCreateForm({
         </div>
       </section>
 
+      <CampaignSkillSelector library={references.skillLibrary} allowedSystems={allowedSystems} exclusions={skillExclusions} onChange={setSkillExclusions} />
       <CampaignInventorySelector
         campaignId={null}
         tags={references.tags}

@@ -1,4 +1,5 @@
 "use server";
+import { saveCampaignSkillExclusionsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { headers } from "next/headers";
@@ -433,6 +434,7 @@ export async function createCampaign(formData: FormData) {
       );
     }
 
+    await saveCampaignSkillExclusionsInTransaction(tx, createdCampaign.id, JSON.parse(String(formData.get("skillExclusions") ?? "[]")));
     await synchronizeCampaignGeneralChatRoomInTransaction(tx, {
       campaignId: createdCampaign.id,
       campaignName: name,

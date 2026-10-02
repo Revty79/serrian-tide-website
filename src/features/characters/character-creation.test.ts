@@ -129,14 +129,14 @@ test("Skill roots group by Attribute, Special Ability, and Other", () => {
   assert.equal(getCharacterSkillGroupKey(skill(3, "Untethered", { primaryAttribute: null })), "OTHER");
 });
 
-test("Campaign systems and tier limits govern branches without suppressing racial grants", () => {
+test("Campaign systems and tier limits govern branches including racial grants", () => {
   const standard = skill(1, "Athletics");
   const tierTwo = skill(2, "Acrobatics", { tier: 2 });
   const special = skill(3, "Night Sight", { classification: "Special Ability" });
   assert.equal(isSkillAllowedByCampaign(standard, standard, ["Tier 1"]), true);
   assert.equal(isSkillAllowedByCampaign(tierTwo, standard, ["Tier 1"]), false);
   assert.equal(isSkillAllowedByCampaign(special, special, ["Tier 1"]), false);
-  assert.equal(isSkillAllowedByCampaign(special, special, ["Tier 1"], true, true), true);
+  assert.equal(isSkillAllowedByCampaign(special, special, ["Tier 1"], true, true), false);
 });
 
 test("supernatural branches use system progression instead of ordinary Tier 2 and Tier 3 flags", () => {

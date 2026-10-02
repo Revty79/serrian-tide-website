@@ -317,3 +317,14 @@ test("complete random generation stays within Campaign choices and preserves rol
   assert.equal(result.draft.profile.fatePoints, null);
   assert.match(result.warnings.join(" "), /does not define a die formula/i);
 });
+
+test("random generation omits excluded paths and rejects a restricted racial grant", () => {
+  const character = aggregate();
+  character.campaign.skillExclusions = [{ skillId: 1, pathKey: "1" }];
+  const answers = createCompletelyRandomAnswers(character, () => 0.2);
+  const result = generateRandomCharacterDraft(character, race(), draft(character), answers, () => 0.2);
+  assert.equal(result.draft.skillAllocations.some(row => row.skillId === 1), false);
+  const grantedRace = race();
+  grantedRace.skillLinks.push({ skillId: 1, skillName: "Athletics", skillClassification: "standard", linkType: "bonus", value: 5 });
+  assert.throws(() => generateRandomCharacterDraft(character, grantedRace, draft(character), answers), /restricted/);
+});

@@ -3,6 +3,7 @@ import { readRaceNaturalAttacksInTransaction } from "@/features/races/race-natur
 import { readRaceNaturalProtectionInTransaction } from "@/features/races/race-natural-protection-service";
 import { appliedRaceEvolutionAdjustments, applyRaceEvolutionTransition, normalizeRaceEvolutionTransition, removeRaceEvolutionAdjustments } from "@/features/races/race-evolution-transition";
 import "server-only";
+import { assertCampaignRaceGrantsInTransaction, assertCampaignSkillGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 import { createHash } from "node:crypto";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -236,6 +237,7 @@ export async function executePersistentEvolution(input: EvolutionExecutionInput,
         evidence: { ...evidencePreview, actorName: authorized.actorName, confirmedEvaluation,
           confirmedRequirementKeys: [...input.confirmedRequirementKeys].sort(), confirmHealthConsequences: input.confirmHealthConsequences, confirmReplaceOverrides: input.confirmReplaceOverrides } };
       if (input.kind === "race") {
+        await assertCampaignRaceGrantsInTransaction(tx, preview.campaignId, preview.destinationId);
         const transition = preview.raceTransition!;
         const profileChanges: Partial<typeof campaignCharacterProfile.$inferInsert> = { raceId: preview.destinationId };
         for (const key of ["hpMultiplierSteps", "baseMovementSteps", "baseMagicSteps"] as const)
@@ -249,6 +251,7 @@ export async function executePersistentEvolution(input: EvolutionExecutionInput,
         return { event: historyEntry("race", event), replayed: false };
       }
       if (!snapshots) throw new Error("Destination Creature snapshots could not be prepared.");
+      await assertCampaignSkillGrantsInTransaction(tx, preview.campaignId, JSON.parse(snapshots.destinationCurrent).skillLinks);
       await tx.update(campaignCreatureNpcProfile).set({ creatureId: preview.destinationId,
         baselineSnapshotJson: snapshots.destinationBaseline, currentSnapshotJson: snapshots.destinationCurrent }).where(eq(campaignCreatureNpcProfile.characterId, input.characterId));
       const [event] = await tx.insert(creatureEvolutionEvent).values({ ...common, sourceCreatureId: preview.sourceId, destinationCreatureId: preview.destinationId,
@@ -437,6 +440,7 @@ export async function executePersistentEvolutionReturn(input: EvolutionReturnInp
       evidence: { ...evidence, actorName: authorized.actorName, confirmedRequirementKeys: [], confirmedEvaluation: preview.evaluation,
         confirmHealthConsequences: input.confirmHealthConsequences, confirmReplaceOverrides: input.confirmReplaceOverrides } };
     if (input.kind === "race") {
+      await assertCampaignRaceGrantsInTransaction(tx, preview.campaignId, preview.destinationId);
       const transition = preview.returning.raceAdjustments!;
       await tx.update(campaignCharacterProfile).set({ raceId: preview.destinationId, hpMultiplierSteps: transition.after.hpMultiplierSteps,
         baseMovementSteps: transition.after.baseMovementSteps, baseMagicSteps: transition.after.baseMagicSteps }).where(eq(campaignCharacterProfile.characterId, input.characterId));
@@ -446,7 +450,8 @@ export async function executePersistentEvolutionReturn(input: EvolutionReturnInp
       return { event: historyEntry("race", event), replayed: false };
     }
     if (!snapshots) throw new Error("Historical Creature snapshots could not be prepared.");
-    await tx.update(campaignCreatureNpcProfile).set({ creatureId: preview.destinationId, baselineSnapshotJson: snapshots.destinationBaseline,
+    await assertCampaignSkillGrantsInTransaction(tx, preview.campaignId, JSON.parse(snapshots.destinationCurrent).skillLinks);
+      await tx.update(campaignCreatureNpcProfile).set({ creatureId: preview.destinationId, baselineSnapshotJson: snapshots.destinationBaseline,
       currentSnapshotJson: snapshots.destinationCurrent }).where(eq(campaignCreatureNpcProfile.characterId, input.characterId));
     const [event] = await tx.insert(creatureEvolutionEvent).values({ ...common, sourceCreatureId: preview.sourceId, destinationCreatureId: preview.destinationId,
       sourceBaselineSnapshotJson: snapshots.sourceBaseline, sourceCurrentSnapshotJson: snapshots.sourceCurrent,

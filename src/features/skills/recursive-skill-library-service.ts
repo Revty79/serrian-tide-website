@@ -30,8 +30,8 @@ export type SkillConsumerImpact = Readonly<{
   total: number;
 }>;
 
-export async function loadRecursiveSkillLibrary(): Promise<RecursiveSkillLibrary> {
-  const skillRows = await db
+export async function loadRecursiveSkillLibrary(executor: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0] = db): Promise<RecursiveSkillLibrary> {
+  const skillRows = await executor
     .select({
       id: skill.id,
       name: skill.name,
@@ -46,7 +46,7 @@ export async function loadRecursiveSkillLibrary(): Promise<RecursiveSkillLibrary
     .from(skill)
     .orderBy(asc(skill.name), asc(skill.id));
 
-  const relationshipRows = await db
+  const relationshipRows = await executor
     .select({
       id: skillRelationship.id,
       skillId: skillRelationship.skillId,

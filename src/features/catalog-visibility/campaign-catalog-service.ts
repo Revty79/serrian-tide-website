@@ -1,4 +1,5 @@
 import "server-only";
+import { loadRecursiveSkillLibrary } from "@/features/skills/recursive-skill-library-service";
 import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { race } from "@/db/race-schema";
@@ -26,7 +27,7 @@ export async function loadCampaignCatalogReferences(creatorId: string, campaignI
   if (additional.length) matches.push(...await db.select(fields).from(race).where(inArray(race.id, additional)));
   const tags = await db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description })
     .from(itemTagCatalog).where(await itemTagDiscoveryWhere(creatorId, retainedTags.map(({ id }) => id)));
-  return { races: matches.map(({ isSystemCanon, createdByUserId, ...row }) => ({ ...row,
+  return { skillLibrary: await loadRecursiveSkillLibrary(), races: matches.map(({ isSystemCanon, createdByUserId, ...row }) => ({ ...row,
     catalogSource: catalogSourceLabel({ isSystemCanon, createdByUserId }, creatorId, !matchIds.has(row.id) && !retained.has(row.id)),
     existingSelection: retained.has(row.id) && !matchIds.has(row.id),
     existingPlayableSelection: playable.some(({ id }) => id === row.id),

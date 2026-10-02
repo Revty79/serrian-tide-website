@@ -1,3 +1,4 @@
+import { characterSkillChoiceAccess } from "./character-campaign-skill-access";
 import {
   canAccessSupernaturalSkillAtLevel,
   characterAggregateToDraft,
@@ -16,7 +17,6 @@ import {
   getSkillUnlockThreshold,
   getSpecialAbilityRollTarget,
   hasSkillPoints,
-  isSkillAllowedByCampaign,
   isSpecialAbilitySkill,
   normalizeSkillAttributeKey,
   type CharacterSkillGroupKey,
@@ -216,7 +216,7 @@ export function buildCharacterAdvancementTree(
   const roots = aggregate.skillCatalog
     .filter(
       (skill) =>
-        !childIds.has(skill.id) && (skill.tier === null || skill.tier === 1),
+        !childIds.has(skill.id) && (skill.tier === null || skill.tier === 1 || skill.tier > 3),
     )
     .sort((left, right) => left.name.localeCompare(right.name));
   const result: CharacterAdvancementTreeEntry[] = [];
@@ -238,7 +238,6 @@ export function buildCharacterAdvancementTree(
       skill.id,
       parentDraftId,
     );
-    const racialGrant = getRacialSkillGrant(aggregate.selectedRace, skill.id);
     const permanentAllocationPoints = permanentAllocation?.points ?? 0;
     const permanentlyOwned = hasSkillPoints(permanentAllocationPoints);
     if (
@@ -246,18 +245,7 @@ export function buildCharacterAdvancementTree(
     ) {
       return;
     }
-    if (
-      !permanentAllocation &&
-      !isSkillAllowedByCampaign(
-        skill,
-        rootSkill,
-        aggregate.campaign.allowedSystems,
-        false,
-        racialGrant.granted,
-      )
-    ) {
-      return;
-    }
+    if (!characterSkillChoiceAccess(aggregate, projectedAllocations, skill.id, parentDraftId).allowed) return;
 
     const magicSystem = getCharacterMagicSystem(rootSkill);
     const spellAccessLevel = magicSystem
@@ -419,7 +407,7 @@ export function setProjectedSkillNumber(input: {
   const skill = input.aggregate.skillCatalog.find(
     (candidate) => candidate.id === input.skillId,
   );
-  if (!skill) return [...input.projectedAllocations];
+  if (!skill || !characterSkillChoiceAccess(input.aggregate, input.projectedAllocations, input.skillId, input.parentDraftId).allowed) return [...input.projectedAllocations];
   const racialPoints = getRacialSkillGrant(
     input.aggregate.selectedRace,
     input.skillId,

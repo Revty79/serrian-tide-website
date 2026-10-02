@@ -24,6 +24,7 @@ test("Campaign creation and Character returns target the canonical Heavens conte
 test("Campaign Settings has only genuine configuration tabs", () => {
   assert.deepEqual(CAMPAIGN_SETTINGS_TABS, [
     { id: "rules", label: "Rules & Systems" },
+    { id: "skills", label: "Allowed Skills" },
     { id: "races", label: "Allowed Races" },
     { id: "inventory", label: "Inventory Access" },
   ]);

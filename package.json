@@ -14,6 +14,8 @@
     "validate:unit": "node scripts/run-feature-tests.mjs",
     "validate:canon": "node scripts/import-ststandalone-canon.mjs --validate-only",
     "validate:campaign": "tsx --test src/features/campaigns/*.test.ts",
+    "validate:campaign-skills-db": "node --import tsx --test scripts/campaign-skill-access-disposable.test.ts",
+    "validate:campaign-skills-browser": "node --import tsx --test scripts/campaign-skill-selector-browser.test.ts",
     "validate:creatures": "tsx --test src/features/creatures/*.test.ts",
     "validate:creature-browser": "node --env-file=.env.local --conditions=react-server --import tsx scripts/creature-new-draft-browser.test.ts",
     "validate:creature-ability": "tsx --test src/features/creatures/creature-ability.test.ts",

@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth-schema";
+import { skill } from "./skill-schema";
 
 export const campaignCurrencySystem = pgEnum(
   "campaign_currency_system",
@@ -185,6 +186,16 @@ export const campaignAllowedSystem = pgTable(
     ),
   ],
 );
+
+export const campaignSkillExclusion = pgTable("campaign_skill_exclusion", {
+  campaignId: integer("campaign_id").notNull().references(() => campaign.id, { onDelete: "cascade" }),
+  skillId: integer("skill_id").notNull().references(() => skill.id, { onDelete: "restrict" }),
+  pathKey: text("path_key").notNull(),
+}, table => [
+  primaryKey({ columns: [table.campaignId, table.pathKey] }),
+  index("campaign_skill_exclusion_skill_idx").on(table.skillId),
+  check("campaign_skill_exclusion_path_valid", sql`${table.pathKey} ~ '^[1-9][0-9]*(>[1-9][0-9]*)*$' AND split_part(${table.pathKey}, '>', -1) = ${table.skillId}::text`),
+]);
 
 export const campaignPlayer = pgTable(
   "campaign_player",

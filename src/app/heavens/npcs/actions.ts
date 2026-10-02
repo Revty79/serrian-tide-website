@@ -1,4 +1,5 @@
 "use server";
+import { assertCampaignSkillGrantsInTransaction, assertCampaignRaceGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
 import { assertCreatureVesselsUnboundInTransaction } from "@/features/creatures/creature-vessel-guards";
 
@@ -436,6 +437,7 @@ export async function createNpc(input: CreateNpcValues): Promise<CreateNpcResult
     }).onConflictDoNothing();
 
     if (normalized.origin === "race") {
+      await assertCampaignRaceGrantsInTransaction(tx, normalized.campaignId, normalized.sourceId);
       const [source] = await tx.select({ id: race.id })
         .from(race)
         .where(and(eq(race.id, normalized.sourceId), isNull(race.archivedAt)))
@@ -662,6 +664,7 @@ export async function saveSimpleNpc(input: SimpleNpcSaveInput): Promise<SimpleNp
     }).where(eq(campaignCharacter.id, normalized.characterId));
     if (locked.npcKind === "creature") {
       if (normalized.replacementRaceId !== undefined) {
+        await assertCampaignRaceGrantsInTransaction(tx, normalized.campaignId, normalized.replacementRaceId);
         throw new Error("Only Race NPCs can be assigned a replacement Race.");
       }
       const updated = await tx.update(campaignCreatureNpcProfile).set({
@@ -673,6 +676,7 @@ export async function saveSimpleNpc(input: SimpleNpcSaveInput): Promise<SimpleNp
       if (!updated.length) throw new Error("Creature NPC profile is missing.");
     } else {
       if (normalized.replacementRaceId !== undefined) {
+        await assertCampaignRaceGrantsInTransaction(tx, normalized.campaignId, normalized.replacementRaceId);
         const [profile] = await tx.select({ raceId: campaignCharacterProfile.raceId })
           .from(campaignCharacterProfile)
           .where(eq(campaignCharacterProfile.characterId, normalized.characterId))
@@ -1151,6 +1155,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       "Current snapshot",
       lockedProfile.hpAdjustment,
     );
+    await assertCampaignSkillGrantsInTransaction(tx, input.campaignId, normalizedSnapshot.skillLinks, lockedSnapshot.skillLinks);
     // Form definitions are frozen library metadata, never an NPC-edit or preview payload.
     if (lockedSnapshot.forms === undefined) delete normalizedSnapshot.forms;
     else normalizedSnapshot.forms = structuredClone(lockedSnapshot.forms);
