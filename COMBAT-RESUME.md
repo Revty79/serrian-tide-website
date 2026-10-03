@@ -1,5 +1,12 @@
 # Combat resumption handoff
 
+## Combat runtime completion Pass 1: protection (3 October 2026)
+
+- Structured Armor Modifiers now execute as `max(0, Base Soak + matching Modifier)` in the existing shared incoming resolver. Source Text/Notes/prose are descriptive. New malformed values and duplicate canonical definitions are rejected; unchanged legacy values remain reviewable.
+- Order: source/location, Worn Armor, target Interaction defenses, Creature Natural Armor/Soak or Race Natural Soak, temporary signed Soak, final upward rounding and existing Health application. Only damage surviving Worn Armor proceeds to later defenses. No armor stacking or mixed-damage split was invented.
+- New source-parity, frozen-result/resource retry and periodic-effect checks accompany real Armor authoring and combat-screen browser checks. See the [completion report](docs/reports/combat-protection-pass-1-2026-10-03.md) for final validation and retained G.O.D./historical boundaries.
+- Production was audited read-only and was not changed; no schema migration is needed. No push is authorized. Do not begin Race Natural Attack Pass 2, Creature Magic execution, Forms, Evolution, Special Ability or companion runtime automatically. Resume only under Brannan's next explicit direction.
+
 ## Container Pass 4 — tabletop access and custody (25 September 2026)
 
 - Added explicit retrieve/stow/open/close/drop through the existing declaration and Initiative runtime. Costs come from authored container profiles or exact G.O.D. rulings; completion rechecks inventory/access and moves once. Retrieval does not draw or ready weapons.

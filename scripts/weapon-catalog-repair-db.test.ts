@@ -26,7 +26,7 @@ async function fixture(run: (client: pg.Client, reviewed: Catalog) => Promise<vo
     async function insert(table: string, rows: unknown[]) {
       if (rows.length) await client.query(`insert into ${table} select * from jsonb_populate_recordset(null::${table},$1::jsonb)`, [JSON.stringify(rows)]);
     }
-    await insert("items", source.items.map((i) => ({ ...i, created_by_user_id: actor, archived_by_user_id: null, parent_item_id: null })));
+    await insert("items", source.items.map((i) => ({ is_system_canon: false, ...i, created_by_user_id: actor, archived_by_user_id: null, parent_item_id: null })));
     await insert("weapon_profiles", source.profiles);
     await insert("weapon_firing_modes", source.modes);
     await insert("weapon_skill_path_mappings", source.mappings.map((m) => ({ ...m, updated_by_user_id: actor })));

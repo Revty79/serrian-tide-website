@@ -3,6 +3,8 @@ import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
+import { protectionPipelineFixture } from "./fixtures/protection-pipeline-fixture";
+import { itemArmorDamageModifier } from "@/db/item-schema";
 import { item, itemProperty, itemTagCatalog, itemTagLink, itemPower, itemPowerEffect, itemPowerResource, weaponProfile, weaponFiringMode, weaponSkillPathMapping } from "@/db/item-schema";
 import { campaignCharacterItem, campaignCharacterItemInstance, campaignCharacterAttribute, campaignCharacterProfile, campaignCharacterActiveModifier } from "@/db/realm-schema";
 import { magazineProfile, magazineAmmunition, weaponMagazine, firearmMagazineAttachment } from "@/db/magazine-schema";
@@ -72,6 +74,39 @@ for (const weaponType of ["Handgun", "Bow", "Crossbow"] as const) for (const own
     }), (error) => { if (error !== rollback) console.error(error); return error === rollback; });
   });
 }
+for (const weaponType of ["Handgun", "Bow"] as const) test(`Protection Pass 1 ${weaponType}: typed armor, Race Resistance and Soak apply once per projectile`, async () => {
+  await assert.rejects(db.transaction(async tx => {
+    const f = await fixture(tx, "npc");
+    const protectedTarget = await protectionPipelineFixture(tx, f.godId, f.heroId);
+    const originalHealth = await readActiveHealthInTransaction(tx, f.heroId, "race");
+    await tx.update(weaponProfile).set({ damage: "20", damageType: "Fire" }).where(eq(weaponProfile.itemId, f.ammunition.id));
+    if (weaponType === "Bow") {
+      await tx.update(weaponProfile).set({ weaponType, capacityRounds: 1 }).where(eq(weaponProfile.id, f.profile.id));
+      await tx.update(weaponFiringMode).set({ baseCyclingInitiativeCost: null, baseRecoilResetInitiativeCost: null, deliveryCadence: null, roundsPerCadence: null, mechanicsReviewRequired: true }).where(eq(weaponFiringMode.id, f.command.firingModeId));
+      await tx.update(stateTable).set({ loadedRounds: 1, capacityRounds: 1, readied: false, readinessMode: null, readinessModeSource: null }).where(eq(stateTable.itemInstanceId, f.instance.id));
+    }
+    const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, { ...f.command, targetParticipantId: f.heroId });
+    const attack = await f.attack(declared.attackId);
+    await noDefense(tx, f, attack.triggerDeclarationId); await complete(tx, f, attack.triggerPendingActionId!);
+    const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
+    const rows = await tx.select().from(effectTable).where(eq(effectTable.planId, fired.effectPlanId!));
+    const result = rows.map(row => storedIncomingResolution(row.authoredValueJson)).find(Boolean)!;
+    assert.equal(result.status, "resolved"); assert.equal(result.input.effect.amount, 20);
+    assert.equal(result.input.source.damageType, "Fire"); assert.equal(result.finalEffect?.damage, 5);
+    const [bullet] = await tx.select().from(bulletTable).where(eq(bulletTable.attackId, attack.id));
+    assert.equal(bullet.armor, 6, "The bullet summary uses effective typed Worn Armor Soak");
+    await tx.update(itemArmorDamageModifier).set({ modifier: "+12" }).where(eq(itemArmorDamageModifier.id, protectedTarget.modifier.id));
+    for (let retry = 0; retry < 2; retry++) {
+      assert.equal((await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" })).effectPlanId, fired.effectPlanId);
+      assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.actor, attack.triggerDeclarationId, fired.effectPlanId!)).status, "applied");
+    }
+    assert.equal((await readActiveHealthInTransaction(tx, f.heroId, "race")).state.totalDamage - originalHealth.state.totalDamage, 5);
+    assert.equal((await f.state()).loadedRounds, weaponType === "Bow" ? 0 : 2);
+    assert.equal((await f.rolls()).length, 1);
+    throw rollback;
+  }), error => { if (error !== rollback) console.error(error); return error === rollback; });
+});
+
 const rollback = new Error("ROLLBACK_FIREARM_COMPLETION");
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

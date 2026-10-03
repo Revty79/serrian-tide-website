@@ -1,5 +1,7 @@
 # Natural, worn and temporary protection
 
+**Current runtime contract:** [Combat protection completion Pass 1](../reports/combat-protection-pass-1-2026-10-03.md) executes structured Worn Armor modifiers through the shared incoming resolver. The sections below record the original Pass 3 projection and authoring boundary.
+
 Pass 3 adds a shared read model and Race authoring. It does not change final damage math or execute Interaction Rules.
 
 ## Authoritative sources

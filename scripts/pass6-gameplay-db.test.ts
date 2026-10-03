@@ -5,7 +5,7 @@ import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { race } from "@/db/race-schema";
 import { creature } from "@/db/creature-schema";
-import { item, itemProperty, armorProfile, armorLocation, armorLocationReference } from "@/db/item-schema";
+import { item, itemProperty, armorProfile, armorLocation, armorLocationReference, itemArmorDamageModifier } from "@/db/item-schema";
 import { campaignCharacter, campaignCharacterProfile, campaignCharacterAttribute, campaignCharacterActiveModifier, campaignCharacterItem, campaignCharacterItemEquipmentState, campaignCreatureNpcProfile } from "@/db/realm-schema";
 import { campaignSessionEncounterParticipant as member, campaignSessionEncounterInitiativeParticipant as initiative, campaignSessionEncounterEffect as effect } from "@/db/tabletop-operations-schema";
 import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, commitActionDeclarationInTransaction } from "@/features/tabletop-operations/action-declaration-service";
@@ -223,7 +223,7 @@ for (const conflict of ["immunity", "resistance", "vulnerability", "absorption"]
   });
 }
 
-for (const boundary of ["worn-overlap", "natural-overlap", "armor-metadata"] as const) isolated(`Pass 6 ${boundary} stops with exact sources`, async (tx, f) => {
+for (const boundary of ["worn-overlap", "natural-overlap", "malformed-armor-modifier"] as const) isolated(`Pass 6 ${boundary} stops with exact sources`, async (tx, f) => {
   if (boundary === "natural-overlap") {
     const [ancestry] = await tx.insert(race).values({ name: "Overlapping natural protection" }).returning();
     await tx.update(campaignCharacterProfile).set({ raceId: ancestry.id }).where(eq(campaignCharacterProfile.characterId, f.defenderId));
@@ -231,14 +231,14 @@ for (const boundary of ["worn-overlap", "natural-overlap", "armor-metadata"] as 
   } else {
     const first = await armor(tx, f, f.defenderId, 1);
     if (boundary === "worn-overlap") await armor(tx, f, f.defenderId, 2);
-    else await tx.update(armorProfile).set({ damageModifiersSourceText: "Fire +2" }).where(eq(armorProfile.itemId, first.id));
+    else await tx.insert(itemArmorDamageModifier).values({ itemId: first.id, damageType: "Slashing", modifier: "Slashing +2", modifierText: "+2", notes: "Preserved malformed legacy field" });
   }
   const outcome = await result(tx, f, f.defenderId);
   assert.equal(outcome.resolution.status, "requires-god-ruling"); assert.equal(outcome.resolution.finalEffect, null);
   const layers = outcome.resolution.input.target.protection;
   if (boundary === "worn-overlap") assert.deepEqual(layers.worn.map(({ baseSoak }) => baseSoak), [1, 2]);
   if (boundary === "natural-overlap") assert.deepEqual(layers.natural.map(({ soak }) => soak), [1, 2]);
-  if (boundary === "armor-metadata") assert.equal(layers.worn[0].damageModifiersSourceText, "Fire +2");
+  if (boundary === "malformed-armor-modifier") assert.equal(layers.worn[0].damageModifiers[0].modifier, "Slashing +2");
 });
 
 for (const targetKind of ["creature-npc", "direct"] as const) isolated(`Pass 6 direct Creature attacks ${targetKind} using complete base plus accepted Roll successes`, async (tx, f) => {

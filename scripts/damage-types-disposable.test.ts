@@ -128,10 +128,27 @@ test("Damage type dropdowns save approved multi-type attacks and armor with guar
         await page.getByLabel("Modifier", { exact: true }).fill("+2");
         await button("Save Item").click(); await page.getByText(`${name} was saved.`, { exact: true }).waitFor();
         assert.equal((await pool.query("select damage_type from item_armor_damage_modifiers where item_id=$1", [weapon.item_id])).rows[0].damage_type, "Ballistic / Fire");
+        await page.getByLabel("Modifier", { exact: true }).fill("Fire +2");
+        await page.getByRole("alert").filter({ hasText: "finite signed" }).waitFor();
+        await button("Save Item").click();
+        await page.locator(".skill-editor__feedback").filter({ hasText: "finite signed" }).waitFor();
+        assert.equal((await pool.query("select modifier from item_armor_damage_modifiers where item_id=$1", [weapon.item_id])).rows[0].modifier, "+2");
+        await page.getByLabel("Modifier", { exact: true }).fill("-2");
+        await button("Save Item").click(); await page.getByText(`${name} was saved.`, { exact: true }).waitFor();
+        assert.equal((await pool.query("select modifier from item_armor_damage_modifiers where item_id=$1", [weapon.item_id])).rows[0].modifier, "-2");
+        await button("Add Modifier").click();
+        await page.getByLabel("Damage Type", { exact: true }).last().selectOption("Fire");
+        await page.getByLabel("Modifier", { exact: true }).last().fill("+1");
+        await page.getByRole("alert").filter({ hasText: "More than one" }).waitFor();
+        await button("Save Item").click();
+        await page.locator(".skill-editor__feedback").filter({ hasText: "more than one Modifier" }).waitFor();
+        assert.equal((await pool.query("select count(*)::int count from item_armor_damage_modifiers where item_id=$1", [weapon.item_id])).rows[0].count, 1);
+        await page.locator(".item-modifier-row").last().getByRole("button", { name: "Remove", exact: true }).click();
         await page.setViewportSize({ width: 390, height: 844 });
         await page.locator("[data-damage-type-control]").first().evaluate(el => el.scrollIntoView({ block: "center" }));
         await page.waitForTimeout(300); // Let the existing in-place scroll restoration settle before capturing.
         await page.locator("[data-damage-type-control]").first().screenshot({ path: path.join(artifacts, "armor-phone.png") });
+        await page.locator(".item-modifier-row").first().screenshot({ path: path.join(artifacts, "armor-modifier-phone.png") });
         for (const select of await page.locator("[data-damage-type-control] select").all()) {
           assert.equal(await select.evaluate(el => { const rect = el.getBoundingClientRect(); return rect.left >= 0 && rect.right <= innerWidth; }), true);
         }

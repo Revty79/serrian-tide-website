@@ -46,6 +46,58 @@ test("Race Soak is the sole natural reduction, respects coverage, and ignores ob
 function temporary(value: IncomingEffectInput, amount = 1, targetKey = "self") {
   value.target.protection.temporary.push({ id: `ward:${value.target.protection.temporary.length}`, name: "Ward", channel: "soak", targetKey, amount, coverage: targetKey === "self" ? { kind: "all" } : { kind: "unresolved" }, modifier: { source: { name: "Ward Spell" }, duration: { kind: "scene" } } });
 }
+function typedArmor(value: IncomingEffectInput, baseSoak = 4, modifier = "+2") {
+  value.target.protection.worn = [{ ...worn(baseSoak), damageModifiers: [{ id: 1, damageType: "Fire", modifier, modifierText: "Ignore prose: Cold +999", notes: "Not a percentage defense" }] }];
+}
+function raceSoak(value: IncomingEffectInput, soak = 2) {
+  value.target.protection.natural.push({ source: { kind: "race", id: "race:1:skin", name: "Race" }, name: "Skin", coverage: { kind: "all" }, soak });
+}
+for (const [type, percent, expected, status] of [["resistance", 50, 5, "resolved"], ["vulnerability", 50, 19, "resolved"], ["immunity", null, 0, "prevented"], ["absorption", 50, 0, "absorbed"]] as const) {
+  test(`typed Worn Armor then ${type} then Race Soak`, () => {
+    const value = input([rule(type, percent)], 20); typedArmor(value); raceSoak(value);
+    const result = resolveIncomingEffect(value);
+    assert.equal(result.status, status); assert.equal(result.finalEffect?.damage, expected);
+    assert.equal(result.stages[1].damageAfter, 14);
+    if (type === "resistance") assert.deepEqual(result.stages.map(stage => stage.damageAfter), [20, 14, 7, 5, 5, 5]);
+    if (type === "absorption") assert.equal(result.finalEffect?.healing, 7);
+  });
+}
+test("Resistance applies before both Creature natural fields and temporary signed Soak", () => {
+  const value = input([rule("resistance", 50)], 20); typedArmor(value); natural(value, 1, 1); temporary(value, -2);
+  const result = resolveIncomingEffect(value);
+  assert.deepEqual(result.stages.map(stage => stage.damageAfter), [20, 14, 7, 5, 7, 7]);
+  const original = input([rule("resistance", 50)], 20); raceSoak(original, 4);
+  assert.equal(resolveIncomingEffect(original).finalEffect?.damage, 6, "20 x 50% then 4 Natural Soak");
+});
+test("Magical and Fire are independent authoritative source facts", () => {
+  for (const magical of [false, true]) {
+    const value = input([rule("requirement", null, { conditions: [magic] }), rule("resistance", 50, { key: "resist", sortOrder: 1, conditions: [magic] })], 20);
+    value.source.magical = magical; typedArmor(value); raceSoak(value);
+    assert.equal(resolveIncomingEffect(value).finalEffect?.damage, magical ? 5 : 0);
+    assert.equal(resolveIncomingEffect(value).stages[1].damageAfter, 14);
+    value.source.damageType = "Cold";
+    assert.equal(resolveIncomingEffect(value).stages[1].damageAfter, 16, "Magical alone cannot match the armor Fire modifier");
+  }
+});
+test("damage fully stopped by Worn Armor never reaches later defenses or negative Soak", () => {
+  const value = input([rule("absorption", 50), rule("immunity", null, { key: "immune", sortOrder: 1 })], 5);
+  typedArmor(value); temporary(value, -100);
+  assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 0);
+  assert.equal(resolveIncomingEffect(value).status, "resolved");
+});
+test("typed armor follows authoritative coverage and missing-location rulings", () => {
+  const value = input([], 20); typedArmor(value);
+  value.hitLocationKey = "0"; assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 20);
+  value.hitLocationKey = null; assert.equal(resolveIncomingEffect(value).status, "requires-god-ruling");
+  value.hitLocationKey = "9"; value.source.damageType = "Fire / Piercing";
+  assert.ok(resolveIncomingEffect(value).issues.some(issue => issue.code === "armor-mixed-damage"));
+});
+test("armor modifier arithmetic retains a real sub-double remainder until final rounding", () => {
+  const value = input([], 2); typedArmor(value, 1, "-0.0000000000000001");
+  assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 2);
+  assert.equal(resolveIncomingEffect(value).finalEffect?.exactDamageBeforeRounding, "1.0000000000000001");
+});
+
 test("approved complete stage example keeps full precision and rounds up only at the end", () => {
   const value = input([rule("resistance", 25)]);
   value.target.protection.worn = [worn()]; natural(value); temporary(value);
@@ -53,7 +105,7 @@ test("approved complete stage example keeps full precision and rounds up only at
   assert.equal(result.status, "resolved");
   assert.deepEqual(result.stages.map(({ key, damageAfter }) => [key, damageAfter]), [["source", 12], ["worn", 9], ["interaction", 6.75], ["natural", 3.75], ["temporary", 2.75], ["final", 3]]);
   assert.equal(result.finalEffect?.damage, 3);
-  assert.match(result.explanation.join("\n"), /Breastplate: 12 - 3 = 9/);
+  assert.match(result.explanation.join("\n"), /Breastplate: 12 - effective Soak 3 = 9/);
   assert.match(result.explanation.join("\n"), /Natural Soak: 4.75 - 1 = 3.75/);
   assert.deepEqual(value, before, "pure calculation never changes caller facts");
   value.target.interactionRules!.rules[0].percentage = 99;
@@ -152,15 +204,15 @@ test("single/no worn, exact coverage and zero floors", () => {
   value.target.protection.worn = [worn(3)]; assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 0);
   value.hitLocationKey = "0"; assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 2);
 });
-test("multiple worn sources, unknown coverage, values and metadata remain explicit rulings", () => {
+test("multiple worn sources, unknown coverage and malformed modifiers remain explicit rulings", () => {
   const value = input(); value.target.protection.worn = [worn(3), { ...worn(5), ownershipKey: "stack:2" }];
   let result = resolveIncomingEffect(value); assert.equal(result.issues[0].code, "multiple-worn"); assert.equal(result.finalEffect, null);
   assert.deepEqual(result.stages[1].entries.map(({ value }) => value), [3, 5]);
   value.target.protection.worn = [{ ...worn(), coveredLocationKeys: [] }]; assert.equal(resolveIncomingEffect(value).issues[0].code, "worn-coverage");
   value.target.protection.worn = [{ ...worn(), baseSoak: null }]; assert.equal(resolveIncomingEffect(value).issues[0].code, "worn-value");
-  value.target.protection.worn = [{ ...worn(), damageModifiersSourceText: "Fire +2" }]; assert.equal(resolveIncomingEffect(value).issues[0].code, "armor-damage-metadata");
-  value.target.protection.worn = [{ ...worn(), damageModifiers: [{ id: 1, damageType: "Fire", modifier: "+2", modifierText: "", notes: "" }] }];
-  result = resolveIncomingEffect(value); assert.equal(result.issues[0].code, "armor-damage-metadata");
+  value.target.protection.worn = [{ ...worn(), damageModifiersSourceText: "Fire +2" }]; assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 9, "source prose does not execute or block structured Base Soak");
+  value.target.protection.worn = [{ ...worn(), damageModifiers: [{ id: 1, damageType: "Fire", modifier: "Fire +2", modifierText: "+2", notes: "" }] }];
+  result = resolveIncomingEffect(value); assert.equal(result.issues[0].code, "armor-modifier-value");
 });
 test("Creature natural sources retain both Armor and Soak", () => {
   const value = input([], 8); natural(value); assert.equal(resolveIncomingEffect(value).finalEffect?.damage, 5);
@@ -345,7 +397,7 @@ const earlierBlockers: Array<[string, (value: IncomingEffectInput) => void]> = [
   ["multiple-worn", (value) => { value.target.protection.worn = [worn(), { ...worn(5), ownershipKey: "stack:2" }]; }],
   ["worn-coverage", (value) => { value.target.protection.worn = [{ ...worn(), coveredLocationKeys: [] }]; }],
   ["worn-value", (value) => { value.target.protection.worn = [{ ...worn(), baseSoak: null }]; }],
-  ["armor-damage-metadata", (value) => { value.target.protection.worn = [{ ...worn(), damageModifiersSourceText: "Fire +2" }]; }],
+  ["armor-modifier-value", (value) => { value.target.protection.worn = [{ ...worn(), damageModifiers: [{ id: 1, damageType: "Fire", modifier: "Fire +2", modifierText: "", notes: "" }] }]; }],
   ["hit-location-required", (value) => { value.target.protection.worn = [worn()]; value.hitLocationKey = null; }],
 ];
 for (const [code, setup] of earlierBlockers) test(`failed Requirement preserves earlier ${code} blocker`, () => {

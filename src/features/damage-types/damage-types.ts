@@ -7,7 +7,7 @@ export type DamageType = typeof DAMAGE_TYPES[number];
 
 export const DAMAGE_TYPE_HELP = "Choose an approved damage type. Leave an unfinished attack unspecified. For an attack with several types, add each type separately and explain any damage split in its notes; selecting types does not decide how to split damage.";
 export const DAMAGE_TYPE_MATCH_HELP = "Choose the approved damage types this defense describes. Defenses listing several types currently need a G.O.D. ruling for matching. Mixed incoming damage also needs an explicit damage split or ruling.";
-export const ARMOR_DAMAGE_TYPE_HELP = "Choose the approved damage types this armor modifier describes. Record source restrictions and special cases in the notes; this field does not decide how armor modifiers are calculated.";
+export const ARMOR_DAMAGE_TYPE_HELP = "For one matching Damage Type, effective armor Soak is Base Soak plus the signed Modifier, with a minimum of zero. Fire +2 strengthens protection; Piercing -2 weakens it. Use one row per type. Combined armor types and unsplit incoming types with different protection need a G.O.D. ruling. Source Text, Notes and Armor Rules are descriptive only.";
 
 /** Only the explicitly approved synonym is accepted; source qualifiers are never guessed. */
 export function parseDamageTypes(value: string): { types: DamageType[]; unrecognized: string[] } {

@@ -3,6 +3,9 @@ import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
+import { protectionPipelineFixture } from "./fixtures/protection-pipeline-fixture";
+import { readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
+import { storedIncomingResolution } from "@/features/incoming-effects/effect-proposal";
 import { skill } from "@/db/skill-schema";
 import { campaignCharacterAttribute, campaignCharacterProfile, campaignCharacterSkillAllocation, campaignCharacterSpellDocument } from "@/db/realm-schema";
 import { campaignSessionEncounterInitiativeParticipant as participant, campaignSessionEncounterActionDeclaration as declaration, campaignSessionRoll,
@@ -54,28 +57,34 @@ test("Pass 6 a locked Spell retains its definition and costs after a live edit; 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const rollback = new Error("ROLLBACK_SPELL_FIXTURE");
 
-async function fixture(tx: Tx, name: string, fixedArcBolt: boolean, mode: CombatSourceResolutionRuling["mode"] = "attribute-roll", multi = false) {
+async function fixture(tx: Tx, name: string, fixedArcBolt: boolean, mode: CombatSourceResolutionRuling["mode"] = "attribute-roll", multi = false, typedProtection = false) {
   const f = await completionServiceFixture(tx, name);
   await tx.insert(userRole).values([{ userId: f.godId, role: "god" }, { userId: f.godId, role: "player" }]);
   const [spellcraft, channeling] = await tx.insert(skill).values([
     { name: "Spellcraft", classification: "standard", tier: 1, primaryAttribute: "INT", createdByUserId: f.godId },
     { name: "Channeling", classification: "standard", tier: 1, primaryAttribute: "WIS", createdByUserId: f.godId },
   ]).returning();
-  const [castAllocation] = await tx.insert(campaignCharacterSkillAllocation).values([{ characterId: f.heroId, skillId: spellcraft.id, points: 1 }, { characterId: f.heroId, skillId: channeling.id, points: 20 }]).returning();
+  const [castAllocation] = await tx.insert(campaignCharacterSkillAllocation).values([{ characterId: f.heroId, skillId: spellcraft.id, points: 1 }, { characterId: f.heroId, skillId: channeling.id, points: typedProtection ? 200 : 20 }]).returning();
   await tx.update(campaignCharacterProfile).set({ baseMagicSteps: 4 }).where(eq(campaignCharacterProfile.characterId, f.heroId));
   await tx.insert(campaignCharacterAttribute).values([{ characterId: f.heroId, attributeKey: "INT", value: 60 }, { characterId: f.heroId, attributeKey: "CON", value: 40 }]);
   const spell = { ...createEmptySpell(), name: "Arc Bolt", castingSystem: "Spellcraft" as const, sphere: "Force", frameworkSkillId: spellcraft.id,
     containers: [{ ...createContainer("target"), id: "bolt-target", ...(multi ? { multiTarget: { ruleId: "multi-target", additionalTargets: 1 } } : {}),
-      effects: [{ id: "bolt-damage", ruleId: "damage", quantity: 2, description: "Explicit fixture bolt" }] }] };
+      effects: [{ id: "bolt-damage", ruleId: "damage", quantity: typedProtection ? 20 : 2, ...(typedProtection ? { damageType: "Fire" } : {}), description: "Explicit fixture bolt" }] }] };
   const [saved] = await tx.insert(campaignCharacterSpellDocument).values({ characterId: f.heroId, documentId: spell.id, name: spell.name, tradition: spell.tradition, inSpellbook: true, documentJson: JSON.stringify(spell) }).returning();
   const sourceRef = `personal:${saved.id}`;
   await recordCombatSourceResolutionInTransaction(tx, f.context, f.god, { participantId: f.heroId, sourceKind: "spell", sourceRef,
     mode, governing: mode === "skill-roll" ? { kind: "skill", allocationId: castAllocation.id } : mode === "automatic-no-roll" || mode === "manual-god-ruling" ? null : { kind: "attribute", attributeKey: "INT" },
     effectScaling: mode === "automatic-no-roll" || mode === "manual-god-ruling" ? {} : { "bolt-damage": "per-success" }, reason: "Explicit isolated casting mode and authored damage scaling." });
   await tx.update(participant).set({ participationStatus: "active" }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.heroId)));
-  const declarationId = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.occurrences[0]),
-    sourceKind: "spell", sourceRef: `spell:${sourceRef}`, label: "Arc Bolt", actionKind: "spell-cast", windowKind: "ordinary", targetCharacterIds: multi ? f.occurrences : [f.occurrences[0]],
-    sourcePayload: { selections: { targetGroups: { "bolt-target": multi ? f.occurrences : [f.occurrences[0]] }, applications: Object.fromEntries(f.occurrences.map((id) => [`bolt-damage:${id}`, { hitLocationNumber: 0 }])) } } });
+  const targets = typedProtection ? [f.defenderId] : multi ? f.occurrences : [f.occurrences[0]];
+  if (typedProtection) {
+    await protectionPipelineFixture(tx, f.godId, f.defenderId, true);
+    await tx.update(participant).set({ currentInitiative: 200, normalTotalInitiative: 200 }).where(and(eq(participant.encounterId, f.encounterId), eq(participant.characterId, f.heroId)));
+    await tx.update(runtime).set({ timelineInitiative: 200 }).where(eq(runtime.encounterId, f.encounterId));
+  }
+  const declarationId = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, targets[0]),
+    sourceKind: "spell", sourceRef: `spell:${sourceRef}`, label: "Arc Bolt", actionKind: "spell-cast", windowKind: "ordinary", targetCharacterIds: targets,
+    sourcePayload: { selections: { targetGroups: { "bolt-target": targets }, applications: Object.fromEntries(targets.map((id) => [`bolt-damage:${id}`, { hitLocationNumber: 0 }])) } } });
   await lockActionDeclarationInTransaction(tx, f.context, f.player, declarationId);
   let locked = parseLockedActionDeclarationSnapshot((await tx.select().from(declaration).where(eq(declaration.id, declarationId)))[0].lockedSnapshotJson);
   if (fixedArcBolt) {
@@ -87,9 +96,29 @@ async function fixture(tx: Tx, name: string, fixedArcBolt: boolean, mode: Combat
     await tx.update(declaration).set({ lockedSnapshotJson: locked }).where(eq(declaration.id, declarationId));
   }
   const mana = (await readActiveManaInTransaction(tx, f.heroId)).pools.find(({ system }) => system === "Spellcraft")!;
-  assert.equal(mana.currentMana, 20);
+  assert.equal(mana.currentMana, typedProtection ? 200 : 20);
   return { ...f, declarationId, locked, savedSpellId: saved.id, manaCost: locked.authoredSource!.resourceCosts[0].amount!, initiativeCost: locked.initiativeCost };
 }
+
+test("Protection Pass 1 Fire Spell: Magical Requirement, typed Armor, Resistance, Race Soak and exact Health with one Mana debit", async () => {
+  await assert.rejects(db.transaction(async tx => {
+    const f = await fixture(tx, "typed-protection", false, "automatic-no-roll", false, true);
+    const originalHealth = await readActiveHealthInTransaction(tx, f.defenderId, "race");
+    await commitActionDeclarationInTransaction(tx, f.context, f.player, f.declarationId);
+    const before = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, before, advanceInitiativeTimeline(before, 200 - f.initiativeCost));
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, f.declarationId)).status, "applied");
+    const [row] = await tx.select().from(effectTable).where(eq(effectTable.encounterId, f.encounterId));
+    const result = storedIncomingResolution(row.authoredValueJson)!;
+    assert.equal(result.input.source.magical, true); assert.equal(result.input.source.damageType, "Fire");
+    assert.equal(result.input.effect.amount, 20); assert.equal(result.finalEffect?.damage, 5);
+    const health = await readActiveHealthInTransaction(tx, f.defenderId, "race");
+    assert.equal(health.state.totalDamage - originalHealth.state.totalDamage, 5);
+    assert.equal((health.state.pools.find(pool => pool.poolKey === "head")?.damage ?? 0) - (originalHealth.state.pools.find(pool => pool.poolKey === "head")?.damage ?? 0), 5);
+    assert.equal((await readActiveManaInTransaction(tx, f.heroId)).pools.find(pool => pool.system === "Spellcraft")!.currentMana, 200 - f.manaCost);
+    throw rollback;
+  }), error => { if (error !== rollback) console.error(error); return error === rollback; });
+});
 
 test("an unaffordable locked spell spends no Mana and records no Roll or pending action", async () => {
   await assert.rejects(db.transaction(async (tx) => {

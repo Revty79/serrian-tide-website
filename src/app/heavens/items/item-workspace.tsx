@@ -3,6 +3,7 @@ import { DamageTypeSelect } from "@/components/damage-type-select";
 import { ArmorCoverageEditor } from "./armor-coverage-editor";
 import { armorCoverageEntries } from "@/features/items/armor-coverage";
 import { ARMOR_DAMAGE_TYPE_HELP } from "@/features/damage-types/damage-types";
+import { overlappingArmorDamageTypes, parseArmorSoakModifier } from "@/features/items/armor-damage-modifiers";
 import { CatalogBrowseControl } from "@/features/catalog-visibility/catalog-browse-control";
 import { CatalogSourceBadge } from "@/features/catalog-visibility/catalog-source-badge";
 import { CanonDesignationControl } from "@/features/catalog-visibility/canon-designation-control";
@@ -1355,7 +1356,17 @@ function Armor({ draft, references, onChange }: { draft: ItemDraft; references: 
     <ArmorCoverageEditor key={draft.id ?? "new"} value={profile.coveredBodyLocationKeys} references={references.armorBodyLocations} onChange={(coveredBodyLocationKeys) => patch({ coveredBodyLocationKeys })} />
     <SectionHeading eyebrow="DAMAGE INTERACTIONS" title="Damage Modifiers" action="Add Modifier" onAction={() => patch({ damageModifiers: [...profile.damageModifiers, { modifierText: "", damageType: "", modifier: "", notes: "", sortOrder: profile.damageModifiers.length }] })} />
     <p className="item-muted">{ARMOR_DAMAGE_TYPE_HELP}</p>
-    <div className="item-row-list">{profile.damageModifiers.map((row, index) => <div className="item-repeat-row item-modifier-row" key={index}><Field label="Damage Type"><DamageTypeSelect value={row.damageType} onChange={damageType => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, damageType } : entry) })} /></Field><input aria-label="Modifier" placeholder="Modifier" value={row.modifier} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, modifier: e.target.value } : entry) })} /><input aria-label="Source Text" placeholder="Source Text" value={row.modifierText} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, modifierText: e.target.value } : entry) })} /><input aria-label="Notes" placeholder="Notes" value={row.notes} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} /><button className="is-danger" type="button" onClick={() => void preserveScroll(() => patch({ damageModifiers: profile.damageModifiers.filter((_, i) => i !== index) }))}>Remove</button></div>)}</div>
+    {overlappingArmorDamageTypes(profile.damageModifiers).length > 0 && <p role="alert">More than one Modifier names {overlappingArmorDamageTypes(profile.damageModifiers).join(", ")}. New duplicates cannot be saved; unchanged historical duplicates require a G.O.D. ruling.</p>}
+    <div className="item-row-list">{profile.damageModifiers.map((row, index) => <div className="item-repeat-row item-modifier-row" key={index}>
+      <Field label="Damage Type"><DamageTypeSelect value={row.damageType} onChange={damageType => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, damageType } : entry) })} /></Field>
+      <GuidedField label="Modifier" help="Enter a signed numerical adjustment to Base Soak, such as +2 or -2. Effective armor Soak cannot fall below zero.">
+        <input className="st-control" aria-invalid={parseArmorSoakModifier(row.modifier) === null || undefined} placeholder="+2 or -2" value={row.modifier} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, modifier: e.target.value } : entry) })} />
+        {parseArmorSoakModifier(row.modifier) === null && <small role="alert">Enter a finite signed number. An unchanged historical value may be retained for a G.O.D. ruling.</small>}
+      </GuidedField>
+      <GuidedField label="Source Text" help="Original wording or provenance only. It does not supply the numerical Modifier."><input className="st-control" value={row.modifierText} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, modifierText: e.target.value } : entry) })} /></GuidedField>
+      <GuidedField label="Notes" help="Explanation or manual guidance only. Notes do not change automatic protection."><input className="st-control" value={row.notes} onChange={(e) => patch({ damageModifiers: profile.damageModifiers.map((entry, i) => i === index ? { ...entry, notes: e.target.value } : entry) })} /></GuidedField>
+      <button className="is-danger" type="button" onClick={() => void preserveScroll(() => patch({ damageModifiers: profile.damageModifiers.filter((_, i) => i !== index) }))}>Remove</button>
+    </div>)}</div>
     <div className="item-form-grid"><Field label="Damage Modifier Source" wide><textarea rows={4} value={profile.damageModifiersSourceText} onChange={(e) => patch({ damageModifiersSourceText: e.target.value })} /></Field><Field label="Armor Rules" wide><textarea rows={6} value={profile.rulesText} onChange={(e) => patch({ rulesText: e.target.value })} /></Field></div>
   </div>;
 }

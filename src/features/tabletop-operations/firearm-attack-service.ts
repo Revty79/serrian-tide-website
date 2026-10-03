@@ -1578,8 +1578,11 @@ async function createFirearmEffectPlan(
       const natural = layers.natural.filter(({ coverage }) => coverage.kind === "all" || coverage.locationKeys.includes(locationKey ?? ""));
       const worn = layers.worn.filter(({ coveredLocationKeys }) => armorCoversLocation(coveredLocationKeys, layers.locations.find(({ key }) => key === locationKey)));
       const temporary = layers.temporary.filter(({ coverage, modifier }) => !modifier.endedAt && !modifier.expiredAt && (coverage.kind === "all" || coverage.kind === "locations" && coverage.locationKeys.includes(locationKey ?? "")));
-      const armor = natural.length <= 1 && worn.length <= 1 && natural.every(({ armor }) => armor !== null) && worn.every(({ baseSoak }) => baseSoak !== null)
-        ? (natural[0]?.armor ?? 0) + (worn[0]?.baseSoak ?? 0) : null;
+      // Compatibility summary only: the frozen incoming trace owns the actual
+      // order and damage. Reuse its effective Worn Soak, including typed modifiers.
+      const wornSoak = worn.length === 0 ? 0 : resolution.stages.find(({ key }) => key === "worn")?.entries.find(({ operation }) => operation === "subtract-worn-soak")?.value ?? null;
+      const armor = natural.length <= 1 && worn.length <= 1 && natural.every(({ armor }) => armor !== null) && wornSoak !== null
+        ? (natural[0]?.armor ?? 0) + wornSoak : null;
       const soak = natural.length <= 1 && natural.every(({ soak }) => soak !== null) && temporary.every(({ amount }) => amount !== null)
         ? (natural[0]?.soak ?? 0) + temporary.reduce((sum, { amount }) => sum + amount!, 0) : null;
       // The bullet record describes its base shot; the Effect row includes any

@@ -30,7 +30,7 @@ async function fixture(run: (client: pg.Client,reviewed: Catalog,tx: Tx) => Prom
     assert.equal((await client.query("select count(*)::int n from items")).rows[0].n,0,"Use an empty disposable catalog.");
     await client.query('insert into "user"(id,name,email) values($1,$2,$3)',[actor,"Magazine Catalog Test","magazine-catalog@example.invalid"]);
     await client.query("insert into user_role(user_id,role) values($1,'admin')",[actor]);
-    await client.query("insert into items select * from jsonb_populate_recordset(null::items,$1::jsonb)",[JSON.stringify(source.items.map((i) => ({ ...i,created_by_user_id:actor,parent_item_id:null,archived_by_user_id:null })))]);
+    await client.query("insert into items select * from jsonb_populate_recordset(null::items,$1::jsonb)",[JSON.stringify(source.items.map((i) => ({ is_system_canon:false,...i,created_by_user_id:actor,parent_item_id:null,archived_by_user_id:null })))]);
     await client.query("insert into weapon_profiles select * from jsonb_populate_recordset(null::weapon_profiles,$1::jsonb)",[JSON.stringify(source.profiles)]);
     for (const [id,name] of [[1021,"Existing five-round rifle magazine"],[1022,"Existing revolver drum"]]) await client.query("insert into items(id,canonical_id,name,catalog_scope,record_type,family,category,price_basis,created_by_user_id) values($1,$2,$3,'inventory','Magazine','Test','Magazine','unit',$4)",[id,`TEST-MAG-${id}`,name,actor]);
     await client.query("insert into magazine_profiles(item_id,capacity_rounds,fill_initiative_cost_per_round) values(1021,5,null),(1022,6,0)");

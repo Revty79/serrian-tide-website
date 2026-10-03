@@ -1,5 +1,6 @@
 import { INTERACTION_EFFECT_LABELS, INTERACTION_SOURCE_KINDS, normalizeInteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 import { armorCoversLocation } from "@/features/items/armor-coverage";
+import { resolveWornArmorSoak } from "@/features/items/armor-damage-modifiers";
 import { interactionRuleInScope, matchInteractionRule } from "./interaction-matcher";
 import { ExactAmount } from "./exact-amount";
 import type { IncomingEffectInput, IncomingEffectResolution, ResolutionEntry, ResolutionStage, ResolutionStageKey } from "./models";
@@ -105,21 +106,26 @@ export function resolveIncomingEffect(supplied: IncomingEffectInput): IncomingEf
     const unknownCoverage = layers.worn.filter(({ coveredLocationKeys }) => !coveredLocationKeys.length);
     if (unknownCoverage.length) issue("worn", "worn-coverage", "Worn coverage cannot be determined.", unknownCoverage.map(({ ownershipKey }) => ownershipKey));
     if (worn.length > 1) issue("worn", "multiple-worn", "Multiple worn sources cover this location; no stacking or selection rule is approved.", worn.map(({ ownershipKey }) => ownershipKey));
-    for (const armor of worn) {
+    const effective = worn.map(armor => resolveWornArmorSoak(armor, source.damageType));
+    for (const [index, armor] of worn.entries()) {
       entry(current, `${armor.itemName}: authored Base Soak ${armor.baseSoak ?? "unknown"}.`, { operation: "worn-source", sourceId: armor.ownershipKey, value: armor.baseSoak });
-      if (!nonnegative(armor.baseSoak)) issue("worn", "worn-value", `${armor.itemName} lacks an executable non-negative Base Soak.`, [armor.ownershipKey]);
-      if (armor.damageModifiersSourceText.trim() || armor.damageModifiers.length) issue("worn", "armor-damage-metadata", `${armor.itemName} has damage-type metadata without approved executable semantics.`, [armor.ownershipKey]);
+      const calculation = effective[index];
+      for (const problem of calculation.issues) issue("worn", problem.code, `${armor.itemName}: ${problem.message}`, [armor.ownershipKey]);
+      for (const value of calculation.evaluations) entry(current, `${armor.itemName}, ${value.damageType}: Base Soak ${armor.baseSoak} + Modifier ${value.modifier} = effective Soak ${value.exactSoak} (minimum zero).`, { operation: "effective-worn-soak", sourceId: armor.ownershipKey, value: value.soak, exactAfter: value.exactSoak });
     }
     if (result.issues.length) return block(current);
     if (!worn.length) entry(current, "No applicable worn protection.");
     else {
       const before = damage!;
-      exactDamage = exactDamage!.subtract(ExactAmount.from(worn[0].baseSoak!)).floorZero(); damage = exactDamage.toNumber();
-      entry(current, `${worn[0].itemName}: ${before} - ${worn[0].baseSoak} = ${damage}.`, { operation: "subtract-base-soak", sourceId: worn[0].ownershipKey, before, after: damage, value: worn[0].baseSoak });
+      const soak = effective[0].soak!;
+      exactDamage = exactDamage!.subtract(effective[0].exactSoak!).floorZero(); damage = exactDamage.toNumber();
+      entry(current, `${worn[0].itemName}: ${before} - effective Soak ${soak} = ${damage}.`, { operation: "subtract-worn-soak", sourceId: worn[0].ownershipKey, before, after: damage, value: soak });
     }
   });
 
+  const stoppedByWorn = isDamage && !result.issues.length && exactDamage?.toString() === "0";
   stage("interaction", (current) => {
+    if (stoppedByWorn) return skip(current, "No damage survived Worn Armor; target Interaction defenses are not reached.");
     result.ruleMatches = [...(target.interactionRules?.rules ?? [])].sort((a, b) => a.sortOrder - b.sortOrder).map((rule) => ({ rule, inScope: interactionRuleInScope(rule, source), ...matchInteractionRule(rule, source) }));
     result.matchedRules = result.ruleMatches.filter(({ inScope, outcome }) => inScope && outcome === "match").map(({ rule }) => rule);
     for (const match of result.ruleMatches) {
@@ -206,6 +212,7 @@ export function resolveIncomingEffect(supplied: IncomingEffectInput): IncomingEf
     if (absorbed) { skip(current, "Skipped because Absorption converted damage to healing."); return true; }
     if (prevented) { skip(current, "Skipped because the harmful effect was prevented."); return true; }
     if (!isDamage) { skip(current, "Numerical protection does not reduce this non-damage effect."); return true; }
+    if (stoppedByWorn) { skip(current, "No damage survived Worn Armor for this protection layer."); return true; }
     return false;
   };
   stage("natural", (current) => {

@@ -1,6 +1,6 @@
 # Shared incoming-effect planning (Pass 4)
 
-**Current status:** the pure contract below is now integrated by [Pass 5](../reports/runtime-combat-integration-pass-5-2026-09-20.md). References to deferred runtime work describe the original Pass 4 boundary.
+**Current status:** the pure contract below was integrated by [Pass 5](../reports/runtime-combat-integration-pass-5-2026-09-20.md). [Combat protection completion Pass 1](../reports/combat-protection-pass-1-2026-10-03.md) now executes structured Armor Damage Modifiers, clarifies surviving Worn damage, and verifies the shared source paths. That report supersedes this historical Pass 4 document's blanket `armor-damage-metadata` blocker. References below to deferred runtime work describe the original Pass 4 boundary.
 
 `resolveIncomingEffect` is one pure planning function for every supported source kind. It accepts finished source facts, an exact target context, an incoming amount/harmfulness, and a hit location when protection requires one. It returns what would happen, or explicit reasons the G.O.D. must rule. It performs no reads or writes and is **not connected to any combat execution path**.
 

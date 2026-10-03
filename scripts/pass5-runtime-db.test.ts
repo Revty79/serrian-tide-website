@@ -5,7 +5,7 @@ import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
 import { race } from "@/db/race-schema";
 import { creature } from "@/db/creature-schema";
-import { item, itemProperty, itemPower, itemPowerEffect, itemPowerConstruction, itemPowerSource, armorProfile, armorLocation, armorLocationReference } from "@/db/item-schema";
+import { item, itemProperty, itemPower, itemPowerEffect, itemPowerConstruction, itemPowerSource, armorProfile, armorLocation, armorLocationReference, itemArmorDamageModifier, weaponProfile } from "@/db/item-schema";
 import { skillExtension } from "@/db/skill-schema";
 import { createContainer, createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
 import { validateItemPowers, type ItemPower } from "@/features/items/item-powers";
@@ -31,6 +31,10 @@ import { saveRaceNaturalProtectionInTransaction } from "@/features/races/race-na
 import { emptyCreatureAttackAuthoring, emptyCreatureAbilityAuthoring } from "@/features/creatures/creature-authoring";
 import type { InteractionRule, InteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
 import { completionServiceFixture, completionDraft } from "./fixtures/combat-completion-service-fixture";
+import { protectionPipelineFixture } from "./fixtures/protection-pipeline-fixture";
+import { readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
+import { campaignSessionPeriodicHealthEffect } from "@/db/tabletop-operations-schema";
+import { applyInitiativeDurationTransitionInTransaction } from "@/features/tabletop-operations/duration-lifecycle-service";
 
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the disposable combat completion harness.");
 after(() => pool.end());
@@ -119,7 +123,8 @@ isolated("worn, Race natural and temporary protection resolve once and plans sur
   assert.equal(storedIncomingResolution(before.authoredValueJson)?.finalEffect?.damage, 2, "(6 - 1 worn) * .8 - 1 natural - 1 temporary");
   await tx.update(race).set({ interactionRules: rules("immunity") }).where(eq(race.id, ancestry.id));
   await saveRaceNaturalProtectionInTransaction(tx, ancestry.id, [{ key: "hide", name: "Hide", coverage: { kind: "all" }, naturalSoak: 9, sortOrder: 0 }]);
-  await tx.update(armorProfile).set({ baseSoak: 9 }).where(eq(armorProfile.itemId, helmet.id));
+  // Leave surviving damage so this new action reaches the edited Immunity.
+  await tx.update(armorProfile).set({ baseSoak: 2 }).where(eq(armorProfile.itemId, helmet.id));
   await tx.update(campaignCharacterActiveModifier).set({ amount: 9 }).where(eq(campaignCharacterActiveModifier.id, modifier.id));
   await tx.update(itemProperty).set({ value: "Steel" }).where(eq(itemProperty.id, material.id));
   assert.equal(await generateActionEffectPlanInTransaction(tx, f.context, f.god, id), planId);
@@ -130,6 +135,38 @@ isolated("worn, Race natural and temporary protection resolve once and plans sur
   assert.equal(storedIncomingResolution(after.authoredValueJson)?.status, "prevented");
   assert.equal(storedIncomingResolution(after.authoredValueJson)?.input.source.itemProperties?.[0].value, "Steel");
 });
+for (const source of ["weapon", "direct-creature", "persistent-creature"] as const) isolated(`Protection Pass 1 ${source}: 20 Fire becomes 5 Health with frozen armor evidence`, async (tx, f) => {
+  const targetId = source === "weapon" ? f.defenderId : f.heroId;
+  const actorId = source === "weapon" ? f.heroId : source === "direct-creature" ? f.occurrences[0] : f.defenderId;
+  const protection = await protectionPipelineFixture(tx, f.godId, targetId);
+  if (source === "weapon") await tx.update(weaponProfile).set({ damage: "18", damageType: "Fire" }).where(eq(weaponProfile.itemId, f.weaponId));
+  else {
+    const snapshot = { ...f.snapshot, attacks: f.snapshot.attacks.map(attack => ({ ...attack, damage: "18", damageType: "Fire" })) };
+    if (source === "direct-creature") await tx.update(member).set({ creatureSnapshotJson: snapshot }).where(eq(member.characterId, actorId));
+    else {
+      const [occurrence] = await tx.select().from(member).where(eq(member.characterId, f.occurrences[0]));
+      await tx.update(campaignCharacter).set({ npcKind: "creature" }).where(eq(campaignCharacter.id, actorId));
+      await tx.insert(campaignCreatureNpcProfile).values({ characterId: actorId, creatureId: occurrence.creatureId!, baselineSnapshotJson: JSON.stringify(snapshot), currentSnapshotJson: JSON.stringify(snapshot) });
+    }
+  }
+  const healthBefore = await readActiveHealthInTransaction(tx, targetId, "race");
+  const id = await startAttack(tx, f, actorId, targetId, source !== "weapon");
+  const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, id);
+  const [row] = await tx.select().from(effect).where(eq(effect.planId, planId));
+  const result = storedIncomingResolution(row.authoredValueJson)!;
+  assert.equal(result.status, "resolved"); assert.equal(result.input.effect.amount, 20);
+  assert.equal(result.input.source.damageType, "Fire"); assert.equal(result.finalEffect?.damage, 5);
+  assert.equal(result.input.target.protection.worn[0].damageModifiers[0].modifier, "+2");
+  await tx.update(itemArmorDamageModifier).set({ modifier: "+12" }).where(eq(itemArmorDamageModifier.id, protection.modifier.id));
+  for (let retry = 0; retry < 2; retry++) {
+    assert.equal(await generateActionEffectPlanInTransaction(tx, f.context, f.god, id), planId);
+    assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, id, planId)).status, "applied");
+  }
+  assert.deepEqual((await tx.select().from(effect).where(eq(effect.id, row.id)))[0].authoredValueJson, row.authoredValueJson);
+  const healthAfter = await readActiveHealthInTransaction(tx, targetId, "race");
+  assert.equal(healthAfter.state.totalDamage - healthBefore.state.totalDamage, 5);
+});
+
 for (const direction of ["direct-character", "character-direct", "npc-character", "character-npc"] as const) isolated(`exact Creature source/target integration ${direction}`, async (tx, f) => {
   const [occurrence] = await tx.select().from(member).where(eq(member.characterId, f.occurrences[0]));
   await tx.update(campaignCharacter).set({ npcKind: "creature" }).where(eq(campaignCharacter.id, f.defenderId));
@@ -283,6 +320,42 @@ for (const incoming of ["resistance", "requirement", "immunity"] as const) for (
   for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, id, planId)).status, "applied");
   if (kind === "derived-ability") assert.equal((await tx.select().from(characterDerivedAbilityUse).where(eq(characterDerivedAbilityUse.characterId, f.heroId))).length, 1);
 });
+for (const typedArmor of [false, true]) isolated(`Protection Pass 1 direct Item periodic damage, typed armor ${typedArmor}: exact available facts and frozen ticks`, async (tx, f) => {
+  const protection = await protectionPipelineFixture(tx, f.godId, f.defenderId);
+  if (!typedArmor) await tx.delete(itemArmorDamageModifier).where(eq(itemArmorDamageModifier.id, protection.modifier.id));
+  await tx.update(race).set({ interactionRules: rules("resistance", 50, { key: "damage", kind: "mechanical-effect-kind", effectKind: "health.damage" }) }).where(eq(race.id, protection.ancestry.id));
+  const [power] = await tx.insert(itemPower).values({ itemId: f.weaponId, name: "Periodic damage", trigger: "activated", initiativeCost: 4, resolutionMode: "automatic", resourceCostKind: "none", sortOrder: 0 }).returning();
+  const [authored] = await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2,
+    effectJson: { kind: "health.damage", amount: 20, application: "localized", timing: { mode: "over-time", frequency: "combat-steps", applications: 2, firstApplication: "immediate" } } }).returning();
+  const sourceRef = `item-power:${power.id}`, selection = `${sourceRef}:effect:${authored.id}:target:${f.defenderId}`;
+  await tx.update(initiative).set({ participationStatus: "active" }).where(eq(initiative.characterId, f.heroId));
+  const id = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, f.defenderId), sourceKind: "item", sourceRef, actionKind: "ability-use", windowKind: "ordinary",
+    sourcePayload: { effectSelections: { [selection]: { hitLocationNumber: 0, poolKey: "head" } } } });
+  await lockActionDeclarationInTransaction(tx, f.context, f.player, id); await commitActionDeclarationInTransaction(tx, f.context, f.player, id);
+  const engine = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+  await persistInitiativeEngineInTransaction(tx, f.context, engine, advanceInitiativeTimeline(engine, 18));
+  const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, id);
+  const [row] = await tx.select().from(effect).where(eq(effect.planId, planId));
+  const result = storedIncomingResolution(row.authoredValueJson)!;
+  assert.equal(result.input.source.damageType, null, "Direct Mechanical Effects do not author a Damage Type; do not borrow the Item weapon's type");
+  if (typedArmor) {
+    assert.equal(result.status, "requires-god-ruling");
+    assert.ok(result.issues.some(issue => issue.code === "armor-damage-type-required"));
+    return;
+  }
+  assert.equal(result.finalEffect?.damage, 6, "(20 - Base Soak 4) x 50% - Natural Soak 2");
+  const originalHealth = await readActiveHealthInTransaction(tx, f.defenderId, "race");
+  for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, id, planId)).status, "applied");
+  const [periodic] = await tx.select().from(campaignSessionPeriodicHealthEffect).where(eq(campaignSessionPeriodicHealthEffect.encounterId, f.encounterId));
+  assert.equal(periodic.amount, 6); assert.equal(periodic.remainingApplications, 1);
+  await tx.update(armorProfile).set({ baseSoak: 100 }).where(eq(armorProfile.itemId, protection.helmet.id));
+  const before = { status: "active" as const, roundNumber: periodic.nextRound, stepNumber: periodic.nextStep - 1 };
+  const after = { ...before, stepNumber: periodic.nextStep };
+  for (let retry = 0; retry < 2; retry++) await applyInitiativeDurationTransitionInTransaction(tx, f.context, before, after);
+  assert.equal((await readActiveHealthInTransaction(tx, f.defenderId, "race")).state.totalDamage - originalHealth.state.totalDamage, 12, "Each of two frozen ticks applies 6 once, with no live armor reread");
+  assert.equal((await tx.select().from(campaignSessionPeriodicHealthEffect).where(eq(campaignSessionPeriodicHealthEffect.id, periodic.id)))[0].status, "completed");
+});
+
 isolated("a Player cannot fabricate an Event; the explicit G.O.D. manual event remains usable", async (tx, f) => {
   const { sourceRef } = await derivedSource(tx, f, true);
   await tx.update(initiative).set({ participationStatus: "active" }).where(eq(initiative.characterId, f.heroId));
@@ -374,7 +447,7 @@ for (const activationType of ["reaction", "triggered"] as const) isolated(`Playe
 
 for (const kind of ["custom", "canonical"] as const) for (const damageType of [undefined, "Fire"]) isolated(`${kind} construction-backed Item Ability (${damageType ?? "unspecified"}) rejects a mundane Item and freezes Magical true`, async (tx, f) => {
   const document = { ...createEmptySpell(), name: "No name-based magic inference", castingSystem: "Spellcraft" as const, sphere: "Force", frameworkSkillId: f.skillId,
-    containers: [{ ...createContainer("target"), id: "magic-target", effects: [{ id: "magic-damage", ruleId: "damage", quantity: 2, description: "", damageType }] }] };
+    containers: [{ ...createContainer("target"), id: "magic-target", effects: [{ id: "magic-damage", ruleId: "damage", quantity: damageType ? 20 : 2, description: "", damageType }] }] };
   const authored: ItemPower = { id: null, name: "Construction", description: "", trigger: "activated", activationLabel: "", initiativeCost: 4,
     resourceCostKind: "none", resourceCostAmount: null, requiredEquipmentState: null, resolutionMode: "automatic", fixedRollTarget: null,
     fixedPowerLevel: null, effects: [], sortOrder: 0,
@@ -388,13 +461,14 @@ for (const kind of ["custom", "canonical"] as const) for (const damageType of [u
     await tx.insert(skillExtension).values({ skillId: f.skillId, extensionType: "spell-construction", schemaVersion: 1, dataJson: JSON.stringify(document) });
     await tx.insert(itemPowerSource).values({ itemPowerId: power.id, sourceKind: "spell-construction", sourceSkillId: f.skillId, sourceExtensionType: "spell-construction", sourceSchemaVersion: 1 });
   }
-  const target = f.occurrences[0], sourceRef = `item-power:${power.id}`;
+  const target = damageType ? f.defenderId : f.occurrences[0], sourceRef = `item-power:${power.id}`;
+  if (damageType) await protectionPipelineFixture(tx, f.godId, target, true);
   const required = rules("requirement", null, { key: "magic", kind: "magical", magical: true });
-  await tx.update(member).set({ creatureSnapshotJson: { ...f.snapshot, core: { ...f.snapshot.core, interactionRules: { ...required, rules: required.rules.map((rule) => ({ ...rule, crImpact: "None" })) } } } }).where(eq(member.characterId, target));
+  if (!damageType) await tx.update(member).set({ creatureSnapshotJson: { ...f.snapshot, core: { ...f.snapshot.core, interactionRules: { ...required, rules: required.rules.map((rule) => ({ ...rule, crImpact: "None" })) } } } }).where(eq(member.characterId, target));
   await tx.update(initiative).set({ participationStatus: "active" }).where(eq(initiative.characterId, f.heroId));
   const id = await createActionDeclarationDraftInTransaction(tx, f.context, f.player, { ...completionDraft(f.heroId, target), sourceKind: "item", sourceRef,
     actionKind: "ability-use", windowKind: "ordinary", sourcePayload: { selections: { targetGroups: { "magic-target": [target] } },
-      effectSelections: { [`${sourceRef}:magic:magic-damage:target:${target}`]: { hitLocationNumber: 0, poolKey: "body" } } } });
+      effectSelections: { [`${sourceRef}:magic:magic-damage:target:${target}`]: { hitLocationNumber: 0, poolKey: damageType ? "head" : "body" } } } });
   await assert.rejects(lockActionDeclarationInTransaction(tx, f.context, f.player, id), /Magical Item/);
   await tx.update(item).set({ isMagical: true }).where(eq(item.id, f.weaponId));
   await lockActionDeclarationInTransaction(tx, f.context, f.player, id);
@@ -409,4 +483,10 @@ for (const kind of ["custom", "canonical"] as const) for (const damageType of [u
   const result = storedIncomingResolution(row.authoredValueJson)!;
   assert.equal(result.input.source.magical, true); assert.equal(result.status, "resolved"); assert.ok(result.finalEffect!.damage > 0);
   assert.equal(result.input.source.damageType, damageType ?? null, "Item Magic uses the exact Spell effect's type, including an unspecified legacy effect");
+  if (damageType) {
+    assert.equal(result.input.effect.amount, 20); assert.equal(result.finalEffect?.damage, 5);
+    const originalHealth = await readActiveHealthInTransaction(tx, target, "race");
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, id, planId)).status, "applied");
+    assert.equal((await readActiveHealthInTransaction(tx, target, "race")).state.totalDamage - originalHealth.state.totalDamage, 5);
+  }
 });
