@@ -69,8 +69,62 @@ export async function evolutionRuntimeBrowser({page,context,pool,base,password,a
       await panel.getByText('Clean participant boundary recorded at Evolution.',{exact:true}).waitFor();
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
       await combat.screenshot({path:path.join(artifacts,`runtime-${subject.id}-combat-refreshed.png`)});
+      if(!subject.is_npc) {
+        await pool.query('update campaign_session_encounter set frozen_at=now() where id=$1',[subject.encounter_id]);
+        await panel.getByRole('button',{name:/^Review Return to/}).click();
+        await dialog.getByText(/frozen for inspection/).waitFor();
+        assert.equal(await dialog.getByRole('button',{name:/^Return Evolution/}).isDisabled(),true);
+        await page.keyboard.press('Escape'); await dialog.waitFor({state:'hidden'});
+        await pool.query('update campaign_session_encounter set frozen_at=null where id=$1',[subject.encounter_id]);
+      }
+      if(creature) {
+        const profile=(await query('select current_snapshot_json from campaign_creature_npc_profile where character_id=$1',[subject.id]))[0];
+        const snapshot=JSON.parse(profile.current_snapshot_json); snapshot.attributes[0].value+=3;
+        await pool.query('update campaign_creature_npc_profile set current_snapshot_json=$2 where character_id=$1',[subject.id,JSON.stringify(snapshot)]);
+      }
+      await panel.getByRole('button',{name:/^Review Return to/}).click();
+      await dialog.getByRole('heading',{name:'After Return',exact:true}).waitFor();
+      await dialog.getByText('Available now at this Encounter boundary.',{exact:true}).waitFor();
+      assert.match(await dialog.innerText(),/Current Initiative:/);
+      await dialog.getByLabel(/I have reviewed the permanent mechanical/).check();
+      const submit=dialog.getByRole('button',{name:/^Return Evolution/});
+      if(creature) {
+        assert.equal(await submit.isDisabled(),true,'Creature edits require explicit consent');
+        await dialog.getByLabel(/I confirm replacing/).check();
+      }
+      await page.screenshot({path:path.join(artifacts,`runtime-return-${subject.id}-preview.png`)});
+      if(!subject.is_npc) {
+        const route=`${base}/heavens/characters/${subject.id}`;
+        let dropped=false;
+        await page.route(route,async intercepted=>{
+          if(!dropped&&intercepted.request().method()==='POST'&&intercepted.request().postData()?.includes('"expectedEventId"')) {
+            dropped=true; await intercepted.fetch(); await intercepted.abort('connectionfailed');
+          } else await intercepted.continue();
+        });
+        await submit.click(); await dialog.getByRole('alert').waitFor();
+        await dialog.getByRole('button',{name:'Retry confirmed transition',exact:true}).waitFor();
+        await page.unroute(route); assert.equal(dropped,true);
+        await page.reload(); await page.locator('#character-tab-god').click();
+        await panel.getByRole('button',{name:'Resume pending transition',exact:true}).click();
+        await dialog.getByRole('button',{name:'Retry confirmed transition',exact:true}).click();
+      } else await submit.click();
+      await dialog.waitFor({state:'hidden'});
+      await panel.getByText(new RegExp(`Current ${creature?'Creature':'Race'}: Runtime young`)).waitFor();
+      await picker.locator('option').filter({hasText:creature?'Young bite':'Young claw'}).waitFor({state:'attached'});
+      assert.equal(await picker.locator('option').filter({hasText:creature?'Evolved bite':'Evolved claw'}).count(),0);
+      assert.equal(await combat.evaluate(()=>document.documentElement.dataset.evolutionTestMarker),marker,'Return refreshes the open combat screen through live events');
+      assert.deepEqual(await query('select * from campaign_session_encounter_participant where encounter_id=$1 order by character_id',[subject.encounter_id]),participants);
+      assert.deepEqual(await query('select * from campaign_session_encounter_initiative_participant where encounter_id=$1 order by character_id',[subject.encounter_id]),initiative);
+      assert.equal((await query(`select count(*)::int n from ${creature?'creature':'race'}_evolution_events where character_id=$1`,[subject.id]))[0].n,2);
+      const history=panel.locator('details').filter({has:page.locator('summary').filter({hasText:'Evolution history ('})}).first();
+      if(await history.getAttribute('open')===null) await history.locator('summary').first().click();
+      await panel.locator('summary').filter({hasText:'RETURNED:'}).click();
+      await panel.getByText('Clean participant boundary recorded at Return.',{exact:true}).waitFor();
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+      await page.screenshot({path:path.join(artifacts,`runtime-return-${subject.id}-history.png`)});
+      await combat.screenshot({path:path.join(artifacts,`runtime-return-${subject.id}-combat-refreshed.png`)});
     }
     assert.deepEqual(errors,[]);
-    console.log('PASS: live Evolution from PC, Race NPC and Creature NPC sheets; frozen blocker; destination names and history; desktop/390px; existing combat attack choices refresh through SSE without reload; exact participant and Initiative rows preserved.');
+    console.log('PASS: live Evolution and Return from PC, Race NPC and Creature NPC sheets; frozen blockers; Creature override consent; interrupted live Return replay across sheet reload; destination names and runtime history; desktop/390px; combat attack choices refresh in both directions through SSE without reload; exact participant and Initiative rows preserved.');
   } finally { await combat.close(); }
 }

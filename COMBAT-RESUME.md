@@ -1,5 +1,14 @@
 # Combat resumption handoff
 
+## Evolution Runtime Pass 2: permanent live historical Return (3 October 2026)
+
+- Continued from `13c68529795a0079739658421026906838a2644c` under explicit Pass 2 authorization. This supersedes Pass 1's live-Return prohibition and wait-for-Pass-2 instruction below.
+- The existing historical Return now uses the same `readEvolutionEncounterBoundary` as forward Evolution. Clean unfrozen active participants may Return; frozen/prepared planned Encounters and unfinished mechanical involvement block. Exact historical candidate selection, Race delta reversal, Creature snapshots/current HP Adjustment, override consent and Campaign-owning G.O.D. authority remain unchanged.
+- Return preserves the same Character/participant, Initiative/round/step/status, damage/injuries, active effects/durations, inventory/equipment and ownership. Later Race advancement/Skills/XP/Quintessence survive. Exact historical pool identities become valid again; evolved-only pools remain orphaned without redistribution.
+- Transactional Character/all-participant Encounter events refresh existing combat choices in both directions. Return history copies runtime context. Completed pre-Evolution and evolved attached-Magic sources/results remain frozen; new actions use restored mechanics. Concurrent retry, rollback, waiting old-source writer, cycles/chains, Freeze/Resume and normal/forced closeout regressions pass.
+- Validation: **1,883 unit tests; 522 cases across 30 combat suites; 173 Evolution/authoring/ownership/lifecycle database cases**, followed by the final expanded **18-case live Return** suite. Existing browsers and all three live forward/Return/SSE flows pass, including lost-response Return replay and Creature override consent. Typegen, typecheck, lint, Drizzle metadata and whitespace pass. [Full 20-part report, boundary table, matrix and limits](docs/reports/evolution-runtime-pass-2-2026-10-03.md).
+- No new schema/migration, shared DEV/Production mutation, deployment or push. Shared rollout of existing 0087/0092 remains separately authorized; hands-on Brannan/Ember acceptance remains outstanding. **Stop after this local pass. Do not push or begin Forms, Evolution/Form coordination, new Magic, Special Ability or companion runtime automatically.**
+
 ## Evolution Runtime Pass 1: permanent live Evolution (3 October 2026)
 
 - Continued from the explicitly supplied `f22b96891f67df814ca69dd85865157639f6e7cc`. The user's current direction supersedes the older automatic Magic/acceptance priorities below. Magic Combat work was not resumed.

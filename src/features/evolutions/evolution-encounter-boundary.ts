@@ -117,7 +117,7 @@ async function unfinishedOperations(tx: Tx, current: typeof encounter.$inferSele
     if (!finished) add('firearm-attack', row.id, row.status, 'Finish the firearm attack and every firing portion involving this individual.');
   }
   for (const row of preparations) if (row.characterId === characterId && ['pending', 'interrupted', 'requires-god-ruling'].includes(row.status)) {
-    add('firearm-preparation', row.id, row.status, 'Finish or cancel the prepared firearm operation before Evolution.');
+    add('firearm-preparation', row.id, row.status, 'Finish or cancel the prepared firearm operation before Evolution or Return.');
   }
   for (const row of rulings) if (['pending', 'clarification-requested'].includes(row.status)
     && (row.characterId === characterId || row.targetParticipantId === characterId || refersTo(row.frozenRequestJson, characterId))
@@ -149,8 +149,8 @@ export async function readEvolutionEncounterBoundary(tx: Tx, characterId: number
     const prepared = row.participant.creatureSnapshotJson !== null || row.participant.localStateJson !== null || row.initiative !== null
       || row.enrollment !== null || row.encounter.frozenAt !== null || operations.length > 0;
     const reasons = row.encounter.status === 'planned'
-      ? prepared ? ['This planned Encounter already has prepared runtime state. Resolve its preparation before Evolution.'] : []
-      : row.encounter.frozenAt ? ['This active Encounter is frozen for inspection. Resume it before Evolution.'] : [];
+      ? prepared ? ['This planned Encounter already has prepared runtime state. Resolve its preparation before Evolution or Return.'] : []
+      : row.encounter.frozenAt ? ['This active Encounter is frozen for inspection. Resume it before Evolution or Return.'] : [];
     reasons.push(...operations.map(entry => `${entry.explanation} (${entry.kind} #${entry.id}: ${entry.status})`));
     contexts.push({ encounterId: row.encounter.id, encounterName: row.encounter.title, encounterType: row.encounter.encounterType,
       encounterStatus: row.encounter.status, sessionId: row.encounter.sessionId, sessionName: row.sessionName,

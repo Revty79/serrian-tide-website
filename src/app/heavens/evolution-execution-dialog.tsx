@@ -87,7 +87,7 @@ export function EvolutionExecutionDialog({ kind, sourceId, pathId, pathName, onC
   const eligible = preview ? confirmEvolutionEvaluation(preview.evaluation, confirmed).status === "eligible" : false;
   return <dialog ref={dialog} className={styles.dialog} aria-labelledby="evolution-preview-title" onCancel={event => { if (busy) event.preventDefault(); else onClose(); }}>
     <h3 id="evolution-preview-title">{individualId ? returning ? "Review Return" : "Review Evolution" : "Eligibility preview"} — {pathName}</h3>
-    <p>The Campaign-owning G.O.D. can authorize permanent Evolution at a clean participant boundary, including during an active Encounter. It spends no Initiative and grants no new turn. Return remains unavailable during an active Encounter. Reviewing does not change the individual.</p>
+    <p>The Campaign-owning G.O.D. can authorize permanent Evolution or historical Return at a clean participant boundary, including during an active Encounter. It spends no Initiative and grants no new turn. Reviewing does not change the individual.</p>
     {individualId ? <p>Persistent individual #{individualId}. {busy && !preview ? "Loading saved state..." : ""}</p> : null}
     {pending ? <p role="status">A request is awaiting confirmation. Retry resumes that exact transition.</p> : null}
     {!individualId ? <fieldset className={styles.fields} disabled={busy}>
@@ -144,8 +144,8 @@ export function EvolutionExecutionDialog({ kind, sourceId, pathId, pathName, onC
   </dialog>;
 }
 
-export function EvolutionEncounterSummary({ contexts, historical = false }: {
-  contexts: NonNullable<EvolutionExecutionPreview['encounterContexts']>; historical?: boolean;
+export function EvolutionEncounterSummary({ contexts, historical = false, operation = "evolution" }: {
+  contexts: NonNullable<EvolutionExecutionPreview['encounterContexts']>; historical?: boolean; operation?: "evolution" | "return";
 }) {
   if (!contexts.length) return null;
   return <section aria-label={historical ? 'Recorded Encounter boundary' : 'Encounter Evolution boundary'}>
@@ -155,8 +155,8 @@ export function EvolutionEncounterSummary({ contexts, historical = false }: {
       <p>Session: {context.sessionName}. Scene: {context.sceneName}.</p>
       <p>Participant status: {context.participantStatus === 'not-enrolled' ? 'Not enrolled in Initiative' : context.participantStatus}.
         {' '}Current Initiative: {context.currentInitiative ?? 'Not established'}. Round: {context.round ?? 'Not established'}; step: {context.step ?? 'Not established'}; timeline: {context.timelineInitiative ?? 'Not established'}.</p>
-      <p><strong>{historical ? 'Clean participant boundary recorded at Evolution.' : context.cleanBoundary ? 'Available now at this Encounter boundary.' : 'Blocked at this Encounter boundary.'}</strong></p>
-      {!historical && context.cleanBoundary ? <p>Path requirements and the boundary are checked again when the G.O.D. confirms. Initiative and participant identity remain unchanged.</p> : null}
+      <p><strong>{historical ? `Clean participant boundary recorded at ${operation === 'return' ? 'Return' : 'Evolution'}.` : context.cleanBoundary ? 'Available now at this Encounter boundary.' : 'Blocked at this Encounter boundary.'}</strong></p>
+      {!historical && context.cleanBoundary ? <p>The transition and boundary are checked again when the G.O.D. confirms. Initiative and participant identity remain unchanged.</p> : null}
     </div>)}
   </section>;
 }
@@ -172,7 +172,7 @@ export function EvolutionHistory({ entries }: { entries: EvolutionHistoryEntry[]
     <summary>{event.operation === "return" ? "RETURNED" : "EVOLVED"}: {event.evidence.sourceName} → {event.evidence.destinationName} — {event.kind} event #{event.id}</summary>
     <p>{new Date(event.executedAt).toLocaleString()} · {event.evidence.actorName} ({event.executedByUserId})</p>
     <p>{event.evidence.pathName}, path #{event.evidence.pathId}, revision {event.evidence.pathVersion}. Individual #{event.characterId}.</p>
-    <EvolutionEncounterSummary contexts={event.evidence.encounterContexts ?? []} historical />
+    <EvolutionEncounterSummary contexts={event.evidence.encounterContexts ?? []} historical operation={event.operation} />
     {event.operation === "return" ? <p>Returned from Evolution Event #{event.reversesEventId}.</p> : null}
     {event.evidence.returning?.raceAdjustments ? <RaceReturnAdjustments values={event.evidence.returning.raceAdjustments} /> : null}
     <p>Confirmed requirement keys: {event.evidence.confirmedRequirementKeys.join(", ") || "None required"}.</p>

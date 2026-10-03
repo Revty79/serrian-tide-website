@@ -211,13 +211,14 @@ async function encounterFor(id, status = "planned", type = "social") {
   return encounter;
 }
 
-test("Return blocks every active/frozen Encounter and prepared state; planned and completed records remain unchanged",async()=>{
+test("Return allows clean active Encounters, blocks frozen/prepared state; planned and completed records remain unchanged",async()=>{
   for(const kind of ['race','creature']) for(const type of ['combat','social','chase','exploration','other']) {
     const id=await character(kind); await evolve(kind,id); const encounter=await encounterFor(id,'active',type);
-    const p=await back(kind,id); assert.ok(p.blockers.length); const before=await allRows();
-    await assert.rejects(api.executePersistentEvolutionReturn(backCommand(p),actor),/active Encounter/); assert.deepEqual(await allRows(),before);
+    const p=await back(kind,id); assert.deepEqual(p.blockers,[]);
     await pool.query('update campaign_session_encounter set frozen_at=now() where id=$1',[encounter]);
-    await assert.rejects(returnNow(kind,id),/active Encounter/);
+    const before=await allRows(); await assert.rejects(returnNow(kind,id),/frozen for inspection/); assert.deepEqual(await allRows(),before);
+    await pool.query('update campaign_session_encounter set frozen_at=null where id=$1',[encounter]);
+    const result=await returnNow(kind,id); assert.equal(result.event.evidence.encounterContexts[0].cleanBoundary,true);
   }
   const id=await character(); await evolve('race',id); const encounter=await encounterFor(id); await encounterFor(id,'completed');
   const before=await allRows(); await returnNow('race',id); const after=await allRows();
