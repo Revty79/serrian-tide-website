@@ -99,6 +99,7 @@ export type CharacterAttributeReference = {
 };
 
 export type CharacterSkillAllocation = {
+  specialAbilityGranted?: boolean;
   id: number;
   characterId: number;
   skillId: number;
@@ -313,6 +314,7 @@ export type CharacterAggregate = {
 };
 
 export type CharacterSkillAllocationDraft = {
+  specialAbilityGranted?: boolean;
   draftId: number;
   skillId: number;
   parentDraftId: number | null;

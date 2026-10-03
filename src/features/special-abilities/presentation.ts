@@ -5,8 +5,7 @@ import type { SpecialAbilityMechanicsProjection } from "./resolution";
 
 export const MECHANICS_READ_ONLY_NOTICE = "Definitions and qualification only. A matched rule means the known saved Character facts satisfy its authored qualification. Nothing is activated, paid, applied or executed.";
 export const NORMAL_MECHANICS_CONTEXT = "Based on saved Normal Character facts. Unsaved edits and temporary active Form-granted abilities are not evaluated here.";
-export const CREATURE_MECHANICS_CONTEXT = "Native Creature owner evaluation is unavailable. Fixed Creature Skill Rank is not Character purchased progression; no owner-specific Special Ability facts are inferred.";
-export const PROVISIONAL_MECHANICS_WARNING = "Provisional — purchased-point interpretation not yet finalized.";
+export const CREATURE_MECHANICS_CONTEXT = "Native Creature owner evaluation is unavailable. Fixed Creature Skill Rank is not a Character Special Ability score; no owner-specific Special Ability facts are inferred.";
 export const MECHANICS_STATUS_LABELS = { matched: "Matched qualification", "not-matched": "Qualification not matched", manual: "Manual / G.O.D.", unavailable: "Owner evaluation unavailable" } as const;
 
 export function mechanicsDocumentState(view: SpecialAbilityMechanicsProjection): string {
@@ -17,8 +16,8 @@ export function mechanicsDocumentState(view: SpecialAbilityMechanicsProjection):
   return `Structured mechanics version ${view.schemaVersion}.`;
 }
 export function mechanicsPossessionSummary(ability: CharacterSpecialAbility): string {
-  const source = [ability.possession.purchased && "saved purchase", ability.possession.racial && "current Race grant"].filter(Boolean).join(" and ");
-  return `Possessed${source ? ` through ${source}` : ""}. Saved purchased progression: ${ability.mechanics.progression.value ?? "unavailable"} (provisional; maximum saved allocation across paths).`;
+  const source = [ability.possession.purchased && "saved investment", ability.possession.assigned && "G.O.D. assignment", ability.possession.racial && "current Race grant"].filter(Boolean).join(" and ");
+  return `Possessed${source ? ` through ${source}` : ""}. Current Special Ability Score: ${ability.mechanics.progression.value ?? "unavailable"} (0–100).`;
 }
 export function presentationReferences(view: SpecialAbilityMechanicsProjection): MechanicsEditorReferences {
   return { options: view.references.flatMap(ref => ref.name && (ref.status === "available" || ref.status === "archived") ? [{ ...ref, name: ref.name, archived: ref.status === "archived" }] : []) };

@@ -638,6 +638,13 @@
       "when": 1790956268666,
       "tag": "0090_campaign_skill_exclusions",
       "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1790988135513,
+      "tag": "0091_special_ability_zero_point_assignment",
+      "breakpoints": true
     }
   ]
 }

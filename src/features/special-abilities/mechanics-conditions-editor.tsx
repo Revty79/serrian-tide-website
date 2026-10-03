@@ -6,13 +6,13 @@ import { moveMechanicsChild, moveMechanicsCondition, newMechanicsCondition, newM
 import type { MechanicsCondition, MechanicsConditions } from "./models";
 import { MechanicsReferencePicker } from "./mechanics-reference-picker";
 
-type AddableCondition = Exclude<MechanicsCondition["kind"], "self-progression">;
+type AddableCondition = MechanicsCondition["kind"];
 function AddCondition({ onAdd, disabled }: { onAdd: (kind: AddableCondition) => void; disabled: boolean }) {
   const [kind, setKind] = useState<AddableCondition>("manual");
   return <div className="mechanics-actions">
-    <GuidedField label="New condition type" help="Choose possession of an exact definition or a condition the G.O.D. determines. Numerical progression authoring is not yet available.">
+    <GuidedField label="New condition type" help="Choose this Special Ability's current score, possession of an exact definition, or a condition the G.O.D. determines.">
       <select className="st-control" value={kind} onChange={event => setKind(event.target.value as AddableCondition)}>
-        <option value="manual">Manual / G.O.D.</option><option value="skill-possession">Skill possession</option><option value="derived-ability-possession">Derived Ability possession</option>
+        <option value="manual">Manual / G.O.D.</option><option value="self-progression">Current Special Ability Score</option><option value="skill-possession">Skill possession</option><option value="derived-ability-possession">Derived Ability possession</option>
       </select>
     </GuidedField>
     <button className="st-button" type="button" disabled={disabled} onClick={() => onAdd(kind)}>Add Condition</button>
@@ -54,10 +54,17 @@ export function MechanicsConditionsEditor({ when, onChange, references }: {
           {group.conditions.map((condition, index) => <div key={condition.key}>
             {index > 0 && <p className="mechanics-join">AND</p>}
             <div className="mechanics-condition" data-condition-key={condition.key}>
-              {condition.kind === "self-progression" ? <div className="mechanics-notice" role="status">
-                <strong>Provisional — purchased-point interpretation not yet finalized</strong>
-                <p>Saved progression requirement: {progressionComparisonLabels[condition.operator]} {condition.requiredValue}. Numerical editing is unavailable. This condition is preserved unless you explicitly remove it.</p>
-              </div> : condition.kind === "manual" ? <GuidedField label="Manual condition" help="Describe the context the G.O.D. must determine. This text is not interpreted or automatically resolved.">
+              {condition.kind === "self-progression" ? <>
+                <GuidedField label="Score comparison" help="Compare the possessing Character's current score in this Special Ability. This condition applies only to this Mechanics Rule.">
+                  <select className="st-control" value={condition.operator} onChange={event => updateCondition(group.key, { ...condition, operator: event.target.value as typeof condition.operator })}>
+                    {Object.entries(progressionComparisonLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </GuidedField>
+                <GuidedField label="Current Special Ability Score" help="Enter a benchmark from 0 to 100 for this ability's current score. A grant may establish possession at zero. Each rule has its own conditions; there are no fixed benchmark tiers.">
+                  <input className="st-control" type="number" min={0} max={100} step="any" value={Number.isFinite(condition.requiredValue) ? condition.requiredValue : ""} onChange={event => updateCondition(group.key, { ...condition, requiredValue: event.target.value === "" ? NaN : Number(event.target.value) })} />
+                </GuidedField>
+                {(!Number.isFinite(condition.requiredValue) || condition.requiredValue < 0 || condition.requiredValue > 100) && <p role="alert">Enter a Current Special Ability Score from 0 to 100.</p>}
+              </> : condition.kind === "manual" ? <GuidedField label="Manual condition" help="Describe the context the G.O.D. must determine. This text is not interpreted or automatically resolved.">
                 <textarea className="st-control" rows={3} maxLength={MECHANICS_LIMITS.text} value={condition.notes} onChange={event => updateCondition(group.key, { ...condition, notes: event.target.value })} />
               </GuidedField> : <>
                 <MechanicsReferencePicker kind={condition.kind === "skill-possession" ? "skill" : "derived-ability"}
@@ -88,6 +95,6 @@ export function MechanicsConditionsEditor({ when, onChange, references }: {
       </div>)}
       <button className="st-button" type="button" disabled={when.groups.length >= MECHANICS_LIMITS.groups} onClick={() => onChange({ ...when, groups: [...when.groups, { key: newMechanicsKey(), conditions: [] }] })}>Add Way to Qualify</button>
     </>}
-    <p className="mechanics-hint">New Special Ability progression conditions are unavailable until Brannan and Ember finalize their meaning.</p>
+    <p className="mechanics-hint">Score conditions use the possessing Character’s current score in this Special Ability, from 0–100. Matching a benchmark does not execute its rule.</p>
   </div>;
 }

@@ -1,19 +1,18 @@
-import { getCharacterSkillPointsById } from "@/features/characters/character-rules";
-import type { CharacterDraft } from "@/features/characters/models";
+import { specialAbilityScore, validSpecialAbilityScore, type SpecialAbilityAllocation, type SpecialAbilityGrant } from "./score";
 
-/** Provisional interpretation, NOT approved universal Special Ability canon.
- * Rules refer to self progression; this adapter alone chooses the saved source.
- * A deliberate later semantic revision must update this identifier and review
- * existing authored thresholds. Never silently reinterpret saved documents.
- */
-export const SPECIAL_ABILITY_PROGRESSION_CONTRACT = "provisional-v1-saved-purchased-points" as const;
+/** Approved score contract; saved mechanics documents are not rewritten. */
+export const SPECIAL_ABILITY_PROGRESSION_CONTRACT = "core-v1-special-ability-score" as const;
+export type SpecialAbilityScoreFacts = {
+  skillAllocations: readonly SpecialAbilityAllocation[];
+  racialSkillLinks?: readonly SpecialAbilityGrant[];
+};
 export type SpecialAbilityProgression = {
   source: typeof SPECIAL_ABILITY_PROGRESSION_CONTRACT;
   label: string;
-  provisional: true;
   value: number | null;
 };
-export function resolveSpecialAbilityProgression(skillId: number, saved: Pick<CharacterDraft, "skillAllocations"> | null): SpecialAbilityProgression {
-  return { source: SPECIAL_ABILITY_PROGRESSION_CONTRACT, label: "Saved purchased points (provisional v1 source)", provisional: true,
-    value: saved === null ? null : getCharacterSkillPointsById(saved).get(skillId) ?? 0 };
+export function resolveSpecialAbilityProgression(skillId: number, saved: SpecialAbilityScoreFacts | null): SpecialAbilityProgression {
+  const value = saved === null ? null : specialAbilityScore(skillId, saved.skillAllocations, saved.racialSkillLinks);
+  return { source: SPECIAL_ABILITY_PROGRESSION_CONTRACT, label: "Current Special Ability score (0–100)",
+    value: value !== null && validSpecialAbilityScore(value) ? value : null };
 }

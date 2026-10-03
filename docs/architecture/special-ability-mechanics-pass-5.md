@@ -1,5 +1,7 @@
 # Special Ability Mechanics: Pass 5 read-only Character, print and tabletop views
 
+The [October 2 core progression contract](special-ability-core-progression.md) supersedes this pass's provisional progression wording. The Pass 5 record below is historical evidence of that pass.
+
 September 30, 2026. Based on reviewed Pass 4 commit `54b18e5f508e1c9a674a545c99fcacf1657ea785`. This pass presents saved definitions and qualification through the existing mechanics contract. It adds no execution or authoritative Character state. **Stop for Brannan and Ember review; Pass 6 has not begun.**
 
 ## Completion report

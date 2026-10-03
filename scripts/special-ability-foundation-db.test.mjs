@@ -9,6 +9,8 @@ const actors = new AsyncLocalStorage();
 const god = "synthetic-mechanics-god", other = "synthetic-other", player = "synthetic-player", admin = "synthetic-admin";
 mock.module(pathToFileURL(path.resolve("src/lib/server-access.ts")).href, { namedExports: {
   requireSession: async () => ({ user: { id: actors.getStore() ?? god } }),
+  requirePlayer: async () => { const id = actors.getStore() ?? god; if (id !== player) throw new Error("Player required."); return { user: { id } }; },
+  requireGod: async () => { const id = actors.getStore() ?? god; if (![god, other].includes(id)) throw new Error("G.O.D. required."); return { user: { id } }; },
   requireGodOrAdminAccessContext: async () => {
     const id = actors.getStore() ?? god;
     const roles = (await pool.query("select role from user_role where user_id=$1", [id])).rows.map(row => row.role);
@@ -28,6 +30,8 @@ const { createEmptySpell } = await import("../src/features/spell-construction/ut
 const { lockMechanicsReferenceGraph } = await import("../src/features/special-abilities/reference-service.ts");
 const { saveSkillExtensionMutations } = await import("../src/features/skills/skill-extension-persistence.ts");
 const { syntheticToolbox } = await import("../src/features/special-abilities/v2-fixtures.ts");
+const characterActions = await import("../src/app/characters/actions.ts");
+const { characterAggregateToDraft } = await import("../src/features/characters/character-rules.ts");
 const actor = { userId: god, roles: ["god"] }, type = "special-ability-mechanics";
 const rule = (references = []) => ({ key: "same-stable-key", kind: "capability", domain: "other", title: "Synthetic capability", description: "Synthetic description only.",
   when: { mode: "always" }, limitations: "", notes: "", references });
@@ -53,6 +57,93 @@ before(async () => {
   }
 });
 after(async () => { await pool.end(); });
+
+test("core Character acquisition, grants, advancement, and score limits use real actions atomically", async () => {
+  const campaignId = (await pool.query("insert into campaign(name,attribute_points,skill_points,max_starting_skill,points_to_unlock_next_tier,max_points_in_skill,starting_credit_amount,currency_system,fate_point_method,created_by_user_id) values('Synthetic progression campaign',1000,200,100,1,200,0,'Credits','Rolled',$1) returning id", [god])).rows[0].id;
+  await pool.query("insert into campaign_player(campaign_id,user_id) values($1,$2)", [campaignId, player]);
+  await pool.query("insert into campaign_allowed_system(campaign_id,system,sort_order) values($1,'Special Abilities',0)", [campaignId]);
+  const abilities = await Promise.all(["purchased", "unowned", "god-zero", "race-zero", "god-positive"].map(name => saveSkill(fresh(`Synthetic progression ${name}`, [upsert()]))));
+  const [purchased, unowned, assigned, racial, positive] = abilities;
+  let record = await characterActions.createCharacterForPlayer(campaignId, player);
+  const id = record.character.id;
+  const asPlayer = operation => actors.run(player, operation);
+  const read = () => asPlayer(() => characterActions.getCharacter(id));
+  const request = (skillId, pointsToAdd = 1) => ({ planId: String(skillId), skillId, parentAllocationId: null, parentPlanId: null, pointsToAdd });
+  const draft = characterAggregateToDraft(record);
+  draft.skillAllocations.push({ draftId: -1, skillId: purchased.id, points: 5, parentDraftId: null });
+  record = await asPlayer(() => characterActions.saveCharacter(id, draft));
+  assert.equal(record.skillAllocations.find(row => row.skillId === purchased.id).points, 5, "beginning purchase");
+  const forged = characterAggregateToDraft(record);
+  forged.skillAllocations.push({ draftId: -2, skillId: assigned.id, points: 0, parentDraftId: null, specialAbilityGranted: true });
+  await assert.rejects(asPlayer(() => characterActions.saveCharacter(id, forged)), /G.O.D./);
+  await pool.query("update campaign_character_profile set creation_completed_at=now(),experience=100000 where character_id=$1", [id]);
+  record = await read();
+  const before = { allocations: record.skillAllocations, xp: record.profile.experience, total: record.profile.totalExperience };
+  await assert.rejects(asPlayer(() => characterActions.advanceCharacterSkills(id, [request(purchased.id), request(unowned.id)])), /already.*possessed/);
+  record = await read();
+  assert.deepEqual({ allocations: record.skillAllocations, xp: record.profile.experience, total: record.profile.totalExperience }, before);
+  await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,0)", [id, unowned.id]);
+  await assert.rejects(asPlayer(() => characterActions.advanceCharacterSkills(id, [request(unowned.id)])), /already.*possessed/);
+  await pool.query("delete from campaign_character_skill_allocation where character_id=$1 and skill_id=$2", [id, unowned.id]);
+  await assert.rejects(asPlayer(() => characterActions.saveCharacter(id, characterAggregateToDraft(record))), /creation.*complete/i);
+  record = await asPlayer(() => characterActions.advanceCharacterSkills(id, [request(purchased.id)]));
+  assert.equal(record.skillAllocations.find(row => row.skillId === purchased.id).points, 6);
+  assert.equal(record.profile.experience, before.xp - 5);
+  assert.equal(record.profile.totalExperience, before.total + 5);
+  const godDraft = characterAggregateToDraft(record);
+  godDraft.skillAllocations.push({ draftId: -2, skillId: assigned.id, points: 0, parentDraftId: null, specialAbilityGranted: true }, { draftId: -3, skillId: positive.id, points: 4, parentDraftId: null });
+  record = await characterActions.saveCharacter(id, godDraft, false, true);
+  assert.equal(record.skillAllocations.find(row => row.skillId === assigned.id).specialAbilityGranted, true);
+  let projection = await asPlayer(() => getSpecialAbilityMechanicsProjection(assigned.id, id));
+  assert.equal(projection.possessed, true); assert.equal(projection.progression.value, 0);
+  const raceId = (await pool.query("insert into races(name,created_by_user_id) values('Synthetic progression race',$1) returning id", [god])).rows[0].id;
+  await pool.query("insert into campaign_allowed_race(campaign_id,race_id,sort_order) values($1,$2,0)", [campaignId, raceId]);
+  await pool.query("insert into race_skill_links(race_id,skill_id,link_type,value) values($1,$2,'Granted',0)", [raceId, racial.id]);
+  await pool.query("update campaign_character_profile set race_id=$2 where character_id=$1", [id, raceId]);
+  projection = await asPlayer(() => getSpecialAbilityMechanicsProjection(racial.id, id));
+  assert.equal(projection.possessed, true); assert.equal(projection.progression.value, 0);
+  const xp = record.profile.experience;
+  record = await asPlayer(() => characterActions.advanceCharacterSkills(id, [request(assigned.id), request(racial.id), request(positive.id)]));
+  assert.equal(record.profile.experience, xp - 24, "two first points at 10 and 4 to 5 at 4");
+  for (const skill of [assigned, racial]) assert.equal(record.skillAllocations.find(row => row.skillId === skill.id).points, 1);
+  const atCap = characterAggregateToDraft(record);
+  atCap.skillAllocations.find(row => row.skillId === racial.id).points = 99;
+  await pool.query("update race_skill_links set value=1 where race_id=$1 and skill_id=$2", [raceId, racial.id]);
+  record = await characterActions.saveCharacter(id, atCap, false, true);
+  assert.equal((await asPlayer(() => getSpecialAbilityMechanicsProjection(racial.id, id))).progression.value, 100);
+  const tooHigh = characterAggregateToDraft(record);
+  tooHigh.skillAllocations.find(row => row.skillId === racial.id).points = 100;
+  await assert.rejects(characterActions.saveCharacter(id, tooHigh, false, true), /0 to 100/);
+  await assert.rejects(asPlayer(() => characterActions.advanceCharacterSkills(id, [request(racial.id)])), /maximum|100|cap/i);
+  await assert.rejects(pool.query("update campaign_character_skill_allocation set points=101 where character_id=$1 and skill_id=$2", [id, purchased.id]), /0 to 100/);
+  await assert.rejects(pool.query("update race_skill_links set value=2 where race_id=$1 and skill_id=$2", [raceId, racial.id]), /0 to 100/);
+  const strongerRace = (await pool.query("insert into races(name,created_by_user_id) values('Synthetic stronger race',$1) returning id", [god])).rows[0].id;
+  await pool.query("insert into race_skill_links(race_id,skill_id,link_type,value) values($1,$2,'Granted',2)", [strongerRace, racial.id]);
+  await assert.rejects(pool.query("update campaign_character_profile set race_id=$2 where character_id=$1", [id, strongerRace]), /0 to 100/);
+  const ordinaryId = (await pool.query("insert into skill(name,classification,tier,primary_attribute) values('Synthetic ordinary high score','standard',1,'STR') returning id")).rows[0].id;
+  await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,150)", [id, ordinaryId]);
+  assert.equal((await pool.query("select points from campaign_character_skill_allocation where character_id=$1 and skill_id=$2", [id, ordinaryId])).rows[0].points, 150);
+  await assert.rejects(pool.query("update skill set classification='special ability' where id=$1", [ordinaryId]), /0 to 100/);
+});
+
+test("historical v1 and v2 threshold bytes survive core saves while edited invalid benchmarks reject", async () => {
+  for (const version of [1, 2]) {
+    const saved = await saveSkill(fresh(`Synthetic historical score v${version}`));
+    const data = { ...document(), schemaVersion: version };
+    data.rules[0].when = { mode: "requirements", groups: [{ key: "g", conditions: [{ key: "c", kind: "self-progression", operator: "gte", requiredValue: 150 }] }] };
+    const bytes = ` ${JSON.stringify(data)}\n`;
+    await pool.query("insert into skill_extension(skill_id,extension_type,schema_version,data_json) values($1,$2,$3,$4)", [saved.id, type, version, bytes]);
+    const before = await raw(saved.id);
+    assert.equal((await getSpecialAbilityMechanicsProjection(saved.id)).documentStatus, "ready");
+    await update(saved.id, [], { definition: "Core edit keeps historical bytes." });
+    assert.deepEqual(await raw(saved.id), before);
+    for (const threshold of [-1, 101]) {
+      data.rules[0].when.groups[0].conditions[0].requiredValue = threshold;
+      await assert.rejects(update(saved.id, [upsert(data, type, version)]), /0|non-negative/);
+      assert.deepEqual(await raw(saved.id), before);
+    }
+  }
+});
 
 test("mechanics pickers authorize discovery, retain exact archived identities, and honor catalog visibility", async () => {
   const selected = await saveSkill(fresh("Synthetic picker retained"));
@@ -279,7 +370,7 @@ test("authorized Character projection reads racial zero-point possession and exi
   const snapshot = async () => { const result = {}; for (const table of tables) result[table] = (await pool.query(`select to_jsonb(t) body from ${table} t order by to_jsonb(t)::text`)).rows; return result; };
   const before = await snapshot();
   const view = await actors.run(player, () => getSpecialAbilityMechanicsProjection(ability.id, characterId));
-  assert.equal(view.possessed, true); assert.equal(view.progression.value, 0); assert.equal(view.progression.provisional, true);
+  assert.equal(view.possessed, true); assert.equal(view.progression.value, 0); assert.equal(view.progression.source, "core-v1-special-ability-score");
   assert.equal(view.rules[0].status, "matched"); assert.equal(view.runtimeSupported, false);
   assert.deepEqual(await snapshot(), before);
   // Expanded definitions must also remain entirely read-only for a possessed owner.

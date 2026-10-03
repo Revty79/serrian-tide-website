@@ -40,7 +40,7 @@ export function parseDefinitionAmount(input: unknown, path: string, signed = fal
     shape(row, ["kind", "threshold", "contribution"], path);
     return { kind: row.kind, threshold: number(row.threshold, path + ".threshold"), contribution: number(row.contribution, path + ".contribution", signed ? -Number.MAX_SAFE_INTEGER : 0) };
   }
-  return fail(path, "Choose a fixed amount or G.O.D. determination. Progression is provisional; formulas are not supported.");
+  return fail(path, "Choose a fixed amount or G.O.D. determination. Formulas are not supported.");
 }
 export function parseDefinitionDuration(input: unknown, path: string): RuntimeDuration {
   const row = object(input, path); optionalShape(row, ["kind"], ["value", "label"], path);

@@ -35,6 +35,9 @@ test("Special Ability foundation in a new isolated PostgreSQL cluster", { timeou
     await pool.end(); pool = null;
     const environment: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: url, NODE_ENV: "test", SERRIAN_SPECIAL_ABILITY_DISPOSABLE: "true", SERRIAN_TIDE_ENABLE_PERMANENT_DELETION: "true" };
     delete environment.NODE_TEST_CONTEXT;
+    execFileSync(process.execPath, ["--import", "tsx", "scripts/verify-runtime-foundation-schema.mjs"], {
+      cwd: process.cwd(), stdio: "inherit", windowsHide: true, timeout: 60000, env: environment,
+    });
     execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", "scripts/special-ability-foundation-db.test.mjs"], {
       cwd: process.cwd(), stdio: "inherit", windowsHide: true, timeout: 180000,
       env: environment,

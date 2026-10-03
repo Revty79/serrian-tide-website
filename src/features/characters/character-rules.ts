@@ -1,4 +1,5 @@
 import { characterCampaignSkillAccess, characterSkillChoiceAccess } from "./character-campaign-skill-access";
+import { SPECIAL_ABILITY_SCORE_MAXIMUM } from "@/features/special-abilities/score";
 import { getSkillRootSystems, skillSystemsAllow } from "@/features/campaigns/campaign-skill-access";
 export { getNamedSupernaturalSkillSystems } from "@/features/campaigns/campaign-skill-access";
 import type { CampaignSystem } from "@/db/campaign-schema";
@@ -27,7 +28,7 @@ import {
 } from "./models";
 
 const EPSILON = 0.000001;
-export const SPECIAL_ABILITY_EFFECTIVE_MAXIMUM = 100;
+export const SPECIAL_ABILITY_EFFECTIVE_MAXIMUM = SPECIAL_ABILITY_SCORE_MAXIMUM;
 
 export const CHARACTER_SPELL_ACCESS_LEVELS = [
   { name: "Apprentice", minimumMana: 1, midpointMana: 6, twoSpellUnlockMana: 12 },
@@ -711,6 +712,7 @@ export function characterAggregateToDraft(
     profile,
     attributes,
     skillAllocations: aggregate.skillAllocations.map((allocation) => ({
+      ...(allocation.specialAbilityGranted ? { specialAbilityGranted: true } : {}),
       draftId: allocation.id,
       skillId: allocation.skillId,
       parentDraftId: allocation.parentAllocationId,
@@ -905,6 +907,7 @@ export function evaluateCharacterReadiness(
     if (
       allocation.points <= EPSILON &&
       !racial.granted &&
+      !allocation.specialAbilityGranted &&
       !childCounts.has(allocation.draftId)
     ) {
       skillRulesValid = false;

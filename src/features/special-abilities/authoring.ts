@@ -1,5 +1,5 @@
 import type { SkillDraft } from "@/app/heavens/skills/actions";
-import { parseSpecialAbilityMechanics } from "./codec";
+import { parseSpecialAbilityMechanics, readSpecialAbilityMechanics } from "./codec";
 import { SPECIAL_ABILITY_MECHANICS_EXTENSION, SPECIAL_ABILITY_MECHANICS_VERSION, type MechanicsCondition, type MechanicsConditions, type MechanicsReference, type MechanicsRule, type SpecialAbilityMechanicsDocument } from "./models";
 
 export type MechanicsReferenceOption = MechanicsReference & { name: string; archived: boolean; classification?: string };
@@ -12,9 +12,9 @@ export function newMechanicsRule(kind: "capability" | "manual"): MechanicsRule {
   const base = { key: newMechanicsKey(), title: "", description: "", when: { mode: "requirements" as const, groups: [] }, limitations: "", notes: "", references: [] };
   return kind === "capability" ? { ...base, kind, domain: "other" } : { ...base, kind, adjudication: "" };
 }
-export function newMechanicsCondition(kind: Exclude<MechanicsCondition["kind"], "self-progression">): MechanicsCondition {
+export function newMechanicsCondition(kind: MechanicsCondition["kind"]): MechanicsCondition {
   const key = newMechanicsKey();
-  return kind === "manual" ? { key, kind, notes: "" } : kind === "skill-possession"
+  return kind === "self-progression" ? { key, kind, operator: "gte", requiredValue: 0 } : kind === "manual" ? { key, kind, notes: "" } : kind === "skill-possession"
     ? { key, kind, skillId: 0, operator: "possessed" } : { key, kind, derivedAbilityId: 0, operator: "possessed" };
 }
 export function moveMechanicsChild<T>(rows: readonly T[], from: number, direction: -1 | 1): T[] {
@@ -57,6 +57,7 @@ export function mechanicsDraftState(draft: SkillDraft) {
   const mutation = draft.extensionMutations?.find(row => row.extensionType === SPECIAL_ABILITY_MECHANICS_EXTENSION);
   // New editor drafts intentionally retain unfinished fields for correction.
   if (mutation?.operation === "upsert") return { kind: "editable" as const, document: mutation.data as SpecialAbilityMechanicsDocument };
-  try { return { kind: "editable" as const, document: parseSpecialAbilityMechanics(extension.data, extension.schemaVersion) }; }
-  catch { return { kind: "protected" as const, diagnostics: [mechanicsValidationMessage(extension.data) ?? "Unreadable mechanics document. The saved document is preserved."] }; }
+  const read = readSpecialAbilityMechanics({ schemaVersion: extension.schemaVersion, dataJson: JSON.stringify(extension.data) });
+  if (read.status === "ready") return { kind: "editable" as const, document: read.document };
+  return { kind: "protected" as const, diagnostics: read.diagnostics.map(diagnostic => diagnostic.message) };
 }

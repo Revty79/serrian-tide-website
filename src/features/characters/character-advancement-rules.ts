@@ -1,4 +1,5 @@
 import { characterSkillChoiceAccess } from "./character-campaign-skill-access";
+import { specialAbilityPossession } from "@/features/special-abilities/score";
 import {
   canAccessSupernaturalSkillAtLevel,
   characterAggregateToDraft,
@@ -131,9 +132,10 @@ export function getMaximumAffordableSkillPoints(
 export function canPlayerAdvanceSkillWithExperience(
   skill: CharacterSkillReference,
   permanentAllocationPoints: number,
+  possessed = false,
 ): boolean {
   return (
-    !isSpecialAbilitySkill(skill) || hasSkillPoints(permanentAllocationPoints)
+    !isSpecialAbilitySkill(skill) || possessed || hasSkillPoints(permanentAllocationPoints)
   );
 }
 
@@ -151,6 +153,7 @@ function allocationFor(
 
 function permanentAllocations(aggregate: CharacterAggregate) {
   return aggregate.skillAllocations.map((allocation) => ({
+    ...(allocation.specialAbilityGranted ? { specialAbilityGranted: true } : {}),
     draftId: allocation.id,
     skillId: allocation.skillId,
     parentDraftId: allocation.parentAllocationId,
@@ -239,9 +242,10 @@ export function buildCharacterAdvancementTree(
       parentDraftId,
     );
     const permanentAllocationPoints = permanentAllocation?.points ?? 0;
-    const permanentlyOwned = hasSkillPoints(permanentAllocationPoints);
+    const possessed = specialAbilityPossession(skill.id, permanent, aggregate.selectedRace?.skillLinks).possessed;
+    const permanentlyOwned = hasSkillPoints(permanentAllocationPoints) || isSpecialAbilitySkill(skill) && possessed;
     if (
-      !canPlayerAdvanceSkillWithExperience(skill, permanentAllocationPoints)
+      !canPlayerAdvanceSkillWithExperience(skill, permanentAllocationPoints, possessed)
     ) {
       return;
     }

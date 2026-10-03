@@ -1,9 +1,8 @@
 import { isSpecialAbilitySkill } from "@/features/characters/character-rules";
-import type { CharacterDraft } from "@/features/characters/models";
 import { allRequirements, anyRequirementGroup, evaluateNumericComparison, type RequirementResult } from "@/features/requirements/requirement-primitives";
 import { readSpecialAbilityMechanics } from "./codec";
 import { referenceKey, type MechanicsCondition, type MechanicsDiagnostic, type MechanicsReference, type StoredMechanics } from "./models";
-import { resolveSpecialAbilityProgression } from "./progression";
+import { resolveSpecialAbilityProgression, type SpecialAbilityScoreFacts } from "./progression";
 import { collectMechanicsReferences } from "./references";
 import { summarizeMechanicsRule } from "./summaries";
 
@@ -11,7 +10,7 @@ export type MechanicsReferenceView = MechanicsReference & { name: string | null;
 export type MechanicsOwnerFacts = {
   possessedSkillIds: ReadonlySet<number> | null;
   possessedDerivedAbilityIds: ReadonlySet<number> | null;
-  savedAllocations: Pick<CharacterDraft, "skillAllocations"> | null;
+  savedAllocations: SpecialAbilityScoreFacts | null;
 };
 export type MechanicsRuleStatus = "matched" | "not-matched" | "manual" | "unavailable";
 const status = (result: RequirementResult): MechanicsRuleStatus => result === "satisfied" ? "matched" : result === "unsatisfied" ? "not-matched" : "manual";

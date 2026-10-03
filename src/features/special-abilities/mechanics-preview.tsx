@@ -15,7 +15,7 @@ export function mechanicsConditionSummary(when: MechanicsConditions, references:
   if (!when.groups.length) return "Requirements need a way to qualify.";
   return when.groups.map((group, i) => `Way ${i + 1}: ` + (group.conditions.length ? group.conditions.map(condition => {
     if (condition.kind === "manual") return `G.O.D. determines: ${condition.notes || "condition not yet described"}`;
-    if (condition.kind === "self-progression") return `Provisional purchased points ${progressionComparisonLabels[condition.operator]} ${condition.requiredValue} (meaning not finalized)`;
+    if (condition.kind === "self-progression") return `Current Special Ability Score ${progressionComparisonLabels[condition.operator]} ${condition.requiredValue} (0–100)`;
     const reference: MechanicsReference = condition.kind === "skill-possession" ? { kind: "skill", skillId: condition.skillId } : { kind: "derived-ability", derivedAbilityId: condition.derivedAbilityId };
     return `${mechanicsReferenceLabel(reference, references)}: ${condition.operator === "possessed" ? "Possessed" : "Not Possessed"}`;
   }).join(" AND ") : "add a condition")).join(" OR ");

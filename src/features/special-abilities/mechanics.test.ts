@@ -65,7 +65,7 @@ test("numeric operators and typed possession conditions parse without normalizin
     { key: "m", kind: "manual", notes: "  Preserve these authored spaces.  " });
   const document = doc({ ...capability(), when: { mode: "requirements", groups: [{ key: "g", conditions: clauses }] } });
   assert.deepEqual(parseSpecialAbilityMechanics(JSON.stringify(document)), document);
-  for (const value of [NaN, Infinity, -Infinity, -1, Number.MAX_SAFE_INTEGER + 1]) {
+  for (const value of [NaN, Infinity, -Infinity, -1, 100.01, 101, Number.MAX_SAFE_INTEGER + 1]) {
     const invalid = structuredClone(document);
     invalid.rules[0].when = { mode: "requirements", groups: [{ key: "g", conditions: [{ key: "n", kind: "self-progression", operator: "gte", requiredValue: value }] }] };
     assert.throws(() => parseSpecialAbilityMechanics(invalid));
@@ -75,16 +75,39 @@ test("numeric operators and typed possession conditions parse without normalizin
   assert.throws(() => parseSpecialAbilityMechanics(invalid));
 });
 
-test("progression is an explicitly provisional saved source, maximum across paths, separate from racial possession", () => {
+test("core progression uses the owning score, maximum across paths plus Race contribution", () => {
   const value = resolveSpecialAbilityProgression(source.id, allocations);
   assert.equal(value.value, 7);
   assert.equal(value.source, SPECIAL_ABILITY_PROGRESSION_CONTRACT);
-  assert.equal(value.provisional, true);
+  assert.equal(value.source, "core-v1-special-ability-score");
+  assert.equal(resolveSpecialAbilityProgression(source.id, { ...allocations, racialSkillLinks: [{ skillId: source.id, value: 5 }, { skillId: source.id + 1, value: 90 }] }).value, 12);
   assert.equal(resolveSpecialAbilityProgression(source.id, null).value, null);
   const result = resolveSpecialAbilityMechanics({ source, stored: stored(doc(capability())), owner: { ...owner, savedAllocations: { skillAllocations: [] } } });
   assert.equal(result.possessed, true);
   assert.equal(result.progression.value, 0);
   assert.equal(result.rules[0].status, "matched");
+});
+
+test("independent rule benchmarks use current score with no fixed tiers", () => {
+  const document = doc(capability(), ...[30, 55, 80, 100].map(value => ({ ...capability(), key: `rule-${value}`, when: { mode: "requirements" as const, groups: [{ key: `group-${value}`, conditions: [{ key: `condition-${value}`, kind: "self-progression" as const, operator: value === 100 ? "eq" as const : "gte" as const, requiredValue: value }] }] } })));
+  assert.deepEqual(parseSpecialAbilityMechanics(document), document);
+  for (const [score, expected] of [[0, 1], [30, 2], [55, 3], [80, 4], [100, 5]]) {
+    const result = resolveSpecialAbilityMechanics({ source, stored: stored(document), owner: { ...owner, savedAllocations: { skillAllocations: [{ skillId: source.id, points: score }] } } });
+    assert.equal(result.rules.filter(rule => rule.status === "matched").length, expected);
+    assert.equal(result.runtimeSupported, false);
+  }
+});
+
+test("historical v1 and v2 benchmarks remain readable without rewriting out-of-range values", () => {
+  for (const version of [1, 2]) {
+    const document = { schemaVersion: version, rules: [{ ...capability(), when: { mode: "requirements", groups: [{ key: "g", conditions: [{ key: "c", kind: "self-progression", operator: "gte", requiredValue: 150 }] }] } }] };
+    const saved = { schemaVersion: version, dataJson: ` ${JSON.stringify(document)}\n` };
+    const original = saved.dataJson;
+    const read = readSpecialAbilityMechanics(saved);
+    assert.equal(read.status, "ready");
+    assert.equal(saved.dataJson, original);
+    assert.throws(() => parseSpecialAbilityMechanics(document), /0.*100/);
+  }
 });
 
 test("possession is an outer gate; catalog views do not claim the conditions matched", () => {

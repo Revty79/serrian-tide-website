@@ -341,6 +341,8 @@ export const campaignCharacterSkillAllocation = pgTable(
     parentAllocationId: integer("parent_allocation_id"),
     // Zero is intentionally valid: racial grants can require structural parent anchors.
     points: doublePrecision("points").notNull(),
+    // Explicit owner assignment is possession even at zero; structural zeros are not.
+    specialAbilityGranted: boolean("special_ability_granted").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

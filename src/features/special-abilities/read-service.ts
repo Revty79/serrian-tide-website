@@ -20,7 +20,7 @@ import { resolveSpecialAbilityMechanics, type MechanicsOwnerFacts } from "./reso
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** Shared saved-Normal possession adapter. Never reads temporary Form Skills or
- * interprets native Creature ranks as purchased Character progression. */
+ * interprets native Creature ranks as Character Special Ability scores. */
 async function characterContext(tx: Transaction, characterId: number, actor: SharedLibraryActor) {
   const [entity] = await tx.select({ playerUserId: campaignCharacter.playerUserId, campaignOwnerUserId: campaign.createdByUserId,
     isNpc: campaignCharacter.isNpc, npcKind: campaignCharacter.npcKind, member: campaignPlayer.userId })
@@ -30,12 +30,13 @@ async function characterContext(tx: Transaction, characterId: number, actor: Sha
   if (!entity || !canReadActiveState(actor, { ...entity, isCampaignMember: entity.member === actor.userId })) throw new Error("You do not have permission to read this Character's mechanics.");
   if (entity.npcKind === "creature") return null;
   const rows = await tx.select().from(campaignCharacterSkillAllocation).where(eq(campaignCharacterSkillAllocation.characterId, characterId));
-  const raceLinks = await tx.select({ skillId: raceSkillLink.skillId }).from(campaignCharacterProfile)
+  const raceLinks = await tx.select({ skillId: raceSkillLink.skillId, value: raceSkillLink.value }).from(campaignCharacterProfile)
     .innerJoin(raceSkillLink, eq(raceSkillLink.raceId, campaignCharacterProfile.raceId)).where(eq(campaignCharacterProfile.characterId, characterId));
   const purchased = new Set(rows.filter(row => row.points > 0).map(row => row.skillId)), racial = new Set(raceLinks.map(row => row.skillId));
-  const owner: MechanicsOwnerFacts = { possessedSkillIds: new Set([...purchased, ...racial]), possessedDerivedAbilityIds: null,
-    savedAllocations: { skillAllocations: rows.map(row => ({ draftId: row.id, skillId: row.skillId, points: row.points, parentDraftId: row.parentAllocationId })) } };
-  return { owner, purchased, racial };
+  const assigned = new Set(rows.filter(row => row.specialAbilityGranted).map(row => row.skillId));
+  const owner: MechanicsOwnerFacts = { possessedSkillIds: new Set([...purchased, ...assigned, ...racial]), possessedDerivedAbilityIds: null,
+    savedAllocations: { skillAllocations: rows, racialSkillLinks: raceLinks } };
+  return { owner, purchased, assigned, racial };
 }
 async function derivedFacts(tx: Transaction, characterId: number, userId: string, owner: MechanicsOwnerFacts, refs: readonly MechanicsReference[]) {
   if (!refs.some(ref => ref.kind === "derived-ability")) return;
@@ -74,7 +75,7 @@ export async function getCharacterSpecialAbilityMechanics(characterId: number): 
     // authorization. Discovery preferences are not a record-read ACL.
     const references = await readMechanicsReferenceViews(tx, [...refs.values()]);
     return { ...base, context: "saved-normal", abilities: sources.map(({ row, stored }) => ({ definition: row.definition ?? "",
-      possession: { purchased: context.purchased.has(row.id), racial: context.racial.has(row.id) },
+      possession: { purchased: context.purchased.has(row.id), racial: context.racial.has(row.id), assigned: context.assigned.has(row.id) },
       mechanics: resolveSpecialAbilityMechanics({ source: { id: row.id, name: row.name, classification: row.classification, archived: row.archivedAt !== null }, stored, owner: context.owner, references }) })) };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }

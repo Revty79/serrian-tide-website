@@ -149,9 +149,9 @@ test("conditional family fields and definition preview retain ownership guidance
   assert.match(html, /G.O.D. determines handling/); assert.match(html, /linked intrinsic effects: Manual/);
   assert.match(html, /Allowed Derived Abilities: Exact Derived Candidate/);
 });
-test("numeric progression amounts display as provisional without numerical authoring", () => {
+test("saved score-based amounts remain defined while amount execution stays unsupported", () => {
   const html = renderToStaticMarkup(createElement(AmountEditor, { label: "Maximum", value: { kind: "progression-threshold", threshold: 4, contribution: 3 }, onChange() {} }));
-  assert.match(html, /purchased-point interpretation not yet finalized/); assert.doesNotMatch(html, /type="number"/);
+  assert.match(html, /Current Special Ability Score threshold/); assert.match(html, /Amount execution remains unsupported/); assert.doesNotMatch(html, /type="number"|provisional/i);
   const fresh = renderToStaticMarkup(createElement(AmountEditor, { label: "Maximum", value: { kind: "manual", guidance: "" }, onChange() {} }));
   assert.doesNotMatch(fresh, /value="progression-threshold"/);
 });

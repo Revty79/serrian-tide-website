@@ -52,12 +52,25 @@ test("unfinished authored edits stay editable with human-readable strict validat
   const html = renderToStaticMarkup(createElement(MechanicsEditor, { draft, onChange() {}, references: null }));
   assert.match(html, /Before saving: Rule 1 title/); assert.match(html, /Edit Rule/);
 });
-test("provisional progression is displayed but cannot be newly selected or numerically edited", () => {
+test("Current Special Ability Score can be selected and numerically edited within 0 to 100", () => {
   const when: MechanicsConditions = { mode: "requirements", groups: [{ key: "g", conditions: [{ key: "p", kind: "self-progression", operator: "gte", requiredValue: 10 }] }] };
   const html = renderToStaticMarkup(createElement(MechanicsConditionsEditor, { when, references: null, onChange() {} }));
-  assert.match(html, /purchased-point interpretation not yet finalized/);
-  assert.doesNotMatch(html, /type="number"|option value="self-progression"/);
+  assert.match(html, /Current Special Ability Score/);
+  assert.match(html, /type="number" min="0" max="100"/);
+  assert.match(html, /option value="self-progression"/);
+  for (const operator of ["gte", "gt", "lte", "lt", "eq", "neq"]) assert.ok(html.includes(`value="${operator}"`));
+  assert.doesNotMatch(html, /provisional|not yet finalized/i);
 });
+test("historical out-of-range benchmarks can be reviewed and corrected without mutating the saved document", () => {
+  const document = { schemaVersion: 1 as const, rules: [{ ...newMechanicsRule("capability"), title: "Historical", description: "Saved definition", when: { mode: "requirements" as const, groups: [{ key: "g", conditions: [{ key: "c", kind: "self-progression" as const, operator: "gte" as const, requiredValue: 150 }] }] } }] };
+  const draft = { ...fresh(), extensions: [{ extensionType: type, schemaVersion: 1, data: document }] };
+  const before = structuredClone(draft);
+  const state = mechanicsDraftState(draft);
+  assert.equal(state.kind, "editable");
+  assert.match(mechanicsValidationMessage(document) ?? "", /0 to 100/);
+  assert.deepEqual(draft, before);
+});
+
 test("invalid and newer saved mechanics never mount editable rule controls", () => {
   for (const readStatus of ["invalid", "unsupported"] as const) {
     const draft = { ...fresh(), extensions: [{ extensionType: type, schemaVersion: 99, data: null, readStatus, diagnostics: ["Synthetic protected content"] }] };

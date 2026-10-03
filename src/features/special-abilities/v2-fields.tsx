@@ -37,12 +37,12 @@ export function AmountEditor({ label, value, onChange, signed = false, allowFull
     <SelectField label={`${label} definition`} value={value.kind} options={[
       { value: "manual", label: "Manual / G.O.D." }, { value: "fixed", label: "Fixed amount" },
       ...(allowFull ? [{ value: "full" as const, label: "Full refill" }] : []),
-      ...(value.kind === "progression-threshold" ? [{ value: "progression-threshold" as const, label: "Provisional progression (preserved)", disabled: true }] : []),
-    ]} help="Author a fixed amount or describe G.O.D. determination. No balance is stored or changed. Numerical progression authoring is unavailable."
+      ...(value.kind === "progression-threshold" ? [{ value: "progression-threshold" as const, label: "Score-based amount (preserved)", disabled: true }] : []),
+    ]} help="Author a fixed amount or describe G.O.D. determination. To qualify this rule by score, use Current Special Ability Score in its conditions. No balance is stored or changed."
       onChange={kind => { if (kind === "manual") onChange({ kind, guidance: "" }); else if (kind === "fixed") onChange({ kind, amount: 0 }); else if (kind === "full" && allowFull) onChange({ kind }); }} />
     {value.kind === "fixed" && <NumberField label={`${label} amount`} value={value.amount} min={signed ? undefined : 0} onChange={amount => onChange({ ...value, amount })} help={signed ? "Author the signed contribution to the maximum. This does not decide stacking, rounding or current-balance behavior." : "Enter the authored amount. This is a definition, not a Character's current amount."} />}
     {value.kind === "manual" && <TextField label={`${label} G.O.D. guidance`} value={value.guidance} onChange={guidance => onChange({ ...value, guidance })} help="Explain how the G.O.D. determines this amount. Nonblank guidance is required; no formula is evaluated." />}
-    {value.kind === "progression-threshold" && <p className="mechanics-notice" role="status">Provisional — purchased-point interpretation not yet finalized. Saved threshold: {progressionComparisonLabels.gte} {value.threshold}; contribution: {value.contribution}. Preserved without numerical editing or evaluation.</p>}
+    {value.kind === "progression-threshold" && <p className="mechanics-notice" role="status">Current Special Ability Score threshold: {progressionComparisonLabels.gte} {value.threshold}; contribution: {value.contribution}. This saved amount definition is preserved. Amount execution remains unsupported; use the rule’s score conditions to author qualification.</p>}
   </div>;
 }
 export function DurationEditor({ value, onChange }: { value: RuntimeDuration; onChange: (value: RuntimeDuration) => void }) {

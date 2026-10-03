@@ -6,7 +6,7 @@ import { parseMechanicsReference, parseMechanicsConditions } from "./conditions-
 import { V2_RULE_KINDS } from "./v2-models";
 import { parseV2Fields, validateLocalMechanicsReferences, V2_RULE_FIELDS } from "./v2-codec";
 /** Strict version-specific writes. Reading does not upgrade or infer content. */
-export function parseSpecialAbilityMechanics(input: unknown, rowVersion?: number): SpecialAbilityMechanicsDocument {
+function parseDocument(input: unknown, rowVersion?: number): SpecialAbilityMechanicsDocument {
   let value = input;
   if (typeof input === "string") {
     if (new TextEncoder().encode(input).length > MECHANICS_LIMITS.bytes) fail("$", "Document is too large.");
@@ -35,6 +35,20 @@ export function parseSpecialAbilityMechanics(input: unknown, rowVersion?: number
   validateLocalMechanicsReferences(document);
   return document;
 }
+/** Authoring validates benchmarks; historical reads retain their original numbers. */
+export function parseSpecialAbilityMechanics(input: unknown, rowVersion?: number): SpecialAbilityMechanicsDocument {
+  const document = parseDocument(input, rowVersion);
+  function benchmarks(value: unknown, path: string): void {
+    if (Array.isArray(value)) { value.forEach((child, index) => benchmarks(child, `${path}[${index}]`)); return; }
+    if (!value || typeof value !== "object") return;
+    const row = value as Record<string, unknown>;
+    const field = row.kind === "self-progression" ? "requiredValue" : row.kind === "progression-threshold" ? "threshold" : null;
+    if (field && (typeof row[field] !== "number" || !Number.isFinite(row[field]) || row[field] < 0 || row[field] > 100)) fail(`${path}.${field}`, "Current Special Ability Score must be from 0 to 100.");
+    for (const [key, child] of Object.entries(row)) benchmarks(child, `${path}.${key}`);
+  }
+  benchmarks(document, "$");
+  return document;
+}
 /** Reading never writes/upgrades. The caller retains the original stored bytes. */
 export function readSpecialAbilityMechanics(stored: StoredMechanics | null | undefined): MechanicsRead {
   if (!stored) return { status: "absent", schemaVersion: null, document: null, diagnostics: [] };
@@ -47,7 +61,7 @@ export function readSpecialAbilityMechanics(stored: StoredMechanics | null | und
     if (row.schemaVersion !== stored.schemaVersion) fail("$.schemaVersion", "Document and extension versions disagree.");
     if (stored.schemaVersion > SPECIAL_ABILITY_MECHANICS_VERSION) return { status: "unsupported", schemaVersion: stored.schemaVersion, document: null,
       diagnostics: [{ code: "unsupported-version", path: "$.schemaVersion", message: `Mechanics version ${stored.schemaVersion} is not supported by this editor. The saved document is preserved.` }] };
-    const document = parseSpecialAbilityMechanics(value, stored.schemaVersion);
+    const document = parseDocument(value, stored.schemaVersion);
     return { status: "ready", schemaVersion: document.schemaVersion, document, diagnostics: [] };
   } catch (error) {
     return { status: "invalid", schemaVersion: stored.schemaVersion, document: null, diagnostics: [error instanceof MechanicsValidationError ? error.diagnostic : { code: "invalid-document", path: "$", message: "Mechanics document could not be read." }] };

@@ -430,6 +430,20 @@ test("a permanently saved G.O.D.-granted Special Ability becomes Player-advancea
   );
 });
 
+test("zero-point Race and G.O.D. grants advance at the normal first-point cost", () => {
+  for (const grant of ["race", "god"] as const) {
+    const character = aggregate();
+    const ability = skill(31, "Zero-granted ability", { classification: "special ability" });
+    character.skillCatalog.push(ability);
+    character.campaign.allowedSystems.push("Special Abilities");
+    if (grant === "god") character.skillAllocations.push({ ...allocation(31, ability, 0), specialAbilityGranted: true });
+    else character.selectedRace = race([{ skillId: ability.id, skillName: ability.name, skillClassification: ability.classification, linkType: "Granted", value: 0 }]);
+    const projected = setProjectedSkillNumber({ aggregate: character, projectedAllocations: getInitialAdvancementAllocations(character), skillId: ability.id, parentDraftId: null, requestedSkillNumber: 1, newDraftId: -31 });
+    const entry = buildCharacterAdvancementPlan(character, projected).entries.find(row => row.skillName === ability.name);
+    assert.deepEqual({ before: entry?.before, after: entry?.after, cost: entry?.experienceCost }, { before: 0, after: 1, cost: 10 }, grant);
+  }
+});
+
 test("normal unlocked Skills still use the 10 XP first-point rule", () => {
   const character = aggregate();
   let projected = getInitialAdvancementAllocations(character);

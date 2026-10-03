@@ -5,7 +5,7 @@ import type { DefinitionAmount } from "./v2-models";
 import { CHARACTER_ATTRIBUTE_LABELS, type CharacterAttributeKey } from "@/features/characters/models";
 export function definitionAmountSummary(amount: DefinitionAmount | { kind: "full" }): string {
   return amount.kind === "full" ? "Full refill definition" : amount.kind === "fixed" ? String(amount.amount) : amount.kind === "manual" ? `G.O.D.: ${amount.guidance}`
-    : `Provisional progression threshold ${amount.threshold}, contribution ${amount.contribution}; meaning not finalized`;
+    : `Current Special Ability Score threshold ${amount.threshold}, contribution ${amount.contribution}; amount execution is not yet supported`;
 }
 const durationSummary = (duration: RuntimeDuration) => `${duration.kind.replaceAll("-", " ")}${duration.value ? ` (${duration.value})` : ""}${duration.label ? `; ${duration.label}` : ""}`;
 type ReferenceLabel = (reference: MechanicsReference) => string;

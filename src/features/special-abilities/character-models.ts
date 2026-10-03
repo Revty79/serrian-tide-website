@@ -2,7 +2,7 @@ import type { SpecialAbilityMechanicsProjection } from "./resolution";
 
 export type CharacterSpecialAbility = {
   definition: string;
-  possession: { purchased: boolean; racial: boolean };
+  possession: { purchased: boolean; racial: boolean; assigned?: boolean };
   mechanics: SpecialAbilityMechanicsProjection;
 };
 export type CharacterSpecialAbilityView = {

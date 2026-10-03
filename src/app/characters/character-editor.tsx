@@ -219,6 +219,7 @@ type SkillBranchProps = {
     skillId: number,
     parentDraftId: number | null,
     points: number,
+    specialAbilityGranted?: boolean,
   ) => void;
   onShowDescription: (skill: CharacterSkillReference) => void;
 };
@@ -335,6 +336,7 @@ function SkillBranch({
               : ""}
           </span>
         </div>
+        <div>
         <label>
           <span>{racialGrant.granted ? "Total Points" : "Points"}</span>
           <input
@@ -355,7 +357,10 @@ function SkillBranch({
           />
           {!pathAccess.allowed ? <small>{pathAccess.reason} Historical points are frozen.</small> : null}
           {racialGrant.granted ? <small>{displayNumber(points)} purchased</small> : null}
+          {allocation?.specialAbilityGranted ? <small>Assigned by G.O.D.; possession remains at zero.</small> : null}
         </label>
+          {administrativeOverride && isSpecialAbilitySkill(skill) ? <button className="st-button" type="button" title="Grant this Special Ability even at zero points. Removing the grant retains any invested points." disabled={disabled || skill.archived || !pathAccess.allowed || !creationAllowed} onClick={() => onPointsChange(skill.id, parentDraftId, points, !allocation?.specialAbilityGranted)}>{allocation?.specialAbilityGranted ? "Remove G.O.D. grant" : "Assign possession"}</button> : null}
+        </div>
         <div><span>Rank</span><strong>{displayNumber(rank)}</strong></div>
         <div><span>Roll Target</span><strong>{rollTarget === null ? "N/A" : `${displayNumber(rollTarget)}%`}</strong></div>
       </div>
@@ -634,12 +639,14 @@ export function CharacterEditor({
     return aggregate.skillCatalog.find((skill) => skill.id === rootSkillId) ?? null;
   }
 
-  function setSkillPoints(skillId: number, parentDraftId: number | null, requested: number) {
+  function setSkillPoints(skillId: number, parentDraftId: number | null, requested: number, assigned?: boolean) {
     if (playerLocked || archivedNpc) return;
     const currentAllocation = allocationFor(draft, skillId, parentDraftId);
     const currentPoints = currentAllocation?.points ?? 0;
     const skill = aggregate.skillCatalog.find((candidate) => candidate.id === skillId);
     if (!skill) return;
+    if (assigned !== undefined && !godMode) return;
+    const specialAbilityGranted = assigned ?? (currentAllocation?.specialAbilityGranted === true || godMode && isSpecialAbilitySkill(skill));
     const racialGrant = getRacialSkillGrant(selectedRace, skillId);
     const remainingWithCurrent = aggregate.campaign.skillPoints - getSkillPointsUsed(draft) + currentPoints;
     const rulesMaximum = godMode
@@ -653,17 +660,17 @@ export function CharacterEditor({
     change((current) => {
       let allocations = [...current.skillAllocations];
       const existing = allocationFor(current, skillId, parentDraftId);
-      if (!existing && (points > 0 || racialGrant.minimum > 0)) {
-        allocations.push({ draftId: nextDraftId.current--, skillId, parentDraftId, points });
+      if (!existing && (points > 0 || racialGrant.minimum > 0 || specialAbilityGranted)) {
+        allocations.push({ draftId: nextDraftId.current--, skillId, parentDraftId, points, ...(specialAbilityGranted ? { specialAbilityGranted: true } : {}) });
       } else if (existing && points <= 0) {
-        if (racialGrant.minimum > 0) {
+        if (racialGrant.minimum > 0 || specialAbilityGranted) {
           if (racialGrant.minimum < unlockThreshold) allocations = removeSkillAllocationDescendants(allocations, existing.draftId);
-          allocations = allocations.map((allocation) => allocation.draftId === existing.draftId ? { ...allocation, points: 0 } : allocation);
+          allocations = allocations.map((allocation) => allocation.draftId === existing.draftId ? { ...allocation, points: 0, specialAbilityGranted } : allocation);
         } else {
           allocations = removeSkillAllocationDescendants(allocations, existing.draftId).filter((allocation) => allocation.draftId !== existing.draftId);
         }
       } else if (existing) {
-        allocations = allocations.map((allocation) => allocation.draftId === existing.draftId ? { ...allocation, points } : allocation);
+        allocations = allocations.map((allocation) => allocation.draftId === existing.draftId ? { ...allocation, points, specialAbilityGranted } : allocation);
         if (points + racialGrant.minimum < unlockThreshold) allocations = removeSkillAllocationDescendants(allocations, existing.draftId);
       }
       return { ...current, skillAllocations: allocations };

@@ -29,14 +29,15 @@ test("all document states preserve the ordinary Definition without claiming fail
     assert.doesNotMatch(html, /<button|data_json|skill_extension/);
   }
 });
-test("v1 statuses preserve zero-purchase racial possession and provisional qualification semantics", () => {
+test("v1 statuses preserve zero-purchase racial possession with the core score contract", () => {
   const base = { ...newMechanicsRule("capability"), title: "Always example", description: "Synthetic", when: { mode: "always" as const } };
   const gated = { ...base, key: "gated", title: "Threshold example", when: { mode: "requirements" as const, groups: [{ key: "g", conditions: [{ key: "c", kind: "self-progression" as const, operator: "gte" as const, requiredValue: 1 }] }] } };
   const manual = { ...newMechanicsRule("manual"), title: "Manual example", description: "Synthetic", adjudication: "G.O.D. decides.", when: { mode: "always" as const } };
   const result = ability({ schemaVersion: 1, dataJson: JSON.stringify({ schemaVersion: 1, rules: [base, gated, manual] }) });
   assert.deepEqual(result.mechanics.rules.map(rule => rule.status), ["matched", "not-matched", "manual"]);
   const html = render(view(result));
-  for (const pattern of [/current Race grant/, /Saved purchased progression: 0/, /Provisional/, /Matched qualification/, /Qualification not matched/, /Manual \/ G.O.D./, /known saved Character facts/]) assert.match(html, pattern);
+  for (const pattern of [/current Race grant/, /Current Special Ability Score: 0/, /Matched qualification/, /Qualification not matched/, /Manual \/ G.O.D./, /known saved Character facts/]) assert.match(html, pattern);
+  assert.doesNotMatch(html, /provisional/i);
   assert.match(html, /requires at least 1/); assert.doesNotMatch(html, /requires gte/);
 });
 test("v2 presentation includes all definitions, local names, timing, outcomes and readable targets", () => {
@@ -58,7 +59,7 @@ test("missing and unsupported owner facts remain visible without exposing intern
   item.mechanics.references[0] = { kind: "derived-ability", derivedAbilityId: 202, name: null, status: "missing" };
   item.mechanics.diagnostics.push({ code: "reference-missing", path: "derived-ability:202", message: "derived-ability:202: missing" });
   const html = render(view(item)); assert.match(html, /Derived Ability reference missing/); assert.doesNotMatch(html, /derived-ability:202/);
-  assert.match(render({ ...view(), context: "native-creature-unavailable" }), /Fixed Creature Skill Rank is not Character purchased progression/);
+  assert.match(render({ ...view(), context: "native-creature-unavailable" }), /Fixed Creature Skill Rank is not a Character Special Ability score/);
   assert.match(html, /temporary active Form-granted abilities are not evaluated/);
 });
 test("optional print reference expands all abilities; Quick Print never opts into detailed mechanics", () => {

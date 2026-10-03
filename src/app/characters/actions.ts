@@ -1,4 +1,6 @@
 "use server";
+import { assertSpecialAbilityAllocations } from "@/features/characters/character-special-ability-rules";
+import { specialAbilityPossession } from "@/features/special-abilities/score";
 import { readCampaignSkillExclusions, loadCampaignSkillAccessInTransaction, assertCampaignRaceGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 import { allocationSkillPath, assertCampaignSkillAllocationChanges } from "@/features/campaigns/campaign-skill-access";
 import { draftSkillAllocations } from "@/features/characters/character-campaign-skill-access";
@@ -592,6 +594,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       skillTier: skill.tier,
       primaryAttribute: skill.primaryAttribute,
       parentAllocationId: campaignCharacterSkillAllocation.parentAllocationId,
+      specialAbilityGranted: campaignCharacterSkillAllocation.specialAbilityGranted,
       points: campaignCharacterSkillAllocation.points,
       createdAt: campaignCharacterSkillAllocation.createdAt,
       updatedAt: campaignCharacterSkillAllocation.updatedAt,
@@ -1449,6 +1452,7 @@ export async function saveCharacter(
     }
     const [lockedProfile] = await tx.select({
       raceId: campaignCharacterProfile.raceId,
+      creationCompletedAt: campaignCharacterProfile.creationCompletedAt,
       commerceVersion: campaignCharacterProfile.commerceVersion,
       fame: campaignCharacterProfile.fame,
       experience: campaignCharacterProfile.experience,
@@ -1460,6 +1464,7 @@ export async function saveCharacter(
       .limit(1)
       .for("update");
     if (!lockedProfile) throw new Error("Character profile not found.");
+    if (!canEditRecord && lockedProfile.creationCompletedAt) throw new Error("Character creation is complete and its creation record is permanently locked.");
     const [lockedCampaign] = await tx.select({ ownerId: campaign.createdByUserId }).from(campaign)
       .where(eq(campaign.id, access.row.campaignId)).for("update");
     if (!lockedCampaign) throw new Error("Campaign not found.");
@@ -1479,7 +1484,7 @@ export async function saveCharacter(
       ...normalized.profile,
       creditsRemaining,
       commerceVersion: lockedProfile.commerceVersion + 1,
-      creationCompletedAt: completeCreation ? new Date() : aggregate.profile.creationCompletedAt ? new Date(aggregate.profile.creationCompletedAt) : null,
+      creationCompletedAt: lockedProfile.creationCompletedAt ?? (completeCreation ? new Date() : null),
       updatedAt: new Date(),
     }).where(eq(campaignCharacterProfile.characterId, characterId));
 
@@ -1499,6 +1504,9 @@ export async function saveCharacter(
 
     const { access: campaignSkillAccess } = await loadCampaignSkillAccessInTransaction(tx, aggregate.campaign.id);
     const currentSkillAllocations = await tx.select().from(campaignCharacterSkillAllocation).where(eq(campaignCharacterSkillAllocation.characterId, characterId)).for("update");
+    const scoreCatalog = await tx.select({ id: skill.id, name: skill.name, classification: skill.classification }).from(skill);
+    const scoreGrants = draft.profile.raceId === null ? [] : await tx.select({ skillId: raceSkillLink.skillId, value: raceSkillLink.value }).from(raceSkillLink).where(eq(raceSkillLink.raceId, draft.profile.raceId));
+    assertSpecialAbilityAllocations({ allocations: draft.skillAllocations, stored: currentSkillAllocations, catalog: scoreCatalog, raceGrants: scoreGrants, canAssign: canEditRecord });
     assertCampaignSkillAllocationChanges(campaignSkillAccess, currentSkillAllocations, draftSkillAllocations(draft.skillAllocations));
     if (draft.profile.raceId !== lockedProfile.raceId) await assertCampaignRaceGrantsInTransaction(tx, aggregate.campaign.id, draft.profile.raceId);
     const allocationMap = new Map(draft.skillAllocations.map((entry) => [entry.draftId, entry]));
@@ -1556,6 +1564,7 @@ export async function saveCharacter(
       if (stored) {
         await tx.update(campaignCharacterSkillAllocation).set({
           points: nonNegative(allocation.points, "Skill points"),
+          specialAbilityGranted: allocation.specialAbilityGranted === true,
           updatedAt: new Date(),
         }).where(and(
           eq(campaignCharacterSkillAllocation.id, stored.id),
@@ -1574,6 +1583,7 @@ export async function saveCharacter(
         skillId: allocation.skillId,
         parentAllocationId,
         points: nonNegative(allocation.points, "Skill points"),
+        specialAbilityGranted: allocation.specialAbilityGranted === true,
       }).returning({ id: campaignCharacterSkillAllocation.id });
       savedMap.set(draftId, created.id);
       visiting.delete(draftId);
@@ -1745,6 +1755,7 @@ export async function advanceCharacterSkills(
         skillId: campaignCharacterSkillAllocation.skillId,
         parentAllocationId: campaignCharacterSkillAllocation.parentAllocationId,
         points: campaignCharacterSkillAllocation.points,
+        specialAbilityGranted: campaignCharacterSkillAllocation.specialAbilityGranted,
       })
       .from(campaignCharacterSkillAllocation)
       .where(eq(campaignCharacterSkillAllocation.characterId, characterId))
@@ -1939,10 +1950,11 @@ export async function advanceCharacterSkills(
         !canPlayerAdvanceSkillWithExperience(
           target,
           resolved.currentAllocationPoints,
+          specialAbilityPossession(target.id, allocationRows, selectedRace?.skillLinks).possessed,
         )
       ) {
         throw new Error(
-          `${target.name} must be permanently owned before a Player can advance it with Experience.`,
+          `${target.name} must already be possessed before a Player can advance it with Experience. New Special Abilities after creation require a G.O.D. assignment or an authored grant.`,
         );
       }
       const campaignPath = allocationSkillPath(resolved.targetAllocationId, projectedAllocations);

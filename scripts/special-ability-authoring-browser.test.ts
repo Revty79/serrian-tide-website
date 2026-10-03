@@ -169,9 +169,25 @@ async function main() {
     await eventually(async () => await editor.getByLabel("Definition", { exact: true }).inputValue() === "Synthetic concurrent definition.", "Reload did not load saved data");
     checks.push("stale revision rejected; draft retained; explicit reload confirmation with Keep Editing");
     await open("Synthetic Historical Ability"); await tab("Special Ability Mechanics").click(); await mechanics.getByRole("button", { name: "Edit Rule", exact: true }).click();
-    assert.match(await mechanics.innerText(), /purchased-point interpretation not yet finalized/); assert.match(await mechanics.innerText(), /Archived reference retained/);
-    assert.equal(await mechanics.locator('input[type="number"],option[value="self-progression"]').count(), 0);
-    await save(); assert.equal(JSON.parse((await extension(history)).data_json).rules[0].when.groups[0].conditions[0].requiredValue, 12);
+    assert.match(await mechanics.innerText(), /Archived reference retained/);
+    const benchmark = mechanics.getByRole("spinbutton", { name: "Current Special Ability Score", exact: true });
+    assert.equal(await benchmark.inputValue(), "12");
+    for (const value of ["-1", "101"]) {
+      await benchmark.fill(value);
+      assert.match(await mechanics.innerText(), /Enter a Current Special Ability Score from 0 to 100/);
+      await tab("Save Skill").click();
+      await editor.locator(".skill-editor__feedback.is-error").waitFor();
+      assert.equal(JSON.parse((await extension(history)).data_json).rules[0].when.groups[0].conditions[0].requiredValue, 12);
+    }
+    await benchmark.fill("30");
+    await save(); assert.equal(JSON.parse((await extension(history)).data_json).rules[0].when.groups[0].conditions[0].requiredValue, 30);
+    await mechanics.getByLabel("New condition type", { exact: true }).selectOption("self-progression");
+    await mechanics.getByRole("button", { name: "Add Condition", exact: true }).click();
+    await benchmark.last().fill("100");
+    await mechanics.getByLabel("Score comparison", { exact: true }).last().selectOption("eq");
+    await save();
+    const conditions = JSON.parse((await extension(history)).data_json).rules[0].when.groups[0].conditions;
+    assert.ok(conditions.some((condition: { operator: string; requiredValue: number }) => condition.operator === "eq" && condition.requiredValue === 100));
     for (const name of ["Synthetic Future Ability", "Synthetic Invalid Ability"]) {
       await open(name); await tab("Special Ability Mechanics").click();
       assert.equal(await mechanics.getByRole("button", { name: "Add Capability Rule", exact: true }).count(), 0);
@@ -179,7 +195,7 @@ async function main() {
       await tab("Core Details").click(); await editor.getByLabel("Definition", { exact: true }).fill("Synthetic safe core update."); await save();
     }
     assert.deepEqual(await extension(future), originalFuture); assert.equal((await extension(invalid)).data_json, "{");
-    checks.push("provisional progression read-only; retained archived labels; invalid and future bytes preserved on core saves");
+    checks.push("current-score benchmarks create/edit; invalid ranges block saves; retained archived labels; invalid and future bytes preserved on core saves");
     await open("Synthetic Author Ability"); await tab("Special Ability Mechanics").click();
     await mechanics.locator("[data-rule-key]").first().getByRole("button", { name: "Remove Rule", exact: true }).click();
     await mechanics.getByRole("button", { name: "Confirm Remove Rule", exact: true }).click(); await save();

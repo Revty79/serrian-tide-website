@@ -18,6 +18,7 @@ export async function rehearseSpecialAbilityReading(pool: pg.Pool, login: (id: s
   const insert = async (sql: string, values: unknown[] = []) => Number((await pool.query(sql, values)).rows[0].id);
   const characterId = seed[0];
   const campaignId = (await pool.query("select campaign_id from campaign_character where id=$1", [characterId])).rows[0].campaign_id;
+  await pool.query("insert into campaign_allowed_system(campaign_id,system,sort_order) select $1,'Special Abilities',99 where not exists (select 1 from campaign_allowed_system where campaign_id=$1 and system='Special Abilities')", [campaignId]);
   const raceId = (await pool.query("select race_id from campaign_character_profile where character_id=$1", [characterId])).rows[0].race_id;
   const skillId = await insert("insert into skill(name,classification,tier,archived_at,archived_by_user_id) values('Synthetic archived target','standard',1,now(),'sheet-owner') returning id");
   const derivedId = await insert("insert into derived_ability(name,acquisition_type,activation_type,description,mechanical_effect) values('Synthetic Derived candidate','awarded','passive','Synthetic definition.','Manual.') returning id");
@@ -43,6 +44,23 @@ export async function rehearseSpecialAbilityReading(pool: pg.Pool, login: (id: s
     else if (index !== 7) await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,3)", [characterId, id]);
     else await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,3)", [seed[2], id]);
   }
+  const assigner = await login("sheet-owner");
+  await assigner.goto(`${baseUrl}/heavens/characters/${characterId}`);
+  await assigner.getByRole("tab", { name: "Skills & Abilities", exact: true }).click();
+  await assigner.getByRole("tab", { name: /^Special Abilities/ }).click();
+  await assigner.getByRole("spinbutton", { name: "Synthetic Definition Only Points Invested", exact: true }).fill("0");
+  await assigner.getByRole("button", { name: "Save Character", exact: true }).click();
+  await assigner.getByText("G.O.D. changes were saved to the Character record.", { exact: true }).waitFor();
+  await assigner.reload();
+  await assigner.getByRole("tab", { name: "Skills & Abilities", exact: true }).click();
+  await assigner.getByRole("tab", { name: /^Special Abilities/ }).click();
+  const assignedRow = assigner.locator(".character-skill-row").filter({ has: assigner.getByRole("spinbutton", { name: "Synthetic Definition Only Points Invested", exact: true }) });
+  assert.equal(await assignedRow.getByRole("spinbutton").inputValue(), "0");
+  assert.match(await assignedRow.innerText(), /Assigned by G.O.D./);
+  const grant = (await pool.query("select a.points,a.special_ability_granted from campaign_character_skill_allocation a join skill s on s.id=a.skill_id where a.character_id=$1 and s.name='Synthetic Definition Only'", [characterId])).rows[0];
+  assert.deepEqual(grant, { points: 0, special_ability_granted: true });
+  await assigner.close();
+  results.push("G.O.D. editor retains zero-point possession through save and reload");
   // Active, frozen encounter: reads must not initialize combat or bypass Freeze.
   const sessionId = await insert("insert into campaign_session(campaign_id,title,sequence_number,status,started_at) values($1,'Synthetic reading Session',1,'active',now()) returning id", [campaignId]);
   const sceneId = await insert("insert into campaign_session_scene(session_id,campaign_id,title,sequence_number,status,started_at) values($1,$2,'Synthetic reading Scene',1,'active',now()) returning id", [sessionId, campaignId]);
@@ -65,7 +83,8 @@ export async function rehearseSpecialAbilityReading(pool: pg.Pool, login: (id: s
     assert.equal(await view.locator(".special-ability-reference__ability").count(), 7);
     await expand(view);
     const text = await view.innerText();
-    for (const expected of [...names.slice(0, 7), "Definition only", "contain no rules", "could not be read safely", "newer format", "Saved purchased progression: 0", "Qualification not matched", "Manual / G.O.D.", "Archived", "reference unavailable", "Provisional", "END-LONG-RESOURCE", "Synthetic resource cost: 2", "Synthetic Derived candidate", "critical success", "Choice required"]) assert.ok(text.includes(expected), `Missing ${expected}`);
+    for (const expected of [...names.slice(0, 7), "Definition only", "contain no rules", "could not be read safely", "newer format", "Current Special Ability Score: 0", "Qualification not matched", "Manual / G.O.D.", "Archived", "reference unavailable", "END-LONG-RESOURCE", "Synthetic resource cost: 2", "Synthetic Derived candidate", "critical success", "Choice required"]) assert.ok(text.includes(expected), `Missing ${expected}`);
+    assert.doesNotMatch(text, /provisional/i);
     assert.ok(!text.includes(names[7]));
     assert.doesNotMatch(text, /skill:2147483647|Current balance|remaining points/);
     assert.equal(await view.locator("button,input,select").count(), 0);

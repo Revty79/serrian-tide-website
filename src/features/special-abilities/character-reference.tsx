@@ -1,6 +1,6 @@
 import type { CharacterSpecialAbility, CharacterSpecialAbilityView } from "./character-models";
 import { MechanicsRuleSummary } from "./mechanics-preview";
-import { mechanicsContextSummary, mechanicsDocumentState, mechanicsPossessionSummary, MECHANICS_READ_ONLY_NOTICE, MECHANICS_STATUS_LABELS, presentationDiagnostics, presentationReferences, PROVISIONAL_MECHANICS_WARNING, qualificationExplanation } from "./presentation";
+import { mechanicsContextSummary, mechanicsDocumentState, mechanicsPossessionSummary, MECHANICS_READ_ONLY_NOTICE, MECHANICS_STATUS_LABELS, presentationDiagnostics, presentationReferences, qualificationExplanation } from "./presentation";
 import "./reference.css";
 
 function AbilityContent({ ability, print }: { ability: CharacterSpecialAbility; print: boolean }) {
@@ -8,7 +8,6 @@ function AbilityContent({ ability, print }: { ability: CharacterSpecialAbility; 
   return <div className="special-ability-reference__body">
     <p className="special-ability-reference__definition" data-paper-check={print ? "text" : undefined}><strong>Definition: </strong>{ability.definition || "No Definition recorded."}</p>
     <p>{mechanicsPossessionSummary(ability)}</p>
-    <p>{PROVISIONAL_MECHANICS_WARNING}</p>
     <p>{mechanicsDocumentState(view)}</p>
     {diagnostics.length > 0 && <div className="special-ability-reference__notice"><strong>Reference diagnostics</strong><ul>{diagnostics.map((message, i) => <li key={i}>{message}</li>)}</ul></div>}
     {view.rules.map(rule => {
