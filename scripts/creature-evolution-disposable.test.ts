@@ -88,10 +88,16 @@ async function main() {
     for (const table of ["race_evolution_events", "creature_evolution_events"]) assert.equal((await pool.query(`select count(*)::int n from ${table}`)).rows[0].n, 0);
     console.log(`PASS: fresh ${journal.entries.length}-migration chain; populated 0082-to-Pass-3 upgrade preserves all ${tables.length} prior public tables and existing path identity/version, with no inferred requirements or Race paths.`);
     await pool.end(); pool=null;
-    const run=(script:string, extra:Partial<NodeJS.ProcessEnv>={})=>execFileSync(process.execPath,["--experimental-test-module-mocks","--conditions=react-server","--import","tsx","--test",script],{cwd:process.cwd(),env:{...env,...extra},stdio:"inherit",windowsHide:true,timeout:600_000});
+    let executedScripts=0;
+    const run=(script:string, extra:Partial<NodeJS.ProcessEnv>={})=>{
+      if(process.env.EVOLUTION_CASE_FILTER && !script.includes(process.env.EVOLUTION_CASE_FILTER)) return;
+      executedScripts++;
+      execFileSync(process.execPath,["--experimental-test-module-mocks","--conditions=react-server","--import","tsx","--test",script],{cwd:process.cwd(),env:{...env,...extra},stdio:"inherit",windowsHide:true,timeout:600_000});
+    };
     run("scripts/creature-evolution-db.test.mjs");
     run("scripts/evolution-pass-two-db.test.mjs");
     run("scripts/evolution-pass-three-db.test.mjs");
+    run("scripts/evolution-runtime-db.test.mjs");
     run("scripts/evolution-pass-four-db.test.mjs");
     run("scripts/evolution-pass-five-db.test.mjs");
     if (!process.argv.includes("--focused")) {
@@ -104,6 +110,7 @@ async function main() {
         run(script,{DATABASE_URL:url("serrian_creature_ownership_dev"),SERRIAN_OWNERSHIP_DISPOSABLE:"true"});
       }
     }
+    assert.ok(executedScripts>0,"The Evolution case filter must select an executed test suite.");
     if (process.argv.includes("--browser")) execFileSync(process.execPath,["--conditions=react-server","--import","tsx","scripts/creature-evolution-browser.test.ts"],{cwd:process.cwd(),env,stdio:"inherit",windowsHide:true,timeout:600_000});
     if (process.argv.includes("--build")) {
       const tsconfig=await readFile("tsconfig.json"),nextEnv=await readFile("next-env.d.ts");

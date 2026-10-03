@@ -198,13 +198,16 @@ async function encounterFor(id, status = "planned", type = "social") {
   await pool.query("insert into campaign_session_encounter_participant(campaign_id,session_id,scene_id,encounter_id,character_id) values($1,$2,$3,$4,$5)",[campaignId,session,scene,encounter,id]);
   return encounter;
 }
-test("every active Encounter blocks all persistent types; planned identity and completed history remain unchanged", async () => {
+test("clean active Encounters allow forward Evolution; frozen and prepared planned Encounters block", async () => {
   for (const kind of ["race", "creature"]) for (const type of ["combat","social","chase","exploration","other"]) {
     const id = await character(kind), encounter = await encounterFor(id,"active",type), input = command(await prepare(kind,id));
-    assert.ok((await prepare(kind,id)).blockers.length);
-    await assert.rejects(api.executePersistentEvolution(input,actor), /active Encounter/);
+    assert.deepEqual((await prepare(kind,id)).blockers, []);
     await pool.query("update campaign_session_encounter set frozen_at=now() where id=$1",[encounter]);
-    await assert.rejects(api.executePersistentEvolution(input,actor), /active Encounter/);
+    await assert.rejects(api.executePersistentEvolution(input,actor), /frozen for inspection/);
+    await pool.query("update campaign_session_encounter set frozen_at=null where id=$1",[encounter]);
+    const result = await api.executePersistentEvolution(command(await prepare(kind,id)),actor);
+    assert.equal(result.event.evidence.encounterContexts[0].cleanBoundary,true);
+    assert.equal(result.event.evidence.encounterContexts[0].encounterType,type);
   }
   const id = await character(); await encounterFor(id); await encounterFor(id,"completed");
   const before = await allRows(); await api.executePersistentEvolution(command(await prepare("race",id)),actor); const after = await allRows();
@@ -220,7 +223,7 @@ test("concurrent Encounter start/enrollment and fact writers cannot race through
   try {
     await client.query("begin"); await client.query("update campaign_session_encounter set status='active',started_at=now() where id=$1",[encounter]);
     await assert.rejects(api.executePersistentEvolution(input,actor),/another operation/);
-    await client.query("commit"); await assert.rejects(api.executePersistentEvolution(input,actor),/active Encounter/);
+    await client.query("commit"); await assert.rejects(api.executePersistentEvolution(input,actor),/facts or destination mechanics changed/);
     const fresh = await character(), prepared = command(await prepare("race",fresh));
     for (const table of ["campaign_session_encounter_participant", "campaign_character_item", "campaign_character_active_condition", "campaign_character_profile", "race_evolution_paths", "creatures", "user_role", "campaign_race", "campaign_allowed_race"]) {
       await client.query("begin"); await client.query(`lock table ${table} in row exclusive mode`);
@@ -276,7 +279,7 @@ test("multi-stage execution and explicit reverse paths keep the same individual;
 });
 
 test("fresh automatic facts defeat old eligible previews, including XP, Skills, conditions and invalid authored results", async () => {
-  const skill=(await one("insert into skill(name,classification,tier) values('Execution prerequisite','Physical',1) returning id")).id;
+  const skill=(await one("insert into skill(name,classification,tier) values('Execution prerequisite','standard',1) returning id")).id;
   for(const type of ["current-experience","total-experience","skill","condition"]) {
     const id=await character(), path=(await one("insert into race_evolution_paths(source_race_id,destination_race_id,name) values($1,$2,$3) returning id",[sourceRace,targetRace,`Revalidate ${type}`])).id;
     const requirement={...emptyEvolutionRequirement(type,0,type),...(type === "skill" ? {skillId:skill} : type === "condition" ? {conditionName:"Ready"} : {requiredValue:1})};
@@ -304,7 +307,7 @@ test("signed Race adjustments persist together, retain purchases, use destinatio
   anatomy.hitLocations[9] = { ...anatomy.hitLocations[9], locationName: "New wing", bodyPartsIncluded: "New wing", hpPoolCanonicalId: "new-wing" };
   const destination = (await one("insert into races(name,size,base_magic,anatomy_json,created_by_user_id) values('Supplement Ascended','Large',12,$1,$2) returning id", [anatomy,god])).id;
   await enableRace(destination);
-  const skill = (await one("insert into skill(name,classification,tier) values('Supplement purchased Skill','Physical',1) returning id")).id;
+  const skill = (await one("insert into skill(name,classification,tier) values('Supplement purchased Skill','standard',1) returning id")).id;
   await pool.query("insert into race_attribute_caps(race_id,attribute_key,max_value) values($1,'STR',5)", [destination]);
   await pool.query("insert into race_movement_modes(race_id,movement_mode,base_value) values($1,'Flight',4)", [destination]);
   await pool.query("insert into race_skill_links(race_id,skill_id,link_type,value) values($1,$2,'predisposition',5)", [destination,skill]);

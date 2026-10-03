@@ -87,7 +87,7 @@ export function EvolutionExecutionDialog({ kind, sourceId, pathId, pathName, onC
   const eligible = preview ? confirmEvolutionEvaluation(preview.evaluation, confirmed).status === "eligible" : false;
   return <dialog ref={dialog} className={styles.dialog} aria-labelledby="evolution-preview-title" onCancel={event => { if (busy) event.preventDefault(); else onClose(); }}>
     <h3 id="evolution-preview-title">{individualId ? returning ? "Review Return" : "Review Evolution" : "Eligibility preview"} — {pathName}</h3>
-    <p>The Campaign-owning G.O.D. can review this permanent change outside active Encounters. Reviewing does not change the individual.</p>
+    <p>The Campaign-owning G.O.D. can authorize permanent Evolution at a clean participant boundary, including during an active Encounter. It spends no Initiative and grants no new turn. Return remains unavailable during an active Encounter. Reviewing does not change the individual.</p>
     {individualId ? <p>Persistent individual #{individualId}. {busy && !preview ? "Loading saved state..." : ""}</p> : null}
     {pending ? <p role="status">A request is awaiting confirmation. Retry resumes that exact transition.</p> : null}
     {!individualId ? <fieldset className={styles.fields} disabled={busy}>
@@ -110,6 +110,7 @@ export function EvolutionExecutionDialog({ kind, sourceId, pathId, pathName, onC
     {error ? <p role="alert">{error}</p> : null}{message ? <p role="status">{message}</p> : null}
     {preview ? <section className={styles.fields} aria-live="polite">
       <h4>{preview.individualName} (#{preview.characterId}): {preview.sourceName} → {preview.destinationName}</h4>
+      <EvolutionEncounterSummary contexts={preview.encounterContexts ?? []} />
       <p>{preview.pathName} — path #{preview.pathId}, revision {preview.pathVersion}. Source #{preview.sourceId}; destination #{preview.destinationId}.</p>
       {preview.returning ? <><p>Return from Evolution event #{preview.returning.eventId}, recorded {new Date(preview.returning.executedAt).toLocaleString()}.</p>{preview.returning.raceAdjustments ? <RaceReturnAdjustments values={preview.returning.raceAdjustments} /> : <p>The recorded prior Creature mechanics will be restored using the current HP Adjustment.</p>}</> : null}
       <h4>{EVOLUTION_STATUS_LABELS[preview.evaluation.status]}</h4><p>{preview.evaluation.explanation}</p>
@@ -143,6 +144,23 @@ export function EvolutionExecutionDialog({ kind, sourceId, pathId, pathName, onC
   </dialog>;
 }
 
+export function EvolutionEncounterSummary({ contexts, historical = false }: {
+  contexts: NonNullable<EvolutionExecutionPreview['encounterContexts']>; historical?: boolean;
+}) {
+  if (!contexts.length) return null;
+  return <section aria-label={historical ? 'Recorded Encounter boundary' : 'Encounter Evolution boundary'}>
+    <h4>{historical ? 'Recorded Encounter context' : 'Current Encounter boundary'}</h4>
+    {contexts.map(context => <div className={styles.card} key={context.encounterId}>
+      <p><strong>{context.encounterName}</strong> - {context.encounterType}, {context.encounterStatus}</p>
+      <p>Session: {context.sessionName}. Scene: {context.sceneName}.</p>
+      <p>Participant status: {context.participantStatus === 'not-enrolled' ? 'Not enrolled in Initiative' : context.participantStatus}.
+        {' '}Current Initiative: {context.currentInitiative ?? 'Not established'}. Round: {context.round ?? 'Not established'}; step: {context.step ?? 'Not established'}; timeline: {context.timelineInitiative ?? 'Not established'}.</p>
+      <p><strong>{historical ? 'Clean participant boundary recorded at Evolution.' : context.cleanBoundary ? 'Available now at this Encounter boundary.' : 'Blocked at this Encounter boundary.'}</strong></p>
+      {!historical && context.cleanBoundary ? <p>Path requirements and the boundary are checked again when the G.O.D. confirms. Initiative and participant identity remain unchanged.</p> : null}
+    </div>)}
+  </section>;
+}
+
 function HealthSummary({ title, view }: { title: string; view: ActiveHealthView }) {
   return <section className={styles.card}><h4>{title}</h4><p>Total HP: {view.total.remainingHp ?? "Unknown"} remaining / {view.total.maximumHp ?? "Unknown"} maximum. Stored damage: {view.totalDamage}. Unresolved injuries: {view.unresolvedInjuryCount} ({view.injuries.length} recorded).</p>
     {view.tracks.map(track => <p key={track.key}>{track.name}: {track.remainingHp ?? "—"} / {track.maximumHp ?? "—"}; damage {track.damage}{track.orphaned ? " — orphaned historical pool" : ""}. Pool: {track.key}</p>)}
@@ -154,6 +172,7 @@ export function EvolutionHistory({ entries }: { entries: EvolutionHistoryEntry[]
     <summary>{event.operation === "return" ? "RETURNED" : "EVOLVED"}: {event.evidence.sourceName} → {event.evidence.destinationName} — {event.kind} event #{event.id}</summary>
     <p>{new Date(event.executedAt).toLocaleString()} · {event.evidence.actorName} ({event.executedByUserId})</p>
     <p>{event.evidence.pathName}, path #{event.evidence.pathId}, revision {event.evidence.pathVersion}. Individual #{event.characterId}.</p>
+    <EvolutionEncounterSummary contexts={event.evidence.encounterContexts ?? []} historical />
     {event.operation === "return" ? <p>Returned from Evolution Event #{event.reversesEventId}.</p> : null}
     {event.evidence.returning?.raceAdjustments ? <RaceReturnAdjustments values={event.evidence.returning.raceAdjustments} /> : null}
     <p>Confirmed requirement keys: {event.evidence.confirmedRequirementKeys.join(", ") || "None required"}.</p>

@@ -63,12 +63,12 @@ before(async()=>{
     await pool.query('insert into "user"(id,name,email) values($1,$1,$2)',[id,`${id}@example.invalid`]);
     await pool.query("insert into user_role(user_id,role) values($1,$2)",[id,role]);
   }
-  skillId=(await one("insert into skill(name,classification,tier,created_by_user_id) values('Evolution Tracking','Physical',1,$1) returning id",[god])).id;
+  skillId=(await one("insert into skill(name,classification,tier,created_by_user_id) values('Evolution Tracking','standard',1,$1) returning id",[god])).id;
   itemId=(await one("insert into items(canonical_id,name,catalog_scope,record_type,family,category,credits,price_basis,created_by_user_id) values('REQUIREMENT-TOKEN','Evolution Token','equipment','misc','Gear','Gear',1,'Each',$1) returning id",[god])).id;
   abilityId=(await one("insert into derived_ability(name,description,mechanical_effect,acquisition_type,activation_type,created_by_user_id) values('Evolution Gift','','','awarded','passive',$1) returning id",[god])).id;
   const draft=creatureDraftFixture();draft.core.canonicalName="Requirements Young Drake";draft.forms=[creatureFormFixture()];
   draft.abilities=draft.forms[0].mechanics.abilities.rows;
-  draft.skillLinks=[{skillId,skillName:"Evolution Tracking",rank:"99",skillClassification:"Physical",notes:"",sortOrder:0}];
+  draft.skillLinks=[{skillId,skillName:"Evolution Tracking",rank:"99",skillClassification:"standard",notes:"",sortOrder:0}];
   young=await creatures.saveCreature(draft);adult=await definition("Requirements Adult Drake");
   raceSource=await raceDefinition("Evolution Human");raceTarget=await raceDefinition("Evolution Ascended Human");raceOther=await raceDefinition("Evolution Elf");
   await add(young,adult);await raceAdd(raceSource,raceTarget);

@@ -21,11 +21,13 @@ import { containerProfile, inventoryInstanceLocation, inventoryStackLocation } f
 import { inventoryContainerAccess, inventoryInstanceCustody, inventoryStackCustody } from "@/db/inventory-access-schema";
 import { firearmMagazineAttachment } from "@/db/magazine-schema";
 import { campaignSessionEncounter, campaignSessionEncounterParticipant, campaignSessionEncounterInitiative, campaignSessionEncounterInitiativeParticipant } from "@/db/tabletop-operations-schema";
+import { EVOLUTION_RUNTIME_TABLES } from './evolution-encounter-boundary';
 
 // Existing fact writers do not share one row-lock protocol. A short, fail-fast table
 // fence covers inserts as well as updates/deletes, including an individual not yet
 // enrolled in an Encounter. Readers remain available. This intentionally trades
-// write concurrency for correctness in Pass 3; no runtime writer is rewritten.
+// write concurrency for correctness. Live Evolution also fences the inspected
+// runtime rows; existing Encounter row locks serialize source preparation.
 // Every table is an explicit trusted schema dependency, never client input.
 export const EVOLUTION_FACT_TABLES = [...new Map([
   ...Object.values(races), ...Object.values(creatures), ...Object.values(racePaths),
@@ -37,6 +39,7 @@ export const EVOLUTION_FACT_TABLES = [...new Map([
   campaignCharacterItem, campaignCharacterItemInstance, item, skill, containerProfile,
   inventoryInstanceLocation, inventoryStackLocation, inventoryContainerAccess, inventoryInstanceCustody, inventoryStackCustody, firearmMagazineAttachment,
   campaignSessionEncounter, campaignSessionEncounterParticipant, campaignSessionEncounterInitiative, campaignSessionEncounterInitiativeParticipant,
+  ...EVOLUTION_RUNTIME_TABLES,
 ].flatMap(value => is(value, PgTable) ? [value as PgTable] : []).map(table => [getTableName(table), table])).values()]
   .sort((a, b) => getTableName(a).localeCompare(getTableName(b)));
 

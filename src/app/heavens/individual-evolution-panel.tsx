@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { individualEvolutionStorageKey, type PendingIndividualEvolution } from "@/features/evolutions/evolution-execution";
 import { getIndividualEvolutionState } from "./evolution-execution-actions";
-import { EvolutionExecutionDialog, EvolutionHistory } from "./evolution-execution-dialog";
+import { EvolutionExecutionDialog, EvolutionHistory, EvolutionEncounterSummary } from "./evolution-execution-dialog";
 import styles from "./creatures/creature-evolutions.module.css";
 
 type State = Awaited<ReturnType<typeof getIndividualEvolutionState>>;
@@ -39,6 +39,7 @@ export function IndividualEvolutionPanel({ characterId, disabled, onChanged }: {
     {state ? <>
       <p><strong>Current {state.kind === "race" ? "Race" : "Creature"}: {state.currentName ?? "Unassigned"}{state.currentId ? ` (#${state.currentId})` : ""}</strong>{state.currentArchived ? " — archived definition" : ""}</p>
       <p>{state.individualName} — persistent individual #{characterId}</p>
+      <EvolutionEncounterSummary contexts={state.encounterContexts} />
       {state.blockers.map(blocker => <p key={blocker} role="note">{blocker}</p>)}
       {pending ? <div className={styles.card}><p>A previous transition still needs confirmation. Resume that exact request before starting another.</p><button className="st-button" type="button" disabled={disabled} onClick={() => setReview({ pathId: pending.preview.pathId, pathName: pending.preview.pathName, returning: pending.operation === "return", resume: pending })}>Resume pending transition</button></div> : null}
       <h4>Available Evolutions</h4>
@@ -48,6 +49,7 @@ export function IndividualEvolutionPanel({ characterId, disabled, onChanged }: {
         <button className="st-button" type="button" disabled={disabled || !!pending || !path.available} onClick={() => setReview({ pathId: path.pathId, pathName: path.pathName, returning: false })}>Review Evolution — {path.destinationName}</button>
       </li>)}</ul> : <p>No outgoing Evolution paths are authored for this exact definition.</p>}
       <h4>Prior state</h4>
+      {state.returnCandidate ? state.returnBlockers.map(blocker => <p key={blocker}>{blocker}</p>) : null}
       {state.returnCandidate ? <div className={styles.card}><p>{state.returnCandidate.priorName} (#{state.returnCandidate.priorId}) — Evolution Event #{state.returnCandidate.eventId}</p>
         <button className="st-button" type="button" disabled={disabled || !!pending} onClick={() => setReview({ pathId: 0, pathName: state.returnCandidate!.priorName, returning: true })}>Review Return to {state.returnCandidate.priorName}</button>
       </div> : <p>{state.returnStatus}</p>}

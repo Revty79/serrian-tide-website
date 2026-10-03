@@ -42,14 +42,14 @@ before(async()=>{
     await pool.query('insert into "user"(id,name,email) values($1,$1,$2)',[id,`${id}@example.invalid`]);
     await pool.query("insert into user_role(user_id,role) values($1,$2)",[id,role]);
   }
-  skillId=(await one("insert into skill(name,classification,tier) values('Destination Skill','Physical',1) returning id")).id;
+  skillId=(await one("insert into skill(name,classification,tier) values('Destination Skill','standard',1) returning id")).id;
   const draft=creatureDraftFixture(),form=creatureFormFixture(skillId);
   Object.assign(draft.core,{canonicalName:"Destination Source Creature",hpMultiplierSteps:2,baseMovementSteps:3,baseMagicSteps:4,interactionRules:form.mechanics.interactionRules,habitatEcology:"Ecology",typicalBehavior:"Behavior"});
   draft.attacks=form.mechanics.attacks.rows.map(row=>({...row,canonicalId:"DRAFT-ATK-COPY"}));
   draft.abilities=form.mechanics.abilities.rows.map(row=>({...row,canonicalId:"DRAFT-ABL-COPY"}));
   draft.abilities[0].effects=[{effectKey:"normal-rider",schemaVersion:2,sortOrder:0,effect:{kind:"manual",title:"Sight rider",description:"Independent copied effect"}}];
   draft.defenses=form.mechanics.defenses.rows;
-  draft.skillLinks=[{skillId,skillName:"Destination Skill",skillClassification:"Physical",rank:"3",notes:"Normal learned",sortOrder:0}];
+  draft.skillLinks=[{skillId,skillName:"Destination Skill",skillClassification:"standard",rank:"3",notes:"Normal learned",sortOrder:0}];
   draft.uses=[{seedIdentity:null,useName:"Story use",notes:"Harvest",sortOrder:0}];
   draft.hitLocations=[{hitLocationNumber:1,locationName:"Body",bodyPartsIncluded:"Torso",hpPoolCanonicalId:draft.hpPools[0].canonicalId,naturalArmor:2,soak:1,locationEffect:"Body effect",notes:"Body notes",sortOrder:0}];
   form.access={mode:"requirements",requirements:[{...emptyFormAccessRequirement("native",0,"creature-ability"),requiredCreatureAbilityCanonicalId:draft.abilities[0].canonicalId}]};
@@ -59,7 +59,7 @@ before(async()=>{
   mechanics.movementMode="override";mechanics.movement=[{key:"flight",movementMode:"Flight",baseValue:8,notes:"Form wings",sortOrder:0}];
   sourceRace=await races.saveRace({...raceDraft,core:{...raceDraft.core,baseMagic:9,anatomy:createHumanoidRaceAnatomy(),interactionRules:{...form.mechanics.interactionRules,rules:form.mechanics.interactionRules.rules.map(row=>{const rule={...row};delete rule.crImpact;return rule;})},physicalDescription:"Authored Race description"},
     attributeCaps:[{attributeKey:"STR",maxValue:75,sortOrder:0}],movementModes:[{movementMode:"Land",baseValue:5,notes:"Normal movement",sortOrder:0}],
-    skillLinks:[{skillId,skillName:"Destination Skill",skillClassification:"Physical",linkType:"skill",value:5,sortOrder:0}],
+    skillLinks:[{skillId,skillName:"Destination Skill",skillClassification:"standard",linkType:"skill",value:5,sortOrder:0}],
     naturalAttacks:[{...emptyRaceNaturalAttack("bite"),attackName:"Bite",damage:"4"}],
     naturalProtections:[{key:"hide",name:"Hide",naturalSoak:2,coverage:{kind:"all"},sortOrder:0}],
     forms:[{...emptyRaceForm("winged"),name:"Winged",mechanics,transformation:transformationFixture(),access:{mode:"requirements",requirements:[{...emptyFormAccessRequirement("trial",0),notes:"Story trial"}]}}]});

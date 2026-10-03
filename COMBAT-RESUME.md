@@ -1,5 +1,15 @@
 # Combat resumption handoff
 
+## Evolution Runtime Pass 1: permanent live Evolution (3 October 2026)
+
+- Continued from the explicitly supplied `f22b96891f67df814ca69dd85865157639f6e7cc`. The user's current direction supersedes the older automatic Magic/acceptance priorities below. Magic Combat work was not resumed.
+- Existing permanent Race/Creature Evolution now permits positive persistent PCs, Race NPCs and Creature NPCs in unfrozen active Encounters at a clean participant boundary. Prepared planned Encounters and unfinished actor/target/protected/responder/effect involvement block with specific reasons. Completed history does not block. No timing, Initiative cost, trigger or Player execution was added.
+- The same Character/participant and established Initiative continue. Health/injuries, active effects/durations, inventory/equipment/custody and ownership remain exact. Existing destination Race/current Creature snapshot readers supply future mechanics. Transactional live events refresh current attack choices; immutable Evolution evidence records copied Encounter/Session/Scene and runtime context.
+- Existing fact/Encounter fencing rechecks the boundary at commit; a concurrent old-source writer waits and then rejects. Same-key concurrent retries create one event. Frozen/resumed and normal/forced closeout regressions preserve permanent Evolution. Existing out-of-Encounter Return still passes; **live Return remains blocked**.
+- [Full 17-part implementation, safety table, limitations and verification report](docs/reports/evolution-runtime-pass-1-2026-10-03.md). Character/Race NPC/Creature NPC browser transitions and open combat SSE refresh passed; hands-on acceptance is still outstanding.
+- Validation: 1,883 feature tests; 522 cases across all 30 combat suites; 154 Evolution/authoring/ownership/lifecycle database cases, followed by the final expanded 19-case live suite; existing Evolution/Return browsers and three live transition/refresh flows. Type generation, typecheck, lint, Drizzle check and whitespace checks passed.
+- No new schema/migration, shared DEV/Production write, deployment or push. Existing 0087 and 0092 shared rollout remains separately authorized. **Stop after this local pass. Do not push, resume Magic or start Evolution Pass 2 live Return, Forms or other deferred runtime work without explicit authorization.**
+
 ## Combat runtime completion Pass 4: Magic (3 October 2026)
 
 - Continued from `19c1b6567eb10d9cf42ebb12f095a928d0796908`. This supersedes Pass 3's deferred-Magic and wait-for-Pass-4 instructions. Character Spells, Item constructions and attached Race Attack, Creature Attack and Creature Ability Magic now share the construction adapter. Base damage, on-hit effects and construction effects remain separately keyed consequences, with frozen targets, source evidence and once-only application.

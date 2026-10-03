@@ -13,6 +13,13 @@ export type EvolutionReturnInput = {
   confirmHealthConsequences: boolean; confirmReplaceOverrides: boolean;
 };
 export type EvolutionDefinitionSummary = { attributes?: string[]; abilities?: string[]; hpMultiplierSteps?: number; baseMovementSteps?: number; baseMagicSteps?: number; size: string; baseMagic: number | null; movement: string[]; attacks: string[]; protections: string[]; skills: string[]; forms: string[]; interactionRules: string[] };
+export type EvolutionEncounterContext = {
+  encounterId: number; encounterName: string; encounterType: string; encounterStatus: 'active' | 'planned';
+  sessionId: number; sessionName: string; sceneId: number; sceneName: string; participantId: number; characterId: number;
+  participantStatus: string; currentInitiative: number | null; round: number | null; step: number | null; timelineInitiative: number | null;
+  frozen: boolean; cleanBoundary: boolean; blockers: string[];
+  operations: Array<{ kind: string; id: number; status: string; explanation: string }>;
+};
 export type EvolutionExecutionPreview = {
   kind: EvolutionOwner; characterId: number; individualName: string; campaignId: number;
   sourceId: number; sourceName: string; destinationId: number; destinationName: string;
@@ -24,6 +31,7 @@ export type EvolutionExecutionPreview = {
     /** Written by new executions; older immutable events retain their before/after evidence. */
     appliedAdjustments?: AppliedRaceEvolutionAdjustments };
   hasIndividualOverrides: boolean; warnings: string[]; blockers: string[];
+  encounterContexts?: EvolutionEncounterContext[];
   returning?: {
     eventId: number; executedAt: string;
     raceAdjustments?: { removed: AppliedRaceEvolutionAdjustments; before: RaceEvolutionIndividualMechanics; after: RaceEvolutionIndividualMechanics };

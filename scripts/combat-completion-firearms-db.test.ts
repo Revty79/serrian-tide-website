@@ -34,6 +34,7 @@ import { cancelAuthoredActionBindingInTransaction, ruleOnInterruptedReactionInTr
 import { closeInitiativeRuntime } from "@/features/tabletop-operations/initiative-runtime";
 import { lockEncounterCloseoutContextInTransaction, finalizeEncounterCloseoutInTransaction } from "@/features/tabletop-operations/encounter-closeout-service";
 import { createPlayerCombatRulingRequestInTransaction, ruleOnPlayerCombatRequestInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
+import { readEvolutionEncounterBoundary } from "@/features/evolutions/evolution-encounter-boundary";
 
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the isolated completion harness.");
 after(() => pool.end());
@@ -87,6 +88,7 @@ for (const weaponType of ["Handgun", "Bow"] as const) test(`Protection Pass 1 ${
     }
     const declared = await declareFirearmAttackInTransaction(tx, f.context, f.actor, { ...f.command, targetParticipantId: f.heroId });
     const attack = await f.attack(declared.attackId);
+    for (const id of [f.actorId, f.heroId]) assert.ok((await readEvolutionEncounterBoundary(tx, id, f.campaignId)).contexts[0].operations.some(row => row.kind === 'firearm-attack' && row.id === attack.id));
     await noDefense(tx, f, attack.triggerDeclarationId); await complete(tx, f, attack.triggerPendingActionId!);
     const fired = await fireFirearmAttackInTransaction(tx, f.context, f.actor, attack.id, { method: "random" });
     const rows = await tx.select().from(effectTable).where(eq(effectTable.planId, fired.effectPlanId!));
@@ -103,6 +105,9 @@ for (const weaponType of ["Handgun", "Bow"] as const) test(`Protection Pass 1 ${
     assert.equal((await readActiveHealthInTransaction(tx, f.heroId, "race")).state.totalDamage - originalHealth.state.totalDamage, 5);
     assert.equal((await f.state()).loadedRounds, weaponType === "Bow" ? 0 : 2);
     assert.equal((await f.rolls()).length, 1);
+    for (const id of [f.actorId, f.heroId]) assert.ok(!(await readEvolutionEncounterBoundary(tx, id, f.campaignId)).contexts[0].operations.some(row => row.kind === 'firearm-attack' && row.id === attack.id), 'completed projectile history does not block Evolution');
+    await tx.update(attackTable).set({ status: 'requires-god-ruling' }).where(eq(attackTable.id, attack.id));
+    assert.ok(!(await readEvolutionEncounterBoundary(tx, f.actorId, f.campaignId)).contexts[0].operations.some(row => row.kind === 'firearm-attack' && row.id === attack.id), 'a historical attack status is not an unfinished outcome');
     throw rollback;
   }), error => { if (error !== rollback) console.error(error); return error === rollback; });
 });
@@ -563,10 +568,12 @@ test("drawing and Single loading need no Ready action and do not bypass cycling 
       const command = { characterId: f.actorId, itemInstanceId: f.instance.id, operation, requestedRounds: operation === "reload" ? 3 : undefined, idempotencyKey: crypto.randomUUID() };
       const before = (await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find(({ characterId }) => characterId === f.actorId)!.currentInitiative;
       const preparation = await startFirearmPreparationInTransaction(tx, f.context, f.actor, command);
+      assert.ok((await readEvolutionEncounterBoundary(tx, f.actorId, f.campaignId)).contexts[0].operations.some(row => row.kind === 'firearm-preparation' && row.id === preparation.preparationId));
       assert.equal((await startFirearmPreparationInTransaction(tx, f.context, f.actor, command)).preparationId, preparation.preparationId);
       const [declaration] = await tx.select().from(declarationTable).where(eq(declarationTable.pendingActionId, preparation.pendingActionId!));
       await noDefense(tx, f, declaration.id);
       await complete(tx, f, preparation.pendingActionId!);
+      assert.ok(!(await readEvolutionEncounterBoundary(tx, f.actorId, f.campaignId)).contexts[0].operations.some(row => row.kind === 'firearm-preparation' && row.id === preparation.preparationId));
       assert.equal((await loadInitiativeEngineInTransaction(tx, f.encounterId)).participants.find(({ characterId }) => characterId === f.actorId)!.currentInitiative, before - cost);
     }
     const state = await f.state();
