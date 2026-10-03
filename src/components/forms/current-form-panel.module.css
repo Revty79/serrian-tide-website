@@ -1,0 +1,8 @@
+.panel { border: 1px solid var(--st-border); border-radius: 1rem; background: var(--st-surface); color: var(--st-text); padding: 1rem; margin-block: 1rem; overflow-wrap: anywhere; }
+.card { border: 1px solid var(--st-border); border-radius: .7rem; background: var(--st-surface-soft); padding: .8rem; margin-block: .8rem; }
+.actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .6rem; }
+.dialog { margin: auto; width: min(48rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); box-sizing: border-box; overflow-y: auto; background: var(--st-surface); color: var(--st-text); border: 1px solid var(--st-border); border-radius: 1rem; padding: 1rem; overflow-wrap: anywhere; }
+.dialog::backdrop { background: color-mix(in srgb, var(--st-page) 80%, transparent); }
+.dialog :is(input, textarea, select, button) { max-width: 100%; }
+.error { color: var(--st-danger); }
+@media print { .panel { display: none; } }

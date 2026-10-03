@@ -1,5 +1,15 @@
 # Combat resumption handoff
 
+## Forms Runtime Pass 1: persistent lifecycle (3 October 2026)
+
+- Continued from `aca7345e51df2f3dcd849258bb9c67179853fbea` under explicit Forms Pass 1 authorization. Current Form is now authoritative for positive PCs, Race NPCs and persistent Creature NPCs; absence is Normal. Enter/Return freeze exact definition evidence and use durable requests/events.
+- Existing Access and current server authority govern entry/exit. Canonical Character Mana and authored Initiative use existing resource/pending-action owners. Unsupported/custom costs, timing, conditions and limits require recorded Campaign-owning G.O.D. rulings. No companion control or automatic trigger/expiry was added.
+- The shared participant transition boundary now serves Evolution, historical Return and both Form transitions. Active/pending Form state blocks Evolution/Return until Normal; Normal Evolution behavior remains intact. Frozen/prepared and unfinished involvement remain blockers.
+- **Normal mechanics still execute.** Form identity refreshes on sheets/combat through existing live events; attack choices, Attributes, anatomy, protection and other mechanics are unchanged. Health, effects/durations, inventory/equipment and ownership remain intact. Entry survives closeout; unfinished requests cancel.
+- Forward migration **0093** and the existing shared Evolution/Race Attack migrations require separately authorized rollout. No shared DEV/Production writes, deployment or push. [Pre-implementation audit](docs/architecture/forms-runtime-pass-1-audit.md); [21-part completion report and validation](docs/reports/forms-runtime-pass-1-2026-10-03.md).
+- Validation: 64 Forms cases, 173 existing Evolution/authoring/ownership/lifecycle cases, 522 combat cases, 1,883 unit tests; desktop/390px browser lifecycle/history, Initiative/Mana, SSE and lost-response recovery; type generation/typecheck/lint/Drizzle/whitespace. Ordinary Race reassignment also requires Normal so sheet edits cannot strand active Form state.
+- Stop after this local pass. Do not push or begin Forms Pass 2/3, Magic Combat Pass 4, Special Ability or companion runtime automatically. Hands-on acceptance remains outstanding.
+
 ## Evolution Runtime Pass 2: permanent live historical Return (3 October 2026)
 
 - Continued from `13c68529795a0079739658421026906838a2644c` under explicit Pass 2 authorization. This supersedes Pass 1's live-Return prohibition and wait-for-Pass-2 instruction below.

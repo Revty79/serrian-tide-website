@@ -9,6 +9,8 @@ import * as creatureRequirements from "@/db/creature-evolution-schema";
 import * as access from "@/db/form-access-schema";
 import * as abilities from "@/db/derived-ability-schema";
 import { raceEvolutionEvent, creatureEvolutionEvent } from "@/db/evolution-event-schema";
+import * as forms from "@/db/form-runtime-schema";
+import { campaignCharacterActiveMana, campaignCharacterActiveModifier, campaignCharacterItemEquipmentState } from "@/db/realm-schema";
 import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
 import { campaign, campaignAllowedSystem, campaignPlayer } from "@/db/campaign-schema";
@@ -32,7 +34,7 @@ import { EVOLUTION_RUNTIME_TABLES } from './evolution-encounter-boundary';
 export const EVOLUTION_FACT_TABLES = [...new Map([
   ...Object.values(races), ...Object.values(creatures), ...Object.values(racePaths),
   ...Object.values(creatureRequirements), ...Object.values(access), ...Object.values(abilities),
-  raceEvolutionEvent, creatureEvolutionEvent,
+  raceEvolutionEvent, creatureEvolutionEvent, ...Object.values(forms), campaignCharacterActiveMana, campaignCharacterActiveModifier, campaignCharacterItemEquipmentState,
   user, userRole, campaign, campaignAllowedSystem, campaignPlayer, campaignRace, campaignAllowedRace,
   campaignCharacter, campaignCharacterProfile, campaignCreatureNpcProfile, campaignCharacterAttribute, campaignCharacterSkillAllocation,
   campaignCharacterActiveCondition, campaignCharacterActiveHealth, campaignCharacterActiveHealthPool, campaignCharacterInjury,

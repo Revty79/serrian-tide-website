@@ -3,6 +3,7 @@ import { readRaceNaturalAttacksInTransaction } from "@/features/races/race-natur
 import { readRaceNaturalProtectionInTransaction } from "@/features/races/race-natural-protection-service";
 import { appliedRaceEvolutionAdjustments, applyRaceEvolutionTransition, normalizeRaceEvolutionTransition, removeRaceEvolutionAdjustments } from "@/features/races/race-evolution-transition";
 import "server-only";
+import { permanentTransitionFormBlockers } from "@/features/forms/form-runtime-service";
 import { assertCampaignRaceGrantsInTransaction, assertCampaignSkillGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 import { createHash } from "node:crypto";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
@@ -148,6 +149,7 @@ async function readPreparation(tx: Tx, kind: EvolutionOwner, characterId: number
     afterHealth = resolveActiveHealthView(resolveCreatureHealthAnatomy(destinationCurrent, npc.hpAdjustment), before.state);
   }
   const boundary = await readEvolutionEncounterBoundary(tx, characterId, character.campaignId);
+  boundary.blockers.push(...await permanentTransitionFormBlockers(tx, characterId));
   const { blockers } = boundary;
   const warnings = evolutionHealthWarnings(before.view, afterHealth);
   warnings.push("Equipment and custody remain unchanged. Review worn and wielded gear against the destination anatomy; Evolution does not reconcile equipment fit.");
@@ -336,6 +338,7 @@ export async function readIndividualEvolutionState(characterId: number, actor: S
     const current = await currentDefinition(tx, kind, characterId);
     const candidate = await returnCandidate(tx, kind, characterId, current.id);
     const boundary = await readEvolutionEncounterBoundary(tx, characterId, access.character.campaignId);
+    boundary.blockers.push(...await permanentTransitionFormBlockers(tx, characterId));
     const { blockers } = boundary;
     if (access.character.archivedAt || access.campaign.archivedAt) blockers.push("Restore the individual and Campaign before Evolution or Return.");
     const history = (await individualEvents(tx, kind, characterId)).map(row => historyEntry(kind, row));
@@ -409,6 +412,7 @@ async function readReturnPreparation(tx: Tx, kind: EvolutionOwner, characterId: 
   warnings.push(...evolutionHealthWarnings(before.view, afterHealth));
   warnings.push("Equipment, inventory and custody remain unchanged. Review worn and wielded gear against the restored anatomy; Return does not reconcile equipment fit.");
   const boundary = await readEvolutionEncounterBoundary(tx, characterId, character.campaignId);
+  boundary.blockers.push(...await permanentTransitionFormBlockers(tx, characterId));
   const preview: EvolutionReturnPreview = { kind, characterId, campaignId: character.campaignId, individualName: character.name,
     sourceId: current.id, sourceName: current.name!, destinationId, destinationName: original.evidence.sourceName,
     pathId: original.pathId, pathName: original.evidence.pathName, pathVersion: original.pathVersion,

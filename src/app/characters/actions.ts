@@ -1464,6 +1464,12 @@ export async function saveCharacter(
       .limit(1)
       .for("update");
     if (!lockedProfile) throw new Error("Character profile not found.");
+    if (draft.profile.raceId !== lockedProfile.raceId) {
+      const { permanentTransitionFormBlockers } = await import("@/features/forms/form-runtime-service");
+      if ((await permanentTransitionFormBlockers(tx, characterId)).length) {
+        throw new Error("Return to Normal and finish or cancel any pending Form transformation before changing the normal Race.");
+      }
+    }
     if (!canEditRecord && lockedProfile.creationCompletedAt) throw new Error("Character creation is complete and its creation record is permanently locked.");
     const [lockedCampaign] = await tx.select({ ownerId: campaign.createdByUserId }).from(campaign)
       .where(eq(campaign.id, access.row.campaignId)).for("update");

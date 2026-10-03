@@ -109,7 +109,7 @@ test("every Campaign-owned nullable self-reference has an explicit deletion stra
       if (foreignKey.tableTo !== tableName) continue;
       for (const columnName of foreignKey.columnsFrom) {
         if (table.columns[columnName]?.notNull) continue;
-        if (["race_evolution_events", "creature_evolution_events"].includes(tableName) && columnName === "reverses_event_id") {
+        if ((["race_evolution_events", "creature_evolution_events"].includes(tableName) && columnName === "reverses_event_id") || (tableName === "form_transition_event" && columnName === "entered_event_id")) {
           // Immutable Return provenance cannot be detached. The trigger enforces the
           // same Campaign, and NO ACTION permits deleting both rows in one statement.
           assert.equal(foreignKey.onDelete, "no action");

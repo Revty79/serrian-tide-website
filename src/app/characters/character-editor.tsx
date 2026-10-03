@@ -1,6 +1,7 @@
 "use client";
 import { characterCampaignSkillAccess, characterSkillChoiceAccess } from "@/features/characters/character-campaign-skill-access";
 import { VesselCompanionLookup } from "./companion-management-history";
+import { CurrentFormPanel } from "@/components/forms/current-form-panel";
 import { IndividualEvolutionPanel } from "@/app/heavens/individual-evolution-panel";
 
 import { GuidedField } from "@/components/field-guidance";
@@ -873,7 +874,9 @@ export function CharacterEditor({
       {feedback ? <p className={`character-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
       {archivedNpc ? <p className="character-feedback is-error">This NPC is archived and read-only. Restore it from the NPC Master Sheet before saving changes.</p> : null}
 
-      {!isNpc && <CharacterFormPreviewViewer key={`${aggregate.character.id}:${draft.profile.raceId}`} aggregate={aggregate} draft={draft} race={selectedRace} />}
+      {<CharacterFormPreviewViewer key={`${aggregate.character.id}:${draft.profile.raceId}`} aggregate={aggregate} draft={draft} race={selectedRace} />}
+
+      <CurrentFormPanel characterId={aggregate.character.id} disabled={dirty || saving || raceLoading || archivedNpc} onChanged={refreshAfterRuntimeMutation} />
 
       <div className="character-workspace">
         <nav className="character-tabs" role="tablist" aria-label="Character sheet sections" onKeyDown={(event) => {

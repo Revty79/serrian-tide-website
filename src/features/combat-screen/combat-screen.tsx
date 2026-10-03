@@ -1,4 +1,5 @@
 "use client";
+import { FORM_RUNTIME_NOTICE } from "@/features/forms/form-runtime";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -202,6 +203,7 @@ export function CombatScreen({ scope, initialData }: { scope: CombatScreenScope;
       </> : null}
       <section className={styles.window} aria-label="Selected combatant detail"><h2>{selected?.name ?? selectedRoster?.name ?? "Select a combatant"}</h2>
         {selected ? <p className={selected.condition.status === "able" ? styles.muted : styles.notice}>{selected.condition.status === "able" ? selected.participation.departed ? (selected.participation.departureKind === "surrender" ? "Surrendered / yielded: " : "Withdrawn: ") + selected.participation.reason : "In combat" : combatMessage(combatConditionMessage(selected.condition)!)} · {selected.canControl ? "You control this combatant." : "Its Player chooses its actions."}</p> : null}
+        {information && selectedRoster && selectedRoster.participantId > 0 ? <p>Current Form: <strong>{information.currentForm?.name ?? "Normal"}</strong>. {FORM_RUNTIME_NOTICE}</p> : null}
         {information ? <CombatResources information={information} /> : <p className={styles.muted}>{loading ? "Loading information…" : "Information becomes available after Initiative enrollment."}</p>}
         {selectedRoster && (scope.role === "god" || selectedRoster.participantId === scope.characterId) ? selectedRoster.kind === "creature"
           ? <p>{CREATURE_MECHANICS_CONTEXT}</p>

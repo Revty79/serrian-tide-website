@@ -116,6 +116,8 @@ export type LockedActionDeclarationSnapshot = Readonly<{
     rollOverTarget: number | null;
     explanation: string;
   }>;
+  currentForm?: { entryEventId: number; name: string; kind: "race" | "creature" } | null;
+  targetForms?: Array<{ characterId: number; currentForm: { entryEventId: number; name: string; kind: "race" | "creature" } | null }>;
   authoredSource?: FrozenActionSourceSnapshot | null;
   initiativeCost: number;
   allowsMultiRound: boolean;
@@ -298,6 +300,8 @@ export function buildLockedActionDeclarationSnapshot(input: {
   context: LockedActionDeclarationSnapshot["context"];
   weapon: LockedActionDeclarationSnapshot["weapon"];
   governing: LockedActionDeclarationSnapshot["governing"];
+  currentForm?: { entryEventId: number; name: string; kind: "race" | "creature" } | null;
+  targetForms?: Array<{ characterId: number; currentForm: { entryEventId: number; name: string; kind: "race" | "creature" } | null }>;
   authoredSource?: FrozenActionSourceSnapshot | null;
   authorUserId: string;
   lockedByUserId: string;
@@ -336,6 +340,8 @@ export function buildLockedActionDeclarationSnapshot(input: {
       ...input.governing,
       source: structuredClone(input.governing.source),
     },
+    ...(input.targetForms === undefined ? {} : { targetForms: structuredClone(input.targetForms) }),
+    ...(input.currentForm === undefined ? {} : { currentForm: input.currentForm ? structuredClone(input.currentForm) : null }),
     authoredSource: input.authoredSource ? structuredClone(input.authoredSource) : null,
     initiativeCost: draft.initiativeCost,
     allowsMultiRound: draft.allowsMultiRound,
@@ -388,6 +394,8 @@ export function parseLockedActionDeclarationSnapshot(value: unknown): LockedActi
     context: candidate.context,
     weapon: candidate.weapon,
     governing: candidate.governing,
+    ...(candidate.targetForms === undefined ? {} : { targetForms: candidate.targetForms }),
+    ...(candidate.currentForm === undefined ? {} : { currentForm: candidate.currentForm }),
     authoredSource: candidate.authoredSource ?? null,
     authorUserId: candidate.authorUserId,
     lockedByUserId: candidate.lockedByUserId,

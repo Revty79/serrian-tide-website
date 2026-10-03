@@ -408,6 +408,8 @@ async function finalizeEncounterCloseoutInternal(
     eq(campaignSessionEncounter.status, "active"),
   )).returning({ id: campaignSessionEncounter.id });
   if (!completed) throw new Error("The Encounter changed before closeout completed.");
+  const { reconcileFormTransitionsInTransaction } = await import("@/features/forms/form-runtime-service");
+  await reconcileFormTransitionsInTransaction(tx, context.encounterId);
   return readEncounterCloseoutInTransaction(tx, {
     ...context,
     encounterStatus: "completed",

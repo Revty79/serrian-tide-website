@@ -550,6 +550,8 @@ async function persistInitiativeEngineInternal(
     if (draw) await completeMeleeDraw(tx, draw.id, context.ownerUserId);
   }
   await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime, durationPassage);
+  const { reconcileFormTransitionsInTransaction } = await import("@/features/forms/form-runtime-service");
+  await reconcileFormTransitionsInTransaction(tx, context.encounterId);
   if (before.runtime.stepNumber !== after.runtime.stepNumber || before.runtime.roundNumber !== after.runtime.roundNumber || before.runtime.status !== after.runtime.status) {
     const { reconcileCombatRecoveryInTransaction } = await import("./combat-spell-recovery-service");
     await reconcileCombatRecoveryInTransaction(tx, context);

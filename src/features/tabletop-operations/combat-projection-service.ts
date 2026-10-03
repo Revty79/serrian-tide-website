@@ -107,8 +107,10 @@ export async function readCombatEntityInformationInTransaction(
   const projection = await readCombatProjectionInTransaction(tx, context, actor);
   const entity = projection.entities.find((entry) => entry.participantId === participantId);
   if (!entity) throw new Error("That entity does not belong to this Encounter.");
+  const { readCurrentFormIdentityInTransaction } = await import("@/features/forms/form-runtime-service");
+  const currentForm = await readCurrentFormIdentityInTransaction(tx, participantId);
   const canReadResources = actor.authority === "god-owner" || actor.characterId === participantId;
-  if (!canReadResources) return { entity, pause: projection.pause, resources: null };
+  if (!canReadResources) return { entity, currentForm, pause: projection.pause, resources: null };
   const [row] = await tx.select({ kind: campaignSessionEncounterParticipant.participantKind,
     snapshot: campaignSessionEncounterParticipant.creatureSnapshotJson, localState: campaignSessionEncounterParticipant.localStateJson,
     npcKind: campaignCharacter.npcKind }).from(campaignSessionEncounterParticipant)
@@ -131,7 +133,7 @@ export async function readCombatEntityInformationInTransaction(
     // currently sealed group. The card needs only the public participation state.
     const state = projection.checkpoint && local?.combatParticipation
       ? { ...local, combatParticipation: combatParticipationState(local) } : row.localState;
-    return { entity, pause: projection.pause, combatHistory,
+    return { entity, currentForm, pause: projection.pause, combatHistory,
       resources: { kind: "creature" as const, anatomyAndStatistics: row.snapshot, state } };
   }
   const issues: string[] = [];
@@ -145,6 +147,6 @@ export async function readCombatEntityInformationInTransaction(
   const [advancement] = await tx.select({ experience: campaignCharacterProfile.experience, fame: campaignCharacterProfile.fame }).from(campaignCharacterProfile).where(eq(campaignCharacterProfile.characterId, participantId));
   const checkpoint = await readOpenDeclarationCheckpoint(tx, context.encounterId);
   const before = checkpoint?.beforeStateJson as { manaBefore?: Record<string, typeof mana> } | undefined;
-  return { entity, pause: projection.pause, combatHistory, resources: { kind: "character" as const,
+  return { entity, currentForm, pause: projection.pause, combatHistory, resources: { kind: "character" as const,
     advancement: advancement ?? null, health: health?.view ?? null, mana: before?.manaBefore?.[String(participantId)] ?? (checkpoint ? null : mana), effects, issues } };
 }

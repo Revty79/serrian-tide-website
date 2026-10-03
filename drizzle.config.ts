@@ -19,6 +19,7 @@ export default defineConfig({
     "./src/db/skill-schema.ts",
     "./src/db/race-schema.ts",
     "./src/db/form-access-schema.ts",
+    "./src/db/form-runtime-schema.ts",
     "./src/db/creature-schema.ts",
     "./src/db/creature-evolution-schema.ts",
     "./src/db/race-evolution-schema.ts",

@@ -1,4 +1,5 @@
 "use client";
+import { CurrentFormPanel } from "@/components/forms/current-form-panel";
 import { IndividualEvolutionPanel } from "@/app/heavens/individual-evolution-panel";
 import { VesselCompanionLookup } from "@/app/characters/companion-management-history";
 import { UnownedCompanionInspector } from "@/app/characters/unowned-companion-inspector";
@@ -206,6 +207,7 @@ export function CreatureNpcWorkspace({ initialDraft, initialActiveHealth, initia
     <section className="creature-npc-warning"><strong>Independent Creature NPC</strong><span>This record began as a snapshot of <b>{draft.creatureName}</b>. Changes here never alter the master Creature library.</span></section>
     {!canOperateRuntime ? <section className="creature-npc-warning is-runtime-read-only" role="note"><strong>Administrator record access</strong><span>Live Campaign state is read-only. You may edit and save this permanent NPC record, but only a G.O.D. who owns this Campaign can operate Health, effects, Equipment State, Item Charges, Items, or Creature Abilities.</span></section> : null}
     <CreatureFormPreviewViewer key={`${draft.characterId}:${draft.creatureId}`} snapshot={draft.currentSnapshot} normalSnapshot={accessSnapshot} hpAdjustment={draft.hpAdjustment} />
+    <CurrentFormPanel characterId={draft.characterId} disabled={dirty || saving || !canOperateRuntime} onChanged={refreshRuntimeState} />
     <div className="creature-npc-layout"><nav className="creature-npc-tabs">{TABS.filter(entry => entry.id !== "evolution" || canOperateRuntime).map((entry) => <button type="button" key={entry.id} className={tab === entry.id ? "is-active" : ""} onClick={() => void preserveScroll(() => setTab(entry.id))}>{entry.label}</button>)}</nav><section className="creature-npc-editor">
       {tab === "evolution" && canOperateRuntime ? <IndividualEvolutionPanel characterId={draft.characterId} disabled={dirty || saving} onChanged={refreshRuntimeState} /> : null}
       {tab === "identity" ? <><Identity draft={draft} onChange={change} />{draft.ownerCharacterId !== null ? <><CompanionDispositionEditor key={`${draft.characterId}:${draft.ownerCharacterId}`} ownerCharacterId={draft.ownerCharacterId} creatureCharacterId={draft.characterId} disabled={dirty || saving} /><CompanionProfileEditor key={`profile-${draft.characterId}:${draft.ownerCharacterId}`} ownerCharacterId={draft.ownerCharacterId} creatureCharacterId={draft.characterId} disabled={dirty || saving} /></> : <UnownedCompanionInspector key={draft.characterId} creatureCharacterId={draft.characterId} />}</> : null}

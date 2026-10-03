@@ -85,6 +85,8 @@ export async function forceEndCombatInTransaction(tx: Tx, encounterId: number, a
       cancelledDeclarationIds: declarations.map((row) => row.id), endedPendingActionIds: endedActions.map((row) => row.id), cancelledSourceIds: endedSources.map((row) => row.id),
       cancelledReactionIds: reactions.map((row) => row.id), cancelledPlanIds: plans.filter((row) => !completedPlanIds.includes(row.id)).map((row) => row.id), completedRetainedPlanIds: completedPlanIds, cancelledPreparationIds: preparations.map((row) => row.id),
       cancelledFirearmAttackIds: firearms.map((row) => row.id), resourcesRefunded: false, consequencesApplied: false, xpAwarded: false } });
+  const { reconcileFormTransitionsInTransaction } = await import("@/features/forms/form-runtime-service");
+  await reconcileFormTransitionsInTransaction(tx, encounterId);
   await publishTabletopInvalidationInTransaction(tx, { ...scope, characterIds: [], category: "initiative" });
   return { status: "completed" as const, reused: false };
 }

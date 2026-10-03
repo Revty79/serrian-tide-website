@@ -146,7 +146,7 @@ export function evaluateDerivedAbilityUseCondition(
     ? { ...condition, operator: "possessed" } : condition, facts);
 }
 
-function planCost(
+export function planDerivedAbilityCost(
   cost: DerivedAbilityCostDefinition,
   context: DerivedAbilityEventContext | null | undefined,
 ): DerivedAbilityCostPlan {
@@ -263,7 +263,7 @@ export function planDerivedAbilityUse(
   const costs = [...input.ability.costs]
     .sort((left, right) => left.sortOrder - right.sortOrder)
     .map((cost) => {
-      const planned = planCost(cost, input.eventContext);
+      const planned = planDerivedAbilityCost(cost, input.eventContext);
       if (planned.status !== "automatic") return planned;
       if (cost.costType === "initiative") {
         if (initiativeRemaining === null || initiativeRemaining < cost.amount) {

@@ -25,7 +25,8 @@ async function main() {
   delete env.NODE_TEST_CONTEXT;
   try {
     execFileSync(exe("initdb"),["--auth=trust","--encoding=UTF8","--no-locale","--username=postgres","-D",data],{stdio:"pipe",windowsHide:true});
-    execFileSync(exe("pg_ctl"),["-D",data,"-l",path.join(root,"postgres.log"),"-o",`-p ${port} -h 127.0.0.1`,"-w","start"],{stdio:"ignore",windowsHide:true}); started=true;
+    // Explicit test transactions own lock scheduling in this disposable cluster.
+    execFileSync(exe("pg_ctl"),["-D",data,"-l",path.join(root,"postgres.log"),"-o",`-p ${port} -h 127.0.0.1 -c autovacuum=off`,"-w","start"],{stdio:"ignore",windowsHide:true}); started=true;
     pool = new pg.Pool({connectionString:url("postgres")});
     for (const name of ["serrian_creature_evolution_dev","serrian_evolution_fresh_dev","serrian_evolution_return_upgrade_dev","serrian_creature_ownership_dev","serrian_creature_authoring_dev","serrian_race_authoring_dev"]) await pool.query(`create database ${name}`);
     await verifyReturnHistoryUpgrade(url("serrian_evolution_return_upgrade_dev"), root);
@@ -85,12 +86,12 @@ async function main() {
     assert.equal((await pool.query("select requirement_mode from creature_evolution_paths")).rows[0].requirement_mode,"unrestricted");
     assert.equal((await pool.query("select count(*)::int n from creature_evolution_requirements")).rows[0].n,0);
     assert.equal((await pool.query("select count(*)::int n from race_evolution_paths")).rows[0].n,0);
-    for (const table of ["race_evolution_events", "creature_evolution_events"]) assert.equal((await pool.query(`select count(*)::int n from ${table}`)).rows[0].n, 0);
+    for (const table of ["race_evolution_events", "creature_evolution_events", "campaign_character_active_form", "form_transition_event", "form_transition_request"]) assert.equal((await pool.query(`select count(*)::int n from ${table}`)).rows[0].n, 0);
     console.log(`PASS: fresh ${journal.entries.length}-migration chain; populated 0082-to-Pass-3 upgrade preserves all ${tables.length} prior public tables and existing path identity/version, with no inferred requirements or Race paths.`);
     await pool.end(); pool=null;
     let executedScripts=0;
     const run=(script:string, extra:Partial<NodeJS.ProcessEnv>={})=>{
-      if(process.env.EVOLUTION_CASE_FILTER && !script.includes(process.env.EVOLUTION_CASE_FILTER)) return;
+      if(process.env.EVOLUTION_CASE_FILTER && !process.env.EVOLUTION_CASE_FILTER.split(",").some(part=>script.includes(part.trim()))) return;
       executedScripts++;
       execFileSync(process.execPath,["--experimental-test-module-mocks","--conditions=react-server","--import","tsx","--test",script],{cwd:process.cwd(),env:{...env,...extra},stdio:"inherit",windowsHide:true,timeout:600_000});
     };
@@ -99,6 +100,7 @@ async function main() {
     run("scripts/evolution-pass-three-db.test.mjs");
     run("scripts/evolution-runtime-db.test.mjs");
     run("scripts/evolution-runtime-return-db.test.mjs");
+    run("scripts/forms-runtime-db.test.mjs");
     run("scripts/evolution-pass-four-db.test.mjs");
     run("scripts/evolution-pass-five-db.test.mjs");
     if (!process.argv.includes("--focused")) {

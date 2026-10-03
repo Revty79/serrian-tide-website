@@ -599,7 +599,10 @@ async function buildAuthoritativeSnapshot(
     draft = { ...draft, initiativeCost: injuryTiming.initiativeCost };
     resolvedSource = { ...resolvedSource, snapshot: { ...resolvedSource.snapshot, authoredData: { ...resolvedSource.snapshot.authoredData, injuryTiming } } };
   }
+  const { readCurrentFormIdentityInTransaction } = await import("@/features/forms/form-runtime-service");
   return buildLockedActionDeclarationSnapshot({
+    currentForm: await readCurrentFormIdentityInTransaction(tx, draft.actorCharacterId),
+    targetForms: await Promise.all(draft.targetCharacterIds.map(async characterId => ({ characterId, currentForm: await readCurrentFormIdentityInTransaction(tx, characterId) }))),
     draft,
     context: {
       campaignId: context.campaignId,

@@ -145,18 +145,18 @@ export function EvolutionExecutionDialog({ kind, sourceId, pathId, pathName, onC
 }
 
 export function EvolutionEncounterSummary({ contexts, historical = false, operation = "evolution" }: {
-  contexts: NonNullable<EvolutionExecutionPreview['encounterContexts']>; historical?: boolean; operation?: "evolution" | "return";
+  contexts: NonNullable<EvolutionExecutionPreview['encounterContexts']>; historical?: boolean; operation?: "evolution" | "return" | "form-enter" | "form-return";
 }) {
   if (!contexts.length) return null;
-  return <section aria-label={historical ? 'Recorded Encounter boundary' : 'Encounter Evolution boundary'}>
+  return <section aria-label={historical ? 'Recorded Encounter boundary' : operation.startsWith('form-') ? 'Encounter Form boundary' : 'Encounter Evolution boundary'}>
     <h4>{historical ? 'Recorded Encounter context' : 'Current Encounter boundary'}</h4>
     {contexts.map(context => <div className={styles.card} key={context.encounterId}>
       <p><strong>{context.encounterName}</strong> - {context.encounterType}, {context.encounterStatus}</p>
       <p>Session: {context.sessionName}. Scene: {context.sceneName}.</p>
       <p>Participant status: {context.participantStatus === 'not-enrolled' ? 'Not enrolled in Initiative' : context.participantStatus}.
         {' '}Current Initiative: {context.currentInitiative ?? 'Not established'}. Round: {context.round ?? 'Not established'}; step: {context.step ?? 'Not established'}; timeline: {context.timelineInitiative ?? 'Not established'}.</p>
-      <p><strong>{historical ? `Clean participant boundary recorded at ${operation === 'return' ? 'Return' : 'Evolution'}.` : context.cleanBoundary ? 'Available now at this Encounter boundary.' : 'Blocked at this Encounter boundary.'}</strong></p>
-      {!historical && context.cleanBoundary ? <p>The transition and boundary are checked again when the G.O.D. confirms. Initiative and participant identity remain unchanged.</p> : null}
+      <p><strong>{historical ? `Clean participant boundary recorded at ${operation === 'form-enter' ? 'Enter Form' : operation === 'form-return' ? 'Return to Normal' : operation === 'return' ? 'Return' : 'Evolution'}.` : context.cleanBoundary ? 'Available now at this Encounter boundary.' : 'Blocked at this Encounter boundary.'}</strong></p>
+      {!historical && context.cleanBoundary ? <p>{operation.startsWith('form-') ? 'The transition and boundary are checked again when confirmed. Participant identity continues. Authored Initiative timing uses the existing action engine.' : 'The transition and boundary are checked again when the G.O.D. confirms. Initiative and participant identity remain unchanged.'}</p> : null}
     </div>)}
   </section>;
 }
