@@ -1,3 +1,4 @@
+import { creatureAttackRuntime } from "./creature-attack-runtime";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import { readAbilityResponseChoicesInTransaction, commitAbilityResponseResourcesInTransaction } from "./ability-response-service";
@@ -46,7 +47,6 @@ import {
 import { validateCanonicalSkillPath } from "@/features/items/weapon-skill-governance";
 
 import { parseLockedActionDeclarationSnapshot } from "./action-declaration";
-import { resolveCreatureAttackInitiativeCost } from "./runtime-integration";
 import {
   cancelActionDeclarationInTransaction,
   continueActionDeclarationAfterRulingInTransaction,
@@ -489,6 +489,9 @@ async function buildSourceAndCost(
   loaded: LoadedResponseContext,
   input: DefenseDeclarationInput,
 ): Promise<{ source: DefenseSourceSnapshot; initiativeCost: number; rollRequired: boolean; godReason: string }> {
+  const originalSource = loaded.lockedAction.authoredSource;
+  if (originalSource && ["race-natural-attack", "creature-attack"].includes(originalSource.kind) && (originalSource.authoredData.authoring as { mode?: string } | undefined)?.mode === "aoe"
+    && ["dodge", "block", "parry"].includes(input.reactionType)) throw new Error("AoE attack defenses require a G.O.D. outcome ruling for each confirmed target. A single defense cannot resolve the whole area.");
   const isGod = actor.authority === "god-owner" && actor.userId === context.ownerUserId;
   const godReason = boundedText(input.godApprovalReason ?? input.godOverrideReason, "G.O.D. approval reason", 2000);
   if (input.reactionType === "no-reaction") {
@@ -599,8 +602,7 @@ async function buildSourceAndCost(
       const selected = choices.length === 1 ? choices[0] : null;
       const target = selected && selected.value !== null && selected.value !== "" ? Number(selected.value) : NaN;
       const defendingAttack = frozen?.attacks?.find((entry) => entry.canonicalId === input.sourceRef);
-      const authoredCost = defendingAttack ? resolveCreatureAttackInitiativeCost({ attackName: String(defendingAttack.attackName),
-        damage: typeof defendingAttack.damage === "number" || typeof defendingAttack.damage === "string" ? defendingAttack.damage : null }).cost : null;
+      const authoredCost = defendingAttack ? creatureAttackRuntime(defendingAttack).initiative.cost : null;
       const cost = authoredCost ?? (isGod && godReason ? input.initiativeCost ?? NaN : NaN);
       if (!selected || !Number.isFinite(target) || !Number.isFinite(cost) || cost <= 0) {
         throw new Error("CREATURE_DEFENSE_SOURCE_REQUIRED: select one exact authored Block/Parry defense with its numeric target and defending weapon Initiative cost; an explicit G.O.D. ruling is required for missing data.");
@@ -860,9 +862,6 @@ export async function previewDefenseInterventionInTransaction(tx: DefenseInterve
   actor: ActionDeclarationActor, input: DefenseDeclarationInput) {
   const loaded = await loadResponseContext(tx, context, input.opportunityId);
   await assertResponseChoiceAuthority(tx, context, actor, loaded.opportunity.responderCharacterId);
-  const originalSource = loaded.lockedAction.authoredSource;
-  if (originalSource?.kind === "race-natural-attack" && (originalSource.authoredData.authoring as { mode?: string } | undefined)?.mode === "aoe"
-    && ["dodge", "block", "parry"].includes(input.reactionType)) throw new Error("AoE Natural Attack defenses require a G.O.D. outcome ruling for each confirmed target. A single defense cannot resolve the whole area.");
   if (!loaded.lockedAction.targetCharacterIds.includes(input.protectedTargetCharacterId)) throw new Error("Choose an exact target of the original action to protect.");
   return buildSourceAndCost(tx, context, actor, loaded, input);
 }

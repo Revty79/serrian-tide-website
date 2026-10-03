@@ -1,3 +1,4 @@
+import { creatureAttackRuntime } from "./creature-attack-runtime";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
 import {
@@ -166,6 +167,7 @@ export type ResolveAuthoredActionResult = {
 };
 
 type CreatureAttackSnapshot = {
+  authoring?: unknown;
   canonicalId?: unknown;
   attackName?: unknown;
   attackPercentage?: unknown;
@@ -182,6 +184,7 @@ export type EncounterCreatureAttack = {
   attackPercentage: number | null;
   damage: string | null;
   initiativeCost: number | null;
+  legacySnapshot: boolean;
   initiativeCostSource: "natural" | "damage" | "god" | "structured" | "missing";
   damageType: string;
   rangeReach: string;
@@ -681,11 +684,13 @@ function parseCreatureAttacks(snapshotJson: string): EncounterCreatureAttack[] {
     const row = candidate as CreatureAttackSnapshot;
     if (typeof row.canonicalId !== "string" || typeof row.attackName !== "string") return [];
     const damage = typeof row.damage === "string" ? row.damage : typeof row.damage === "number" ? String(row.damage) : null;
-    const initiative = resolveCreatureAttackInitiativeCost({ attackName: row.attackName, damage });
+    const mechanics = creatureAttackRuntime(row as Record<string, unknown>);
+    const initiative = mechanics.initiative;
     return [{
       canonicalId: row.canonicalId,
       attackName: row.attackName,
-      attackPercentage: typeof row.attackPercentage === "number" ? row.attackPercentage : null,
+      attackPercentage: mechanics.target,
+      legacySnapshot: mechanics.authoring === null,
       damage,
       initiativeCost: initiative.cost,
       initiativeCostSource: initiative.source,
@@ -711,7 +716,8 @@ async function readEncounterCreatureSnapshotInTransaction(
       )).limit(1)
     : tx.select({ snapshot: campaignCreatureNpcProfile.currentSnapshotJson })
       .from(campaignCreatureNpcProfile)
-      .where(eq(campaignCreatureNpcProfile.characterId, positiveId(characterId, "Creature NPC")))
+      .innerJoin(campaignCharacter, eq(campaignCharacter.id, campaignCreatureNpcProfile.characterId))
+      .where(and(eq(campaignCreatureNpcProfile.characterId, positiveId(characterId, "Creature NPC")), eq(campaignCharacter.isNpc, true), eq(campaignCharacter.npcKind, "creature")))
       .limit(1);
   const rows = lock ? await query.for("update") : await query;
   if (!rows[0]?.snapshot) throw new Error("Creature encounter snapshot was not found.");
@@ -768,9 +774,11 @@ export async function startCreatureAttackInTransaction(
   const attacks = await readEncounterCreatureAttacksInTransaction(tx, input.sourceCharacterId, true);
   const attack = attacks.find(({ canonicalId }) => canonicalId === input.attackCanonicalId);
   if (!attack) throw new Error("The selected Creature Attack is no longer available.");
+  if (!attack.legacySnapshot) throw new Error("Use the combat declaration pipeline for structured Creature Attacks; the legacy starter is compatibility-only.");
   const cost = resolveCreatureAttackInitiativeCost({
     attackName: attack.attackName,
     damage: attack.damage,
+    structuredInitiativeCost: attack.initiativeCostSource === "structured" ? attack.initiativeCost : null,
     godSuppliedInitiativeCost: input.godSuppliedInitiativeCost,
   });
   if (cost.cost === null) throw new Error("This Creature Attack needs an explicit G.O.D. Initiative Cost.");

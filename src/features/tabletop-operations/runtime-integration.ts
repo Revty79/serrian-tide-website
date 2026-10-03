@@ -117,14 +117,15 @@ export function resolveCreatureAttackInitiativeCost(input: {
   attackName: string;
   damage: string | number | null;
   structuredInitiativeCost?: number | null;
+  allowLegacyFallback?: boolean;
   godSuppliedInitiativeCost?: number | null;
 }): { cost: number | null; source: "structured" | "natural" | "damage" | "god" | "missing" } {
   if (input.structuredInitiativeCost !== null && input.structuredInitiativeCost !== undefined) {
     return { cost: positive(input.structuredInitiativeCost, "Creature Attack Initiative Cost"), source: "structured" };
   }
-  const natural = getUniversalNaturalActionInitiativeCost(input.attackName);
+  const natural = input.allowLegacyFallback === false ? null : getUniversalNaturalActionInitiativeCost(input.attackName);
   if (natural !== null) return { cost: natural, source: "natural" };
-  const damage = parseDirectNumericDamage(input.damage);
+  const damage = input.allowLegacyFallback === false ? null : parseDirectNumericDamage(input.damage);
   if (damage !== null) return { cost: damage, source: "damage" };
   if (input.godSuppliedInitiativeCost !== null && input.godSuppliedInitiativeCost !== undefined) {
     return { cost: positive(input.godSuppliedInitiativeCost, "G.O.D. Initiative Cost"), source: "god" };

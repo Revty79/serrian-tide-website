@@ -34,7 +34,7 @@ export async function createPass6Walkthrough() {
       attributes: [{ attributeKey: "CON", value: 60 }], movement: [{ movementMode: "Walk", movementValue: 2 }],
       hpPools: [{ canonicalId: "body", poolName: "Body", maximumHp: 60, hpPercentage: 100, sortOrder: 0 }],
       hitLocations: Array.from({ length: 10 }, (_,number) => ({ hitLocationNumber: number, locationName: "Body", bodyPartsIncluded: "Body", hpPoolCanonicalId: "body", naturalArmor: "0", soak: "0", sortOrder: number })),
-      attacks: f.creatureSnapshot.attacks.map((attack) => ({ ...attack, authoring: { ...emptyCreatureAttackAuthoring(), initiativeCost: 4, magical: false } })) };
+      attacks: f.creatureSnapshot.attacks.map((attack) => ({ ...attack, authoring: { ...emptyCreatureAttackAuthoring(), initiativeCost: 4, mode: "melee" as const, range: { unit: "feet", reach: 5, short: null, medium: null, long: null }, magical: false } })) };
     for (const id of f.occurrences) await tx.update(member).set({
       creatureSnapshotJson: { ...snapshot, core: { ...snapshot.core, interactionRules: { schemaVersion: 1, rules: [rule(id === f.occurrences[0] ? "requirement" : "absorption", id === f.occurrences[0] ? null : 50, [{ key: "magic", kind: "magical", magical: true }])] } } },
       localStateJson: { health: { totalDamage: 12, poolDamage: { body: 12 } } },
@@ -91,7 +91,7 @@ export async function runPass6Walkthrough(f: Fixture, observe: (step: string) =>
   }
   const opening = await db.transaction(async (tx) => {
     const attack = await start(tx, { ...completionDraft(f.heroId, f.defenderId), sourceKind: "weapon", weaponItemId: f.weaponId });
-    const creatureAttack = await start(tx, { ...completionDraft(f.occurrences[0], f.heroId), sourceKind: "creature-attack", sourceRef: "fixture-shortsword" }, f.god);
+    const creatureAttack = await start(tx, { ...completionDraft(f.occurrences[0], f.heroId), sourceKind: "creature-attack", sourceRef: "fixture-shortsword", sourcePayload: { rangeAttackMode: "melee", rangeDistance: 5, rangeUnit: "feet" } }, f.god);
     const [window] = await tx.select().from(opportunity).where(and(eq(opportunity.declarationId, attack), eq(opportunity.responderCharacterId, f.defenderId)));
     assert.ok(window);
     const choices = await readAbilityResponseChoicesInTransaction(tx, f.context, f.god, f.defenderId, window.id);

@@ -293,9 +293,11 @@ export async function startEncounterCreatureAttack(
   encounterId: number,
   input: Parameters<typeof startCreatureAttackInTransaction>[2],
 ) {
-  const result = await mutateEncounter(encounterId, (tx, context) => startCreatureAttackInTransaction(tx, context, input));
-  refreshRuntime([input.sourceCharacterId, input.targetCharacterId]);
-  return result;
+  // Retain the endpoint for stale clients, but all new attacks use frozen declarations.
+  void input;
+  return mutateEncounter(encounterId, async () => {
+    throw new Error("Choose Attack on the combat screen to use the shared Creature Attack declaration, Roll and protection pipeline.");
+  });
 }
 
 export async function startEncounterSpellAction(

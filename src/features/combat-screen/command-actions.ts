@@ -1,4 +1,5 @@
 "use server";
+import { authoritativeCreatureSnapshot, creatureAttackRuntime } from "@/features/tabletop-operations/creature-attack-runtime";
 import { isDeepStrictEqual } from "node:util";
 import { readAbilityResponseChoicesInTransaction } from "@/features/tabletop-operations/ability-response-service";
 import { and, eq, isNull } from "drizzle-orm";
@@ -88,7 +89,7 @@ const records = (value: unknown) => Array.isArray(value) ? value.map(object) : [
 export async function readCombatCommandSources(scope: CombatScreenScope, participantId: number) {
   const loaded = await authorized(scope, async (tx, context, actor) => {
     if (actor.authority === "player" && actor.characterId !== participantId) throw new Error("Only your own Character's sources are readable.");
-    const [row] = await tx.select({ snapshot: member.creatureSnapshotJson, local: member.localStateJson, isNpc: campaignCharacter.isNpc,
+    const [row] = await tx.select({ participantKind: member.participantKind, snapshot: member.creatureSnapshotJson, local: member.localStateJson, isNpc: campaignCharacter.isNpc,
       npcKind: campaignCharacter.npcKind, persistentSnapshot: campaignCreatureNpcProfile.currentSnapshotJson }).from(member)
       .leftJoin(campaignCharacter, eq(campaignCharacter.id, member.characterId)).leftJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, member.characterId))
       .where(and(eq(member.encounterId, context.encounterId), eq(member.characterId, participantId)));
@@ -104,7 +105,7 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
     const movement = await resolveInitiativeCapacityOptionsInTransaction(tx, participantId, context.campaignId).catch(() => null);
     const abilityStacks = participantId > 0 ? await tx.select({ itemId: campaignCharacterItem.itemId, quantity: campaignCharacterItem.quantity, itemName: item.name, canonicalId: item.canonicalId, powerId: itemPower.id, powerName: itemPower.name, initiativeCost: itemPower.initiativeCost, resourceKind: itemPower.resourceCostKind, resourceAmount: itemPower.resourceCostAmount, hasPowerPool: itemPowerResource.itemId }).from(campaignCharacterItem).innerJoin(item, eq(item.id, campaignCharacterItem.itemId)).innerJoin(itemPower, eq(itemPower.itemId, item.id)).leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id)).where(and(eq(campaignCharacterItem.characterId, participantId), eq(itemPower.trigger, "activated"))) : [];
     const abilityInstances = participantId > 0 ? await tx.select({ instanceId: campaignCharacterItemInstance.id, itemId: campaignCharacterItemInstance.itemId, currentCharges: campaignCharacterItemInstance.currentCharges, itemName: item.name, canonicalId: item.canonicalId, powerId: itemPower.id, powerName: itemPower.name, initiativeCost: itemPower.initiativeCost, resourceKind: itemPower.resourceCostKind, resourceAmount: itemPower.resourceCostAmount, hasPowerPool: itemPowerResource.itemId }).from(campaignCharacterItemInstance).innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId)).innerJoin(itemPower, eq(itemPower.itemId, item.id)).leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id)).where(and(eq(campaignCharacterItemInstance.characterId, participantId), isNull(campaignCharacterItemInstance.retiredAt), eq(itemPower.trigger, "activated"))) : [];
-    const snapshot = row.snapshot ?? (row.persistentSnapshot ? JSON.parse(row.persistentSnapshot) : null);
+    const snapshot = authoritativeCreatureSnapshot({ participantId, participantKind: row.participantKind, isNpc: row.isNpc, npcKind: row.npcKind, occurrence: row.snapshot, persistent: row.persistentSnapshot });
     const { readRaceAttackSourcesInTransaction } = await import("@/features/tabletop-operations/race-natural-attack-service");
     const naturalAttacks = await readRaceAttackSourcesInTransaction(tx, context, participantId);
     return { equipment, meleeDraws, firearms, magazines, requests, defense: defenses?.participants.find((entry) => entry.characterId === participantId) ?? null,
@@ -138,7 +139,11 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
       description: isSupportedAmmunitionWeaponType(weapon.weaponType) ? "" : weapon.initiativeCost === null ? "Needs an authored timing ruling." : `${weapon.initiativeCost} Initiative` });
   }
   for (const firearm of loaded.firearms?.firearms ?? []) if (!sources.some((source) => source.instanceId === firearm.itemInstanceId)) sources.push({ kind: "weapon", ref: `instance:${firearm.itemInstanceId}`, name: firearm.itemName, instanceId: firearm.itemInstanceId, itemId: firearm.itemId, handedness: firearm.canonical.handedness, description: "Inspect ammunition and preparation before firing." });
-  for (const attack of records(object(loaded.snapshot).attacks)) sources.push({ kind: "creature-attack", ref: String(attack.canonicalId), name: String(attack.attackName), instanceId: null, itemId: null, description: `${attack.attackPercentage ?? "?"}% · ${attack.damage ?? "?"} damage` });
+  for (const attack of records(object(loaded.snapshot).attacks)) {
+    const mechanics = creatureAttackRuntime(attack);
+    sources.push({ kind: "creature-attack", ref: String(attack.canonicalId), name: String(attack.attackName), instanceId: null, itemId: null,
+      rangeMode: mechanics.authoring?.mode, distanceUnit: mechanics.authoring?.range.unit, attackTarget: mechanics.target, description: mechanics.description });
+  }
   for (const ability of records(object(loaded.snapshot).abilities)) sources.push({ kind: "creature-ability", ref: String(ability.canonicalId), name: String(ability.abilityName), instanceId: null, itemId: null, description: String(ability.description ?? ""), unavailable: object(ability.authoring).activationType === "passive" ? "Passive trait: automatic lifecycle is not supported yet; this is not an activated action." : undefined });
   let aggregateIssue = "";
   if (participantId > 0) {

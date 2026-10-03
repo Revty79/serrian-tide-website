@@ -84,7 +84,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
       .where(and(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId), eq(campaignSessionEncounterParticipant.characterId, targetParticipantId))).limit(1);
     if (!target) throw new Error("Attack target no longer belongs to this exact Encounter.");
     const issues: string[] = [];
-    if (source.kind === "race-natural-attack" && object(source.authoredData.authoring).mode === "aoe") issues.push("AoE Natural Attack damage and defenses need a G.O.D. outcome ruling for this confirmed target.");
+    if (["race-natural-attack", "creature-attack"].includes(source.kind) && object(source.authoredData.authoring).mode === "aoe") issues.push("AoE attack damage and defenses need a G.O.D. outcome ruling for this confirmed target.");
     let poolKey: string | null = null;
     let locationName = "";
     let poolMaximumHp: number | null = null;
@@ -138,7 +138,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
         : total;
     }, 0);
     const damageModifiers = object(source.authoredData.damageModifiers);
-    const completeCreatureDamage = sharedIncoming && source.kind === "creature-attack" && locked.actorCharacterId < 0;
+    const completeCreatureDamage = sharedIncoming && source.kind === "creature-attack";
     const modifierTotal = !completeCreatureDamage && typeof damageModifiers.total === "number" ? damageModifiers.total : 0;
     const calculated = base !== null && armor !== null && armor >= 0 && soak !== null && soak >= 0
       ? { ...calculateOrdinaryAttackDamage(base, roll.resolution.additionalSuccesses, armor, soak, weaponHitDamage + modifierTotal),

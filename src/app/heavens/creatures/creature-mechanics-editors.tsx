@@ -1,4 +1,5 @@
 "use client";
+import { emptyCreatureAttackAuthoring } from "@/features/creatures/creature-authoring";
 import { useState, useEffect } from "react";
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
@@ -97,7 +98,7 @@ export function HpAndLocations({ draft, onChange }: { draft: CreatureDraft; onCh
 
 export function Combat({ draft, onChange, attacksOnly = false }: { draft: CreatureDraft; onChange: (draft: CreatureDraft) => void; attacksOnly?: boolean }) {
   return <div className="creature-section">
-    <SectionHeading eyebrow="DIRECT COMBAT" title="Attacks" action="Add Attack" onAction={() => onChange({ ...draft, attacks: [...draft.attacks, { canonicalId: createCreatureDraftCanonicalId("ATK"), attackName: "", attackPercentage: null, damage: null, damageType: "", rangeReach: "", requiredAnatomy: "", requirements: "", usesRecharge: "", specialEffect: "", notes: "", sortOrder: draft.attacks.length }] })} />
+    <SectionHeading eyebrow="DIRECT COMBAT" title="Attacks" action="Add Attack" onAction={() => onChange({ ...draft, attacks: [...draft.attacks, { canonicalId: createCreatureDraftCanonicalId("ATK"), attackName: "", authoring: emptyCreatureAttackAuthoring(), attackPercentage: null, damage: null, damageType: "", rangeReach: "", requiredAnatomy: "", requirements: "", usesRecharge: "", specialEffect: "", notes: "", sortOrder: draft.attacks.length }] })} />
     <div className="creature-card-list">{draft.attacks.map((row, index) => <article className="creature-edit-card" key={`${row.canonicalId}-${index}`}><CardHeader title={row.attackName || `Attack ${index + 1}`} onRemove={() => removeArray(draft, onChange, "attacks", index)} /><CreatureAttackAuthoringEditor authorNativeText={attacksOnly} attack={row} skillOptions={draft.skillLinks.map(({ skillId, skillName }) => ({ id: skillId, name: skillName }))} onChange={(attack) => patchArray(draft, onChange, "attacks", index, attack)} /></article>)}</div>
     {!attacksOnly && <CreatureSkills draft={draft} onChange={onChange} />}
   </div>;

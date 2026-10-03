@@ -1,5 +1,16 @@
 # Combat resumption handoff
 
+## Combat runtime completion Pass 3: Creature Attacks (3 October 2026)
+
+- Continued from `979040d95b4a9b64c5fa059a6a34cf415f007548`. Existing `creature-attack` execution remains the source: exact canonical Attack ID, current individual Creature NPC snapshot or exact frozen direct occurrence. Master data, Race Skills and Character Attribute damage are not substituted.
+- Structured Initiative and melee/ranged/hybrid range now govern the existing declaration/Roll/defense/effect path. Missing Attack % or current timing requires a definition-bound G.O.D. ruling; current authoring cannot silently fall back to guessed timing. Old snapshots without authoring retain labeled compatibility timing/positioning.
+- AoE requires exact confirmed participants and per-target outcomes. Ordinary defenses are rejected for AoE in both preview and submission. Numeric damage, extra successes, location and on-hit riders continue through shared Pass 1 protections and receipt-based application. Descriptive requirements/anatomy/recharge/Notes remain visible manual review information, without parsing or a new ledger. Attached Magic freezes and establishes Magical but does not execute.
+- The combat screen shows full mechanics, descriptive review information, source rulings and authored range controls. The public legacy Creature starter directs stale clients to this path; old internal bindings/resolution remain historical compatibility.
+- Validation: **1,835 unit tests; 504 combat service cases across 30 scripts, including 53 Creature Attack cases**. **Six Creature browser flows plus 16 prior combat workflow checks**, the Creature authoring/snapshot browser suite and its 21 database cases, typecheck, lint, migration metadata and whitespace checks passed. Details are recorded in the [16-part completion report](docs/reports/combat-creature-attacks-pass-3-2026-10-03.md). Automated checks are not Brannan/Ember acceptance.
+- No new schema/migration or shared DEV/Production writes. Pass 2 migration 0092 still awaits separately authorized shared-environment application.
+- This supersedes Pass 2's wait-for-Pass-3 instruction. **Stop after the local commit for review. Do not push or begin Pass 4 Magic Combat, Forms, Evolution, Special Ability, companion or Creature Ability lifecycle/use-ledger work without explicit authorization.**
+
+
 ## Combat runtime completion Pass 2: Normal Race Natural Attacks (3 October 2026)
 
 - Current Normal Race attacks now execute through the dedicated `race-natural-attack` source, exact Race ID/stable attack key, existing Character Skill allocation/fallback, authored Initiative/range, ordinary Roll/defense/consequence and Pass 1 protection services. Player Characters and Race NPCs use their own current Race; Creature occurrences/NPCs and Form-only attacks are excluded.

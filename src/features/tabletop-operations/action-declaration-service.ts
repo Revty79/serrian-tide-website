@@ -525,10 +525,12 @@ async function buildAuthoritativeSnapshot(
   });
   governing = resolvedSource.governing;
   const frozenRange = resolvedSource.snapshot.authoredData.range;
-  if (draft.sourceKind === "race-natural-attack") {
+  if (draft.sourceKind === "race-natural-attack" || draft.sourceKind === "creature-attack") {
     const range = frozenRange as { attackMode?: string; distance?: number; unit?: string; beyondLongModifier?: number } | undefined;
+    const legacyCreature = draft.sourceKind === "creature-attack" && !resolvedSource.snapshot.authoredData.authoring;
+    const attackMode = range?.attackMode ?? (legacyCreature ? "melee" : "aoe");
     draft = { ...draft, actionKind: "weapon-attack", weaponItemId: null, firingModeId: null, sourceInstanceId: null,
-      attackMode: range?.attackMode ?? "aoe", windowKind: range?.attackMode === "melee" ? "melee-overlap" : "ordinary" };
+      attackMode, windowKind: attackMode === "melee" ? "melee-overlap" : "ordinary" };
     if (enforcePlayerWeaponDistanceApproval && actor.authority === "player" && range?.attackMode === "ranged") {
       const { assertApprovedNaturalAttackDistanceInTransaction } = await import("./player-combat-ruling-service");
       const requestId = draft.sourcePayload?.rangeDistanceRulingRequestId;
@@ -829,6 +831,7 @@ async function commitActionDeclarationInternal(
   assertActionDeclarationTransition("locked", "committed");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
   await assertParticipants(tx, context, [snapshot.actorCharacterId, ...snapshot.targetCharacterIds]);
+  if (snapshot.source.kind === "creature-attack" && snapshot.governing?.status !== "resolved") throw new Error("Record a G.O.D. Attack % ruling and prepare the Creature Attack again before committing.");
   if (snapshot.source.kind === "race-natural-attack") {
     const { readRaceAttackSourcesInTransaction } = await import("./race-natural-attack-service");
     const current = (await readRaceAttackSourcesInTransaction(tx, context, snapshot.actorCharacterId)).find(entry => entry.ref === snapshot.authoredSource?.identity);

@@ -1,4 +1,5 @@
 "use server";
+import { emptyCreatureAttackAuthoring } from "@/features/creatures/creature-authoring";
 import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
 import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
 import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
@@ -473,7 +474,7 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
         eq(creatureHpPool.creatureId, id),
         isNull(creatureHpPool.variantId),
       )),
-      tx.select({ canonicalId: creatureAttack.canonicalId }).from(creatureAttack).where(and(
+      tx.select({ canonicalId: creatureAttack.canonicalId, authoring: creatureAttack.authoring }).from(creatureAttack).where(and(
         eq(creatureAttack.creatureId, id),
         isNull(creatureAttack.variantId),
       )),
@@ -525,7 +526,7 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
         ...location,
       })));
     }
-    if (normalized.attacks.length) await tx.insert(creatureAttack).values(normalized.attacks.map((row) => ({ creatureId: id!, variantId: null, ...row })));
+    if (normalized.attacks.length) await tx.insert(creatureAttack).values(normalized.attacks.map((row) => ({ creatureId: id!, variantId: null, ...row, authoring: row.authoring ?? (storedAttacks.some(stored => stored.canonicalId === row.canonicalId && stored.authoring === null) ? null : emptyCreatureAttackAuthoring()) })));
     if (normalized.skillLinks.length) {
       const skillIds = [...new Set(normalized.skillLinks.map(({ skillId }) => skillId))];
       const existing = await tx

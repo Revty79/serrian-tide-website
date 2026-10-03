@@ -43,7 +43,7 @@ async function fixture(tx: Tx, name: string) {
   await tx.insert(campaignCharacterAttribute).values([f.heroId, f.defenderId].map((characterId) => ({ characterId, attributeKey: "CON" as const, value: 60 })));
   const snapshot = { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core, hpMultiplierSteps: 0, baseMovementSteps: 0, baseMagicSteps: 0 },
     attributes: [{ attributeKey: "CON", value: 60 }],
-    attacks: f.creatureSnapshot.attacks.map((attack) => ({ ...attack, authoring: { ...emptyCreatureAttackAuthoring(), initiativeCost: 4, magical: false } })),
+    attacks: f.creatureSnapshot.attacks.map((attack) => ({ ...attack, authoring: { ...emptyCreatureAttackAuthoring(), initiativeCost: 4, mode: "melee" as const, range: { unit: "feet", reach: 5, short: null, medium: null, long: null }, magical: false } })),
     hpPools: [{ canonicalId: "body", poolName: "Body", maximumHp: 30, hpPercentage: 100, sortOrder: 0 }],
     hitLocations: [{ hitLocationNumber: 0, locationName: "Body", bodyPartsIncluded: "Body", hpPoolCanonicalId: "body", naturalArmor: "0", soak: "0", sortOrder: 0 }] };
   await tx.update(member).set({ creatureSnapshotJson: snapshot }).where(and(eq(member.encounterId, f.encounterId), eq(member.participantKind, "creature")));
@@ -60,7 +60,7 @@ async function startAttack(tx: Tx, f: Fixture, actorId = f.heroId, targetId = f.
   await tx.update(initiative).set({ currentInitiative: point, normalTotalInitiative: 22, participationStatus: "active" }).where(and(eq(initiative.encounterId, f.encounterId), eq(initiative.characterId, actorId)));
   const actor = actorId === f.heroId ? f.player : f.god;
   const id = await createActionDeclarationDraftInTransaction(tx, f.context, actor, { ...completionDraft(actorId, targetId),
-    sourceKind: creatureAttack ? "creature-attack" : "weapon", sourceRef: creatureAttack ? "fixture-shortsword" : null, weaponItemId: creatureAttack ? null : f.weaponId });
+    sourceKind: creatureAttack ? "creature-attack" : "weapon", sourceRef: creatureAttack ? "fixture-shortsword" : null, sourcePayload: creatureAttack ? { rangeAttackMode: "melee", rangeDistance: 5, rangeUnit: "feet" } : {}, weaponItemId: creatureAttack ? null : f.weaponId });
   await lockActionDeclarationInTransaction(tx, f.context, actor, id);
   await commitActionDeclarationInTransaction(tx, f.context, actor, id, { method: "entered", enteredTotal: 70 });
   await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, id);

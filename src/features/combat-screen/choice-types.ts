@@ -5,7 +5,7 @@ import type { FirearmAttackCommand } from "@/features/tabletop-operations/firear
 
 export type CombatSourceChoice = { kind: "weapon" | "spell" | "item" | "derived-ability" | "creature-attack" | "race-natural-attack" | "creature-ability";
   ref: string; name: string; instanceId: number | null; itemId: number | null; description: string; unavailable?: string; handedness?: string;
-  rangeMode?: string | null; distanceUnit?: string | null };
+  attackTarget?: number | null; rangeMode?: string | null; distanceUnit?: string | null };
 export type CombatChoice = { participantId: number; source: CombatSourceChoice; targetIds: number[];
   spellSelections?: SpellCastRuntimeSelections; effectSelections?: Record<string, Record<string, unknown>>;
   itemTargetIds?: number[];

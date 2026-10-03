@@ -52,6 +52,7 @@ export function AttackReport({ encounterId, plan, disabled, refresh }: {
   return <section className={`${styles.window} ${styles.attackReport}`} aria-label="Attack result report">
     <div className={styles.bar}><h2>{plan.actorName} → {plan.targetSnapshot.map((entry) => entry.name).join(", ")}</h2><span className={styles.muted}>{plan.sourceSnapshot.displayName} · {retry ? "Approved; application incomplete" : "Ready for approval"}</span></div>
     {plan.status === "application-failed" ? <p className={styles.notice}>{combatMessage(plan.events.findLast((event) => event.eventKind === "effect-plan-application-failed")?.reason ?? "Damage was not applied. Retry after resolving the application problem.")}</p> : null}
+    {plan.sourceSnapshot.kind === "creature-attack" && plan.sourceSnapshot.warnings.length ? <details><summary>Creature attack review information</summary>{plan.sourceSnapshot.warnings.map(warning => <p key={warning}>{combatMessage(warning)}</p>)}</details> : null}
     {roll ? <p className={styles.muted}>Roll {roll.resultTotal} against {roll.finalTarget} · {roll.additionalSuccesses} extra successes</p> : null}
     {attacks.map((entry) => { const result = attackReportTarget(entry); return <div key={entry.id}>
       <dl className={styles.attackFacts}><div><dt>Result</dt><dd>{result.outcome}</dd></div><div><dt>Hit location</dt><dd>{result.outcome === "Miss" ? "—" : result.location}</dd></div><div><dt>Damage to apply</dt><dd>{result.damage ?? "Needs ruling"}</dd></div></dl>
@@ -66,7 +67,7 @@ export function AttackReport({ encounterId, plan, disabled, refresh }: {
       }} />}
       {needsRuling ? <div className={styles.notice}><strong>Decision needed</strong>{result.questions.map((question) => <p key={question}>{combatMessage(question)}</p>)}{!result.questions.length ? <p>Record the specific critical or defense ruling below.</p> : null}</div> : null}
     </div>; })}
-    {riders.length ? <details><summary>Weapon powers and costs</summary>{riders.map((entry) => <p key={entry.id}>{combatEffectSummary(entry, true)}{entry.amendmentReason ? ` — ${combatMessage(entry.amendmentReason)}` : ""}</p>)}</details> : null}
+    {riders.length ? <details><summary>On-hit effects and costs</summary>{riders.map((entry) => <p key={entry.id}>{combatEffectSummary(entry, true)}{entry.amendmentReason ? ` — ${combatMessage(entry.amendmentReason)}` : ""}</p>)}</details> : null}
     {attacks.length === 1 ? <>
       {!needsRuling && !retry ? <label className={styles.check}><input type="checkbox" checked={editing} onChange={(event) => setEditing(event.target.checked)} disabled={busy} /> Adjust location or damage</label> : null}
       {revise ? <div className={styles.fields}>

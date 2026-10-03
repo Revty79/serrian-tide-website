@@ -13,6 +13,9 @@ import { lockPlayerCombatContextInTransaction } from "@/features/tabletop-operat
 import { screenFixture, addScreenSpell, addScreenRecoverySpell, addScreenFirearm, SCREEN_PASSWORD } from "./fixtures/combat-screens-browser-fixture";
 import { createPass6Walkthrough, runPass6Walkthrough } from "./pass6-gameplay-walkthrough";
 import { raceNaturalAttackFixture } from "./fixtures/race-natural-attack-fixture";
+import { emptyAttackAuthoring } from "@/features/attacks/attack-authoring";
+import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
+import { campaignSessionEncounterParticipant as creatureMember } from "@/db/tabletop-operations-schema";
 import { raceNaturalAttack } from "@/db/race-schema";
 async function main() {
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_SCREENS !== "true" || !/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_combat_screens_dev$/.test(process.env.DATABASE_URL ?? "")) throw new Error("A newly migrated disposable screen database is required.");
@@ -180,6 +183,65 @@ try {
     assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 0);
     results.push("Two Initiative shows why a four-point attack is unavailable, preserves no committed Roll, and allows a two-point movement through Player controls.");
     await participant.context().close();
+  }
+  for (const kind of ["direct", "persistent", "ranged", "ruled", "hybrid", "beyond-long"] as const) if (include(`creature-attack-${kind}`)) {
+    const f = await db.transaction(tx => screenFixture(tx, `creature-${kind}`));
+    const actorId = kind === "persistent" ? f.defenderId : f.occurrences[0];
+    const attack = { ...f.creatureSnapshot.attacks[0], attackName: "Cinder Bite", damage: "18", damageType: "Fire", attackPercentage: kind === "ruled" ? null : 50,
+      requirements: "G.O.D. checks the intended target", usesRecharge: "Recovery is descriptive", notes: "No geometry is inferred",
+      authoring: { ...emptyAttackAuthoring(), initiativeCost: kind === "ruled" ? null : 4, mode: kind === "hybrid" ? "hybrid" as const : kind === "ranged" || kind === "beyond-long" ? "ranged" as const : "melee" as const,
+        range: { unit: "feet", reach: 5, short: 10, medium: 20, long: 40 }, magical: false } };
+    const snapshot = { ...f.creatureSnapshot, attacks: [attack] };
+    if (kind === "persistent") {
+      await db.update(campaignCharacter).set({ isNpc: true, npcKind: "creature" }).where(eq(campaignCharacter.id, actorId));
+      await db.insert(campaignCreatureNpcProfile).values({ characterId: actorId, creatureId: f.templateId, baselineSnapshotJson: JSON.stringify(f.creatureSnapshot), currentSnapshotJson: JSON.stringify(snapshot) });
+    } else await db.update(creatureMember).set({ creatureSnapshotJson: snapshot }).where(eq(creatureMember.characterId, actorId));
+    await pool.query("update campaign_session_encounter_initiative_participant set participation_status='passed' where encounter_id=$1", [f.encounterId]);
+    await pool.query("update campaign_session_encounter_initiative_participant set participation_status='active' where encounter_id=$1 and character_id=$2", [f.encounterId, actorId]);
+    const director = await login(f.godId, "god", f);
+    const name = kind === "persistent" ? "Sentry NPC" : (await pool.query("select display_label from campaign_session_encounter_participant where character_id=$1", [actorId])).rows[0].display_label;
+    await selectGod(director, name);
+    await screen(director).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Attack", exact: true }).click();
+    const picker = screen(director).getByRole("combobox", { name: /^Attack source/ });
+    await until(async () => await picker.locator("option").filter({ hasText: "Cinder Bite" }).count() === 1, "exact Creature attack visible");
+    await picker.selectOption({ label: "Cinder Bite" });
+    await screen(director).getByRole("combobox", { name: /^Target/ }).selectOption(String(f.occurrences[1]));
+    if (kind === "hybrid") await screen(director).getByRole("combobox", { name: /^Attack mode/ }).selectOption("ranged");
+    await screen(director).getByLabel("Target distance", { exact: true }).fill(kind === "beyond-long" ? "50" : kind === "ranged" || kind === "hybrid" ? "25" : "5");
+    if (kind === "beyond-long") {
+      await screen(director).getByLabel("Beyond Long modifier", { exact: true }).fill("20");
+      await screen(director).getByLabel("Beyond Long ruling reason", { exact: true }).fill("Measured fifty feet, twenty point penalty.");
+    }
+    await screen(director).getByLabel("Distance unit", { exact: true }).fill("feet");
+    assert.match(await screen(director).innerText(), /18 Fire damage/); assert.match(await screen(director).innerText(), /Nonmagical/); assert.match(await screen(director).innerText(), /Recovery is descriptive/);
+    if (kind === "ruled") {
+      await screen(director).getByText("Specific source ruling", { exact: true }).click();
+      await screen(director).getByText("G.O.D. source ruling: Cinder Bite", { exact: true }).click();
+      await screen(director).getByLabel("Resolution method", { exact: true }).selectOption("opposed-roll");
+      await screen(director).getByLabel("Help for Attack %", { exact: true }).click();
+      assert.match(await screen(director).innerText(), /cannot replace an existing numeric target/);
+      await screen(director).getByLabel("Help for Attack %", { exact: true }).press("Escape");
+      await screen(director).getByLabel("Attack %", { exact: true }).fill("50");
+      await screen(director).getByLabel("Missing Initiative cost (if required)", { exact: true }).fill("4");
+      await screen(director).getByLabel("Ruling reason", { exact: true }).fill("Explicit fifty percent and four Initiative for this incomplete individual attack.");
+      await screen(director).getByRole("button", { name: "Record source ruling", exact: true }).click();
+      await screen(director).getByText("Source ruling recorded. Check the action again before committing.", { exact: true }).waitFor();
+    }
+    await screen(director).getByRole("combobox", { name: "Roll method", exact: true }).selectOption("physical");
+    await screen(director).getByLabel("Percentile result", { exact: true }).fill("70");
+    await screenshot(director, `creature-${kind}-choice`, 390); await director.setViewportSize({ width: 1365, height: 1000 });
+    await commitAttack(director); await until(async () => (await declarations(f)).length === 1, "Creature declaration committed");
+    const row = (await declarations(f))[0];
+    assert.equal(row.locked_snapshot_json.authoredSource.kind, "creature-attack"); assert.equal(row.locked_snapshot_json.authoredSource.sourceId, attack.canonicalId); assert.equal(row.locked_snapshot_json.initiativeCost, 4);
+    await advanceAction(director, row.pending_action_id);
+    await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /^Prepare .* result$/ }).click();
+    await screen(director).getByRole("region", { name: "Attack result report" }).getByRole("button", { name: "Approve & apply attack", exact: true }).click();
+    await until(async () => (await pool.query("select status from campaign_session_encounter_effect_plan where declaration_id=$1", [row.id])).rows[0]?.status === "applied", "Creature attack applied");
+    assert.equal((await pool.query("select local_state_json from campaign_session_encounter_participant where character_id=$1", [f.occurrences[1]])).rows[0].local_state_json.health.totalDamage, kind === "beyond-long" ? 18 : kind === "ranged" || kind === "hybrid" ? 19 : 20);
+    await director.reload(); await screen(director).waitFor(); await screenshot(director, `creature-${kind}-result`, 390);
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where pending_action_id=$1", [row.pending_action_id])).rows[0].n, 1);
+    results.push(`Creature Attack ${kind}: exact snapshot, mechanics and descriptive preview, shared range/Roll/timing/damage and reload without duplication.`);
+    await director.context().close();
   }
   for (const role of ["player", "god", "ranged-player", "ruled-player"] as const) if (include(`race-natural-attack-${role}`)) {
     const f = await db.transaction(tx => screenFixture(tx, `race-${role}`));

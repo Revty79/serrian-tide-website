@@ -1,3 +1,4 @@
+import { authoritativeCreatureSnapshot, creatureAttackRuntime } from "./creature-attack-runtime";
 import { assertExactInventoryAvailable, assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import "server-only";
 import { applyRecordedSourceResolutionInTransaction } from "./combat-source-resolution-service";
@@ -64,7 +65,6 @@ import type {
 } from "./action-declaration";
 import type { ActionDeclarationActor } from "./action-declaration-service";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
-import { resolveCreatureAttackInitiativeCost } from "./runtime-integration";
 import { resolveWeaponRange, weaponAttackMode } from "@/features/items/weapon-range";
 import { readWeaponDamageModifiers } from "./weapon-damage-modifiers-service";
 import { freezeIncomingSourceFactsInTransaction } from "@/features/incoming-effects/source-facts-service";
@@ -106,12 +106,6 @@ function requiredText(value: unknown, label: string, maximum = 500): string {
 
 function optionalText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
-}
-
-function numeric(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && /^-?(?:\d+\.?\d*|\.\d+)$/.test(value.trim())) return Number(value);
-  return null;
 }
 
 function refId(ref: string | null, prefixes: readonly string[], label: string): number {
@@ -181,6 +175,7 @@ async function loadParticipant(
     persistentCreatureSnapshot: campaignCreatureNpcProfile.currentSnapshotJson,
     displayLabel: campaignSessionEncounterParticipant.displayLabel,
     characterName: campaignCharacter.name,
+    isNpc: campaignCharacter.isNpc, npcKind: campaignCharacter.npcKind,
   }).from(campaignSessionEncounterParticipant)
     .leftJoin(campaignCharacter, eq(campaignCharacter.id, campaignSessionEncounterParticipant.characterId))
     .leftJoin(campaignCreatureNpcProfile, eq(campaignCreatureNpcProfile.characterId, campaignCharacter.id))
@@ -194,10 +189,40 @@ async function loadParticipant(
   if (!row) throw new Error("The acting participant no longer belongs to the exact Encounter.");
   return {
     ...row,
-    creatureSnapshot: row.creatureSnapshot ?? (row.persistentCreatureSnapshot
-      ? JSON.parse(row.persistentCreatureSnapshot) as unknown
-      : null),
+    creatureSnapshot: authoritativeCreatureSnapshot({ participantId: participantKey, participantKind: row.participantKind, isNpc: row.isNpc, npcKind: row.npcKind, occurrence: row.creatureSnapshot, persistent: row.persistentCreatureSnapshot }),
   };
+}
+
+export async function readCreatureAttackDefinitionInTransaction(tx: ActionSourceResolverTransaction, context: OwnedEncounterRuntimeContext, participantId: number, sourceRef: string) {
+  const owner = await loadParticipant(tx, context, participantId);
+  const frozen = creatureSnapshot(owner);
+  const attack = Array.isArray(frozen.attacks) ? frozen.attacks.find(entry => isRecord(entry) && entry.canonicalId === sourceRef) : null;
+  if (!isRecord(attack)) throw new Error("The exact Creature Attack does not belong to this Creature participant.");
+  return attack;
+}
+
+function finishCreatureAttackSource(draft: ActionDeclarationDraft, resolved: ResolvedLockedActionSource): ResolvedLockedActionSource {
+  if (draft.sourceInstanceId !== null || draft.weaponItemId !== null || draft.firingModeId !== null) throw new Error("A Creature Attack cannot use an Item instance, Weapon or firing mode identity.");
+  if (draft.targetCharacterIds.includes(draft.actorCharacterId)) throw new Error("Choose another exact combatant for the Creature Attack.");
+  if (resolved.authoritativeInitiativeCost === null) throw new Error("Creature Attack needs a positive Initiative Cost or an explicit G.O.D. timing ruling.");
+  const authoring = creatureAttackRuntime(resolved.snapshot.authoredData).authoring;
+  const mode = authoring?.mode;
+  if (authoring && !mode) throw new Error("Creature Attack needs an authored Attack Mode.");
+  if (mode === "aoe") {
+    const ruling = resolved.snapshot.authoredData.combatResolutionRuling as { targetParticipantIds?: number[] } | undefined;
+    if (!ruling?.targetParticipantIds || JSON.stringify([...ruling.targetParticipantIds].sort((a,b) => a-b)) !== JSON.stringify([...draft.targetCharacterIds].sort((a,b) => a-b))) throw new Error("AoE Creature Attack needs a G.O.D.-confirmed exact target set. Notes do not establish area membership.");
+    if (draft.calledShot.declared) throw new Error("AoE Creature Attack Called Shots require a separate outcome ruling.");
+    return { ...resolved, snapshot: { ...resolved.snapshot, authoredData: { ...resolved.snapshot.authoredData, confirmedAoeTargets: [...draft.targetCharacterIds] }, warnings: [...resolved.snapshot.warnings, "AoE damage and defenses require an explicit outcome ruling for each confirmed target."] } };
+  }
+  if (draft.targetCharacterIds.length !== 1) throw new Error("Choose one exact target for a melee or ranged Creature Attack.");
+  if (!authoring || !mode) return resolved;
+  const payload = draft.sourcePayload ?? {};
+  const attackMode = mode === "hybrid" ? payload.rangeAttackMode : mode;
+  if (attackMode !== "melee" && attackMode !== "ranged") throw new Error("Choose melee or ranged for this Hybrid Creature Attack.");
+  const range = resolveWeaponRange({ profile: { mode, ...authoring.range }, attackMode,
+    distance: typeof payload.rangeDistance === "number" ? payload.rangeDistance : null, unit: typeof payload.rangeUnit === "string" ? payload.rangeUnit : null,
+    beyondLongModifier: typeof payload.rangeBeyondLongModifier === "number" ? payload.rangeBeyondLongModifier : null, beyondLongReason: typeof payload.rangeBeyondLongReason === "string" ? payload.rangeBeyondLongReason : "" });
+  return { ...resolved, snapshot: { ...resolved.snapshot, authoredData: { ...resolved.snapshot.authoredData, range: { ...range, attackMode } } } };
 }
 
 function participantName(participant: ParticipantSource): string {
@@ -997,7 +1022,8 @@ async function resolveCreatureSource(
     const sourceRef = requiredText(draft.sourceRef, "Creature Attack identity");
     const attack = attacks.find((candidate) => candidate.canonicalId === sourceRef);
     if (!attack) throw new Error("The exact authored Creature Attack is no longer present in this encounter snapshot.");
-    const target = numeric(attack.attackPercentage);
+    const mechanics = creatureAttackRuntime(attack);
+    const target = mechanics.target;
     const governingSource = target === null ? null : { kind: "manual" as const, label: `${participantName(participant)} — ${requiredText(attack.attackName, "Creature Attack name")}`, originalTarget: target };
     const governing = target === null ? {
       status: "needs-god-ruling" as const,
@@ -1010,11 +1036,7 @@ async function resolveCreatureSource(
       rollOverTarget: target,
       explanation: "Used the exact numeric attack percentage from this encounter occurrence's frozen Creature snapshot.",
     };
-    const initiative = resolveCreatureAttackInitiativeCost({
-      structuredInitiativeCost: numeric(isRecord(attack.authoring) ? attack.authoring.initiativeCost : attack.initiativeCost),
-      attackName: requiredText(attack.attackName, "Creature Attack name"),
-      damage: typeof attack.damage === "string" || typeof attack.damage === "number" ? attack.damage : null,
-    });
+    const initiative = mechanics.initiative;
     return {
       authoritativeInitiativeCost: initiative.cost,
       governing,
@@ -1030,20 +1052,18 @@ async function resolveCreatureSource(
         resolutionMode: governingSource ? "opposed-roll" : "manual-god-ruling",
         governingSource,
         governingSnapshot: governingSource,
-        authoredData: attack,
+        authoredData: { ...attack, definition: structuredClone(attack), initiativeCostSource: initiative.source },
         resourceCosts: [],
         effects: [manualEffect("creature-attack-instruction", requiredText(attack.attackName, "Creature Attack name"), {
           damage: attack.damage ?? null,
           damageType: attack.damageType ?? "",
           specialEffect: attack.specialEffect ?? "",
           requirements: attack.requirements ?? "",
+          requiredAnatomy: attack.requiredAnatomy ?? "", usesRecharge: attack.usesRecharge ?? "", notes: attack.notes ?? "", rangeReach: attack.rangeReach ?? "",
           nonautomation: "Supported numeric Creature Attacks calculate damage for the resolved hit location and account for supported Armor/Soak. Health changes when the reviewed consequences are applied. Unsupported damage, Called Shot locations, and narrative consequences require a G.O.D. ruling.",
         }, targets), ...normalizeCreatureEffects(isRecord(attack.authoring) ? attack.authoring.onHitEffects : []).map((entry) =>
           structuredEffect(`creature-hit:${entry.effectKey}`, entry.effect, targets, false, { creatureHit: true }))],
-        warnings: [
-          ...(governingSource ? [] : ["Creature Attack Roll requires a G.O.D. ruling."]),
-          ...(initiative.cost === null ? ["Creature Attack Initiative Cost requires a G.O.D. ruling."] : []),
-        ],
+        warnings: mechanics.warnings,
       }),
     };
   }
@@ -1177,7 +1197,8 @@ async function resolveLockedActionSourceBaseInTransaction(
   if (draft.sourceKind === "skill" || draft.sourceKind === "attribute") return resolveSkillOrAttribute(tx, participant, draft);
   if (draft.sourceKind === "creature-attack" || draft.sourceKind === "creature-ability") {
     const resolved = await resolveCreatureSource(participant, draft);
-    return draft.sourceKind === "creature-ability" ? applyRecordedSourceResolutionInTransaction(tx, context, draft, resolved) : resolved;
+    const ruled = await applyRecordedSourceResolutionInTransaction(tx, context, draft, resolved);
+    return draft.sourceKind === "creature-attack" ? finishCreatureAttackSource(draft, ruled) : ruled;
   }
   const descriptive = resolveNoRollOrManual(context, actor, participant, declarationId, draft);
   if (draft.actionKind === "combat-movement") {

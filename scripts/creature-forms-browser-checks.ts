@@ -84,6 +84,9 @@ export async function checkCreatureForms(page: Page, input: { base: string; arti
   assert.equal(authored.mechanics.body.hitLocations[0].naturalArmor, 2);
   assert.equal(authored.mechanics.movement.rows[0].requirements, "Water");
   assert.equal(authored.mechanics.size, "Small");
+  // Saving remounts the editor with optional sections collapsed. Reopen them as a user would.
+  await setDetailsOpen(editor, "Access", true);
+  await setDetailsOpen(editor, "Attributes", true);
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     for (const option of [1, 2]) await captureFormViewport(page, accessEditor.getByRole("group", { name: new RegExp(`Way to qualify #${option}`) }).locator("legend"), path.join(artifacts, `forms-final-creature-access-${option}-${width}.png`));

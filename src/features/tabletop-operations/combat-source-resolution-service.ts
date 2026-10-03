@@ -12,7 +12,7 @@ import { publishTabletopInvalidationInTransaction } from "./tabletop-live-events
 
 export type CombatSourceResolutionRuling = {
   participantId: number;
-  sourceKind: "spell" | "derived-ability" | "creature-ability" | "item" | "race-natural-attack";
+  sourceKind: "spell" | "derived-ability" | "creature-ability" | "item" | "race-natural-attack" | "creature-attack";
   sourceRef: string;
   mode: "automatic-no-roll" | "skill-roll" | "attribute-roll" | "opposed-roll" | "manual-god-ruling";
   governing: CharacterWeaponGoverningSelection | { kind: "manual"; label: string; originalTarget: number } | null;
@@ -38,7 +38,7 @@ export async function recordCombatSourceResolutionInTransaction(
   await assertCombatWritableInTransaction(tx, context.encounterId);
   if (input.useRequirementsReason !== undefined && (!input.useRequirementsReason.trim() || input.useRequirementsReason.length > 2000)) throw new Error("An explicit use-requirements ruling must include its reason.");
   if (input.initiativeCost !== undefined && (!Number.isFinite(input.initiativeCost) || input.initiativeCost <= 0)) throw new Error("The explicit source timing ruling must have a positive Initiative cost.");
-  if (!Number.isSafeInteger(input.participantId) || input.participantId === 0 || !["spell", "derived-ability", "creature-ability", "item", "race-natural-attack"].includes(input.sourceKind)
+  if (!Number.isSafeInteger(input.participantId) || input.participantId === 0 || !["spell", "derived-ability", "creature-ability", "item", "race-natural-attack", "creature-attack"].includes(input.sourceKind)
     || !input.sourceRef?.trim() || input.sourceRef.length > 500 || !input.reason?.trim() || input.reason.length > 2000
     || !["automatic-no-roll", "skill-roll", "attribute-roll", "opposed-roll", "manual-god-ruling"].includes(input.mode)) throw new Error("The exact combat source ruling is incomplete.");
   const needsRoll = ["skill-roll", "attribute-roll", "opposed-roll"].includes(input.mode);
@@ -53,6 +53,16 @@ export async function recordCombatSourceResolutionInTransaction(
   if (!input.effectScaling || Array.isArray(input.effectScaling) || Object.entries(input.effectScaling).some(([key, scale]) => !key.trim() || key.length > 500 || !["fixed", "per-success"].includes(scale) || scale === "per-success" && !needsRoll)) throw new Error("Effect scaling requires an exact authored effect key and a Roll for per-success scaling.");
   let sourceDefinition: unknown;
   let injuryEvidence: unknown;
+  if (input.sourceKind === "creature-attack") {
+    if (input.mode !== "opposed-roll" || input.governing?.kind !== "manual" || Object.keys(input.effectScaling).length) throw new Error("Creature Attacks use their authored Attack % and ordinary opposed Roll; only a missing percentage can receive a manual target ruling.");
+    const { readCreatureAttackDefinitionInTransaction } = await import("./action-source-resolver-service");
+    const { creatureAttackRuntime } = await import("./creature-attack-runtime");
+    const definition = await readCreatureAttackDefinitionInTransaction(tx, context, input.participantId, input.sourceRef);
+    const mechanics = creatureAttackRuntime(definition);
+    if (mechanics.target !== null && input.governing.originalTarget !== mechanics.target) throw new Error("A ruling cannot replace the authored Creature Attack %.");
+    if (input.initiativeCost !== undefined && mechanics.initiative.cost !== null && input.initiativeCost !== mechanics.initiative.cost) throw new Error("A ruling cannot replace canonical Creature Attack Initiative.");
+    sourceDefinition = definition;
+  }
   if (input.sourceKind === "race-natural-attack") {
     if (input.mode !== "opposed-roll" || Object.keys(input.effectScaling).length) throw new Error("Natural Attacks use the ordinary opposed attack Roll and fixed authored on-hit effects.");
     const { readRaceAttackSourcesInTransaction } = await import("./race-natural-attack-service");
@@ -60,6 +70,8 @@ export async function recordCombatSourceResolutionInTransaction(
     if (!source || source.unavailable) throw new Error(source?.unavailable ?? "The Natural Attack is not available from this participant's current Normal Race.");
     sourceDefinition = source.definition;
     injuryEvidence = source.injuryEvidence;
+  }
+  if (input.sourceKind === "race-natural-attack" || input.sourceKind === "creature-attack") {
     if (input.targetParticipantIds) {
       if (!Array.isArray(input.targetParticipantIds) || !input.targetParticipantIds.length || new Set(input.targetParticipantIds).size !== input.targetParticipantIds.length || input.targetParticipantIds.includes(input.participantId)) throw new Error("Confirm a nonempty set of exact other participants.");
       for (const targetId of input.targetParticipantIds) {
@@ -93,6 +105,7 @@ export async function applyRecordedSourceResolutionInTransaction(
   const ruling = Array.isArray(history) ? [...history].reverse().find((entry) => entry.sourceKind === draft.sourceKind && sourceKey(entry.sourceKind, entry.sourceRef) === sourceKey(draft.sourceKind, actualSourceKey)) as RecordedRuling | undefined : undefined;
   if (!ruling) return resolved;
   if (draft.sourceKind === "race-natural-attack" && (!isDeepStrictEqual(ruling.sourceDefinition, resolved.snapshot.authoredData.definition) || !isDeepStrictEqual(ruling.injuryEvidence, resolved.snapshot.authoredData.injuryEvidence))) return resolved;
+  if (draft.sourceKind === "creature-attack" && !isDeepStrictEqual(ruling.sourceDefinition, resolved.snapshot.authoredData.definition)) return resolved;
   const selected = ruling.governing && ruling.governing.kind !== "manual"
     ? resolveCharacterSkillLineageSelection(await loadCharacterSkillLineageInputInTransaction(tx, draft.actorCharacterId), ruling.governing) : null;
   if (ruling.governing && ruling.governing.kind !== "manual" && !selected) throw new Error("The ruled governing Skill lineage or Attribute is no longer available. Reconcile that exact source ruling.");
@@ -103,7 +116,7 @@ export async function applyRecordedSourceResolutionInTransaction(
     governing: ruling.mode === "automatic-no-roll" ? null : ruling.mode === "manual-god-ruling" ? resolved.governing
     : { status: "resolved", source: governingSource, rollOverTarget: selected?.source.originalTarget ?? (ruling.governing?.kind === "manual" ? ruling.governing.originalTarget : null), explanation: ruling.reason },
     snapshot: { ...resolved.snapshot, resolutionMode: ruling.mode, governingSource, governingSnapshot,
-      authoredData: { ...resolved.snapshot.authoredData, combatResolutionRuling: ruling },
+      authoredData: { ...resolved.snapshot.authoredData, combatResolutionRuling: ruling, ...(draft.sourceKind === "creature-attack" && resolved.authoritativeInitiativeCost === null && ruling.initiativeCost !== undefined ? { initiativeCostSource: "god" } : {}) },
       effects: resolved.snapshot.effects.map((effect) => ({ ...effect, scaling: ruling.effectScaling[String(effect.instruction.spellEffectId ?? effect.instruction.sortOrder ?? effect.key)] ?? effect.scaling ?? "fixed" })),
-      warnings: resolved.snapshot.warnings.filter((warning) => !warning.includes("Roll mode requires") && !warning.includes("Missing canonical Derived Ability")) } };
+      warnings: resolved.snapshot.warnings.filter((warning) => !(draft.sourceKind === "creature-attack" && (warning.startsWith("Creature Attack Roll requires") || ruling.initiativeCost !== undefined && warning.startsWith("Creature Attack needs a positive Initiative"))) && !warning.includes("Roll mode requires") && !warning.includes("Missing canonical Derived Ability")) } };
 }

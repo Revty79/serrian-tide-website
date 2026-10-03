@@ -1,4 +1,5 @@
 "use server";
+import { emptyCreatureAttackAuthoring } from "@/features/creatures/creature-authoring";
 import { assertCampaignSkillGrantsInTransaction, assertCampaignRaceGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
 import { assertCreatureVesselsUnboundInTransaction } from "@/features/creatures/creature-vessel-guards";
@@ -1155,6 +1156,7 @@ export async function saveCreatureNpc(input: CreatureNpcDraft): Promise<Creature
       "Current snapshot",
       lockedProfile.hpAdjustment,
     );
+    normalizedSnapshot.attacks = normalizedSnapshot.attacks.map(attack => ({ ...attack, authoring: attack.authoring ?? (lockedSnapshot.attacks.some(previous => previous.canonicalId === attack.canonicalId && previous.authoring == null) ? null : emptyCreatureAttackAuthoring()) }));
     await assertCampaignSkillGrantsInTransaction(tx, input.campaignId, normalizedSnapshot.skillLinks, lockedSnapshot.skillLinks);
     // Form definitions are frozen library metadata, never an NPC-edit or preview payload.
     if (lockedSnapshot.forms === undefined) delete normalizedSnapshot.forms;
