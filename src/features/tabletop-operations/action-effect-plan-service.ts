@@ -408,7 +408,7 @@ async function generateActionEffectPlanInternal(
       throw new Error("Every declared response must be resolved and reconciled before consequences are generated.");
     }
   }
-  if ((source.kind === "weapon" || source.kind === "creature-attack") && declaration.defenseResolutionJson === null) {
+  if ((source.kind === "weapon" || source.kind === "creature-attack" || source.kind === "race-natural-attack") && declaration.defenseResolutionJson === null) {
     throw new Error("Attack consequences require the completed Pass 7 defense/intervention resolution.");
   }
   const governingRoll = await effectiveActionRoll(tx, context, actor, declaration.pendingActionId);
@@ -437,7 +437,7 @@ async function generateActionEffectPlanInternal(
     name: target.kind === "creature" ? target.displayLabel : target.characterName,
   })).sort((left, right) => targetIds.indexOf(left.participantId) - targetIds.indexOf(right.participantId));
   const defenseResolution = isRecord(declaration.defenseResolutionJson) ? declaration.defenseResolutionJson : null;
-  const initialProposal = (source.kind === "weapon" || source.kind === "creature-attack") && locked.weapon?.firingModeId == null && governingRoll
+  const initialProposal = (source.kind === "weapon" || source.kind === "creature-attack" || source.kind === "race-natural-attack") && locked.weapon?.firingModeId == null && governingRoll
     ? await buildOrdinaryAttackConsequenceProposalInTransaction(tx, context, locked, governingRoll, defenseResolution, ordinaryRuling)
     : buildActionEffectPlanProposal({
     source,

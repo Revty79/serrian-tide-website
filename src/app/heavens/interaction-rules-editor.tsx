@@ -25,7 +25,7 @@ const labels: Record<string, string> = {
   "damage-type": "Damage Type", magical: "Magical", "source-kind": "Source Kind", "item-property": "Item Property",
   "item-tag": "Item Tag", "mechanical-effect-kind": "Mechanical Effect Kind", "condition-name": "Condition Name",
   weapon: "Weapon", item: "Item", spell: "Spell", "derived-ability": "Derived Ability", skill: "Skill", attribute: "Attribute",
-  "creature-attack": "Creature Attack", "creature-ability": "Creature Ability", "no-roll": "No Roll", manual: "Manual",
+  "creature-attack": "Creature Attack", "race-natural-attack": "Race Natural Attack", "creature-ability": "Creature Ability", "no-roll": "No Roll", manual: "Manual",
 };
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

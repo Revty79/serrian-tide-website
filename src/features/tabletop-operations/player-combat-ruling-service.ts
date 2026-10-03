@@ -1,4 +1,6 @@
 import "server-only";
+import { isDeepStrictEqual } from "node:util";
+import { readRaceAttackSourcesInTransaction } from "./race-natural-attack-service";
 
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 
@@ -200,6 +202,19 @@ async function normalizeWeaponDistanceRequest(
   player: { userId: string; characterId: number },
   input: CreatePlayerCombatRulingRequest,
 ): Promise<Record<string, unknown>> {
+  if (input.sourceKind === "race-natural-attack") {
+    const source = (await readRaceAttackSourcesInTransaction(tx, context, player.characterId)).find(entry => entry.ref === input.sourceRef);
+    if (!source || source.unavailable) throw new Error(source?.unavailable ?? "Choose an exact attack from your current Normal Race.");
+    const details = object(input.frozenRequest, "Natural Attack distance request");
+    const mode = source.definition.authoring.mode;
+    const attackMode = mode === "hybrid" ? details.attackMode : mode;
+    if (attackMode !== "ranged" || input.sourceInstanceId != null || details.firingModeId != null) throw new Error("This request requires an authored ranged Natural Attack, without firearm mechanics.");
+    const rangeProfile = validateStructuredWeaponRange({ mode: mode as "ranged" | "hybrid", ...source.definition.authoring.range });
+    const distance = finiteDistance(details.distance, "Target distance"), unit = boundedUnit(details.unit, "Target distance unit");
+    classifyWeaponRange({ profile: rangeProfile, attackMode, distance, unit });
+    return { kind: "race-natural-attack-distance", sourceRef: source.ref, sourceInstanceId: null, targetParticipantId: participantKey(Number(input.targetParticipantId), "Target"),
+      attackMode, distance, unit, rangeProfile, definition: source.definition };
+  }
   if (input.sourceKind.trim() !== "weapon") throw new Error("A Weapon distance request must reference an exact Weapon source.");
   if (input.targetParticipantId === null || input.targetParticipantId === undefined) throw new Error("A Weapon distance request requires an exact target.");
   await assertTarget(tx, context, input.targetParticipantId);
@@ -359,7 +374,7 @@ async function assertRequestedSource(
 ): Promise<void> {
   const sourceRef = input.sourceRef?.trim() ?? "";
   const sourceKind = input.sourceKind.trim();
-  if ((input.requestType === "called-shot" || input.requestType === "firearm-preparation") && sourceKind !== "weapon") {
+  if ((input.requestType === "called-shot" && !["weapon", "race-natural-attack"].includes(sourceKind)) || (input.requestType === "firearm-preparation" && sourceKind !== "weapon")) {
     throw new Error("A firearm ruling request must reference an exact owned weapon source.");
   }
   if (input.requestType === "firearm-preparation" && input.sourceInstanceId == null) {
@@ -419,6 +434,8 @@ async function assertRequestedSource(
     if (!allocation) throw new Error("The requested exact Skill allocation is not owned by this Player Character.");
   } else if (sourceKind === "attribute") {
     if (!/^attribute:(STR|DEX|CON|INT|WIS|CHR)$/.test(sourceRef)) throw new Error("The requested Attribute source identity is invalid.");
+  } else if (sourceKind === "race-natural-attack") {
+    if (!/^race:[1-9]\d*:attack:.+$/.test(sourceRef) || input.sourceInstanceId != null) throw new Error("Natural Attack source identity is invalid.");
   } else if (sourceKind === "manual") {
     if (sourceRef !== "player-stated-intent") throw new Error("The requested manual source identity is invalid.");
   } else if (sourceKind !== "item" && sourceKind !== "weapon") {
@@ -468,6 +485,10 @@ export async function createPlayerCombatRulingRequestInTransaction(
   if (!/^[a-f0-9]{32}$/.test(key)) throw new Error("Request identity must be a 16-byte lowercase hexadecimal value.");
   await assertTarget(tx, context, input.targetParticipantId ?? null);
   await assertRequestedSource(tx, player, input);
+  if (input.sourceKind === "race-natural-attack") {
+    const source = (await readRaceAttackSourcesInTransaction(tx, context, player.characterId)).find(entry => entry.ref === input.sourceRef);
+    if (!source || source.unavailable) throw new Error(source?.unavailable ?? "That attack is not available from your current Normal Race.");
+  }
   const frozenRequest = input.requestType === "weapon-distance"
     ? await normalizeWeaponDistanceRequest(tx, context, player, input)
     : object(input.frozenRequest, "Frozen request");
@@ -585,7 +606,7 @@ export async function ruleOnPlayerCombatRequestInTransaction(
   const response = text(input.response, "G.O.D. response", 2000);
   let ruling = object(input.ruling ?? {}, "G.O.D. ruling");
   if (input.status === "approved" && request.requestType === "weapon-distance") {
-    ruling = weaponDistanceApprovalFromRequest(request, ruling) as unknown as Record<string, unknown>;
+    ruling = (request.sourceKind === "race-natural-attack" ? naturalAttackDistanceApproval(request.frozenRequestJson, ruling) : weaponDistanceApprovalFromRequest(request, ruling)) as unknown as Record<string, unknown>;
   }
   const terminal = input.status === "approved" || input.status === "rejected";
   const now = new Date();
@@ -619,6 +640,32 @@ export async function linkPlayerCombatRulingOutcomeInTransaction(
     updatedAt: new Date(),
   }).where(eq(campaignSessionPlayerRulingRequest.id, request.id));
   await event(tx, request, "approved", "approved", "authoritative-outcome-linked", godUserId, "", links as Record<string, unknown>);
+}
+
+function naturalAttackDistanceApproval(frozenInput: unknown, candidate: Record<string, unknown>) {
+  const frozen = object(frozenInput, "Frozen Natural Attack distance");
+  if (frozen.kind !== "race-natural-attack-distance" || frozen.attackMode !== "ranged") throw new Error("The stored Natural Attack range request is invalid.");
+  const profile = rangeProfileFromFrozen(frozen.rangeProfile);
+  const distance = finiteDistance(candidate.distance, "Approved distance"), unit = boundedUnit(candidate.unit, "Approved distance unit");
+  const beyondLongModifier = candidate.beyondLongModifier == null ? null : finiteDistance(candidate.beyondLongModifier, "Beyond Long modifier");
+  const beyondLongReason = typeof candidate.beyondLongReason === "string" ? candidate.beyondLongReason.trim() : "";
+  const resolved = resolveWeaponRange({ profile, attackMode: "ranged", distance, unit, beyondLongModifier, beyondLongReason });
+  if (resolved.band !== "beyond-long" && beyondLongModifier !== null) throw new Error("A Beyond Long modifier is only valid for a Beyond Long ruling.");
+  return { ...resolved, sourceRef: String(frozen.sourceRef), targetParticipantId: Number(frozen.targetParticipantId), attackMode: "ranged" as const,
+    beyondLongModifier, beyondLongReason, definition: frozen.definition };
+}
+
+export async function assertApprovedNaturalAttackDistanceInTransaction(tx: PlayerCombatRulingTransaction, context: OwnedEncounterRuntimeContext,
+  player: { userId: string; characterId: number }, requestId: number, identity: { sourceRef: string; targetParticipantId: number; distance: number; unit: string }) {
+  const request = await lockRequest(tx, context, positiveId(requestId, "Natural Attack distance request"));
+  if (request.requestType !== "weapon-distance" || request.sourceKind !== "race-natural-attack" || request.status !== "approved"
+    || request.characterId !== player.characterId || request.requestedByUserId !== player.userId) throw new Error("An approved exact Natural Attack distance request is required for this Player.");
+  if (request.linkedDeclarationId !== null || request.linkedFirearmAttackId !== null || request.linkedReactionId !== null) throw new Error("This distance ruling was already consumed.");
+  const approval = naturalAttackDistanceApproval(request.frozenRequestJson, object(request.rulingJson, "Approved Natural Attack distance"));
+  if (approval.sourceRef !== identity.sourceRef || approval.targetParticipantId !== identity.targetParticipantId || approval.distance !== identity.distance || approval.unit !== identity.unit) throw new Error("The distance approval does not match this exact attack, target, distance and unit.");
+  const source = (await readRaceAttackSourcesInTransaction(tx, context, player.characterId)).find(entry => entry.ref === identity.sourceRef);
+  if (!source || source.unavailable || !isDeepStrictEqual(source.definition, approval.definition)) throw new Error("The Natural Attack changed or became unavailable after distance approval. Request a new ruling.");
+  return approval;
 }
 
 export async function assertApprovedWeaponDistanceRequestInTransaction(

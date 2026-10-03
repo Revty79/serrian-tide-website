@@ -16,6 +16,7 @@ export const ACTION_EFFECT_SOURCE_KINDS = [
   "skill",
   "attribute",
   "creature-attack",
+  "race-natural-attack",
   "creature-ability",
   "no-roll",
   "manual",

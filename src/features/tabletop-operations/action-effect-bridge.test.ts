@@ -96,7 +96,7 @@ test("additional-success damage does not change fixed healing or item damage", (
 test("Pass 8 exposes every exact source kind and every required plan state", () => {
   assert.deepEqual(ACTION_EFFECT_SOURCE_KINDS, [
     "weapon", "item", "spell", "derived-ability", "skill", "attribute",
-    "creature-attack", "creature-ability", "no-roll", "manual",
+    "creature-attack", "race-natural-attack", "creature-ability", "no-roll", "manual",
   ]);
   assert.deepEqual(ACTION_EFFECT_PLAN_STATUSES, [
     "calculated", "requires-god-ruling", "approved", "applied", "partially-applied",

@@ -3,7 +3,7 @@ import type { DeclarationRollInput } from "@/features/tabletop-operations/action
 import type { SpellCastRuntimeSelections } from "@/features/characters/character-spell-runtime";
 import type { FirearmAttackCommand } from "@/features/tabletop-operations/firearm-attack-service";
 
-export type CombatSourceChoice = { kind: "weapon" | "spell" | "item" | "derived-ability" | "creature-attack" | "creature-ability";
+export type CombatSourceChoice = { kind: "weapon" | "spell" | "item" | "derived-ability" | "creature-attack" | "race-natural-attack" | "creature-ability";
   ref: string; name: string; instanceId: number | null; itemId: number | null; description: string; unavailable?: string; handedness?: string;
   rangeMode?: string | null; distanceUnit?: string | null };
 export type CombatChoice = { participantId: number; source: CombatSourceChoice; targetIds: number[];
@@ -20,11 +20,11 @@ export type CombatSubmission = { choice: CombatChoice; requestKey: string; roll?
 export function choiceDraft(choice: CombatChoice): ActionDeclarationDraft {
   const source = choice.source;
   return { actorCharacterId: choice.participantId, targetCharacterIds: choice.targetIds,
-    label: source.name, actionKind: source.kind === "weapon" || source.kind === "creature-attack" ? "weapon-attack" : source.kind === "spell" ? "spell-cast" : source.kind === "item" ? "item-use" : "ability-use",
+    label: source.name, actionKind: source.kind === "weapon" || source.kind === "creature-attack" || source.kind === "race-natural-attack" ? "weapon-attack" : source.kind === "spell" ? "spell-cast" : source.kind === "item" ? "item-use" : "ability-use",
     sourceKind: source.kind, sourceRef: source.ref, sourceInstanceId: source.instanceId, weaponItemId: source.itemId,
     firingModeId: null, sourcePayload: { combatScreen: true, selections: choice.spellSelections ?? { targetGroups: {}, applications: {} }, effectSelections: choice.effectSelections ?? {}, itemTargetIds: choice.itemTargetIds ?? null, eventKey: choice.eventKey ?? null, weaponHands: choice.weaponHands ?? null, ...(choice.range ? { rangeAttackMode: choice.range.attackMode, rangeDistance: choice.range.distance, rangeUnit: choice.range.unit, rangeBeyondLongModifier: choice.range.beyondLongModifier ?? null, rangeBeyondLongReason: choice.range.beyondLongReason ?? "", rangeDistanceRulingRequestId: choice.range.distanceRulingRequestId ?? null } : {}) },
     attackMode: "Authored attack", initiativeCost: choice.godTiming?.cost ?? 1, allowsMultiRound: true,
-    heldIntervention: choice.heldIntervention === true, windowKind: source.kind === "weapon" || source.kind === "creature-attack" ? "melee-overlap" : "ordinary",
+    heldIntervention: choice.heldIntervention === true, windowKind: source.kind === "weapon" || source.kind === "creature-attack" || source.kind === "race-natural-attack" ? "melee-overlap" : "ordinary",
     aimDeclared: false, calledShot: { declared: !!choice.calledShot, label: choice.calledShot?.label ?? "", assignedPenalty: choice.calledShot?.penalty ?? null },
     explicitModifiers: [], preparesForDeclarationId: null, godNotes: choice.godTiming?.reason ?? "" };
 }

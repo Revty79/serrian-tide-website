@@ -1,5 +1,6 @@
 import { assertCombatWritableInTransaction, readCombatPauseStateInTransaction, type CombatPauseState } from "./combat-freeze-service";
 import "server-only";
+import { isDeepStrictEqual } from "node:util";
 
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
@@ -524,6 +525,19 @@ async function buildAuthoritativeSnapshot(
   });
   governing = resolvedSource.governing;
   const frozenRange = resolvedSource.snapshot.authoredData.range;
+  if (draft.sourceKind === "race-natural-attack") {
+    const range = frozenRange as { attackMode?: string; distance?: number; unit?: string; beyondLongModifier?: number } | undefined;
+    draft = { ...draft, actionKind: "weapon-attack", weaponItemId: null, firingModeId: null, sourceInstanceId: null,
+      attackMode: range?.attackMode ?? "aoe", windowKind: range?.attackMode === "melee" ? "melee-overlap" : "ordinary" };
+    if (enforcePlayerWeaponDistanceApproval && actor.authority === "player" && range?.attackMode === "ranged") {
+      const { assertApprovedNaturalAttackDistanceInTransaction } = await import("./player-combat-ruling-service");
+      const requestId = draft.sourcePayload?.rangeDistanceRulingRequestId;
+      if (typeof requestId !== "number") throw new Error("Request G.O.D. distance confirmation before locking this ranged Natural Attack.");
+      const approval = await assertApprovedNaturalAttackDistanceInTransaction(tx, context, actor, requestId, {
+        sourceRef: draft.sourceRef!, targetParticipantId: draft.targetCharacterIds[0], distance: range.distance!, unit: range.unit! });
+      resolvedSource = { ...resolvedSource, snapshot: { ...resolvedSource.snapshot, authoredData: { ...resolvedSource.snapshot.authoredData, range: approval } } };
+    }
+  }
   if (enforcePlayerWeaponDistanceApproval && actor.authority === "player" && weapon && frozenRange && typeof frozenRange === "object" && !Array.isArray(frozenRange)
     && (frozenRange as { attackMode?: unknown }).attackMode === "ranged") {
     const payload = draft.sourcePayload && typeof draft.sourcePayload === "object" && !Array.isArray(draft.sourcePayload) ? draft.sourcePayload : {};
@@ -815,6 +829,20 @@ async function commitActionDeclarationInternal(
   assertActionDeclarationTransition("locked", "committed");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
   await assertParticipants(tx, context, [snapshot.actorCharacterId, ...snapshot.targetCharacterIds]);
+  if (snapshot.source.kind === "race-natural-attack") {
+    const { readRaceAttackSourcesInTransaction } = await import("./race-natural-attack-service");
+    const current = (await readRaceAttackSourcesInTransaction(tx, context, snapshot.actorCharacterId)).find(entry => entry.ref === snapshot.authoredSource?.identity);
+    if (!current || current.unavailable) throw new Error(current?.unavailable ?? "The locked Natural Attack no longer belongs to the current Normal Race.");
+    if (!isDeepStrictEqual(current.injuryEvidence, snapshot.authoredSource?.authoredData.injuryEvidence)) throw new Error("Required anatomy injury evidence changed. Prepare this Natural Attack again.");
+    if (snapshot.governing?.status !== "resolved") throw new Error("Record a G.O.D. governing-source ruling and prepare the Natural Attack again before committing.");
+    const range = snapshot.authoredSource?.authoredData.range as { attackMode?: string; distance: number; unit: string } | undefined;
+    if (actor.authority === "player" && range?.attackMode === "ranged") {
+      const { assertApprovedNaturalAttackDistanceInTransaction } = await import("./player-combat-ruling-service");
+      await assertApprovedNaturalAttackDistanceInTransaction(tx, context, actor, Number(snapshot.source.payload?.rangeDistanceRulingRequestId), {
+        sourceRef: snapshot.authoredSource!.identity, targetParticipantId: snapshot.targetCharacterIds[0], distance: range.distance, unit: range.unit,
+      });
+    }
+  }
   if (snapshot.actionKind === "combat-inventory") {
     const { validateInventoryCommit } = await import("./combat-inventory-service");
     await validateInventoryCommit(tx, context, actor, snapshot);
@@ -950,6 +978,10 @@ async function commitActionDeclarationInternal(
   }, context);
   if (commitmentReceipts.length) await recordEvent(tx, context, row.id, "committed", "committed", "cast-resources-committed", actor.userId,
     "Mana spent when casting began. Failure, interruption and voluntary cancellation do not refund a begun cast.", { receipts: commitmentReceipts });
+  if (snapshot.source.kind === "race-natural-attack" && actor.authority === "player" && snapshot.source.payload?.rangeDistanceRulingRequestId) {
+    const { linkPlayerCombatRulingOutcomeInTransaction } = await import("./player-combat-ruling-service");
+    await linkPlayerCombatRulingOutcomeInTransaction(tx, context, context.ownerUserId, Number(snapshot.source.payload.rangeDistanceRulingRequestId), { declarationId });
+  }
   return pendingActionId;
 }
 

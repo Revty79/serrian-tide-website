@@ -1,0 +1,1 @@
+ALTER TYPE "public"."campaign_session_encounter_action_source_kind" ADD VALUE 'race-natural-attack' BEFORE 'spell';

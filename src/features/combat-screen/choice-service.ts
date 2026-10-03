@@ -6,7 +6,7 @@ import { assertCombatWritableInTransaction } from "@/features/tabletop-operation
 import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, commitActionDeclarationInTransaction,
   previewCombatDeclarationInTransaction, assertActionChoiceAuthority, type ActionDeclarationActor } from "@/features/tabletop-operations/action-declaration-service";
 import { previewFirearmAttackInTransaction, declareFirearmAttackInTransaction } from "@/features/tabletop-operations/firearm-attack-service";
-import { assertApprovedWeaponDistanceRequestInTransaction, readPlayerCombatRulingRequestsInTransaction, linkPlayerCombatRulingOutcomeInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
+import { assertApprovedNaturalAttackDistanceInTransaction, assertApprovedWeaponDistanceRequestInTransaction, readPlayerCombatRulingRequestsInTransaction, linkPlayerCombatRulingOutcomeInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { parseActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
 import type { OwnedEncounterRuntimeContext, RuntimeIntegrationTransaction as Tx } from "@/features/tabletop-operations/runtime-integration-service";
 import { choiceDraft, firearmCommand, type CombatChoice, type CombatSubmission } from "./choice-types";
@@ -14,9 +14,9 @@ import { calculateFinalPercentileTarget } from "@/features/tabletop-operations/p
 
 async function authorizedChoice(tx: Tx, context: OwnedEncounterRuntimeContext, actor: ActionDeclarationActor, input: CombatChoice) {
   const choice = structuredClone(input);
-  if (!["weapon", "spell", "item", "derived-ability", "creature-attack", "creature-ability"].includes(choice.source.kind)) throw new Error("Choose a supported authored combat source.");
+  if (!["weapon", "spell", "item", "derived-ability", "creature-attack", "race-natural-attack", "creature-ability"].includes(choice.source.kind)) throw new Error("Choose a supported authored combat source.");
   if (actor.authority === "player" && (choice.participantId !== actor.characterId || choice.godTiming)) throw new Error("A Player cannot supply another combatant or a G.O.D. timing ruling.");
-  if ((choice.firearm || ["weapon", "creature-attack"].includes(choice.source.kind)) && choice.targetIds.includes(choice.participantId)) throw new Error("Choose another combatant as the attack target. The combat screen cannot submit an accidental attack against its own actor.");
+  if ((choice.firearm || ["weapon", "creature-attack", "race-natural-attack"].includes(choice.source.kind)) && choice.targetIds.includes(choice.participantId)) throw new Error("Choose another combatant as the attack target. The combat screen cannot submit an accidental attack against its own actor.");
   if (choice.source.kind === "spell" && !/^catalog:[1-9]\d*$/.test(choice.source.ref)) throw new Error("Learn this spell as a Skill before casting it in combat.");
   if (choice.calledShot && !choice.firearm) {
     if (choice.targetIds.length !== 1) throw new Error("A Called Shot requires one exact target.");
@@ -60,6 +60,14 @@ export async function submitCombatChoiceInTransaction(tx: Tx, context: OwnedEnco
     return { declarationId: prior.id, reused: true };
   }
   const choice = await authorizedChoice(tx, context, actor, input.choice);
+  if (actor.authority === "player" && choice.source.kind === "race-natural-attack" && choice.range?.attackMode === "ranged") {
+    if (!choice.range.distanceRulingRequestId) throw new Error("Request G.O.D. distance confirmation before committing this ranged Natural Attack.");
+    const approval = await assertApprovedNaturalAttackDistanceInTransaction(tx, context, actor, choice.range.distanceRulingRequestId, {
+      sourceRef: choice.source.ref, targetParticipantId: choice.targetIds.length === 1 ? choice.targetIds[0]! : 0,
+      distance: choice.range.distance ?? -1, unit: choice.range.unit,
+    });
+    choice.range = { ...choice.range, distance: approval.distance, unit: approval.unit, beyondLongModifier: approval.beyondLongModifier, beyondLongReason: approval.beyondLongReason };
+  }
   if (actor.authority === "player" && !choice.firearm && choice.source.kind === "weapon" && choice.range?.attackMode === "ranged") {
     if (choice.range.distanceRulingRequestId === null || choice.range.distanceRulingRequestId === undefined) {
       throw new Error("Request Campaign-owning G.O.D. distance confirmation before committing this ranged attack.");
@@ -84,6 +92,6 @@ export async function submitCombatChoiceInTransaction(tx: Tx, context: OwnedEnco
   await lockActionDeclarationInTransaction(tx, context, actor, id);
   await commitActionDeclarationInTransaction(tx, context, actor, id, input.roll);
   if (choice.calledShot?.requestId && actor.authority === "player") await linkPlayerCombatRulingOutcomeInTransaction(tx, context, context.ownerUserId, choice.calledShot.requestId, { declarationId: id });
-  if (choice.range?.distanceRulingRequestId && actor.authority === "player") await linkPlayerCombatRulingOutcomeInTransaction(tx, context, context.ownerUserId, choice.range.distanceRulingRequestId, { declarationId: id });
+  if (choice.source.kind !== "race-natural-attack" && choice.range?.distanceRulingRequestId && actor.authority === "player") await linkPlayerCombatRulingOutcomeInTransaction(tx, context, context.ownerUserId, choice.range.distanceRulingRequestId, { declarationId: id });
   return { declarationId: id, reused: false };
 }

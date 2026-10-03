@@ -98,7 +98,7 @@ export async function readAbilityFactsInTransaction(tx: Tx, input: { participant
         .where(and(eq(opportunity.id, input.opportunityId), eq(opportunity.encounterId, occurrence.encounterId), eq(opportunity.responderCharacterId, input.participantId), eq(opportunity.status, "pending"))).limit(1);
       if (!window || !["committed", "rolling-ready", "rolling", "awaiting-god-ruling"].includes(window.declaration.status)) throw new Error("The exact Ability response window is no longer open.");
       const locked = parseLockedActionDeclarationSnapshot(window.declaration.lockedSnapshotJson);
-      const attack = ["weapon", "creature-attack"].includes(locked.source.kind);
+      const attack = ["weapon", "creature-attack", "race-natural-attack"].includes(locked.source.kind);
       for (const definition of ABILITY_EVENT_FACTS) put(definition.key, "event", definition.key === "combat.action-declared" || attack && (definition.key !== "combat.attack-targeted" || locked.targetCharacterIds.includes(input.participantId)), `Responder Opportunity ${window.opportunity.id}, Declaration ${window.declaration.id}`);
     }
   }

@@ -59,8 +59,8 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
   roll: RollMechanicalSnapshot, defense: Record<string, unknown> | null, ruling?: OrdinaryAttackRuling, sharedIncoming = true,
 ): Promise<ActionEffectPlanProposal> {
   const frozenSource = locked.authoredSource;
-  if (!frozenSource || !["weapon", "creature-attack"].includes(frozenSource.kind) || locked.weapon?.firingModeId != null) {
-    throw new Error("Ordinary consequences require an exact ordinary Weapon or Creature Attack source.");
+  if (!frozenSource || !["weapon", "creature-attack", "race-natural-attack"].includes(frozenSource.kind) || locked.weapon?.firingModeId != null) {
+    throw new Error("Ordinary consequences require an exact Weapon, Creature Attack or Race Natural Attack source.");
   }
   const { source, skipped } = await availableWeaponHitSource(tx, frozenSource);
   if (ruling && (!locked.targetCharacterIds.includes(ruling.targetParticipantId) || !Number.isInteger(ruling.hitLocationNumber)
@@ -84,6 +84,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
       .where(and(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId), eq(campaignSessionEncounterParticipant.characterId, targetParticipantId))).limit(1);
     if (!target) throw new Error("Attack target no longer belongs to this exact Encounter.");
     const issues: string[] = [];
+    if (source.kind === "race-natural-attack" && object(source.authoredData.authoring).mode === "aoe") issues.push("AoE Natural Attack damage and defenses need a G.O.D. outcome ruling for this confirmed target.");
     let poolKey: string | null = null;
     let locationName = "";
     let poolMaximumHp: number | null = null;
@@ -129,7 +130,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
     if (locked.targetCharacterIds.length !== 1 && !adjudicated) issues.push("This ordinary attack needs a ruling for its multiple targets.");
     const weaponHitEffects = source.kind === "weapon" ? source.effects.filter((effect) => (
       (effect.instruction.weaponHit === true || effect.instruction.passiveWeapon === true) && effect.effect
-    )) : source.effects.filter((effect) => effect.instruction.creatureHit === true && effect.effect);
+    )) : source.effects.filter((effect) => (effect.instruction.creatureHit === true || effect.instruction.naturalAttackHit === true) && effect.effect);
     const weaponHitDamage = weaponHitEffects.reduce((total, effect) => {
       if (effect.instruction.passiveWeapon === true && effect.effect?.kind === "modifier.apply" && effect.effect.channel === "damage") return total + effect.effect.amount;
       return effect.instruction.weaponHit === true && isSimpleAdditiveWeaponHitDamage(effect.effect)

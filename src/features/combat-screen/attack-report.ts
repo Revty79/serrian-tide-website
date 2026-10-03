@@ -5,7 +5,7 @@ import { storedIncomingResolution } from "@/features/incoming-effects/effect-pro
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
 export function isOrdinaryAttackReport(plan: Pick<ActionEffectPlanView, "sourceKind" | "sourceSnapshot">) {
-  return ["weapon", "creature-attack"].includes(plan.sourceKind) && !plan.sourceSnapshot.identity.startsWith("firearm-attack:");
+  return ["weapon", "creature-attack", "race-natural-attack"].includes(plan.sourceKind) && !plan.sourceSnapshot.identity.startsWith("firearm-attack:");
 }
 
 export function isSpellResultReport(plan: Pick<ActionEffectPlanView, "sourceKind" | "status" | "effects">) {

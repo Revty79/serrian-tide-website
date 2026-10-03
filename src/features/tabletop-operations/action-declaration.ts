@@ -28,6 +28,7 @@ export const ACTION_DECLARATION_SOURCE_KINDS = [
   "generic",
   "weapon",
   "creature-attack",
+  "race-natural-attack",
   "spell",
   "item",
   "derived-ability",

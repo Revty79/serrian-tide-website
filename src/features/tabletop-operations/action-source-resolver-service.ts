@@ -69,6 +69,7 @@ import { resolveWeaponRange, weaponAttackMode } from "@/features/items/weapon-ra
 import { readWeaponDamageModifiers } from "./weapon-damage-modifiers-service";
 import { freezeIncomingSourceFactsInTransaction } from "@/features/incoming-effects/source-facts-service";
 import { normalizeCreatureEffects } from "@/features/creatures/creature-effects";
+import { resolveRaceNaturalAttackInTransaction } from "./race-natural-attack-service";
 
 export type ActionSourceResolverTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -1169,6 +1170,7 @@ async function resolveLockedActionSourceBaseInTransaction(
     if (!existing.weapon) throw new Error("A Weapon source requires the exact locked Weapon Profile.");
     return resolveWeapon(tx, participant, draft, existing.weapon, existing.governing);
   }
+  if (draft.sourceKind === "race-natural-attack") return resolveRaceNaturalAttackInTransaction(tx, context, draft);
   if (draft.sourceKind === "item") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveItem(tx, participant, draft, actor.authority));
   if (draft.sourceKind === "spell") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveSpell(tx, participant, draft, actor.userId, actor.authority));
   if (draft.sourceKind === "derived-ability") return applyRecordedSourceResolutionInTransaction(tx, context, draft, await resolveDerivedAbility(tx, participant, draft, actor.userId));

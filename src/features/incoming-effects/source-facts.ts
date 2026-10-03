@@ -11,13 +11,13 @@ export function incomingFactsFromFrozenSource(source: Pick<FrozenActionSourceSna
   if (source.incomingSourceFacts) return structuredClone(source.incomingSourceFacts);
   const authored = source.authoredData;
   const authoring = object(authored.authoring);
-  const nonItemSource = ["spell", "creature-attack", "creature-ability", "derived-ability"].includes(source.kind);
+  const nonItemSource = ["spell", "creature-attack", "race-natural-attack", "creature-ability", "derived-ability"].includes(source.kind);
   const construction = object(authoring.magic).document;
   return {
     sourceKind: source.kind, weaponFamily: source.kind === "weapon" ? null : "none",
     damageType: text(authored.damageType),
     magical: source.kind === "spell" ? true
-      : ["creature-attack", "creature-ability"].includes(source.kind)
+      : ["creature-attack", "race-natural-attack", "creature-ability"].includes(source.kind)
         ? construction ? true : typeof authoring.magical === "boolean" ? authoring.magical : null
         : null,
     itemProperties: nonItemSource ? [] : null, itemTags: nonItemSource ? [] : null,

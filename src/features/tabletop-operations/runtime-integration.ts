@@ -7,6 +7,7 @@ import {
 export const AUTHORED_ACTION_SOURCE_KINDS = [
   "weapon",
   "creature-attack",
+  "race-natural-attack",
   "spell",
   "item",
   "creature-ability",

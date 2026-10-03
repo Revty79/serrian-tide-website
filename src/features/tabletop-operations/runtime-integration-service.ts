@@ -1104,6 +1104,7 @@ export async function resolveAuthoredActionInTransaction(
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   const binding = await lockAuthoredBinding(tx, context, bindingId);
+  if (binding.sourceKind === "race-natural-attack") throw new Error("Resolve this Natural Attack through its frozen declaration and shared attack consequence plan.");
   requireReadyAuthoredAction(binding.action, binding.resolutionStatus);
   await requireEncounterParticipant(tx, context, binding.sourceCharacterId, true);
   await requireEncounterParticipants(tx, context, targetIdsForBinding(binding));

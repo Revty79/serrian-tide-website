@@ -121,7 +121,7 @@ export type CombatAidAuthoredAction = {
   id: number;
   pendingActionId: number;
   sourceCharacterId: number;
-  sourceKind: "weapon" | "creature-attack" | "spell" | "item" | "creature-ability" | "derived-ability" | "skill" | "attribute" | "no-roll" | "manual";
+  sourceKind: "weapon" | "creature-attack" | "race-natural-attack" | "spell" | "item" | "creature-ability" | "derived-ability" | "skill" | "attribute" | "no-roll" | "manual";
   sourceRef: string;
   sourceInstanceId: number | null;
   targetCharacterIds: number[];
@@ -472,7 +472,7 @@ export async function readCombatAidEncounterInTransaction(
       let targetCharacterIds: number[] = [];
       try {
         const payload = JSON.parse(payloadJson) as Record<string, unknown>;
-        if (entry.sourceKind === "weapon" || entry.sourceKind === "creature-attack") {
+        if (entry.sourceKind === "weapon" || entry.sourceKind === "creature-attack" || entry.sourceKind === "race-natural-attack") {
           if (typeof payload.targetCharacterId === "number") targetCharacterIds = [payload.targetCharacterId];
         } else if (entry.sourceKind === "item") {
           const target = typeof payload.targetCharacterId === "number"

@@ -9,7 +9,7 @@ export function EffectOptions({ scope, source, roster, values, onChange }: { sco
   const [locations, setLocations] = useState<Record<number, Awaited<ReturnType<typeof readCombatTargetAnatomy>>>>({});
   // Attack damage and on-hit powers inherit the attack's resolved location.
   // Called Shots choose their single location in the dedicated command controls.
-  const effects = source.kind === "weapon" || source.kind === "creature-attack" ? [] : source.effects.filter((entry) => !entry.instruction.areaReport && entry.instruction.hitLocationMode !== "standard-roll"
+  const effects = source.kind === "weapon" || source.kind === "creature-attack" || source.kind === "race-natural-attack" ? [] : source.effects.filter((entry) => !entry.instruction.areaReport && entry.instruction.hitLocationMode !== "standard-roll"
     && (entry.effect?.kind === "health.damage" && entry.effect.application !== "full-body" || entry.effect?.kind === "health.heal" && entry.effect.scope === "area"));
   const targets = JSON.stringify([...new Set(effects.flatMap((effect) => effect.targetParticipantIds))]);
   useEffect(() => { let active = true; void Promise.all((JSON.parse(targets) as number[]).map(async (id) => [id, await readCombatTargetAnatomy(scope, id)] as const)).then((rows) => { if (active) setLocations(Object.fromEntries(rows)); }).catch(() => {}); return () => { active = false; }; }, [scope, targets]);

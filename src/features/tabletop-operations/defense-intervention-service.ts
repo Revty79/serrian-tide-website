@@ -860,6 +860,9 @@ export async function previewDefenseInterventionInTransaction(tx: DefenseInterve
   actor: ActionDeclarationActor, input: DefenseDeclarationInput) {
   const loaded = await loadResponseContext(tx, context, input.opportunityId);
   await assertResponseChoiceAuthority(tx, context, actor, loaded.opportunity.responderCharacterId);
+  const originalSource = loaded.lockedAction.authoredSource;
+  if (originalSource?.kind === "race-natural-attack" && (originalSource.authoredData.authoring as { mode?: string } | undefined)?.mode === "aoe"
+    && ["dodge", "block", "parry"].includes(input.reactionType)) throw new Error("AoE Natural Attack defenses require a G.O.D. outcome ruling for each confirmed target. A single defense cannot resolve the whole area.");
   if (!loaded.lockedAction.targetCharacterIds.includes(input.protectedTargetCharacterId)) throw new Error("Choose an exact target of the original action to protect.");
   return buildSourceAndCost(tx, context, actor, loaded, input);
 }

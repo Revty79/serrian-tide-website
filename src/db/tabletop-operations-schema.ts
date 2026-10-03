@@ -79,6 +79,7 @@ export const campaignSessionEncounterActionSourceKind = pgEnum(
   [
     "weapon",
     "creature-attack",
+    "race-natural-attack",
     "spell",
     "item",
     "creature-ability",

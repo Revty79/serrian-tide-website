@@ -1,5 +1,14 @@
 # Combat resumption handoff
 
+## Combat runtime completion Pass 2: Normal Race Natural Attacks (3 October 2026)
+
+- Current Normal Race attacks now execute through the dedicated `race-natural-attack` source, exact Race ID/stable attack key, existing Character Skill allocation/fallback, authored Initiative/range, ordinary Roll/defense/consequence and Pass 1 protection services. Player Characters and Race NPCs use their own current Race; Creature occurrences/NPCs and Form-only attacks are excluded.
+- Missing/ambiguous Skill or timing, uncertain required anatomy, unsupported damage/effects and AoE outcomes preserve explicit G.O.D. rulings. Existing structured incapacitation blocks required parts. AoE membership requires confirmed exact targets and cannot be inferred from Notes. Attached Magic freezes and establishes Magical status; construction execution remains deferred.
+- Player/G.O.D. combat controls show the attack mechanics and rulings. G.O.D. Player source rulings now include Attack without transferring action control. Source, Roll and effect history freeze; retries do not repeat Initiative, ranged approval use, riders or Health changes.
+- Additive migration `0092_race_natural_attack_runtime.sql` adds one source enum value. It was tested only in disposable localhost databases; shared DEV/Production migration application remains outstanding. Production data was not modified.
+- Validation: 1,831 unit tests; 451 service cases across 29 scripts, including 43 Natural Attack cases; four Natural Attack browser flows plus 12 prior combat/protection workflow checks. See the [16-part completion report](docs/reports/combat-race-natural-attacks-pass-2-2026-10-03.md) for final static checks, evidence and retained limits. Automated checks are not human acceptance.
+- This supersedes Pass 1's wait-for-Pass-2 instruction. Stop after this local commit for Brannan/Ember review. **No push is authorized. Do not start Pass 3, attached Magic execution, Forms, Evolution, Special Ability or companion runtime automatically.**
+
 ## Combat runtime completion Pass 1: protection (3 October 2026)
 
 - Structured Armor Modifiers now execute as `max(0, Base Soak + matching Modifier)` in the existing shared incoming resolver. Source Text/Notes/prose are descriptive. New malformed values and duplicate canonical definitions are rejected; unchanged legacy values remain reviewable.

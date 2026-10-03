@@ -1,4 +1,5 @@
 "use server";
+import { isDeepStrictEqual } from "node:util";
 import { readAbilityResponseChoicesInTransaction } from "@/features/tabletop-operations/ability-response-service";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
@@ -104,10 +105,28 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
     const abilityStacks = participantId > 0 ? await tx.select({ itemId: campaignCharacterItem.itemId, quantity: campaignCharacterItem.quantity, itemName: item.name, canonicalId: item.canonicalId, powerId: itemPower.id, powerName: itemPower.name, initiativeCost: itemPower.initiativeCost, resourceKind: itemPower.resourceCostKind, resourceAmount: itemPower.resourceCostAmount, hasPowerPool: itemPowerResource.itemId }).from(campaignCharacterItem).innerJoin(item, eq(item.id, campaignCharacterItem.itemId)).innerJoin(itemPower, eq(itemPower.itemId, item.id)).leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id)).where(and(eq(campaignCharacterItem.characterId, participantId), eq(itemPower.trigger, "activated"))) : [];
     const abilityInstances = participantId > 0 ? await tx.select({ instanceId: campaignCharacterItemInstance.id, itemId: campaignCharacterItemInstance.itemId, currentCharges: campaignCharacterItemInstance.currentCharges, itemName: item.name, canonicalId: item.canonicalId, powerId: itemPower.id, powerName: itemPower.name, initiativeCost: itemPower.initiativeCost, resourceKind: itemPower.resourceCostKind, resourceAmount: itemPower.resourceCostAmount, hasPowerPool: itemPowerResource.itemId }).from(campaignCharacterItemInstance).innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId)).innerJoin(itemPower, eq(itemPower.itemId, item.id)).leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id)).where(and(eq(campaignCharacterItemInstance.characterId, participantId), isNull(campaignCharacterItemInstance.retiredAt), eq(itemPower.trigger, "activated"))) : [];
     const snapshot = row.snapshot ?? (row.persistentSnapshot ? JSON.parse(row.persistentSnapshot) : null);
+    const { readRaceAttackSourcesInTransaction } = await import("@/features/tabletop-operations/race-natural-attack-service");
+    const naturalAttacks = await readRaceAttackSourcesInTransaction(tx, context, participantId);
     return { equipment, meleeDraws, firearms, magazines, requests, defense: defenses?.participants.find((entry) => entry.characterId === participantId) ?? null,
-      movement: movement?.movementModes ?? [], snapshot, isNpc: row.isNpc, abilityStacks, abilityInstances, rulings: records(object(row.local).combatSourceResolutionHistory) };
+      movement: movement?.movementModes ?? [], snapshot, isNpc: row.isNpc, abilityStacks, abilityInstances, naturalAttacks, rulings: records(object(row.local).combatSourceResolutionHistory) };
   });
   const sources: CombatSourceChoice[] = [];
+  for (const source of loaded.naturalAttacks) {
+    const attack = source.definition, range = attack.authoring.range;
+    const ruling = [...loaded.rulings].reverse().find(entry => entry.sourceKind === "race-natural-attack" && entry.sourceRef === source.ref
+      && isDeepStrictEqual(entry.sourceDefinition, attack) && isDeepStrictEqual(entry.injuryEvidence, source.injuryEvidence));
+    const cost = attack.authoring.initiativeCost ?? (typeof ruling?.initiativeCost === "number" ? ruling.initiativeCost : null);
+    sources.push({ kind: "race-natural-attack", ref: source.ref, name: attack.attackName, instanceId: null, itemId: null,
+      rangeMode: attack.authoring.mode, distanceUnit: range.unit, unavailable: source.unavailable ?? undefined,
+      description: [source.raceName, attack.skillName || "Skill unspecified", attack.basisNotes,
+        ruling ? "G.O.D. source ruling recorded; check the action for its current target" : source.governance.selected ? `Governing target ${source.governance.selected.source.originalTarget}` : "Needs G.O.D. governing-source ruling",
+        cost === null ? "Needs Initiative ruling" : `${cost} Initiative`, attack.authoring.mode ?? "Mode unspecified",
+        range.reach === null ? "" : `Reach ${range.reach} ${range.unit ?? ""}`,
+        range.short === null ? "" : `Range ${range.short}/${range.medium ?? "?"}/${range.long ?? "?"} ${range.unit ?? ""}`,
+        `${attack.damage ?? "Unspecified"} ${attack.damageType || "unspecified type"} damage`,
+        attack.authoring.magic || attack.authoring.magical === true ? "Magical" : attack.authoring.magical === false ? "Nonmagical" : "Magical unspecified",
+        source.anatomyRulingRequired ? ruling?.useRequirementsReason ? "G.O.D. ruled required anatomy usable" : "Needs G.O.D. anatomy usability ruling" : "", attack.authoring.magic ? "Attached Magic effects deferred" : ""].filter(Boolean).join(" · ") });
+  }
   for (const weapon of loaded.equipment?.wieldedWeapons ?? []) {
     let mode = weapon.rangeMode;
     let modeIssue: string | undefined;

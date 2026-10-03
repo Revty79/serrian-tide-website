@@ -12,6 +12,8 @@ import { submitCombatChoiceInTransaction } from "@/features/combat-screen/choice
 import { lockPlayerCombatContextInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { screenFixture, addScreenSpell, addScreenRecoverySpell, addScreenFirearm, SCREEN_PASSWORD } from "./fixtures/combat-screens-browser-fixture";
 import { createPass6Walkthrough, runPass6Walkthrough } from "./pass6-gameplay-walkthrough";
+import { raceNaturalAttackFixture } from "./fixtures/race-natural-attack-fixture";
+import { raceNaturalAttack } from "@/db/race-schema";
 async function main() {
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_SCREENS !== "true" || !/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_combat_screens_dev$/.test(process.env.DATABASE_URL ?? "")) throw new Error("A newly migrated disposable screen database is required.");
 const artifactSubdir = process.env.COMBAT_SCREEN_ARTIFACT_SUBDIR ?? "";
@@ -76,7 +78,7 @@ async function confirmPlayerDistance(director: Page, player: Page) {
   await selectGod(director, "Rowan");
   if (!await screen(director).getByLabel("Ruling / participation reason", { exact: true }).isVisible()) await screen(director).getByText("G.O.D. controls for Rowan", { exact: true }).click();
   await screen(director).getByLabel("Ruling / participation reason", { exact: true }).fill("Confirm this measured distance for the exact selected weapon and target.");
-  const request = screen(director).locator("fieldset").filter({ hasText: "weapon distance" }).first();
+  const request = screen(director).locator("fieldset").filter({ hasText: /weapon distance|Natural Attack distance/ }).first();
   await request.getByRole("button", { name: "Approve", exact: true }).click();
   await screen(player).getByText(/G\.O\.D\. approved distance: 25 feet/).waitFor();
   if (previous !== "Rowan") await selectGod(director, previous);
@@ -178,6 +180,66 @@ try {
     assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [f.encounterId])).rows[0].n, 0);
     results.push("Two Initiative shows why a four-point attack is unavailable, preserves no committed Roll, and allows a two-point movement through Player controls.");
     await participant.context().close();
+  }
+  for (const role of ["player", "god", "ranged-player", "ruled-player"] as const) if (include(`race-natural-attack-${role}`)) {
+    const f = await db.transaction(tx => screenFixture(tx, `race-${role}`));
+    const natural = await db.transaction(tx => raceNaturalAttackFixture(tx, role === "god" ? f.defenderId : f.heroId, f.skillId));
+    if (role === "ranged-player") await db.update(raceNaturalAttack).set({ authoring: { ...natural.attack.authoring, mode: "ranged" } }).where(eq(raceNaturalAttack.id, natural.attack.id));
+    if (role === "ruled-player") await db.update(raceNaturalAttack).set({ skillId: null, authoring: { ...natural.attack.authoring, initiativeCost: null } }).where(eq(raceNaturalAttack.id, natural.attack.id));
+    if (role === "god") {
+      await pool.query("update campaign_session_encounter_initiative_participant set participation_status='passed' where encounter_id=$1", [f.encounterId]);
+      await pool.query("update campaign_session_encounter_initiative_participant set participation_status='active' where encounter_id=$1 and character_id=$2", [f.encounterId, f.defenderId]);
+    }
+    const director = await login(f.godId, "god", f);
+    const player = role === "god" ? null : await login(f.playerId, "player", f);
+    const actor = player ?? director;
+    if (role === "god") await selectGod(director, "Sentry NPC");
+    await screen(actor).getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: "Attack", exact: true }).click();
+    const picker = screen(actor).getByRole("combobox", { name: /^Attack source/ });
+    await until(async () => await picker.locator("option").filter({ hasText: "Fire Claw" }).count() === 1, "Normal Race attack visible");
+    await picker.selectOption({ label: "Fire Claw" });
+    await screen(actor).getByRole("combobox", { name: /^Target/ }).selectOption(String(f.occurrences[0]));
+    await screen(actor).getByLabel("Target distance", { exact: true }).fill(role === "ranged-player" ? "25" : "5");
+    await screen(actor).getByLabel("Distance unit", { exact: true }).fill("feet");
+    if (role === "ranged-player") await confirmPlayerDistance(director, player!);
+    if (role === "ruled-player") {
+      await screen(actor).getByText(/Needs G.O.D. governing-source ruling/).waitFor();
+      await selectGod(director, "Rowan");
+      await screen(director).getByText("Player source rulings", { exact: true }).click();
+      await screen(director).getByRole("navigation", { name: "Player source rulings" }).getByRole("button", { name: "Attack", exact: true }).click();
+      await screen(director).getByRole("combobox", { name: /^Attack source/ }).selectOption({ label: "Fire Claw" });
+      await screen(director).getByText("Specific source ruling", { exact: true }).click();
+      await screen(director).getByText("G.O.D. source ruling: Fire Claw", { exact: true }).click();
+      await screenshot(director, "race-ruling-form", 1365);
+      await screen(director).getByRole("combobox", { name: /^Resolution method/ }).selectOption("opposed-roll");
+      await screen(director).getByLabel("Exact governing source", { exact: true }).selectOption("attribute:DEX");
+      await screen(director).getByLabel("Missing Initiative cost (if required)", { exact: true }).fill("4");
+      await screen(director).getByLabel("Ruling reason", { exact: true }).fill("Use this Character's DEX and four Initiative for the missing authored mechanics.");
+      await screen(director).getByRole("button", { name: "Record source ruling", exact: true }).click();
+      await screen(director).getByText("Source ruling recorded. Check the action again before committing.", { exact: true }).waitFor();
+    }
+    assert.match(await screen(actor).innerText(), /18 Fire damage/);
+    if (role !== "ruled-player") assert.match(await screen(actor).innerText(), /Governing target 50/);
+    await screen(actor).getByRole("combobox", { name: "Roll method", exact: true }).selectOption("physical");
+    await screen(actor).getByLabel("Percentile result", { exact: true }).fill("70");
+    await screenshot(actor, `race-${role}-choice`, 390);
+    await actor.setViewportSize({ width: 1365, height: 1000 });
+    await commitAttack(actor);
+    await until(async () => (await declarations(f)).length === 1, "Natural Attack declaration committed");
+    const row = (await declarations(f))[0];
+    assert.equal(row.locked_snapshot_json.authoredSource.kind, "race-natural-attack");
+    assert.equal(row.locked_snapshot_json.authoredSource.identity, natural.ref);
+    await advanceAction(director, row.pending_action_id);
+    await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /^Prepare .* result$/ }).click();
+    await screen(director).getByRole("region", { name: "Attack result report" }).getByRole("button", { name: "Approve & apply attack", exact: true }).click();
+    await until(async () => (await pool.query("select status from campaign_session_encounter_effect_plan where declaration_id=$1", [row.id])).rows[0]?.status === "applied", "routine Natural Attack applied");
+    const health = (await pool.query("select local_state_json from campaign_session_encounter_participant where character_id=$1", [f.occurrences[0]])).rows[0].local_state_json.health;
+    assert.equal(health.totalDamage, role === "ranged-player" ? 19 : 20);
+    await actor.reload(); await screen(actor).waitFor();
+    assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where pending_action_id=$1", [row.pending_action_id])).rows[0].n, 1);
+    await screenshot(actor, `race-${role}-result`, 390);
+    results.push(`Normal Race Natural Attack: ${role} selects exact source, sees mechanics, commits authored timing, applies ordinary damage once and reloads history.`);
+    await director.context().close(); if (player) await player.context().close();
   }
   if (include("pass6-walkthrough")) {
     const f = await createPass6Walkthrough();
@@ -931,7 +993,7 @@ try {
     await god.reload();
     await screen(god).getByText("Live", { exact: true }).waitFor();
     await screen(god).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: "Review Rowan's distance request", exact: true }).click();
-    const request = screen(god).locator("fieldset").filter({ hasText: "weapon distance" }).first();
+    const request = screen(god).locator("fieldset").filter({ hasText: /weapon distance|Natural Attack distance/ }).first();
     await screen(god).getByLabel("Ruling / participation reason", { exact: true }).fill("Distance confirmed for this exact Player shot.");
     await request.getByLabel("Approved distance", { exact: true }).fill("75");
     await request.getByLabel("Distance unit", { exact: true }).fill("feet");
@@ -1120,7 +1182,7 @@ try {
     await director.reload(); await screen(director).getByText("Live", { exact: true }).waitFor();
     await selectGod(director, "Rowan");
     await screen(director).getByText("G.O.D. controls for Rowan", { exact: true }).click();
-    const distanceRequest = screen(director).locator("fieldset").filter({ hasText: "weapon distance" }).first();
+    const distanceRequest = screen(director).locator("fieldset").filter({ hasText: /weapon distance|Natural Attack distance/ }).first();
     await screen(director).getByLabel("Ruling / participation reason", { exact: true }).fill("Distance confirmed for this exact Player firearm shot.");
     await distanceRequest.getByLabel("Approved distance", { exact: true }).fill("25");
     await distanceRequest.getByLabel("Distance unit", { exact: true }).fill("feet");
