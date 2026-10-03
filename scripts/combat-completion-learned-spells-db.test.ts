@@ -3,7 +3,7 @@ import { after, test } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { userRole } from "@/db/authorization-schema";
-import { campaignCharacterSkillAllocation, campaignCharacterActiveHealth } from "@/db/realm-schema";
+import { campaignCharacter, campaignCharacterSkillAllocation, campaignCharacterActiveHealth } from "@/db/realm-schema";
 import { campaignSessionEncounterParticipant as member, campaignSessionEncounterInitiativeParticipant as initiativeParticipant,
   campaignSessionEncounterActionDeclaration as declaration, campaignSessionRoll } from "@/db/tabletop-operations-schema";
 import { previewCombatChoiceInTransaction, submitCombatChoiceInTransaction } from "@/features/combat-screen/choice-service";
@@ -15,18 +15,80 @@ import { readActiveManaInTransaction } from "@/features/active-state/active-mana
 import type { CombatChoice } from "@/features/combat-screen/choice-types";
 import { completionServiceFixture } from "./fixtures/combat-completion-service-fixture";
 import { addLearnedCombatSpell } from "./fixtures/combat-learned-spell-fixture";
-import { skillExtension } from "@/db/skill-schema";
+import { skill, skillExtension } from "@/db/skill-schema";
 import { createModifierSelection } from "@/features/spell-construction/utilities/spellFactory";
 import { storedIncomingResolution } from "@/features/incoming-effects/effect-proposal";
 import { parseLockedActionDeclarationSnapshot } from "@/features/tabletop-operations/action-declaration";
 import { saveSkillExtensionMutations, readSkillExtension } from "@/features/skills/skill-extension-persistence";
 import { calculateSpell } from "@/features/spell-construction/engine/calculateSpell";
 import type { SpellDocument } from "@/features/spell-construction/models/spell";
+import { magicCompletionDocument } from './fixtures/magic-completion-fixture';
 
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true") throw new Error("Use the disposable combat completion harness.");
 after(() => pool.end());
 const rollback = new Error("ROLLBACK_LEARNED_SPELL");
 const expected = (error: unknown) => { if (error !== rollback) console.error(error); return error === rollback; };
+
+for (const variant of ['runtime', 'area-healing', 'short', 'medium', 'long', 'out-of-range', 'player-range', 'line-of-sight', 'condition-immunity', 'unknown-harmfulness'] as const) test(`Pass 4 learned Magic ${variant}: exact effects, range, Interaction and retries`, async () => {
+  await assert.rejects(db.transaction(async tx => {
+    const f = await completionServiceFixture(tx, `magic-${variant}`);
+    await tx.insert(userRole).values([{ userId: f.godId, role: 'god' }, { userId: f.godId, role: 'player' }]);
+    const learned = await addLearnedCombatSpell(tx, f, { fixed: true });
+    const [channel] = await tx.select().from(skill).where(eq(skill.name, 'Channeling'));
+    await tx.update(campaignCharacterSkillAllocation).set({ points: 200 }).where(and(eq(campaignCharacterSkillAllocation.characterId, f.heroId), eq(campaignCharacterSkillAllocation.skillId, channel.id)));
+    const document = magicCompletionDocument(); document.frameworkSkillId = learned.spell.frameworkSkillId;
+    if (variant === 'area-healing') {
+      document.containers[0].effects = [{ id: 'magic-heal', ruleId: 'healing', quantity: 2, healingScope: 'area' }];
+      const [target] = await tx.select().from(member).where(eq(member.characterId, f.occurrences[0]));
+      await tx.update(member).set({ localStateJson: { ...(target.localStateJson as Record<string, unknown>), health: { totalDamage: 6, poolDamage: { 'fixture-head': 3 } } } }).where(eq(member.characterId, f.occurrences[0]));
+    }
+    const isInteraction = variant === 'condition-immunity' || variant === 'unknown-harmfulness';
+    if (isInteraction) {
+      document.containers[0].effects = [document.containers[0].effects[2]];
+      document.containers[0].effects[0].runtimeApplication!.harmful = variant === 'condition-immunity' ? true : undefined;
+      await tx.update(member).set({ creatureSnapshotJson: { ...f.creatureSnapshot, core: { ...f.creatureSnapshot.core, interactionRules: { schemaVersion: 1, rules: [{
+        key: 'mark-immunity', name: 'Mark Immunity', ruleType: 'immunity', scope: 'condition', match: 'ALL', percentage: null, sortOrder: 0, notes: '', crImpact: 'None',
+        conditions: [{ key: 'mark', kind: 'condition-name', conditionName: 'Constructed Mark' }],
+      }] } } } }).where(eq(member.characterId, f.occurrences[0]));
+    }
+    const range = ['runtime', 'area-healing', 'condition-immunity', 'unknown-harmfulness'].includes(variant) ? undefined : variant === 'out-of-range' || variant === 'player-range' ? 'short' : variant;
+    document.containers[0].rangeRuleId = range;
+    await tx.update(skillExtension).set({ dataJson: JSON.stringify(document) }).where(eq(skillExtension.skillId, learned.spellSkill.id));
+    await tx.update(initiativeParticipant).set({ participationStatus: 'active' }).where(eq(initiativeParticipant.characterId, f.heroId));
+    const limit = range === 'medium' ? 60 : range === 'long' ? 120 : 30;
+    const choice: CombatChoice = { participantId: f.heroId, source: { kind: 'spell', ref: `catalog:${learned.allocation.id}`, instanceId: null, itemId: null, name: document.name, description: '' },
+      targetIds: [f.occurrences[0]], spellSelections: { targetGroups: { 'magic-target': [f.occurrences[0]] }, applications: {}, ranges: {
+        [`magic-target:${f.occurrences[0]}`]: range === 'line-of-sight' ? { confirmed: true } : { distanceFeet: variant === 'out-of-range' ? limit + 1 : limit },
+      } } };
+    const actor = variant === 'player-range' || variant === 'line-of-sight' ? f.player : f.god;
+    if (variant === 'area-healing') choice.spellSelections!.applications = { [`magic-heal:${f.occurrences[0]}`]: { poolKey: 'fixture-head' } };
+    if (actor.authority === 'god-owner') await tx.update(campaignCharacter).set({ isNpc: true, npcBuildMode: "detailed" }).where(eq(campaignCharacter.id, f.heroId));
+    if (variant === 'out-of-range') { await assert.rejects(previewCombatChoiceInTransaction(tx, f.context, actor, choice), /limited to 30/); throw rollback; }
+    const preview = await previewCombatChoiceInTransaction(tx, f.context, actor, choice);
+    assert.equal(preview.kind, 'declaration'); if (preview.kind !== 'declaration') throw new Error('Expected Spell');
+    const mana = async () => (await readActiveManaInTransaction(tx, f.heroId)).pools.find(row => row.system === 'Spellcraft')!.currentMana;
+    const beforeMana = await mana();
+    const input = { choice, requestKey: crypto.randomUUID(), roll: { method: 'entered' as const, enteredTotal: 70 } };
+    const submitted = await submitCombatChoiceInTransaction(tx, f.context, actor, input); assert.ok('declarationId' in submitted);
+    const repeated = await submitCombatChoiceInTransaction(tx, f.context, actor, input);
+    assert.ok('declarationId' in repeated); assert.equal(repeated.declarationId, submitted.declarationId); assert.equal(repeated.reused, true);
+    await resolveDeclaredDefensesInTransaction(tx, f.context, f.god, submitted.declarationId);
+    const state = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, state, advanceInitiativeTimeline(state, 22 - preview.snapshot.initiativeCost));
+    const planId = await generateActionEffectPlanInTransaction(tx, f.context, f.god, submitted.declarationId);
+    const plan = (await readActionEffectWorkspaceInTransaction(tx, f.context)).plans.find(row => row.id === planId)!;
+    const manual = ['player-range', 'line-of-sight', 'unknown-harmfulness'].includes(variant);
+    for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.god, submitted.declarationId, planId)).status, manual ? 'requires-god-ruling' : 'applied');
+    assert.equal(await mana(), beforeMana - preview.snapshot.authoredSource!.resourceCosts[0].amount!);
+    const local = (await tx.select().from(member).where(eq(member.characterId, f.occurrences[0])))[0].localStateJson as { health: { totalDamage: number; poolDamage: Record<string, number> }; conditions?: unknown[]; modifiers?: unknown[] };
+    if (variant === 'area-healing') { assert.equal(local.health.totalDamage, 4); assert.equal(local.health.poolDamage['fixture-head'], 1); }
+    else if (manual || isInteraction) { assert.equal(local.health.totalDamage, 0); assert.equal(local.conditions?.length ?? 0, 0); }
+    else { assert.equal(local.health.totalDamage, 1 + plan.governingRollSnapshot!.resolution.additionalSuccesses); assert.equal(local.conditions!.length, 1); assert.equal(local.modifiers!.length, 1); }
+    if (variant === 'condition-immunity') assert.equal(plan.effects[0].status, 'declined');
+    if (variant === 'unknown-harmfulness') assert.equal(storedIncomingResolution(plan.effects[0].authoredValue)?.issues[0].code, 'unknown-harmfulness');
+    throw rollback;
+  }), expected);
+});
 
 test("Spell extension persistence accepts optional shared types and rejects unapproved submitted types before writing", async () => {
   await assert.rejects(db.transaction(async tx => {
@@ -133,8 +195,11 @@ for (const scenario of ["scaled", "static", "progressive-scaled", "progressive-s
     const choice: CombatChoice = { participantId: f.heroId, source: { kind: "spell", ref: `catalog:${learned.allocation.id}`, instanceId: null, itemId: null, name: learned.spell.name, description: "" },
       targetIds: area ? [] : [f.occurrences[0]], spellSelections: { targetGroups: { "bolt-target": area ? [] : [f.occurrences[0]] },
         applications: { [`bolt-damage:${f.occurrences[0]}`]: { hitLocationNumber: 0, poolKey: "fixture-head" } } } };
+    if (scenario.startsWith("progressive")) choice.spellSelections!.ranges = { [`bolt-target:${f.occurrences[0]}`]: { distanceFeet: 25 } };
+    const casterAuthority = scenario.startsWith("progressive") ? f.god : f.player;
+    if (casterAuthority.authority === 'god-owner') await tx.update(campaignCharacter).set({ isNpc: true, npcBuildMode: "detailed" }).where(eq(campaignCharacter.id, f.heroId));
     const beforeHealth = await tx.select().from(campaignCharacterActiveHealth).where(eq(campaignCharacterActiveHealth.characterId, f.heroId));
-    const preview = await previewCombatChoiceInTransaction(tx, f.context, f.player, choice);
+    const preview = await previewCombatChoiceInTransaction(tx, f.context, casterAuthority, choice);
     assert.equal(preview.kind, "declaration"); if (preview.kind !== "declaration") throw new Error("Expected cast preview");
     assert.equal(preview.snapshot.authoredSource?.resolutionMode, "skill-roll");
     if (scenario.startsWith("progressive")) {
@@ -150,14 +215,14 @@ for (const scenario of ["scaled", "static", "progressive-scaled", "progressive-s
     const input = { choice, requestKey: crypto.randomUUID(), roll: { method: "entered" as const, enteredTotal: scenario.includes("failed") ? 12 : scenario === "area-critical" ? 100 : 72 } };
     if (scenario === "unlearned") {
       await tx.update(campaignCharacterSkillAllocation).set({ points: 0 }).where(eq(campaignCharacterSkillAllocation.id, learned.allocation.id));
-      await assert.rejects(submitCombatChoiceInTransaction(tx, f.context, f.player, input), /no longer owns|Skill/);
+      await assert.rejects(submitCombatChoiceInTransaction(tx, f.context, casterAuthority, input), /no longer owns|Skill/);
       assert.equal((await tx.select().from(campaignSessionRoll).where(eq(campaignSessionRoll.encounterId, f.encounterId))).length, 0);
       assert.equal((await readActiveManaInTransaction(tx, f.heroId)).pools.find((entry) => entry.system === "Spellcraft")!.currentMana, manaBefore);
       throw rollback;
     }
-    const submitted = await submitCombatChoiceInTransaction(tx, f.context, f.player, input);
+    const submitted = await submitCombatChoiceInTransaction(tx, f.context, casterAuthority, input);
     assert.ok("declarationId" in submitted);
-    const repeated = await submitCombatChoiceInTransaction(tx, f.context, f.player, input);
+    const repeated = await submitCombatChoiceInTransaction(tx, f.context, casterAuthority, input);
     assert.ok("declarationId" in repeated); assert.equal(repeated.declarationId, submitted.declarationId);
     const [action] = await tx.select().from(declaration).where(eq(declaration.id, submitted.declarationId));
     const manaAfter = (await readActiveManaInTransaction(tx, f.heroId)).pools.find((entry) => entry.system === "Spellcraft")!.currentMana;

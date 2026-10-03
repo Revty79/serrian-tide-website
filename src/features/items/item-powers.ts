@@ -108,7 +108,7 @@ export function resolveItemPowerConstruction(document: SpellDocument, fixedPower
   if (!progressive || !fixedPowerLevel) return { progressive: false, spell: document, calculation: calculateSpell(document), adapter: adaptSpellToMechanicalEffects(document) };
   const level = fixedPowerLevel as PractitionerLevel;
   const resolved = resolveProgressiveSpellForLevel(document, level).resolvedSpell;
-  return { progressive: true, spell: resolved, calculation: calculateSpell(document), adapter: adaptSpellToMechanicalEffects(resolved) };
+  return { progressive: true, spell: resolved, calculation: resolveProgressiveSpellForLevel(document, level).castingCalculation, adapter: adaptSpellToMechanicalEffects(resolved) };
 }
 
 function positiveWhole(value: number | null, label: string): number | null {

@@ -53,6 +53,7 @@ export type LoadedSpellCastSource = {
 };
 
 export type SpellCastRuntimeSelections = {
+  ranges?: import('@/features/spell-construction/combat-range').SpellRangeSelections;
   targetGroups: Record<string, number[]>;
   applications: Record<string, {
     poolKey?: string | null;
@@ -97,6 +98,7 @@ export type SpellCastTargetGroup = {
   containerPath: readonly string[];
   label: string;
   rangeLabel: string | null;
+  rangeRuleId?: string;
   shapeLabel: string | null;
   capacity: number | null;
   selfTargeted: boolean;

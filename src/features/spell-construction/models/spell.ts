@@ -1,4 +1,5 @@
 import type { PractitionerLevel, SpellMastery } from './rules';
+import type { ConditionApplyEffect, ModifierApplyEffect } from '@/features/mechanical-effects/models';
 
 export const SPELL_SCHEMA_VERSION = 7;
 
@@ -28,6 +29,12 @@ export interface EffectSelection {
   /** Optional shared damage vocabulary for this Damage effect; never a calculation input. */
   damageType?: string;
   healingScope?: 'full-body' | 'area';
+  /** Optional explicit consequence; the construction rule still owns calculation. */
+  runtimeApplication?: {
+    effect: ConditionApplyEffect | ModifierApplyEffect;
+    harmful?: boolean;
+    durationSource?: 'explicit' | 'construction';
+  };
 }
 
 export interface ScaledAddOnSelection {

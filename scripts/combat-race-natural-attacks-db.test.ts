@@ -26,6 +26,7 @@ import { createEmptySpell } from "@/features/spell-construction/utilities/spellF
 import { completionDraft, completionServiceFixture } from "./fixtures/combat-completion-service-fixture";
 import { raceNaturalAttackFixture } from "./fixtures/race-natural-attack-fixture";
 import { protectionPipelineFixture } from "./fixtures/protection-pipeline-fixture";
+import { magicCompletionDocument } from './fixtures/magic-completion-fixture';
 
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_COMPLETION !== "true" || !/^postgresql:\/\/[^/]+@127\.0\.0\.1:\d+\/serrian_combat_completion_dev$/.test(process.env.DATABASE_URL ?? "")) throw new Error("Use the isolated completion harness.");
 after(() => pool.end());
@@ -201,16 +202,29 @@ scenario("supported on-hit condition applies once and does not replace ordinary 
   const [target] = await tx.select().from(member).where(eq(member.characterId, f.occurrences[0]));
   assert.equal((target.localStateJson as { conditions: { name: string }[] }).conditions.filter(entry => entry.name === "Natural Mark").length, 1);
 });
-scenario("attached Magic independently marks Fire magical, freezes its document and defers construction execution", async (tx, f) => {
+scenario("empty attached Magic freezes Magical identity and requires an explicit manual outcome", async (tx, f) => {
   const magic = { document: createEmptySpell() };
   await tx.update(raceNaturalAttack).set({ authoring: { ...f.attack.authoring, magical: null, magic } }).where(eq(raceNaturalAttack.id, f.attack.id));
   const id = await locked(tx, f); const result = await finish(tx, f, id);
   const [stored] = await tx.select().from(declaration).where(eq(declaration.id, id));
   const source = parseLockedActionDeclarationSnapshot(stored.lockedSnapshotJson).authoredSource!;
-  assert.equal(source.kind, "race-natural-attack"); assert.ok(source.warnings.some(warning => warning.includes("deferred")));
+  assert.equal(source.kind, "race-natural-attack"); assert.ok(source.warnings.some(warning => warning.includes('manual effects')));
   assert.deepEqual((source.authoredData.authoring as typeof f.attack.authoring).magic, JSON.parse(JSON.stringify(magic)));
-  assert.equal(result.effects.length, 1);
+  assert.equal(result.effects.length, 2); assert.equal(result.effects[1].effectType, 'manual');
   assert.ok(JSON.stringify(source.incomingSourceFacts).includes('"magical":true')); assert.ok(JSON.stringify(source.incomingSourceFacts).includes('Fire'));
+});
+for (const succeeded of [true, false]) scenario(`Pass 4 Race construction effects remain separate and apply once; hit=${succeeded}`, async (tx, f) => {
+  await tx.update(raceNaturalAttack).set({ authoring: { ...f.attack.authoring, magic: { document: magicCompletionDocument() } } }).where(eq(raceNaturalAttack.id, f.attack.id));
+  const id = await locked(tx, f);
+  const snapshot = parseLockedActionDeclarationSnapshot((await tx.select().from(declaration).where(eq(declaration.id, id)))[0].lockedSnapshotJson);
+  assert.deepEqual(snapshot.authoredSource!.resourceCosts, []); assert.equal(snapshot.initiativeCost, 4);
+  await tx.update(raceNaturalAttack).set({ authoring: { ...f.attack.authoring, magic: null } }).where(eq(raceNaturalAttack.id, f.attack.id));
+  const result = await finish(tx, f, id, succeeded ? 70 : 20); assert.equal(result.effects.length, 5);
+  if (!succeeded) { assert.ok(result.effects.every(row => row.status === 'declined')); return; }
+  const base = (result.effects.find(row => row.effectKey.startsWith('ordinary-attack:'))!.finalValueJson as { effect: { amount: number } }).effect.amount;
+  for (let retry = 0; retry < 2; retry++) assert.equal((await applyRoutineCombatConsequencesInTransaction(tx, f.context, f.player, id)).status, 'applied');
+  const state = (await tx.select().from(member).where(eq(member.characterId, f.occurrences[0])))[0].localStateJson as { health: { totalDamage: number }; conditions: unknown[]; modifiers: unknown[] };
+  assert.equal(state.health.totalDamage, base + 3); assert.equal(state.conditions.length, 1); assert.equal(state.modifiers.length, 1);
 });
 scenario("later Race/Skill edits and target protection edits cannot rewrite a committed plan", async (tx, f) => {
   const id = await locked(tx, f); const result = await finish(tx, f, id);

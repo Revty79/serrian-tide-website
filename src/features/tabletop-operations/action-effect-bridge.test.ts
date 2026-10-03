@@ -93,6 +93,17 @@ test("additional-success damage does not change fixed healing or item damage", (
   }
 });
 
+for (const numeric of [false, true]) test(`constructed Per Success requires ${numeric ? 'a governing Roll' : 'a numeric consequence'}`, () => {
+  const frozen = source({ effects: source().effects.map(effect => ({ ...effect, scaling: 'per-success',
+    instruction: { construction: true }, effect: numeric ? { kind: 'health.damage', amount: 2, application: 'localized' } : effect.effect })) });
+  const plan = buildActionEffectPlanProposal({ source: frozen, actorParticipantId: 7, targetParticipantIds: [9],
+    governingRoll: numeric ? null : buildRollMechanicalSnapshot({ kind: 'manual', label: 'Item', originalTarget: 50 }, 70, [], 'original-roll'),
+    defenseResolution: null, initiativeComplete: true });
+  assert.equal(plan.status, 'requires-god-ruling');
+  assert.equal(plan.effects[0].status, 'requires-god-ruling');
+  assert.match(plan.effects[0].amendmentReason, /Per Success requires/);
+});
+
 test("Pass 8 exposes every exact source kind and every required plan state", () => {
   assert.deepEqual(ACTION_EFFECT_SOURCE_KINDS, [
     "weapon", "item", "spell", "derived-ability", "skill", "attribute",

@@ -96,7 +96,18 @@ export function resolveProgressiveSpellForLevel(
     modifiers: [...progressiveModifier, ...structure.modifiers.map(cloneModifier)],
   };
   const resolvedConstructionCalculation = calculateSpell(resolvedSpell);
-  const castingCalculation: SpellCalculation = { ...originalCalculation };
+  // Preserve the established original-base cost contract, but Concentration is
+  // an active-tier choice: -2 Mana / +2 Initiative per point, counted once.
+  const activeConcentration = [...resolvedSpell.modifiers].filter(modifier => modifier.ruleId === 'concentration');
+  const collectConcentration = (containers: SpellContainer[]) => { for (const container of containers) {
+    activeConcentration.push(...container.modifiers.filter(modifier => modifier.ruleId === 'concentration'));
+    collectConcentration(container.children);
+  } };
+  collectConcentration(resolvedSpell.containers);
+  const withoutConcentration = (containers: SpellContainer[]): SpellContainer[] => containers.map(container => ({ ...container,
+    modifiers: container.modifiers.filter(modifier => modifier.ruleId !== 'concentration'), children: withoutConcentration(container.children) }));
+  const castingCalculation = calculateSpell({ ...spell, containers: withoutConcentration(spell.containers),
+    modifiers: [...spell.modifiers.filter(modifier => modifier.ruleId !== 'concentration'), ...activeConcentration] });
   const normalValidation = validateSpell(
     resolvedSpell,
     undefined,
@@ -480,7 +491,7 @@ function sameValue(left: unknown, right: unknown): boolean {
 }
 
 function cloneEffect(effect: EffectSelection): EffectSelection {
-  return { ...effect };
+  return structuredClone(effect);
 }
 
 function cloneModifier(modifier: ModifierSelection): ModifierSelection {

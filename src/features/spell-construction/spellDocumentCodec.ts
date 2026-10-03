@@ -22,6 +22,7 @@ import {
 import { createStableId } from "./utilities/ids";
 import { normalizeDamageTypes } from "@/features/damage-types/damage-types";
 import type { EffectSelection } from "./models/spell";
+import { normalizeSpellRuntimeApplication } from './runtime-application';
 
 type LegacyScaledAddOnSelection = {
   id?: string;
@@ -122,12 +123,14 @@ function normalizeScaledSelection(
 }
 
 function normalizeEffect(effect: EffectSelection): EffectSelection {
+  const runtimeApplication = normalizeSpellRuntimeApplication(effect.ruleId, effect.runtimeApplication);
   if (effect.damageType !== undefined && effect.ruleId !== "damage") {
     throw new Error("Damage Type belongs only to a Spell Damage effect.");
   }
   return {
     ...effect,
     description: effect.description ?? "",
+    ...(runtimeApplication === undefined ? {} : { runtimeApplication }),
     ...(effect.damageType === undefined ? {} : {
       damageType: normalizeDamageTypes(effect.damageType, { multiple: true, label: "Spell Damage Type" }),
     }),

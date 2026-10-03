@@ -30,6 +30,7 @@ test("shared analysis exposes self-target metadata", () => {
     containerPath: ["self"],
     label: "Target container",
     rangeLabel: "Self",
+    rangeRuleId: "self",
     shapeLabel: null,
     capacity: 1,
     selfTargeted: true,

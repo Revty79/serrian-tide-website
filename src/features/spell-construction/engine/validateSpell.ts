@@ -11,6 +11,7 @@ import type {
   SpellRuleProfile,
 } from '../models/rules';
 import type { ModifierSelection, SpellContainer, SpellDocument } from '../models/spell';
+import { normalizeSpellRuntimeApplication } from '../runtime-application';
 
 export type ValidationSeverity = 'VALID' | 'WARNING' | 'ERROR';
 
@@ -291,6 +292,9 @@ function validateContainer(
       continue;
     }
     effectOccurrences.set(rule.id, (effectOccurrences.get(rule.id) ?? 0) + 1);
+    try { normalizeSpellRuntimeApplication(effect.ruleId, effect.runtimeApplication); }
+    catch (error) { issues.push({ id: `effect-runtime:${effect.id}`, severity: 'ERROR', message: 'Invalid runtime application',
+      explanation: error instanceof Error ? error.message : 'Correct the runtime application.', componentId: effect.id, path }); }
     if (!Number.isFinite(effect.quantity) || effect.quantity < 1) {
       issues.push({
         id: `effect-quantity:${effect.id}`,

@@ -14,6 +14,7 @@ import type { RuntimeIntegrationTransaction as Tx, OwnedEncounterRuntimeContext 
 import type { ActionDeclarationDraft } from "./action-declaration";
 import type { ResolvedLockedActionSource } from "./action-source-resolver-service";
 import { applyRecordedSourceResolutionInTransaction } from "./combat-source-resolution-service";
+import { attachedMagicEffects } from './attached-magic-effects';
 
 /** Caller authorizes the encounter/actor. This reader never consults Form previews. */
 export async function readRaceAttackSourcesInTransaction(tx: Tx, context: OwnedEncounterRuntimeContext, participantId: number) {
@@ -68,10 +69,13 @@ export async function resolveRaceNaturalAttackInTransaction(tx: Tx, context: Own
       displayName: definition.attackName, authoringHref: "/heavens/races", liveRevision: source.revision.toISOString(), resolutionMode: selected ? "opposed-roll" : "manual-god-ruling",
       governingSource: selected?.rollGoverningSource ?? null, governingSnapshot: selected?.rollGoverningSourceSnapshot ?? null,
       authoredData: { ...definition, raceId: source.raceId, raceName: source.raceName, definition, injuryEvidence: source.injuryEvidence, skillDefinitions: source.skillDefinitions, governance, frozenAt: new Date().toISOString(), normalAnatomy: source.anatomy },
-      resourceCosts: [], effects: definition.authoring.onHitEffects.map(entry => ({ key: `race-hit:${entry.effectKey}`, effect: structuredClone(entry.effect),
+      resourceCosts: [], effects: [...definition.authoring.onHitEffects.map(entry => ({ key: `race-hit:${entry.effectKey}`, effect: structuredClone(entry.effect),
         instruction: { naturalAttackHit: true }, applicationSupported: ["health.damage", "condition.apply", "modifier.apply"].includes(entry.effect.kind),
         requiresGodReview: !["health.damage", "condition.apply", "modifier.apply"].includes(entry.effect.kind), targetParticipantIds: draft.targetCharacterIds })),
-      warnings: [...(!selected ? [governance.explanation] : []), ...(definition.authoring.magic ? ["Attached Magic establishes Magical status; its construction effects are deferred. Separately authored on-hit effects can execute."] : [])] },
+        ...attachedMagicEffects({ document: definition.authoring.magic?.document, namespace: 'race-attack', actorId: draft.actorCharacterId,
+          targets: draft.targetCharacterIds, owner: 'attack', aoe: definition.authoring.mode === 'aoe',
+          ownerDistanceFeet: ['feet', 'ft'].includes(String(draft.sourcePayload?.rangeUnit).toLowerCase()) && typeof draft.sourcePayload?.rangeDistance === 'number' ? draft.sourcePayload.rangeDistance : undefined })],
+      warnings: [...(!selected ? [governance.explanation] : []), ...(definition.authoring.magic ? ["Supported attached Magic executes after an established hit; manual effects require a G.O.D. ruling. No normal Spell Mana or casting time is added."] : [])] },
   };
   const ruled = await applyRecordedSourceResolutionInTransaction(tx, context, draft, resolved);
   if (source.anatomyRulingRequired && !(ruled.snapshot.authoredData.combatResolutionRuling as { useRequirementsReason?: string } | undefined)?.useRequirementsReason) throw new Error("Required anatomy has damage or an unresolved injury without an authoritative usability fact. The G.O.D. must record whether this attack can use that anatomy.");

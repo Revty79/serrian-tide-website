@@ -10,6 +10,7 @@ import { rulesById } from "./data/spellRules";
 import { normalizeDamageTypes } from "@/features/damage-types/damage-types";
 import { resolveProgressiveSpellForLevel } from "./engine/progressiveSpell";
 import { validateSpell } from "./engine/validateSpell";
+import { normalizeSpellRuntimeApplication, STRUCTURED_RUNTIME_FAMILIES } from './runtime-application';
 import type { PractitionerLevel } from "./models/rules";
 import type {
   EffectSelection,
@@ -39,6 +40,8 @@ export type AdaptedSpellMechanicalEffect = {
   containerPath: readonly string[];
   definition: MechanicalEffectDefinition;
   damageType?: string;
+  harmful?: boolean;
+  scaling?: 'fixed' | 'per-success';
 };
 
 /** Frozen per-effect source metadata; the universal Health effect stays unchanged. */
@@ -47,6 +50,8 @@ export function spellEffectSourceMetadata(entry: AdaptedSpellMechanicalEffect) {
     spellEffectId: entry.spellEffectId,
     ruleId: entry.ruleId,
     containerPath: entry.containerPath,
+    ...(entry.harmful === undefined ? {} : { harmful: entry.harmful }),
+    construction: true,
     ...(entry.ruleId === "damage" ? { damageType: entry.damageType ?? "" } : {}),
   };
 }
@@ -69,16 +74,18 @@ type LocatedSpellEffect = {
   effect: EffectSelection;
   containerId: string;
   containerPath: string[];
+  containers: SpellContainer[];
 };
 
 function locateSpellEffects(containers: readonly SpellContainer[]): LocatedSpellEffect[] {
   const located: LocatedSpellEffect[] = [];
-  const visit = (container: SpellContainer, ancestors: readonly string[]) => {
-    const containerPath = [...ancestors, container.id];
+  const visit = (container: SpellContainer, ancestors: SpellContainer[]) => {
+    const containers = [...ancestors, container];
+    const containerPath = containers.map(entry => entry.id);
     for (const effect of container.effects) {
-      located.push({ effect, containerId: container.id, containerPath });
+      located.push({ effect, containerId: container.id, containerPath, containers });
     }
-    for (const child of container.children) visit(child, containerPath);
+    for (const child of container.children) visit(child, containers);
   };
   for (const container of containers) visit(container, []);
   return located;
@@ -108,7 +115,9 @@ function manualEffectFor(
     kind: "manual",
     title: `${rule.name} — Manual G.O.D. Resolution`,
     description: [
-      `${rule.name} (${rule.id}) is not automated by the current Mechanical Effects vocabulary.`,
+      STRUCTURED_RUNTIME_FAMILIES.includes(rule.id)
+        ? `${rule.name} (${rule.id}) needs an explicitly authored runtime Condition or Modifier, or Manual G.O.D. resolution.`
+        : `${rule.name} (${rule.id}) is not automated by the current Mechanical Effects vocabulary.`,
       `Quantity: ${effect.quantity}.`,
       `Rule definition: ${rule.definition}`,
       `Rule guidance: ${rule.usageGuidance}`,
@@ -144,7 +153,29 @@ function mechanicalEffectFor(located: LocatedSpellEffect): MechanicalEffect {
       ].filter((line): line is string => Boolean(line)).join("\n"),
     };
   }
+  if (effect.runtimeApplication) {
+    const runtime = normalizeSpellRuntimeApplication(effect.ruleId, effect.runtimeApplication)!;
+    if (runtime.durationSource !== 'construction') return runtime.effect;
+    const durations = [...located.containers].reverse().find(container => container.durations.length)?.durations ?? [];
+    const duration = durations.length === 1 ? durations[0] : null;
+    if (duration?.ruleId === 'combat-step') return { ...runtime.effect, duration: { kind: 'combat-steps', value: 1 } };
+    if (duration?.ruleId === 'combat-round') return { ...runtime.effect, duration: { kind: 'combat-rounds', value: 1 } };
+    if (duration?.ruleId === 'lingering' && Number.isSafeInteger(duration.quantity) && duration.quantity > 0) {
+      return { ...runtime.effect, duration: { kind: 'combat-steps', value: duration.quantity } };
+    }
+    return { kind: 'manual', title: `${rule.name} — Manual G.O.D. Resolution`,
+      description: 'The selected construction duration has no unambiguous Condition/Modifier lifecycle. Instantaneous, absent or multiple durations require an explicit runtime duration or a G.O.D. ruling.' };
+  }
   return manualEffectFor(effect, rule);
+}
+
+/** The confirmed scaling contract is Spell-wide, including nested modifiers. */
+export function spellConstructionScaling(spell: SpellDocument): 'fixed' | 'per-success' {
+  const modifiers = [...spell.modifiers];
+  const visit = (containers: SpellContainer[]) => { for (const container of containers) { modifiers.push(...container.modifiers); visit(container.children); } };
+  visit(spell.containers);
+  return modifiers.some(entry => entry.ruleId === 'per-success-assignment' && entry.quantity > 0)
+    && !modifiers.some(entry => entry.ruleId === 'static-assignment' && entry.quantity > 0) ? 'per-success' : 'fixed';
 }
 
 export function adaptSpellToMechanicalEffects(
@@ -160,6 +191,8 @@ export function adaptSpellToMechanicalEffects(
   const seenIds = new Set<string>();
 
   for (const located of locatedEffects) {
+    try { normalizeSpellRuntimeApplication(located.effect.ruleId, located.effect.runtimeApplication); }
+    catch (error) { issues.push(issueFor(located, 'invalid-mechanical-effect', error instanceof Error ? error.message : 'Invalid runtime application.')); }
     if (located.effect.damageType !== undefined) {
       try {
         if (located.effect.ruleId !== "damage") throw new Error("Damage Type belongs only to a Spell Damage effect.");
@@ -210,6 +243,7 @@ export function adaptSpellToMechanicalEffects(
   if (issues.length) return { valid: false, source, effects: [], issues };
 
   const effects: AdaptedSpellMechanicalEffect[] = [];
+  const scaling = spellConstructionScaling(spell);
   for (const located of locatedEffects) {
     const effect = mechanicalEffectFor(located);
     const validation = validateMechanicalEffect(effect);
@@ -230,6 +264,8 @@ export function adaptSpellToMechanicalEffects(
       ruleId: located.effect.ruleId,
       containerId: located.containerId,
       containerPath: located.containerPath,
+      scaling,
+      ...(located.effect.runtimeApplication?.harmful === undefined ? {} : { harmful: located.effect.runtimeApplication.harmful }),
       ...(located.effect.ruleId === "damage" && located.effect.damageType !== undefined ? {
         damageType: normalizeDamageTypes(located.effect.damageType, { multiple: true }),
       } : {}),

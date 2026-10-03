@@ -14,6 +14,8 @@ import { createStableId } from "@/features/spell-construction/utilities/ids";
 import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 import { DamageTypeSelect } from "@/components/damage-type-select";
 import { GuidedField } from "@/components/field-guidance";
+import { MechanicalEffectEditor } from '@/app/heavens/items/mechanical-effect-editor';
+import { STRUCTURED_RUNTIME_FAMILIES } from '@/features/spell-construction/runtime-application';
 
 type SpellContainerEditorProps = {
   container: SpellContainer;
@@ -92,6 +94,30 @@ function EffectSelectionEditor({
           </select>
         </label>
       ) : null}
+
+      {STRUCTURED_RUNTIME_FAMILIES.includes(effect.ruleId) ? <details>
+        <summary>Runtime Effect / Combat Application</summary>
+        <p>This controls what the constructed effect does mechanically during runtime. Description remains narrative and is not interpreted automatically. Conditions record state and duration; their names do not automatically prevent actions or move a target.</p>
+        <GuidedField label="Runtime application" help="Choose the exact shared mechanic. Unspecified keeps this effect under Manual G.O.D. resolution; it never guesses from the Spell name.">
+          <select value={effect.runtimeApplication?.effect.kind ?? ''} onChange={event => {
+            const kind = event.target.value;
+            onChange({ ...effect, runtimeApplication: kind === 'condition.apply'
+              ? { effect: { kind, name: '', description: '', duration: { kind: 'combat-steps', value: 1 } }, durationSource: 'construction' }
+              : kind === 'modifier.apply' ? { effect: { kind, label: '', channel: 'attribute', targetKey: 'STR', amount: 1, duration: { kind: 'combat-steps', value: 1 } }, durationSource: 'construction' } : undefined });
+          }}><option value="">Manual G.O.D. resolution</option><option value="condition.apply">Condition</option><option value="modifier.apply">Modifier</option></select>
+        </GuidedField>
+        {effect.runtimeApplication ? <>
+          <GuidedField label="Harmfulness" help="Declare whether this exact consequence is harmful. Requirements and Immunity use this fact. Unspecified may require a ruling.">
+            <select value={effect.runtimeApplication.harmful === undefined ? '' : String(effect.runtimeApplication.harmful)} onChange={event => onChange({ ...effect, runtimeApplication: { ...effect.runtimeApplication!, harmful: event.target.value === '' ? undefined : event.target.value === 'true' } })}><option value="">Unspecified / ruling when needed</option><option value="true">Harmful</option><option value="false">Beneficial or neutral</option></select>
+          </GuidedField>
+          <GuidedField label="Runtime duration source" help="Construction uses the nearest container with duration: one Combat Step, one Combat Round, or the exact number of Lingering steps. Missing, Instantaneous or multiple durations require a ruling. Explicit uses the duration you enter below.">
+            <select value={effect.runtimeApplication.durationSource ?? 'explicit'} onChange={event => onChange({ ...effect, runtimeApplication: { ...effect.runtimeApplication!, durationSource: event.target.value as 'explicit' | 'construction' } })}><option value="construction">Construction duration</option><option value="explicit">Explicit runtime duration</option></select>
+          </GuidedField>
+          <MechanicalEffectEditor effect={effect.runtimeApplication.effect} skills={[]} hideDuration={effect.runtimeApplication.durationSource === 'construction'} onChange={runtime => {
+            if (runtime.kind === 'condition.apply' || runtime.kind === 'modifier.apply') onChange({ ...effect, runtimeApplication: { ...effect.runtimeApplication!, effect: runtime } });
+          }} />
+        </> : null}
+      </details> : effect.ruleId !== 'damage' && effect.ruleId !== 'healing' ? <p>Manual G.O.D. resolution required. This family has no supported automatic runtime owner.</p> : null}
 
       <label>
         <span>Component description</span>

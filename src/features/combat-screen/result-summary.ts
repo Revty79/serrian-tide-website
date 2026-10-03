@@ -23,6 +23,17 @@ export function combatRollSummary(roll: Pick<RollLedgerEntry, "effectiveMechanic
 }
 
 export function combatEffectSummary(effect: Pick<ActionEffectRowView, "effectType" | "status" | "authoredValue" | "calculatedValue" | "finalValue" | "amendmentReason"> & Partial<Pick<ActionEffectRowView, "appliedResult">>, mayReadMechanics: boolean) {
+  const instruction = object(object(effect.authoredValue).instruction);
+  if (effect.status === 'requires-god-ruling' && object(instruction.spellRange).requiresRuling === true) {
+    return `${String(object(instruction.spellRange).reason)} No consequence has been applied.`;
+  }
+  if (effect.effectType === 'manual') {
+    const manual = object(object(effect.authoredValue).effect);
+    const title = mayReadMechanics && manual.title ? `: ${manual.title}` : '';
+    return effect.status === 'manual-resolved' ? `Manual G.O.D. resolution recorded${title}.`
+      : effect.status === 'declined' ? 'Manual consequence declined.'
+      : `Manual G.O.D. resolution required${title}.`;
+  }
   const incoming = storedIncomingResolution(effect.authoredValue), publicIncoming = object(object(effect.authoredValue).incomingEffectSummary);
   if (effect.status === "requires-god-ruling" && (incoming || publicIncoming.status)) return "Incoming effect requires a G.O.D. ruling; no consequence has been applied.";
   if (effect.status === "declined" && (incoming?.status === "prevented" || publicIncoming.status === "prevented")) return "The target's interactions prevented the effect. No damage or harmful effect was applied.";

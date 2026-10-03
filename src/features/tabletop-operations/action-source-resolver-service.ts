@@ -48,12 +48,15 @@ import {
 } from "@/features/characters/character-spell-runtime-service";
 import { resolveSpellCastTargetSelection, type SpellCastSourceRequest } from "@/features/characters/character-spell-runtime";
 import { CHARACTER_ATTRIBUTE_KEYS, type CharacterAttributeKey } from "@/features/characters/models";
-import { adaptSpellToMechanicalEffects, spellEffectSourceMetadata } from "@/features/spell-construction/mechanical-effects-adapter";
+import { adaptSpellToMechanicalEffects, spellEffectSourceMetadata, spellConstructionScaling } from "@/features/spell-construction/mechanical-effects-adapter";
 import { resolveProgressiveSpellForLevel } from "@/features/spell-construction/engine/progressiveSpell";
 import { parseSpellDocument } from "@/features/spell-construction/spellDocumentCodec";
 import { resolveItemPowerConstruction } from "@/features/items/item-powers";
 import { analyzeSpellTargetGroups, assertAoESelectionAuthority } from "@/features/spell-construction/spell-target-groups";
 
+import { attachedMagicEffects } from './attached-magic-effects';
+import { freezeConstructionEffectRanges } from './construction-effect-range';
+import type { SpellRangeSelections } from '@/features/spell-construction/combat-range';
 import type {
   FrozenActionAuthoredEffect,
   FrozenActionResourceCost,
@@ -621,7 +624,7 @@ async function resolveItemPower(
   if (effectRows.length > 0 && (!draft.targetCharacterIds.length || directTargets.length === 0)) {
     throw new Error("Direct Item Ability effects require the generic Item target.");
   }
-  let magicTargetGroups: unknown[] = [];
+  let magicTargetGroups: ReturnType<typeof analyzeSpellTargetGroups>['groups'] = [];
   const effects = effectRows.flatMap((effect) => directTargets.map((target) => {
     const effectKey = `item-power:${row.power.id}:effect:${effect.id}`;
     const selectionKey = `${effectKey}:target:${target}`;
@@ -658,17 +661,17 @@ async function resolveItemPower(
       const groupTargets = selectedByGroup.get(groupId) ?? [];
       if (group.kind === "aoe") {
         const key = `item-power:${row.power.id}:magic:${adapted.spellEffectId}`;
-        areaEffectTemplates.push(structuredEffect(key, adapted.definition.effect, [], false, {
+        areaEffectTemplates.push({ ...structuredEffect(key, adapted.definition.effect, [], false, {
           ...spellEffectSourceMetadata(adapted),
           targetGroupId: groupId, targetGroupKind: "aoe", containerPath: group.containerPath,
           ...(row.power.resolutionMode === "fixed-roll" && adapted.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
           applicationByTarget: Object.fromEntries(groupTargets.map((id) => [id, itemSelections[`${key}:target:${id}`] ?? {}])),
-        }));
+        }), scaling: adapted.scaling });
       }
       for (const targetId of groupTargets) {
         const key = `item-power:${row.power.id}:magic:${adapted.spellEffectId}`;
         const selectionKey = `${key}:target:${targetId}`;
-        effects.push(structuredEffect(key, adapted.definition.effect, [targetId], false, {
+        effects.push({ ...structuredEffect(key, adapted.definition.effect, [targetId], false, {
           ...spellEffectSourceMetadata(adapted),
           selectionKey,
           targetGroupId: groupId,
@@ -676,7 +679,7 @@ async function resolveItemPower(
           containerPath: group.containerPath,
           ...(row.power.resolutionMode === "fixed-roll" && adapted.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
           application: isRecord(itemSelections[selectionKey]) ? itemSelections[selectionKey] : {},
-        }));
+        }), scaling: adapted.scaling });
       }
     }
   }
@@ -686,6 +689,9 @@ async function resolveItemPower(
       ? [{ key: `item-power:${row.power.id}:charges`, kind: "item-charges", amount: row.power.resourceCostAmount, resourceKey: row.itemCanonicalId, instruction: "Spend the authored Ability Charges on the exact Item instance.", applicationSupported: true }]
       : [];
   const liveRevision = [row.itemUpdatedAt, row.powerUpdatedAt, row.sourceUpdatedAt, row.constructionUpdatedAt].filter(Boolean).map((date) => date!.toISOString()).sort().at(-1) ?? null;
+  const itemRanges = isRecord(itemPayload.selections) && isRecord(itemPayload.selections.ranges) ? itemPayload.selections.ranges as SpellRangeSelections : {};
+  effects.splice(0, effects.length, ...freezeConstructionEffectRanges(effects, magicTargetGroups, itemRanges, actorAuthority === 'god-owner'));
+  areaEffectTemplates.splice(0, areaEffectTemplates.length, ...freezeConstructionEffectRanges(areaEffectTemplates, magicTargetGroups, itemRanges, actorAuthority === 'god-owner'));
   return { authoritativeInitiativeCost: row.power.initiativeCost, governing: row.power.resolutionMode === "fixed-roll" ? { status: "resolved", source: { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 }, rollOverTarget: row.power.fixedRollTarget ?? 0, explanation: "The Ability authored a fixed Roll target." } : null, snapshot: snapshot({ kind: "item", identity: `item-power:${row.power.id};item:${row.itemCanonicalId}${draft.sourceInstanceId ? `;instance:${draft.sourceInstanceId}` : ";stack"}`, sourceId: row.itemId, sourceInstanceId: draft.sourceInstanceId, ownerParticipantId: draft.actorCharacterId, displayName: `${row.itemName} — ${row.power.name}`, authoringHref: `/heavens/items?item=${row.itemId}`, liveRevision, resolutionMode: row.power.resolutionMode === "fixed-roll" ? "fixed-roll" : row.power.resolutionMode === "manual" ? "manual-god-ruling" : "automatic-no-roll", governingSource: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, governingSnapshot: row.power.resolutionMode === "fixed-roll" ? { kind: "manual", label: row.power.name, originalTarget: row.power.fixedRollTarget ?? 0 } : null, authoredData: { ...row.power, targetGroups: magicTargetGroups, areaEffectTemplates }, resourceCosts: costs, effects, warnings: effects.length || areaEffectTemplates.length ? [] : ["This Item Ability has no effects configured."] }) };
 }
 
@@ -781,13 +787,7 @@ async function resolveSpell(
     .flatMap(({ id }) => selectedTargetGroups[id] ?? []);
   assertSameTargets(ordinarySpellTargets, draft.targetCharacterIds, "Spell target selection");
   const targets = allTargets(draft);
-  const spellModifiers = [...effectSpell.modifiers];
-  const collectModifiers = (containers: typeof loaded.spell.containers) => {
-    for (const container of containers) { spellModifiers.push(...container.modifiers); collectModifiers(container.children); }
-  };
-  collectModifiers(effectSpell.containers);
-  const perSuccess = spellModifiers.some(({ ruleId }) => ruleId === "per-success-assignment")
-    && !spellModifiers.some(({ ruleId }) => ruleId === "static-assignment");
+  const perSuccess = spellConstructionScaling(effectSpell) === 'per-success';
   const areaEffectTemplates: FrozenActionAuthoredEffect[] = [];
   const effects = adapted.valid
     ? adapted.effects.flatMap((entry) => {
@@ -825,6 +825,8 @@ async function resolveSpell(
           groupId === undefined && draft.targetCharacterIds.length > 0,
           {
             ...spellEffectSourceMetadata(entry),
+            targetGroupId: groupId,
+            targetGroupKind: group?.kind,
             ...(spellSkill && entry.definition.effect.kind === "health.damage" ? { hitLocationMode: "standard-roll" } : {}),
             application: spellSkill && entry.definition.effect.kind === "health.damage" ? {} : isRecord(spellSelections[`${entry.spellEffectId}:${targetId}`])
               ? spellSelections[`${entry.spellEffectId}:${targetId}`] as Record<string, unknown>
@@ -833,7 +835,10 @@ async function resolveSpell(
         ), scaling: perSuccess ? "per-success" as const : "fixed" as const }));
       })
     : [manualEffect("spell-invalid-effects", loaded.spell.name, { issues: adapted.issues }, targets)];
-  const authoredData = { spell: loaded.spell, casting: preview.plan, targetGroups: targetGroupAnalysis.groups, areaEffectTemplates, catalogSourceId: loaded.catalogSourceId ?? null,
+  const ranges = isRecord(payload.selections) && isRecord(payload.selections.ranges) ? payload.selections.ranges as SpellRangeSelections : {};
+  effects.splice(0, effects.length, ...freezeConstructionEffectRanges(effects, targetGroupAnalysis.groups, ranges, actorAuthority === 'god-owner'));
+  areaEffectTemplates.splice(0, areaEffectTemplates.length, ...freezeConstructionEffectRanges(areaEffectTemplates, targetGroupAnalysis.groups, ranges, actorAuthority === 'god-owner'));
+  const authoredData = { spell: loaded.spell, resolvedSpell: effectSpell, casting: preview.plan, targetGroups: targetGroupAnalysis.groups, areaEffectTemplates, catalogSourceId: loaded.catalogSourceId ?? null,
     ...(spellSkill ? { combatSpellSkill: spellSkill.rollGoverningSourceSnapshot } : {}) };
   const recovery = combatRecoverySpellAuthority(authoredData);
   if (recovery) effects.push({ ...manualEffect("spell-combat-recovery", `${recovery.name} recovery ruling`, { combatRecovery: recovery }, targets), scaling: "fixed" });
@@ -1062,7 +1067,10 @@ async function resolveCreatureSource(
           requiredAnatomy: attack.requiredAnatomy ?? "", usesRecharge: attack.usesRecharge ?? "", notes: attack.notes ?? "", rangeReach: attack.rangeReach ?? "",
           nonautomation: "Supported numeric Creature Attacks calculate damage for the resolved hit location and account for supported Armor/Soak. Health changes when the reviewed consequences are applied. Unsupported damage, Called Shot locations, and narrative consequences require a G.O.D. ruling.",
         }, targets), ...normalizeCreatureEffects(isRecord(attack.authoring) ? attack.authoring.onHitEffects : []).map((entry) =>
-          structuredEffect(`creature-hit:${entry.effectKey}`, entry.effect, targets, false, { creatureHit: true }))],
+          structuredEffect(`creature-hit:${entry.effectKey}`, entry.effect, targets, false, { creatureHit: true })),
+          ...attachedMagicEffects({ document: mechanics.authoring?.magic?.document, namespace: 'creature-attack', actorId: draft.actorCharacterId,
+            targets, owner: 'attack', aoe: mechanics.authoring?.mode === 'aoe',
+            ownerDistanceFeet: ['feet', 'ft'].includes(String(draft.sourcePayload?.rangeUnit).toLowerCase()) && typeof draft.sourcePayload?.rangeDistance === 'number' ? draft.sourcePayload.rangeDistance : undefined })],
         warnings: mechanics.warnings,
       }),
     };
@@ -1073,23 +1081,25 @@ async function resolveCreatureSource(
   if (!candidate) throw new Error("The exact authored Creature Ability is no longer present in this encounter snapshot.");
   const ability = normalizeCreatureAbilityDefinition(candidate);
   if (ability.authoring?.activationType === "passive") throw new Error("Passive Creature Abilities cannot be selected as activated actions. Their automatic lifecycle is not supported yet.");
-  const adapted = adaptCreatureAbilityToMechanicalEffects(ability);
   const payload = sourcePayload(draft);
+  const adapted = adaptCreatureAbilityToMechanicalEffects(ability, { actorId: draft.actorCharacterId, targets, aoe: payload.magicAreaConfirmed === true });
   const selections = isRecord(payload.effectSelections) ? payload.effectSelections : {};
   const effects = adapted.valid
-    ? adapted.effects.flatMap((entry) => targets.map((targetId) => structuredEffect(
-        `creature-ability-effect:${entry.effectKey}:target:${targetId}`,
+    ? adapted.effects.flatMap((entry) => targets.map((targetId) => ({ ...structuredEffect(
+        `${entry.construction ? entry.effectKey : `creature-ability-effect:${entry.effectKey}`}:target:${targetId}`,
         entry.definition.effect,
         [targetId],
         !ability.authoring || ability.authoring.resolutionMode === "manual",
         {
+          ...entry.construction?.instruction,
+          ...(entry.construction && ability.authoring?.resolutionMode === 'fixed-roll' && entry.definition.effect.kind === 'health.damage' ? { hitLocationMode: 'standard-roll' } : {}),
           effectKey: entry.effectKey,
           compatibilityFallback: entry.compatibilityFallback,
           application: isRecord(selections[`${entry.effectKey}:${targetId}`])
             ? selections[`${entry.effectKey}:${targetId}`] as Record<string, unknown>
             : {},
         },
-      )))
+      ), ...(entry.construction ? { scaling: entry.construction.scaling, requiresGodReview: entry.construction.requiresGodReview || !ability.authoring || ability.authoring.resolutionMode === 'manual' } : {}) })))
     : [manualEffect("creature-ability-invalid", ability.abilityName, { issues: adapted.issues }, targets)];
   const directOccurrence = participant.participantKind === "creature";
   const authoredMode = ability.authoring?.resolutionMode;

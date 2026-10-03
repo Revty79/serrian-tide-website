@@ -220,7 +220,7 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
   for (const authored of input.source.effects) {
     // Static Assignment fixes the authored damage, not the normal bonus for
     // additional successes. Per-success damage already uses its own multiplier.
-    const additionalDamage = input.source.kind === "spell" && authored.effect?.kind === "health.damage"
+    const additionalDamage = (input.source.kind === "spell" || authored.instruction.construction === true) && authored.effect?.kind === "health.damage"
       && authored.scaling !== "per-success" && input.governingRoll?.resolution.succeeded
       ? input.governingRoll.resolution.additionalSuccesses : 0;
     const targets = authored.targetParticipantIds.length
@@ -234,6 +234,7 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
         throw new Error("A frozen authored effect references a participant outside the original target set.");
       }
       const isManual = authored.effect === null || authored.effect.kind === "manual" || !authored.applicationSupported;
+      const unsupportedScaling = authored.scaling === 'per-success' && (!input.governingRoll || !authored.effect || !('amount' in authored.effect));
       const targetOutcomes = input.defenseResolution?.targetOutcomes;
       const targetOutcome = Array.isArray(targetOutcomes) ? targetOutcomes.find((outcome) => isRecord(outcome) && outcome.targetParticipantId === targetParticipantId) : null;
       const targetStopped = isRecord(targetOutcome) ? targetOutcome.attackStopped === true : stopped;
@@ -242,12 +243,12 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
       const objectivelyPrevented = (targetStopped && !targetUnresolved) || failedRoll;
       const status: ActionEffectStatus = objectivelyPrevented
         ? "declined"
-        : isManual || authored.requiresGodReview || targetUnresolved
+        : isManual || authored.requiresGodReview || targetUnresolved || unsupportedScaling
           ? "requires-god-ruling"
           : "calculated";
       const authoredValue = { effect: authored.effect, instruction: authored.instruction };
       let resolvedEffect = authored.effect;
-      if (!objectivelyPrevented && authored.scaling === "per-success") {
+      if (!objectivelyPrevented && authored.scaling === "per-success" && !unsupportedScaling) {
         if (!input.governingRoll || !resolvedEffect || !("amount" in resolvedEffect) || typeof resolvedEffect.amount !== "number") {
           throw new Error("Per-success scaling requires a recorded Roll and an explicitly numeric authored effect.");
         }
@@ -269,11 +270,12 @@ export function buildActionEffectPlanProposal(input: ActionEffectPlanInput): Act
         unit: effectUnit(authored.effect),
         resource: "",
         applicationSupported: !objectivelyPrevented && authored.applicationSupported && !isManual,
-        godReviewRequired: !objectivelyPrevented && (isManual || authored.requiresGodReview || targetUnresolved),
+        godReviewRequired: !objectivelyPrevented && (isManual || authored.requiresGodReview || targetUnresolved || unsupportedScaling),
         status,
         amendmentReason: objectivelyPrevented
           ? stopped ? "The completed defense/intervention stage stopped the originating action." : "The immutable governing Roll failed."
-          : "",
+          : unsupportedScaling ? 'Per Success requires a recorded Roll and a numeric consequence; resolve this effect with a G.O.D. ruling.'
+          : isRecord(authored.instruction.spellRange) && authored.instruction.spellRange.requiresRuling === true ? String(authored.instruction.spellRange.reason) : "",
       });
     }
   }

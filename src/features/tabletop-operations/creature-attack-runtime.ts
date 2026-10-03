@@ -23,7 +23,7 @@ export function creatureAttackRuntime(attack: Record<string, unknown>) {
     ...(["natural", "damage"].includes(initiative.source) ? [`Legacy snapshot timing: ${initiative.source === "natural" ? "natural action" : "numeric damage"} fallback (${initiative.cost} Initiative).`] : []),
     ...(!authoring ? ["Legacy snapshot has no structured mode/range; positioning requires G.O.D. review."] : !authoring.mode ? ["Creature Attack needs an authored Attack Mode."] : []),
     ...descriptive.map(key => `${labels[key]} — G.O.D. review information, not automatically enforced: ${attack[key]}`),
-    ...(authoring?.magic ? ["Attached Magic establishes Magical status; construction effects are deferred to Pass 4."] : []),
+    ...(authoring?.magic ? ["Supported attached Magic executes after an established hit; manual effects require a G.O.D. ruling. No normal Spell Mana or casting time is added."] : []),
   ];
   const range = authoring?.range;
   const description = [target === null ? "Attack % needs ruling" : `${target}%`, `${initiative.cost ?? "Unspecified"} Initiative`, authoring?.mode ?? "Mode unspecified",

@@ -1,5 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { SpellRangeSelections } from '@/features/spell-construction/combat-range';
+import { GuidedField } from '@/components/field-guidance';
 import { cancelPlayerCombatRulingRequest, submitPlayerCombatRulingRequest } from "@/app/realms/tabletop/player-combat-actions";
 import { readCombatCommandSources, readCombatItemAbilityOptions, readCombatSpellOptions, readCombatTargetAnatomy, previewCombatChoice, submitCombatChoice } from "./command-actions";
 import type { CombatChoice, CombatSubmission } from "./choice-types";
@@ -21,7 +23,7 @@ import { weaponAttackMode } from "@/features/items/weapon-range";
 import { InventoryHandlingControls } from "./inventory-handling-controls";
 type Sources = Awaited<ReturnType<typeof readCombatCommandSources>>;
 type Preview = Awaited<ReturnType<typeof previewCombatChoice>>;
-type Draft = { source: string; targets: number[]; groups: Record<string, number[]>; applications: Record<string, { poolKey?: string; hitLocationNumber?: number }>;
+type Draft = { source: string; targets: number[]; groups: Record<string, number[]>; applications: Record<string, { poolKey?: string; hitLocationNumber?: number }>; spellRanges?: SpellRangeSelections; magicAreaConfirmed?: boolean;
   location: string; objective: string; penalty: string; reason: string; mode: string; aim: string; duration: string; weaponHands: string; rangeMode: "melee" | "ranged"; rangeDistance: string; rangeUnit: string; beyondLongModifier: string; beyondLongReason: string; roll: RollDraft };
 const blank: Draft = { source: "", targets: [], groups: {}, applications: {}, location: "", objective: "", penalty: "", reason: "", mode: "", aim: "0", duration: "1", weaponHands: "", rangeMode: "melee", rangeDistance: "", rangeUnit: "", beyondLongModifier: "", beyondLongReason: "", roll: emptyRoll };
 const sourceKey = (source: Sources["sources"][number]) => `${source.kind}/${source.ref}/${source.instanceId ?? "stack"}`;
@@ -94,7 +96,8 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
     heldIntervention: entity.heldInterventionAvailable,
     ...(command === "Item" ? { itemTargetIds: itemDirectTargets } : {}),
     ...(draft.weaponHands === "1" || draft.weaponHands === "2" ? { weaponHands: Number(draft.weaponHands) as 1 | 2 } : {}),
-    ...((command === "Cast" || command === "Item") && groups.length ? { spellSelections: { targetGroups: Object.fromEntries(groups.map((group) => [group.id, group.selected])), applications: draft.applications } } : {}),
+    ...((command === "Cast" || command === "Item") && groups.length ? { spellSelections: { targetGroups: Object.fromEntries(groups.map((group) => [group.id, group.selected])), applications: draft.applications, ranges: draft.spellRanges ?? {} } } : {}),
+    ...(command === 'Ability' && scope.role === 'god' ? { magicAreaConfirmed: draft.magicAreaConfirmed === true } : {}),
     ...(command === "Called Shot" && location ? { calledShot: { locationNumber: location.number, label: location.name, objective: draft.objective,
       ...(scope.role === "god" ? { penalty: draft.penalty === "" ? undefined : Number(draft.penalty), reason: draft.reason } : { requestId: ruling?.id }) } } : {}),
     ...((source.kind === "weapon" || structuredAttackRange) ? { range: { attackMode: proposedMode, distance: approvedDistance, unit: approvedUnit, beyondLongModifier: scope.role === "god" && draft.beyondLongModifier !== "" ? Number(draft.beyondLongModifier) : approvedBeyondModifier, beyondLongReason: scope.role === "god" ? draft.beyondLongReason : approvedBeyondReason, distanceRulingRequestId: distanceApproval?.id ?? null } } : {}),
@@ -220,6 +223,16 @@ export function CommandPanel({ scope, entity, data, command, setCommand, target:
         <TargetDropdowns label="Additional item target" roster={data.roster.filter((entry) => entry.participantId !== Number(target))} selected={draft.targets.filter((id) => id !== Number(target))} disabled={busy} onChange={(targets) => edit({ targets })} />
         {!itemDirectTargets.length ? <p>Choose a Target above or select Use on myself to continue.</p> : null}
       </fieldset> : null}
+      {(command === 'Cast' || command === 'Item') && groups.some(group => group.rangeRuleId && !['self', 'unlimited'].includes(group.rangeRuleId)) ? <fieldset><legend>Magic range confirmation</legend><p>Short is 30 feet, Medium 60 feet and Long 120 feet. The G.O.D. confirms distance, touch, reach or visibility. An unconfirmed range requires a consequence ruling before effects apply.</p>
+        {scope.role === 'god' ? groups.filter(group => group.rangeRuleId && !['self', 'unlimited'].includes(group.rangeRuleId)).flatMap(group => (group.kind === 'aoe' ? ['area'] : group.selected).map(id => {
+          const key = `${group.id}:${id}`, evidence = draft.spellRanges?.[key] ?? {};
+          const numeric = ['short', 'medium', 'long'].includes(group.rangeRuleId!);
+          return <GuidedField key={key} className="st-field" label={`${group.rangeLabel}: ${id === 'area' ? 'area origin' : data.roster.find(entry => entry.participantId === id)?.name ?? `participant ${id}`}`} help={numeric ? 'Enter the confirmed distance in feet to this exact target or area origin. Values beyond the authored limit are rejected.' : "Confirm this exact target is touched, within the caster's reach, or visible as required by the authored range."}>
+            {numeric ? <input className="st-control" type="number" min={0} step="any" value={evidence.distanceFeet ?? ''} onChange={event => edit({ spellRanges: { ...draft.spellRanges, [key]: { distanceFeet: event.target.value === '' ? undefined : Number(event.target.value) } } })} /> : <input type="checkbox" checked={evidence.confirmed === true} onChange={event => edit({ spellRanges: { ...draft.spellRanges, [key]: { confirmed: event.target.checked } } })} />}
+          </GuidedField>;
+        })) : <p>The Campaign-owning G.O.D. will confirm range when reviewing the consequences.</p>}
+      </fieldset> : null}
+      {command === 'Ability' && source?.kind === 'creature-ability' && scope.role === 'god' ? <GuidedField label="Confirm attached Magic area membership" help="For an AoE construction, confirm the exact selected Ability targets are the affected participants. No additional combatants are inferred from Shape or description."><input type="checkbox" checked={draft.magicAreaConfirmed === true} onChange={event => edit({ magicAreaConfirmed: event.target.checked })} /></GuidedField> : null}
       {command === "Ability" || source?.rangeMode === "aoe" || command === "Cast" && !groups.length ? <details><summary>Additional targets</summary><TargetDropdowns label="Additional target" roster={data.roster} selected={draft.targets} onChange={(targets) => edit({ targets })} /></details> : null}
       {command === "Called Shot" ? <><div className={styles.fields}><label className="st-field">Target location<select className="st-control" value={draft.location} onChange={(event) => edit({ location: event.target.value })}><option value="">Choose an authored location</option>{anatomy?.id === Number(target) ? anatomy.entries.map((entry) => <option key={entry.number} value={entry.number}>{entry.name}</option>) : null}</select></label><label className="st-field">Called Shot objective<input className="st-control" value={draft.objective} onChange={(event) => edit({ objective: event.target.value })} /></label>
       {scope.role === "god" ? <><label className="st-field">G.O.D. penalty<input className="st-control" type="number" min="0" value={draft.penalty} onChange={(event) => edit({ penalty: event.target.value })} /></label><label className="st-field">Penalty reason<input className="st-control" value={draft.reason} onChange={(event) => edit({ reason: event.target.value })} /></label></> : null}</div>

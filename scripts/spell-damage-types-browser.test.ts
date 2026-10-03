@@ -37,7 +37,8 @@ async function main() {
         { id: "browser-fire", ruleId: "damage", quantity: 3, description: "First effect" },
         { id: "browser-cold", ruleId: "damage", quantity: 2, description: "Second effect" },
         { id: "browser-heal", ruleId: "healing", quantity: 1, healingScope: "full-body", description: "Healing" },
-      ] }] });
+        { id: "browser-buff", ruleId: "buff", quantity: 1, description: "Narrative does not choose a modifier" },
+      ] , durations: [{ id: "browser-duration", ruleId: "combat-step", quantity: 0 }] }] });
     await pool.query("insert into skill_extension(skill_id,extension_type,schema_version,data_json) values($1,'spell-construction',7,$2),($1,'synthetic-unrelated',42,' { \"untouched\": true } ')", [id, JSON.stringify(document)]);
     const read = async () => parseSpellDocument((await pool.query("select data_json from skill_extension where skill_id=$1 and extension_type='spell-construction'", [id])).rows[0].data_json);
     const unrelated = (await pool.query("select * from skill_extension where skill_id=$1 and extension_type='synthetic-unrelated'", [id])).rows[0];
@@ -71,7 +72,7 @@ async function main() {
     await controls.first().getByRole("combobox", { name: "Add damage type", exact: true }).selectOption("Supernatural");
     await controls.nth(1).getByRole("combobox", { name: "Damage Type", exact: true }).selectOption("Cold");
     assert.equal(await p.locator(".spell-builder__summary").first().innerText(), summary);
-    await save(); const saved = await read(); assert.deepEqual(saved.containers[0].effects.map(e => e.damageType), ["Fire / Supernatural", "Cold", undefined]);
+    await save(); const saved = await read(); assert.deepEqual(saved.containers[0].effects.map(e => e.damageType), ["Fire / Supernatural", "Cold", undefined, undefined]);
     assert.deepEqual(calculateSpell(saved), baseline); assert.equal(saved.id, document.id); assert.equal(saved.containers[0].id, document.containers[0].id);
     await open(); assert.deepEqual(await controls.first().getByRole("combobox", { name: "Damage Type", exact: true }).evaluateAll(selects => selects.map(s => (s as HTMLSelectElement).value)), ["Fire", "Supernatural"]);
     await p.getByRole("tab", { name: "Novice", exact: true }).click();
@@ -84,6 +85,25 @@ async function main() {
     if (tier.changes[0].kind !== "set-effect") throw new Error("Expected one effect metadata change");
     assert.deepEqual(tier.changes[0].effect, { ...saved.containers[0].effects[0], damageType: "Cold / Supernatural" });
     assert.deepEqual(calculateSpell(await read()), baseline);
+    const buff = base.locator('.spell-builder__selection').filter({ has: p.getByText('Buff', { exact: true }) }).first();
+    await buff.getByText('Runtime Effect / Combat Application', { exact: true }).click();
+    await buff.getByLabel('Runtime application', { exact: true }).selectOption('modifier.apply');
+    await buff.getByLabel('Label', { exact: true }).fill('Browser Strength');
+    await buff.getByLabel('Amount', { exact: true }).fill('2');
+    await buff.getByLabel('Harmfulness', { exact: true }).selectOption('false');
+    await save();
+    const modifier = (await read()).containers[0].effects[3].runtimeApplication!;
+    assert.equal(modifier.effect.kind, 'modifier.apply'); assert.equal(modifier.durationSource, 'construction');
+    assert.deepEqual(calculateSpell(await read()), baseline);
+    await buff.getByLabel('Runtime application', { exact: true }).selectOption('condition.apply');
+    await buff.getByLabel('Condition Name', { exact: true }).fill('Browser Mark');
+    await buff.getByLabel('Description', { exact: true }).fill('Explicit recorded state');
+    await buff.getByLabel('Harmfulness', { exact: true }).selectOption('true');
+    await save();
+    assert.equal((await read()).containers[0].effects[3].runtimeApplication!.effect.kind, 'condition.apply');
+    await open();
+    await buff.getByText('Runtime Effect / Combat Application', { exact: true }).click();
+    assert.equal(await buff.getByLabel('Condition Name', { exact: true }).inputValue(), 'Browser Mark');
     await base.locator('summary[aria-label="Help for Damage Type"]').first().click();
     assert.match(await base.innerText(), /does not change Mana/);
     await p.screenshot({ path: path.join(artifacts, "desktop.png"), fullPage: true });
@@ -103,7 +123,7 @@ async function main() {
     assert.ok(await p.evaluate(() => globalThis.document.documentElement.scrollWidth <= window.innerWidth + 1), "phone horizontal overflow");
     assert.deepEqual((await pool.query("select * from skill_extension where skill_id=$1 and extension_type='synthetic-unrelated'", [id])).rows[0], unrelated);
     assert.deepEqual(errors, []);
-    await writeFile(path.join(artifacts, "report.json"), JSON.stringify({ passed: true, approvedTypes: DAMAGE_TYPES, savedTypes: saved.containers[0].effects.map(e => e.damageType ?? null), calculationUnchanged: true, widths: [1365, 390], phoneLayout, browserErrors: errors }, null, 2));
+    await writeFile(path.join(artifacts, "report.json"), JSON.stringify({ passed: true, approvedTypes: DAMAGE_TYPES, savedTypes: saved.containers[0].effects.map(e => e.damageType ?? null), calculationUnchanged: true, runtimeAuthoring: ["Modifier saved", "Condition saved and reloaded", "construction duration", "explicit harmfulness"], widths: [1365, 390], phoneLayout, browserErrors: errors }, null, 2));
     console.log("PASS: shared 12 options, Damage-only multi-select, legacy and typed server saves, reload, Progressive inheritance and effect edit, calculation parity, unrelated extension preservation, desktop and phone.");
   } catch (error) {
     if (page) { await page.screenshot({ path: path.join(artifacts, "failure.png"), fullPage: true }).catch(() => {}); await writeFile(path.join(artifacts, "failure.txt"), await page.locator("body").innerText()); } throw error;

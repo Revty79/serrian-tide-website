@@ -44,6 +44,15 @@ test("restricted result summaries do not disclose roll or armor mechanics", () =
   assert.equal(combatRollSummary({ effectiveMechanicalSnapshot: null, effectiveResultTotal: 28, status: "recorded" }), "Roll 28");
 });
 
+test("manual construction summaries require an explicit outcome and preserve private titles", () => {
+  const manual = { ...damage, effectType: 'manual', status: 'requires-god-ruling' as const,
+    authoredValue: { effect: { kind: 'manual', title: 'Private summon identity' } } };
+  assert.equal(combatEffectSummary(manual, true), 'Manual G.O.D. resolution required: Private summon identity.');
+  assert.equal(combatEffectSummary(manual, false), 'Manual G.O.D. resolution required.');
+  assert.equal(combatEffectSummary({ ...manual, status: 'manual-resolved' }, false), 'Manual G.O.D. resolution recorded.');
+  assert.equal(combatEffectSummary({ ...manual, status: 'declined' }, false), 'Manual consequence declined.');
+});
+
 test("a saved incoming ruling shows its final damage without the superseded gross formula", () => {
   const ruled = { ...damage, authoredValue: { ...damage.authoredValue,
     incomingEffectResolution: { schemaVersion: 1, status: "requires-god-ruling" } } };

@@ -14,12 +14,17 @@ import { parseLockedActionDeclarationSnapshot, type ActionDeclarationDraft } fro
 import { recordCombatSourceResolutionInTransaction } from "@/features/tabletop-operations/combat-source-resolution-service";
 import { resolveDeclaredDefensesInTransaction, declareDefenseInterventionInTransaction } from "@/features/tabletop-operations/defense-intervention-service";
 import { applyRoutineCombatConsequencesInTransaction, generateActionEffectPlanInTransaction } from "@/features/tabletop-operations/action-effect-plan-service";
-import { advanceInitiativeTimeline } from "@/features/tabletop-operations/initiative-runtime";
+import { advanceInitiativeTimeline, passInitiative } from "@/features/tabletop-operations/initiative-runtime";
 import { loadInitiativeEngineInTransaction, persistInitiativeEngineInTransaction } from "@/features/tabletop-operations/runtime-integration-service";
 import { readActiveHealthInTransaction } from "@/features/active-state/active-health-service";
 import { createEmptySpell } from "@/features/spell-construction/utilities/spellFactory";
 import { completionDraft, completionServiceFixture } from "./fixtures/combat-completion-service-fixture";
 import { protectionPipelineFixture } from "./fixtures/protection-pipeline-fixture";
+import { magicCompletionDocument } from './fixtures/magic-completion-fixture';
+import { storedIncomingResolution } from '@/features/incoming-effects/effect-proposal';
+import { emptyCreatureAbilityAuthoring } from '@/features/creatures/creature-authoring';
+import { addLearnedCombatSpell } from './fixtures/combat-learned-spell-fixture';
+import { readActiveManaInTransaction } from '@/features/active-state/active-mana-service';
 
 import { creature, creatureAttack } from "@/db/creature-schema";
 import { emptyAttackAuthoring, type AttackAuthoring } from "@/features/attacks/attack-authoring";
@@ -88,6 +93,58 @@ const riders: AttackAuthoring["onHitEffects"] = [
 
 for (const owner of ["direct", "persistent"] as const) {
   const run = (name: string, fn: (tx: Tx, f: Fixture) => Promise<void>) => scenario(`${owner}: ${name}`, async (tx, f) => { if (owner === "persistent") await persistent(tx, f); await fn(tx, f); });
+  run('Pass 4 attached Damage/Healing/Condition/Modifier and on-hit effects stay distinct, frozen, cost-free and apply once', async (tx, f) => {
+    await change(tx, f, { damageType: 'Slashing', authoring: { ...f.attack.authoring, onHitEffects: riders, magic: { document: magicCompletionDocument() } } });
+    const id = await locked(tx, f);
+    const frozen = parseLockedActionDeclarationSnapshot((await tx.select().from(declaration).where(eq(declaration.id, id)))[0].lockedSnapshotJson).authoredSource!;
+    assert.deepEqual(frozen.resourceCosts, []);
+    await change(tx, f, { authoring: { ...f.attack.authoring, magic: null, initiativeCost: 20 } });
+    const result = await finish(tx, f, id); assert.equal(result.effects.length, 8);
+    const damage = result.effects.find(row => row.effectKey.includes('magic:magic-damage'))!;
+    assert.equal(storedIncomingResolution(result.effects.find(row => row.effectKey.startsWith('ordinary-attack:'))!.authoredValueJson)?.input.source.damageType, 'Slashing');
+    assert.equal(storedIncomingResolution(damage.authoredValueJson)?.input.source.damageType, 'Fire');
+    assert.equal(storedIncomingResolution(damage.authoredValueJson)?.input.source.magical, true);
+    await apply(tx, f, id);
+    const state = await local(tx, f.target);
+    assert.equal(state.health.totalDamage, 26);
+    assert.equal(state.conditions.filter(row => row.name === 'Constructed Mark').length, 1);
+    assert.equal(state.modifiers.filter(row => row.label === 'Constructed Strength').length, 1);
+    assert.equal((await tx.select().from(initiative).where(eq(initiative.characterId, f.actor)))[0].currentInitiative, 18);
+    assert.equal(await generateActionEffectPlanInTransaction(tx, f.context, f.god, id), result.planId);
+    const beforeExpiry = await loadInitiativeEngineInTransaction(tx, f.encounterId);
+    await persistInitiativeEngineInTransaction(tx, f.context, beforeExpiry, passInitiative(beforeExpiry, f.actor));
+    const expired = await local(tx, f.target) as { conditions: { name: string; expiredAt?: string }[]; modifiers: { label: string; expiredAt?: string }[]; health: { totalDamage: number } };
+    assert.ok(expired.conditions.find(row => row.name === 'Constructed Mark')?.expiredAt);
+    assert.ok(expired.modifiers.find(row => row.label === 'Constructed Strength')?.expiredAt);
+    await apply(tx, f, id); assert.deepEqual(await local(tx, f.target), expired);
+  });
+  run('Pass 4 a miss suppresses every constructed effect', async (tx, f) => {
+    await change(tx, f, { authoring: { ...f.attack.authoring, magic: { document: magicCompletionDocument() } } });
+    const result = await finish(tx, f, await locked(tx, f), 20);
+    assert.equal(result.effects.length, 5); assert.ok(result.effects.every(row => row.status === 'declined'));
+  });
+  run('Pass 4 Ability keeps separate consequences, explicit Mana only, fixed Roll and exact targets', async (tx, f) => {
+    const ability = { canonicalId: 'MAGIC-ABILITY', abilityName: 'Constructed Ability', effects: riders,
+      authoring: { ...emptyCreatureAbilityAuthoring(), activationType: 'activated' as const, initiativeCost: 4,
+        resolutionMode: 'fixed-roll' as const, fixedRollTarget: 50, magic: { document: magicCompletionDocument() },
+        costs: owner === 'persistent' ? [{ costType: 'mana' as const, amount: 2, resourceKey: 'Spellcraft', notes: 'Explicit Ability Mana', sortOrder: 0 }] : [] } };
+    const snapshot = { ...f.snapshot, abilities: [ability] };
+    if (owner === 'persistent') {
+      await tx.update(campaignCreatureNpcProfile).set({ currentSnapshotJson: JSON.stringify(snapshot) }).where(eq(campaignCreatureNpcProfile.characterId, f.actor));
+      await addLearnedCombatSpell(tx, { heroId: f.actor, godId: f.godId });
+    } else await tx.update(member).set({ creatureSnapshotJson: snapshot }).where(eq(member.characterId, f.actor));
+    const mana = async () => owner === 'persistent' ? (await readActiveManaInTransaction(tx, f.actor)).pools.find(row => row.system === 'Spellcraft')!.currentMana : 0;
+    const beforeMana = await mana();
+    const id = await locked(tx, f, { ...draft(f), actionKind: 'ability-use', windowKind: 'ordinary', sourceKind: 'creature-ability', sourceRef: ability.canonicalId,
+      sourcePayload: { effectSelections: { [`damage:${f.target}`]: { hitLocationNumber: 0 } } } });
+    const result = await finish(tx, f, id); assert.equal(result.effects.length, 7);
+    assert.ok(result.effects.every(row => row.status === 'calculated'), JSON.stringify(result.effects.map(row => ({ key: row.effectKey, status: row.status, supported: row.applicationSupported, reason: row.amendmentReason, value: row.finalValueJson }))));
+    assert.equal((await tx.select().from(initiative).where(eq(initiative.characterId, f.actor)))[0].currentInitiative, 18);
+    await apply(tx, f, id);
+    const state = await local(tx, f.target); assert.equal(state.health.totalDamage, 6);
+    assert.equal(state.conditions.length, 2); assert.equal(state.modifiers.length, 2);
+    assert.equal(await mana(), beforeMana - (owner === 'persistent' ? 2 : 0));
+  });
   run("exact source, authored percentage and structured timing; damage/location/Initiative/Roll retry once without Attribute bonuses", async (tx, f) => {
     const preview = await previewCombatDeclarationInTransaction(tx, f.context, f.god, draft(f));
     assert.equal(preview.governing?.rollOverTarget, 50); assert.equal(preview.initiativeCost, 4);
@@ -142,7 +199,7 @@ for (const owner of ["direct", "persistent"] as const) {
     const result = await finish(tx, f, await locked(tx, f), 20); assert.equal(result.effects.length, 4); assert.ok(result.effects.every(row => row.status === "declined"));
   });
   run("successful Dodge suppresses damage and all hit riders", async (tx, f) => {
-    await change(tx, f, { authoring: { ...f.attack.authoring, onHitEffects: riders } });
+    await change(tx, f, { authoring: { ...f.attack.authoring, onHitEffects: riders, magic: { document: magicCompletionDocument() } } });
     await tx.update(initiative).set({ participationStatus: "holding" }).where(eq(initiative.characterId, f.target));
     const id = await locked(tx, f); await commitActionDeclarationInTransaction(tx, f.context, f.god, id, { method: "entered", enteredTotal: 70 });
     const [window] = await tx.select().from(opportunity).where(eq(opportunity.declarationId, id));
@@ -166,13 +223,14 @@ for (const owner of ["direct", "persistent"] as const) {
     if (magical === null) { assert.equal(result.effects[0].status, "requires-god-ruling"); return; }
     await apply(tx, f, id); assert.equal((await readActiveHealthInTransaction(tx, f.heroId, "race")).state.totalDamage - initial, magical ? 5 : 0);
   });
-  run("construction freezes exact document, establishes Magical independently of Fire, and executes no construction effects", async (tx, f) => {
+  run("empty construction freezes Magical independently of Fire and requires an explicit manual outcome", async (tx, f) => {
     const magic = { document: createEmptySpell() }; await change(tx, f, { authoring: { ...f.attack.authoring, magical: null, magic } });
     const id = await locked(tx, f); const result = await finish(tx, f, id);
     const frozen = parseLockedActionDeclarationSnapshot((await tx.select().from(declaration).where(eq(declaration.id, id)))[0].lockedSnapshotJson).authoredSource!;
     assert.deepEqual((frozen.authoredData.authoring as AttackAuthoring).magic, JSON.parse(JSON.stringify(magic)));
     assert.match(JSON.stringify(frozen.incomingSourceFacts), /"magical":true/); assert.match(JSON.stringify(frozen.incomingSourceFacts), /Fire/);
-    assert.ok(frozen.warnings.some(warning => warning.includes("deferred"))); assert.equal(result.effects.length, 1);
+    assert.ok(frozen.warnings.some(warning => warning.includes('manual effects'))); assert.equal(result.effects.length, 2);
+    assert.equal(result.effects[1].effectType, 'manual'); assert.equal(result.effects[1].status, 'requires-god-ruling');
   });
 }
 scenario("Race NPC and Player with stray Creature JSON cannot gain Creature Attack sources", async (tx, f) => {

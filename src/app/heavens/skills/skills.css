@@ -1255,3 +1255,8 @@
   .skills-page__structure-confirm header,
   .skills-page__structure-confirm footer { align-items: stretch; flex-direction: column; }
 }
+
+/* Shared runtime controls inside a Spell construction, including embedded Magic. */
+.spell-builder__selection .item-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 0.75rem; }
+.spell-builder__selection .item-field { display: grid; gap: 0.35rem; min-width: 0; }
+.spell-builder__selection .item-field--wide { grid-column: 1 / -1; }

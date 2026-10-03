@@ -1,5 +1,7 @@
 import { normalizeCreatureEffects as normalizeCreatureAbilityEffects, type CreatureEffectDefinition as CreatureAbilityEffectDefinition } from "./creature-effects";
 import { normalizeCreatureAbilityAuthoring, type CreatureAbilityAuthoring } from "./creature-authoring";
+import { attachedMagicEffects } from '@/features/tabletop-operations/attached-magic-effects';
+import type { FrozenActionAuthoredEffect } from '@/features/tabletop-operations/action-effect-bridge';
 import {
   decodeMechanicalEffect,
   encodeMechanicalEffect,
@@ -34,6 +36,7 @@ export type AdaptedCreatureAbilityEffect = {
   sortOrder: number;
   definition: MechanicalEffectDefinition;
   compatibilityFallback: boolean;
+  construction?: FrozenActionAuthoredEffect;
 };
 
 export type CreatureAbilityAdapterResult =
@@ -147,6 +150,7 @@ function legacyInstructions(ability: CreatureAbilityDefinition): string {
 
 export function adaptCreatureAbilityToMechanicalEffects(
   input: CreatureAbilityDefinition,
+  magicTargets?: { actorId: number; targets: readonly number[]; aoe?: boolean },
 ): CreatureAbilityAdapterResult {
   const source: MechanicalEffectSource = {
     kind: "creature-ability",
@@ -164,11 +168,19 @@ export function adaptCreatureAbilityToMechanicalEffects(
       issues: [error instanceof Error ? error.message : "Creature Ability effects are invalid."],
     };
   }
-  if (ability.effects.length > 0) {
+  const constructed = ability.authoring?.magic ? attachedMagicEffects({ document: ability.authoring.magic.document,
+    namespace: 'creature-ability', owner: 'ability', actorId: magicTargets?.actorId ?? 0, targets: magicTargets?.targets ?? [], aoe: magicTargets?.aoe }) : [];
+  const magicEffects: AdaptedCreatureAbilityEffect[] = constructed.map((entry, index) => ({
+    abilityCanonicalId: ability.canonicalId, abilityName: ability.abilityName, effectKey: entry.key,
+    sortOrder: ability.effects.length + index, compatibilityFallback: false, construction: entry,
+    definition: { schemaVersion: MECHANICAL_EFFECT_SCHEMA_VERSION, source,
+      effect: magicTargets ? entry.effect! : { kind: 'manual', title: 'Attached Magic — Manual G.O.D. Resolution', description: 'Use the combat Ability workflow to lock exact targets and resolve its constructed effects. No target or outcome is inferred here.' } },
+  }));
+  if (ability.effects.length > 0 || magicEffects.length > 0) {
     return {
       valid: true,
       source,
-      effects: ability.effects.map((entry) => ({
+      effects: [...ability.effects.map((entry) => ({
         abilityCanonicalId: ability.canonicalId,
         abilityName: ability.abilityName,
         effectKey: entry.effectKey,
@@ -179,7 +191,7 @@ export function adaptCreatureAbilityToMechanicalEffects(
           source,
         },
         compatibilityFallback: false,
-      })),
+      })), ...magicEffects],
       issues: [],
     };
   }

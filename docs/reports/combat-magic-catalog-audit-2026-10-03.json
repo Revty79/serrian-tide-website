@@ -1,0 +1,7813 @@
+{
+  "auditedAt": "2026-10-03T18:37:53.934Z",
+  "target": {
+    "database": "serrian_tide_dev",
+    "address": "127.0.0.1",
+    "read_only": "on"
+  },
+  "scanned": {
+    "skill_extension": 742,
+    "campaign_character_spell_document": 0,
+    "item_power_constructions": 0,
+    "race_natural_attacks": 30,
+    "creature_attacks": 64,
+    "creature_abilities": 1,
+    "campaign_creature_npc_profile": 0
+  },
+  "total": 371,
+  "valid": 371,
+  "invalidOrAmbiguous": 0,
+  "effects": {
+    "total": 828,
+    "automatic": 92,
+    "manual": 736,
+    "authorable": 481
+  },
+  "counting": "Base documents counted once per stored owner. Progressive tier counts are separate. Automatic means the adapter has executable mechanics; runtime still requires valid owner, target, range, outcome and application.",
+  "families": {
+    "damage": {
+      "name": "Damage",
+      "count": 92,
+      "automatic": 92,
+      "manual": 0,
+      "authorable": 0
+    },
+    "healing": {
+      "name": "Healing",
+      "count": 28,
+      "automatic": 0,
+      "manual": 28,
+      "authorable": 0
+    },
+    "buff": {
+      "name": "Buff",
+      "count": 113,
+      "automatic": 0,
+      "manual": 113,
+      "authorable": 113
+    },
+    "debuff": {
+      "name": "Debuff",
+      "count": 125,
+      "automatic": 0,
+      "manual": 125,
+      "authorable": 125
+    },
+    "summon-minor": {
+      "name": "Summon (minor)",
+      "count": 12,
+      "automatic": 0,
+      "manual": 12,
+      "authorable": 0
+    },
+    "summon-major": {
+      "name": "Summon (major)",
+      "count": 10,
+      "automatic": 0,
+      "manual": 10,
+      "authorable": 0
+    },
+    "create-destroy-basic": {
+      "name": "Create/Destroy (basic)",
+      "count": 14,
+      "automatic": 0,
+      "manual": 14,
+      "authorable": 0
+    },
+    "create-destroy-major": {
+      "name": "Create/Destroy (major)",
+      "count": 20,
+      "automatic": 0,
+      "manual": 20,
+      "authorable": 0
+    },
+    "transform-alter": {
+      "name": "Transform/Alter",
+      "count": 26,
+      "automatic": 0,
+      "manual": 26,
+      "authorable": 0
+    },
+    "illusion-mask": {
+      "name": "Illusion/Mask",
+      "count": 39,
+      "automatic": 0,
+      "manual": 39,
+      "authorable": 39
+    },
+    "reveal-detect": {
+      "name": "Reveal/Detect",
+      "count": 36,
+      "automatic": 0,
+      "manual": 36,
+      "authorable": 36
+    },
+    "counter-cancel": {
+      "name": "Counter/Cancel",
+      "count": 20,
+      "automatic": 0,
+      "manual": 20,
+      "authorable": 0
+    },
+    "accelerate-hasten": {
+      "name": "Accelerate/Hasten",
+      "count": 14,
+      "automatic": 0,
+      "manual": 14,
+      "authorable": 14
+    },
+    "decelerate-slow": {
+      "name": "Decelerate/Slow",
+      "count": 26,
+      "automatic": 0,
+      "manual": 26,
+      "authorable": 26
+    },
+    "link-bind": {
+      "name": "Link/Bind",
+      "count": 22,
+      "automatic": 0,
+      "manual": 22,
+      "authorable": 0
+    },
+    "transfer-life-force": {
+      "name": "Transfer Life Force",
+      "count": 7,
+      "automatic": 0,
+      "manual": 7,
+      "authorable": 0
+    },
+    "teleportation": {
+      "name": "Teleportation",
+      "count": 14,
+      "automatic": 0,
+      "manual": 14,
+      "authorable": 0
+    },
+    "banish": {
+      "name": "Banish",
+      "count": 5,
+      "automatic": 0,
+      "manual": 5,
+      "authorable": 0
+    },
+    "pocket-space": {
+      "name": "Pocket Space",
+      "count": 1,
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0
+    },
+    "spatial-bubble": {
+      "name": "Spatial Bubble",
+      "count": 37,
+      "automatic": 0,
+      "manual": 37,
+      "authorable": 0
+    },
+    "temporal-stasis": {
+      "name": "Temporal Stasis",
+      "count": 16,
+      "automatic": 0,
+      "manual": 16,
+      "authorable": 0
+    },
+    "push": {
+      "name": "Push",
+      "count": 10,
+      "automatic": 0,
+      "manual": 10,
+      "authorable": 0
+    },
+    "pull": {
+      "name": "Pull",
+      "count": 10,
+      "automatic": 0,
+      "manual": 10,
+      "authorable": 0
+    },
+    "grapple-restrain": {
+      "name": "Grapple/Restrain",
+      "count": 30,
+      "automatic": 0,
+      "manual": 30,
+      "authorable": 30
+    },
+    "immobilize": {
+      "name": "Immobilize",
+      "count": 41,
+      "automatic": 0,
+      "manual": 41,
+      "authorable": 41
+    },
+    "stun-daze": {
+      "name": "Stun/Daze",
+      "count": 18,
+      "automatic": 0,
+      "manual": 18,
+      "authorable": 18
+    },
+    "disarm": {
+      "name": "Disarm",
+      "count": 3,
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 0
+    },
+    "knockdown": {
+      "name": "Knockdown",
+      "count": 18,
+      "automatic": 0,
+      "manual": 18,
+      "authorable": 18
+    },
+    "blind-deaf-silence": {
+      "name": "Blind/Deaf/Silence",
+      "count": 3,
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3
+    },
+    "anchor-lock": {
+      "name": "Anchor/Lock",
+      "count": 18,
+      "automatic": 0,
+      "manual": 18,
+      "authorable": 18
+    }
+  },
+  "reviewCandidates": [
+    {
+      "owner": "skill_extension:95.data_json",
+      "name": "Chains of Melancholy",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:1.data_json",
+      "name": "Adaptive Regeneration",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:3.data_json",
+      "name": "Adrenal Surge",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:7.data_json",
+      "name": "All-Seeing Veil",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:9.data_json",
+      "name": "Ancestral Aegis",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:13.data_json",
+      "name": "Annihilation Field",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:17.data_json",
+      "name": "Arcane Imbuement",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:19.data_json",
+      "name": "Arcane Lockdown",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:23.data_json",
+      "name": "Aria of Sacred Union",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:67.data_json",
+      "name": "Bulwark Sigil",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:27.data_json",
+      "name": "Ascendant Weapon Sigil",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:29.data_json",
+      "name": "Astral Chains",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:31.data_json",
+      "name": "Astral Maelstrom",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:35.data_json",
+      "name": "Attune Item",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:37.data_json",
+      "name": "Aura Glimpse",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:39.data_json",
+      "name": "Aura Veil Pierce",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:41.data_json",
+      "name": "Avalanche",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:43.data_json",
+      "name": "Avatar of Chimera",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:47.data_json",
+      "name": "Battle Hymn of Fury",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:49.data_json",
+      "name": "Beast’s Limb",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:53.data_json",
+      "name": "Biofeedback Field",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:57.data_json",
+      "name": "Blink Assault",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:65.data_json",
+      "name": "Bubble Veil",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:61.data_json",
+      "name": "Bond of Trust",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:63.data_json",
+      "name": "Bone Puppet",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:69.data_json",
+      "name": "Cacophony of Nightmares",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:73.data_json",
+      "name": "Carnival of Courage",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:77.data_json",
+      "name": "Cataclysm of Grief",
+      "authorable": 6,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:79.data_json",
+      "name": "Cataclysmic Convergence",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:83.data_json",
+      "name": "Cathedral of Sleep",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:91.data_json",
+      "name": "Chains of Devotion",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:93.data_json",
+      "name": "Chains of Dread",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:97.data_json",
+      "name": "Chameleon Veil",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:103.data_json",
+      "name": "Chord of Coherence",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:105.data_json",
+      "name": "Chorus of Delight",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:107.data_json",
+      "name": "Chrono-Burst",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:113.data_json",
+      "name": "Circle of Binding",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:119.data_json",
+      "name": "Cleansing Aegis",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:121.data_json",
+      "name": "Cloak of Midnight",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:125.data_json",
+      "name": "Concord of Ten Thousand",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:127.data_json",
+      "name": "Concordance of One Heart",
+      "authorable": 7,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:131.data_json",
+      "name": "Crown of Thorns",
+      "authorable": 6,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:133.data_json",
+      "name": "Crushing Dread",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:135.data_json",
+      "name": "Crushing Grasp",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:137.data_json",
+      "name": "Crypt Lock",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:155.data_json",
+      "name": "Dimensional Anchor",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:143.data_json",
+      "name": "Cyclone Prison",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:145.data_json",
+      "name": "Dampen Aura",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:147.data_json",
+      "name": "Danger Sense",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:149.data_json",
+      "name": "Death’s Shroud",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:153.data_json",
+      "name": "Detect Enchantment",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:157.data_json",
+      "name": "Dimensional Peek",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:159.data_json",
+      "name": "Dirge of the Hollow Heart",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:161.data_json",
+      "name": "Dirge of Weariness",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:165.data_json",
+      "name": "Dominion of the Heart",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:167.data_json",
+      "name": "Dream Bastion",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:169.data_json",
+      "name": "Dream Snare",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:171.data_json",
+      "name": "Dreamwalk",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:173.data_json",
+      "name": "Earthen Grasp",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:175.data_json",
+      "name": "Earthen Grip",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:177.data_json",
+      "name": "Earthen Tangle",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:179.data_json",
+      "name": "Echo Chamber",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:181.data_json",
+      "name": "Echo of Emotion",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:183.data_json",
+      "name": "Echo of Mourning",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:187.data_json",
+      "name": "Echo of the Hunt",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:189.data_json",
+      "name": "Echo of Unease",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:191.data_json",
+      "name": "Echo Reading",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:193.data_json",
+      "name": "Echo Seal",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:195.data_json",
+      "name": "Echo Step (Minor Boost)",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:197.data_json",
+      "name": "Eclipse of Eternity",
+      "authorable": 6,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:199.data_json",
+      "name": "Eclipse of Truth",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:201.data_json",
+      "name": "Eclipse Shroud",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:209.data_json",
+      "name": "Elegy of Despair",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:213.data_json",
+      "name": "Ember of Fury",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:217.data_json",
+      "name": "Emotional Nudge",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:225.data_json",
+      "name": "Eternal Black Sun",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:227.data_json",
+      "name": "Eternal Bloom",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:231.data_json",
+      "name": "Eternal Concord of Realms",
+      "authorable": 5,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:233.data_json",
+      "name": "Eternal Dreamfall",
+      "authorable": 5,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:235.data_json",
+      "name": "Eternal Eclipse",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:239.data_json",
+      "name": "Eternal Jubilee",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:241.data_json",
+      "name": "Eternal Vow",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:243.data_json",
+      "name": "Expose the Flaw",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:389.data_json",
+      "name": "Memory Weave",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:245.data_json",
+      "name": "Eye of Secrets",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:247.data_json",
+      "name": "Eyes Beyond Time",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:249.data_json",
+      "name": "False Face",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:251.data_json",
+      "name": "False Idol",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:253.data_json",
+      "name": "Far-Seer’s Eye",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:255.data_json",
+      "name": "Festival Spark",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:265.data_json",
+      "name": "Fleshbind Curse",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:271.data_json",
+      "name": "Force Buckler",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:279.data_json",
+      "name": "Foresight Step",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:285.data_json",
+      "name": "Funeral Chains",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:289.data_json",
+      "name": "Genesis Dominion",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:291.data_json",
+      "name": "Genesis Metamorphosis",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:293.data_json",
+      "name": "Genesis Renewal",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:295.data_json",
+      "name": "Genesis Transmutation",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:301.data_json",
+      "name": "Glamour Veil",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:303.data_json",
+      "name": "Gleam",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:305.data_json",
+      "name": "Glimpse of Truth",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:307.data_json",
+      "name": "Grasp of the Pale Host",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:309.data_json",
+      "name": "Grave Cataclysm",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:311.data_json",
+      "name": "Grave Chill",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:313.data_json",
+      "name": "Grave Grasp",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:315.data_json",
+      "name": "Guardian Spirit",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:323.data_json",
+      "name": "Harmonic Shielding",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:325.data_json",
+      "name": "Harmony’s Embrace",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:327.data_json",
+      "name": "Harmony’s Veil",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:329.data_json",
+      "name": "Harrowing Dirge",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:333.data_json",
+      "name": "Heart’s Influence",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:335.data_json",
+      "name": "Heart’s Whisper",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:337.data_json",
+      "name": "Heat Veil",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:339.data_json",
+      "name": "Heckle",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:341.data_json",
+      "name": "Hellstorm Crucible",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:343.data_json",
+      "name": "Hive Dominion",
+      "authorable": 6,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:345.data_json",
+      "name": "Hypermetabolic Overdrive",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:347.data_json",
+      "name": "Incendiary Rebuke",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:349.data_json",
+      "name": "Infernal Maelstrom",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:351.data_json",
+      "name": "Inferno Wave",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:353.data_json",
+      "name": "Infinite Labyrinth",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:355.data_json",
+      "name": "Iron Skin",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:357.data_json",
+      "name": "Joyful Guard",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:359.data_json",
+      "name": "Kinetic Armor",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:363.data_json",
+      "name": "Labyrinth of the Sleeper",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:365.data_json",
+      "name": "Lamenting Shackles",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:367.data_json",
+      "name": "Leviathan’s Awakening",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:377.data_json",
+      "name": "Maelstrom",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:373.data_json",
+      "name": "Lingering Paranoia",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:375.data_json",
+      "name": "Lucid Spark",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:383.data_json",
+      "name": "Mass Levitation",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:379.data_json",
+      "name": "Maelstrom Vortex",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:381.data_json",
+      "name": "Marrow Rot",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:385.data_json",
+      "name": "Mass Resize",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:387.data_json",
+      "name": "Maze of Mirrors",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:395.data_json",
+      "name": "Mental Suggestion",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:397.data_json",
+      "name": "Metabolic Burn",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:399.data_json",
+      "name": "Metabolic Dominion",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:401.data_json",
+      "name": "Metabolic Purge",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:407.data_json",
+      "name": "Mindquake",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:413.data_json",
+      "name": "Momentary Dread",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:417.data_json",
+      "name": "Night Terror",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:419.data_json",
+      "name": "Nightfang Manifest",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:421.data_json",
+      "name": "Nightmare Dominion",
+      "authorable": 5,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:423.data_json",
+      "name": "Nightmare Menagerie",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:425.data_json",
+      "name": "Nightmare Sculpt",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:427.data_json",
+      "name": "Nocturne Pupils",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:429.data_json",
+      "name": "Object Echo",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:431.data_json",
+      "name": "Oblivion Eclipse",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:433.data_json",
+      "name": "Oblivion Veil",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:435.data_json",
+      "name": "Obsidian Guardian",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:437.data_json",
+      "name": "Oracle’s Reposition",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:439.data_json",
+      "name": "Packform Shift",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:441.data_json",
+      "name": "Pale Harvest",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:443.data_json",
+      "name": "Pale Legion",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:479.data_json",
+      "name": "Quantum Chorus",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:449.data_json",
+      "name": "Phantasmal Army",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:451.data_json",
+      "name": "Phantasmal Echoes",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:453.data_json",
+      "name": "Phantasmal Host",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:455.data_json",
+      "name": "Phantom Flicker",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:457.data_json",
+      "name": "Phantom Footfalls",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:467.data_json",
+      "name": "Plagueform Wave",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:513.data_json",
+      "name": "Revelation Aria",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:469.data_json",
+      "name": "Psi-Edge Blade",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:471.data_json",
+      "name": "Psychic Domination",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:473.data_json",
+      "name": "Puppet Strings",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:481.data_json",
+      "name": "Quantum Convergence",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:483.data_json",
+      "name": "Quantum Hum",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:485.data_json",
+      "name": "Quickshift: Webbed Grip",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:487.data_json",
+      "name": "Radiant Harmony",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:489.data_json",
+      "name": "Rage Dominion",
+      "authorable": 5,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:491.data_json",
+      "name": "Ragequake",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:493.data_json",
+      "name": "Rallying Cry",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:499.data_json",
+      "name": "Reflective Maelstrom",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:505.data_json",
+      "name": "Resize Trinket",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:501.data_json",
+      "name": "Regenerative Metamorphosis",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:515.data_json",
+      "name": "Revelation of Eternity",
+      "authorable": 5,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:517.data_json",
+      "name": "Revelation of Hearts",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:519.data_json",
+      "name": "Revelry Unending",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:523.data_json",
+      "name": "Riptide Grasp",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:525.data_json",
+      "name": "Rock Armor",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:529.data_json",
+      "name": "Runeward",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:533.data_json",
+      "name": "Seal of Silence",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:535.data_json",
+      "name": "Seal of the Eclipsed Gate",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:537.data_json",
+      "name": "Seed of Doubt",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:539.data_json",
+      "name": "Seismic Fury",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:633.data_json",
+      "name": "Symphony of Devotion",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:543.data_json",
+      "name": "Shadow Cataclysm",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:545.data_json",
+      "name": "Shadow Grasp",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:547.data_json",
+      "name": "Shadow Maw",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:549.data_json",
+      "name": "Shadow Snare",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:553.data_json",
+      "name": "Shared Bond",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:555.data_json",
+      "name": "Shared Dream",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:557.data_json",
+      "name": "Shuddering Chord",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:561.data_json",
+      "name": "Skin of Scales (Lesser)",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:563.data_json",
+      "name": "Slow Tether",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:565.data_json",
+      "name": "Somnolent Touch",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:567.data_json",
+      "name": "Soothing Presence",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:569.data_json",
+      "name": "Soothing Pulse",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:573.data_json",
+      "name": "Soul Bind",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:575.data_json",
+      "name": "Soul Lock",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:577.data_json",
+      "name": "Soul’s Whisper",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:579.data_json",
+      "name": "Spark of Laughter",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:581.data_json",
+      "name": "Spark of Wrath",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:583.data_json",
+      "name": "Spatial Anchor",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:587.data_json",
+      "name": "Spatial Veil",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:589.data_json",
+      "name": "Specter’s Whisper",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:595.data_json",
+      "name": "Stasis Snare",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:597.data_json",
+      "name": "Steal the Smile",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:599.data_json",
+      "name": "Stoke the Line",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:601.data_json",
+      "name": "Stone Maelstrom",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:605.data_json",
+      "name": "Stone Rattle",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:607.data_json",
+      "name": "Stone Skin",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:611.data_json",
+      "name": "Stone Spire",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:615.data_json",
+      "name": "Storm Nexus",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:619.data_json",
+      "name": "Suffocating Dome",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:621.data_json",
+      "name": "Suffocating Grasp",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:627.data_json",
+      "name": "Surface Scan",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:629.data_json",
+      "name": "Sweeping Roar",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:631.data_json",
+      "name": "Symphony of Alignment",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:635.data_json",
+      "name": "Symphony of Exultation",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:637.data_json",
+      "name": "Symphony of Souls",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:639.data_json",
+      "name": "Tearful Lament",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:641.data_json",
+      "name": "Telekinetic Crush",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:643.data_json",
+      "name": "Telekinetic Maelstrom",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:647.data_json",
+      "name": "Telepathic Storm",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:649.data_json",
+      "name": "Tempest Barrage",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:651.data_json",
+      "name": "Tempest Crown",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:653.data_json",
+      "name": "Temporal Glimpse",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:655.data_json",
+      "name": "Terror Pulse",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:657.data_json",
+      "name": "The Shattered City",
+      "authorable": 3,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:659.data_json",
+      "name": "Thread of Fate",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:661.data_json",
+      "name": "Threads of Destiny",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:663.data_json",
+      "name": "Threads of Fate",
+      "authorable": 4,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:667.data_json",
+      "name": "Tide Wall",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:669.data_json",
+      "name": "Titan's Grasp",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:671.data_json",
+      "name": "Truth Sense",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:673.data_json",
+      "name": "Tuning Note",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:675.data_json",
+      "name": "Umbral Cloak",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:681.data_json",
+      "name": "Unveiled Affection",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:685.data_json",
+      "name": "Veil of Shadowstep",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:687.data_json",
+      "name": "Veiled Step",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:689.data_json",
+      "name": "Verdant Bastion",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:693.data_json",
+      "name": "Vexing Aria",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:697.data_json",
+      "name": "Vital Genesis",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:699.data_json",
+      "name": "Vital Wellspring",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:701.data_json",
+      "name": "Voice of the Lost",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:703.data_json",
+      "name": "Wail of the Forsaken",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:705.data_json",
+      "name": "Wailing Legion",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:707.data_json",
+      "name": "Warden’s Lantern",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:709.data_json",
+      "name": "Weapon Spark",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:711.data_json",
+      "name": "Web of Insight",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:717.data_json",
+      "name": "Whisper of Tongues",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:713.data_json",
+      "name": "Whisper of Night",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:715.data_json",
+      "name": "Whisper of the Grave",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:719.data_json",
+      "name": "Whispered Fate",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:721.data_json",
+      "name": "Whispering Zephyr",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:725.data_json",
+      "name": "Wind Step",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:729.data_json",
+      "name": "World’s Whisper",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:731.data_json",
+      "name": "Worldfire Convergence",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:733.data_json",
+      "name": "Worldshaper’s Bastion",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:735.data_json",
+      "name": "Worldshaper’s Maw",
+      "authorable": 1,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:737.data_json",
+      "name": "Worldstorm",
+      "authorable": 2,
+      "issues": []
+    },
+    {
+      "owner": "skill_extension:741.data_json",
+      "name": "Wrath Unleashed",
+      "authorable": 1,
+      "issues": []
+    }
+  ],
+  "constructions": [
+    {
+      "owner": "skill_extension:95.data_json",
+      "name": "Chains of Melancholy",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "decelerate-slow": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:1.data_json",
+      "name": "Adaptive Regeneration",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "healing": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:3.data_json",
+      "name": "Adrenal Surge",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:7.data_json",
+      "name": "All-Seeing Veil",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "debuff": 1,
+        "spatial-bubble": 1
+      }
+    },
+    {
+      "owner": "skill_extension:139.data_json",
+      "name": "Cutting Draft",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:9.data_json",
+      "name": "Ancestral Aegis",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:101.data_json",
+      "name": "Chimeric Fusion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 0,
+      "families": {
+        "transform-alter": 1,
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:11.data_json",
+      "name": "Anchor Blink",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:13.data_json",
+      "name": "Annihilation Field",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "counter-cancel": 1,
+        "debuff": 1,
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:15.data_json",
+      "name": "Aqua Lash",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:17.data_json",
+      "name": "Arcane Imbuement",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:19.data_json",
+      "name": "Arcane Lockdown",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "debuff": 1,
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:21.data_json",
+      "name": "Arcane Snuff",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:23.data_json",
+      "name": "Aria of Sacred Union",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "reveal-detect": 1,
+        "debuff": 1,
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 3,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 3,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 3,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 3,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 3,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:25.data_json",
+      "name": "Arsenal Field",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "damage": 1,
+        "spatial-bubble": 1
+      }
+    },
+    {
+      "owner": "skill_extension:67.data_json",
+      "name": "Bulwark Sigil",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "buff": 1,
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:27.data_json",
+      "name": "Ascendant Weapon Sigil",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "buff": 1,
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:29.data_json",
+      "name": "Astral Chains",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:31.data_json",
+      "name": "Astral Maelstrom",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 5,
+      "authorable": 2,
+      "families": {
+        "spatial-bubble": 1,
+        "pull": 1,
+        "knockdown": 1,
+        "immobilize": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:33.data_json",
+      "name": "Astral Step",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:35.data_json",
+      "name": "Attune Item",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 1,
+      "families": {
+        "link-bind": 1,
+        "buff": 1,
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:37.data_json",
+      "name": "Aura Glimpse",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:39.data_json",
+      "name": "Aura Veil Pierce",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:41.data_json",
+      "name": "Avalanche",
+      "valid": true,
+      "issues": [],
+      "automatic": 2,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 2,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:43.data_json",
+      "name": "Avatar of Chimera",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 5,
+      "authorable": 4,
+      "families": {
+        "transform-alter": 1,
+        "buff": 4
+      }
+    },
+    {
+      "owner": "skill_extension:45.data_json",
+      "name": "Ballad of Shared Triumph",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "healing": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:47.data_json",
+      "name": "Battle Hymn of Fury",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 2
+      }
+    },
+    {
+      "owner": "skill_extension:49.data_json",
+      "name": "Beast’s Limb",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "transform-alter": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:51.data_json",
+      "name": "Bind Undead",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "link-bind": 1
+      }
+    },
+    {
+      "owner": "skill_extension:53.data_json",
+      "name": "Biofeedback Field",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:55.data_json",
+      "name": "Blink",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:57.data_json",
+      "name": "Blink Assault",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "teleportation": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:65.data_json",
+      "name": "Bubble Veil",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:59.data_json",
+      "name": "Blink Step",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:61.data_json",
+      "name": "Bond of Trust",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:63.data_json",
+      "name": "Bone Puppet",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:69.data_json",
+      "name": "Cacophony of Nightmares",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 5,
+      "authorable": 4,
+      "families": {
+        "spatial-bubble": 1,
+        "stun-daze": 1,
+        "debuff": 1,
+        "decelerate-slow": 1,
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:71.data_json",
+      "name": "Call Trinket",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "summon-minor": 1
+      }
+    },
+    {
+      "owner": "skill_extension:73.data_json",
+      "name": "Carnival of Courage",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1,
+        "damage": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 1,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 1,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 1,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 1,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 1,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:75.data_json",
+      "name": "Cataclysm",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 0,
+      "families": {
+        "spatial-bubble": 1,
+        "damage": 1,
+        "create-destroy-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:77.data_json",
+      "name": "Cataclysm of Grief",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 6,
+      "authorable": 6,
+      "families": {
+        "debuff": 2,
+        "decelerate-slow": 1,
+        "stun-daze": 1,
+        "immobilize": 1,
+        "blind-deaf-silence": 1
+      }
+    },
+    {
+      "owner": "skill_extension:79.data_json",
+      "name": "Cataclysmic Convergence",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 4,
+      "authorable": 2,
+      "families": {
+        "damage": 1,
+        "spatial-bubble": 1,
+        "pull": 1,
+        "knockdown": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:81.data_json",
+      "name": "Cataclysmic Rift",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 0,
+      "families": {
+        "spatial-bubble": 1,
+        "pull": 1,
+        "banish": 1
+      }
+    },
+    {
+      "owner": "skill_extension:89.data_json",
+      "name": "Chain of Vitality",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 0,
+      "families": {
+        "healing": 1,
+        "link-bind": 1,
+        "transfer-life-force": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:83.data_json",
+      "name": "Cathedral of Sleep",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 3,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1,
+        "stun-daze": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:85.data_json",
+      "name": "Cellular Mend",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "healing": 1
+      }
+    },
+    {
+      "owner": "skill_extension:87.data_json",
+      "name": "Cellular Regeneration",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "healing": 1
+      }
+    },
+    {
+      "owner": "skill_extension:91.data_json",
+      "name": "Chains of Devotion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:93.data_json",
+      "name": "Chains of Dread",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:97.data_json",
+      "name": "Chameleon Veil",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:99.data_json",
+      "name": "Charged Grasp",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:103.data_json",
+      "name": "Chord of Coherence",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:109.data_json",
+      "name": "Chrono-Stasis Field",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:105.data_json",
+      "name": "Chorus of Delight",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "accelerate-hasten": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:107.data_json",
+      "name": "Chrono-Burst",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "accelerate-hasten": 1,
+        "decelerate-slow": 1
+      }
+    },
+    {
+      "owner": "skill_extension:111.data_json",
+      "name": "Cinder Burst",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:113.data_json",
+      "name": "Circle of Binding",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "summon-major": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:115.data_json",
+      "name": "Citadel of Thought",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:117.data_json",
+      "name": "Cleanse",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:119.data_json",
+      "name": "Cleansing Aegis",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "counter-cancel": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:121.data_json",
+      "name": "Cloak of Midnight",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "illusion-mask": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:123.data_json",
+      "name": "Colossus of Will",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "summon-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:125.data_json",
+      "name": "Concord of Ten Thousand",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 5,
+      "authorable": 2,
+      "families": {
+        "summon-minor": 1,
+        "buff": 1,
+        "debuff": 1,
+        "spatial-bubble": 1,
+        "push": 1
+      }
+    },
+    {
+      "owner": "skill_extension:127.data_json",
+      "name": "Concordance of One Heart",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 11,
+      "authorable": 7,
+      "families": {
+        "reveal-detect": 1,
+        "debuff": 1,
+        "buff": 2,
+        "healing": 1,
+        "link-bind": 1,
+        "spatial-bubble": 1,
+        "immobilize": 1,
+        "anchor-lock": 1,
+        "stun-daze": 1,
+        "temporal-stasis": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 11,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 11,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 11,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 11,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 11,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:129.data_json",
+      "name": "Continental Rift",
+      "valid": true,
+      "issues": [],
+      "automatic": 2,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 2
+      }
+    },
+    {
+      "owner": "skill_extension:131.data_json",
+      "name": "Crown of Thorns",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 6,
+      "authorable": 6,
+      "families": {
+        "debuff": 2,
+        "damage": 1,
+        "immobilize": 1,
+        "grapple-restrain": 1,
+        "anchor-lock": 1,
+        "stun-daze": 1
+      }
+    },
+    {
+      "owner": "skill_extension:133.data_json",
+      "name": "Crushing Dread",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "decelerate-slow": 1
+      }
+    },
+    {
+      "owner": "skill_extension:135.data_json",
+      "name": "Crushing Grasp",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "damage": 1,
+        "grapple-restrain": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:137.data_json",
+      "name": "Crypt Lock",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "spatial-bubble": 1,
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:155.data_json",
+      "name": "Dimensional Anchor",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "link-bind": 1,
+        "debuff": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:141.data_json",
+      "name": "Cycle of Rebirth",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 0,
+      "families": {
+        "healing": 2,
+        "transfer-life-force": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:143.data_json",
+      "name": "Cyclone Prison",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:145.data_json",
+      "name": "Dampen Aura",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "debuff": 1,
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:147.data_json",
+      "name": "Danger Sense",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:149.data_json",
+      "name": "Death’s Shroud",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:151.data_json",
+      "name": "Deflect Projectile",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:153.data_json",
+      "name": "Detect Enchantment",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:157.data_json",
+      "name": "Dimensional Peek",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:159.data_json",
+      "name": "Dirge of the Hollow Heart",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "debuff": 2,
+        "decelerate-slow": 1
+      }
+    },
+    {
+      "owner": "skill_extension:161.data_json",
+      "name": "Dirge of Weariness",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:163.data_json",
+      "name": "Dissonant Disarm",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "disarm": 1
+      }
+    },
+    {
+      "owner": "skill_extension:571.data_json",
+      "name": "Soothing Stream",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "healing": 1
+      }
+    },
+    {
+      "owner": "skill_extension:165.data_json",
+      "name": "Dominion of the Heart",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 5,
+      "authorable": 4,
+      "families": {
+        "link-bind": 1,
+        "buff": 1,
+        "debuff": 1,
+        "immobilize": 1,
+        "blind-deaf-silence": 1
+      }
+    },
+    {
+      "owner": "skill_extension:167.data_json",
+      "name": "Dream Bastion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "buff": 1,
+        "debuff": 1,
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:169.data_json",
+      "name": "Dream Snare",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "debuff": 1,
+        "decelerate-slow": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:171.data_json",
+      "name": "Dreamwalk",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 3,
+      "families": {
+        "link-bind": 1,
+        "debuff": 2,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:173.data_json",
+      "name": "Earthen Grasp",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:175.data_json",
+      "name": "Earthen Grip",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:177.data_json",
+      "name": "Earthen Tangle",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:179.data_json",
+      "name": "Echo Chamber",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:181.data_json",
+      "name": "Echo of Emotion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:183.data_json",
+      "name": "Echo of Mourning",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "debuff": 1,
+        "healing": 1
+      }
+    },
+    {
+      "owner": "skill_extension:185.data_json",
+      "name": "Echo of Resilience",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "healing": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:187.data_json",
+      "name": "Echo of the Hunt",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:189.data_json",
+      "name": "Echo of Unease",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:191.data_json",
+      "name": "Echo Reading",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:193.data_json",
+      "name": "Echo Seal",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1,
+        "link-bind": 1
+      }
+    },
+    {
+      "owner": "skill_extension:195.data_json",
+      "name": "Echo Step (Minor Boost)",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:197.data_json",
+      "name": "Eclipse of Eternity",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 8,
+      "authorable": 6,
+      "families": {
+        "debuff": 1,
+        "spatial-bubble": 1,
+        "buff": 1,
+        "immobilize": 1,
+        "blind-deaf-silence": 1,
+        "anchor-lock": 1,
+        "stun-daze": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:199.data_json",
+      "name": "Eclipse of Truth",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 5,
+      "authorable": 4,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1,
+        "spatial-bubble": 1,
+        "immobilize": 1,
+        "stun-daze": 1
+      }
+    },
+    {
+      "owner": "skill_extension:201.data_json",
+      "name": "Eclipse Shroud",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:203.data_json",
+      "name": "Ectoplasmic Barrier",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:205.data_json",
+      "name": "Edge Sigil",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:207.data_json",
+      "name": "Eidolon Construct",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "summon-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:209.data_json",
+      "name": "Elegy of Despair",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "debuff": 3
+      }
+    },
+    {
+      "owner": "skill_extension:211.data_json",
+      "name": "Ember Flick",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:213.data_json",
+      "name": "Ember of Fury",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "accelerate-hasten": 1
+      }
+    },
+    {
+      "owner": "skill_extension:215.data_json",
+      "name": "Ember Spark",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:217.data_json",
+      "name": "Emotional Nudge",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:219.data_json",
+      "name": "Enlarge Object",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "transform-alter": 1
+      }
+    },
+    {
+      "owner": "skill_extension:221.data_json",
+      "name": "Ephemeral Ally",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "summon-minor": 1
+      }
+    },
+    {
+      "owner": "skill_extension:223.data_json",
+      "name": "Eternal Alloy",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 0,
+      "families": {
+        "transform-alter": 1,
+        "create-destroy-major": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:225.data_json",
+      "name": "Eternal Black Sun",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 5,
+      "authorable": 3,
+      "families": {
+        "debuff": 2,
+        "create-destroy-major": 1,
+        "damage": 1,
+        "spatial-bubble": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:227.data_json",
+      "name": "Eternal Bloom",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "healing": 1,
+        "counter-cancel": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:229.data_json",
+      "name": "Eternal Citadel",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:231.data_json",
+      "name": "Eternal Concord of Realms",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 12,
+      "authorable": 5,
+      "families": {
+        "banish": 1,
+        "spatial-bubble": 1,
+        "create-destroy-major": 1,
+        "buff": 1,
+        "accelerate-hasten": 1,
+        "debuff": 1,
+        "decelerate-slow": 1,
+        "immobilize": 1,
+        "pull": 1,
+        "summon-major": 2,
+        "summon-minor": 1
+      }
+    },
+    {
+      "owner": "skill_extension:233.data_json",
+      "name": "Eternal Dreamfall",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 7,
+      "authorable": 5,
+      "families": {
+        "decelerate-slow": 1,
+        "debuff": 1,
+        "buff": 1,
+        "illusion-mask": 1,
+        "spatial-bubble": 1,
+        "stun-daze": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:235.data_json",
+      "name": "Eternal Eclipse",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 4,
+      "families": {
+        "debuff": 2,
+        "decelerate-slow": 1,
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:237.data_json",
+      "name": "Eternal Horizon Gate",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1,
+        "pocket-space": 1,
+        "link-bind": 1,
+        "create-destroy-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:239.data_json",
+      "name": "Eternal Jubilee",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 2,
+      "families": {
+        "healing": 1,
+        "counter-cancel": 1,
+        "debuff": 1,
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 4,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 4,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 4,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 4,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 4,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:241.data_json",
+      "name": "Eternal Vow",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "counter-cancel": 1,
+        "buff": 1,
+        "link-bind": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 4,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 4,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 4,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 4,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 4,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:243.data_json",
+      "name": "Expose the Flaw",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "debuff": 1,
+        "link-bind": 1
+      }
+    },
+    {
+      "owner": "skill_extension:389.data_json",
+      "name": "Memory Weave",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "transform-alter": 1,
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:245.data_json",
+      "name": "Eye of Secrets",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:247.data_json",
+      "name": "Eyes Beyond Time",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "debuff": 1,
+        "reveal-detect": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:249.data_json",
+      "name": "False Face",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:251.data_json",
+      "name": "False Idol",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "illusion-mask": 1,
+        "stun-daze": 1
+      }
+    },
+    {
+      "owner": "skill_extension:253.data_json",
+      "name": "Far-Seer’s Eye",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 1,
+      "families": {
+        "spatial-bubble": 1,
+        "reveal-detect": 1,
+        "link-bind": 1
+      }
+    },
+    {
+      "owner": "skill_extension:255.data_json",
+      "name": "Festival Spark",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 2,
+        "damage": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 1,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 1,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 1,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 1,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 1,
+          "manual": 2,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:257.data_json",
+      "name": "Find Familiar",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "summon-minor": 1
+      }
+    },
+    {
+      "owner": "skill_extension:259.data_json",
+      "name": "Flame Jet",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:261.data_json",
+      "name": "Flame Wall",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:263.data_json",
+      "name": "Flaming Dart",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:265.data_json",
+      "name": "Fleshbind Curse",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "debuff": 1,
+        "transform-alter": 1
+      }
+    },
+    {
+      "owner": "skill_extension:267.data_json",
+      "name": "Flicker Step",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:269.data_json",
+      "name": "Force Barrier",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:271.data_json",
+      "name": "Force Buckler",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:273.data_json",
+      "name": "Force Grasp",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:275.data_json",
+      "name": "Force Lance",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:277.data_json",
+      "name": "Force Wave",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "push": 1
+      }
+    },
+    {
+      "owner": "skill_extension:279.data_json",
+      "name": "Foresight Step",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:281.data_json",
+      "name": "Forgeheart Wall",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 0,
+      "families": {
+        "transform-alter": 1,
+        "create-destroy-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:283.data_json",
+      "name": "Fracture of the Infinite",
+      "valid": true,
+      "issues": [],
+      "automatic": 2,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "damage": 2,
+        "create-destroy-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:285.data_json",
+      "name": "Funeral Chains",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 4,
+      "families": {
+        "debuff": 2,
+        "grapple-restrain": 1,
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:287.data_json",
+      "name": "Gate",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:289.data_json",
+      "name": "Genesis Dominion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 6,
+      "authorable": 2,
+      "families": {
+        "healing": 2,
+        "transfer-life-force": 1,
+        "debuff": 1,
+        "grapple-restrain": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:291.data_json",
+      "name": "Genesis Metamorphosis",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "debuff": 1,
+        "transform-alter": 2
+      }
+    },
+    {
+      "owner": "skill_extension:293.data_json",
+      "name": "Genesis Renewal",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "healing": 1,
+        "buff": 1,
+        "debuff": 1,
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:295.data_json",
+      "name": "Genesis Transmutation",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 1,
+      "families": {
+        "transform-alter": 1,
+        "create-destroy-major": 1,
+        "immobilize": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:297.data_json",
+      "name": "Gentle Reprieve",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "healing": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:299.data_json",
+      "name": "Gills of the Shorefolk",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "transform-alter": 1
+      }
+    },
+    {
+      "owner": "skill_extension:301.data_json",
+      "name": "Glamour Veil",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "illusion-mask": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:303.data_json",
+      "name": "Gleam",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "illusion-mask": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:305.data_json",
+      "name": "Glimpse of Truth",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:307.data_json",
+      "name": "Grasp of the Pale Host",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 4,
+      "authorable": 3,
+      "families": {
+        "spatial-bubble": 1,
+        "grapple-restrain": 1,
+        "damage": 1,
+        "debuff": 1,
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:309.data_json",
+      "name": "Grave Cataclysm",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "damage": 1,
+        "debuff": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:311.data_json",
+      "name": "Grave Chill",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:313.data_json",
+      "name": "Grave Grasp",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:315.data_json",
+      "name": "Guardian Spirit",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "summon-minor": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:317.data_json",
+      "name": "Gust Lash",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "push": 1
+      }
+    },
+    {
+      "owner": "skill_extension:319.data_json",
+      "name": "Gust of Renewal",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "push": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:321.data_json",
+      "name": "Harmonic Lattice",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "spatial-bubble": 1
+      }
+    },
+    {
+      "owner": "skill_extension:323.data_json",
+      "name": "Harmonic Shielding",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "buff": 2,
+        "spatial-bubble": 1
+      }
+    },
+    {
+      "owner": "skill_extension:325.data_json",
+      "name": "Harmony’s Embrace",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:327.data_json",
+      "name": "Harmony’s Veil",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:329.data_json",
+      "name": "Harrowing Dirge",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "decelerate-slow": 1
+      }
+    },
+    {
+      "owner": "skill_extension:331.data_json",
+      "name": "Healing Chorus",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "healing": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:333.data_json",
+      "name": "Heart’s Influence",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:335.data_json",
+      "name": "Heart’s Whisper",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "healing": 1,
+        "debuff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:337.data_json",
+      "name": "Heat Veil",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:339.data_json",
+      "name": "Heckle",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:341.data_json",
+      "name": "Hellstorm Crucible",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "damage": 1,
+        "grapple-restrain": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:343.data_json",
+      "name": "Hive Dominion",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 9,
+      "authorable": 6,
+      "families": {
+        "debuff": 1,
+        "damage": 1,
+        "buff": 1,
+        "illusion-mask": 1,
+        "transform-alter": 1,
+        "transfer-life-force": 1,
+        "link-bind": 1,
+        "anchor-lock": 1,
+        "immobilize": 1,
+        "stun-daze": 1
+      }
+    },
+    {
+      "owner": "skill_extension:345.data_json",
+      "name": "Hypermetabolic Overdrive",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "damage": 1,
+        "accelerate-hasten": 1
+      }
+    },
+    {
+      "owner": "skill_extension:347.data_json",
+      "name": "Incendiary Rebuke",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "decelerate-slow": 1
+      }
+    },
+    {
+      "owner": "skill_extension:349.data_json",
+      "name": "Infernal Maelstrom",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "pull": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:351.data_json",
+      "name": "Inferno Wave",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:353.data_json",
+      "name": "Infinite Labyrinth",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 6,
+      "authorable": 3,
+      "families": {
+        "spatial-bubble": 1,
+        "immobilize": 1,
+        "grapple-restrain": 1,
+        "teleportation": 1,
+        "illusion-mask": 1,
+        "transform-alter": 1
+      }
+    },
+    {
+      "owner": "skill_extension:355.data_json",
+      "name": "Iron Skin",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:357.data_json",
+      "name": "Joyful Guard",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:359.data_json",
+      "name": "Kinetic Armor",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:361.data_json",
+      "name": "Kinetic Push",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "push": 1
+      }
+    },
+    {
+      "owner": "skill_extension:363.data_json",
+      "name": "Labyrinth of the Sleeper",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 3,
+      "families": {
+        "spatial-bubble": 1,
+        "illusion-mask": 1,
+        "debuff": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:365.data_json",
+      "name": "Lamenting Shackles",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "debuff": 2,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:367.data_json",
+      "name": "Leviathan’s Awakening",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 6,
+      "authorable": 3,
+      "families": {
+        "damage": 1,
+        "spatial-bubble": 1,
+        "banish": 1,
+        "knockdown": 1,
+        "immobilize": 1,
+        "grapple-restrain": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:369.data_json",
+      "name": "Lifethread Gift",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "transfer-life-force": 1
+      }
+    },
+    {
+      "owner": "skill_extension:371.data_json",
+      "name": "Lightning Chain",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:377.data_json",
+      "name": "Maelstrom",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 3,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "spatial-bubble": 1,
+        "pull": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:373.data_json",
+      "name": "Lingering Paranoia",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "decelerate-slow": 1
+      }
+    },
+    {
+      "owner": "skill_extension:375.data_json",
+      "name": "Lucid Spark",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "accelerate-hasten": 1
+      }
+    },
+    {
+      "owner": "skill_extension:383.data_json",
+      "name": "Mass Levitation",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "spatial-bubble": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:379.data_json",
+      "name": "Maelstrom Vortex",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "pull": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:381.data_json",
+      "name": "Marrow Rot",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "damage": 1,
+        "debuff": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:385.data_json",
+      "name": "Mass Resize",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "debuff": 1,
+        "transform-alter": 1
+      }
+    },
+    {
+      "owner": "skill_extension:387.data_json",
+      "name": "Maze of Mirrors",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "debuff": 1,
+        "illusion-mask": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:391.data_json",
+      "name": "Mend Stone",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:393.data_json",
+      "name": "Mending Serenade",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "healing": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:395.data_json",
+      "name": "Mental Suggestion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:397.data_json",
+      "name": "Metabolic Burn",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:399.data_json",
+      "name": "Metabolic Dominion",
+      "valid": true,
+      "issues": [],
+      "automatic": 2,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "damage": 2,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:401.data_json",
+      "name": "Metabolic Purge",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:403.data_json",
+      "name": "Mind Whisper",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "link-bind": 1
+      }
+    },
+    {
+      "owner": "skill_extension:415.data_json",
+      "name": "Momentary Step",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:405.data_json",
+      "name": "Mind-Forge Tool",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:407.data_json",
+      "name": "Mindquake",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 5,
+      "authorable": 4,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1,
+        "stun-daze": 1,
+        "disarm": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:409.data_json",
+      "name": "Mirror of Reversal",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:411.data_json",
+      "name": "Molten Surge",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "damage": 1,
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:413.data_json",
+      "name": "Momentary Dread",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:417.data_json",
+      "name": "Night Terror",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 2
+      }
+    },
+    {
+      "owner": "skill_extension:419.data_json",
+      "name": "Nightfang Manifest",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "summon-minor": 1,
+        "damage": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:421.data_json",
+      "name": "Nightmare Dominion",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 6,
+      "authorable": 5,
+      "families": {
+        "spatial-bubble": 1,
+        "immobilize": 1,
+        "debuff": 2,
+        "decelerate-slow": 1,
+        "damage": 1,
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:423.data_json",
+      "name": "Nightmare Menagerie",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "debuff": 1,
+        "illusion-mask": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:425.data_json",
+      "name": "Nightmare Sculpt",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1,
+        "stun-daze": 1
+      }
+    },
+    {
+      "owner": "skill_extension:427.data_json",
+      "name": "Nocturne Pupils",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:429.data_json",
+      "name": "Object Echo",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:431.data_json",
+      "name": "Oblivion Eclipse",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 6,
+      "authorable": 3,
+      "families": {
+        "banish": 1,
+        "spatial-bubble": 1,
+        "damage": 1,
+        "debuff": 1,
+        "grapple-restrain": 1,
+        "pull": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:433.data_json",
+      "name": "Oblivion Veil",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 6,
+      "authorable": 2,
+      "families": {
+        "counter-cancel": 1,
+        "debuff": 1,
+        "banish": 1,
+        "spatial-bubble": 1,
+        "anchor-lock": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:435.data_json",
+      "name": "Obsidian Guardian",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "summon-major": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:437.data_json",
+      "name": "Oracle’s Reposition",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "accelerate-hasten": 1,
+        "reveal-detect": 1,
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:439.data_json",
+      "name": "Packform Shift",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "transform-alter": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:441.data_json",
+      "name": "Pale Harvest",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "transfer-life-force": 1,
+        "damage": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:443.data_json",
+      "name": "Pale Legion",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "summon-major": 1,
+        "damage": 1,
+        "buff": 1,
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:445.data_json",
+      "name": "Permanency",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 5,
+      "authorable": 0,
+      "families": {
+        "link-bind": 1,
+        "transform-alter": 1,
+        "create-destroy-major": 1,
+        "spatial-bubble": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:479.data_json",
+      "name": "Quantum Chorus",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "decelerate-slow": 2,
+        "accelerate-hasten": 1
+      }
+    },
+    {
+      "owner": "skill_extension:447.data_json",
+      "name": "Phalanx of Echoes",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "summon-minor": 1
+      }
+    },
+    {
+      "owner": "skill_extension:449.data_json",
+      "name": "Phantasmal Army",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:451.data_json",
+      "name": "Phantasmal Echoes",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:453.data_json",
+      "name": "Phantasmal Host",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1,
+        "stun-daze": 1
+      }
+    },
+    {
+      "owner": "skill_extension:455.data_json",
+      "name": "Phantom Flicker",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:457.data_json",
+      "name": "Phantom Footfalls",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "debuff": 1,
+        "disarm": 1
+      }
+    },
+    {
+      "owner": "skill_extension:459.data_json",
+      "name": "Phase Exodus",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:507.data_json",
+      "name": "Resonant Shatter",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "damage": 1,
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:461.data_json",
+      "name": "Phase Hand",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "transform-alter": 1
+      }
+    },
+    {
+      "owner": "skill_extension:463.data_json",
+      "name": "Phase Passage",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "transform-alter": 1
+      }
+    },
+    {
+      "owner": "skill_extension:465.data_json",
+      "name": "Phoenix Surge",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:467.data_json",
+      "name": "Plagueform Wave",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 2,
+      "families": {
+        "transform-alter": 2,
+        "buff": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:513.data_json",
+      "name": "Revelation Aria",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "debuff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:469.data_json",
+      "name": "Psi-Edge Blade",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1,
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:471.data_json",
+      "name": "Psychic Domination",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 3,
+      "families": {
+        "debuff": 1,
+        "link-bind": 1,
+        "anchor-lock": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:473.data_json",
+      "name": "Puppet Strings",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "link-bind": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:475.data_json",
+      "name": "Purify Water",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:477.data_json",
+      "name": "Pyroclasm",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:481.data_json",
+      "name": "Quantum Convergence",
+      "valid": true,
+      "issues": [],
+      "automatic": 2,
+      "manual": 5,
+      "authorable": 4,
+      "families": {
+        "damage": 2,
+        "decelerate-slow": 1,
+        "accelerate-hasten": 1,
+        "buff": 1,
+        "create-destroy-major": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:483.data_json",
+      "name": "Quantum Hum",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:485.data_json",
+      "name": "Quickshift: Webbed Grip",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 2
+      }
+    },
+    {
+      "owner": "skill_extension:487.data_json",
+      "name": "Radiant Harmony",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:489.data_json",
+      "name": "Rage Dominion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 7,
+      "authorable": 5,
+      "families": {
+        "buff": 2,
+        "debuff": 1,
+        "spatial-bubble": 1,
+        "stun-daze": 1,
+        "knockdown": 1,
+        "temporal-stasis": 1
+      }
+    },
+    {
+      "owner": "skill_extension:491.data_json",
+      "name": "Ragequake",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "knockdown": 1,
+        "push": 1
+      }
+    },
+    {
+      "owner": "skill_extension:493.data_json",
+      "name": "Rallying Cry",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:499.data_json",
+      "name": "Reflective Maelstrom",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 1,
+      "families": {
+        "link-bind": 1,
+        "counter-cancel": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:495.data_json",
+      "name": "Reality Armory",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:497.data_json",
+      "name": "Reality Bastion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:505.data_json",
+      "name": "Resize Trinket",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "buff": 1,
+        "transform-alter": 1
+      }
+    },
+    {
+      "owner": "skill_extension:501.data_json",
+      "name": "Regenerative Metamorphosis",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "healing": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:503.data_json",
+      "name": "Renewing Wave",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "healing": 1
+      }
+    },
+    {
+      "owner": "skill_extension:509.data_json",
+      "name": "Resonant Shiver",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:511.data_json",
+      "name": "Retrieve from Beyond",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "summon-minor": 1
+      }
+    },
+    {
+      "owner": "skill_extension:515.data_json",
+      "name": "Revelation of Eternity",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 6,
+      "authorable": 5,
+      "families": {
+        "buff": 2,
+        "spatial-bubble": 1,
+        "debuff": 1,
+        "decelerate-slow": 1,
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:517.data_json",
+      "name": "Revelation of Hearts",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "debuff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:519.data_json",
+      "name": "Revelry Unending",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 5,
+      "authorable": 3,
+      "families": {
+        "spatial-bubble": 1,
+        "buff": 2,
+        "damage": 1,
+        "accelerate-hasten": 1,
+        "healing": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 1,
+          "manual": 5,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 1,
+          "manual": 5,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 1,
+          "manual": 5,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 1,
+          "manual": 5,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 1,
+          "manual": 5,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:521.data_json",
+      "name": "Ripple Shot",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:523.data_json",
+      "name": "Riptide Grasp",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:525.data_json",
+      "name": "Rock Armor",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:527.data_json",
+      "name": "Rock Shard",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:529.data_json",
+      "name": "Runeward",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "buff": 1,
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:531.data_json",
+      "name": "Scorching Ray",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:533.data_json",
+      "name": "Seal of Silence",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "debuff": 1,
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:535.data_json",
+      "name": "Seal of the Eclipsed Gate",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 6,
+      "authorable": 3,
+      "families": {
+        "summon-major": 2,
+        "spatial-bubble": 1,
+        "buff": 1,
+        "debuff": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:537.data_json",
+      "name": "Seed of Doubt",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:539.data_json",
+      "name": "Seismic Fury",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 4,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "damage": 1,
+        "spatial-bubble": 1,
+        "knockdown": 1,
+        "push": 1
+      }
+    },
+    {
+      "owner": "skill_extension:633.data_json",
+      "name": "Symphony of Devotion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:541.data_json",
+      "name": "Seismic Rupture",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "damage": 1,
+        "create-destroy-major": 1
+      }
+    },
+    {
+      "owner": "skill_extension:543.data_json",
+      "name": "Shadow Cataclysm",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "spatial-bubble": 1,
+        "damage": 1,
+        "debuff": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:545.data_json",
+      "name": "Shadow Grasp",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:547.data_json",
+      "name": "Shadow Maw",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "damage": 1,
+        "debuff": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:549.data_json",
+      "name": "Shadow Snare",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "decelerate-slow": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:617.data_json",
+      "name": "Stormcall Surge",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "damage": 1,
+        "spatial-bubble": 1
+      }
+    },
+    {
+      "owner": "skill_extension:551.data_json",
+      "name": "Shape Metal",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "transform-alter": 1
+      }
+    },
+    {
+      "owner": "skill_extension:553.data_json",
+      "name": "Shared Bond",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:555.data_json",
+      "name": "Shared Dream",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:557.data_json",
+      "name": "Shuddering Chord",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:559.data_json",
+      "name": "Silent Chorus",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "link-bind": 1
+      }
+    },
+    {
+      "owner": "skill_extension:561.data_json",
+      "name": "Skin of Scales (Lesser)",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:563.data_json",
+      "name": "Slow Tether",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "decelerate-slow": 1
+      }
+    },
+    {
+      "owner": "skill_extension:565.data_json",
+      "name": "Somnolent Touch",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "decelerate-slow": 1
+      }
+    },
+    {
+      "owner": "skill_extension:567.data_json",
+      "name": "Soothing Presence",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:569.data_json",
+      "name": "Soothing Pulse",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "healing": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:573.data_json",
+      "name": "Soul Bind",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:575.data_json",
+      "name": "Soul Lock",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "link-bind": 1,
+        "anchor-lock": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:577.data_json",
+      "name": "Soul’s Whisper",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:579.data_json",
+      "name": "Spark of Laughter",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:581.data_json",
+      "name": "Spark of Wrath",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 2,
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:583.data_json",
+      "name": "Spatial Anchor",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:585.data_json",
+      "name": "Spatial Rend",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "damage": 1,
+        "pull": 1
+      }
+    },
+    {
+      "owner": "skill_extension:587.data_json",
+      "name": "Spatial Veil",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:589.data_json",
+      "name": "Specter’s Whisper",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:591.data_json",
+      "name": "Spell Shatter",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:593.data_json",
+      "name": "Spirit Lantern",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "summon-minor": 1
+      }
+    },
+    {
+      "owner": "skill_extension:595.data_json",
+      "name": "Stasis Snare",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "decelerate-slow": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:597.data_json",
+      "name": "Steal the Smile",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "debuff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:599.data_json",
+      "name": "Stoke the Line",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "buff": 2,
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:601.data_json",
+      "name": "Stone Maelstrom",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:603.data_json",
+      "name": "Stone Pebble",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 1,
+          "manual": 0,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:605.data_json",
+      "name": "Stone Rattle",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:607.data_json",
+      "name": "Stone Skin",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:609.data_json",
+      "name": "Stone Spikes",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    },
+    {
+      "owner": "skill_extension:611.data_json",
+      "name": "Stone Spire",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:613.data_json",
+      "name": "Stone to Mud",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 0,
+      "families": {
+        "transform-alter": 1,
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:615.data_json",
+      "name": "Storm Nexus",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "spatial-bubble": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:619.data_json",
+      "name": "Suffocating Dome",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:621.data_json",
+      "name": "Suffocating Grasp",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:623.data_json",
+      "name": "Summon Pack Beast",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "summon-minor": 1
+      }
+    },
+    {
+      "owner": "skill_extension:625.data_json",
+      "name": "Summon Warband",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "summon-minor": 1
+      }
+    },
+    {
+      "owner": "skill_extension:627.data_json",
+      "name": "Surface Scan",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:629.data_json",
+      "name": "Sweeping Roar",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "push": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:631.data_json",
+      "name": "Symphony of Alignment",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 4,
+      "authorable": 4,
+      "families": {
+        "buff": 1,
+        "accelerate-hasten": 1,
+        "debuff": 1,
+        "decelerate-slow": 1
+      }
+    },
+    {
+      "owner": "skill_extension:635.data_json",
+      "name": "Symphony of Exultation",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 5,
+      "authorable": 4,
+      "families": {
+        "buff": 3,
+        "accelerate-hasten": 1,
+        "damage": 1,
+        "counter-cancel": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 1,
+          "manual": 5,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 1,
+          "manual": 5,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 1,
+          "manual": 5,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 1,
+          "manual": 5,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 1,
+          "manual": 5,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:637.data_json",
+      "name": "Symphony of Souls",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "decelerate-slow": 1,
+        "buff": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:639.data_json",
+      "name": "Tearful Lament",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:641.data_json",
+      "name": "Telekinetic Crush",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:643.data_json",
+      "name": "Telekinetic Maelstrom",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "spatial-bubble": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:645.data_json",
+      "name": "Telekinetic Pull",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "pull": 1
+      }
+    },
+    {
+      "owner": "skill_extension:647.data_json",
+      "name": "Telepathic Storm",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1,
+        "stun-daze": 1
+      }
+    },
+    {
+      "owner": "skill_extension:649.data_json",
+      "name": "Tempest Barrage",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "damage": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:651.data_json",
+      "name": "Tempest Crown",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "damage": 1,
+        "debuff": 1,
+        "temporal-stasis": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 1,
+          "manual": 3,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 1,
+          "manual": 3,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 1,
+          "manual": 3,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 1,
+          "manual": 3,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 1,
+          "manual": 3,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:653.data_json",
+      "name": "Temporal Glimpse",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:655.data_json",
+      "name": "Terror Pulse",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "stun-daze": 1
+      }
+    },
+    {
+      "owner": "skill_extension:657.data_json",
+      "name": "The Shattered City",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 3,
+      "families": {
+        "illusion-mask": 1,
+        "debuff": 1,
+        "stun-daze": 1
+      }
+    },
+    {
+      "owner": "skill_extension:659.data_json",
+      "name": "Thread of Fate",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:661.data_json",
+      "name": "Threads of Destiny",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:663.data_json",
+      "name": "Threads of Fate",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 5,
+      "authorable": 4,
+      "families": {
+        "debuff": 1,
+        "decelerate-slow": 1,
+        "link-bind": 1,
+        "reveal-detect": 1,
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:665.data_json",
+      "name": "Tide Push",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "push": 1
+      }
+    },
+    {
+      "owner": "skill_extension:667.data_json",
+      "name": "Tide Wall",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "buff": 1,
+        "create-destroy-major": 1,
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:669.data_json",
+      "name": "Titan's Grasp",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "damage": 1,
+        "grapple-restrain": 1,
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:671.data_json",
+      "name": "Truth Sense",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:673.data_json",
+      "name": "Tuning Note",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "healing": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:675.data_json",
+      "name": "Umbral Cloak",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:677.data_json",
+      "name": "Umbral Step",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:679.data_json",
+      "name": "Unravel Spark",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:681.data_json",
+      "name": "Unveiled Affection",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "debuff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:683.data_json",
+      "name": "Unweave Glyph",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "counter-cancel": 1
+      }
+    },
+    {
+      "owner": "skill_extension:685.data_json",
+      "name": "Veil of Shadowstep",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "illusion-mask": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:687.data_json",
+      "name": "Veiled Step",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:689.data_json",
+      "name": "Verdant Bastion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 1,
+      "families": {
+        "healing": 1,
+        "counter-cancel": 1,
+        "grapple-restrain": 1
+      }
+    },
+    {
+      "owner": "skill_extension:691.data_json",
+      "name": "Verdant Bloom",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "create-destroy-basic": 1
+      }
+    },
+    {
+      "owner": "skill_extension:693.data_json",
+      "name": "Vexing Aria",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "decelerate-slow": 1
+      }
+    },
+    {
+      "owner": "skill_extension:695.data_json",
+      "name": "Vital Exchange",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "transfer-life-force": 1
+      }
+    },
+    {
+      "owner": "skill_extension:697.data_json",
+      "name": "Vital Genesis",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 1,
+      "families": {
+        "create-destroy-major": 1,
+        "healing": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:699.data_json",
+      "name": "Vital Wellspring",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "healing": 1,
+        "buff": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 2,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:701.data_json",
+      "name": "Voice of the Lost",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:703.data_json",
+      "name": "Wail of the Forsaken",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 2
+      }
+    },
+    {
+      "owner": "skill_extension:705.data_json",
+      "name": "Wailing Legion",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "debuff": 1,
+        "stun-daze": 1
+      }
+    },
+    {
+      "owner": "skill_extension:707.data_json",
+      "name": "Warden’s Lantern",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      }
+    },
+    {
+      "owner": "skill_extension:709.data_json",
+      "name": "Weapon Spark",
+      "valid": true,
+      "issues": [],
+      "automatic": 2,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "buff": 1,
+        "damage": 2
+      }
+    },
+    {
+      "owner": "skill_extension:711.data_json",
+      "name": "Web of Insight",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1,
+        "link-bind": 1
+      }
+    },
+    {
+      "owner": "skill_extension:717.data_json",
+      "name": "Whisper of Tongues",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "buff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:713.data_json",
+      "name": "Whisper of Night",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:715.data_json",
+      "name": "Whisper of the Grave",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "reveal-detect": 1
+      },
+      "progressiveTiers": [
+        {
+          "level": "Apprentice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Novice",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "High Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        },
+        {
+          "level": "Grand Master",
+          "automatic": 0,
+          "manual": 1,
+          "errors": []
+        }
+      ]
+    },
+    {
+      "owner": "skill_extension:719.data_json",
+      "name": "Whispered Fate",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "accelerate-hasten": 1,
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:721.data_json",
+      "name": "Whispering Zephyr",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:723.data_json",
+      "name": "Wind Shear",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "damage": 1,
+        "push": 1
+      }
+    },
+    {
+      "owner": "skill_extension:725.data_json",
+      "name": "Wind Step",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "accelerate-hasten": 1
+      }
+    },
+    {
+      "owner": "skill_extension:727.data_json",
+      "name": "Wings of the Raptor",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "transform-alter": 1
+      }
+    },
+    {
+      "owner": "skill_extension:729.data_json",
+      "name": "World’s Whisper",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "reveal-detect": 1,
+        "illusion-mask": 1
+      }
+    },
+    {
+      "owner": "skill_extension:731.data_json",
+      "name": "Worldfire Convergence",
+      "valid": true,
+      "issues": [],
+      "automatic": 2,
+      "manual": 2,
+      "authorable": 2,
+      "families": {
+        "damage": 2,
+        "grapple-restrain": 1,
+        "anchor-lock": 1
+      }
+    },
+    {
+      "owner": "skill_extension:733.data_json",
+      "name": "Worldshaper’s Bastion",
+      "valid": true,
+      "issues": [],
+      "automatic": 2,
+      "manual": 3,
+      "authorable": 1,
+      "families": {
+        "damage": 2,
+        "summon-major": 1,
+        "create-destroy-major": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:735.data_json",
+      "name": "Worldshaper’s Maw",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 3,
+      "authorable": 1,
+      "families": {
+        "transform-alter": 1,
+        "create-destroy-major": 1,
+        "immobilize": 1
+      }
+    },
+    {
+      "owner": "skill_extension:737.data_json",
+      "name": "Worldstorm",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 3,
+      "authorable": 2,
+      "families": {
+        "create-destroy-major": 1,
+        "debuff": 1,
+        "damage": 1,
+        "knockdown": 1
+      }
+    },
+    {
+      "owner": "skill_extension:739.data_json",
+      "name": "Worldstride",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 0,
+      "families": {
+        "teleportation": 1
+      }
+    },
+    {
+      "owner": "skill_extension:741.data_json",
+      "name": "Wrath Unleashed",
+      "valid": true,
+      "issues": [],
+      "automatic": 0,
+      "manual": 1,
+      "authorable": 1,
+      "families": {
+        "debuff": 1
+      }
+    },
+    {
+      "owner": "skill_extension:5.data_json",
+      "name": "Air Needle",
+      "valid": true,
+      "issues": [],
+      "automatic": 1,
+      "manual": 0,
+      "authorable": 0,
+      "families": {
+        "damage": 1
+      }
+    }
+  ]
+}

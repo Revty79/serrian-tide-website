@@ -126,7 +126,7 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
         range.short === null ? "" : `Range ${range.short}/${range.medium ?? "?"}/${range.long ?? "?"} ${range.unit ?? ""}`,
         `${attack.damage ?? "Unspecified"} ${attack.damageType || "unspecified type"} damage`,
         attack.authoring.magic || attack.authoring.magical === true ? "Magical" : attack.authoring.magical === false ? "Nonmagical" : "Magical unspecified",
-        source.anatomyRulingRequired ? ruling?.useRequirementsReason ? "G.O.D. ruled required anatomy usable" : "Needs G.O.D. anatomy usability ruling" : "", attack.authoring.magic ? "Attached Magic effects deferred" : ""].filter(Boolean).join(" · ") });
+        source.anatomyRulingRequired ? ruling?.useRequirementsReason ? "G.O.D. ruled required anatomy usable" : "Needs G.O.D. anatomy usability ruling" : "", attack.authoring.magic ? "Attached Magic: supported effects execute; manual effects need a ruling" : ""].filter(Boolean).join(" · ") });
   }
   for (const weapon of loaded.equipment?.wieldedWeapons ?? []) {
     let mode = weapon.rangeMode;

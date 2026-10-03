@@ -10,6 +10,7 @@ export type SpellTargetGroup = Readonly<{
   containerPath: readonly string[];
   label: string;
   rangeLabel: string | null;
+  rangeRuleId?: string;
   shapeLabel: string | null;
   capacity: number | null;
   selfTargeted: boolean;
@@ -90,8 +91,9 @@ export function analyzeSpellTargetGroups(
       containerPath: path,
       label: `${kind === "aoe" ? "AoE" : "Target"} container`,
       rangeLabel: rangeRule?.name ?? null,
+      ...(container.rangeRuleId ? { rangeRuleId: container.rangeRuleId } : {}),
       shapeLabel: shapeRule
-        ? `${shapeRule.name}${container.shape && container.shape.quantity > 0 ? ` +${container.shape.quantity}` : ""}`
+        ? `${shapeRule.name}${container.shape && container.shape.quantity > 0 ? ` +${container.shape.quantity} ${shapeRule.incrementLabel ?? 'increments'}` : ""}`
         : null,
       capacity: kind === "target" ? 1 + Math.max(0, container.multiTarget?.additionalTargets ?? 0) : null,
       selfTargeted: kind === "target" && container.rangeRuleId === "self",

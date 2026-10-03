@@ -16,6 +16,7 @@ import type { RollMechanicalSnapshot } from "./roll-mechanical-snapshot";
 import type { OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { creatureProtectionValue } from "./creature-protection";
 import { availableWeaponHitSource } from "./weapon-hit-resource-service";
+import { calculatePerSuccessQuantity } from './percentile-resolution';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
@@ -130,7 +131,7 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
     if (locked.targetCharacterIds.length !== 1 && !adjudicated) issues.push("This ordinary attack needs a ruling for its multiple targets.");
     const weaponHitEffects = source.kind === "weapon" ? source.effects.filter((effect) => (
       (effect.instruction.weaponHit === true || effect.instruction.passiveWeapon === true) && effect.effect
-    )) : source.effects.filter((effect) => (effect.instruction.creatureHit === true || effect.instruction.naturalAttackHit === true) && effect.effect);
+    )) : source.effects.filter((effect) => (effect.instruction.creatureHit === true || effect.instruction.naturalAttackHit === true || effect.instruction.attachedMagicHit === true) && effect.effect);
     const weaponHitDamage = weaponHitEffects.reduce((total, effect) => {
       if (effect.instruction.passiveWeapon === true && effect.effect?.kind === "modifier.apply" && effect.effect.channel === "damage") return total + effect.effect.amount;
       return effect.instruction.weaponHit === true && isSimpleAdditiveWeaponHitDamage(effect.effect)
@@ -161,17 +162,26 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
       effect !== null && !(instruction.passiveWeapon === true && effect.kind === "modifier.apply" && effect.channel === "damage")
         && !(instruction.weaponHit === true && isSimpleAdditiveWeaponHitDamage(effect))
     ))) {
-      const rider = effect.effect!;
+      if (!effect.targetParticipantIds.includes(targetParticipantId)) continue;
+      let rider = effect.effect!;
+      const unsupportedScaling = effect.scaling === 'per-success' && !('amount' in rider);
+      if (!prevented && effect.scaling === 'per-success' && 'amount' in rider) {
+        rider = { ...rider, amount: calculatePerSuccessQuantity(roll.resolution, rider.amount).appliedQuantity };
+      } else if (!prevented && effect.instruction.construction === true && rider.kind === 'health.damage') {
+        rider = { ...rider, amount: rider.amount + roll.resolution.additionalSuccesses };
+      }
       const riderApplication = { hitLocationNumber, poolKey, weaponHit: true };
       const riderApplicationSupported = rider.kind === "health.damage"
         ? rider.application === "full-body" || poolKey !== null && Number.isInteger(hitLocationNumber)
+        : rider.kind === 'health.heal' ? rider.scope === 'full-body' || poolKey !== null
         : rider.kind === "condition.apply" || rider.kind === "modifier.apply";
-      const riderRequiresReview = rider.kind === "manual" || !riderApplicationSupported || !hitEstablished;
+      const riderRequiresReview = rider.kind === "manual" || !riderApplicationSupported || !hitEstablished || unsupportedScaling
+        || effect.instruction.construction === true && effect.requiresGodReview;
       proposals.push({
         effectKey: `${effect.key}:target:${targetParticipantId}`,
         effectType: rider.kind,
         targetParticipantId,
-        authoredValue: { source: source.authoredData, effect: rider, hitLocationNumber, poolKey },
+        authoredValue: { source: source.authoredData, effect: effect.effect, instruction: effect.instruction, hitLocationNumber, poolKey },
         calculatedValue: rider,
         finalValue: prevented ? null : { effect: rider, application: riderApplication },
         unit: "Effect",
@@ -181,7 +191,9 @@ export async function buildOrdinaryAttackConsequenceProposalInTransaction(
         status: prevented ? "declined" : riderRequiresReview ? "requires-god-ruling" : "calculated",
         amendmentReason: prevented
           ? (!roll.resolution.succeeded ? "The recorded attack failed. No Weapon-Hit rider was applied." : "The resolved defense prevented the attack's Weapon-Hit riders.")
-          : riderApplicationSupported ? "" : "The Weapon-Hit Item Power rider requires a specific application ruling.",
+          : unsupportedScaling ? 'Per Success on a nonnumeric constructed consequence requires a G.O.D. ruling.'
+          : object(effect.instruction.spellRange).requiresRuling === true ? String(object(effect.instruction.spellRange).reason)
+          : riderApplicationSupported ? "" : "The hit-dependent effect requires a specific application ruling.",
       });
     }
   }

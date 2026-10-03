@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createModifierSelection } from "@/features/spell-construction/utilities/spellFactory";
 import { spawn, execFileSync, type ChildProcess } from "node:child_process";
 import { createServer } from "node:net";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -16,6 +17,8 @@ import { raceNaturalAttackFixture } from "./fixtures/race-natural-attack-fixture
 import { emptyAttackAuthoring } from "@/features/attacks/attack-authoring";
 import { campaignCharacter, campaignCreatureNpcProfile } from "@/db/realm-schema";
 import { campaignSessionEncounterParticipant as creatureMember } from "@/db/tabletop-operations-schema";
+import { magicCompletionDocument } from './fixtures/magic-completion-fixture';
+import { skillExtension } from '@/db/skill-schema';
 import { raceNaturalAttack } from "@/db/race-schema";
 async function main() {
 if (process.env.SERRIAN_DISPOSABLE_COMBAT_SCREENS !== "true" || !/^postgresql:\/\/postgres@127\.0\.0\.1:\d+\/serrian_combat_screens_dev$/.test(process.env.DATABASE_URL ?? "")) throw new Error("A newly migrated disposable screen database is required.");
@@ -184,13 +187,13 @@ try {
     results.push("Two Initiative shows why a four-point attack is unavailable, preserves no committed Roll, and allows a two-point movement through Player controls.");
     await participant.context().close();
   }
-  for (const kind of ["direct", "persistent", "ranged", "ruled", "hybrid", "beyond-long"] as const) if (include(`creature-attack-${kind}`)) {
+  for (const kind of ["direct", "persistent", "ranged", "ruled", "hybrid", "beyond-long", "magic"] as const) if (include(`creature-attack-${kind}`)) {
     const f = await db.transaction(tx => screenFixture(tx, `creature-${kind}`));
     const actorId = kind === "persistent" ? f.defenderId : f.occurrences[0];
     const attack = { ...f.creatureSnapshot.attacks[0], attackName: "Cinder Bite", damage: "18", damageType: "Fire", attackPercentage: kind === "ruled" ? null : 50,
       requirements: "G.O.D. checks the intended target", usesRecharge: "Recovery is descriptive", notes: "No geometry is inferred",
       authoring: { ...emptyAttackAuthoring(), initiativeCost: kind === "ruled" ? null : 4, mode: kind === "hybrid" ? "hybrid" as const : kind === "ranged" || kind === "beyond-long" ? "ranged" as const : "melee" as const,
-        range: { unit: "feet", reach: 5, short: 10, medium: 20, long: 40 }, magical: false } };
+        range: { unit: "feet", reach: 5, short: 10, medium: 20, long: 40 }, magical: kind === "magic", magic: kind === "magic" ? { document: magicCompletionDocument() } : null } };
     const snapshot = { ...f.creatureSnapshot, attacks: [attack] };
     if (kind === "persistent") {
       await db.update(campaignCharacter).set({ isNpc: true, npcKind: "creature" }).where(eq(campaignCharacter.id, actorId));
@@ -213,7 +216,7 @@ try {
       await screen(director).getByLabel("Beyond Long ruling reason", { exact: true }).fill("Measured fifty feet, twenty point penalty.");
     }
     await screen(director).getByLabel("Distance unit", { exact: true }).fill("feet");
-    assert.match(await screen(director).innerText(), /18 Fire damage/); assert.match(await screen(director).innerText(), /Nonmagical/); assert.match(await screen(director).innerText(), /Recovery is descriptive/);
+    assert.match(await screen(director).innerText(), /18 Fire damage/); assert.match(await screen(director).innerText(), kind === "magic" ? /Supported attached Magic/ : /Nonmagical/); assert.match(await screen(director).innerText(), /Recovery is descriptive/);
     if (kind === "ruled") {
       await screen(director).getByText("Specific source ruling", { exact: true }).click();
       await screen(director).getByText("G.O.D. source ruling: Cinder Bite", { exact: true }).click();
@@ -237,15 +240,16 @@ try {
     await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /^Prepare .* result$/ }).click();
     await screen(director).getByRole("region", { name: "Attack result report" }).getByRole("button", { name: "Approve & apply attack", exact: true }).click();
     await until(async () => (await pool.query("select status from campaign_session_encounter_effect_plan where declaration_id=$1", [row.id])).rows[0]?.status === "applied", "Creature attack applied");
-    assert.equal((await pool.query("select local_state_json from campaign_session_encounter_participant where character_id=$1", [f.occurrences[1]])).rows[0].local_state_json.health.totalDamage, kind === "beyond-long" ? 18 : kind === "ranged" || kind === "hybrid" ? 19 : 20);
+    assert.equal((await pool.query("select local_state_json from campaign_session_encounter_participant where character_id=$1", [f.occurrences[1]])).rows[0].local_state_json.health.totalDamage, kind === "magic" ? 23 : kind === "beyond-long" ? 18 : kind === "ranged" || kind === "hybrid" ? 19 : 20);
     await director.reload(); await screen(director).waitFor(); await screenshot(director, `creature-${kind}-result`, 390);
     assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where pending_action_id=$1", [row.pending_action_id])).rows[0].n, 1);
     results.push(`Creature Attack ${kind}: exact snapshot, mechanics and descriptive preview, shared range/Roll/timing/damage and reload without duplication.`);
     await director.context().close();
   }
-  for (const role of ["player", "god", "ranged-player", "ruled-player"] as const) if (include(`race-natural-attack-${role}`)) {
+  for (const role of ["player", "god", "ranged-player", "ruled-player", "magic-player"] as const) if (include(`race-natural-attack-${role}`)) {
     const f = await db.transaction(tx => screenFixture(tx, `race-${role}`));
     const natural = await db.transaction(tx => raceNaturalAttackFixture(tx, role === "god" ? f.defenderId : f.heroId, f.skillId));
+    if (role === "magic-player") await db.update(raceNaturalAttack).set({ authoring: { ...natural.attack.authoring, magic: { document: magicCompletionDocument() } } }).where(eq(raceNaturalAttack.id, natural.attack.id));
     if (role === "ranged-player") await db.update(raceNaturalAttack).set({ authoring: { ...natural.attack.authoring, mode: "ranged" } }).where(eq(raceNaturalAttack.id, natural.attack.id));
     if (role === "ruled-player") await db.update(raceNaturalAttack).set({ skillId: null, authoring: { ...natural.attack.authoring, initiativeCost: null } }).where(eq(raceNaturalAttack.id, natural.attack.id));
     if (role === "god") {
@@ -296,7 +300,7 @@ try {
     await screen(director).getByRole("region", { name: "Attack result report" }).getByRole("button", { name: "Approve & apply attack", exact: true }).click();
     await until(async () => (await pool.query("select status from campaign_session_encounter_effect_plan where declaration_id=$1", [row.id])).rows[0]?.status === "applied", "routine Natural Attack applied");
     const health = (await pool.query("select local_state_json from campaign_session_encounter_participant where character_id=$1", [f.occurrences[0]])).rows[0].local_state_json.health;
-    assert.equal(health.totalDamage, role === "ranged-player" ? 19 : 20);
+    assert.equal(health.totalDamage, role === "magic-player" ? 23 : role === "ranged-player" ? 19 : 20);
     await actor.reload(); await screen(actor).waitFor();
     assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where pending_action_id=$1", [row.pending_action_id])).rows[0].n, 1);
     await screenshot(actor, `race-${role}-result`, 390);
@@ -973,31 +977,37 @@ try {
     if (actor !== director) await actor.context().close();
     await director.context().close();
   }
-  for (const mode of ["spell", "firearm"] as const) {
+  for (const mode of ["spell", "spell-runtime", "firearm"] as const) {
     if (!include(mode)) continue;
-    const setup = await db.transaction(async (tx) => { const fixture = await screenFixture(tx, mode); const extra = mode === "spell" ? await addScreenSpell(tx, fixture) : await addScreenFirearm(tx, fixture); return { fixture, extra }; });
-    const fixture = setup.fixture, director = await login(fixture.godId, "god", fixture), participant = await login(fixture.playerId, "player", fixture);
+    const setup = await db.transaction(async (tx) => { const fixture = await screenFixture(tx, mode); const extra = mode.startsWith("spell") ? await addScreenSpell(tx, fixture) : await addScreenFirearm(tx, fixture); return { fixture, extra }; });
+    const fixture = setup.fixture;
+    if (mode === 'spell-runtime') {
+      const [row] = await pool.query("select e.skill_id,e.data_json from skill_extension e join campaign_character_skill_allocation a on a.skill_id=e.skill_id where a.character_id=$1 and e.extension_type='spell-construction'", [fixture.heroId]).then(result => result.rows);
+      const saved = typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
+      await db.update(skillExtension).set({ dataJson: JSON.stringify({ ...saved, containers: magicCompletionDocument().containers, modifiers: [] }) }).where(eq(skillExtension.skillId, row.skill_id));
+    }
+    const director = await login(fixture.godId, "god", fixture), participant = await login(fixture.playerId, "player", fixture);
     const view = screen(participant);
-    await view.getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: mode === "spell" ? "Cast" : "Attack", exact: true }).click();
-    await until(async () => await view.getByRole("combobox", { name: mode === "spell" ? /^Cast source/ : /^Attack source/ }).locator("option").count() > 1, `${mode} source loaded`);
-    const sourceControl = view.getByRole("combobox", { name: mode === "spell" ? /^Cast source/ : /^Attack source/ });
-    await sourceControl.selectOption((await sourceControl.locator("option").filter({ hasText: mode === "spell" ? /^Screen Arc Bolt$/ : /^Screen Pistol/ }).getAttribute("value"))!);
-    if (mode !== "spell") {
+    await view.getByRole("navigation", { name: "Combat commands" }).getByRole("button", { name: mode.startsWith("spell") ? "Cast" : "Attack", exact: true }).click();
+    await until(async () => await view.getByRole("combobox", { name: mode.startsWith("spell") ? /^Cast source/ : /^Attack source/ }).locator("option").count() > 1, `${mode} source loaded`);
+    const sourceControl = view.getByRole("combobox", { name: mode.startsWith("spell") ? /^Cast source/ : /^Attack source/ });
+    await sourceControl.selectOption((await sourceControl.locator("option").filter({ hasText: mode.startsWith("spell") ? /^Screen Arc Bolt$/ : /^Screen Pistol/ }).getAttribute("value"))!);
+    if (!mode.startsWith("spell")) {
       await view.getByRole("combobox", { name: /^Target/ }).selectOption(String(fixture.occurrences[0]));
       await confirmPlayerDistance(director, participant);
     }
-    if (mode === "spell") await view.getByRole("combobox", { name: /^Spell target 1/ }).selectOption(String(fixture.occurrences[0]));
+    if (mode.startsWith("spell")) await view.getByRole("combobox", { name: /^Spell target 1/ }).selectOption(String(fixture.occurrences[0]));
     await view.getByLabel("Percentile result", { exact: true }).fill("70");
-    if (mode === "spell") { assert.equal(await view.getByRole("combobox", { name: /damage location/ }).count(), 0); await screenshot(participant, "spell-roll-ready"); }
-    await view.getByRole("button", { name: mode === "spell" ? "Commit Cast & Roll" : "Fire & Roll", exact: true }).click();
+    if (mode.startsWith("spell")) { assert.equal(await view.getByRole("combobox", { name: /damage location/ }).count(), 0); await screenshot(participant, "spell-roll-ready"); }
+    await view.getByRole("button", { name: mode.startsWith("spell") ? "Commit Cast & Roll" : "Fire & Roll", exact: true }).click();
     await until(async () => (await declarations(fixture)).length > 0, `${mode} committed`);
     const record = (await declarations(fixture))[0];
     const manaSpent = async () => Number((await pool.query("select coalesce(sum(mana_spent),0) spent from campaign_character_active_mana where character_id=$1", [fixture.heroId])).rows[0].spent);
     const committedMana = await manaSpent();
-    if (mode === "spell") assert.ok(committedMana > 0, "The cast spends Mana at commitment");
-    if (mode === "spell") assert.equal((await pool.query("select count(*)::int count from campaign_session_roll where encounter_id=$1", [fixture.encounterId])).rows[0].count, 1);
+    if (mode.startsWith("spell")) assert.ok(committedMana > 0, "The cast spends Mana at commitment");
+    if (mode.startsWith("spell")) assert.equal((await pool.query("select count(*)::int count from campaign_session_roll where encounter_id=$1", [fixture.encounterId])).rows[0].count, 1);
     await advanceAction(director, record.pending_action_id);
-    if (mode === "spell") {
+    if (mode.startsWith("spell")) {
       await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /^Prepare .* result$/ }).click();
       const report = screen(director).getByRole("region", { name: "Spell result report", exact: true }); await report.waitFor();
       await report.getByText(/damage pending to Head/).first().waitFor(); await screenshot(director, "spell-result-report");
@@ -1005,12 +1015,12 @@ try {
       assert.equal(Number(await damage()), 0, "The report is reviewed before HP changes.");
       await report.getByRole("button", { name: "Approve & apply spell", exact: true }).click();
       await until(async () => (await declarations(fixture))[0].status === "resolved", "spell consequence");
-      assert.equal(Number(await damage()), 8, "The learned spell's four successes apply 2 damage each.");
+      assert.equal(Number(await damage()), mode === "spell-runtime" ? 4 : 8, "The learned spell's four successes apply 2 damage each.");
       assert.equal(await manaSpent(), committedMana); await participant.reload(); await screen(participant).getByText("Live", { exact: true }).waitFor();
-      assert.equal(await manaSpent(), committedMana); assert.equal(Number(await damage()), 8);
+      assert.equal(await manaSpent(), committedMana); assert.equal(Number(await damage()), mode === "spell-runtime" ? 4 : 8);
     }
     else { await screen(director).getByRole("region", { name: "Next combat input" }).getByRole("button", { name: /^Prepare Rowan's Screen Pistol.* result$/ }).click(); await until(async () => (await pool.query("select loaded_rounds from campaign_character_firearm_state where character_id=$1", [fixture.heroId])).rows[0].loaded_rounds === 2, "ammunition consumed once"); await director.reload(); await screen(director).getByText("Live", { exact: true }).waitFor(); assert.equal((await pool.query("select loaded_rounds from campaign_character_firearm_state where character_id=$1", [fixture.heroId])).rows[0].loaded_rounds, 2); assert.equal((await pool.query("select count(*)::int n from campaign_session_roll where encounter_id=$1", [fixture.encounterId])).rows[0].n, 1); }
-    results.push(`${mode === "spell" ? "Learned spell Skill Roll, automatic hit location and one result approval" : "Exact firearm"} commits and completes through the screen/server flow.`);
+    results.push(`${mode.startsWith("spell") ? "Learned spell Skill Roll, automatic hit location and one result approval" : "Exact firearm"} commits and completes through the screen/server flow.`);
     await director.context().close(); await participant.context().close();
   }
   if (include("firearm-setup")) {
@@ -1565,6 +1575,7 @@ try {
       if (area) {
         await tx.update(item).set({ isMagical: true }).where(eq(item.id, f.weaponId));
         const learned = await addScreenSpell(tx, f, true);
+        if (kind === "automatic-area") learned.spell.modifiers = [createModifierSelection("static-assignment")];
         await tx.insert(itemPowerConstruction).values({ itemPowerId: power.id, schemaVersion: 1, documentJson: JSON.stringify(learned.spell) });
       } else await tx.insert(itemPowerEffect).values({ itemPowerId: power.id, sortOrder: 0, schemaVersion: 2, effectJson: healing ? { kind: "health.heal", amount: 1, scope: "full-body" }
         : kind === "damage-multiple" ? { kind: "health.damage", amount: 2, application: "localized" }
@@ -1613,7 +1624,7 @@ try {
       const report = screen(director).getByRole("region", { name: "Attack result report" });
       await report.getByRole("button", { name: "Approve & apply attack", exact: true }).waitFor();
       assert.equal(await report.getByText("Damage to apply", { exact: true }).count(), 1, "A skipped Power cost is not displayed as another attack.");
-      await report.getByText("Weapon powers and costs", { exact: true }).click();
+      await report.getByText("On-hit effects and costs", { exact: true }).click();
       await report.getByText(/Optional Weapon-Hit Power skipped/).waitFor();
       await report.getByRole("button", { name: "Approve & apply attack", exact: true }).click();
     }
@@ -1645,7 +1656,7 @@ try {
     if (healing) assert.equal(after.heroDamage, kind === "heal-self" ? 1 : 2);
     for (const target of after.targets) {
       if (area || kind === "damage-multiple") {
-        assert.equal(target.local_state_json.health.totalDamage, 2);
+        assert.equal(target.local_state_json.health.totalDamage, kind === "magic-area" ? 6 : 2, "Construction Per Success uses the Item's one governing Roll; automatic fixed effects retain authored quantity.");
         if (kind === "damage-multiple") assert.equal(target.local_state_json.health.poolDamage[target.character_id === f.occurrences[0] ? "fixture-head" : "fixture-foreleg"], 2, "Each recipient keeps its own location choice.");
       }
       else if (healing) assert.equal(target.local_state_json.health.totalDamage, kind === "heal-self" ? 2 : 1);
