@@ -157,5 +157,7 @@ export async function handleInventoryInTransaction(tx: Tx, userId: string, comma
   await changed(tx, command.characterId);
   const [event] = await tx.insert(inventoryCustodyEvent).values({ characterId: command.characterId, itemId: command.itemId, instanceId: command.instanceId, quantity: command.quantity,
     operation: command.operation, previousStatus, newStatus, requestKey: command.requestKey, evidence, ...location }).returning({ id: inventoryCustodyEvent.id });
+  const {reconcileFormLifecycleInTransaction}=await import('@/features/forms/form-runtime-service');
+  await reconcileFormLifecycleInTransaction(tx,{characterIds:[command.characterId],cause:'Inventory custody adjustment'});
   return { eventId: event.id };
 }

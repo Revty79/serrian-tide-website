@@ -1363,6 +1363,8 @@ async function applyActionEffectPlanInternal(
       await resolveActionDeclarationInTransaction(tx, context, actor, plan.declarationId, "Approved consequences were applied or explicitly resolved.");
     }
   }
+  const {reconcileFormTransitionsInTransaction}=await import('@/features/forms/form-runtime-service');
+  await reconcileFormTransitionsInTransaction(tx,context.encounterId);
   return nextStatus;
 }
 

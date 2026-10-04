@@ -1,5 +1,6 @@
 import { readEffectiveFormInTransaction, readActiveFormDefinitionInTransaction } from '@/features/forms/effective-form-service';
 import { assertFormEquipmentUseInTransaction, readFormEquipmentApprovalInTransaction } from '@/features/forms/form-capability-service';
+import { assertFormOrdinaryActionAllowedInTransaction } from '@/features/forms/form-lifecycle-service';
 import { assertCombatWritableInTransaction, readCombatPauseStateInTransaction, type CombatPauseState } from "./combat-freeze-service";
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
@@ -648,6 +649,7 @@ export async function assertInstantPreparationOpportunity(
   tx: ActionDeclarationTransaction, context: OwnedEncounterRuntimeContext, characterId: number,
 ): Promise<void> {
   assertContextLive(context);
+  await assertFormOrdinaryActionAllowedInTransaction(tx,characterId);
   await assertParticipants(tx, context, [characterId]);
   const engine = await loadInitiativeEngineInTransaction(tx, context.encounterId);
   const { getNextInitiativeTimelineEvent, hasUnfinishedInitiativeAction } = await import("./initiative-runtime");
@@ -669,6 +671,7 @@ export async function createActionDeclarationDraftInTransaction(
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertContextLive(context);
   const draft = normalizeActionDeclarationDraft(input);
+  await assertFormOrdinaryActionAllowedInTransaction(tx,draft.actorCharacterId);
   await assertActionChoiceAuthority(tx, context, actor, draft.actorCharacterId);
   await assertParticipants(tx, context, [draft.actorCharacterId, ...draft.targetCharacterIds]);
   let versionNumber = 1;
@@ -841,6 +844,7 @@ async function commitActionDeclarationInternal(
   const row = await lockDeclaration(tx, context, declarationId);
   await assertActionChoiceAuthority(tx, context, actor, row.actorCharacterId);
   if (row.pendingActionId !== null) return row.pendingActionId;
+  await assertFormOrdinaryActionAllowedInTransaction(tx,row.actorCharacterId);
   if (row.status !== "locked") throw new Error("Initiative commitment requires a locked declaration.");
   assertContextLive(context);
   assertActionDeclarationTransition("locked", "committed");
@@ -1475,6 +1479,10 @@ async function transitionCommittedDeclaration(
     }
   }
   await recordEvent(tx, context, row.id, row.status, nextStatus, `declaration-${nextStatus}`, actor.userId, reason, notes ? { notes } : {});
+  if(['resolved','cancelled','abandoned'].includes(nextStatus)) {
+    const {reconcileFormTransitionsInTransaction}=await import('@/features/forms/form-runtime-service');
+    await reconcileFormTransitionsInTransaction(tx,context.encounterId);
+  }
 }
 
 export async function markActionDeclarationAwaitingRulingInTransaction(
@@ -1546,6 +1554,8 @@ export async function cancelActionDeclarationInTransaction(
     updatedAt: now,
   }).where(eq(campaignSessionEncounterActionDeclaration.id, row.id));
   await recordEvent(tx, context, row.id, row.status, "cancelled", "declaration-cancelled", actor.userId, reason);
+  const {reconcileFormTransitionsInTransaction}=await import('@/features/forms/form-runtime-service');
+  await reconcileFormTransitionsInTransaction(tx,context.encounterId);
 }
 
 export async function abandonActionDeclarationInTransaction(

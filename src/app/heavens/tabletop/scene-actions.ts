@@ -491,6 +491,8 @@ async function applySceneLifecycleTransition(
     if (!row) throw new Error("The Scene changed before this action completed. Refresh and try again.");
     if (next.status === "completed") {
       await expireSceneDurationsInTransaction(tx, sceneId, locked.sequenceNumber);
+      const {reconcileFormLifecycleInTransaction}=await import('@/features/forms/form-runtime-service');
+      await reconcileFormLifecycleInTransaction(tx,{sceneId,cause:'Scene closeout'});
     }
     await publishTabletopInvalidationInTransaction(tx, {
       campaignId: locked.campaignId,

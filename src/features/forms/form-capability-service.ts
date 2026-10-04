@@ -11,7 +11,8 @@ import { readActiveFormDefinitionInTransaction } from './effective-form-service'
 export type FormEquipmentApproval = { userId: string; reason: string } | null;
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-export const FORM_EQUIPMENT_NOTICE = 'Active equipment use follows the Current Form. Recorded passive Worn Armor still applies. Physical dropping, merging and equipment changes await Forms Pass 3.';
+import { FORM_EQUIPMENT_NOTICE } from './form-equipment-notice';
+export { FORM_EQUIPMENT_NOTICE } from './form-equipment-notice';
 
 export async function readFormCapabilitiesInTransaction(tx: Tx, characterId: number) {
   const active = await readActiveFormDefinitionInTransaction(tx, characterId);

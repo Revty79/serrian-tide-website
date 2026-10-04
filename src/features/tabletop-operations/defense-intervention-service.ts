@@ -1425,6 +1425,8 @@ export async function resolveDeclaredDefensesInTransaction(
     updatedAt: now,
   }).where(eq(campaignSessionEncounterActionDeclaration.id, declaration.id));
   await recordActionDeclarationAuditEventInTransaction(tx, context, declaration.id, awaitsGod ? "awaiting-god-ruling" : declaration.status, "defense-resolution-recorded", actor.userId, "", aggregate);
+  const {reconcileFormTransitionsInTransaction}=await import('@/features/forms/form-runtime-service');
+  await reconcileFormTransitionsInTransaction(tx,context.encounterId);
   return { ...result, status: awaitsGod ? "awaiting-god-ruling" : result.status };
 }
 
@@ -1701,6 +1703,8 @@ export async function cancelDeclaredResponseInTransaction(
     updatedAt: now,
   }).where(eq(campaignSessionEncounterReaction.id, reaction.id));
   await insertReactionEvent(tx, context, reaction.id, "declared", "cancelled", "response-cancelled", actor.userId, reason, { refundByExplicitRuling });
+  const {reconcileFormTransitionsInTransaction}=await import('@/features/forms/form-runtime-service');
+  await reconcileFormTransitionsInTransaction(tx,context.encounterId);
 }
 
 export async function readDefenseInterventionWorkspaceInTransaction(

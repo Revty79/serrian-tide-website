@@ -40,7 +40,7 @@ async function creatureSetup(mechanics = emptyCreatureFormMechanics()) {
 }
 async function change(f, operation = 'enter') {
   const review = await forms.previewFormTransition({ characterId: f.heroId, operation, ...(operation === 'enter' ? { formId: f.form.id, formKey: f.form.key, sourceId: f.form.raceId ?? f.form.creatureId } : {}) }, f.actor);
-  return forms.executeFormTransition({ characterId: f.heroId, operation, formId: review.definition.formId, formKey: review.definition.key, sourceId: review.definition.sourceId, reviewToken: review.reviewToken, idempotencyKey: randomUUID(), rulings: {}, confirmTime: false }, f.actor);
+  return forms.executeFormTransition({ characterId: f.heroId, operation, formId: review.definition.formId, formKey: review.definition.key, sourceId: review.definition.sourceId, reviewToken: review.reviewToken, idempotencyKey: randomUUID(), rulings: review.manualSteps.some(s=>s.key==='equipment')?{equipment:'G.O.D. fixture resolves the custom policy with no physical change.'}:{}, confirmTime: false }, f.actor);
 }
 const current = f => db.transaction(tx => effective.readEffectiveFormInTransaction(tx, f.heroId));
 const lineage = f => db.transaction(tx => loadCharacterSkillLineageInputInTransaction(tx, f.heroId));
@@ -165,12 +165,16 @@ for (const state of ['full', 'none', 'limited']) test(`Form manipulation ${state
   if (state === 'limited') { const approved = await db.transaction(tx => capabilities.assertFormEquipmentUseInTransaction(tx, f.heroId, { userId: f.godId, reason: 'This grip can hold the exact tool.' })); assert.equal(approved.ruling.authorizedByUserId, f.godId); }
   assert.equal((await attacks(f)).length, 1);
 });
-for (const state of ['retained', 'unusable', 'merged', 'dropped', 'custom']) test(`Form equipment ${state} gates active use without mutating recorded gear`, async () => {
+for (const state of ['retained', 'unusable', 'merged', 'dropped', 'custom']) test(`Form equipment ${state} gates active use with its authored physical policy`, async () => {
   const m = emptyRaceFormMechanics(); m.equipment = { state, notes: '' }; const f = await raceSetup(m); const before = await allRows(); await change(f);
   const attempt = () => db.transaction(tx => capabilities.assertFormEquipmentUseInTransaction(tx, f.heroId));
   if (state === 'retained') await attempt(); else await assert.rejects(attempt(), state === 'custom' ? /G.O.D./ : /unavailable/);
-  const after = await allRows(); for (const name of Object.keys(before).filter(name => /item|magazine|inventory/.test(name))) assert.deepEqual(after[name], before[name], name);
-  assert.match((await db.transaction(tx => capabilities.readFormCapabilitiesInTransaction(tx, f.heroId))).notice, /passive Worn Armor still applies/);
+  const after = await allRows(); for (const name of Object.keys(before).filter(name => /item|magazine|inventory/.test(name))) {
+    if(state==='dropped'&&['campaign_character_item_equipment_state','campaign_character_item_instance','inventory_stack_custody','inventory_instance_custody','inventory_custody_event'].includes(name))continue;
+    assert.deepEqual(after[name], before[name], name);
+  }
+  if(state==='dropped')assert.ok(after.inventory_custody_event.length>before.inventory_custody_event.length);
+  assert.match((await db.transaction(tx => capabilities.readFormCapabilitiesInTransaction(tx, f.heroId))).notice, /including passive Worn Armor/);
 });
 for (const state of ['normal', 'limited', 'none']) test(`Speech ${state} is a typed fact without invented spell requirements`, async () => {
   const m = emptyRaceFormMechanics(); m.speech = { state, notes: 'Not a structured spell requirement' }; const f = await raceSetup(m); await change(f);
@@ -256,9 +260,10 @@ for (const state of ['retained', 'unusable', 'merged', 'dropped']) test(`incomin
   const f = await raceSetup(m); await db.transaction(tx => protectionPipelineFixture(tx, f.godId, f.heroId));
   await pool.query('update campaign_character_profile set race_id=$2 where character_id=$1', [f.heroId, f.source.ancestry.id]);
   const normalPlan = incoming(await target(f)), original = structuredClone(normalPlan); const entry = await change(f);
-  const formPlan = incoming(await target(f)); assert.equal(formPlan.status, 'resolved'); assert.equal(formPlan.finalEffect.damage, 5); // (20 - (4 + 2)) * .5 - 2
+  const formPlan = incoming(await target(f)); assert.equal(formPlan.status, 'resolved'); assert.equal(formPlan.finalEffect.damage, state==='dropped'?8:5); // Drop removes Armor; retained gear: (20 - (4 + 2)) * .5 - 2.
   assert.equal(formPlan.input.target.currentForm.entryEventId, entry.event.id); const frozen = structuredClone(formPlan);
-  await change(f, 'return'); assert.deepEqual(formPlan, frozen); assert.deepEqual(normalPlan, original); assert.deepEqual(incoming(await target(f)), normalPlan);
+  await change(f, 'return'); assert.deepEqual(formPlan, frozen); assert.deepEqual(normalPlan, original);
+  if(state==='dropped')assert.ok(incoming(await target(f)).finalEffect.damage>normalPlan.finalEffect.damage,'Return never restores dropped Armor');else assert.deepEqual(incoming(await target(f)), normalPlan);
 });
 
 for (const state of ['full', 'none', 'limited']) test(`actual equipment mutation owner enforces ${state} manipulation and freezes GOD approval on new actions`, async () => {

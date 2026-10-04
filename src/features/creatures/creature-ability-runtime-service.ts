@@ -370,10 +370,12 @@ export async function executeCreatureAbilityUse(
 ): Promise<CreatureAbilityUseResult> {
   const request = validateRequest(input);
   const session = await requireSession();
-  return db.transaction((tx) => executeCreatureAbilityUseInCallerTransaction(
-    tx,
-    request,
-    session.user.id,
-    confirmed,
-  ));
+  return db.transaction(async tx=>{
+    const {assertFormOrdinaryActionAllowedInTransaction}=await import('@/features/forms/form-lifecycle-service');
+    await assertFormOrdinaryActionAllowedInTransaction(tx,request.sourceCharacterId);
+    const result=await executeCreatureAbilityUseInCallerTransaction(tx,request,session.user.id,confirmed);
+    const {reconcileFormLifecycleInTransaction}=await import('@/features/forms/form-runtime-service');
+    await reconcileFormLifecycleInTransaction(tx,{characterIds:[result.sourceCreature.characterId,...result.automaticEffects.map(t=>t.targetCharacterId)],cause:'Completed sheet Creature Ability effects'});
+    return result;
+  });
 }

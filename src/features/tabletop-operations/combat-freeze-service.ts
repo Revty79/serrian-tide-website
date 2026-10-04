@@ -81,6 +81,10 @@ export async function setCombatFrozenInTransaction(
     if (row.revision !== input.expectedRevision) throw new Error("Combat pause state changed. Refresh before freezing or resuming.");
     await tx.update(campaignSessionEncounter).set({ frozenAt: input.frozen ? new Date() : null,
       freezeRevision: row.revision + 1, updatedAt: new Date() }).where(eq(campaignSessionEncounter.id, encounterId));
+    if(!input.frozen) {
+      const {reconcileFormTransitionsInTransaction}=await import('@/features/forms/form-runtime-service');
+      await reconcileFormTransitionsInTransaction(tx,encounterId);
+    }
     await publishTabletopInvalidationInTransaction(tx, { campaignId: row.campaignId, sessionId: row.sessionId,
       sceneId: row.sceneId, encounterId, characterIds: [], category: "initiative" });
   }

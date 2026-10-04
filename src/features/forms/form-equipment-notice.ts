@@ -1,0 +1,1 @@
+export const FORM_EQUIPMENT_NOTICE = 'Active equipment use follows the Current Form. Unusable or merged equipment stays recorded, including passive Worn Armor. Dropped equipment leaves active use at entry and is not retrieved on Return.';

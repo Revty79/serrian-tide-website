@@ -1,6 +1,7 @@
 "use server";
 import { effectiveCreatureSnapshotInTransaction } from '@/features/forms/effective-form-service';
 import { readFormCapabilitiesInTransaction } from '@/features/forms/form-capability-service';
+import { readFormReturnDue } from '@/features/forms/form-lifecycle-service';
 import { authoritativeCreatureSnapshot, creatureAttackRuntime } from "@/features/tabletop-operations/creature-attack-runtime";
 import { isDeepStrictEqual } from "node:util";
 import { readAbilityResponseChoicesInTransaction } from "@/features/tabletop-operations/ability-response-service";
@@ -111,7 +112,8 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
     const { readRaceAttackSourcesInTransaction } = await import("@/features/tabletop-operations/race-natural-attack-service");
     const naturalAttacks = await readRaceAttackSourcesInTransaction(tx, context, participantId);
     const formCapabilities = await readFormCapabilitiesInTransaction(tx, participantId);
-    return { formCapabilities, equipment, meleeDraws, firearms, magazines, requests, defense: defenses?.participants.find((entry) => entry.characterId === participantId) ?? null,
+    const formReturnDue=participantId>0?await readFormReturnDue(tx,participantId):null;
+    return { formReturnDue, formCapabilities, equipment, meleeDraws, firearms, magazines, requests, defense: defenses?.participants.find((entry) => entry.characterId === participantId) ?? null,
       movement: movement?.movementModes ?? [], creatureDefenses: records(object(snapshot).currentForm ? object(snapshot).defenses : []).map((row, index) => ({ ref: String(row.seedIdentity ?? `defense:${index}`), name: `${row.defenseType}: ${row.against || "Natural defense"}`, kind: String(row.defenseType).toLowerCase(), value: row.value })), snapshot, isNpc: row.isNpc, abilityStacks, abilityInstances, naturalAttacks, rulings: records(object(row.local).combatSourceResolutionHistory) };
   });
   const sources: CombatSourceChoice[] = [];
@@ -184,6 +186,7 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
     if (loaded.formCapabilities.blockers.length) source.unavailable = loaded.formCapabilities.blockers.join(' ');
     else if (loaded.formCapabilities.needsRuling) source.description += ' Current Form equipment use requires a G.O.D. ruling.';
   }
+  if(loaded.formReturnDue)for(const source of sources)source.unavailable=`${loaded.formReturnDue.reason} Review Return on the existing Character/NPC sheet.`;
   return { ...loaded, sources, aggregateIssue };
 }
 

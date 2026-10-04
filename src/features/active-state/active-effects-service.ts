@@ -301,8 +301,13 @@ function withEffectsReadAccess<T>(characterId: number, operation: (access: Acces
   return withAccess(characterId, "read", operation);
 }
 
-function withManualEffectsMutationAccess<T>(characterId: number, operation: (access: Access) => Promise<T>): Promise<T> {
-  return withAccess(characterId, "god-mutate", operation);
+function withManualEffectsMutationAccess(characterId: number, operation: (access: Access) => Promise<ActiveEffectsView>): Promise<ActiveEffectsView> {
+  return withAccess(characterId, "god-mutate", async access=>{
+    await operation(access);
+    const {reconcileFormLifecycleInTransaction}=await import('@/features/forms/form-runtime-service');
+    await reconcileFormLifecycleInTransaction(access.tx,{characterIds:[characterId],cause:'Active Condition or Modifier adjustment'});
+    return readActiveEffectsInTransaction(access.tx,characterId,true);
+  });
 }
 
 export function getActiveEffects(characterId: number, includeHistory = false): Promise<ActiveEffectsView> {

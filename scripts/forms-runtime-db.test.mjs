@@ -122,10 +122,15 @@ for(const type of ['health','ammunition','resource','custom','mana','unspecified
  const before=await allRows();await forms.executeFormTransition({...input(p),rulings:Object.fromEntries(p.manualSteps.map(s=>[s.key,'GOD exact manual cost resolution']))},f.actor);
  const after=await allRows();for(const t of Object.keys(before))if(!['campaign_character_active_form','form_transition_request','form_transition_event'].includes(t))assert.deepEqual(after[t],before[t],t);
 });
-for(const limit of ['limited','custom','unspecified','cooldown']) test(`${limit} requires recorded review without hidden counters`,async()=>{
+for(const limit of ['custom','unspecified','cooldown']) test(`${limit} requires recorded review without inferred rules`,async()=>{
  const t=transformation(); if(limit==='cooldown')t.cooldown='Rest one hour';else {t.limitMode=limit;if(limit==='limited')t.useLimits=[{maximumUses:1,refreshScope:'scene',refreshKey:null,notes:'',sortOrder:0}];}
  const f=await setup('',{transformation:t}),p=await preview(f);assert.ok(p.manualSteps.length);assert.ok((await preview(f,f.heroId,'enter',f.playerActor)).blockers.length);
  await forms.executeFormTransition({...input(p),rulings:Object.fromEntries(p.manualSteps.map(s=>[s.key,'Reviewed prior uses and recovery']))},f.actor);
+});
+test('structured Scene use limit counts completed entries without a manual override',async()=>{
+ const f=await setup('',{transformation:{...transformation(),limitMode:'limited',useLimits:[{maximumUses:1,refreshScope:'scene',refreshKey:null,notes:'',sortOrder:0}]}});
+ const p=await preview(f);assert.deepEqual(p.manualSteps,[]);assert.equal(p.limits[0].remaining,1);
+ await enter(f);await leave(f);assert.ok((await preview(f)).blockers.some(b=>b.includes('exhausted')));
 });
 for(const mode of ['known true','known false','unknown']) test(`transformation condition ${mode}`,async()=>{
  const condition={conditionType:'state',conditionKey:mode==='unknown'?'state.moonlight':'state.hp-percent',operator:'gte',numericValue:mode==='known false'?101:0,textValue:null,notes:'',sortOrder:0};

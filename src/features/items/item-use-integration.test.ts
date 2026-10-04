@@ -23,7 +23,7 @@ const characterSheet = readFileSync("src/app/characters/character-sheet.tsx", "u
 const creatureWorkspace = readFileSync("src/app/heavens/npcs/[npcId]/creature-npc-workspace.tsx", "utf8");
 
 test("Item Use supports both its route-owned transaction and a reusable caller-owned transaction", () => {
-  assert.match(actions, /db\.transaction\(\(tx\) => executeCharacterItemUseInCallerTransaction/);
+  assert.match(actions, /db\.transaction\(async tx=>\{[\s\S]*executeCharacterItemUseInCallerTransaction\(tx,request,session\.user\.id\)/);
   assert.match(actions, /executeItemUseInTransaction\(async \(execute\) => execute/);
   assert.match(actions, /loadUse\(tx, request, actingUserId, true\)/);
   assert.match(actions, /loadDefinition\(tx,/);

@@ -27,6 +27,9 @@ function costs(value: FormCosts) {
   if (value.mode !== "costs") return value.mode === "none" ? "No resource cost" : "Unspecified";
   return value.costs.map(cost => `${cost.amount} ${cost.costType === "health" ? "HP" : formLabel(cost.costType)}${cost.resourceKey ? ` (${cost.resourceKey})` : ""}${cost.notes ? ` — ${cost.notes}` : ""}`).join("; ");
 }
+export function FormExitSummary({value}:{value:FormTransformation}) {
+  return <p>Return timing: {timing(value.exitTiming)}. Return costs: {costs(value.exitCosts)}.</p>;
+}
 function conditions(value: DerivedAbilityUseConditionDefinition[]) {
   return value.length ? <ul>{value.map((condition, index) => <li key={index}>{[
     formLabel(condition.conditionType),

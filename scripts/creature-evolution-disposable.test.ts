@@ -10,6 +10,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import { creatureDraftFixture, creatureFormFixture } from "./creature-form-fixture";
 import { verifyReturnHistoryUpgrade } from "./evolution-return-upgrade";
+import { verifyFormsLifecycleUpgrade } from "./forms-lifecycle-upgrade";
 
 async function main() {
   const parent = path.resolve(tmpdir()), root = path.resolve(await mkdtemp(path.join(parent,"serrian-evolution-")));
@@ -28,8 +29,9 @@ async function main() {
     // Explicit test transactions own lock scheduling in this disposable cluster.
     execFileSync(exe("pg_ctl"),["-D",data,"-l",path.join(root,"postgres.log"),"-o",`-p ${port} -h 127.0.0.1 -c autovacuum=off`,"-w","start"],{stdio:"ignore",windowsHide:true}); started=true;
     pool = new pg.Pool({connectionString:url("postgres")});
-    for (const name of ["serrian_creature_evolution_dev","serrian_evolution_fresh_dev","serrian_evolution_return_upgrade_dev","serrian_creature_ownership_dev","serrian_creature_authoring_dev","serrian_race_authoring_dev"]) await pool.query(`create database ${name}`);
+    for (const name of ["serrian_creature_evolution_dev","serrian_evolution_fresh_dev","serrian_evolution_return_upgrade_dev","serrian_forms_upgrade_dev","serrian_creature_ownership_dev","serrian_creature_authoring_dev","serrian_race_authoring_dev"]) await pool.query(`create database ${name}`);
     await verifyReturnHistoryUpgrade(url("serrian_evolution_return_upgrade_dev"), root);
+    await verifyFormsLifecycleUpgrade(url('serrian_forms_upgrade_dev'),root);
     await pool.end(); pool = new pg.Pool({connectionString:url("serrian_evolution_fresh_dev")});
     const journal = JSON.parse(await readFile("drizzle/meta/_journal.json","utf8"));
     await migrate(drizzle(pool),{migrationsFolder:"drizzle"});
@@ -102,6 +104,7 @@ async function main() {
     run("scripts/evolution-runtime-return-db.test.mjs");
     run("scripts/forms-runtime-db.test.mjs");
     run("scripts/forms-effective-runtime-db.test.mjs");
+    run("scripts/forms-lifecycle-runtime-db.test.mjs");
     run("scripts/evolution-pass-four-db.test.mjs");
     run("scripts/evolution-pass-five-db.test.mjs");
     if (!process.argv.includes("--focused")) {

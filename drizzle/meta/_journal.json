@@ -666,6 +666,20 @@
       "when": 1791076587005,
       "tag": "0094_forms_effective_creature_defenses",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1791086638022,
+      "tag": "0095_forms_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1791089369508,
+      "tag": "0096_forms_lifecycle_history_guards",
+      "breakpoints": true
     }
   ]
 }

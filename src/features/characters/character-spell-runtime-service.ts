@@ -662,10 +662,12 @@ export async function executeCharacterSpellCast(
 ): Promise<SpellCastExecutionResult> {
   const request = validateRequest(input);
   const session = await requireSession();
-  return db.transaction((tx) => executeCharacterSpellCastInCallerTransaction(
-    tx,
-    request,
-    session.user.id,
-    confirmed,
-  ));
+  return db.transaction(async tx=>{
+    const {assertFormOrdinaryActionAllowedInTransaction}=await import('@/features/forms/form-lifecycle-service');
+    await assertFormOrdinaryActionAllowedInTransaction(tx,request.casterCharacterId);
+    const result=await executeCharacterSpellCastInCallerTransaction(tx,request,session.user.id,confirmed);
+    const {reconcileFormLifecycleInTransaction}=await import('@/features/forms/form-runtime-service');
+    await reconcileFormLifecycleInTransaction(tx,{characterIds:[request.casterCharacterId,...result.targetResults.map(t=>t.characterId)],cause:'Completed sheet Spell effects'});
+    return result;
+  });
 }

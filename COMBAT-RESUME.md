@@ -1,5 +1,17 @@
 # Combat resumption handoff
 
+## Forms Runtime Pass 3: lifecycle completion (3 October 2026)
+
+- Continued from accepted `f36c7b7b1110468df5c8b72a2f0d0208f6816fcc` under explicit Pass 3 authorization. This supersedes the wait-for-Pass-3 instructions below; it does not authorize another runtime phase.
+- One lifecycle reconciler uses the existing Enter/Return authority, frozen definitions, protected participant boundary and durable requests. Exact Encounter/Scene completion produces automatic Return when executable, otherwise explicit Return due while the body remains active. New ordinary actions cannot use an expired Form. Persistent/voluntary-end survives closeout.
+- Typed unique involuntary triggers, completed-entry use counts and exact G.O.D. manual/event refresh receipts are supported. Prose cooldown/duration/depletion, unsupported facts/resources and ambiguous Forms remain manual. No generic clock, prose parser or passive Creature Ability engine was added.
+- Structured dropped equipment now uses exact active copies/quantities and existing Scene custody atomically at entry, without extra Drop Initiative or retrieval on Return. Unusable/merged retains recorded gear and passive Armor. Health/effects/history, identity, ownership and current Initiative remain under their existing authorities.
+- Normal with no pending Form transition is the final requirement for Evolution, historical Return and Race reassignment. No remapping or silent free Return.
+- Migrations `0095`/`0096` add only retained Return-due evidence and immutable manual/event refresh receipts. The user confirmed separate DEV migration application during work; final read-only DEV verification found 97 migrations and matching guards/hashes. This agent applied no shared migration or Production write. Other environments still require rollout authorization.
+- [Authoring/schema audit](docs/architecture/forms-runtime-pass-3-audit.md); [17-part completion report and verification](docs/reports/forms-runtime-pass-3-2026-10-03.md). Brannan/Ember hands-on acceptance remains separate from automated checks.
+- Validation: 225 cases across the three Forms passes, 173 existing Evolution/authoring/ownership/lifecycle cases, 522 combat cases, 1,883 unit tests; desktop/390px browser lifecycle and live refresh; 97-migration fresh/populated rehearsals; typegen/typecheck/lint/Drizzle/whitespace passed.
+- Stop after the local pass. **Do not push or start Special Abilities, companion combat, automatic Creature passive Ability lifecycle, new Magic systems, Worlds or another phase automatically.**
+
 ## Forms Runtime Pass 2: effective body (3 October 2026)
 
 - Continued from `ee49594b2b7ef1090670baf1b7dbbc0a96a825ee` under explicit Pass 2 authorization. This supersedes Pass 1's Normal-only execution and wait-for-Pass-2 statements below.

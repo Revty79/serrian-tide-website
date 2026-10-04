@@ -23,6 +23,7 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "owned_creature_disposition", columnName: "updated_by_user_id", constraintName: "owned_creature_disposition_updated_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Companion travel management attribution" },
   { tableName: "companion_disposition_event", columnName: "actor_user_id", constraintName: "companion_disposition_event_actor_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Companion travel management history" },
   { tableName: "form_transition_request", columnName: "actor_user_id", constraintName: "form_transition_request_actor_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Form transformation history" },
+  { tableName: "form_use_reset_event", columnName: "actor_user_id", constraintName: "form_use_reset_event_actor_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Form use-refresh history" },
   { tableName: "race_evolution_events", columnName: "executed_by_user_id", constraintName: "race_evolution_events_executed_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Race Evolution execution history" },
   { tableName: "creature_evolution_events", columnName: "executed_by_user_id", constraintName: "creature_evolution_events_executed_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Creature Evolution execution history" },
   { tableName: "user_catalog_preferences", columnName: "user_id", constraintName: "user_catalog_preferences_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Personal catalog visibility preferences" },
@@ -120,4 +121,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 100;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 101;

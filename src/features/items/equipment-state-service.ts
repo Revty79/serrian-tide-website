@@ -750,8 +750,13 @@ function withEquipmentReadAccess<T>(characterId: number, operation: (access: Acc
   return withEquipmentAccess(characterId, "read", operation);
 }
 
-function withEquipmentMutationAccess<T>(characterId: number, operation: (access: Access) => Promise<T>): Promise<T> {
-  return withEquipmentAccess(characterId, "mutate", operation);
+function withEquipmentMutationAccess(characterId: number, operation: (access: Access) => Promise<EquipmentStateMutationResult>, includeHistory=false): Promise<EquipmentStateMutationResult> {
+  return withEquipmentAccess(characterId, "mutate", async access=>{
+    await operation(access);
+    const {reconcileFormLifecycleInTransaction}=await import('@/features/forms/form-runtime-service');
+    await reconcileFormLifecycleInTransaction(access.tx,{characterIds:[characterId],cause:'Equipment state adjustment'});
+    return {equipmentState:await readCharacterEquipmentStateInTransaction(access.tx,characterId),activeEffects:await readActiveEffectsInTransaction(access.tx,characterId,includeHistory)};
+  });
 }
 
 export function getCharacterEquipmentState(characterId: number): Promise<CharacterEquipmentStateView> {
@@ -857,7 +862,7 @@ export async function setStackEquipmentStateInTransaction(
 
 export async function setStackEquipmentState(command: SetStackEquipmentStateCommand): Promise<EquipmentStateMutationResult> {
   const session = await requireSession();
-  return withEquipmentMutationAccess(command.characterId, ({ tx }) => setStackEquipmentStateInTransaction(tx, command, command.formEquipmentReason ? { userId: session.user.id, reason: command.formEquipmentReason } : null));
+  return withEquipmentMutationAccess(command.characterId, ({ tx }) => setStackEquipmentStateInTransaction(tx, command, command.formEquipmentReason ? { userId: session.user.id, reason: command.formEquipmentReason } : null),command.includeEffectHistory);
 }
 
 /** The sheet's state selector composes the existing quantity operations atomically. */
@@ -899,7 +904,7 @@ export async function setStackEquipmentRole(command: {
       equipmentState: await readCharacterEquipmentStateInTransaction(tx, command.characterId),
       activeEffects: await readActiveEffectsInTransaction(tx, command.characterId, command.includeEffectHistory ?? false),
     };
-  });
+  },command.includeEffectHistory);
 }
 
 export async function setInstanceEquipmentStateInTransaction(
@@ -937,5 +942,5 @@ export async function setInstanceEquipmentStateInTransaction(
 
 export async function setInstanceEquipmentState(command: SetInstanceEquipmentStateCommand): Promise<EquipmentStateMutationResult> {
   const session = await requireSession();
-  return withEquipmentMutationAccess(command.characterId, ({ tx }) => setInstanceEquipmentStateInTransaction(tx, command, command.formEquipmentReason ? { userId: session.user.id, reason: command.formEquipmentReason } : null));
+  return withEquipmentMutationAccess(command.characterId, ({ tx }) => setInstanceEquipmentStateInTransaction(tx, command, command.formEquipmentReason ? { userId: session.user.id, reason: command.formEquipmentReason } : null),command.includeEffectHistory);
 }

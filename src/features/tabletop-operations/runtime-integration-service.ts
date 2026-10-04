@@ -31,6 +31,7 @@ import {
   applyLocalizedDamageInTransaction,
   healAreaInTransaction,
   healFullBodyInTransaction,
+  readActiveHealthInTransaction,
   resolveInjuryInTransaction,
   type AddInjuryCommand,
   type ActiveHealthTransaction,
@@ -327,8 +328,9 @@ export async function loadInitiativeEngineInTransaction(
   tx: RuntimeIntegrationTransaction,
   encounterId: number,
   allowClosed = false,
+  lock = true,
 ): Promise<InitiativeEngineState> {
-  const [runtime] = await tx.select({
+  const runtimeQuery = tx.select({
     encounterId: campaignSessionEncounterInitiative.encounterId,
     status: campaignSessionEncounterInitiative.status,
     roundNumber: campaignSessionEncounterInitiative.roundNumber,
@@ -338,10 +340,10 @@ export async function loadInitiativeEngineInTransaction(
     closedAt: campaignSessionEncounterInitiative.closedAt,
   }).from(campaignSessionEncounterInitiative)
     .where(eq(campaignSessionEncounterInitiative.encounterId, encounterId))
-    .limit(1)
-    .for("update");
+    .limit(1);
+  const [runtime]=await (lock?runtimeQuery.for('update'):runtimeQuery);
   if (!runtime || !allowClosed && runtime.status !== "active") throw new Error("This Encounter has no active Initiative runtime.");
-  const participants = await tx.select({
+  const participantsQuery = tx.select({
       encounterId: campaignSessionEncounterInitiativeParticipant.encounterId,
       characterId: campaignSessionEncounterInitiativeParticipant.characterId,
       normalTotalInitiative: campaignSessionEncounterInitiativeParticipant.normalTotalInitiative,
@@ -352,9 +354,9 @@ export async function loadInitiativeEngineInTransaction(
       movementMode: campaignSessionEncounterInitiativeParticipant.movementMode,
     }).from(campaignSessionEncounterInitiativeParticipant)
       .where(eq(campaignSessionEncounterInitiativeParticipant.encounterId, encounterId))
-      .orderBy(asc(campaignSessionEncounterInitiativeParticipant.characterId))
-      .for("update");
-  const pendingActions = await tx.select({
+      .orderBy(asc(campaignSessionEncounterInitiativeParticipant.characterId));
+  const participants=await (lock?participantsQuery.for('update'):participantsQuery);
+  const actionsQuery = tx.select({
       id: campaignSessionEncounterPendingAction.id,
       encounterId: campaignSessionEncounterPendingAction.encounterId,
       actorCharacterId: campaignSessionEncounterPendingAction.actorCharacterId,
@@ -373,8 +375,8 @@ export async function loadInitiativeEngineInTransaction(
       completedRound: campaignSessionEncounterPendingAction.completedRound,
     }).from(campaignSessionEncounterPendingAction)
       .where(eq(campaignSessionEncounterPendingAction.encounterId, encounterId))
-      .orderBy(asc(campaignSessionEncounterPendingAction.id))
-      .for("update");
+      .orderBy(asc(campaignSessionEncounterPendingAction.id));
+  const pendingActions=await (lock?actionsQuery.for('update'):actionsQuery);
   return { runtime, participants, pendingActions };
 }
 
@@ -551,12 +553,12 @@ async function persistInitiativeEngineInternal(
     if (draw) await completeMeleeDraw(tx, draw.id, context.ownerUserId);
   }
   await applyInitiativeDurationTransitionInTransaction(tx, context, before.runtime, after.runtime, durationPassage);
-  const { reconcileFormTransitionsInTransaction } = await import("@/features/forms/form-runtime-service");
-  await reconcileFormTransitionsInTransaction(tx, context.encounterId);
   if (before.runtime.stepNumber !== after.runtime.stepNumber || before.runtime.roundNumber !== after.runtime.roundNumber || before.runtime.status !== after.runtime.status) {
     const { reconcileCombatRecoveryInTransaction } = await import("./combat-spell-recovery-service");
     await reconcileCombatRecoveryInTransaction(tx, context);
   }
+  const { reconcileFormTransitionsInTransaction } = await import("@/features/forms/form-runtime-service");
+  await reconcileFormTransitionsInTransaction(tx, context.encounterId);
 }
 
 export async function holdParticipantInitiativeInTransaction(
@@ -1201,6 +1203,7 @@ export async function resolveAuthoredActionInTransaction(
   }
 
   await markBindingFinished(tx, binding, "resolved", summary);
+  await reconcileFormFacts(tx,context);
   return {
     bindingId: binding.id,
     sourceCharacterId: binding.sourceCharacterId,
@@ -1354,6 +1357,7 @@ export async function resolveEncounterReactionInTransaction(
     resolvedAt: new Date(),
     updatedAt: new Date(),
   }).where(eq(campaignSessionEncounterReaction.id, reaction.id));
+  await reconcileFormFacts(tx,context);
   return result;
 }
 
@@ -1397,6 +1401,17 @@ export async function enrollSpawnedCreatureInInitiativeInTransaction(
   await persistInitiativeEngineInTransaction(tx, context, engine, changed);
 }
 
+async function reconcileFormFacts(tx:RuntimeIntegrationTransaction,context:OwnedEncounterRuntimeContext) {
+  const {reconcileFormLifecycleInTransaction}=await import('@/features/forms/form-runtime-service');
+  await reconcileFormLifecycleInTransaction(tx,{encounterId:context.encounterId,cause:'Tabletop Health, effects or equipment adjustment'});
+}
+
+export async function setEncounterEquipmentStateInTransaction(...args:Parameters<typeof setEncounterEquipmentStateInternal>) {
+  const result=await setEncounterEquipmentStateInternal(...args);
+  await reconcileFormFacts(args[0],args[1]);
+  return result;
+}
+
 export async function applyEncounterDamageInTransaction(
   tx: RuntimeIntegrationTransaction,
   context: OwnedEncounterRuntimeContext,
@@ -1412,7 +1427,7 @@ export async function applyEncounterDamageInTransaction(
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   const target = await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
-  return applyLocalizedDamageInTransaction(tx, {
+  await applyLocalizedDamageInTransaction(tx, {
     characterId: target.characterId,
     amount: input.amount,
     hitLocationNumber: input.hitLocationNumber,
@@ -1420,6 +1435,8 @@ export async function applyEncounterDamageInTransaction(
     injuryName: input.injuryName,
     injuryNotes: input.injuryNotes,
   }, target.npcKind);
+  await reconcileFormFacts(tx,context);
+  return (await readActiveHealthInTransaction(tx,target.characterId,target.npcKind)).view;
 }
 
 export async function healEncounterParticipantInTransaction(
@@ -1430,9 +1447,11 @@ export async function healEncounterParticipantInTransaction(
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   const target = await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
-  return input.scope === "whole-body"
+  await (input.scope === "whole-body"
     ? healFullBodyInTransaction(tx, target.characterId, target.npcKind, input.amount)
-    : healAreaInTransaction(tx, target.characterId, target.npcKind, cleanText(input.poolKey ?? "", "HP Pool"), input.amount);
+    : healAreaInTransaction(tx, target.characterId, target.npcKind, cleanText(input.poolKey ?? "", "HP Pool"), input.amount));
+  await reconcileFormFacts(tx,context);
+  return (await readActiveHealthInTransaction(tx,target.characterId,target.npcKind)).view;
 }
 
 export async function addEncounterInjuryInTransaction(
@@ -1443,7 +1462,9 @@ export async function addEncounterInjuryInTransaction(
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   const target = await requireEncounterParticipant(tx, context, input.targetCharacterId, true);
-  return addInjuryInTransaction(tx, { ...input, characterId: target.characterId }, target.npcKind);
+  await addInjuryInTransaction(tx, { ...input, characterId: target.characterId }, target.npcKind);
+  await reconcileFormFacts(tx,context);
+  return (await readActiveHealthInTransaction(tx,target.characterId,target.npcKind)).view;
 }
 
 export async function resolveEncounterInjuryInTransaction(
@@ -1455,7 +1476,9 @@ export async function resolveEncounterInjuryInTransaction(
   if (context.encounterId != null) await assertCombatWritableInTransaction(tx, context.encounterId);
   assertLiveEncounter(context);
   const target = await requireEncounterParticipant(tx, context, targetCharacterId, true);
-  return resolveInjuryInTransaction(tx, target.characterId, target.npcKind, injuryId);
+  await resolveInjuryInTransaction(tx, target.characterId, target.npcKind, injuryId);
+  await reconcileFormFacts(tx,context);
+  return (await readActiveHealthInTransaction(tx,target.characterId,target.npcKind)).view;
 }
 
 export async function mutateEncounterManaInTransaction(
@@ -1474,6 +1497,7 @@ export async function mutateEncounterManaInTransaction(
     if (input.operation === "spend") await spendActiveManaInTransaction(tx, command);
     else await restoreActiveManaInTransaction(tx, command);
   }
+  await reconcileFormFacts(tx,context);
   return readActiveManaInTransaction(tx, input.targetCharacterId);
 }
 
@@ -1497,6 +1521,7 @@ export async function addEncounterConditionInTransaction(
     characterId: created.characterId,
     duration: created.duration,
   });
+  await reconcileFormFacts(tx,context);
   return readActiveEffectsInTransaction(tx, input.targetCharacterId, false);
 }
 
@@ -1517,6 +1542,7 @@ export async function resolveEncounterConditionInTransaction(
     characterId: targetCharacterId,
     reason: note.trim() || "Condition resolved manually in Tabletop Operations.",
   });
+  await reconcileFormFacts(tx,context);
   return readActiveEffectsInTransaction(tx, targetCharacterId, false);
 }
 
@@ -1540,6 +1566,7 @@ export async function addEncounterModifierInTransaction(
     characterId: created.characterId,
     duration: created.duration,
   });
+  await reconcileFormFacts(tx,context);
   return readActiveEffectsInTransaction(tx, input.targetCharacterId, false);
 }
 
@@ -1560,10 +1587,11 @@ export async function endEncounterModifierInTransaction(
     characterId: targetCharacterId,
     reason: note.trim() || "Modifier ended manually in Tabletop Operations.",
   });
+  await reconcileFormFacts(tx,context);
   return readActiveEffectsInTransaction(tx, targetCharacterId, false);
 }
 
-export async function setEncounterEquipmentStateInTransaction(
+async function setEncounterEquipmentStateInternal(
   tx: RuntimeIntegrationTransaction,
   context: OwnedEncounterRuntimeContext,
   input:

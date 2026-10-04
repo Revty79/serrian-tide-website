@@ -7,6 +7,7 @@ import { race } from './race-schema';
 import { creature } from './creature-schema';
 import { campaignSessionEncounter, campaignSessionEncounterPendingAction } from './tabletop-operations-schema';
 import type { FormTransitionEvidence } from '@/features/forms/form-runtime';
+import type { FormReturnDue } from '@/features/forms/form-lifecycle';
 
 export const formTransitionRequest = pgTable('form_transition_request', {
   id: serial('id').primaryKey(),
@@ -56,7 +57,28 @@ export const formTransitionEvent = pgTable('form_transition_event', {
 export const characterActiveForm = pgTable('campaign_character_active_form', {
   characterId: integer('character_id').primaryKey().references(()=>campaignCharacter.id,{onDelete:'restrict'}),
   entryEventId: integer('entry_event_id').notNull().unique(),
+  returnDueJson: jsonb('return_due_json').$type<FormReturnDue>(),
 },t=>[
   check('active_form_positive',sql`${t.characterId}>0`),
   foreignKey({name:'active_form_exact_entry',columns:[t.entryEventId,t.characterId],foreignColumns:[formTransitionEvent.id,formTransitionEvent.characterId]}).onDelete('restrict'),
+]);
+
+/** A G.O.D. receipt for an authored manual/event refresh; never a use ledger. */
+export const formUseResetEvent = pgTable('form_use_reset_event', {
+  id: serial('id').primaryKey(),
+  characterId: integer('character_id').notNull().references(()=>campaignCharacter.id,{onDelete:'restrict'}),
+  campaignId: integer('campaign_id').notNull().references(()=>campaign.id,{onDelete:'restrict'}),
+  actorUserId: text('actor_user_id').notNull().references(()=>user.id,{onDelete:'restrict'}),
+  requestKey: text('request_key').notNull().unique(), requestHash: text('request_hash').notNull(),
+  ownerKind: text('owner_kind').$type<'race'|'creature'>().notNull(),
+  sourceId: integer('source_id').notNull(), formId: integer('form_id').notNull(), formKey: text('form_key').notNull(),
+  refreshScope: text('refresh_scope').$type<'manual'|'event'>().notNull(), refreshKey: text('refresh_key'),
+  afterEntryEventId: integer('after_entry_event_id').references(()=>formTransitionEvent.id,{onDelete:'restrict'}),
+  evidence: jsonb('evidence').$type<{ reason: string; definition: FormTransitionEvidence['review']['definition'] }>().notNull(),
+  executedAt: timestamp('executed_at').defaultNow().notNull(),
+},t=>[
+  check('form_reset_positive',sql`${t.characterId}>0 AND ${t.sourceId}>0 AND ${t.formId}>0`),
+  check('form_reset_kind',sql`${t.ownerKind} IN ('race','creature')`),
+  check('form_reset_scope',sql`(${t.refreshScope}='manual' AND ${t.refreshKey} IS NULL) OR (${t.refreshScope}='event' AND length(trim(${t.refreshKey}))>0 AND ${t.refreshKey} IS NOT NULL)`),
+  index('form_reset_individual').on(t.characterId,t.id),
 ]);

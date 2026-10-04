@@ -451,11 +451,18 @@ function withAuthorizedHealthReadTransaction<T>(
   return withAuthorizedHealthTransaction(characterId, "read", operation);
 }
 
-function withAuthorizedHealthMutationTransaction<T>(
+function withAuthorizedHealthMutationTransaction(
   characterId: number,
-  operation: (context: MutationContext) => Promise<T>,
-): Promise<T> {
-  return withAuthorizedHealthTransaction(characterId, "mutate", operation);
+  operation: (context: MutationContext) => Promise<ActiveHealthView>,
+): Promise<ActiveHealthView> {
+  return withAuthorizedHealthTransaction(characterId, "mutate", async context=>{
+    await operation(context);
+    const {reconcileFormLifecycleInTransaction}=await import('@/features/forms/form-runtime-service');
+    await reconcileFormLifecycleInTransaction(context.tx,{characterIds:[characterId],cause:'Active Health adjustment'});
+    // The mutation may have entered a Form; return its effective anatomy immediately.
+    const [entity]=await context.tx.select({npcKind:campaignCharacter.npcKind}).from(campaignCharacter).where(eq(campaignCharacter.id,characterId));
+    return (await readActiveHealthInTransaction(context.tx,characterId,entity.npcKind)).view;
+  });
 }
 
 async function readView(context: MutationContext): Promise<ActiveHealthView> {

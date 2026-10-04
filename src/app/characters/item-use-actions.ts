@@ -553,11 +553,14 @@ export async function executeCharacterItemUse(
 ): Promise<ItemUseExecutionResult> {
   const request = validateRequest(input);
   const session = await requireSession();
-  const result = await db.transaction((tx) => executeCharacterItemUseInCallerTransaction(
-    tx,
-    request,
-    session.user.id,
-  ));
+  const result = await db.transaction(async tx=>{
+    const {assertFormOrdinaryActionAllowedInTransaction}=await import('@/features/forms/form-lifecycle-service');
+    await assertFormOrdinaryActionAllowedInTransaction(tx,request.sourceCharacterId);
+    const result=await executeCharacterItemUseInCallerTransaction(tx,request,session.user.id);
+    const {reconcileFormLifecycleInTransaction}=await import('@/features/forms/form-runtime-service');
+    await reconcileFormLifecycleInTransaction(tx,{characterIds:[request.sourceCharacterId,result.target.characterId],cause:'Completed sheet Item effects'});
+    return result;
+  });
 
   revalidatePath(`/realms/characters/${request.sourceCharacterId}`);
   revalidatePath(`/heavens/characters/${request.sourceCharacterId}`);
