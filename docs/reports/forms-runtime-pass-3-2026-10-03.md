@@ -20,7 +20,7 @@ Normal individuals may automatically enter one uniquely satisfied Form with invo
 
 ## 5. Uses and refresh
 
-Completed Enter events are the use record, scoped to exact individual, source kind/ID and Form ID/key. Round includes exact Encounter plus round; Encounter and Scene use exact owners; never is lifetime for that identity. All limits must pass. Pending/cancelled entry consumes no use. Exhaustion blocks Player, G.O.D. and automatic entry. Unlimited has no gate; unspecified/custom remains manual. Manual/event refresh requires an immutable Campaign-owning G.O.D. receipt naming its exact authored scope and observed reason. It cannot waive round, Encounter, Scene or lifetime limits.
+Completed Enter events are the use record, scoped to exact individual, source kind/ID and Form ID/key. Round includes exact Encounter plus round; Encounter and Scene use exact owners; never is lifetime for that identity. All limits must pass. Pending/cancelled entry consumes no use. Exhaustion blocks Player, G.O.D. and automatic entry. Unlimited has no gate; unspecified/custom remains manual. Manual/event limits provide the authored maximum uses initially, without a refresh receipt or an extra entry ruling. They count all completed entries until the first refresh, then only entries after the latest exact matching receipt. Manual/event refresh requires explicit Campaign-owning G.O.D. evidence in an immutable receipt naming its exact authored scope/key and observed reason. It cannot waive round, Encounter, Scene or lifetime limits. The authoring meaning remains: maximum uses before the authored refresh.
 
 ## 6. Cooldown
 
@@ -85,3 +85,11 @@ All database mutation tests run on fresh disposable loopback PostgreSQL clusters
 ## 17. Intentional manual boundaries
 
 Prose-only duration/cooldown/depletion, missing exact lifecycle owners, unknown resources, unsupported clocks or event facts, manual Access, ambiguous involuntary candidates, unspecified/custom limits, explicit manual/event refresh and custom equipment require the Campaign-owning G.O.D. Where a physical drop lacks an authoritative location/allocation, existing custody must be resolved before entry. No new generic rule language or speculative scheduler was introduced. This is runtime-complete within these represented structured mechanics; descriptive rules remain descriptive. Stop after this pass; no Special Ability or companion work begins automatically.
+
+## Focused refresh semantics correction (2026-10-04)
+
+Starting from `adfaf88cbfb76de14f5bbba2c3a945ec9258f0a5`, corrected `readFormLimits()` so absence of a manual/event refresh receipt does not make the initial allowance manual. The existing exact completed-entry counting and receipt boundaries are unchanged. Runtime explanations now distinguish initial availability from the Campaign-owning G.O.D. evidence required for refresh; the browser assertion no longer expects an initial-use ruling.
+
+Focused lifecycle verification passed **80/80**. Combined Forms Pass 1/2/3 verification passed **64/64 + 87/87 + 80/80 = 231/231**. Coverage includes Player/G.O.D. initial entry, exhaustion and ordinary-ruling rejection, exact event keys, automatic initial/refreshed entry, pending/cancelled entries, simultaneous lifetime/round/Encounter/Scene limits, immutable receipts and retry after the restored allowance is spent. The unit suite passed **1,883/1,883**; typecheck, lint, Drizzle metadata and whitespace checks passed. Disposable harness runs also passed the fresh 97-migration chain and existing populated upgrade checks. Logs: `artifacts/guidance/forms-refresh-fix-lifecycle.log`, `forms-refresh-fix-combined.log`, `forms-refresh-fix-unit.log`, `forms-refresh-fix-typecheck.log` and `forms-refresh-fix-lint.log`.
+
+No schema or migration changes; `0095` and `0096` retain their original hashes. All database tests used disposable local clusters. No shared data was modified. Broader combat/browser suites were not rerun for this focused service correction; the updated browser expectation is not claimed as newly browser-verified. No commit or push was performed.

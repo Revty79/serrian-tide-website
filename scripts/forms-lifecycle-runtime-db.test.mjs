@@ -112,9 +112,62 @@ for(const scope of ['round','encounter','scene','never'])test(`${scope} limit co
 test('round scope refreshes only with exact Encounter and round; lifetime limit remains',async()=>{
  const f=await setup({...transformation(),limitMode:'limited',useLimits:[limit('round'),{...limit('never',2),sortOrder:1}]});await change(f);await change(f,'return');await pool.query('update campaign_session_encounter_initiative set round_number=round_number+1 where encounter_id=$1',[f.encounterId]);assert.equal((await review(f)).limits[0].remaining,1);await change(f);await change(f,'return');await pool.query('update campaign_session_encounter_initiative set round_number=round_number+1 where encounter_id=$1',[f.encounterId]);assert.ok((await review(f)).blockers.some(s=>s.includes('never')));
 });
-for(const scope of ['manual','event'])test(`${scope} refresh requires immutable G.O.D. receipt, is durable and cannot reset lifetime limits`,async()=>{
- const f=await setup({...transformation(),limitMode:'limited',useLimits:[limit(scope),{...limit('never',2),sortOrder:1}]});await change(f,'enter',true);await change(f,'return');assert.ok((await review(f)).blockers.length);
- const input={characterId:f.heroId,sourceId:f.form.raceId,formId:f.form.id,formKey:f.form.key,refreshScope:scope,refreshKey:scope==='event'?'authored-rest':null,reason:'Observed the exact authored rest.',idempotencyKey:randomUUID()};await assert.rejects(forms.resetFormUses(input,f.playerActor),/G.O.D./);const receipt=await forms.resetFormUses(input,f.actor);assert.equal((await forms.resetFormUses(input,f.actor)).eventId,receipt.eventId);await assert.rejects(forms.resetFormUses({...input,reason:'Changed after success'},f.actor),/different input/);await assert.rejects(pool.query('update form_use_reset_event set refresh_key=null where id=$1',[receipt.eventId]),/immutable/);assert.equal((await review(f)).limits[0].remaining,1);await change(f,'enter',true);await change(f,'return');await forms.resetFormUses({...input,idempotencyKey:randomUUID()},f.actor);assert.ok((await review(f)).blockers.some(s=>s.includes('never')));
+for(const scope of ['manual','event'])for(const authority of ['Player','G.O.D.'])test(`${scope} initial allowance needs no receipt for ${authority}; only exact refresh restores exhausted uses`,async()=>{
+ const f=await setup({...transformation(),limitMode:'limited',useLimits:[limit(scope),...['never','round','encounter','scene'].map((other,i)=>({...limit(other,2),sortOrder:i+1}))]});
+ const actor=authority==='Player'?f.playerActor:f.actor;
+ const initial=await review(f,'enter',actor);
+ assert.deepEqual(initial.blockers,[]);assert.deepEqual(initial.manualSteps,[]);
+ assert.equal(initial.limits[0].uses,0);assert.equal(initial.limits[0].remaining,1);assert.equal(initial.limits[0].status,'available');
+ assert.equal((await one('select count(*)::int n from form_use_reset_event where character_id=$1',[f.heroId])).n,0);
+ await forms.executeFormTransition(command(initial),actor);await change(f,'return');
+ for(const blockedActor of [f.playerActor,f.actor]){
+  const exhausted=await review(f,'enter',blockedActor);
+  assert.equal(exhausted.limits[0].uses,1);assert.equal(exhausted.limits[0].remaining,0);assert.equal(exhausted.limits[0].status,'exhausted');
+  assert.match(exhausted.limits[0].explanation,/authored refresh is required/);
+  assert.ok(exhausted.blockers.some(s=>s.includes('exhausted')));
+  await assert.rejects(forms.executeFormTransition(command(exhausted,blockedActor===f.actor?{'use-limit-0':'Ordinary transition ruling cannot refresh uses'}:{}),blockedActor),/exhausted/);
+ }
+ const input={characterId:f.heroId,sourceId:f.form.raceId,formId:f.form.id,formKey:f.form.key,refreshScope:scope,refreshKey:scope==='event'?'authored-rest':null,reason:'Observed the exact authored rest.',idempotencyKey:randomUUID()};
+ await assert.rejects(forms.resetFormUses(input,f.playerActor),/G.O.D./);
+ if(scope==='event'){
+  for(const refreshKey of [null,'different-rest'])await assert.rejects(forms.resetFormUses({...input,refreshKey},f.actor),/exact authored/);
+  assert.equal((await review(f)).limits[0].status,'exhausted');
+ }
+ const receipt=await forms.resetFormUses(input,f.actor);
+ assert.equal((await forms.resetFormUses(input,f.actor)).eventId,receipt.eventId);
+ await assert.rejects(forms.resetFormUses({...input,reason:'Changed after success'},f.actor),/different input/);
+ await assert.rejects(pool.query('update form_use_reset_event set refresh_key=null where id=$1',[receipt.eventId]),/immutable/);
+ const refreshed=await review(f,'enter',actor);
+ assert.equal(refreshed.limits[0].uses,0);assert.equal(refreshed.limits[0].remaining,1);assert.equal(refreshed.limits[0].status,'available');
+ await forms.executeFormTransition(command(refreshed),actor);await change(f,'return');
+ assert.equal((await review(f)).limits[0].status,'exhausted');
+ assert.equal((await forms.resetFormUses(input,f.actor)).eventId,receipt.eventId);
+ assert.equal((await review(f)).limits[0].remaining,0,'replaying an old receipt cannot move its counting boundary');
+ assert.equal((await one('select count(*)::int n from form_use_reset_event where character_id=$1',[f.heroId])).n,1);
+ await forms.resetFormUses({...input,idempotencyKey:randomUUID()},f.actor);
+ const lifetimeBlocked=await review(f);
+ assert.equal(lifetimeBlocked.limits[0].status,'available');assert.equal(lifetimeBlocked.limits[0].remaining,1);
+ for(const other of lifetimeBlocked.limits.slice(1)){assert.equal(other.uses,2);assert.equal(other.remaining,0);assert.equal(other.status,'exhausted');}
+ assert.ok(lifetimeBlocked.blockers.some(s=>s.includes('never')));
+ await assert.rejects(forms.executeFormTransition(command(lifetimeBlocked),f.actor),/never/);
+});
+for(const scope of ['manual','event'])test(`automatic involuntary entry consumes initial ${scope} allowance and resumes only after exact refresh`,async()=>{
+ const f=await setup(automatic({limitMode:'limited',useLimits:[limit(scope)]}));
+ await reconcile(f);let state=await view(f);
+ assert.ok(state.current);assert.equal(state.current.evidence.authority,'system/lifecycle');
+ assert.equal(state.lifecycle.limits[0].uses,1);assert.equal(state.lifecycle.limits[0].status,'exhausted');
+ await change(f,'return');await reconcile(f);state=await view(f);
+ assert.equal(state.current,null);assert.equal(state.history.filter(e=>e.operation==='enter').length,1);
+ const input={characterId:f.heroId,sourceId:f.form.raceId,formId:f.form.id,formKey:f.form.key,refreshScope:scope,refreshKey:scope==='event'?'authored-rest':null,reason:'Authoritative authored refresh observed.',idempotencyKey:randomUUID()};
+ if(scope==='event'){
+  await assert.rejects(forms.resetFormUses({...input,refreshKey:'different-rest'},f.actor),/exact authored/);
+  await reconcile(f);assert.equal((await view(f)).current,null);
+ }
+ await forms.resetFormUses(input,f.actor);assert.equal((await review(f)).limits[0].remaining,1);
+ await reconcile(f);state=await view(f);assert.ok(state.current);
+ assert.equal(state.lifecycle.limits[0].uses,1);assert.equal(state.lifecycle.limits[0].remaining,0);assert.equal(state.lifecycle.limits[0].status,'exhausted');
+ assert.equal(state.history.filter(e=>e.operation==='enter').length,2);
+ await change(f,'return');await reconcile(f);assert.equal((await view(f)).current,null);
 });
 for(const text of ['Rest one hour','No additional cooldown beyond entry/exit costs'])test(`nonblank cooldown remains manual: ${text}`,async()=>{
  const f=await setup(automatic({cooldown:text}));await reconcile(f);assert.equal((await view(f)).current,null);assert.ok((await review(f)).manualSteps.some(s=>s.key==='cooldown'));assert.ok((await review(f,'enter',f.playerActor)).blockers.length);
@@ -152,8 +205,12 @@ test('automatic Initiative entry pays once, counts only completion, and preserve
  state=await view(f);assert.ok(state.current);assert.equal(state.pending,null);assert.equal(state.lifecycle.limits[0].uses,1);assert.equal(state.current.evidence.authority,'system/lifecycle');assert.equal(Number((await one('select initiative_spent from campaign_session_encounter_pending_action where id=(select pending_action_id from form_transition_request where id=$1)',[requestId])).initiative_spent),4);
  await reconcile(f);assert.equal((await view(f)).history.length,1);
 });
-test('cancelled automatic pending entry consumes no Form use',async()=>{
- const f=await setup(automatic({entryTiming:{...instant,mode:'initiative',initiativeCost:4},limitMode:'limited',useLimits:[limit('never')]}));await pool.query("update campaign_session_encounter_initiative_participant set participation_status='active',last_satisfied_step=0 where encounter_id=$1 and character_id=$2",[f.encounterId,f.heroId]);await reconcile(f);const pending=(await view(f)).pending;assert.ok(pending);await forms.cancelPendingFormTransition(f.heroId,pending.requestId,f.actor);assert.equal((await view(f)).forms[0].limits[0].uses,0);assert.equal((await view(f)).history.length,0);
+for(const scope of ['never','manual','event'])test(`pending and cancelled automatic entry consumes no ${scope} Form use`,async()=>{
+ const f=await setup(automatic({entryTiming:{...instant,mode:'initiative',initiativeCost:4},limitMode:'limited',useLimits:[limit(scope)]}));await pool.query("update campaign_session_encounter_initiative_participant set participation_status='active',last_satisfied_step=0 where encounter_id=$1 and character_id=$2",[f.encounterId,f.heroId]);
+ await reconcile(f);let state=await view(f);const pending=state.pending;assert.ok(pending);assert.equal(state.current,null);
+ assert.equal(state.forms[0].limits[0].uses,0);assert.equal(state.forms[0].limits[0].remaining,1);assert.equal(state.forms[0].limits[0].status,'available');
+ await forms.cancelPendingFormTransition(f.heroId,pending.requestId,f.actor);state=await view(f);
+ assert.equal(state.forms[0].limits[0].uses,0);assert.equal(state.forms[0].limits[0].remaining,1);assert.equal(state.forms[0].limits[0].status,'available');assert.equal(state.history.length,0);
 });
 test('automatic canonical Mana entry and duration Return spend exactly their authored costs',async()=>{
  const costs=amount=>({mode:'costs',costs:[{costType:'mana',resourceKey:'Spellcraft',amount,notes:'',sortOrder:0}]});const f=await setup(automatic({entryCosts:costs(3),exitCosts:costs(2),duration:{mode:'encounter',description:''}}));await pool.query('update races set base_magic=2 where id=$1',[f.source.ancestry.id]);

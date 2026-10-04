@@ -61,8 +61,8 @@ export async function readFormLimits(tx:Tx,characterId:number,definition:FrozenF
     });
     const uses=applicable.length,remaining=missing?null:Math.max(0,limit.maximumUses-uses);
     const scopeLabel=scope==='never'?'for this individual (never refreshes)':manual?`before the next confirmed ${scope==='event'?`event refresh (${limit.refreshKey})`:'G.O.D. refresh'}`:`in this ${scope}`;
-    return {limit,uses,remaining,status:missing?'manual':remaining===0?'exhausted':manual&&!reset?'manual':'available',explanation:missing?`${limit.maximumUses} per ${scope} needs an exact current ${scope} context. G.O.D. review is required.`:
-      `${uses} used; ${remaining}/${limit.maximumUses} uses remain ${scopeLabel}.${manual?' Refresh requires an explicit G.O.D. receipt; events and notes never reset uses automatically.':''}`};
+    return {limit,uses,remaining,status:missing?'manual':remaining===0?'exhausted':'available',explanation:missing?`${limit.maximumUses} per ${scope} needs an exact current ${scope} context. G.O.D. review is required.`:
+      `${uses} used; ${remaining}/${limit.maximumUses} uses remain ${scopeLabel}.${manual?` ${scope==='event'?'Event':'Manual'} refresh requires explicit Campaign-owning G.O.D. evidence; events and notes never reset uses automatically.${remaining===0?' An authored refresh is required before more uses become available.':!reset?' The initial allowance does not require a refresh receipt.':''}`:''}`};
   });
 }
 
