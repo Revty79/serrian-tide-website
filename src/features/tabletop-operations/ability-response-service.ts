@@ -1,3 +1,4 @@
+import { readActiveFormDefinitionInTransaction, effectiveCreatureSnapshotInTransaction } from '@/features/forms/effective-form-service';
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { campaignSessionEncounterParticipant as member } from "@/db/tabletop-operations-schema";
@@ -23,7 +24,7 @@ export async function readAbilityResponseChoicesInTransaction(tx: RuntimeIntegra
   let snapshot = occurrence.creatureSnapshotJson;
   if (participantId > 0) {
     const [profile] = await tx.select().from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, participantId)).limit(1);
-    if (profile) snapshot = JSON.parse(profile.currentSnapshotJson);
+    if (profile) snapshot = await effectiveCreatureSnapshotInTransaction(tx, participantId, JSON.parse(profile.currentSnapshotJson));
   }
   const creature = (Array.isArray(object(snapshot).abilities) ? object(snapshot).abilities as unknown[] : []).map(normalizeCreatureAbilityDefinition);
   const derived = participantId > 0 ? await loadCharacterDerivedAbilitiesInTransaction(tx, participantId, actor.userId, false) : null;
@@ -38,7 +39,8 @@ export async function readAbilityResponseChoicesInTransaction(tx: RuntimeIntegra
     currentInitiative: engine.participants.find(({ characterId }) => characterId === participantId)?.currentInitiative,
     manaPools: new Map<string, { current: number }>(mana?.pools.map((pool) => [pool.system, { current: pool.currentMana }]) ?? []) };
   const history = object(occurrence.localStateJson).combatSourceResolutionHistory;
-  const rulingFor = (kind: string, ref: string) => Array.isArray(history) ? [...history].reverse().map(object).find((ruling) => ruling.sourceKind === kind && ruling.sourceRef === ref) ?? null : null;
+  const currentForm = (await readActiveFormDefinitionInTransaction(tx, participantId))?.identity ?? null;
+  const rulingFor = (kind: string, ref: string) => Array.isArray(history) ? [...history].reverse().map(object).find((ruling) => ruling.sourceKind === kind && ruling.sourceRef === ref && (object(ruling.currentForm).entryEventId ?? null) === (currentForm?.entryEventId ?? null)) ?? null : null;
   const choices: Array<{ kind: "derived-ability" | "creature-ability"; ref: string; name: string; activationType: string;
     status: "eligible" | "manual" | "unavailable"; explanation: string; initiativeCost: number | null;
     definition: DerivedAbilityDefinition | ReturnType<typeof normalizeCreatureAbilityDefinition>; ownershipId: number | null;

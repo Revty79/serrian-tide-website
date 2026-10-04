@@ -1,4 +1,6 @@
 "use server";
+import { effectiveCreatureSnapshotInTransaction } from '@/features/forms/effective-form-service';
+import { readFormCapabilitiesInTransaction } from '@/features/forms/form-capability-service';
 import { authoritativeCreatureSnapshot, creatureAttackRuntime } from "@/features/tabletop-operations/creature-attack-runtime";
 import { isDeepStrictEqual } from "node:util";
 import { readAbilityResponseChoicesInTransaction } from "@/features/tabletop-operations/ability-response-service";
@@ -105,11 +107,12 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
     const movement = await resolveInitiativeCapacityOptionsInTransaction(tx, participantId, context.campaignId).catch(() => null);
     const abilityStacks = participantId > 0 ? await tx.select({ itemId: campaignCharacterItem.itemId, quantity: campaignCharacterItem.quantity, itemName: item.name, canonicalId: item.canonicalId, powerId: itemPower.id, powerName: itemPower.name, initiativeCost: itemPower.initiativeCost, resourceKind: itemPower.resourceCostKind, resourceAmount: itemPower.resourceCostAmount, hasPowerPool: itemPowerResource.itemId }).from(campaignCharacterItem).innerJoin(item, eq(item.id, campaignCharacterItem.itemId)).innerJoin(itemPower, eq(itemPower.itemId, item.id)).leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id)).where(and(eq(campaignCharacterItem.characterId, participantId), eq(itemPower.trigger, "activated"))) : [];
     const abilityInstances = participantId > 0 ? await tx.select({ instanceId: campaignCharacterItemInstance.id, itemId: campaignCharacterItemInstance.itemId, currentCharges: campaignCharacterItemInstance.currentCharges, itemName: item.name, canonicalId: item.canonicalId, powerId: itemPower.id, powerName: itemPower.name, initiativeCost: itemPower.initiativeCost, resourceKind: itemPower.resourceCostKind, resourceAmount: itemPower.resourceCostAmount, hasPowerPool: itemPowerResource.itemId }).from(campaignCharacterItemInstance).innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId)).innerJoin(itemPower, eq(itemPower.itemId, item.id)).leftJoin(itemPowerResource, eq(itemPowerResource.itemId, item.id)).where(and(eq(campaignCharacterItemInstance.characterId, participantId), isNull(campaignCharacterItemInstance.retiredAt), eq(itemPower.trigger, "activated"))) : [];
-    const snapshot = authoritativeCreatureSnapshot({ participantId, participantKind: row.participantKind, isNpc: row.isNpc, npcKind: row.npcKind, occurrence: row.snapshot, persistent: row.persistentSnapshot });
+    const snapshot = await effectiveCreatureSnapshotInTransaction(tx, participantId, authoritativeCreatureSnapshot({ participantId, participantKind: row.participantKind, isNpc: row.isNpc, npcKind: row.npcKind, occurrence: row.snapshot, persistent: row.persistentSnapshot }));
     const { readRaceAttackSourcesInTransaction } = await import("@/features/tabletop-operations/race-natural-attack-service");
     const naturalAttacks = await readRaceAttackSourcesInTransaction(tx, context, participantId);
-    return { equipment, meleeDraws, firearms, magazines, requests, defense: defenses?.participants.find((entry) => entry.characterId === participantId) ?? null,
-      movement: movement?.movementModes ?? [], snapshot, isNpc: row.isNpc, abilityStacks, abilityInstances, naturalAttacks, rulings: records(object(row.local).combatSourceResolutionHistory) };
+    const formCapabilities = await readFormCapabilitiesInTransaction(tx, participantId);
+    return { formCapabilities, equipment, meleeDraws, firearms, magazines, requests, defense: defenses?.participants.find((entry) => entry.characterId === participantId) ?? null,
+      movement: movement?.movementModes ?? [], creatureDefenses: records(object(snapshot).currentForm ? object(snapshot).defenses : []).map((row, index) => ({ ref: String(row.seedIdentity ?? `defense:${index}`), name: `${row.defenseType}: ${row.against || "Natural defense"}`, kind: String(row.defenseType).toLowerCase(), value: row.value })), snapshot, isNpc: row.isNpc, abilityStacks, abilityInstances, naturalAttacks, rulings: records(object(row.local).combatSourceResolutionHistory) };
   });
   const sources: CombatSourceChoice[] = [];
   for (const source of loaded.naturalAttacks) {
@@ -177,6 +180,10 @@ export async function readCombatCommandSources(scope: CombatScreenScope, partici
   if (scope.role === "god" && participantId > 0 && !loaded.isNpc) await authorized(scope, async (tx, context) => {
     if (await readOpenDeclarationCheckpoint(tx, context.encounterId)) throw new Error("Inspect source rulings after simultaneous choices are revealed.");
   });
+  for (const source of sources) if (['weapon', 'item'].includes(source.kind) && loaded.formCapabilities) {
+    if (loaded.formCapabilities.blockers.length) source.unavailable = loaded.formCapabilities.blockers.join(' ');
+    else if (loaded.formCapabilities.needsRuling) source.description += ' Current Form equipment use requires a G.O.D. ruling.';
+  }
   return { ...loaded, sources, aggregateIssue };
 }
 

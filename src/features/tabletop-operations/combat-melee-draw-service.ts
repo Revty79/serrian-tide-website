@@ -1,3 +1,4 @@
+import { assertFormEquipmentUseInTransaction, readFormEquipmentApprovalInTransaction } from '@/features/forms/form-capability-service';
 import "server-only";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { isDeepStrictEqual } from "node:util";
@@ -16,7 +17,7 @@ import { parseActionDeclarationDraft, type LockedActionDeclarationSnapshot } fro
 import { loadInitiativeEngineInTransaction, type RuntimeIntegrationTransaction as Tx, type OwnedEncounterRuntimeContext } from "./runtime-integration-service";
 import { initiativeAffordabilityIssue } from "./initiative-affordability";
 
-export type MeleeDrawCommand = { characterId: number; itemId: number; instanceId: number | null; requestKey: string };
+export type MeleeDrawCommand = { formEquipmentReason?: string; characterId: number; itemId: number; instanceId: number | null; requestKey: string };
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
 export async function readMeleeDrawOptions(tx: Tx, characterId: number) {
@@ -43,21 +44,21 @@ export async function readMeleeDrawOptions(tx: Tx, characterId: number) {
   ];
 }
 
-async function applyDraw(tx: Tx, command: MeleeDrawCommand, before: unknown) {
+async function applyDraw(tx: Tx, command: MeleeDrawCommand, before: unknown, formApproval?: { userId: string; reason: string } | null) {
   await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
   const selected = (await readMeleeDrawOptions(tx, command.characterId)).find((entry) => entry.itemId === command.itemId && entry.instanceId === command.instanceId);
   if (!selected || !isDeepStrictEqual(selected.before, before)) throw new Error("This weapon's equipment changed during drawing. Interrupt the action and review its equipment state.");
-  if (command.instanceId !== null) await setInstanceEquipmentStateInTransaction(tx, { characterId: command.characterId, instanceId: command.instanceId, state: "wielded" });
+  if (command.instanceId !== null) await setInstanceEquipmentStateInTransaction(tx, { characterId: command.characterId, instanceId: command.instanceId, state: "wielded" }, formApproval);
   else {
     const state = selected.before as { state: string; wielded: number; equipped: number; worn: number };
     if (state.state === "equipped" || state.state === "worn") await setStackEquipmentStateInTransaction(tx, {
-      characterId: command.characterId, itemId: command.itemId, state: state.state, quantity: state[state.state] - 1 });
-    await setStackEquipmentStateInTransaction(tx, { characterId: command.characterId, itemId: command.itemId, state: "wielded", quantity: state.wielded + 1 });
+      characterId: command.characterId, itemId: command.itemId, state: state.state, quantity: state[state.state] - 1 }, formApproval);
+    await setStackEquipmentStateInTransaction(tx, { characterId: command.characterId, itemId: command.itemId, state: "wielded", quantity: state.wielded + 1 }, formApproval);
   }
 }
 
 export async function startMeleeDraw(tx: Tx, context: OwnedEncounterRuntimeContext, actor: ActionDeclarationActor, input: MeleeDrawCommand) {
-  const command: MeleeDrawCommand = { characterId: input.characterId, itemId: input.itemId, instanceId: input.instanceId, requestKey: input.requestKey };
+  const command: MeleeDrawCommand = { characterId: input.characterId, itemId: input.itemId, instanceId: input.instanceId, requestKey: input.requestKey, ...(input.formEquipmentReason ? { formEquipmentReason: input.formEquipmentReason } : {}) };
   if (!Number.isSafeInteger(command.characterId) || command.characterId <= 0 || !Number.isSafeInteger(command.itemId) || command.itemId <= 0
     || command.instanceId !== null && (!Number.isSafeInteger(command.instanceId) || command.instanceId <= 0)
     || typeof command.requestKey !== "string" || !command.requestKey.trim() || command.requestKey.length > 160) throw new Error("Choose an exact owned weapon and a valid retry identity.");
@@ -78,6 +79,8 @@ export async function startMeleeDraw(tx: Tx, context: OwnedEncounterRuntimeConte
     if (!isDeepStrictEqual(receipt.command, command)) throw new Error("This retry identity belongs to a different draw action.");
     return { declarationId: null };
   }
+  const formApproval = await readFormEquipmentApprovalInTransaction(tx, context.encounterId, command.characterId, "weapon", command.instanceId === null ? `stack:${command.itemId}` : `instance:${command.instanceId}`) ?? (command.formEquipmentReason ? { userId: actor.userId, reason: command.formEquipmentReason } : null);
+  const formEquipment = await assertFormEquipmentUseInTransaction(tx, command.characterId, formApproval);
   const selected = (await readMeleeDrawOptions(tx, command.characterId)).find((entry) => entry.itemId === command.itemId && entry.instanceId === command.instanceId);
   if (!selected) throw new Error("Choose an owned melee weapon that is not already wielded.");
   if (selected.cost === null) throw new Error("Set Draw Initiative in Heavens → Items → Weapon preparation before drawing this weapon in combat.");
@@ -90,14 +93,14 @@ export async function startMeleeDraw(tx: Tx, context: OwnedEncounterRuntimeConte
   if (selected.cost === 0) {
     if (await readOpenDeclarationCheckpoint(tx, context.encounterId)) throw new Error("Resolve simultaneous choices before instantaneous preparation.");
     await assertInstantPreparationOpportunity(tx, context, command.characterId);
-    await applyDraw(tx, command, selected.before);
-    await tx.update(member).set({ localStateJson: { ...local, instantMeleeDraws: [...history, { command, actorUserId: actor.userId, at: new Date().toISOString() }] }, updatedAt: new Date() }).where(eq(member.participantId, participant.participantId));
+    await applyDraw(tx, command, selected.before, formApproval);
+    await tx.update(member).set({ localStateJson: { ...local, instantMeleeDraws: [...history, { command, formEquipment, actorUserId: actor.userId, at: new Date().toISOString() }] }, updatedAt: new Date() }).where(eq(member.participantId, participant.participantId));
     return { declarationId: null };
   }
   const id = await createActionDeclarationDraftInTransaction(tx, context, actor, {
     actorCharacterId: command.characterId, targetCharacterIds: [], label: `Draw ${selected.name}`, actionKind: "combat-melee-draw",
     sourceKind: "no-roll", sourceRef: `item:${command.itemId}`, sourceInstanceId: command.instanceId,
-    sourcePayload: { meleeDraw: command, meleeDrawKey: command.requestKey, equipmentBefore: selected.before },
+    sourcePayload: { formEquipment, meleeDraw: command, meleeDrawKey: command.requestKey, equipmentBefore: selected.before },
     weaponItemId: null, firingModeId: null, attackMode: "Draw weapon", initiativeCost: selected.cost, allowsMultiRound: true,
     heldIntervention: false, windowKind: "preparation", aimDeclared: false, calledShot: { declared: false, label: "", assignedPenalty: null },
     explicitModifiers: [], preparesForDeclarationId: null, godNotes: "" });
@@ -123,7 +126,9 @@ export async function completeMeleeDraw(tx: Tx, declarationId: number, actorUser
   if (timing?.status !== "completed") return;
   const [open] = await tx.select({ id: opportunity.id }).from(opportunity).where(and(eq(opportunity.declarationId, row.id), eq(opportunity.status, "pending"))).limit(1);
   if (open) return;
-  await applyDraw(tx, draft.sourcePayload!.meleeDraw as MeleeDrawCommand, draft.sourcePayload!.equipmentBefore);
+  const ruling = object(object(draft.sourcePayload?.formEquipment).ruling);
+  await applyDraw(tx, draft.sourcePayload!.meleeDraw as MeleeDrawCommand, draft.sourcePayload!.equipmentBefore,
+    typeof ruling.authorizedByUserId === 'string' && typeof ruling.reason === 'string' ? { userId: ruling.authorizedByUserId, reason: ruling.reason } : null);
   await tx.update(declaration).set({ status: "resolved", endedByUserId: actorUserId, endedAt: new Date(), updatedAt: new Date() }).where(eq(declaration.id, row.id));
   await tx.insert(event).values({ declarationId: row.id, encounterId: row.encounterId, sceneId: row.sceneId, sessionId: row.sessionId, campaignId: row.campaignId,
     fromStatus: row.status, toStatus: "resolved", eventKind: "melee-weapon-drawn", actorUserId, metadata: { pendingActionId: row.pendingActionId, weapon: draft.sourcePayload!.meleeDraw } });

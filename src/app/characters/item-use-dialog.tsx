@@ -1,4 +1,5 @@
 "use client";
+import { FormEquipmentRulingField } from "@/components/forms/form-equipment-ruling";
 
 import { useState, type ReactNode } from "react";
 
@@ -65,6 +66,7 @@ export function ItemUseDialog({
   confirmationLabel,
   confirmationContent,
 }: Props) {
+  const [formEquipmentReason, setFormEquipmentReason] = useState('');
   const [open, setOpen] = useState(false);
   const [request, setRequest] = useState<ItemUseRequest | null>(null);
   const [preparation, setPreparation] = useState<ItemUsePreparation | null>(null);
@@ -76,6 +78,7 @@ export function ItemUseDialog({
     setBusy(true);
     setError(null);
     setResult(null);
+    next = { ...next, ...(formEquipmentReason ? { formEquipmentReason } : {}) };
     setRequest(next);
     try {
       setPreparation(await prepareCharacterItemUse(next));
@@ -172,6 +175,8 @@ export function ItemUseDialog({
           <button type="button" aria-label="Close Item use" disabled={busy} onClick={() => void close()}>×</button>
         </header>
 
+        <FormEquipmentRulingField characterId={sourceCharacterId} value={formEquipmentReason} onChange={value => { setFormEquipmentReason(value); setPreparation(null); }}/>
+        {request && formEquipmentReason && !preparation ? <button type="button" className="st-button" disabled={busy} onClick={() => void preview(request)}>Review Item use with ruling</button> : null}
         {busy && !preparation && !result ? <p className="item-use-loading">Preparing authoritative preview…</p> : null}
         {error ? <p className="item-use-feedback is-error" role="alert">{error}</p> : null}
 

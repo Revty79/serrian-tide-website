@@ -1,4 +1,5 @@
 "use server";
+import { assertFormEquipmentUseInTransaction } from '@/features/forms/form-capability-service';
 import { assertExactInventoryAvailable, assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import { resolveRuntimeMechanicalPlansInTransaction } from "@/features/incoming-effects/runtime-plan-service";
 import { readItemIncomingFactsInTransaction } from "@/features/incoming-effects/source-facts-service";
@@ -449,6 +450,7 @@ export async function prepareCharacterItemUseInTransaction(
 ): Promise<ItemUsePreparation> {
   const request = validateRequest(input);
   await assertStandalonePlayerItemTiming(tx, request.sourceCharacterId, actingUserId);
+  await assertFormEquipmentUseInTransaction(tx, request.sourceCharacterId, request.formEquipmentReason ? { userId: actingUserId, reason: request.formEquipmentReason } : null);
   await authorizeCompanionItemTarget(tx, request, actingUserId, false);
   const roles = await tx
     .select({ role: userRole.role })
@@ -480,6 +482,7 @@ export async function executeCharacterItemUseInCallerTransaction(
   const result = await executeItemUseInTransaction(async (execute) => execute({
     loadAndPlan: async () => {
       await lockEquipmentStateCharacterInTransaction(tx, request.sourceCharacterId);
+      await assertFormEquipmentUseInTransaction(tx, request.sourceCharacterId, request.formEquipmentReason ? { userId: actingUserId, reason: request.formEquipmentReason } : null);
       await lockActiveItemRootInTransaction(tx, request.itemId);
       loaded = await loadUse(tx, request, actingUserId, true);
       await verifyPlan?.(loaded.plan);

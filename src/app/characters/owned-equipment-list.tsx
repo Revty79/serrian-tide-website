@@ -1,4 +1,6 @@
 "use client";
+import { FormEquipmentRulingField } from '@/components/forms/form-equipment-ruling';
+
 
 import { useState } from "react";
 import { ContainerContents, InventoryLocationControl, PhysicalInventorySummary, type InventoryLocations } from "./inventory-location-controls";
@@ -30,6 +32,7 @@ type Props = {
 export function OwnedEquipmentList({ locations, aggregate, draft, equipment, disabled, ownerDisabled, useDisabled, useDisabledReason, includeEffectHistory, onEquipmentChange, onEffectsChange, onUseComplete }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formEquipmentReason, setFormEquipmentReason] = useState('');
   const definitions = new Map(aggregate.authorizedItems.map(item => [item.id, item]));
   const rows = [
     ...draft.items.map(owned => ({ key: `stack-${owned.itemId}`, itemId: owned.itemId, instanceId: null as number | null, quantity: owned.quantity, name: aggregate.items.find(item => item.itemId === owned.itemId)?.name })),
@@ -43,14 +46,15 @@ export function OwnedEquipmentList({ locations, aggregate, draft, equipment, dis
       const copy = equipment.instances.find(item => item.instanceId === row.instanceId);
       const result = row.instanceId !== null
         ? copy?.equipmentGroup === "weapon" && !copy.isMagazine && state === "wielded"
-          ? await readyOwnedWeaponAction({ characterId: equipment.characterId, itemId: row.itemId, instanceId: row.instanceId, wieldedQuantity: 1 })
-          : await setInstanceEquipmentStateAction({ characterId: equipment.characterId, instanceId: row.instanceId, state, includeEffectHistory })
-        : stack ? await setStackEquipmentRoleAction({ characterId: equipment.characterId, itemId: row.itemId, state, quantity, includeEffectHistory, expectedQuantities: { inactive: stack.inactiveQuantity, equipped: stack.equippedQuantity, worn: stack.wornQuantity, wielded: stack.wieldedQuantity } }) : null;
+          ? await readyOwnedWeaponAction({ characterId: equipment.characterId, ...(formEquipmentReason ? { formEquipmentReason } : {}), itemId: row.itemId, instanceId: row.instanceId, wieldedQuantity: 1 })
+          : await setInstanceEquipmentStateAction({ characterId: equipment.characterId, ...(formEquipmentReason ? { formEquipmentReason } : {}), instanceId: row.instanceId, state, includeEffectHistory })
+        : stack ? await setStackEquipmentRoleAction({ characterId: equipment.characterId, ...(formEquipmentReason ? { formEquipmentReason } : {}), itemId: row.itemId, state, quantity, includeEffectHistory, expectedQuantities: { inactive: stack.inactiveQuantity, equipped: stack.equippedQuantity, worn: stack.wornQuantity, wielded: stack.wieldedQuantity } }) : null;
       if (result) { onEquipmentChange(result.equipmentState); onEffectsChange(result.activeEffects); }
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Equipment could not be changed."); }
     finally { setBusy(false); }
   }
   return <section className="character-owned-equipment" aria-label="Owned equipment">
+    <FormEquipmentRulingField characterId={equipment.characterId} value={formEquipmentReason} onChange={setFormEquipmentReason}/>
     <header><h3>Owned Equipment</h3><p>Choose Wielded for a weapon or Worn for armor. Use opens the item’s existing preview and confirmation.</p></header>
     <PhysicalInventorySummary locations={locations} />
     {aggregate.sheetAccess?.canAccessPrivateGod ? <OwnerInventoryControl characterId={aggregate.character.id} version={aggregate.profile.commerceVersion ?? 0} disabled={ownerDisabled || busy || locations.busy} onComplete={onUseComplete} /> : null}

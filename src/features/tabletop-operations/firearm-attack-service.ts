@@ -1,3 +1,5 @@
+import { assertFormEquipmentUseInTransaction, readFormEquipmentApprovalInTransaction } from '@/features/forms/form-capability-service';
+import { effectiveAttributeInTransaction } from '@/features/forms/effective-form-service';
 import { assertExactInventoryAvailable } from "@/features/items/inventory-access-service";
 import { armorCoversLocation } from "@/features/items/armor-coverage";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
@@ -100,7 +102,7 @@ import { rangedShotInitiativeCost, resolveAmmunitionWeaponMode } from "@/feature
 import { readEffectiveFirearmState, writeFirearmAmmunitionState } from "@/features/items/firearm-magazine-service";
 import { readWeaponInjuryTimingInTransaction } from "./combat-injury-timing-service";
 import { completedFirearmPortions, firearmTimingMultiplier } from "./firearm-injury-timing";
-import { assertApprovedWeaponDistanceRequestInTransaction, linkPlayerCombatRulingOutcomeInTransaction, lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
+import { assertRulingFormBoundary, assertApprovedWeaponDistanceRequestInTransaction, linkPlayerCombatRulingOutcomeInTransaction, lockPlayerCombatContextInTransaction } from "./player-combat-ruling-service";
 import { decodeMechanicalEffect, type MechanicalEffect } from "@/features/mechanical-effects";
 import { isSimpleAdditiveWeaponHitDamage } from "./ordinary-attack-consequence-service";
 import { resolveWeaponRange, type ResolvedWeaponRange } from "@/features/items/weapon-range";
@@ -111,6 +113,7 @@ type FirearmAttackActor = ActionDeclarationActor;
 type FirearmAttackActorInput = string | FirearmAttackActor;
 
 export type FirearmAttackCommand = Readonly<{
+  formEquipmentReason?: string;
   actorParticipantId: number;
   targetParticipantId: number;
   itemInstanceId: number;
@@ -392,6 +395,9 @@ async function loadFoundation(
   const actorParticipantId = positiveId(command.actorParticipantId, "Attacking participant");
   const actor = await resolveFirearmActor(tx, context, actorInput, actorParticipantId);
   const actorUserId = actor.userId;
+  await assertFormEquipmentUseInTransaction(tx, actorParticipantId,
+    await readFormEquipmentApprovalInTransaction(tx, context.encounterId, actorParticipantId, 'weapon', `instance:${command.itemInstanceId}`)
+      ?? (command.formEquipmentReason ? { userId: actorUserId, reason: command.formEquipmentReason } : null));
   const targetParticipantId = participantKey(command.targetParticipantId, "Target participant");
   if (actorParticipantId === targetParticipantId) throw new Error("A firearm attack requires a distinct target participant.");
   const participants = await tx.select({
@@ -599,6 +605,7 @@ async function loadFoundation(
     )).limit(1);
     const ruling = isRecord(request?.ruling) ? request.ruling : null;
     const frozen = isRecord(request?.frozenRequest) ? request.frozenRequest : null;
+    if (request) await assertRulingFormBoundary(tx, { characterId: actorParticipantId, targetParticipantId: targetParticipantId, frozenRequestJson: request.frozenRequest });
     if (!ruling
       || ruling.penalty !== calledShot.penalty
       || ruling.reason !== calledShot.reason
@@ -651,6 +658,7 @@ async function loadFoundation(
     eq(campaignCharacterAttribute.characterId, actorParticipantId),
     eq(campaignCharacterAttribute.attributeKey, "DEX"),
   )).limit(1);
+  if (dexterity) dexterity.value = await effectiveAttributeInTransaction(tx, actorParticipantId, "DEX", dexterity.value);
   const originalTarget = governance.originalTarget;
   const finalTarget = resolvePercentileCheck({ resultTotal: 50, originalTarget, modifiers }).finalTarget;
   return {
@@ -826,7 +834,7 @@ async function declareFirearmAttackInternal(
     sourceKind: "weapon",
     sourceRef: `instance:${preview.firearm.itemInstanceId}`,
     sourceInstanceId: preview.firearm.itemInstanceId,
-    sourcePayload: { firearmAttackId: attackId, firearmInjuryMultiplier: preview.timing.multiplier,
+    sourcePayload: { formEquipmentReason: command.formEquipmentReason, firearmAttackId: attackId, firearmInjuryMultiplier: preview.timing.multiplier,
       ...(preview.timing.bowShotInitiativeCost !== undefined ? { bowShotInitiativeCost: preview.timing.bowShotInitiativeCost } : {}),
       weaponHands: command.weaponHands ?? null, rangeAttackMode: "ranged", rangeDistance: preview.range.distance, rangeUnit: preview.range.unit,
       rangeBeyondLongModifier: command.rangeBeyondLongModifier ?? null, rangeBeyondLongReason: command.rangeBeyondLongReason ?? "", rangeDistanceRulingRequestId: command.distanceRulingRequestId ?? null, ...governancePayload },

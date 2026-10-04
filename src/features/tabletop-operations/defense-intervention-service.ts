@@ -1,3 +1,5 @@
+import { readActiveFormDefinitionInTransaction, effectiveCreatureSnapshotInTransaction } from '@/features/forms/effective-form-service';
+import { assertFormEquipmentUseInTransaction, readFormEquipmentApprovalInTransaction } from '@/features/forms/form-capability-service';
 import { creatureAttackRuntime } from "./creature-attack-runtime";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
@@ -19,6 +21,7 @@ import { campaignPlayer } from "@/db/campaign-schema";
 import { weaponProfile } from "@/db/item-schema";
 import {
   campaignCharacter,
+  campaignCreatureNpcProfile,
   campaignCharacterSpellDocument,
 } from "@/db/realm-schema";
 import { skill, skillRelationship } from "@/db/skill-schema";
@@ -502,9 +505,13 @@ async function buildSourceAndCost(
       godReason,
     };
   }
+  const [persistentCreature] = loaded.opportunity.responderCharacterId > 0
+    ? await tx.select().from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, loaded.opportunity.responderCharacterId)) : [];
+  const persistentBody = persistentCreature ? await effectiveCreatureSnapshotInTransaction(tx, loaded.opportunity.responderCharacterId, JSON.parse(persistentCreature.currentSnapshotJson)) : null;
+  const usesFormDefense = !!persistentBody?.currentForm;
   if (input.reactionType === "dodge") {
-    if (loaded.opportunity.responderCharacterId < 0) {
-      const [occurrence] = await tx.select({
+    if (loaded.opportunity.responderCharacterId < 0 || usesFormDefense) {
+      const [storedOccurrence] = await tx.select({
         displayLabel: campaignSessionEncounterParticipant.displayLabel,
         snapshot: campaignSessionEncounterParticipant.creatureSnapshotJson,
       }).from(campaignSessionEncounterParticipant).where(and(
@@ -512,6 +519,7 @@ async function buildSourceAndCost(
         eq(campaignSessionEncounterParticipant.characterId, loaded.opportunity.responderCharacterId),
         eq(campaignSessionEncounterParticipant.participantKind, "creature"),
       )).limit(1);
+      const occurrence = persistentCreature ? { displayLabel: 'Creature NPC', snapshot: persistentBody } : storedOccurrence;
       const defenses = occurrence?.snapshot && typeof occurrence.snapshot === "object" && !Array.isArray(occurrence.snapshot)
         ? (occurrence.snapshot as { defenses?: unknown }).defenses
         : null;
@@ -540,7 +548,7 @@ async function buildSourceAndCost(
           sourceRef: typeof selected.seedIdentity === "string" ? selected.seedIdentity : "creature-defense:dodge",
           governingSource: governing,
           governingSnapshot: governing,
-          authoredContext: { selected, alternatives: authored },
+          authoredContext: { selected, alternatives: authored, currentForm: persistentBody?.currentForm ?? null },
         },
         initiativeCost: 1,
         rollRequired: true,
@@ -589,14 +597,14 @@ async function buildSourceAndCost(
     };
   }
   if (input.reactionType === "parry" || input.reactionType === "block") {
-    if (loaded.opportunity.responderCharacterId < 0) {
+    if (loaded.opportunity.responderCharacterId < 0 || usesFormDefense) {
       const [occurrence] = await tx.select({ snapshot: campaignSessionEncounterParticipant.creatureSnapshotJson })
         .from(campaignSessionEncounterParticipant).where(and(
           eq(campaignSessionEncounterParticipant.encounterId, context.encounterId),
           eq(campaignSessionEncounterParticipant.characterId, loaded.opportunity.responderCharacterId),
           eq(campaignSessionEncounterParticipant.participantKind, "creature"),
         )).limit(1);
-      const frozen = occurrence?.snapshot as { defenses?: Array<Record<string, unknown>>; attacks?: Array<Record<string, unknown>> } | null;
+      const frozen = (persistentCreature ? persistentBody : occurrence?.snapshot) as { defenses?: Array<Record<string, unknown>>; attacks?: Array<Record<string, unknown>> } | null;
       const available = (frozen?.defenses ?? []).filter((entry) => String(entry.defenseType).toLowerCase() === input.reactionType);
       const choices = available.length > 1 ? available.filter((entry) => entry.seedIdentity === input.sourceRef) : available;
       const selected = choices.length === 1 ? choices[0] : null;
@@ -612,7 +620,7 @@ async function buildSourceAndCost(
       const governing = { kind: "manual" as const, label, originalTarget: target };
       return { source: { kind: "creature-defense", label, itemId: null, instanceId: null, skillAllocationId: null,
         attributeKey: null, derivedAbilityId: null, sourceRef: String(selected.seedIdentity ?? input.reactionType),
-        governingSource: governing, governingSnapshot: governing, authoredContext: { defense: selected, defendingAttack: defendingAttack ?? null } },
+        governingSource: governing, governingSnapshot: governing, authoredContext: { defense: selected, defendingAttack: defendingAttack ?? null, currentForm: persistentBody?.currentForm ?? null } },
       initiativeCost: cost, rollRequired: true, godReason: authoredCost === null ? godReason : "" };
     }
     const equipment = await readCharacterEquipmentStateInTransaction(tx, loaded.opportunity.responderCharacterId);
@@ -620,6 +628,9 @@ async function buildSourceAndCost(
     const instanceId = optionalPositiveId(input.instanceId, "Defending Item instance");
     const weapon = equipment.wieldedWeapons.find((candidate) => candidate.itemId === itemId && candidate.instanceId === instanceId);
     if (!weapon) throw new Error("Parry or Block requires an exact currently wielded owned Item.");
+    const formEquipment = await assertFormEquipmentUseInTransaction(tx, loaded.opportunity.responderCharacterId,
+      await readFormEquipmentApprovalInTransaction(tx, context.encounterId, loaded.opportunity.responderCharacterId, "weapon", weapon.ownershipKey)
+        ?? (isGod && godReason ? { userId: actor.userId, reason: godReason } : null));
     const governed = await resolveCharacterWeaponGovernanceInTransaction(tx, { userId: actor.userId }, {
       campaignId: context.campaignId,
       characterId: loaded.opportunity.responderCharacterId,
@@ -652,6 +663,7 @@ async function buildSourceAndCost(
         sourceRef: weapon.ownershipKey,
         governingSource: resolved.rollGoverningSource,
         governingSnapshot: resolved.rollGoverningSourceSnapshot,
+        authoredContext: { formEquipment },
       },
       initiativeCost: getDefenseInitiativeCommitment(input.reactionType, weapon.initiativeCost ?? assignedCost),
       rollRequired: true,
@@ -927,6 +939,9 @@ export async function declareDefenseInterventionInTransaction(
       .where(eq(campaignCharacter.id, loaded.opportunity.responderCharacterId)).limit(1).for("update");
   }
   const prepared = await buildSourceAndCost(tx, context, actor, loaded, input);
+  const currentForm = (await readActiveFormDefinitionInTransaction(tx, loaded.opportunity.responderCharacterId))?.identity;
+  if (currentForm) prepared.source = { ...prepared.source, authoredContext: { ...(prepared.source.authoredContext ?? {}), currentForm },
+    governingSnapshot: prepared.source.governingSnapshot ? { ...prepared.source.governingSnapshot, currentForm } : null };
   const engine = await loadInitiativeEngineInTransaction(tx as RuntimeIntegrationTransaction, context.encounterId);
   const checkpointId = await beginDeclarationCheckpointInTransaction(tx, context.encounterId, engine, loaded.opportunity.responderCharacterId, true);
   if (prepared.source.itemId !== null) {

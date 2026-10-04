@@ -885,7 +885,11 @@ export const campaignSessionEncounterReaction = pgTable(
       sql`(
         (${table.reactionType} IN ('block', 'parry') AND (
           ${table.defendingItemId} IS NOT NULL
-          OR (${table.reactorCharacterId} < 0 AND ${table.defendingItemId} IS NULL AND ${table.defendingInstanceId} IS NULL
+          OR ((${table.reactorCharacterId} < 0 OR (
+              ${table.reactorCharacterId} > 0
+              AND coalesce(${table.declarationSnapshotJson}->'source'->'authoredContext'->'currentForm'->>'kind' = 'creature', false)
+              AND coalesce((${table.declarationSnapshotJson}->'source'->'authoredContext'->'currentForm'->>'entryEventId') ~ '^[1-9][0-9]*$', false)
+            )) AND ${table.defendingItemId} IS NULL AND ${table.defendingInstanceId} IS NULL
             AND coalesce(${table.declarationSnapshotJson}->'source'->>'kind' = 'creature-defense', false)
             AND ${table.committedInitiativeCost} > 0)
         ))

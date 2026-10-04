@@ -1,3 +1,5 @@
+import { assertFormEquipmentUseInTransaction } from '@/features/forms/form-capability-service';
+import { effectiveAttributeInTransaction } from '@/features/forms/effective-form-service';
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import { publishCharacterStateInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 import "server-only";
@@ -86,6 +88,7 @@ export type SetStackEquipmentStateCommand = {
   state: ActiveEquipmentState;
   quantity: number;
   includeEffectHistory?: boolean;
+  formEquipmentReason?: string;
 };
 
 export type SetInstanceEquipmentStateCommand = {
@@ -93,6 +96,7 @@ export type SetInstanceEquipmentStateCommand = {
   instanceId: number;
   state: EquipmentState;
   includeEffectHistory?: boolean;
+  formEquipmentReason?: string;
 };
 
 export type EquipmentStateMutationResult = {
@@ -347,7 +351,7 @@ export async function readCharacterEquipmentStateInTransaction(
   for (const row of attributeRows) {
     if (CHARACTER_ATTRIBUTE_KEYS.includes(row.attributeKey as CharacterAttributeKey)) {
       const key = row.attributeKey as CharacterAttributeKey;
-      attributes[key] = row.value;
+      attributes[key] = await effectiveAttributeInTransaction(tx, characterId, key, row.value);
       presentAttributeKeys.add(key);
     }
   }
@@ -755,6 +759,7 @@ export function getCharacterEquipmentState(characterId: number): Promise<Charact
 }
 
 export type ReadyOwnedWeaponCommand = {
+  formEquipmentReason?: string;
   characterId: number;
   itemId: number;
   instanceId: number | null;
@@ -762,10 +767,11 @@ export type ReadyOwnedWeaponCommand = {
   wieldedQuantity: number;
 };
 
-export async function readyOwnedWeaponInTransaction(tx: EquipmentStateTransaction, command: ReadyOwnedWeaponCommand): Promise<EquipmentStateMutationResult> {
+export async function readyOwnedWeaponInTransaction(tx: EquipmentStateTransaction, command: ReadyOwnedWeaponCommand, formApproval?: { userId: string; reason: string } | null): Promise<EquipmentStateMutationResult> {
   const { assertOutsideCombatEquipmentHandling } = await import("./magazine-inventory-service");
   await assertOutsideCombatEquipmentHandling(tx, command.characterId);
   await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+  await assertFormEquipmentUseInTransaction(tx, command.characterId, formApproval);
   positiveId(command.itemId, "Weapon");
   const [profile] = await tx.select({ id: weaponProfile.id }).from(weaponProfile)
     .innerJoin(item, eq(item.id, weaponProfile.itemId))
@@ -775,7 +781,7 @@ export async function readyOwnedWeaponInTransaction(tx: EquipmentStateTransactio
   if (command.instanceId !== null) {
     const owned = equipment.instances.find((entry) => entry.instanceId === command.instanceId && entry.itemId === command.itemId);
     if (!owned) throw new Error("Choose an exact owned weapon copy.");
-    return setInstanceEquipmentStateInTransaction(tx, { characterId: command.characterId, instanceId: owned.instanceId, state: "wielded" });
+    return setInstanceEquipmentStateInTransaction(tx, { characterId: command.characterId, instanceId: owned.instanceId, state: "wielded" }, formApproval);
   }
   const owned = equipment.stacks.find((entry) => entry.itemId === command.itemId);
   if (!owned || !Number.isSafeInteger(command.wieldedQuantity) || command.wieldedQuantity < 1
@@ -786,25 +792,28 @@ export async function readyOwnedWeaponInTransaction(tx: EquipmentStateTransactio
   if (command.wieldedQuantity > owned.wieldedQuantity && owned.inactiveQuantity === 0) {
     const from = owned.equippedQuantity > 0 ? "equipped" : "worn";
     await setStackEquipmentStateInTransaction(tx, { characterId: command.characterId, itemId: command.itemId,
-      state: from, quantity: (from === "equipped" ? owned.equippedQuantity : owned.wornQuantity) - 1 });
+      state: from, quantity: (from === "equipped" ? owned.equippedQuantity : owned.wornQuantity) - 1 }, formApproval);
   }
   return setStackEquipmentStateInTransaction(tx, { characterId: command.characterId, itemId: command.itemId,
-    state: "wielded", quantity: command.wieldedQuantity });
+    state: "wielded", quantity: command.wieldedQuantity }, formApproval);
 }
 
-export function readyOwnedWeapon(command: ReadyOwnedWeaponCommand) {
-  return withEquipmentMutationAccess(command.characterId, ({ tx }) => readyOwnedWeaponInTransaction(tx, command));
+export async function readyOwnedWeapon(command: ReadyOwnedWeaponCommand) {
+  const session = await requireSession();
+  return withEquipmentMutationAccess(command.characterId, ({ tx }) => readyOwnedWeaponInTransaction(tx, command, command.formEquipmentReason ? { userId: session.user.id, reason: command.formEquipmentReason } : null));
 }
 
 export async function setStackEquipmentStateInTransaction(
   tx: EquipmentStateTransaction,
   command: SetStackEquipmentStateCommand,
+  formApproval?: { userId: string; reason: string } | null,
 ): Promise<EquipmentStateMutationResult> {
   await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   positiveId(command.itemId, "Equipment Item");
   if (!ACTIVE_EQUIPMENT_STATES.includes(command.state)) throw new Error("Stack Equipment State must be Equipped, Worn, or Wielded.");
   if (!Number.isSafeInteger(command.quantity) || command.quantity < 0) throw new Error("Active Equipment quantity must be a whole number zero or greater.");
   await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+  await assertFormEquipmentUseInTransaction(tx, command.characterId, formApproval);
   const ownershipRows = await tx.select({ quantity: campaignCharacterItem.quantity, scope: item.catalogScope })
     .from(campaignCharacterItem).innerJoin(item, eq(item.id, campaignCharacterItem.itemId))
     .where(and(eq(campaignCharacterItem.characterId, command.characterId), eq(campaignCharacterItem.itemId, command.itemId)))
@@ -846,23 +855,28 @@ export async function setStackEquipmentStateInTransaction(
   return { equipmentState, activeEffects };
 }
 
-export function setStackEquipmentState(command: SetStackEquipmentStateCommand): Promise<EquipmentStateMutationResult> {
-  return withEquipmentMutationAccess(command.characterId, ({ tx }) => setStackEquipmentStateInTransaction(tx, command));
+export async function setStackEquipmentState(command: SetStackEquipmentStateCommand): Promise<EquipmentStateMutationResult> {
+  const session = await requireSession();
+  return withEquipmentMutationAccess(command.characterId, ({ tx }) => setStackEquipmentStateInTransaction(tx, command, command.formEquipmentReason ? { userId: session.user.id, reason: command.formEquipmentReason } : null));
 }
 
 /** The sheet's state selector composes the existing quantity operations atomically. */
-export function setStackEquipmentRole(command: {
+export async function setStackEquipmentRole(command: {
   characterId: number;
   itemId: number;
   state: EquipmentState;
   quantity: number;
   expectedQuantities: { inactive: number; equipped: number; worn: number; wielded: number };
   includeEffectHistory?: boolean;
+  formEquipmentReason?: string;
 }): Promise<EquipmentStateMutationResult> {
+  const session = await requireSession();
+  const formApproval = command.formEquipmentReason ? { userId: session.user.id, reason: command.formEquipmentReason } : null;
   return withEquipmentMutationAccess(command.characterId, async ({ tx }) => {
     const target = requireEquipmentState(command.state);
     await assertCharacterCombatWritableInTransaction(tx, command.characterId);
     await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+    await assertFormEquipmentUseInTransaction(tx, command.characterId, formApproval);
     const current = await readCharacterEquipmentStateInTransaction(tx, command.characterId);
     const owned = current.stacks.find(({ itemId }) => itemId === command.itemId);
     if (!owned) throw new Error("Choose an owned Equipment item.");
@@ -878,9 +892,9 @@ export function setStackEquipmentRole(command: {
       await assertOutsideCombatEquipmentHandling(tx, command.characterId);
     }
     for (const state of ACTIVE_EQUIPMENT_STATES) {
-      if (state !== target && quantities[state] > 0) await setStackEquipmentStateInTransaction(tx, { ...command, state, quantity: 0 });
+      if (state !== target && quantities[state] > 0) await setStackEquipmentStateInTransaction(tx, { ...command, state, quantity: 0 }, formApproval);
     }
-    if (target !== "inactive") return setStackEquipmentStateInTransaction(tx, { ...command, state: target, quantity: command.quantity });
+    if (target !== "inactive") return setStackEquipmentStateInTransaction(tx, { ...command, state: target, quantity: command.quantity }, formApproval);
     return {
       equipmentState: await readCharacterEquipmentStateInTransaction(tx, command.characterId),
       activeEffects: await readActiveEffectsInTransaction(tx, command.characterId, command.includeEffectHistory ?? false),
@@ -891,11 +905,13 @@ export function setStackEquipmentRole(command: {
 export async function setInstanceEquipmentStateInTransaction(
   tx: EquipmentStateTransaction,
   command: SetInstanceEquipmentStateCommand,
+  formApproval?: { userId: string; reason: string } | null,
 ): Promise<EquipmentStateMutationResult> {
   await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   positiveId(command.instanceId, "Owned Item copy");
   const state = requireEquipmentState(command.state);
   await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+  await assertFormEquipmentUseInTransaction(tx, command.characterId, formApproval);
   const rows = await tx.select({ itemId: campaignCharacterItemInstance.itemId, scope: item.catalogScope })
     .from(campaignCharacterItemInstance).innerJoin(item, eq(item.id, campaignCharacterItemInstance.itemId))
     .where(and(
@@ -919,6 +935,7 @@ export async function setInstanceEquipmentStateInTransaction(
   return { equipmentState, activeEffects };
 }
 
-export function setInstanceEquipmentState(command: SetInstanceEquipmentStateCommand): Promise<EquipmentStateMutationResult> {
-  return withEquipmentMutationAccess(command.characterId, ({ tx }) => setInstanceEquipmentStateInTransaction(tx, command));
+export async function setInstanceEquipmentState(command: SetInstanceEquipmentStateCommand): Promise<EquipmentStateMutationResult> {
+  const session = await requireSession();
+  return withEquipmentMutationAccess(command.characterId, ({ tx }) => setInstanceEquipmentStateInTransaction(tx, command, command.formEquipmentReason ? { userId: session.user.id, reason: command.formEquipmentReason } : null));
 }

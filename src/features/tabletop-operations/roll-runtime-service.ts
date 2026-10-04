@@ -1,3 +1,6 @@
+import { effectiveAttributeInTransaction, readActiveFormDefinitionInTransaction } from '@/features/forms/effective-form-service';
+import { loadCharacterSkillLineageInputInTransaction } from '@/features/items/character-weapon-governance-service';
+import { resolveCharacterSkillLineageSelection } from '@/features/items/character-weapon-governance';
 import "server-only";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 
@@ -278,6 +281,7 @@ async function resolveGoverningSourceSnapshot(
         eq(campaignCharacterAttribute.attributeKey, source.attributeKey),
       )).limit(1);
     if (!row) throw new Error("That governing Attribute does not belong to the authorized Campaign Character.");
+    row.value = await effectiveAttributeInTransaction(tx, source.characterId, source.attributeKey, row.value);
     return {
       kind: "attribute",
       characterId: source.characterId,
@@ -286,6 +290,16 @@ async function resolveGoverningSourceSnapshot(
       attributeValue: row.value,
       originalTarget: 100 - row.value,
     };
+  }
+
+  const currentForm = await readActiveFormDefinitionInTransaction(tx, source.characterId);
+  if (currentForm || source.formSource) {
+    if (source.formSource && source.formSource.entryEventId !== currentForm?.identity.entryEventId) throw new Error('That temporary Skill belongs to a different Form entry. Refresh the action.');
+    const [owner] = await tx.select({ id: campaignCharacter.id }).from(campaignCharacter).where(and(eq(campaignCharacter.id, source.characterId), eq(campaignCharacter.campaignId, actor.campaignId)));
+    if (!owner) throw new Error('Skill Character is outside the authorized Campaign.');
+    const resolved = resolveCharacterSkillLineageSelection(await loadCharacterSkillLineageInputInTransaction(tx, source.characterId), { kind: 'skill', allocationId: source.allocationId });
+    if (!resolved) throw new Error('This Skill is not available from the current effective Character.');
+    return resolved.rollGoverningSourceSnapshot;
   }
 
   const rows = await tx.select({
@@ -584,7 +598,7 @@ async function recordRollInternal(
     );
     if (!sameIdentity) throw new Error("The Roll request does not match its frozen governing-source identity.");
   }
-  const governingSource = request.mechanical === null
+  let governingSource = request.mechanical === null
     ? null
     : frozenGoverningSource ?? await resolveGoverningSourceSnapshot(
       tx,
@@ -592,6 +606,10 @@ async function recordRollInternal(
       request.rollerCharacterId,
       request.mechanical.governingSource,
     );
+  if (governingSource && !frozenGoverningSource && request.rollerCharacterId !== null) {
+    const active = await readActiveFormDefinitionInTransaction(tx, request.rollerCharacterId);
+    if (active) governingSource = { ...governingSource, currentForm: active.identity };
+  }
   const mechanicalSnapshot = governingSource === null
     ? null
     : buildRollMechanicalSnapshot(

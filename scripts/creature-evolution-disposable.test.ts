@@ -101,6 +101,7 @@ async function main() {
     run("scripts/evolution-runtime-db.test.mjs");
     run("scripts/evolution-runtime-return-db.test.mjs");
     run("scripts/forms-runtime-db.test.mjs");
+    run("scripts/forms-effective-runtime-db.test.mjs");
     run("scripts/evolution-pass-four-db.test.mjs");
     run("scripts/evolution-pass-five-db.test.mjs");
     if (!process.argv.includes("--focused")) {

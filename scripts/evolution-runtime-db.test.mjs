@@ -201,7 +201,7 @@ test('a real runtime writer waiting on Evolution cannot freeze the obsolete sour
     }).then(()=>({error:null}),error=>({error})).finally(()=>{ended=true;});
     await new Promise(resolve=>setTimeout(resolve,100)); assert.equal(ended,false,'runtime waits at the Encounter lock');
     await client.query('select pg_advisory_unlock($1)',[gate]); await execution;
-    assert.match((await writer).error?.message ?? '',/current Normal Race|no longer|source/i);
+    assert.match((await writer).error?.message ?? '',/current (?:Normal Race|effective body)|no longer|source/i);
     assert.equal((await rows('select id from campaign_session_encounter_action_declaration where encounter_id=$1',[f.encounterId])).length,0,'stale action transaction rolled back');
   } finally {
     await client.query('select pg_advisory_unlock($1)',[gate]); await Promise.allSettled([execution,writer]); client.release();

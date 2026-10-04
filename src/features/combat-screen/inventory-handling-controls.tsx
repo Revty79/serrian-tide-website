@@ -1,4 +1,6 @@
 "use client";
+import { inventoryFormOperationRef } from "@/features/forms/form-equipment-operation";
+import { FormEquipmentRulingField } from "@/components/forms/form-equipment-ruling";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
 import { containerAccessState, resolveInventoryAvailability } from "@/features/items/inventory-access";
@@ -13,6 +15,7 @@ export function inventoryRequestKey() { return Array.from(crypto.getRandomValues
 export function InventoryHandlingControls({ scope, characterId, disabled, canControl, refresh, revision = "" }: {
   scope: CombatScreenScope; characterId: number; disabled: boolean; canControl: boolean; refresh: () => Promise<void>; revision?: string;
 }) {
+  const [formEquipmentReason, setFormEquipmentReason] = useState('');
   const [workspace, setWorkspace] = useState<Awaited<ReturnType<typeof readCombatInventory>> | null>(null);
   const [operation, setOperation] = useState<CombatInventoryCommand["operation"]>("retrieve"), [selected, setSelected] = useState("");
   const [destination, setDestination] = useState(""), [quantity, setQuantity] = useState(1), [cost, setCost] = useState(""), [reason, setReason] = useState("");
@@ -48,7 +51,7 @@ export function InventoryHandlingControls({ scope, characterId, disabled, canCon
   async function run(task: () => Promise<unknown>) { if (busy) return; setBusy(true); setError(""); setNotice(""); try { await task(); await reload(); await refresh(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Handling failed."); } finally { setBusy(false); } }
   function command() {
     if (!view || !chosen) throw new Error("Choose inventory to handle.");
-    const base = { characterId, expectedCommerceVersion: view.commerceVersion, operation, itemId: chosen.itemId, instanceId: chosen.instanceId,
+    const base = { characterId, ...(formEquipmentReason ? { formEquipmentReason } : {}), expectedCommerceVersion: view.commerceVersion, operation, itemId: chosen.itemId, instanceId: chosen.instanceId,
       quantity: chosen.instanceId === null ? quantity : 1, containerInstanceId: operation === "retrieve" ? chosen.containerInstanceId : operation === "stow" ? dest : null,
       ...(unresolved && scope.role === "god" ? { initiativeRuling: { cost: cost === "" ? NaN : Number(cost), reason } } : {}) };
     const fingerprint = JSON.stringify(base);
@@ -56,6 +59,7 @@ export function InventoryHandlingControls({ scope, characterId, disabled, canCon
     return retry.current.command;
   }
   return <details className="inventory-combat-handling"><summary>Inventory handling</summary>
+    <FormEquipmentRulingField characterId={characterId} value={formEquipmentReason} onChange={setFormEquipmentReason} combatSource={{ encounterId: scope.encounterId, kind: "equipment-operation", ref: chosen ? inventoryFormOperationRef({ operation, itemId: chosen.itemId, instanceId: chosen.instanceId, quantity: chosen.instanceId === null ? quantity : 1, containerInstanceId: operation === "retrieve" ? chosen.containerInstanceId : operation === "stow" ? dest : null }) : "", disabled, refresh }}/>
     <p>Retrieve to Loose before using an Item. Opening is separate. Stow from Loose; retrieval does not draw or ready a weapon.</p>
     {!view ? <p>Loading inventory…</p> : <>
       <p>Carried weight: {displayMeasurement(view.carriedWeight, "lb")}</p>

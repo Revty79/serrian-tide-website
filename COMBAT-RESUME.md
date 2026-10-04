@@ -1,5 +1,15 @@
 # Combat resumption handoff
 
+## Forms Runtime Pass 2: effective body (3 October 2026)
+
+- Continued from `ee49594b2b7ef1090670baf1b7dbbc0a96a825ee` under explicit Pass 2 authorization. This supersedes Pass 1's Normal-only execution and wait-for-Pass-2 statements below.
+- One shared mechanics projection now drives active Race/Creature Health/anatomy, Attributes, movement, natural protection, Interaction Rules, attacks/Abilities/defenses and supported Skill/weapon/firearm/spell readers. Frozen entry definitions combine with live saved Normal facts for inherited categories. Normal saved editing/advancement stays intact.
+- Capability checks govern active equipment use; passive recorded Worn Armor still applies. No forced physical equipment mutation, healing, auto-trigger/expiry, new turn or permanent grant. Active/pending Forms still block Evolution/Return and Race reassignment. Source/target evidence and rulings bind the exact Form entry.
+- Migration **0094** narrowly extends the reaction defense constraint for positive persistent Creature Form Block/Parry. No shared migration or Production write is authorized/applied. Existing unapplied 0087/0092/0093 also require separate rollout.
+- [Architecture/schema audit](docs/architecture/forms-runtime-pass-2-audit.md); [23-part completion report and validation](docs/reports/forms-runtime-pass-2-2026-10-03.md).
+- Validation: 87 effective-mechanics cases, all 64 Forms lifecycle cases, 173 Evolution/Return/authoring/ownership/lifecycle regressions, 522 combat cases and 1,883 unit tests passed. Desktop/390px Form/Evolution/Return workflows, live source refresh, printed previews, and G.O.D. physical-use approval without Player action takeover passed. Typegen/typecheck/lint/Drizzle/whitespace passed; 95 migrations replay on disposable localhost databases only.
+- Stop after the local pass. **Do not push or begin Forms Pass 3, Special Ability, companion or unrelated work automatically.** Hands-on acceptance remains outstanding.
+
 ## Forms Runtime Pass 1: persistent lifecycle (3 October 2026)
 
 - Continued from `aca7345e51df2f3dcd849258bb9c67179853fbea` under explicit Forms Pass 1 authorization. Current Form is now authoritative for positive PCs, Race NPCs and persistent Creature NPCs; absence is Normal. Enter/Return freeze exact definition evidence and use durable requests/events.

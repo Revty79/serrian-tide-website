@@ -1,3 +1,4 @@
+import { readEffectiveFormInTransaction } from '@/features/forms/effective-form-service';
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import "server-only";
 
@@ -199,6 +200,9 @@ async function loadAnatomy(
   characterId: number,
   npcKind: string,
 ): Promise<ActiveHealthAnatomy> {
+  const active = await readEffectiveFormInTransaction(tx, characterId);
+  if (active?.kind === 'creature') return resolveCreatureHealthAnatomy(active.effective, active.hpAdjustment);
+  if (active?.kind === 'race') return resolveRaceHealthAnatomy(active.effective.attributes.CON, active.profile.hpMultiplierSteps, active.effective.anatomy);
   if (npcKind === "creature") {
     const [profile] = await tx
       .select({

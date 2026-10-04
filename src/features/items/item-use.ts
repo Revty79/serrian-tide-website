@@ -27,6 +27,7 @@ export type ItemUseEffectSelection = {
 };
 
 export type ItemUseRequest = {
+  formEquipmentReason?: string;
   sourceCharacterId: number;
   itemId: number;
   itemInstanceId: number | null;

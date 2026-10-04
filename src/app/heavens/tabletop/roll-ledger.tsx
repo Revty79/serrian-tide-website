@@ -48,7 +48,7 @@ function governingSourceLabel(snapshot: RollMechanicalSnapshot): string {
   if (source.kind === "attribute") {
     return `${source.attributeDisplayName} (${source.attributeKey}) value ${source.attributeValue}`;
   }
-  return `${source.skillPath.map(({ skillName }) => skillName).join(" → ")} · allocation #${source.allocationId} · ${source.calculatedPercentage}%`;
+  return `${source.skillPath.map(({ skillName }) => skillName).join(" → ")} · ${source.formSource ? "temporary Form Skill" : `allocation #${source.allocationId}`} · ${source.calculatedPercentage}%`;
 }
 
 function SnapshotView({ snapshot, label }: { snapshot: RollMechanicalSnapshot; label: string }) {

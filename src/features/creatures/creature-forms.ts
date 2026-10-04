@@ -1,3 +1,4 @@
+import { resolveFormInteractionRules } from '@/features/forms/effective-form-mechanics';
 import type { FormAccess } from "@/features/forms/form-access";
 import type { CreatureDraft } from "./models";
 import { normalizeCreatureDefinition } from "./creature-definition";
@@ -51,7 +52,7 @@ export function emptyCreatureFormMechanics(): CreatureFormMechanics {
     speech: { state: "creature", notes: "" }, equipment: { state: "creature", notes: "" }, restrictions: [] };
 }
 
-/** A detached authoring projection. Runtime readers never call this function. */
+/** Shared detached mechanics for authoring, preview and active runtime Forms. */
 export function projectCreatureFormDefinition(creature: CreatureDraft, mechanics: CreatureFormMechanics): CreatureDraft {
   const result = structuredClone(creature);
   delete result.forms;
@@ -71,8 +72,7 @@ export function projectCreatureFormDefinition(creature: CreatureDraft, mechanics
     const additions = new Map(mechanics.skills.rows.map(row => [row.skillId, row]));
     result.skillLinks = structuredClone([...creature.skillLinks.filter(row => !additions.has(row.skillId)), ...additions.values()]);
   }
-  if (mechanics.interactionMode === "replace") result.core.interactionRules = structuredClone(mechanics.interactionRules);
-  // Add rules are rendered as two ordered sources, avoiding collisions between source-local keys.
+  result.core.interactionRules = resolveFormInteractionRules(creature.core.interactionRules, mechanics.interactionRules, mechanics.interactionMode);
   return result;
 }
 

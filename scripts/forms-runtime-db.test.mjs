@@ -53,7 +53,7 @@ async function preserve(f,id) {
   await pool.query('update campaign_session_encounter_participant set local_state_json=$2 where encounter_id=$3 and character_id=$1',[id,{limbConditions:[{poolKey:'orphan',name:'Disabled',sourceEffectId:1,incapacitatedAt:'2026-10-03T12:00:00Z'}]},f.encounterId]);
   await pool.query("insert into campaign_character_active_modifier(character_id,label,modifier_channel,target_key,amount,source_kind,source_id,source_name,duration_kind,duration_label) values($1,'Persistent modifier','attribute','STR',2,'god','fixture','Fixture','until-removed','Until removed')",[id]);
 }
-for(const kind of ['PC','Race NPC','Creature NPC']) test(`${kind}: Normal default, preview read-only, transactional cycles preserve every unrelated table and Normal combat mechanics`,async()=>{
+for(const kind of ['PC','Race NPC','Creature NPC']) test(`${kind}: Normal default, preview read-only, transactional cycles preserve every unrelated table and current effective combat mechanics`,async()=>{
   const f=await setup(),c=kind==='Creature NPC'?await frozenCreature(f):null,id=c?.id??(kind==='PC'?f.heroId:f.defenderId),form=c?.form??f.form;
   await preserve(f,id); if(!c) await creatureSubject(f);
   const actor=kind==='PC'?f.playerActor:f.actor;
@@ -64,12 +64,14 @@ for(const kind of ['PC','Race NPC','Creature NPC']) test(`${kind}: Normal defaul
   const command=input(p),first=await forms.executeFormTransition(command,actor); assert.equal(first.status,'completed');
   const active=await forms.readIndividualFormRuntime(id,actor); assert.equal(active.current.id,first.event.id); assert.equal(active.current.evidence.review.definition.formId,form.id);
   const after=await allRows(); for(const table of Object.keys(before)) if(!['campaign_character_active_form','form_transition_request','form_transition_event'].includes(table)) assert.deepEqual(after[table],before[table],table);
-  assert.deepEqual(await actors.run(f.godId,()=>readCombatCommandSources({role:'god',encounterId:f.encounterId},id)),choices,'Form attacks do not enter Normal choices');
-  assert.deepEqual(await db.transaction(tx=>readIncomingEffectEncounterTargetInTransaction(tx,f.context,id)),incoming,'Normal protection, anatomy and interaction rules unchanged');
+  const changedChoices=await actors.run(f.godId,()=>readCombatCommandSources({role:'god',encounterId:f.encounterId},id)); assert.notDeepEqual(changedChoices.sources,choices.sources,'Current Form changes future sources');
+  const changedTarget=await db.transaction(tx=>readIncomingEffectEncounterTargetInTransaction(tx,f.context,id)); assert.equal(changedTarget.currentForm.entryEventId,first.event.id); assert.notDeepEqual(changedTarget.applicationLocations,incoming.applicationLocations);
   assert.equal((await forms.executeFormTransition(command,actor)).event.id,first.event.id); assert.deepEqual(await allRows(),after,'retry no writes');
   await assert.rejects(forms.executeFormTransition({...command,confirmTime:true},actor),/different input/);
   await assert.rejects(enter(f,id,actor,form),/Return to Normal/);
   const returned=await leave(f,id,actor); assert.equal(returned.event.enteredEventId,first.event.id); assert.equal((await forms.readIndividualFormRuntime(id,actor)).current,null);
+  assert.deepEqual((await actors.run(f.godId,()=>readCombatCommandSources({role:'god',encounterId:f.encounterId},id))).sources,choices.sources,'Return restores Normal choices');
+  assert.deepEqual(await db.transaction(tx=>readIncomingEffectEncounterTargetInTransaction(tx,f.context,id)),incoming,'Return restores Normal target mechanics');
   await assert.rejects(leave(f,id,actor),/Already Normal/);
   await enter(f,id,actor,form); await leave(f,id,actor); assert.equal((await forms.readIndividualFormRuntime(id,actor)).history.length,4);
   await assert.rejects(pool.query('update form_transition_event set form_key=$2 where id=$1',[first.event.id,'forged']),/immutable/);
@@ -198,7 +200,7 @@ test('reaction, protected target, responder and Effect Plan subject block both E
  const plan=await db.transaction(async tx=>{const hierarchy={campaignId:f.campaignId,sessionId:f.sessionId,sceneId:f.sceneId,encounterId:f.encounterId};const [p]=await tx.insert(runtime.campaignSessionEncounterEffectPlan).values({...hierarchy,declarationId:declaration.id,pendingActionId:f.pendingActionId,actorParticipantId:f.occurrences[0],sourceKind:'weapon',sourceIdentity:'Frozen attack',status:'requires-god-ruling',targetSnapshotJson:[{targetParticipantId:f.heroId}],sourceSnapshotJson:{},initiativeCommitmentJson:{},resourceCostsJson:[],createdByUserId:f.godId}).returning();return p;});
  assert.ok((await preview(f,f.heroId,'return')).blockers.length);await assert.rejects(leave(f));await pool.query("update campaign_session_encounter_effect_plan set status='applied',applied_at=now(),applied_by_user_id=$2 where id=$1",[plan.id,f.godId]);await leave(f);
 });
-test('combat source writer waits behind Form commit, then freezes current Form identity while using Normal attack',async()=>{
+test('combat source writer waits behind Form commit, then rejects the stale Normal attack',async()=>{
  const f=await setup();await ready(f);const command=input(await preview(f)),client=await pool.connect(),gate=214730005;
  await pool.query(`create function form_runtime_gate() returns trigger language plpgsql as $$ begin perform pg_advisory_xact_lock(${gate}); return new; end $$`);
  await pool.query('create trigger form_runtime_gate before insert on form_transition_event for each row execute function form_runtime_gate()');let execution,writer;
@@ -206,8 +208,7 @@ test('combat source writer waits behind Form commit, then freezes current Form i
   await client.query('select pg_advisory_lock($1)',[gate]);execution=forms.executeFormTransition(command,f.actor);
   const deadline=Date.now()+5000;while(!(await one("select exists(select 1 from pg_locks where locktype='advisory' and objid=$1 and not granted) waiting",[gate])).waiting){if(Date.now()>deadline)throw new Error('Form did not reach protected event insert');await new Promise(r=>setTimeout(r,20));}
   let ended=false;writer=db.transaction(async tx=>{const context=await integration.lockOwnedEncounterRuntimeInTransaction(tx,f.encounterId,f.godId);const actor={...f.player,userId:f.playerId};const id=await declarationApi.createActionDeclarationDraftInTransaction(tx,context,actor,{...completionDraft(f.heroId,f.occurrences[0]),sourceKind:'race-natural-attack',sourceRef:f.source.ref,sourcePayload:{rangeAttackMode:'melee',rangeDistance:5,rangeUnit:'feet'}});await declarationApi.lockActionDeclarationInTransaction(tx,context,actor,id);return id;}).finally(()=>{ended=true;});
-  await new Promise(r=>setTimeout(r,100));assert.equal(ended,false);await client.query('select pg_advisory_unlock($1)',[gate]);const entry=await execution,id=await writer;
-  const snapshot=(await one('select locked_snapshot_json from campaign_session_encounter_action_declaration where id=$1',[id])).locked_snapshot_json;assert.equal(snapshot.currentForm.entryEventId,entry.event.id);assert.match(JSON.stringify(snapshot.authoredSource),/Young claw/);
+  await new Promise(r=>setTimeout(r,100));assert.equal(ended,false);await client.query('select pg_advisory_unlock($1)',[gate]);await execution; await assert.rejects(writer,/current effective body/);
  }finally{await client.query('select pg_advisory_unlock($1)',[gate]);await Promise.allSettled([execution,writer]);client.release();await pool.query('drop trigger form_runtime_gate on form_transition_event');await pool.query('drop function form_runtime_gate()');}
 });
 test('simultaneous duplicate retry yields one transition and one immutable event',async()=>{const f=await setup(),command=input(await preview(f));const result=await Promise.all([forms.executeFormTransition(command,f.actor),forms.executeFormTransition(command,f.actor)]);assert.equal(result[0].event.id,result[1].event.id);assert.equal((await forms.readIndividualFormRuntime(f.heroId,f.actor)).history.length,1);});

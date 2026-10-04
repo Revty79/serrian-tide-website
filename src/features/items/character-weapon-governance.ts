@@ -1,3 +1,4 @@
+import type { EffectiveFormIdentity } from "@/features/forms/effective-form-service";
 import {
   getCharacterSkillRanks,
   getEffectiveSkillPoints,
@@ -42,6 +43,7 @@ export type CharacterWeaponGovernanceRulingReason =
   (typeof CHARACTER_WEAPON_GOVERNANCE_RULING_REASONS)[number];
 
 export type CharacterWeaponAllocation = Readonly<{
+  formSource?: import("@/features/tabletop-operations/roll-mechanical-snapshot").FormSkillSource;
   id: number;
   characterId: number;
   skillId: number;
@@ -101,6 +103,7 @@ export type CharacterWeaponResolvedSource =
   | Readonly<{
       kind: "skill";
       allocationId: number;
+      formSource?: import("@/features/tabletop-operations/roll-mechanical-snapshot").FormSkillSource;
       skillId: number;
       skillName: string;
       allocationPath: readonly SkillPathSnapshotEntry[];
@@ -194,6 +197,7 @@ export type ResolveCharacterWeaponGovernanceInput = Readonly<{
   skillCatalog: readonly CharacterSkillReference[];
   skillRelationships: readonly CharacterSkillRelationship[];
   race?: CharacterRaceAggregate | null;
+  currentForm?: EffectiveFormIdentity;
   persistentOverride?: PersistentCharacterWeaponOverride | null;
   oneActionOverride?: CharacterWeaponOneActionOverride | null;
 }>;
@@ -205,6 +209,7 @@ export type CharacterSkillLineageInput = Readonly<{
   skillCatalog: readonly CharacterSkillReference[];
   skillRelationships: readonly CharacterSkillRelationship[];
   race?: CharacterRaceAggregate | null;
+  currentForm?: EffectiveFormIdentity;
 }>;
 
 type AllocationPathResult =
@@ -324,6 +329,7 @@ function skillSnapshotPath(
     if (!selectedSkill) return null;
     snapshot.push({
       allocationId: allocation.id,
+      ...(allocation.formSource ? { formSource: allocation.formSource } : {}),
       skillId: selectedSkill.id,
       skillName: selectedSkill.name,
       skillTier: selectedSkill.tier,
@@ -336,6 +342,7 @@ function resolveAttributeSelection(
   context: Readonly<{ characterId: number }>,
   attributes: CharacterSkillLineageInput["attributes"],
   attributeKey: CharacterAttributeKey,
+  currentForm?: EffectiveFormIdentity,
 ): CharacterSkillLineageResolvedSelection | null {
   const value = finiteAttribute(attributes, attributeKey);
   if (value === null) return null;
@@ -351,6 +358,7 @@ function resolveAttributeSelection(
     source,
     rollGoverningSource: { kind: "attribute", characterId: context.characterId, attributeKey },
     rollGoverningSourceSnapshot: {
+      ...(currentForm ? { currentForm } : {}),
       kind: "attribute",
       characterId: context.characterId,
       attributeKey,
@@ -390,6 +398,7 @@ function resolveSkillSelection(
   const source = {
     kind: "skill" as const,
     allocationId: allocation.id,
+      ...(allocation.formSource ? { formSource: allocation.formSource } : {}),
     skillId: selectedSkill.id,
     skillName: selectedSkill.name,
     allocationPath: snapshotPath,
@@ -402,12 +411,15 @@ function resolveSkillSelection(
       kind: "skill",
       characterId: input.context.characterId,
       allocationId: allocation.id,
+      ...(allocation.formSource ? { formSource: allocation.formSource } : {}),
       calculatedPercentage,
     },
     rollGoverningSourceSnapshot: {
+      ...(input.currentForm ? { currentForm: input.currentForm } : {}),
       kind: "skill",
       characterId: input.context.characterId,
       allocationId: allocation.id,
+      ...(allocation.formSource ? { formSource: allocation.formSource } : {}),
       skillId: selectedSkill.id,
       skillName: selectedSkill.name,
       skillClassification: selectedSkill.classification,
@@ -512,7 +524,7 @@ function resolveCanonicalOption(
         endpointSkillId: option.endpointSkillId,
         canonicalPath: option.path,
         ...resolved,
-        explanation: `Used the deepest owned exact allocation #${allocation.id} at canonical path depth ${depth}; parent and child values were not stacked.`,
+        explanation: allocation.formSource ? `Used the temporary Form Skill at canonical path depth ${depth}.` : `Used the deepest owned exact allocation #${allocation.id} at canonical path depth ${depth}; parent and child values were not stacked.`,
       };
     }
   }
@@ -528,7 +540,7 @@ function resolveCanonicalOption(
       explanation: "The canonical path does not resolve to a supported fallback Attribute.",
     };
   }
-  const resolved = resolveAttributeSelection(input.context, input.attributes, fallbackKey);
+  const resolved = resolveAttributeSelection(input.context, input.attributes, fallbackKey, input.currentForm);
   if (!resolved) {
     return {
       status: "unresolved",
@@ -718,7 +730,7 @@ function resolveExplicitSelection(
   skillsById: ReadonlyMap<number, CharacterSkillReference>,
 ): CharacterSkillLineageResolvedSelection | null {
   if (selection.kind === "attribute") {
-    return resolveAttributeSelection(input.context, input.attributes, selection.attributeKey);
+    return resolveAttributeSelection(input.context, input.attributes, selection.attributeKey, input.currentForm);
   }
   if (input.context.npcKind === "creature") return null;
   const allocation = allocationsById.get(selection.allocationId);
@@ -765,7 +777,7 @@ export function resolveCharacterWeaponGovernance(
         resolved = {
           source: { kind: "manual", label, originalTarget: oneAction.originalTarget },
           rollGoverningSource: { kind: "manual", label, originalTarget: oneAction.originalTarget },
-          rollGoverningSourceSnapshot: { kind: "manual", label, originalTarget: oneAction.originalTarget },
+          rollGoverningSourceSnapshot: { kind: "manual", label, originalTarget: oneAction.originalTarget, ...(input.currentForm ? { currentForm: input.currentForm } : {}) },
         };
       }
     } else if (reason && oneAction.kind !== "manual") {

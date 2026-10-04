@@ -1,3 +1,4 @@
+import { effectiveCreatureSnapshotInTransaction } from '@/features/forms/effective-form-service';
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import type { db } from "@/db";
@@ -63,7 +64,7 @@ export async function recordCombatDamageOutcomeInTransaction(tx: Transaction, co
     poolName = pool?.name ?? "";
     locations = health.anatomy.hitLocations.map((entry) => ({ number: entry.result, name: entry.name, poolKey: entry.poolKey, specialEffect: entry.locationEffect }));
     if (participant.npcKind === "creature" && participant.persistentSnapshot) {
-      const snapshot = object(JSON.parse(participant.persistentSnapshot));
+      const snapshot = object(await effectiveCreatureSnapshotInTransaction(tx, effect.targetParticipantId, JSON.parse(participant.persistentSnapshot)));
       const authored = Array.isArray(snapshot.hitLocations) ? snapshot.hitLocations.map(object) : [];
       locations = locations.map((location) => ({ ...location, specialEffect: authored.find((entry) => entry.hitLocationNumber === location.number)?.locationEffect }));
     }

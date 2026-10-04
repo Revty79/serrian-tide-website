@@ -13,10 +13,8 @@ export function resolveCreatureFormPreview(snapshot: CreatureDraft, formId: numb
   if (!form) return null;
   const definition = projectCreatureFormDefinition(snapshot, form.mechanics);
   const hp = resolveCreatureHpModel(definition, definition.hpPools, hpAdjustment);
-  const normalRules = snapshot.core.interactionRules?.rules ?? [];
-  const formRules = form.mechanics.interactionRules?.rules ?? [];
   return structuredClone({
     form, definition, hp,
-    interactionRules: form.mechanics.interactionMode === "creature" ? normalRules : form.mechanics.interactionMode === "replace" ? formRules : [...normalRules, ...formRules],
+    interactionRules: definition.core.interactionRules?.rules ?? [],
   });
 }

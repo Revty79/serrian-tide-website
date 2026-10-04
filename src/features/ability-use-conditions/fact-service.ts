@@ -1,3 +1,4 @@
+import { readFormCapabilitiesInTransaction } from '@/features/forms/form-capability-service';
 import "server-only";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { db } from "@/db";
@@ -72,6 +73,12 @@ export async function readAbilityFactsInTransaction(tx: Tx, input: { participant
       }
     }
     for (const condition of (await readActiveEffectsInTransaction(tx, input.participantId)).conditions) if (!condition.resolvedAt) conditionNames.push(condition.name);
+  }
+  const formCapabilities = await readFormCapabilitiesInTransaction(tx, input.participantId);
+  put('state.form-active', 'state', !!formCapabilities, 'Authoritative Current Form');
+  if (formCapabilities) {
+    put('state.form-speech', 'state', formCapabilities.speech.state, 'Frozen Current Form speech capability');
+    put('state.form-manipulation', 'state', formCapabilities.manipulation.state, 'Frozen Current Form manipulation capability');
   }
   if (maximum !== null && Number.isFinite(maximum)) put("state.maximum-hp", "state", maximum, "Active Health anatomy");
   if (current !== null && Number.isFinite(current)) put("state.current-hp", "state", current, "Active Health accumulated damage");

@@ -1,3 +1,4 @@
+import { readEffectiveFormInTransaction, effectiveCreatureSnapshotInTransaction } from '@/features/forms/effective-form-service';
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import "server-only";
 
@@ -143,7 +144,7 @@ async function requireModifierTarget(
     const creatureProfile = await tx.select({ snapshot: campaignCreatureNpcProfile.currentSnapshotJson }).from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, characterId)).limit(1);
     if (!found) throw new Error("Temporary Skill Modifier target does not exist in the Skill catalog.");
     if (creatureProfile[0]) {
-      const parsed = JSON.parse(creatureProfile[0].snapshot) as { skillLinks?: Array<{ skillId?: unknown }> };
+      const parsed = await effectiveCreatureSnapshotInTransaction(tx, characterId, JSON.parse(creatureProfile[0].snapshot)) as { skillLinks?: Array<{ skillId?: unknown }> };
       const hasSkill = (parsed.skillLinks ?? []).some(({ skillId: linkedSkillId }) => linkedSkillId === skillId);
       if (!hasSkill) throw new Error("Temporary Skill Modifier target is not part of this Creature NPC's current Skill snapshot.");
     }
@@ -153,12 +154,14 @@ async function requireModifierTarget(
   const creatureProfile = await tx.select({ snapshot: campaignCreatureNpcProfile.currentSnapshotJson }).from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, characterId)).limit(1);
   let modes: string[] = [];
   if (creatureProfile[0]) {
-    const parsed = JSON.parse(creatureProfile[0].snapshot) as { movement?: Array<{ movementMode?: unknown }> };
+    const parsed = await effectiveCreatureSnapshotInTransaction(tx, characterId, JSON.parse(creatureProfile[0].snapshot)) as { movement?: Array<{ movementMode?: unknown }> };
     modes = (parsed.movement ?? []).flatMap(({ movementMode }) => typeof movementMode === "string" ? [movementMode] : []);
   } else if (profile[0]?.raceId) {
     const rows = await tx.select({ mode: raceMovementMode.movementMode }).from(raceMovementMode).where(eq(raceMovementMode.raceId, profile[0].raceId));
     modes = rows.map(({ mode }) => mode);
   }
+  const active = await readEffectiveFormInTransaction(tx, characterId);
+  if (active?.kind === 'race') modes = active.effective.movement.map(row => row.movementMode);
   if (!validateMovementModifierTarget(effect.targetKey, modes)) {
     throw new Error("Temporary Movement Modifier target is not an existing Movement Mode for this entity.");
   }

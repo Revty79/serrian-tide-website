@@ -1,3 +1,4 @@
+import { readEffectiveFormInTransaction, effectiveCreatureSnapshotInTransaction } from '@/features/forms/effective-form-service';
 import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
@@ -141,7 +142,7 @@ async function resolveBaseInitiativeCapacityOptionsInTransaction(
       .where(eq(campaignCreatureNpcProfile.characterId, characterId))
       .limit(1);
     if (!profile) throw new Error("The Creature NPC is missing its current authoritative snapshot.");
-    const effective = resolveEffectiveCreatureStatistics(parseCreatureSnapshot(profile.currentSnapshotJson));
+    const effective = resolveEffectiveCreatureStatistics(parseCreatureSnapshot(await effectiveCreatureSnapshotInTransaction(tx, characterId, profile.currentSnapshotJson)));
     const dexterity = effective.attributeValues.Dexterity;
     if (dexterity === null || !Number.isFinite(dexterity)) {
       throw new Error("The Creature NPC current snapshot has no usable effective Dexterity.");
@@ -192,7 +193,10 @@ async function resolveBaseInitiativeCapacityOptionsInTransaction(
     .from(raceMovementMode)
     .where(eq(raceMovementMode.raceId, profile.raceId))
     .orderBy(asc(raceMovementMode.sortOrder), asc(raceMovementMode.id));
-  const movementModes = movementRows.flatMap(({ movementMode, racialBaseMovement }) => {
+  const active = await readEffectiveFormInTransaction(tx, characterId);
+  if (active?.kind === 'race') dexterityRow.value = active.effective.attributes.DEX;
+  const effectiveMovement = active?.kind === 'race' ? active.effective.movement.map(row => ({ movementMode: row.movementMode, racialBaseMovement: row.baseValue })) : movementRows;
+  const movementModes = effectiveMovement.flatMap(({ movementMode, racialBaseMovement }) => {
     const baseMovement = getCharacterMovementBaseValue(racialBaseMovement, profile.baseMovementSteps);
     return baseMovement !== null && Number.isFinite(baseMovement) && baseMovement > 0
       ? [{

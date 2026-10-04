@@ -1,3 +1,5 @@
+import { inventoryFormOperationRef } from "@/features/forms/form-equipment-operation";
+import { assertFormEquipmentUseInTransaction, readFormEquipmentApprovalInTransaction, type FormEquipmentApproval } from "@/features/forms/form-capability-service";
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { isDeepStrictEqual } from "node:util";
@@ -21,6 +23,7 @@ import { initiativeAffordabilityIssue } from "./initiative-affordability";
 import { createPlayerCombatRulingRequestInTransaction } from "./player-combat-ruling-service";
 
 export type CombatInventoryCommand = {
+  formEquipmentReason?: string;
   characterId: number; expectedCommerceVersion: number; requestKey: string;
   operation: "retrieve" | "stow" | "open" | "close" | "drop";
   itemId: number; instanceId: number | null; quantity: number; containerInstanceId: number | null;
@@ -30,11 +33,11 @@ const object = (value: unknown): Record<string, unknown> => value && typeof valu
 const json = (value: unknown): unknown => JSON.parse(JSON.stringify(value));
 const identity = (command: CombatInventoryCommand) => { const base = { ...command }; delete base.rulingRequestId; delete base.initiativeRuling; return base; };
 
-async function inspect(tx: Tx, userId: string, command: CombatInventoryCommand) {
+async function inspect(tx: Tx, userId: string, command: CombatInventoryCommand, formApproval?: FormEquipmentApproval) {
   if (!["retrieve", "stow", "open", "close", "drop"].includes(command.operation) || !/^[a-f0-9]{32}$/.test(command.requestKey)
     || !Number.isSafeInteger(command.quantity) || command.quantity <= 0 || !Number.isSafeInteger(command.itemId) || command.itemId <= 0
     || command.instanceId !== null && (!Number.isSafeInteger(command.instanceId) || command.instanceId <= 0 || command.quantity !== 1)) throw new Error("Choose an owned Item, whole quantity, and valid handling identity.");
-  await beginContainerMutation(tx, userId, command, true);
+  await beginContainerMutation(tx, userId, command, true, true, formApproval);
   const view = await readPhysicalInventoryInTransaction(tx, userId, command.characterId);
   const source = command.instanceId === null ? { itemId: command.itemId, containerInstanceId: command.operation === "retrieve" ? command.containerInstanceId : null } : { instanceId: command.instanceId };
   const available = resolveInventoryAvailability(view.accessGraph, source);
@@ -69,20 +72,20 @@ async function inspect(tx: Tx, userId: string, command: CombatInventoryCommand) 
   return { cost, chain, frozen: json({ access: view.accessGraph, profiles, copies, firearms, version: view.commerceVersion }) };
 }
 
-async function apply(tx: Tx, userId: string, command: CombatInventoryCommand, sceneId: number) {
+async function apply(tx: Tx, userId: string, command: CombatInventoryCommand, sceneId: number, formApproval?: FormEquipmentApproval) {
   if (command.operation === "retrieve" || command.operation === "stow") return moveInventoryContentInTransaction(tx, userId, {
-    characterId: command.characterId, expectedCommerceVersion: command.expectedCommerceVersion,
+    characterId: command.characterId, expectedCommerceVersion: command.expectedCommerceVersion, formEquipmentReason: command.formEquipmentReason,
     fromContainerInstanceId: command.operation === "retrieve" ? command.containerInstanceId : null,
     toContainerInstanceId: command.operation === "stow" ? command.containerInstanceId : null,
     ...(command.instanceId === null ? { kind: "stack", itemId: command.itemId, quantity: command.quantity } : { kind: "instance", instanceId: command.instanceId }),
-  }, true);
-  return handleInventoryInTransaction(tx, userId, { characterId: command.characterId, expectedCommerceVersion: command.expectedCommerceVersion,
-    requestKey: command.requestKey, operation: command.operation, instanceId: command.instanceId, itemId: command.itemId, quantity: command.quantity, sceneId }, true);
+  }, true, formApproval);
+  return handleInventoryInTransaction(tx, userId, { characterId: command.characterId, expectedCommerceVersion: command.expectedCommerceVersion, formEquipmentReason: command.formEquipmentReason,
+    requestKey: command.requestKey, operation: command.operation, instanceId: command.instanceId, itemId: command.itemId, quantity: command.quantity, sceneId }, true, formApproval);
 }
 /** A savepoint validates physical, equipment, ownership and closure rules before Initiative is committed. */
-async function preflight(tx: Tx, userId: string, command: CombatInventoryCommand, sceneId: number) {
+async function preflight(tx: Tx, userId: string, command: CombatInventoryCommand, sceneId: number, formApproval?: FormEquipmentApproval) {
   const rollback = new Error("inventory-preflight-complete");
-  try { await tx.transaction(async nested => { await apply(nested, userId, command, sceneId); throw rollback; }); }
+  try { await tx.transaction(async nested => { await apply(nested, userId, command, sceneId, formApproval); throw rollback; }); }
   catch (error) { if (error !== rollback) throw error; }
 }
 async function costFor(tx: Tx, context: Context, actor: ActionDeclarationActor, command: CombatInventoryCommand, authored: number | null) {
@@ -105,8 +108,10 @@ export async function requestInventoryCost(tx: Tx, context: Context, actor: Acti
   await assertCombatWritableInTransaction(tx, context.encounterId);
   await assertActionChoiceAuthority(tx, context, actor, command.characterId);
   if (actor.authority !== "player") throw new Error("G.O.D. supplies a cost and reason directly for NPC handling.");
-  const selected = await inspect(tx, actor.userId, command);
-  await preflight(tx, actor.userId, command, context.sceneId);
+  const formApproval = await readFormEquipmentApprovalInTransaction(tx, context.encounterId, command.characterId, "equipment-operation", inventoryFormOperationRef(command))
+    ?? (command.formEquipmentReason ? { userId: actor.userId, reason: command.formEquipmentReason } : null);
+  const selected = await inspect(tx, actor.userId, command, formApproval);
+  await preflight(tx, actor.userId, command, context.sceneId, formApproval);
   if (selected.cost !== null) throw new Error("This handling already has authored Initiative costs.");
   return createPlayerCombatRulingRequestInTransaction(tx, context, actor, { requestType: "manual-action", sourceKind: "item",
     sourceRef: command.instanceId === null ? `stack:${command.itemId}` : `instance:${command.instanceId}`, sourceInstanceId: command.instanceId,
@@ -132,9 +137,12 @@ export async function startCombatInventory(tx: Tx, context: Context, actor: Acti
     if (receipt.actorUserId !== actor.userId || !isDeepStrictEqual(receipt.command, command)) throw new Error("This retry identity belongs to different inventory handling.");
     return { declarationId: null };
   }
-  const selected = await inspect(tx, actor.userId, command);
+  const formApproval = await readFormEquipmentApprovalInTransaction(tx, context.encounterId, command.characterId, "equipment-operation", inventoryFormOperationRef(command))
+    ?? (command.formEquipmentReason ? { userId: actor.userId, reason: command.formEquipmentReason } : null);
+  const selected = await inspect(tx, actor.userId, command, formApproval);
+  const formEquipment = await assertFormEquipmentUseInTransaction(tx, command.characterId, formApproval);
   const ruling = await costFor(tx, context, actor, command, selected.cost);
-  await preflight(tx, actor.userId, command, context.sceneId);
+  await preflight(tx, actor.userId, command, context.sceneId, formApproval);
   const state = (await loadInitiativeEngineInTransaction(tx, context.encounterId)).participants.find(row => row.characterId === command.characterId);
   if (!state) throw new Error("Enroll this combatant in Initiative first.");
   const issue = initiativeAffordabilityIssue(ruling.cost, state.currentInitiative);
@@ -143,13 +151,13 @@ export async function startCombatInventory(tx: Tx, context: Context, actor: Acti
   if (ruling.cost === 0) {
     if (await readOpenDeclarationCheckpoint(tx, context.encounterId)) throw new Error("Resolve simultaneous choices before instantaneous handling.");
     await assertInstantPreparationOpportunity(tx, context, command.characterId);
-    await apply(tx, actor.userId, command, context.sceneId);
-    await tx.update(member).set({ localStateJson: { ...local, instantInventoryHandling: [...history, { command, actorUserId: actor.userId, ruling, at: new Date().toISOString() }] }, updatedAt: new Date() }).where(eq(member.participantId, participant.participantId));
+    await apply(tx, actor.userId, command, context.sceneId, formApproval);
+    await tx.update(member).set({ localStateJson: { ...local, instantInventoryHandling: [...history, { command, actorUserId: actor.userId, ruling, formEquipment, at: new Date().toISOString() }] }, updatedAt: new Date() }).where(eq(member.participantId, participant.participantId));
   } else {
     id = await createActionDeclarationDraftInTransaction(tx, context, actor, {
       actorCharacterId: command.characterId, targetCharacterIds: [], label: `${command.operation} Item #${command.itemId}`, actionKind: "combat-inventory",
       sourceKind: "no-roll", sourceRef: `item:${command.itemId}`, sourceInstanceId: command.instanceId,
-      sourcePayload: { inventoryHandling: command, inventoryKey: command.requestKey, inventoryBefore: selected.frozen, inventoryRuling: ruling },
+      sourcePayload: { inventoryHandling: command, inventoryKey: command.requestKey, inventoryBefore: selected.frozen, inventoryRuling: ruling, formEquipment },
       weaponItemId: null, firingModeId: null, attackMode: "Inventory handling", initiativeCost: ruling.cost, allowsMultiRound: true,
       heldIntervention: false, windowKind: "preparation", aimDeclared: false, calledShot: { declared: false, label: "", assignedPenalty: null },
       explicitModifiers: [], preparesForDeclarationId: null, godNotes: ruling.reason });
@@ -166,10 +174,14 @@ export async function startCombatInventory(tx: Tx, context: Context, actor: Acti
 export async function validateInventoryCommit(tx: Tx, context: Context, actor: ActionDeclarationActor, snapshot: LockedActionDeclarationSnapshot) {
   const payload = snapshot.source.payload ?? {}, command = object(payload.inventoryHandling) as CombatInventoryCommand;
   if (command.characterId !== snapshot.actorCharacterId) throw new Error("Inventory handling must belong to the acting Character.");
-  const selected = await inspect(tx, actor.userId, command);
+  const formApproval = await readFormEquipmentApprovalInTransaction(tx, context.encounterId, command.characterId, "equipment-operation", inventoryFormOperationRef(command))
+    ?? (command.formEquipmentReason ? { userId: actor.userId, reason: command.formEquipmentReason } : null);
+  const selected = await inspect(tx, actor.userId, command, formApproval);
+  const formEquipment = await assertFormEquipmentUseInTransaction(tx, command.characterId, formApproval);
+  if (!isDeepStrictEqual(payload.formEquipment ?? null, formEquipment)) throw new Error("The Form equipment ruling changed. Prepare this handling again.");
   const ruling = await costFor(tx, context, actor, command, selected.cost);
   if (ruling.cost !== snapshot.initiativeCost || !isDeepStrictEqual(selected.frozen, payload.inventoryBefore)) throw new Error("Inventory or access costs changed. Prepare this handling again.");
-  await preflight(tx, actor.userId, command, context.sceneId);
+  await preflight(tx, actor.userId, command, context.sceneId, formApproval);
 }
 
 export async function completeCombatInventory(tx: Tx, declarationId: number, actorUserId: string) {
@@ -185,9 +197,11 @@ export async function completeCombatInventory(tx: Tx, declarationId: number, act
   const command = draft.sourcePayload!.inventoryHandling as CombatInventoryCommand;
   let failure: string | null = null;
   try { await tx.transaction(async nested => {
-    const selected = await inspect(nested, row.createdByUserId, command);
+    const frozenRuling = object(object(draft.sourcePayload!.formEquipment).ruling);
+    const formApproval = typeof frozenRuling.authorizedByUserId === "string" && typeof frozenRuling.reason === "string" ? { userId: frozenRuling.authorizedByUserId, reason: frozenRuling.reason } : null;
+    const selected = await inspect(nested, row.createdByUserId, command, formApproval);
     if (!isDeepStrictEqual(selected.frozen, draft.sourcePayload!.inventoryBefore)) throw new Error("The frozen inventory location, access, equipment or firearm state changed.");
-    await apply(nested, row.createdByUserId, command, row.sceneId);
+    await apply(nested, row.createdByUserId, command, row.sceneId, formApproval);
   }); } catch (error) { failure = error instanceof Error ? error.message : "Inventory handling could not complete."; }
   const status = failure ? "cancelled" : "resolved";
   await tx.update(declaration).set({ status, endedByUserId: actorUserId, endedAt: new Date(), updatedAt: new Date() }).where(eq(declaration.id, row.id));

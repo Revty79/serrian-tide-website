@@ -16,6 +16,9 @@ export const ABILITY_EVENT_FACTS: readonly AbilityFactDefinition[] = [
 ];
 export const ABILITY_FACT_DEFINITIONS: readonly AbilityFactDefinition[] = [
   ...ABILITY_EVENT_FACTS,
+  { key: "state.form-active", label: "Currently in a Form", category: "state", type: "boolean", producer: "Authoritative Current Form" },
+  { key: "state.form-speech", label: "Current Form speech capability", category: "state", type: "text", producer: "Frozen Form speech: normal, limited, none, or inherited race/creature" },
+  { key: "state.form-manipulation", label: "Current Form object manipulation", category: "state", type: "text", producer: "Frozen Form manipulation" },
   { key: "equipment.armor-worn", label: "Wearing armor", category: "equipment", type: "boolean", producer: "Current Worn armor profiles" },
   { key: "equipment.weapon-wielded", label: "Wielding a weapon", category: "equipment", type: "boolean", producer: "Current Wielded weapon profiles" },
   { key: "state.current-hp", label: "Current total HP", category: "state", type: "number", producer: "Active Health" },

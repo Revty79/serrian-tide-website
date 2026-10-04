@@ -20,10 +20,13 @@ export type AttributeGoverningSourceRequest = Readonly<{
   attributeKey: string;
 }>;
 
+export type FormSkillSource = Readonly<{ entryEventId: number; skillId: number }>;
+
 export type SkillGoverningSourceRequest = Readonly<{
   kind: "skill";
   characterId: number;
   allocationId: number;
+  formSource?: FormSkillSource;
   calculatedPercentage: number;
 }>;
 
@@ -54,6 +57,7 @@ export type AttributeGoverningSourceSnapshot = Readonly<{
 
 export type SkillPathSnapshotEntry = Readonly<{
   allocationId: number;
+  formSource?: FormSkillSource;
   skillId: number;
   skillName: string;
   skillTier: number | null;
@@ -63,6 +67,7 @@ export type SkillGoverningSourceSnapshot = Readonly<{
   kind: "skill";
   characterId: number;
   allocationId: number;
+  formSource?: FormSkillSource;
   skillId: number;
   skillName: string;
   skillClassification: string;
@@ -78,10 +83,11 @@ export type ManualGoverningSourceSnapshot = Readonly<{
   originalTarget: number;
 }>;
 
-export type RollGoverningSourceSnapshot =
+export type RollGoverningSourceSnapshot = (
   | AttributeGoverningSourceSnapshot
   | SkillGoverningSourceSnapshot
-  | ManualGoverningSourceSnapshot;
+  | ManualGoverningSourceSnapshot
+) & { currentForm?: import('@/features/forms/effective-form-service').EffectiveFormIdentity };
 
 export type RollMechanicalSnapshot = Readonly<{
   schemaVersion: typeof ROLL_MECHANICAL_SNAPSHOT_VERSION;
@@ -146,6 +152,15 @@ function inputText(value: unknown, label: string, maximum: number): string {
   return normalized;
 }
 
+/** Negative calculation keys identify temporary Form Skills, never database rows. */
+function skillIdentity(value: Record<string, unknown>) {
+  if (value.formSource === undefined) return { allocationId: positiveInteger(value.allocationId, 'Skill allocation') };
+  if (!isRecord(value.formSource)) throw new Error('Temporary Form Skill identity is invalid.');
+  const formSource = { entryEventId: positiveInteger(value.formSource.entryEventId, 'Form entry'), skillId: positiveInteger(value.formSource.skillId, 'Form Skill') };
+  if (value.allocationId !== -formSource.skillId) throw new Error('Temporary Form Skill key does not match its exact Skill.');
+  return { allocationId: -formSource.skillId, formSource };
+}
+
 export function normalizeRollMechanicalRequest(value: unknown): RollMechanicalRequest | null {
   if (value === null || value === undefined) return null;
   if (!isRecord(value) || !isRecord(value.governingSource)) {
@@ -191,7 +206,7 @@ export function normalizeRollMechanicalRequest(value: unknown): RollMechanicalRe
       governingSource: {
         kind: "skill",
         characterId: positiveInteger(source.characterId, "Skill governing Character"),
-        allocationId: positiveInteger(source.allocationId, "Skill allocation"),
+        ...skillIdentity(source),
         calculatedPercentage: finiteNumber(source.calculatedPercentage, "Calculated Skill percentage"),
       },
       modifiers,
@@ -262,8 +277,15 @@ function parseStoredResolution(value: unknown): PercentileResolution {
 
 export function parseRollGoverningSourceSnapshot(value: unknown): RollGoverningSourceSnapshot {
   if (!isRecord(value)) throw new Error("Stored Roll governing source is invalid.");
+  const form = value.currentForm;
+  const evidence = form === undefined ? {} : (() => {
+    if (!isRecord(form) || !['race', 'creature'].includes(String(form.kind))) throw new Error('Stored Current Form identity is invalid.');
+    return { currentForm: { entryEventId: positiveInteger(form.entryEventId, 'Form entry'), sourceId: positiveInteger(form.sourceId, 'Form owner'),
+      formId: positiveInteger(form.formId, 'Form'), kind: form.kind as 'race' | 'creature', key: storedText(form.key, 'Form key', 500), name: storedText(form.name, 'Form name', 500) } };
+  })();
   if (value.kind === "manual") {
     return {
+      ...evidence,
       kind: "manual",
       label: storedText(value.label, "Stored manual target label", 200),
       originalTarget: finiteNumber(value.originalTarget, "Stored manual original target"),
@@ -271,6 +293,7 @@ export function parseRollGoverningSourceSnapshot(value: unknown): RollGoverningS
   }
   if (value.kind === "attribute") {
     return {
+      ...evidence,
       kind: "attribute",
       characterId: positiveInteger(value.characterId, "Stored Attribute Character"),
       attributeKey: storedText(value.attributeKey, "Stored Attribute key", 20),
@@ -284,9 +307,10 @@ export function parseRollGoverningSourceSnapshot(value: unknown): RollGoverningS
       throw new Error("Stored Skill path is invalid.");
     }
     return {
+      ...evidence,
       kind: "skill",
       characterId: positiveInteger(value.characterId, "Stored Skill Character"),
-      allocationId: positiveInteger(value.allocationId, "Stored Skill allocation"),
+      ...skillIdentity(value),
       skillId: positiveInteger(value.skillId, "Stored Skill"),
       skillName: storedText(value.skillName, "Stored Skill name", 200),
       skillClassification: storedText(value.skillClassification, "Stored Skill classification", 100),
@@ -294,7 +318,7 @@ export function parseRollGoverningSourceSnapshot(value: unknown): RollGoverningS
       skillPath: value.skillPath.map((entry, index): SkillPathSnapshotEntry => {
         if (!isRecord(entry)) throw new Error(`Stored Skill path entry ${index + 1} is invalid.`);
         return {
-          allocationId: positiveInteger(entry.allocationId, `Stored Skill path allocation ${index + 1}`),
+          ...skillIdentity(entry),
           skillId: positiveInteger(entry.skillId, `Stored Skill path identity ${index + 1}`),
           skillName: storedText(entry.skillName, `Stored Skill path name ${index + 1}`, 200),
           skillTier: entry.skillTier === null ? null : positiveInteger(entry.skillTier, `Stored Skill path tier ${index + 1}`),

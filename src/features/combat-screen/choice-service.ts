@@ -6,7 +6,7 @@ import { assertCombatWritableInTransaction } from "@/features/tabletop-operation
 import { createActionDeclarationDraftInTransaction, lockActionDeclarationInTransaction, commitActionDeclarationInTransaction,
   previewCombatDeclarationInTransaction, assertActionChoiceAuthority, type ActionDeclarationActor } from "@/features/tabletop-operations/action-declaration-service";
 import { previewFirearmAttackInTransaction, declareFirearmAttackInTransaction } from "@/features/tabletop-operations/firearm-attack-service";
-import { assertApprovedNaturalAttackDistanceInTransaction, assertApprovedWeaponDistanceRequestInTransaction, readPlayerCombatRulingRequestsInTransaction, linkPlayerCombatRulingOutcomeInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
+import { assertRulingFormBoundary, assertApprovedNaturalAttackDistanceInTransaction, assertApprovedWeaponDistanceRequestInTransaction, readPlayerCombatRulingRequestsInTransaction, linkPlayerCombatRulingOutcomeInTransaction } from "@/features/tabletop-operations/player-combat-ruling-service";
 import { parseActionDeclarationDraft } from "@/features/tabletop-operations/action-declaration";
 import type { OwnedEncounterRuntimeContext, RuntimeIntegrationTransaction as Tx } from "@/features/tabletop-operations/runtime-integration-service";
 import { choiceDraft, firearmCommand, type CombatChoice, type CombatSubmission } from "./choice-types";
@@ -27,6 +27,7 @@ async function authorizedChoice(tx: Tx, context: OwnedEncounterRuntimeContext, a
         || request.sourceRef !== choice.source.ref || request.sourceInstanceId !== choice.source.instanceId
         || request.frozenRequest.locationNumber !== choice.calledShot.locationNumber) throw new Error("This exact Called Shot needs its approved G.O.D. ruling before declaration.");
       if (request.linkedDeclarationId) throw new Error("That Called Shot ruling was already used by an earlier action.");
+      await assertRulingFormBoundary(tx, { ...request, frozenRequestJson: request.frozenRequest });
       choice.calledShot.penalty = Number(request.ruling.penalty); choice.calledShot.reason = String(request.ruling.reason);
     }
     if (!Number.isFinite(choice.calledShot.penalty) || choice.calledShot.penalty! < 0 || !choice.calledShot.reason?.trim()) throw new Error("The G.O.D. must assign this Called Shot's penalty and reason.");

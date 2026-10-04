@@ -18,6 +18,8 @@ export type IncomingSourceFacts = {
 };
 
 export type IncomingEffectTarget = {
+  currentForm?: import('@/features/forms/effective-form-service').EffectiveFormIdentity;
+  effectiveBody?: unknown;
   /** Optional Pass 5 application context, frozen with a new consequence plan. */
   applicationLocations?: Array<{ number: number; name: string; poolKey: string | null }>;
   protection: ProtectionLayers;

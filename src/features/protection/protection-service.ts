@@ -1,3 +1,4 @@
+import { readEffectiveFormInTransaction } from '@/features/forms/effective-form-service';
 import "server-only";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { db } from "@/db";
@@ -41,6 +42,14 @@ export async function readProtectionLayersInTransaction(tx: Transaction, target:
   const damageModifiers = itemIds.length ? await tx.select().from(itemArmorDamageModifier).where(inArray(itemArmorDamageModifier.itemId, itemIds)).orderBy(asc(itemArmorDamageModifier.sortOrder), asc(itemArmorDamageModifier.id)) : [];
   const worn = equipment.wornArmor.map((entry) => ({ ...entry, damageModifiersSourceText: armor.find(({ itemId }) => itemId === entry.itemId)?.text ?? "",
     damageModifiers: damageModifiers.filter(({ itemId }) => itemId === entry.itemId).map(({ id, damageType, modifier, modifierText, notes }) => ({ id, damageType, modifier, modifierText, notes })) }));
+  const active = await readEffectiveFormInTransaction(tx, characterId);
+  if (active?.kind === 'creature') return buildProtectionLayers({ target, creature: { snapshot: active.effective, identity: `creature-npc:${characterId}:form:${active.identity.entryEventId}` }, worn, modifiers: effects.modifiers });
+  if (active?.kind === 'race') {
+    const result = buildProtectionLayers({ target, worn, modifiers: effects.modifiers, locations: raceHitLocations(active.effective.anatomy),
+      race: { id: active.definition.sourceId, name: active.definition.name, protections: active.effective.protections } });
+    for (const entry of result.natural) entry.source.id = `form:${active.identity.entryEventId}:${entry.source.id}`;
+    return result;
+  }
   if (character.npcKind === "creature") {
     const [profile] = await tx.select({ snapshot: campaignCreatureNpcProfile.currentSnapshotJson }).from(campaignCreatureNpcProfile).where(eq(campaignCreatureNpcProfile.characterId, characterId)).limit(1);
     if (!profile) throw new Error("Creature NPC protection snapshot is missing.");

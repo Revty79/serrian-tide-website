@@ -1,3 +1,5 @@
+import { readEffectiveFormInTransaction } from '@/features/forms/effective-form-service';
+import { resolveFormSkillInputs } from '@/features/forms/effective-form-mechanics';
 import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-operations/combat-freeze-service";
 import { projectSealedCombatManaInTransaction } from "@/features/tabletop-operations/combat-resource-projection-service";
 import "server-only";
@@ -153,10 +155,11 @@ async function loadDerivedManaProfiles(
     };
   }
 
+  const active = await readEffectiveFormInTransaction(tx, characterId);
   return getCharacterManaProfiles(
-    { skillAllocations: allocationRows },
+    { skillAllocations: active?.kind === 'race' ? resolveFormSkillInputs(allocationRows, active.effective.additions, skillCatalog) : allocationRows },
     skillCatalog,
-    selectedRace,
+    active?.kind === 'race' ? active.effective.race : selectedRace,
     profile.baseMagicSteps,
   );
 }

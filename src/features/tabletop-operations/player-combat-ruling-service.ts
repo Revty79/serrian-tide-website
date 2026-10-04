@@ -1,3 +1,4 @@
+import { readActiveFormDefinitionInTransaction } from '@/features/forms/effective-form-service';
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
 import { readRaceAttackSourcesInTransaction } from "./race-natural-attack-service";
@@ -204,7 +205,7 @@ async function normalizeWeaponDistanceRequest(
 ): Promise<Record<string, unknown>> {
   if (input.sourceKind === "race-natural-attack") {
     const source = (await readRaceAttackSourcesInTransaction(tx, context, player.characterId)).find(entry => entry.ref === input.sourceRef);
-    if (!source || source.unavailable) throw new Error(source?.unavailable ?? "Choose an exact attack from your current Normal Race.");
+    if (!source || source.unavailable) throw new Error(source?.unavailable ?? "Choose an exact attack from your current effective body.");
     const details = object(input.frozenRequest, "Natural Attack distance request");
     const mode = source.definition.authoring.mode;
     const attackMode = mode === "hybrid" ? details.attackMode : mode;
@@ -435,7 +436,7 @@ async function assertRequestedSource(
   } else if (sourceKind === "attribute") {
     if (!/^attribute:(STR|DEX|CON|INT|WIS|CHR)$/.test(sourceRef)) throw new Error("The requested Attribute source identity is invalid.");
   } else if (sourceKind === "race-natural-attack") {
-    if (!/^race:[1-9]\d*:attack:.+$/.test(sourceRef) || input.sourceInstanceId != null) throw new Error("Natural Attack source identity is invalid.");
+    if (!/^(?:form:[1-9]\d*:)?race:[1-9]\d*:attack:.+$/.test(sourceRef) || input.sourceInstanceId != null) throw new Error("Natural Attack source identity is invalid.");
   } else if (sourceKind === "manual") {
     if (sourceRef !== "player-stated-intent") throw new Error("The requested manual source identity is invalid.");
   } else if (sourceKind !== "item" && sourceKind !== "weapon") {
@@ -487,11 +488,14 @@ export async function createPlayerCombatRulingRequestInTransaction(
   await assertRequestedSource(tx, player, input);
   if (input.sourceKind === "race-natural-attack") {
     const source = (await readRaceAttackSourcesInTransaction(tx, context, player.characterId)).find(entry => entry.ref === input.sourceRef);
-    if (!source || source.unavailable) throw new Error(source?.unavailable ?? "That attack is not available from your current Normal Race.");
+    if (!source || source.unavailable) throw new Error(source?.unavailable ?? "That attack is not available from your current effective body.");
   }
-  const frozenRequest = input.requestType === "weapon-distance"
+  const requestBody = input.requestType === "weapon-distance"
     ? await normalizeWeaponDistanceRequest(tx, context, player, input)
     : object(input.frozenRequest, "Frozen request");
+  const currentForm = (await readActiveFormDefinitionInTransaction(tx, player.characterId))?.identity ?? null;
+  const targetForm = input.targetParticipantId ? (await readActiveFormDefinitionInTransaction(tx, input.targetParticipantId))?.identity ?? null : null;
+  const frozenRequest = { ...requestBody, currentForm, targetForm };
   const [existing] = await tx.select().from(campaignSessionPlayerRulingRequest).where(and(
     eq(campaignSessionPlayerRulingRequest.campaignId, context.campaignId),
     eq(campaignSessionPlayerRulingRequest.requestedByUserId, player.userId),
@@ -661,6 +665,7 @@ export async function assertApprovedNaturalAttackDistanceInTransaction(tx: Playe
   if (request.requestType !== "weapon-distance" || request.sourceKind !== "race-natural-attack" || request.status !== "approved"
     || request.characterId !== player.characterId || request.requestedByUserId !== player.userId) throw new Error("An approved exact Natural Attack distance request is required for this Player.");
   if (request.linkedDeclarationId !== null || request.linkedFirearmAttackId !== null || request.linkedReactionId !== null) throw new Error("This distance ruling was already consumed.");
+  await assertRulingFormBoundary(tx, request);
   const approval = naturalAttackDistanceApproval(request.frozenRequestJson, object(request.rulingJson, "Approved Natural Attack distance"));
   if (approval.sourceRef !== identity.sourceRef || approval.targetParticipantId !== identity.targetParticipantId || approval.distance !== identity.distance || approval.unit !== identity.unit) throw new Error("The distance approval does not match this exact attack, target, distance and unit.");
   const source = (await readRaceAttackSourcesInTransaction(tx, context, player.characterId)).find(entry => entry.ref === identity.sourceRef);
@@ -679,6 +684,7 @@ export async function assertApprovedWeaponDistanceRequestInTransaction(
   if (request.requestType !== "weapon-distance" || request.status !== "approved") throw new Error("A current approved Weapon distance ruling is required before this Player attack.");
   if (request.characterId !== player.characterId || request.requestedByUserId !== player.userId) throw new Error("This Weapon distance ruling does not belong to the acting Player Character.");
   if (request.linkedDeclarationId !== null || request.linkedFirearmAttackId !== null || request.linkedReactionId !== null) throw new Error("This Weapon distance ruling was already consumed by another combat outcome.");
+  await assertRulingFormBoundary(tx, request);
   const approval = weaponDistanceApprovalFromRequest(request, object(request.rulingJson, "Stored Weapon distance ruling"));
   if (approval.sourceRef !== identity.sourceRef || approval.sourceInstanceId !== identity.sourceInstanceId
     || approval.weaponItemId !== identity.weaponItemId || (identity.weaponProfileId !== undefined && identity.weaponProfileId !== null && approval.weaponProfileId !== identity.weaponProfileId) || approval.targetParticipantId !== identity.targetParticipantId
@@ -798,4 +804,11 @@ export function readGodCombatRulingRequestsInTransaction(
   return readRequests(tx, and(
     eq(campaignSessionPlayerRulingRequest.encounterId, positiveId(encounterId, "Encounter")),
   ));
+}
+
+export async function assertRulingFormBoundary(tx: PlayerCombatRulingTransaction, request: { characterId: number; targetParticipantId: number | null; frozenRequestJson: unknown }) {
+  const frozen = object(request.frozenRequestJson, 'Frozen ruling');
+  const actor = (await readActiveFormDefinitionInTransaction(tx, request.characterId))?.identity ?? null;
+  const target = request.targetParticipantId ? (await readActiveFormDefinitionInTransaction(tx, request.targetParticipantId))?.identity ?? null : null;
+  if (!isDeepStrictEqual(frozen.currentForm ?? null, actor) || !isDeepStrictEqual(frozen.targetForm ?? null, target)) throw new Error('The actor or target changed Form after this ruling. Request a new ruling for the current body.');
 }

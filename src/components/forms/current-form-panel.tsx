@@ -1,4 +1,6 @@
 'use client';
+import { CharacterFormMechanicsView } from '@/app/characters/character-form-preview';
+import { CreatureFormMechanicsView } from '@/app/heavens/npcs/[npcId]/creature-form-preview';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GuidedField } from '@/components/field-guidance';
 import { TabletopLiveRefresh } from '@/features/tabletop-operations/tabletop-live-refresh';
@@ -51,6 +53,13 @@ export function CurrentFormPanel({characterId,disabled=false,onChanged}:{charact
     {state?.authority==='god'?<TabletopLiveRefresh mode="god" campaignId={state.campaignId} onRefresh={refresh}/>:state?.authority==='player'?<TabletopLiveRefresh mode="player" characterId={characterId} onRefresh={refresh}/>:null}
     <button type="button" className="st-button" disabled={busy} onClick={()=>void refresh()}>Refresh Current Form</button>
     {error?<p role="alert" className={styles.error}>{error}</p>:null}
+    {state?.effective ? <details open className={styles.card}><summary>Current effective mechanics</summary>
+      <p>Size: {state.effective.kind === 'race' ? state.effective.projection.size : state.effective.projection.definition.core.size}. Existing Initiative position stays unchanged.</p>
+      <p>Current Health: {state.effective.health.total.remainingHp ?? "Unknown"} / {state.effective.health.total.maximumHp ?? "Unknown"}. Stored damage: {state.effective.health.total.damage}.</p>
+      <p>Active equipment use follows the Current Form. Recorded passive Worn Armor still applies. Physical dropping, merging and equipment changes await Forms Pass 3.</p>
+      <p>Named restrictions and limited speech need G.O.D. review when relevant. Spell names and notes do not establish verbal requirements.</p>
+      {state.effective.kind === 'race' ? <CharacterFormMechanicsView current preview={state.effective.projection}/> : <CreatureFormMechanicsView current preview={state.effective.projection}/>}
+    </details> : null}
     {state?.current?<TransformationSummary value={state.current.evidence.review.transformation}/>:null}
     {state?.pending?<div className={styles.card}><p>Pending {state.pending.operation==='enter'?`entry into ${state.pending.name}`:'Return to Normal'}: {state.pending.timingStatus??'preparing'}. Current Form changes only after timing completes at a clean boundary.</p>
       <p>Spent resources and Initiative are retained if cancelled.</p>{state.pending.blockers.map(reason=><p key={reason} role="status">{reason}</p>)}

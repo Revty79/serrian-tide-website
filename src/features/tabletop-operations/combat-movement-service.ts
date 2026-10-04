@@ -1,3 +1,4 @@
+import { effectiveCreatureSnapshotInTransaction } from '@/features/forms/effective-form-service';
 import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { isDeepStrictEqual } from "node:util";
@@ -30,7 +31,7 @@ export async function resolveCombatMovementInTransaction(tx: Tx, context: OwnedE
   let baseMovement: number;
   let movementMode: string;
   if (source.kind === "creature" || source.npcKind === "creature") {
-    const raw = source.kind === "creature" ? source.snapshot : JSON.parse(source.persistentSnapshot ?? "{}");
+    const raw = source.kind === "creature" ? source.snapshot : await effectiveCreatureSnapshotInTransaction(tx, participantId, JSON.parse(source.persistentSnapshot ?? "{}"));
     const snapshot = object(raw);
     if (typeof object(snapshot.core).size !== "string") throw new Error("The exact Creature snapshot has no authored Size for movement.");
     const effective = resolveEffectiveCreatureStatistics({ ...snapshot, attributes: Array.isArray(snapshot.attributes) ? snapshot.attributes : [] } as unknown as CreatureStatisticsSource);

@@ -1,3 +1,4 @@
+import { assertFormEquipmentUseInTransaction } from '@/features/forms/form-capability-service';
 import "server-only";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { isDeepStrictEqual } from "node:util";
@@ -15,7 +16,8 @@ import { assertLooseStackAvailable, readInventoryAccessInTransaction } from "./i
 import { availableLooseQuantity, resolveInventoryAvailability } from "./inventory-access";
 import { assertInstanceLooseInTransaction } from "./containment-ownership-service";
 export type MagazineTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-export type MagazineCommand = { characterId: number; instanceId: number; requestKey: string; operation: "fill" | "add" | "empty"; ammunitionItemId: number | null; rounds: number | null; expectedRounds: number; expectedAmmunitionItemId: number | null };
+export type MagazineCommand = {
+  formEquipmentReason?: string; characterId: number; instanceId: number; requestKey: string; operation: "fill" | "add" | "empty"; ammunitionItemId: number | null; rounds: number | null; expectedRounds: number; expectedAmmunitionItemId: number | null };
 
 async function access(tx: MagazineTransaction, characterId: number, userId: string, mutate: boolean) {
   const [entity] = await tx.select({ playerUserId: campaignCharacter.playerUserId, isNpc: campaignCharacter.isNpc, owner: campaign.createdByUserId,
@@ -74,6 +76,7 @@ export async function handleMagazineInTransaction(tx: MagazineTransaction, userI
     if (receipt.actorUserId !== userId || !isDeepStrictEqual(receipt.request, command)) throw new Error("This retry identity was already used for a different magazine operation.");
     return receipt.result;
   }
+  await assertFormEquipmentUseInTransaction(tx, command.characterId, command.formEquipmentReason ? { userId, reason: command.formEquipmentReason } : null);
   if (await combatActive(tx, command.characterId, true)) throw new Error("Magazine filling and emptying are unavailable during active combat. End combat before handling magazine inventory.");
   const [owned] = await tx.select().from(copy).where(and(eq(copy.id, command.instanceId), eq(copy.characterId, command.characterId), isNull(copy.retiredAt))).for("update");
   if (!owned) throw new Error("That magazine copy is not owned by this character.");

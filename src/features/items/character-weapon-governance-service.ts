@@ -1,3 +1,5 @@
+import { readEffectiveFormInTransaction } from '@/features/forms/effective-form-service';
+import { resolveFormSkillInputs } from '@/features/forms/effective-form-mechanics';
 import "server-only";
 
 import { and, asc, eq, isNull } from "drizzle-orm";
@@ -309,16 +311,21 @@ export async function loadCharacterSkillLineageInputInTransaction(
     manaCost: null,
     spellDocumentJson: null,
   }));
+  const active = await readEffectiveFormInTransaction(tx, normalizedCharacterId);
+  const effectiveAllocations = active?.kind === 'race' ? resolveFormSkillInputs(allocationRows.map(row => ({ draftId: row.id, skillId: row.skillId, parentDraftId: row.parentAllocationId, points: row.points })), active.effective.additions, skillCatalog)
+    .map(row => ({ id: row.draftId, characterId: normalizedCharacterId, skillId: row.skillId, parentAllocationId: row.parentDraftId, points: row.points,
+      ...(row.draftId < 0 ? { formSource: { entryEventId: active.identity.entryEventId, skillId: row.skillId } } : {}) })) : allocationRows;
   return {
     context: {
       characterId: normalizedCharacterId,
       npcKind: character.npcKind === "creature" ? "creature" : "race",
     },
-    attributes,
-    allocations: allocationRows,
+    ...(active ? { currentForm: active.identity } : {}),
+    attributes: active?.kind === 'race' ? active.effective.attributes : attributes,
+    allocations: effectiveAllocations,
     skillCatalog,
     skillRelationships: relationshipRows,
-    race: selectedRace,
+    race: active?.kind === 'race' ? active.effective.race : selectedRace,
   };
 }
 
@@ -347,7 +354,7 @@ function governingChoices(
         key: `skill:${preview.source.allocationId}`,
         selection,
         label: `${preview.source.skillName} - ${preview.source.originalTarget}%`,
-        detail: `${preview.source.allocationPath.map(({ skillName, skillId }) => `${skillName} (#${skillId})`).join(" -> ")} - allocation #${preview.source.allocationId}`,
+        detail: `${preview.source.allocationPath.map(({ skillName, skillId }) => `${skillName} (#${skillId})`).join(" -> ")} - ${preview.source.formSource ? "temporary Form Skill" : `allocation #${preview.source.allocationId}`}`,
         originalTarget: preview.source.originalTarget,
       }];
     }
@@ -470,6 +477,7 @@ export async function createOrReplaceCharacterWeaponOverrideInTransaction(
 ): Promise<PersistentCharacterWeaponOverride> {
   const loaded = await loadCharacter(tx, actor, request.campaignId, request.characterId);
   await assertCampaignOwnerGod(tx, actor, loaded);
+  if (request.selection.kind === "skill" && request.selection.allocationId <= 0) throw new Error("Temporary Form Skills cannot become permanent Weapon overrides.");
   const reason = normalizeReason(request.reason);
   const governance = await readWeaponSkillGovernanceInTransaction(tx, positiveId(request.itemId, "Item"));
   if (!governance) throw new Error("That Item is not a canonical Weapon Profile.");

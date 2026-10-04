@@ -1,3 +1,5 @@
+import type { FormEquipmentApproval } from "@/features/forms/form-capability-service";
+import { assertFormEquipmentUseInTransaction } from '@/features/forms/form-capability-service';
 import "server-only";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -21,6 +23,7 @@ import { adjustSubstanceQuantity, type TimeSubject } from "./container-rules";
 
 export type ContainmentTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type ContainmentCommand = {
+  formEquipmentReason?: string;
   characterId: number;
   expectedCommerceVersion: number;
   fromContainerInstanceId: number | null;
@@ -124,12 +127,13 @@ export async function readContainerContentsInTransaction(tx: ContainmentTransact
 }
 
 /** Shared authorization, combat, lock and optimistic-version boundary for inventory mutations. */
-export async function beginContainerMutation(tx: ContainmentTransaction, userId: string, command: { characterId: number; expectedCommerceVersion: number }, combatCompletion = false) {
+export async function beginContainerMutation(tx: ContainmentTransaction, userId: string, command: { characterId: number; expectedCommerceVersion: number; formEquipmentReason?: string }, combatCompletion = false, physical = true, formApproval?: FormEquipmentApproval) {
   await authorizeInventoryInTransaction(tx, command.characterId, userId, true);
   if (!Number.isSafeInteger(command.expectedCommerceVersion) || command.expectedCommerceVersion < 0) throw new Error("Reload inventory before changing contents.");
   await assertCharacterCombatWritableInTransaction(tx, command.characterId);
   if (!combatCompletion) await assertOutsideCombatEquipmentHandling(tx, command.characterId);
   await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+  if (physical) await assertFormEquipmentUseInTransaction(tx, command.characterId, formApproval ?? (command.formEquipmentReason ? { userId, reason: command.formEquipmentReason } : null));
   await authorizeInventoryInTransaction(tx, command.characterId, userId, true);
   const [profile] = await tx.select({ version: campaignCharacterProfile.commerceVersion }).from(campaignCharacterProfile)
     .where(eq(campaignCharacterProfile.characterId, command.characterId)).for("update");
@@ -138,13 +142,14 @@ export async function beginContainerMutation(tx: ContainmentTransaction, userId:
 }
 
 /** null means loose. Explicit source plus the inventory version makes stale/repeated moves fail closed. */
-export async function moveInventoryContentInTransaction(tx: ContainmentTransaction, userId: string, command: ContainmentCommand, combatCompletion = false) {
+export async function moveInventoryContentInTransaction(tx: ContainmentTransaction, userId: string, command: ContainmentCommand, combatCompletion = false, formApproval?: FormEquipmentApproval) {
   await authorizeInventoryInTransaction(tx, command.characterId, userId, true);
+
   if (!Number.isSafeInteger(command.expectedCommerceVersion) || command.expectedCommerceVersion < 0) throw new Error("Reload inventory before moving its contents.");
   for (const id of [command.fromContainerInstanceId, command.toContainerInstanceId]) if (id !== null) positive(id, "Container identity");
   if (command.fromContainerInstanceId === command.toContainerInstanceId) throw new Error("Choose a different inventory location.");
   if (command.kind !== "instance" && command.kind !== "stack") throw new Error("Choose an owned stack or exact copy.");
-  const profile = await beginContainerMutation(tx, userId, command, combatCompletion);
+  const profile = await beginContainerMutation(tx, userId, command, combatCompletion, true, formApproval);
   const view = await snapshot(tx, command.characterId);
   for (const id of [command.fromContainerInstanceId, command.toContainerInstanceId]) if (id !== null) container(view, id);
   const accessGraph = await readInventoryAccessInTransaction(tx, command.characterId);
@@ -260,7 +265,7 @@ export async function readContainedElapsedTimeInTransaction(tx: ContainmentTrans
   return resolveContainedElapsedTime(view.graph, view.definitions, parent, elapsed, { category: model.category, recordType: model.recordType, ...traits });
 }
 
-export type SubstanceCommand = { characterId: number; expectedCommerceVersion: number; instanceId: number;
+export type SubstanceCommand = { formEquipmentReason?: string; characterId: number; expectedCommerceVersion: number; instanceId: number;
   operation: "add" | "draw"; quantity: number; sourceItemId?: number };
 
 /** Draw/add records a quantity adjustment, not consumption effects or a transfer to another owner. */

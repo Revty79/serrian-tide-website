@@ -223,7 +223,7 @@ function sourceLabel(snapshot: RollGoverningSourceSnapshot | null): string {
   if (!snapshot) return "G.O.D. ruling required";
   if (snapshot.kind === "attribute") return `${snapshot.attributeKey} straight Attribute (${snapshot.attributeValue})`;
   if (snapshot.kind === "manual") return snapshot.label;
-  return `${snapshot.skillName} allocation #${snapshot.allocationId} via ${snapshot.skillPath.map(({ skillName, skillId }) => `${skillName} (#${skillId})`).join(" -> ")}`;
+  return `${snapshot.skillName} ${snapshot.formSource ? "temporary Form Skill" : `allocation #${snapshot.allocationId}`} via ${snapshot.skillPath.map(({ skillName, skillId }) => `${skillName} (#${skillId})`).join(" -> ")}`;
 }
 
 async function loadGodSession(

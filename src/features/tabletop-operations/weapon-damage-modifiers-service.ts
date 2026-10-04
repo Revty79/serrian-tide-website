@@ -1,3 +1,4 @@
+import { effectiveAttributeInTransaction } from '@/features/forms/effective-form-service';
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import type { db } from "@/db";
@@ -19,6 +20,7 @@ export async function readWeaponDamageModifiers(tx: Transaction, characterId: nu
     return entry.endedAt === null && entry.channel === "damage" && entry.targetKey === "self"
       && !(entry.source.kind === "item" && effectId && explicitPassiveEffectIds.includes(Number(effectId)));
   });
+  if (row && attribute) row.value = await effectiveAttributeInTransaction(tx, characterId, attribute, row.value);
   const attributeModifier = row ? getAttributeModifier(row.value) : 0;
   const activeModifier = active.reduce((sum, entry) => sum + entry.amount, 0);
   return { attribute, attributeValue: row?.value ?? null, attributeModifier, activeModifier,

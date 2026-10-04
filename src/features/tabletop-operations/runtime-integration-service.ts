@@ -1,3 +1,4 @@
+import { effectiveCreatureSnapshotInTransaction } from '@/features/forms/effective-form-service';
 import { creatureAttackRuntime } from "./creature-attack-runtime";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
@@ -723,7 +724,7 @@ async function readEncounterCreatureSnapshotInTransaction(
       .limit(1);
   const rows = lock ? await query.for("update") : await query;
   if (!rows[0]?.snapshot) throw new Error("Creature encounter snapshot was not found.");
-  return rows[0].snapshot;
+  return effectiveCreatureSnapshotInTransaction(tx, characterId, rows[0].snapshot);
 }
 
 export async function readEncounterCreatureAttacksInTransaction(

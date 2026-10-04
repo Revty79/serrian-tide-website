@@ -1,3 +1,4 @@
+import { readEffectiveFormInTransaction } from '@/features/forms/effective-form-service';
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -56,6 +57,14 @@ export async function readIncomingEffectTargetInTransaction(tx: Transaction, aut
 
 async function readCharacterContext(tx: Transaction, target: ProtectionTarget, character: { id: number; npcKind: string; name: string }): Promise<IncomingEffectTarget> {
   const characterId = character.id;
+  const active = await readEffectiveFormInTransaction(tx, characterId);
+  if (active) return {
+    protection: await readProtectionLayersInTransaction(tx, target), currentForm: active.identity,
+    ruleSource: { kind: active.kind === 'race' ? 'race' : 'creature-snapshot', id: `form:${active.identity.entryEventId}`, name: active.definition.name },
+    interactionRules: active.kind === 'race' ? active.effective.interactionRules : active.effective.core.interactionRules ?? null,
+    effectiveBody: active.kind === 'race' ? { attributes: active.effective.attributes, size: active.effective.race.race.size, anatomy: active.effective.anatomy }
+      : { attributes: active.effective.attributes, core: active.effective.core, hpPools: active.effective.hpPools, hitLocations: active.effective.hitLocations },
+  };
   let ruleSource: IncomingEffectTarget["ruleSource"] = { kind: "none", id: "none", name: "No assigned Race" };
   let interactionRules: InteractionRuleProfile | null = null;
   if (character.npcKind === "creature") {

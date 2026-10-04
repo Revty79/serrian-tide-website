@@ -1,3 +1,4 @@
+import { readEffectiveFormInTransaction, formBoundSourceRef } from '@/features/forms/effective-form-service';
 import "server-only";
 import { and, asc, eq } from "drizzle-orm";
 import { race, raceNaturalAttack } from "@/db/race-schema";
@@ -16,7 +17,7 @@ import type { ResolvedLockedActionSource } from "./action-source-resolver-servic
 import { applyRecordedSourceResolutionInTransaction } from "./combat-source-resolution-service";
 import { attachedMagicEffects } from './attached-magic-effects';
 
-/** Caller authorizes the encounter/actor. This reader never consults Form previews. */
+/** Caller authorizes the encounter/actor; active mechanics come from frozen entry evidence. */
 export async function readRaceAttackSourcesInTransaction(tx: Tx, context: OwnedEncounterRuntimeContext, participantId: number) {
   if (participantId <= 0) return [];
   const [owner] = await tx.select({ raceId: race.id, raceName: race.name, anatomy: race.anatomy, revision: race.updatedAt, local: campaignSessionEncounterParticipant.localStateJson })
@@ -28,17 +29,23 @@ export async function readRaceAttackSourcesInTransaction(tx: Tx, context: OwnedE
   if (!owner) return [];
   const rows = await tx.select({ attack: raceNaturalAttack, skillName: skill.name, skillArchived: skill.archivedAt }).from(raceNaturalAttack)
     .leftJoin(skill, eq(skill.id, raceNaturalAttack.skillId)).where(eq(raceNaturalAttack.raceId, owner.raceId)).orderBy(asc(raceNaturalAttack.sortOrder), asc(raceNaturalAttack.id));
-  if (!rows.length) return [];
+  const active = await readEffectiveFormInTransaction(tx, participantId);
+  if (active?.kind === 'race') owner.anatomy = active.effective.anatomy ?? null;
+  const definitions: RaceNaturalAttack[] = active?.kind === 'race' ? active.effective.attacks : rows.map(({ attack, skillName }) => ({
+    key: attack.key, attackName: attack.attackName, damage: attack.damage, damageType: attack.damageType, notes: attack.notes,
+    authoring: attack.authoring, anatomy: attack.anatomy, skillId: attack.skillId, skillName: skillName ?? '', basisNotes: attack.basisNotes, sortOrder: attack.sortOrder,
+  }));
+  if (!definitions.length) return [];
   const lineage = await loadCharacterSkillLineageInputInTransaction(tx, participantId);
   const disabled = combatLimbConditions(owner.local).filter(limb => !limb.recoveredAt).map(limb => limb.poolKey);
   const pools = await tx.select({ poolKey: campaignCharacterActiveHealthPool.poolKey, damage: campaignCharacterActiveHealthPool.damage })
     .from(campaignCharacterActiveHealthPool).where(eq(campaignCharacterActiveHealthPool.characterId, participantId)).orderBy(asc(campaignCharacterActiveHealthPool.poolKey));
   const injuries = await tx.select().from(campaignCharacterInjury).where(and(eq(campaignCharacterInjury.characterId, participantId), eq(campaignCharacterInjury.resolved, false))).orderBy(asc(campaignCharacterInjury.id));
   const body = owner.anatomy ?? createHumanoidRaceAnatomy();
-  return rows.map(({ attack, skillName, skillArchived }) => {
-    const definition: RaceNaturalAttack = { key: attack.key, attackName: attack.attackName, damage: attack.damage, damageType: attack.damageType, notes: attack.notes,
-      authoring: attack.authoring, anatomy: attack.anatomy, skillId: attack.skillId, skillName: skillName ?? "", basisNotes: attack.basisNotes, sortOrder: attack.sortOrder };
-    const governance = resolveRaceAttackGovernance(lineage, skillArchived ? null : attack.skillId);
+  const archivedSkills = active ? await tx.select({ id: skill.id, archivedAt: skill.archivedAt }).from(skill) : [];
+  return definitions.map(definition => {
+    const skillArchived = active ? archivedSkills.find(row => row.id === definition.skillId)?.archivedAt : rows.find(row => row.attack.key === definition.key)?.skillArchived;
+    const governance = resolveRaceAttackGovernance(lineage, skillArchived ? null : definition.skillId);
     const requiredPools = new Set([...definition.anatomy.hpPoolIds, ...body.hitLocations.filter(location => definition.anatomy.hitLocationNumbers.includes(location.hitLocationNumber)).flatMap(location => location.hpPoolCanonicalId ? [location.hpPoolCanonicalId] : [])]);
     // Damage and injury prose do not assert usability. Preserve evidence for an
     // explicit ruling when a required part has injuries without a structured fact.
@@ -48,7 +55,7 @@ export async function readRaceAttackSourcesInTransaction(tx: Tx, context: OwnedE
         || requiredPools.size > 0 && injury.poolKey === null && injury.hitLocationNumber === null)
         .map(injury => ({ id: injury.id, poolKey: injury.poolKey, hitLocationNumber: injury.hitLocationNumber, updatedAt: injury.updatedAt.toISOString() })) };
     const anatomyRulingRequired = injuryEvidence.pools.length > 0 || injuryEvidence.injuries.length > 0;
-    return { raceId: owner.raceId, raceName: owner.raceName, anatomy: owner.anatomy, revision: owner.revision, ref: raceNaturalAttackRef(owner.raceId, attack.key), definition, governance, injuryEvidence, anatomyRulingRequired,
+    return { raceId: owner.raceId, raceName: owner.raceName, anatomy: owner.anatomy, revision: owner.revision, ref: formBoundSourceRef(raceNaturalAttackRef(owner.raceId, definition.key), active?.identity), currentForm: active?.identity ?? null, definition, governance, injuryEvidence, anatomyRulingRequired,
       unavailable: raceAttackAnatomyIssue(definition, owner.anatomy, disabled),
       skillDefinitions: lineage.skillCatalog.filter(skill => skill.id === definition.skillId || governance.alternatives.some(alternative => alternative.canonicalPath.rootToEndpoint.some(node => node.id === skill.id))) };
   });
@@ -57,7 +64,7 @@ export async function readRaceAttackSourcesInTransaction(tx: Tx, context: OwnedE
 export async function resolveRaceNaturalAttackInTransaction(tx: Tx, context: OwnedEncounterRuntimeContext, draft: ActionDeclarationDraft): Promise<ResolvedLockedActionSource> {
   if (draft.sourceInstanceId !== null || draft.weaponItemId !== null || draft.firingModeId !== null) throw new Error("A Race Natural Attack cannot use an Item instance, Weapon or firing mode identity.");
   const source = (await readRaceAttackSourcesInTransaction(tx, context, draft.actorCharacterId)).find(entry => entry.ref === draft.sourceRef);
-  if (!source) throw new Error("This exact Natural Attack does not belong to the participant's current Normal Race.");
+  if (!source) throw new Error("This exact Natural Attack does not belong to the participant's current effective body.");
   if (source.unavailable) throw new Error(source.unavailable);
   if (!draft.targetCharacterIds.length || draft.targetCharacterIds.includes(draft.actorCharacterId)) throw new Error("Choose another exact combatant for the Natural Attack.");
   const { definition, governance } = source;
@@ -68,7 +75,7 @@ export async function resolveRaceNaturalAttackInTransaction(tx: Tx, context: Own
     snapshot: { schemaVersion: 1, kind: "race-natural-attack", identity: source.ref, sourceId: definition.key, sourceInstanceId: null, ownerParticipantId: draft.actorCharacterId,
       displayName: definition.attackName, authoringHref: "/heavens/races", liveRevision: source.revision.toISOString(), resolutionMode: selected ? "opposed-roll" : "manual-god-ruling",
       governingSource: selected?.rollGoverningSource ?? null, governingSnapshot: selected?.rollGoverningSourceSnapshot ?? null,
-      authoredData: { ...definition, raceId: source.raceId, raceName: source.raceName, definition, injuryEvidence: source.injuryEvidence, skillDefinitions: source.skillDefinitions, governance, frozenAt: new Date().toISOString(), normalAnatomy: source.anatomy },
+      authoredData: { ...definition, raceId: source.raceId, raceName: source.raceName, currentForm: source.currentForm, definition, injuryEvidence: source.injuryEvidence, skillDefinitions: source.skillDefinitions, governance, frozenAt: new Date().toISOString(), normalAnatomy: source.anatomy, effectiveAnatomy: source.anatomy },
       resourceCosts: [], effects: [...definition.authoring.onHitEffects.map(entry => ({ key: `race-hit:${entry.effectKey}`, effect: structuredClone(entry.effect),
         instruction: { naturalAttackHit: true }, applicationSupported: ["health.damage", "condition.apply", "modifier.apply"].includes(entry.effect.kind),
         requiresGodReview: !["health.damage", "condition.apply", "modifier.apply"].includes(entry.effect.kind), targetParticipantIds: draft.targetCharacterIds })),

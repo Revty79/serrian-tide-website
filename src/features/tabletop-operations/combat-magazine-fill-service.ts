@@ -1,3 +1,5 @@
+import { magazineFormOperationRef } from "@/features/forms/form-equipment-operation";
+import { assertFormEquipmentUseInTransaction, readFormEquipmentApprovalInTransaction } from '@/features/forms/form-capability-service';
 import { assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import "server-only";
 import { decimalMultiply, completedDecimalUnits } from "@/lib/decimal";
@@ -17,8 +19,8 @@ import type { InitiativeEngineState } from "./initiative-runtime";
 import { initiativeAffordabilityIssue } from "./initiative-affordability";
 import { parseActionDeclarationDraft } from "./action-declaration";
 
-export type CombatMagazineFillCommand = { characterId: number; instanceId: number; ammunitionItemId: number; rounds: number; requestKey: string };
-type FillRequest = CombatMagazineFillCommand & { encounterId: number; operation: "combat-fill"; costPerRound: number; initialRounds: number };
+export type CombatMagazineFillCommand = { formEquipmentReason?: string; characterId: number; instanceId: number; ammunitionItemId: number; rounds: number; requestKey: string };
+type FillRequest = CombatMagazineFillCommand & { encounterId: number; operation: "combat-fill"; formEquipment?: Awaited<ReturnType<typeof assertFormEquipmentUseInTransaction>>; costPerRound: number; initialRounds: number };
 type FillResult = { declarationId: number | null; pendingActionId: number | null; roundsCompleted: number; status: string };
 
 export async function startCombatMagazineFill(tx: Tx, context: OwnedEncounterRuntimeContext, actor: ActionDeclarationActor, command: CombatMagazineFillCommand) {
@@ -30,10 +32,11 @@ export async function startCombatMagazineFill(tx: Tx, context: OwnedEncounterRun
   if (prior) {
     const request = prior.request as FillRequest;
     const { encounterId, operation } = request;
-    const original = { characterId: request.characterId, instanceId: request.instanceId, ammunitionItemId: request.ammunitionItemId, rounds: request.rounds, requestKey: request.requestKey };
+    const original = { characterId: request.characterId, instanceId: request.instanceId, ammunitionItemId: request.ammunitionItemId, rounds: request.rounds, requestKey: request.requestKey, ...(request.formEquipmentReason ? { formEquipmentReason: request.formEquipmentReason } : {}) };
     if (prior.actorUserId !== actor.userId || encounterId !== context.encounterId || operation !== "combat-fill" || !isDeepStrictEqual(original, command)) throw new Error("This retry identity belongs to a different magazine operation.");
     return prior.result as FillResult;
   }
+  const formEquipment = await assertFormEquipmentUseInTransaction(tx, command.characterId, await readFormEquipmentApprovalInTransaction(tx, context.encounterId, command.characterId, "equipment-operation", magazineFormOperationRef(command)) ?? (command.formEquipmentReason ? { userId: actor.userId, reason: command.formEquipmentReason } : null));
   const inventory = await readMagazineInventoryInTransaction(tx, command.characterId, actor.userId);
   if (!inventory.canManage) throw new Error("Only the combatant's authorized controller can fill this magazine.");
   const selected = inventory.magazines.find((entry) => entry.instanceId === command.instanceId);
@@ -52,7 +55,7 @@ export async function startCombatMagazineFill(tx: Tx, context: OwnedEncounterRun
   if (!actorState) throw new Error("Enroll the combatant in Initiative before filling a magazine.");
   const issue = initiativeAffordabilityIssue(cost, actorState.currentInitiative);
   if (issue) throw new Error(issue);
-  const request: FillRequest = { ...command, encounterId: context.encounterId, operation: "combat-fill", costPerRound: selected.fillInitiativeCostPerRound, initialRounds: selected.loadedRounds };
+  const request: FillRequest = { ...command, formEquipment, encounterId: context.encounterId, operation: "combat-fill", costPerRound: selected.fillInitiativeCostPerRound, initialRounds: selected.loadedRounds };
   let declarationId: number | null = null, pendingActionId: number | null = null;
   if (cost > 0) {
     declarationId = await createActionDeclarationDraftInTransaction(tx, context, actor, { actorCharacterId: command.characterId, targetCharacterIds: [],

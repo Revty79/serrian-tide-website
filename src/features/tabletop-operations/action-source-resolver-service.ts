@@ -1,3 +1,4 @@
+import { effectiveCreatureSnapshotInTransaction } from '@/features/forms/effective-form-service';
 import { authoritativeCreatureSnapshot, creatureAttackRuntime } from "./creature-attack-runtime";
 import { assertExactInventoryAvailable, assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import "server-only";
@@ -192,7 +193,7 @@ async function loadParticipant(
   if (!row) throw new Error("The acting participant no longer belongs to the exact Encounter.");
   return {
     ...row,
-    creatureSnapshot: authoritativeCreatureSnapshot({ participantId: participantKey, participantKind: row.participantKind, isNpc: row.isNpc, npcKind: row.npcKind, occurrence: row.creatureSnapshot, persistent: row.persistentCreatureSnapshot }),
+    creatureSnapshot: await effectiveCreatureSnapshotInTransaction(tx, participantKey, authoritativeCreatureSnapshot({ participantId: participantKey, participantKind: row.participantKind, isNpc: row.isNpc, npcKind: row.npcKind, occurrence: row.creatureSnapshot, persistent: row.persistentCreatureSnapshot })),
   };
 }
 
@@ -964,7 +965,7 @@ async function resolveSkillOrAttribute(
 ): Promise<ResolvedLockedActionSource> {
   requireCharacterSource(participant, "Character Skill or Attribute use");
   const selection: CharacterWeaponGoverningSelection = draft.sourceKind === "skill"
-    ? { kind: "skill", allocationId: refId(draft.sourceRef, ["skill-allocation:", "skill:"], "Skill allocation") }
+    ? { kind: "skill", allocationId: Number(draft.sourceRef?.replace(/^(?:skill-allocation:|skill:)/, "")) }
     : (() => {
         const attributeKey = requiredText(draft.sourceRef?.replace(/^attribute:/, ""), "Attribute", 20).toUpperCase() as CharacterAttributeKey;
         if (!CHARACTER_ATTRIBUTE_KEYS.includes(attributeKey)) throw new Error("The selected Character Attribute is invalid.");
@@ -983,7 +984,7 @@ async function resolveSkillOrAttribute(
     source: resolved.rollGoverningSource,
     rollOverTarget: resolved.source.originalTarget,
     explanation: resolved.source.kind === "skill"
-      ? `Exact Skill allocation #${resolved.source.allocationId} and its parent-allocation lineage were frozen.`
+      ? resolved.source.formSource ? "The temporary Form Skill and its entry identity were frozen." : `Exact Skill allocation #${resolved.source.allocationId} and its parent-allocation lineage were frozen.`
       : `Exact ${resolved.source.attributeKey} Character Attribute was frozen.`,
   };
   return {
@@ -991,9 +992,9 @@ async function resolveSkillOrAttribute(
     governing,
     snapshot: snapshot({
       kind: sourceKind,
-      identity: resolved.source.kind === "skill" ? `skill-allocation:${resolved.source.allocationId}` : `attribute:${resolved.source.attributeKey}`,
+      identity: resolved.source.kind === "skill" ? resolved.source.formSource ? `form:${resolved.source.formSource.entryEventId}:skill:${resolved.source.skillId}` : `skill-allocation:${resolved.source.allocationId}` : `attribute:${resolved.source.attributeKey}`,
       sourceId,
-      sourceInstanceId: resolved.source.kind === "skill" ? resolved.source.allocationId : null,
+      sourceInstanceId: resolved.source.kind === "skill" && resolved.source.allocationId > 0 ? resolved.source.allocationId : null,
       ownerParticipantId: draft.actorCharacterId,
       displayName: name,
       authoringHref: `/realms/characters/${draft.actorCharacterId}`,
@@ -1057,7 +1058,7 @@ async function resolveCreatureSource(
         resolutionMode: governingSource ? "opposed-roll" : "manual-god-ruling",
         governingSource,
         governingSnapshot: governingSource,
-        authoredData: { ...attack, definition: structuredClone(attack), initiativeCostSource: initiative.source },
+        authoredData: { ...attack, definition: structuredClone(attack), currentForm: frozen.currentForm ?? null, effectiveCreature: frozen, initiativeCostSource: initiative.source },
         resourceCosts: [],
         effects: [manualEffect("creature-attack-instruction", requiredText(attack.attackName, "Creature Attack name"), {
           damage: attack.damage ?? null,

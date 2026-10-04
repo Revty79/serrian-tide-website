@@ -1,3 +1,5 @@
+import { readEffectiveFormViewInTransaction } from './effective-form-view-service';
+import { readActiveFormDefinitionInTransaction } from './effective-form-service';
 import 'server-only';
 import { createHash } from 'node:crypto';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
@@ -62,8 +64,7 @@ async function currentEntry(tx: Tx,id:number) {
 /** Presentation/evidence only. Authorized callers already own their Character/Encounter read. */
 export async function readCurrentFormIdentityInTransaction(tx:Tx,id:number) {
   if(id<=0) return null;
-  const entry=await currentEntry(tx,id);
-  return entry?{entryEventId:entry.id,name:entry.evidence.review.definition.name,kind:entry.ownerKind}:null;
+  return (await readActiveFormDefinitionInTransaction(tx,id))?.identity ?? null;
 }
 export async function permanentTransitionFormBlockers(tx:Tx,id:number) {
   const active=await currentEntry(tx,id);
@@ -98,7 +99,7 @@ export async function readIndividualFormRuntime(id:number,actor:Actor):Promise<I
     const access=await authorize(tx,id,actor),entry=await currentEntry(tx,id);
     const [request]=await tx.select({request:formTransitionRequest,timing:pending.status}).from(formTransitionRequest).leftJoin(pending,eq(pending.id,formTransitionRequest.pendingActionId)).where(and(eq(formTransitionRequest.characterId,id),eq(formTransitionRequest.status,'pending')));
     const history=await tx.select().from(formTransitionEvent).where(eq(formTransitionEvent.characterId,id)).orderBy(desc(formTransitionEvent.id));
-    return {characterId:id,campaignId:access.campaign.id,authority:access.authority,current:entry?eventView(entry):null,forms:await normalForms(tx,access,actor),pending:request?{requestId:request.request.id,operation:request.request.operation,name:request.request.evidence.review.definition.name,pendingActionId:request.request.pendingActionId,timingStatus:request.timing,blockers:await completionBlockers(tx,request.request)}:null,history:history.map(eventView)};
+    return {effective:await readEffectiveFormViewInTransaction(tx,id),characterId:id,campaignId:access.campaign.id,authority:access.authority,current:entry?eventView(entry):null,forms:await normalForms(tx,access,actor),pending:request?{requestId:request.request.id,operation:request.request.operation,name:request.request.evidence.review.definition.name,pendingActionId:request.request.pendingActionId,timingStatus:request.timing,blockers:await completionBlockers(tx,request.request)}:null,history:history.map(eventView)};
   },{isolationLevel:'repeatable read',accessMode:'read only'});
 }
 
@@ -165,7 +166,7 @@ async function prepare(tx:Tx,selection:FormRuntimeSelection,actor:Actor):Promise
   for(const [system,amount] of amounts) {const pool=mana?.pools.find(p=>p.system===system);if(pool&&pool.currentMana<amount) blockers.push(`Insufficient ${system} Mana for combined costs (${pool.currentMana}/${amount}).`);}
   if(access.authority==='player'&&manualSteps.length) blockers.push('This transition needs Campaign-owning G.O.D. review. Players cannot resolve manual requirements, timing or costs.');
   const review:FormRuntimeReview={characterId:selection.characterId,individualName:access.character.name,campaignId:access.campaign.id,authority:access.authority,operation:selection.operation,activeEntryId:entry?.id??null,definition,transformation,access:eligibility,facts:[...facts.values()],conditions,timing,costs,manualSteps,blockers,warnings:[
-    'Normal mechanics remain in use until Forms Pass 2. Health, injuries and equipment are unchanged.',
+    'Current Form governs live mechanics after completion. Stored damage, injuries, effects and equipment remain recorded. Passive Worn Armor remains until physical equipment changes in Forms Pass 3.',
     `Duration: ${transformation.duration.mode??'unspecified'}${transformation.duration.description?`: ${transformation.duration.description}`:''}. Automatic expiry and trigger handling are pending Forms Pass 3.`,
     `Authored equipment capability (not applied in Pass 1): ${definition.form.mechanics?.equipment.state??'normal'}. ${selection.operation==='enter'?transformation.equipmentEntryNotes:transformation.equipmentExitNotes}`,
   ],encounterContexts:boundary.contexts,encounterId:selected?.encounterId??null,reviewToken:''};

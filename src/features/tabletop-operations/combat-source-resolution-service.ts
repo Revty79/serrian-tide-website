@@ -1,3 +1,4 @@
+import { readActiveFormDefinitionInTransaction } from '@/features/forms/effective-form-service';
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
 import { and, eq } from "drizzle-orm";
@@ -12,7 +13,7 @@ import { publishTabletopInvalidationInTransaction } from "./tabletop-live-events
 
 export type CombatSourceResolutionRuling = {
   participantId: number;
-  sourceKind: "spell" | "derived-ability" | "creature-ability" | "item" | "race-natural-attack" | "creature-attack";
+  sourceKind: "spell" | "derived-ability" | "creature-ability" | "item" | "race-natural-attack" | "creature-attack" | "weapon" | "equipment-operation";
   sourceRef: string;
   mode: "automatic-no-roll" | "skill-roll" | "attribute-roll" | "opposed-roll" | "manual-god-ruling";
   governing: CharacterWeaponGoverningSelection | { kind: "manual"; label: string; originalTarget: number } | null;
@@ -22,7 +23,7 @@ export type CombatSourceResolutionRuling = {
   initiativeCost?: number;
   targetParticipantIds?: number[];
 };
-type RecordedRuling = CombatSourceResolutionRuling & { id: string; recordedAt: string; recordedByUserId: string; sourceDefinition?: unknown; injuryEvidence?: unknown };
+type RecordedRuling = CombatSourceResolutionRuling & { currentForm?: import("@/features/forms/effective-form-service").EffectiveFormIdentity | null; id: string; recordedAt: string; recordedByUserId: string; sourceDefinition?: unknown; injuryEvidence?: unknown };
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const sourceKey = (kind: string, ref: string | null) => kind === "spell" ? (ref ?? "").trim().replace(/^spell:/, "").replace(/^(\d+)$/, "personal:$1") : (ref ?? "").trim();
 
@@ -38,9 +39,11 @@ export async function recordCombatSourceResolutionInTransaction(
   await assertCombatWritableInTransaction(tx, context.encounterId);
   if (input.useRequirementsReason !== undefined && (!input.useRequirementsReason.trim() || input.useRequirementsReason.length > 2000)) throw new Error("An explicit use-requirements ruling must include its reason.");
   if (input.initiativeCost !== undefined && (!Number.isFinite(input.initiativeCost) || input.initiativeCost <= 0)) throw new Error("The explicit source timing ruling must have a positive Initiative cost.");
-  if (!Number.isSafeInteger(input.participantId) || input.participantId === 0 || !["spell", "derived-ability", "creature-ability", "item", "race-natural-attack", "creature-attack"].includes(input.sourceKind)
+  if (!Number.isSafeInteger(input.participantId) || input.participantId === 0 || !["spell", "derived-ability", "creature-ability", "item", "race-natural-attack", "creature-attack", "weapon", "equipment-operation"].includes(input.sourceKind)
     || !input.sourceRef?.trim() || input.sourceRef.length > 500 || !input.reason?.trim() || input.reason.length > 2000
     || !["automatic-no-roll", "skill-roll", "attribute-roll", "opposed-roll", "manual-god-ruling"].includes(input.mode)) throw new Error("The exact combat source ruling is incomplete.");
+  if (input.sourceKind === "equipment-operation" && (input.mode !== "manual-god-ruling" || input.governing !== null || Object.keys(input.effectScaling ?? {}).length || input.initiativeCost !== undefined || !input.useRequirementsReason?.trim()
+    || !/^(inventory|magazine-fill):/.test(input.sourceRef))) throw new Error("Form equipment rulings approve only the exact physical operation, without changing its timing or resolution.");
   const needsRoll = ["skill-roll", "attribute-roll", "opposed-roll"].includes(input.mode);
   if (needsRoll && !input.governing || !needsRoll && input.governing !== null) throw new Error("The source mode and governing selection do not agree.");
   if (input.mode === "skill-roll" && input.governing?.kind !== "skill" || input.mode === "attribute-roll" && input.governing?.kind !== "attribute") throw new Error("Choose the exact Skill or Attribute required by this mode.");
@@ -67,7 +70,7 @@ export async function recordCombatSourceResolutionInTransaction(
     if (input.mode !== "opposed-roll" || Object.keys(input.effectScaling).length) throw new Error("Natural Attacks use the ordinary opposed attack Roll and fixed authored on-hit effects.");
     const { readRaceAttackSourcesInTransaction } = await import("./race-natural-attack-service");
     const source = (await readRaceAttackSourcesInTransaction(tx, context, input.participantId)).find(entry => entry.ref === input.sourceRef);
-    if (!source || source.unavailable) throw new Error(source?.unavailable ?? "The Natural Attack is not available from this participant's current Normal Race.");
+    if (!source || source.unavailable) throw new Error(source?.unavailable ?? "The Natural Attack is not available from this participant's current effective body.");
     sourceDefinition = source.definition;
     injuryEvidence = source.injuryEvidence;
   }
@@ -86,7 +89,8 @@ export async function recordCombatSourceResolutionInTransaction(
   const state = object(participant.localStateJson);
   const history = Array.isArray(state.combatSourceResolutionHistory) ? state.combatSourceResolutionHistory : [];
   const previous = history.at(-1) as RecordedRuling | undefined;
-  const normalized = { ...input, sourceRef: sourceKey(input.sourceKind, input.sourceRef), reason: input.reason.trim() };
+  const currentForm = (await readActiveFormDefinitionInTransaction(tx, input.participantId))?.identity ?? null;
+  const normalized = { ...input, currentForm, sourceRef: sourceKey(input.sourceKind, input.sourceRef), reason: input.reason.trim() };
   if (previous && isDeepStrictEqual(previous.sourceDefinition, sourceDefinition) && isDeepStrictEqual(previous.injuryEvidence, injuryEvidence) && Object.keys(normalized).every((key) => isDeepStrictEqual(normalized[key as keyof typeof normalized], previous[key as keyof typeof normalized]))) return previous.id;
   const row: RecordedRuling = { ...normalized, ...(sourceDefinition ? { sourceDefinition, injuryEvidence } : {}), id: crypto.randomUUID(), recordedAt: new Date().toISOString(), recordedByUserId: actor.userId };
   await tx.update(campaignSessionEncounterParticipant).set({ localStateJson: { ...state, combatSourceResolutionHistory: [...history, row] }, updatedAt: new Date() })
@@ -98,12 +102,14 @@ export async function recordCombatSourceResolutionInTransaction(
 export async function applyRecordedSourceResolutionInTransaction(
   tx: RuntimeIntegrationTransaction, context: OwnedEncounterRuntimeContext, draft: ActionDeclarationDraft, resolved: ResolvedLockedActionSource,
 ): Promise<ResolvedLockedActionSource> {
+  // Weapon rulings supply physical-use evidence only; canonical weapon execution stays authoritative.
+  if (draft.sourceKind === "weapon") return resolved;
   const [participant] = await tx.select({ state: campaignSessionEncounterParticipant.localStateJson }).from(campaignSessionEncounterParticipant)
     .where(and(eq(campaignSessionEncounterParticipant.encounterId, context.encounterId), eq(campaignSessionEncounterParticipant.characterId, draft.actorCharacterId))).limit(1);
   const history = object(participant?.state).combatSourceResolutionHistory;
   const actualSourceKey = draft.sourceKind === "spell" ? String(resolved.snapshot.sourceId) : draft.sourceRef;
   const ruling = Array.isArray(history) ? [...history].reverse().find((entry) => entry.sourceKind === draft.sourceKind && sourceKey(entry.sourceKind, entry.sourceRef) === sourceKey(draft.sourceKind, actualSourceKey)) as RecordedRuling | undefined : undefined;
-  if (!ruling) return resolved;
+  if (!ruling || !isDeepStrictEqual(ruling.currentForm ?? null, (await readActiveFormDefinitionInTransaction(tx, draft.actorCharacterId))?.identity ?? null)) return resolved;
   if (draft.sourceKind === "race-natural-attack" && (!isDeepStrictEqual(ruling.sourceDefinition, resolved.snapshot.authoredData.definition) || !isDeepStrictEqual(ruling.injuryEvidence, resolved.snapshot.authoredData.injuryEvidence))) return resolved;
   if (draft.sourceKind === "creature-attack" && !isDeepStrictEqual(ruling.sourceDefinition, resolved.snapshot.authoredData.definition)) return resolved;
   const selected = ruling.governing && ruling.governing.kind !== "manual"

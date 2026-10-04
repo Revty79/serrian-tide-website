@@ -1,4 +1,5 @@
 "use client";
+import { FormEquipmentRulingField } from "@/components/forms/form-equipment-ruling";
 import { useEffect, useRef, useState } from "react";
 import type { MagazineCommand, MagazineInventoryView } from "@/features/items/magazine-inventory-service";
 import { handleMagazine, readMagazineInventory } from "./magazine-actions";
@@ -6,6 +7,7 @@ import { useInPlaceScrollPreservation } from "@/lib/in-place-scroll";
 import "./magazine-panel.css";
 
 export function MagazinePanel({ characterId, disabled = false, revision = "", compact = false, onChange }: { characterId: number; disabled?: boolean; revision?: string; compact?: boolean; onChange?: () => void | Promise<void> }) {
+  const [formEquipmentReason, setFormEquipmentReason] = useState('');
   const preserveScroll = useInPlaceScrollPreservation();
   const [view, setView] = useState<MagazineInventoryView | null>(null), [message, setMessage] = useState("");
   const [selection, setSelection] = useState<Record<number, string>>({}), [amounts, setAmounts] = useState<Record<number, string>>({});
@@ -16,7 +18,7 @@ export function MagazinePanel({ characterId, disabled = false, revision = "", co
   }
   async function run(entry: MagazineInventoryView["magazines"][number], operation: MagazineCommand["operation"]) {
     if (running.current) return; running.current = true; setBusy(true); setMessage("");
-    const command = { characterId, instanceId: entry.instanceId, operation, ammunitionItemId: operation === "empty" ? entry.ammunitionItemId : Number(entry.ammunitionItemId ?? selection[entry.instanceId] ?? entry.ammunition[0]?.id) || null,
+    const command = { characterId, ...(formEquipmentReason ? { formEquipmentReason } : {}), instanceId: entry.instanceId, operation, ammunitionItemId: operation === "empty" ? entry.ammunitionItemId : Number(entry.ammunitionItemId ?? selection[entry.instanceId] ?? entry.ammunition[0]?.id) || null,
       rounds: operation === "add" ? Number(amounts[entry.instanceId] ?? "1") : null, expectedRounds: entry.loadedRounds, expectedAmmunitionItemId: entry.ammunitionItemId };
     const { requestKey: priorKey, ...prior } = retry.current ?? { requestKey: "" };
     const request = { ...command, requestKey: JSON.stringify(prior) === JSON.stringify(command) ? priorKey : crypto.randomUUID() };
@@ -26,6 +28,7 @@ export function MagazinePanel({ characterId, disabled = false, revision = "", co
     finally { running.current = false; setBusy(false); }
   }
   return <section className={`magazine-panel${compact ? " magazine-panel--compact" : ""}`} aria-label="Magazine inventory">
+    <FormEquipmentRulingField characterId={characterId} value={formEquipmentReason} onChange={setFormEquipmentReason}/>
     <h3>Magazines</h3>{!compact ? <p>Prepare individual magazines here outside combat. In combat, use ammunition preparation to swap a magazine or Item → Fill magazine to load a detached copy with Initiative.</p> : null}
     <button type="button" className="st-button" disabled={busy} onClick={() => void preserveScroll(refresh)}>Refresh magazines</button>
     {message ? <p role="status">{message}</p> : null}

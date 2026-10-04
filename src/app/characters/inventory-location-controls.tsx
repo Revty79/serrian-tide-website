@@ -1,4 +1,5 @@
 "use client";
+import { FormEquipmentRulingField } from "@/components/forms/form-equipment-ruling";
 
 import { useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
@@ -11,6 +12,7 @@ import { resolveInventoryAvailability } from "@/features/items/inventory-access"
 import "./inventory-location-controls.css";
 
 export function useInventoryLocations(characterId: number, version: number, revision: string, onVersionChange: (version: number) => void) {
+  const [formEquipmentReason, setFormEquipmentReason] = useState('');
   const [view, setView] = useState<PhysicalInventoryView | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export function useInventoryLocations(characterId: number, version: number, revi
     if (busy) return;
     sequence.current++; setBusy(true); setError(null); setNotice(null);
     try {
-      const result = await moveInventoryLocationAction(command);
+      const result = await moveInventoryLocationAction({ ...command, ...(formEquipmentReason ? { formEquipmentReason } : {}) });
       setView(result); onVersionChange(result.commerceVersion); setNotice("Inventory location saved.");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "The Item could not be moved."); }
     finally { setBusy(false); }
@@ -37,7 +39,7 @@ export function useInventoryLocations(characterId: number, version: number, revi
     if (busy) return;
     sequence.current++; setBusy(true); setError(null); setNotice(null);
     try {
-      const result = await changeContainerSubstanceAction(command);
+      const result = await changeContainerSubstanceAction({ ...command, ...(formEquipmentReason ? { formEquipmentReason } : {}) });
       setView(result.view); onVersionChange(result.view.commerceVersion);
       setNotice(`${command.operation === "draw" ? "Drew" : "Added"} ${formatPhysical(result.adjustment.quantity)} ${result.adjustment.substance.unit} ${result.adjustment.substance.name}.`);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Substance could not be changed."); }
@@ -46,16 +48,17 @@ export function useInventoryLocations(characterId: number, version: number, revi
   async function handle(command: InventoryHandlingCommand) {
     if (busy) return;
     sequence.current++; setBusy(true); setError(null); setNotice(null);
-    try { const result = await handleInventoryAction(command); setView(result); onVersionChange(result.commerceVersion); setNotice("Inventory custody/access saved."); }
+    try { const result = await handleInventoryAction({ ...command, ...(formEquipmentReason ? { formEquipmentReason } : {}) }); setView(result); onVersionChange(result.commerceVersion); setNotice("Inventory custody/access saved."); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Inventory handling failed."); }
     finally { setBusy(false); }
   }
-  return { view, busy, error, notice, move, changeSubstance, handle, reload: () => setRefresh(value => value + 1) };
+  return { characterId, formEquipmentReason, setFormEquipmentReason, view, busy, error, notice, move, changeSubstance, handle, reload: () => setRefresh(value => value + 1) };
 }
 export type InventoryLocations = ReturnType<typeof useInventoryLocations>;
 
 export function PhysicalInventorySummary({ locations }: { locations: InventoryLocations }) {
   return <div className="inventory-physical-summary">
+    <FormEquipmentRulingField characterId={locations.characterId} value={locations.formEquipmentReason} onChange={locations.setFormEquipmentReason}/>
     {locations.view ? <p><strong>Carried weight: {displayMeasurement(locations.view.carriedWeight, "lb")}</strong><small>Includes carried Items, nested contents and loaded ammunition once. Dropped, stolen and lost roots and their contents are excluded.</small></p> : <p>Loading inventory locations…</p>}
     {locations.view?.movementBlockedReason ? <p role="note">{locations.view.movementBlockedReason}</p> : null}
     {locations.error ? <p role="alert" className="inventory-location-error">{locations.error} <button className="st-button" type="button" disabled={locations.busy} onClick={locations.reload}>Reload locations</button></p> : null}

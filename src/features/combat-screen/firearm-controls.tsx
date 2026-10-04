@@ -1,4 +1,6 @@
 "use client";
+import { FormEquipmentRulingField } from '@/components/forms/form-equipment-ruling';
+
 import { decimalMultiply } from "@/lib/decimal";
 import { useRef, useState } from "react";
 import { initializeFirearmState, startFirearmPreparation } from "@/app/heavens/tabletop/firearm-readiness-actions";
@@ -22,6 +24,7 @@ export function FirearmControls({ scope, entity, firearm, selectedModeId, invent
   const [chosenOperation, setOperation] = useState<FirearmPreparationOperation | null>(null), [rounds, setRounds] = useState(family ? "1" : ""), [mode, setMode] = useState("");
   const [cost, setCost] = useState(""), [reason, setReason] = useState(""), [capacity, setCapacity] = useState("");
   const [magazine, setMagazine] = useState("");
+  const [formEquipmentReason, setFormEquipmentReason] = useState('');
   const operation = chosenOperation ?? guidance.operation;
   const loadOperation = ["load", "reload"].includes(operation);
   const usableMagazines = firearm.magazines.filter((entry) => !entry.attachedWeaponInstanceId && entry.containerInstanceId === null && entry.loadedRounds > 0 && entry.ammunitionItemId === firearm.canonical.ammunitionItemId);
@@ -40,7 +43,7 @@ export function FirearmControls({ scope, entity, firearm, selectedModeId, invent
     magazineInstanceId: Number(selectedMagazine) || undefined,
     partialLoadDisposition: operation === "unload" ? "retain" as const : undefined,
     targetFiringModeId: Number(mode) || selectedModeId || firearm.state?.selectedFiringModeId || firearm.modes[0]?.id || undefined,
-    ...(scope.role === "god" ? { godInitiativeCost: cost === "" ? undefined : Number(cost), godReason: reason } : {}) };
+    ...(scope.role === "god" ? { godInitiativeCost: cost === "" ? undefined : Number(cost), godReason: reason, ...(formEquipmentReason ? { formEquipmentReason } : {}) } : {}) };
   const state = firearm.state;
   const magazineOperation = firearm.canonical.reloadType === "Magazine" && ["load", "reload", "unload"].includes(operation)
     && (operation !== "unload" || firearm.attachedMagazineInstanceId !== null);
@@ -77,6 +80,7 @@ export function FirearmControls({ scope, entity, firearm, selectedModeId, invent
   const titleId = `firearm-status-${firearm.itemInstanceId}`;
   const actionLabel = loadOperation && firearm.canonical.reloadType === "Magazine" ? "Load magazine" : labels[operation];
   return <section className={styles.notice} aria-labelledby={titleId}>
+    <FormEquipmentRulingField characterId={entity.participantId} value={formEquipmentReason} onChange={setFormEquipmentReason} combatSource={{ encounterId: scope.encounterId, kind: "weapon", ref: `instance:${firearm.itemInstanceId}`, disabled, refresh }}/>
     <div className={styles.header}><h3 id={titleId}>{guidance.next}</h3><button className="st-button" disabled={busy} onClick={() => void refresh().then(() => setMessage("Weapon settings refreshed.")).catch((error) => setMessage(combatMessage(error.message)))}>Refresh weapon</button></div>
     <dl className={styles.attackFacts}>
       <div><dt>{family === "bow" ? "Selected arrow" : "Loaded"}</dt><dd>{state ? `${state.loadedRounds} / ${state.capacityRounds ?? "?"}` : "Unconfirmed"}</dd></div>

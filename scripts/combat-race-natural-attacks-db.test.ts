@@ -70,7 +70,7 @@ scenario("Player current Normal Race identity; another Race, Creature occurrence
   assert.equal(rows.length, 1); assert.equal(rows[0].ref, f.ref);
   assert.deepEqual(await readRaceAttackSourcesInTransaction(tx, f.context, f.defenderId), []);
   assert.deepEqual(await readRaceAttackSourcesInTransaction(tx, f.context, f.occurrences[0]), []);
-  await assert.rejects(previewCombatDeclarationInTransaction(tx, f.context, f.player, { ...draft(f), sourceRef: `race:${f.ancestry.id + 1}:attack:fire-claw` }), /current Normal Race/);
+  await assert.rejects(previewCombatDeclarationInTransaction(tx, f.context, f.player, { ...draft(f), sourceRef: `race:${f.ancestry.id + 1}:attack:fire-claw` }), /current (?:Normal Race|effective body)/);
   await tx.update(campaignCharacter).set({ npcKind: "creature" }).where(eq(campaignCharacter.id, f.heroId));
   assert.deepEqual(await readRaceAttackSourcesInTransaction(tx, f.context, f.heroId), []);
 });
@@ -239,7 +239,7 @@ scenario("later Race/Skill edits and target protection edits cannot rewrite a co
 scenario("current Race is rechecked between lock and commit", async (tx, f) => {
   const id = await locked(tx, f);
   await tx.update(campaignCharacterProfile).set({ raceId: null }).where(eq(campaignCharacterProfile.characterId, f.heroId));
-  await assert.rejects(commitActionDeclarationInTransaction(tx, f.context, f.player, id, { method: "entered", enteredTotal: 70 }), /current Normal Race/);
+  await assert.rejects(commitActionDeclarationInTransaction(tx, f.context, f.player, id, { method: "entered", enteredTotal: 70 }), /current (?:Normal Race|effective body)/);
 });
 scenario("melee Reach rejects an out-of-range target", async (tx, f) => {
   await assert.rejects(previewCombatDeclarationInTransaction(tx, f.context, f.player, { ...draft(f), sourcePayload: { rangeAttackMode: "melee", rangeDistance: 6, rangeUnit: "feet" } }), /beyond.*Reach/);

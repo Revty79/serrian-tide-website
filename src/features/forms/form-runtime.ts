@@ -6,7 +6,7 @@ import type { EvolutionEncounterContext } from '@/features/evolutions/evolution-
 import type { DerivedAbilityCostPlan } from '@/features/derived-abilities/derived-ability-use';
 import type { AbilityFact } from '@/features/ability-use-conditions/facts';
 
-export const FORM_RUNTIME_NOTICE = 'Current Form is recorded. Normal mechanics still govern play; Form mechanics arrive in Forms Pass 2.';
+export const FORM_RUNTIME_NOTICE = 'Current Form governs live mechanics. Normal editing and advancement keep your saved underlying values.';
 export type FrozenFormDefinition = {
   kind: 'race' | 'creature'; sourceId: number; sourceName: string;
   formId: number; key: string; name: string; sourceHash: string;
@@ -42,6 +42,7 @@ export type FormRuntimeReceipt = {
   event: FormRuntimeEvent | null; replayed: boolean;
 };
 export type IndividualFormRuntime = {
+  effective: import("./effective-form-view-service").EffectiveFormView | null;
   characterId: number; campaignId: number; authority: 'god' | 'player' | 'viewer';
   current: FormRuntimeEvent | null; forms: Array<{ definition: FrozenFormDefinition; access: FormAccessEvaluation }>;
   pending: { requestId: number; operation: 'enter' | 'return'; name: string; pendingActionId: number | null; timingStatus: string | null; blockers: string[] } | null;

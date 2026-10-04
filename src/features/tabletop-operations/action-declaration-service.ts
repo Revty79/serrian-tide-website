@@ -1,3 +1,5 @@
+import { readEffectiveFormInTransaction, readActiveFormDefinitionInTransaction } from '@/features/forms/effective-form-service';
+import { assertFormEquipmentUseInTransaction, readFormEquipmentApprovalInTransaction } from '@/features/forms/form-capability-service';
 import { assertCombatWritableInTransaction, readCombatPauseStateInTransaction, type CombatPauseState } from "./combat-freeze-service";
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
@@ -523,6 +525,16 @@ async function buildAuthoritativeSnapshot(
     weapon,
     governing,
   });
+  const activeForm = await readEffectiveFormInTransaction(tx, draft.actorCharacterId);
+  const usesEquipment = ['weapon', 'item'].includes(draft.sourceKind) || weapon !== null || firearmPreparation;
+  const formEquipment = usesEquipment ? await assertFormEquipmentUseInTransaction(tx, draft.actorCharacterId,
+    await readFormEquipmentApprovalInTransaction(tx, context.encounterId, draft.actorCharacterId, draft.sourceKind, draft.sourceRef)
+      ?? (actor.authority === 'god-owner' && typeof draft.sourcePayload?.formEquipmentReason === 'string' ? { userId: actor.userId, reason: draft.sourcePayload.formEquipmentReason } : null)) : null;
+  if (activeForm) resolvedSource = { ...resolvedSource, snapshot: { ...resolvedSource.snapshot, authoredData: { ...resolvedSource.snapshot.authoredData,
+    currentForm: activeForm.identity, formEquipment,
+    effectiveFacts: activeForm.kind === 'race' ? { attributes: activeForm.effective.attributes, size: activeForm.effective.race.race.size, anatomy: activeForm.effective.anatomy,
+      skillLinks: activeForm.effective.race.skillLinks } : activeForm.effective,
+  } } };
   governing = resolvedSource.governing;
   const frozenRange = resolvedSource.snapshot.authoredData.range;
   if (draft.sourceKind === "race-natural-attack" || draft.sourceKind === "creature-attack") {
@@ -834,6 +846,13 @@ async function commitActionDeclarationInternal(
   assertActionDeclarationTransition("locked", "committed");
   const snapshot = parseLockedActionDeclarationSnapshot(row.lockedSnapshotJson);
   await assertParticipants(tx, context, [snapshot.actorCharacterId, ...snapshot.targetCharacterIds]);
+  const currentActorForm = (await readActiveFormDefinitionInTransaction(tx, snapshot.actorCharacterId))?.identity ?? null;
+  if ((snapshot.currentForm?.entryEventId ?? null) !== (currentActorForm?.entryEventId ?? null)) throw new Error('Current Form changed after preparation. Prepare this action again.');
+  for (const targetId of snapshot.targetCharacterIds) {
+    const live = (await readActiveFormDefinitionInTransaction(tx, targetId))?.identity ?? null;
+    if ((snapshot.targetForms?.find(row => row.characterId === targetId)?.currentForm?.entryEventId ?? null) !== (live?.entryEventId ?? null)) throw new Error('A target changed Form after preparation. Prepare this action again.');
+  }
+
   if (snapshot.source.kind === "creature-attack" && snapshot.governing?.status !== "resolved") throw new Error("Record a G.O.D. Attack % ruling and prepare the Creature Attack again before committing.");
   if (snapshot.source.kind === "race-natural-attack") {
     const { readRaceAttackSourcesInTransaction } = await import("./race-natural-attack-service");

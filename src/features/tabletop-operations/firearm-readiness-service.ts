@@ -1,3 +1,4 @@
+import { assertFormEquipmentUseInTransaction, readFormEquipmentApprovalInTransaction } from '@/features/forms/form-capability-service';
 import { assertExactInventoryAvailable, assertLooseStackAvailable } from "@/features/items/inventory-access-service";
 import { assertCombatWritableInTransaction } from "./combat-freeze-service";
 import "server-only";
@@ -64,6 +65,7 @@ export type InitializeFirearmStateCommand = Readonly<{
 }>;
 
 export type StartFirearmPreparationCommand = Readonly<{
+  formEquipmentReason?: string;
   characterId: number;
   itemInstanceId: number;
   operation: FirearmPreparationOperation;
@@ -796,6 +798,7 @@ async function startFirearmPreparationInternal(
   }
 
   await lockEquipmentStateCharacterInTransaction(tx, command.characterId);
+  const formEquipment = await assertFormEquipmentUseInTransaction(tx, command.characterId, await readFormEquipmentApprovalInTransaction(tx, context.encounterId, command.characterId, "weapon", `instance:${command.itemInstanceId}`) ?? (command.formEquipmentReason ? { userId: actorUserId, reason: command.formEquipmentReason } : null));
   const state = await lockState(tx, context, command.characterId, command.itemInstanceId);
   await assertInstanceLooseInTransaction(tx, command.characterId, state.itemInstanceId, "Move this firearm to Loose before preparing it.");
   const { campaignSessionEncounterFirearmAttack, campaignSessionEncounterPendingAction } = await import("@/db/tabletop-operations-schema");
@@ -909,6 +912,8 @@ async function startFirearmPreparationInternal(
     singleLoading,
     magazineSwap,
     originalRequest,
+    formEquipment,
+    ...(command.formEquipmentReason ? { formEquipmentReason: command.formEquipmentReason } : {}),
     operation: command.operation,
     state: stateSnapshot(state),
     canonical: {

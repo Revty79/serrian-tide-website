@@ -1,3 +1,4 @@
+import type { FormEquipmentApproval } from "@/features/forms/form-capability-service";
 import { assertCreatureVesselsUnboundInTransaction } from "@/features/creatures/creature-vessel-guards";
 import "server-only";
 import { and, eq, isNull, sql } from "drizzle-orm";
@@ -17,6 +18,7 @@ import { assertCharacterCombatWritableInTransaction } from "@/features/tabletop-
 import { publishCharacterStateInvalidationInTransaction } from "@/features/tabletop-operations/tabletop-live-events";
 
 export type InventoryHandlingCommand = {
+  formEquipmentReason?: string;
   characterId: number; expectedCommerceVersion: number; requestKey: string;
   operation: "drop" | "stolen" | "lost" | "recover" | "open" | "close" | "access-ruling" | "destroy";
   instanceId: number | null; itemId: number; quantity: number; custodyId?: number;
@@ -39,7 +41,7 @@ async function changed(tx: Tx, characterId: number) {
   await publishCharacterStateInvalidationInTransaction(tx, characterId);
 }
 /** Internal completion flag is supplied only by the authorized combat action service. */
-export async function handleInventoryInTransaction(tx: Tx, userId: string, command: InventoryHandlingCommand, combatCompletion = false) {
+export async function handleInventoryInTransaction(tx: Tx, userId: string, command: InventoryHandlingCommand, combatCompletion = false, formApproval?: FormEquipmentApproval) {
   await authorizeInventoryInTransaction(tx, command.characterId, userId, true);
   if (!command.requestKey?.trim() || command.requestKey.length > 160 || !Number.isSafeInteger(command.itemId) || command.itemId <= 0 || !Number.isSafeInteger(command.quantity) || command.quantity <= 0
     || command.instanceId !== null && (!Number.isSafeInteger(command.instanceId) || command.instanceId <= 0 || command.quantity !== 1)) throw new Error("Choose an exact Item or a positive whole stack quantity and a retry identity.");
@@ -55,7 +57,7 @@ export async function handleInventoryInTransaction(tx: Tx, userId: string, comma
     return { eventId: receipt.id };
   }
   const administrative = god && ["stolen", "lost", "recover", "access-ruling", "destroy"].includes(command.operation);
-  await beginContainerMutation(tx, userId, command, combatCompletion || administrative);
+  await beginContainerMutation(tx, userId, command, combatCompletion || administrative, !administrative, formApproval);
   const graph = await readInventoryAccessInTransaction(tx, command.characterId);
   const copy = command.instanceId === null ? null : graph.instances.find(row => row.instanceId === command.instanceId && row.itemId === command.itemId);
   if (command.instanceId !== null && !copy) throw new Error("Choose an active owned exact copy.");
