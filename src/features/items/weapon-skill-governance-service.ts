@@ -1,3 +1,5 @@
+import { assertNewCatalogReferences } from "@/features/catalog-visibility/catalog-access";
+import { userRole } from "@/db/authorization-schema";
 import "server-only";
 
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -302,6 +304,8 @@ export async function saveWeaponSkillGovernanceInTransaction(
   const stored = await tx.select().from(weaponSkillPathMapping)
     .where(eq(weaponSkillPathMapping.weaponProfileId, profile.id))
     .orderBy(asc(weaponSkillPathMapping.id));
+  const roles = await tx.select({ role: userRole.role }).from(userRole).where(eq(userRole.userId, actor.userId));
+  await assertNewCatalogReferences(tx, { userId: actor.userId, roles: roles.map(row => row.role) }, "skill", normalized.map(row => row.endpointSkillId), stored.map(row => row.endpointSkillId));
   const storedById = new Map(stored.map((row) => [row.id, row]));
   for (const mapping of normalized) {
     if (mapping.id === null) continue;

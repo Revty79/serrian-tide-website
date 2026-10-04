@@ -1,9 +1,10 @@
 "use server";
+import { catalogReadWhere, assertAuthoredCatalogReferences, assertNewCatalogReferences } from "@/features/catalog-visibility/catalog-access";
 import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
 import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
 import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
 import { assertRaceEvolutionSourceReferences } from "@/features/races/evolution-requirement-service";
-import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogContextWhere, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-lineage";
 
 
@@ -13,6 +14,7 @@ import { normalizeInteractionRuleProfile, type InteractionRuleProfile } from "@/
 
 
 import {
+  and,
   asc,
   count,
   eq,
@@ -307,7 +309,7 @@ export async function listRaces(
     .limit(pageSize)
     .offset((page - 1) * pageSize);
   const matchIds = new Set(baseRows.map((row) => row.id));
-  if (visibility.enabled || visibility.admin) {
+  if (matchIds.size) {
     const ancestorIds = (await catalogAncestorIds("race", [...matchIds])).filter((id) => !matchIds.has(id));
     if (ancestorIds.length) baseRows.push(...await db.select({
       id: race.id,
@@ -319,7 +321,7 @@ export async function listRaces(
       ageRangeText: race.ageRangeText,
       baseMagic: race.baseMagic,
       archivedAt: race.archivedAt,
-    }).from(race).where(inArray(race.id, ancestorIds)));
+    }).from(race).where(and(inArray(race.id, ancestorIds), catalogContextWhere(race, session.user.id, visibility))));
   }
 
 
@@ -362,13 +364,14 @@ export async function listRaces(
 }
 
 export async function getRace(id: number): Promise<RaceAggregate | null> {
-  await requireGodOrAdminAccessContext();
-  const [row] = await db.select().from(race).where(eq(race.id, id)).limit(1);
+  const { session, roles } = await requireGodOrAdminAccessContext();
+  const access = catalogReadWhere(race, { userId: session.user.id, roles });
+  const [row] = await db.select().from(race).where(and(eq(race.id, id), access)).limit(1);
   if (!row) return null;
 
   const [parent] = row.parentRaceId === null ? [] : await db.select({ name: race.name }).from(race).where(eq(race.id, row.parentRaceId));
   const variants = await db.select({ id: race.id, name: race.name, archivedAt: race.archivedAt }).from(race)
-    .where(eq(race.parentRaceId, id)).orderBy(asc(race.name), asc(race.id));
+    .where(and(eq(race.parentRaceId, id), access)).orderBy(asc(race.name), asc(race.id));
 
   const [caps, movements, links] = await Promise.all([
     db.select().from(raceAttributeCap).where(eq(raceAttributeCap.raceId, id)).orderBy(asc(raceAttributeCap.sortOrder), asc(raceAttributeCap.id)),
@@ -458,6 +461,8 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
   const normalized = normalizeRace(input);
 
   const savedId = await db.transaction(async (tx) => {
+    const [previousRules] = input.id === undefined ? [] : await tx.select({ profile: race.interactionRules }).from(race).where(eq(race.id, input.id));
+    await assertAuthoredCatalogReferences(tx, { userId: session.user.id, roles }, normalized.core.interactionRules, previousRules?.profile);
     await assertInteractionRuleReferences(tx, normalized.core.interactionRules);
     let id = input.id;
     if (id === undefined) {
@@ -476,6 +481,7 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
       const [stored] = await tx
         .select({
           createdByUserId: race.createdByUserId,
+          isSystemCanon: race.isSystemCanon,
           sourceSystem: race.sourceSystem,
           sourceExternalId: race.sourceExternalId,
           archivedAt: race.archivedAt,
@@ -529,6 +535,7 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
     }
     if (normalized.skillLinks.length) {
       const skillIds = [...new Set(normalized.skillLinks.map((link) => link.skillId))];
+      await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "skill", skillIds, existingSkillLinks.map(row => row.skillId));
       const existingSkills = await tx
         .select({
           id: skill.id,
@@ -567,11 +574,13 @@ export async function saveRace(input: RaceDraft): Promise<RaceAggregate> {
     // Old callers may omit attacks. Preserve them, but still validate references
     // against the newly saved Anatomy before committing any part of the Race.
     const [savedCore] = await tx.select({ anatomy: race.anatomy }).from(race).where(eq(race.id, id));
+    await assertAuthoredCatalogReferences(tx, { userId: session.user.id, roles }, input.naturalAttacks, await readRaceNaturalAttacksInTransaction(tx, id));
     await saveRaceNaturalAttacksInTransaction(tx, id,
       input.naturalAttacks === undefined ? await readRaceNaturalAttacksInTransaction(tx, id) : input.naturalAttacks,
       savedCore.anatomy);
     // Omission preserves Forms for older callers; retained references still follow saved Race Anatomy.
     const finalForms = input.forms === undefined ? await readRaceFormsInTransaction(tx, id) : input.forms;
+    await assertAuthoredCatalogReferences(tx, { userId: session.user.id, roles }, finalForms, await readRaceFormsInTransaction(tx, id));
     await assertRaceEvolutionSourceReferences(tx, id, new Set(finalForms.map(form => form.key)));
     await saveRaceFormsInTransaction(tx, id, finalForms, {
       anatomy: savedCore.anatomy, naturalAttacks: await readRaceNaturalAttacksInTransaction(tx, id),

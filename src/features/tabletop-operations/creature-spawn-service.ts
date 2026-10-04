@@ -1,3 +1,5 @@
+import { assertNewCatalogReferences } from "@/features/catalog-visibility/catalog-access";
+import { catalogVisibilityPredicate } from "@/features/catalog-visibility/catalog-query";
 import "server-only";
 import { assertCampaignSkillGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 
@@ -72,6 +74,7 @@ function positiveId(value: number, label: string): number {
 
 export async function listCreatureCatalogInTransaction(
   tx: RuntimeIntegrationTransaction,
+  actorUserId: string,
 ): Promise<CreatureCatalogEntry[]> {
   const rows = await tx.select({
     id: creature.id,
@@ -81,7 +84,7 @@ export async function listCreatureCatalogInTransaction(
     creatureType: creature.creatureType,
     challengeRating: creature.challengeRating,
   }).from(creature)
-    .where(isNull(creature.archivedAt))
+    .where(and(isNull(creature.archivedAt), catalogVisibilityPredicate(creature, actorUserId, "canon-and-mine")))
     .orderBy(asc(creature.canonicalName), asc(creature.id));
   const movementRows = await tx.select({
     creatureId: creatureMovement.creatureId,
@@ -262,6 +265,7 @@ async function spawnEncounterCreaturesInternal(tx: RuntimeIntegrationTransaction
   if (context.sessionStatus === "completed" || context.sceneStatus === "completed") {
     throw new Error("Completed Session or Scene history cannot receive new Creatures.");
   }
+  await assertNewCatalogReferences(tx, { userId: actingUserId, roles: ["god"] }, "creature", [input.creatureId]);
   const template = await loadCreatureAggregateInTransaction(tx, input.creatureId);
   const snapshot = buildCreatureNpcSnapshot(template);
   await assertCampaignSkillGrantsInTransaction(tx, context.campaignId, snapshot.skillLinks);

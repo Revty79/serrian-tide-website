@@ -6,6 +6,7 @@ import { skill, skillExtension } from "@/db/skill-schema";
 import { derivedAbility } from "@/db/derived-ability-schema";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 import { catalogCandidateWhere } from "@/features/catalog-visibility/catalog-query";
+import { catalogReadWhere } from "@/features/catalog-visibility/catalog-access";
 import { readSpecialAbilityMechanics } from "./codec";
 import { collectMechanicsReferences } from "./references";
 import { SPECIAL_ABILITY_MECHANICS_EXTENSION } from "./models";
@@ -13,8 +14,12 @@ import type { MechanicsEditorReferences } from "./authoring";
 
 /** Discovery follows catalog preferences; retained identities come only from storage. */
 export async function getMechanicsEditorReferences(forSkillId?: number): Promise<MechanicsEditorReferences> {
-  const { session } = await requireGodOrAdminAccessContext();
+  const { session, roles } = await requireGodOrAdminAccessContext();
   if (forSkillId !== undefined && (!Number.isInteger(forSkillId) || forSkillId <= 0 || forSkillId > 2147483647)) throw new Error("Choose a saved Skill.");
+  if (forSkillId !== undefined) {
+    const [root] = await db.select({ id: skill.id }).from(skill).where(and(eq(skill.id, forSkillId), catalogReadWhere(skill, { userId: session.user.id, roles })));
+    if (!root) throw new Error("This record is not available in your catalog.");
+  }
   const [stored] = forSkillId === undefined ? [] : await db.select().from(skillExtension)
     .where(and(eq(skillExtension.skillId, forSkillId), eq(skillExtension.extensionType, SPECIAL_ABILITY_MECHANICS_EXTENSION)));
   const read = readSpecialAbilityMechanics(stored);

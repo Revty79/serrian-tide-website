@@ -1,4 +1,5 @@
 "use server";
+import { campaignSkillWhere, campaignDerivedAbilityWhere } from "@/features/catalog-visibility/campaign-catalog-access";
 import { assertSpecialAbilityAllocations } from "@/features/characters/character-special-ability-rules";
 import { specialAbilityPossession } from "@/features/special-abilities/score";
 import { readCampaignSkillExclusions, loadCampaignSkillAccessInTransaction, assertCampaignRaceGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
@@ -672,7 +673,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
     db.select().from(campaignDerivedCurrency).where(eq(campaignDerivedCurrency.campaignId, row.campaignId)).orderBy(asc(campaignDerivedCurrency.sortOrder)),
     db.select({ id: race.id, name: race.name, archivedAt: race.archivedAt }).from(campaignRace).innerJoin(race, eq(race.id, campaignRace.raceId)).where(eq(campaignRace.campaignId, row.campaignId)).orderBy(asc(campaignRace.sortOrder), asc(race.name)),
     db.select({ id: race.id, name: race.name, archivedAt: race.archivedAt }).from(campaignAllowedRace).innerJoin(race, eq(race.id, campaignAllowedRace.raceId)).where(eq(campaignAllowedRace.campaignId, row.campaignId)).orderBy(asc(campaignAllowedRace.sortOrder), asc(race.name)),
-    db.select().from(skill).orderBy(asc(skill.name), asc(skill.id)),
+    db.select().from(skill).where(campaignSkillWhere(row.campaignId)).orderBy(asc(skill.name), asc(skill.id)),
     db.select({ skillId: skillRelationship.skillId, relatedSkillId: skillRelationship.relatedSkillId, relationshipType: skillRelationship.relationshipType, sortOrder: skillRelationship.sortOrder }).from(skillRelationship).where(eq(skillRelationship.relationshipType, "parent")).orderBy(asc(skillRelationship.skillId), asc(skillRelationship.sortOrder)),
     db.select({ skillId: skillExtension.skillId, extensionType: skillExtension.extensionType, dataJson: skillExtension.dataJson }).from(skillExtension).where(inArray(skillExtension.extensionType, ["spell-import-source", "spell-construction"])),
     db.select({
@@ -762,6 +763,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       sourceExternalId: derivedAbility.sourceExternalId,
       archivedAt: derivedAbility.archivedAt,
     }).from(derivedAbility)
+      .where(campaignDerivedAbilityWhere(row.campaignId))
       .orderBy(asc(derivedAbility.name), asc(derivedAbility.id)),
     db.select({
       triggerId: derivedAbilityTrigger.id,
@@ -1079,7 +1081,7 @@ export async function getCharacter(characterId: number, godMode = false): Promis
       spellDocumentJson: spellDocuments.get(skillRow.id) ?? null,
       archived: skillRow.archivedAt !== null,
     })),
-    skillRelationships: relationshipRows,
+    skillRelationships: relationshipRows.filter(link => skillRows.some(skill => skill.id === link.skillId) && skillRows.some(skill => skill.id === link.relatedSkillId)),
     personalSpellbook: personalSpellRows,
     authorizedItems: authorizedRows.map((entry) => ({
       campaignAvailable: entry.campaignAvailable,

@@ -27,10 +27,10 @@ export function CatalogBrowseControl({ catalog, visibility, onSaved, canManageAc
     {visibility.admin && onAdminBrowseChange ? <AdminCatalogBrowseControl catalog={catalog} visibility={visibility} options={adminBrowse ?? {}} onChange={onAdminBrowseChange} /> : <CatalogPreferenceRow catalog={catalog} initialMode={visibility.mode} onSaved={onSaved}
     description={visibility.enabled
       ? "Choose the content to browse. Context shows required ancestors. Existing game references stay usable."
-      : "Your choice is saved. Browsing keeps the full catalog until an Administrator enables filtering for this catalog in this environment."} />}
+      : "Your choice is saved. Browsing shows System Canon and content you created until an Administrator enables your saved filter. Other users' non-canon content stays private."} />}
     {canManageActivation ? <div className={styles.canonControl}>
       <span>Catalog filtering: {visibility.enabled ? "Active" : "Inactive"}</span>
-      <details><summary>About catalog filtering</summary><p>Enable filtering when canon review is ready. This affects browsing for everyone in this database and keeps their saved choices and existing game references.</p></details>
+      <details><summary>About catalog filtering</summary><p>Enable personal Canon Only, Canon + Mine and Mine Only choices for this catalog. When disabled, users see Canon + Mine. Non-canon content stays private to its creator; Administrators can review All. Campaign members retain access to content already assigned to their Campaign.</p></details>
       <button className="st-button is-secondary" type="button" disabled={pending} onClick={() => void toggleActivation()}>{pending ? "Updating filtering…" : visibility.enabled ? "Disable filtering" : "Enable visibility filtering"}</button>
       {error ? <span role="alert" className={styles.canonError}>{error}</span> : null}
     </div> : null}

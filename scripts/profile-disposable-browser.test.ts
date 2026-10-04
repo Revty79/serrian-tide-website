@@ -291,10 +291,11 @@ async function main() {
     assert.equal(await page.getByRole("radio", { name: "All", exact: true }).isChecked(), true);
     await page.goto(`${baseUrl}/heavens/campaigns?campaign=${campaign.id}`);
     await page.getByRole("button", { name: "Allowed Races", exact: true }).click();
-    for (const name of ["Profile Own Race", "Profile Foreign Race", "Profile Imported Race"]) await page.getByRole("checkbox", { name: `Select ${name}`, exact: true }).waitFor();
+    await page.getByRole("checkbox", { name: "Select Profile Own Race", exact: true }).waitFor();
+    for (const name of ["Profile Foreign Race", "Profile Imported Race"]) assert.equal(await page.getByRole("checkbox", { name: `Select ${name}`, exact: true }).count(), 0);
     assert.equal((await pool.query("select count(*)::int n from races where is_system_canon")).rows[0].n, 0);
     assert.deepEqual(errors, []);
-    console.log("PASS: the activation guard preserves the unclassified Race catalog and Campaign references; preferences alone cannot promote content.");
+    console.log("PASS: inactive catalogs preserve Administrator review while Campaign discovery enforces creator/canon access; preferences cannot promote content.");
     await runCatalogPassThreeBrowserChecks({ page, pool, databaseUrl, baseUrl, screenshots, login });
     await runCatalogPassFourBrowserChecks({ page, pool, baseUrl, screenshots, login });
     await runAdminCatalogBrowserChecks({ page, pool, baseUrl, screenshots, login });

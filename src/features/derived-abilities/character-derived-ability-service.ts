@@ -1,3 +1,4 @@
+import { campaignDerivedAbilityWhere } from "@/features/catalog-visibility/campaign-catalog-access";
 import "server-only";
 import { readAbilityFactsInTransaction } from "@/features/ability-use-conditions/fact-service";
 import { evaluateAbilityUseCondition } from "@/features/ability-use-conditions/facts";
@@ -296,7 +297,7 @@ export async function loadCharacterDerivedAbilitiesInTransaction(
     sourceSystem: derivedAbility.sourceSystem,
     sourceExternalId: derivedAbility.sourceExternalId,
     archivedAt: derivedAbility.archivedAt,
-  }).from(derivedAbility).orderBy(asc(derivedAbility.name), asc(derivedAbility.id));
+  }).from(derivedAbility).where(campaignDerivedAbilityWhere(entity.campaignId)).orderBy(asc(derivedAbility.name), asc(derivedAbility.id));
   const triggers = await tx.select().from(derivedAbilityTrigger).orderBy(
     asc(derivedAbilityTrigger.derivedAbilityId),
     asc(derivedAbilityTrigger.sortOrder),

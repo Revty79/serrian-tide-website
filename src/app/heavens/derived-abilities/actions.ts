@@ -1,4 +1,5 @@
 "use server";
+import { catalogReadWhere, assertNewCatalogReferences } from "@/features/catalog-visibility/catalog-access";
 import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
 import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
 import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
@@ -222,6 +223,7 @@ export async function getDerivedAbilityEditorReferences(
   forDerivedAbilityId?: number,
 ): Promise<DerivedAbilityEditorReferences> {
   const { session } = await requireGodOrAdminAccessContext();
+  if (forDerivedAbilityId && !await getDerivedAbility(forDerivedAbilityId)) throw new Error("This record is not available in your catalog.");
   const storedReferences = forDerivedAbilityId
     ? await db
         .select({
@@ -376,9 +378,9 @@ export async function listDerivedAbilities(
 export async function getDerivedAbility(
   id: number,
 ): Promise<DerivedAbilityAggregate | null> {
-  await requireGodOrAdminAccessContext();
+  const { session, roles } = await requireGodOrAdminAccessContext();
   const [row] = await db.select().from(derivedAbility)
-    .where(eq(derivedAbility.id, id)).limit(1);
+    .where(and(eq(derivedAbility.id, id), catalogReadWhere(derivedAbility, { userId: session.user.id, roles }))).limit(1);
   if (!row) return null;
   const [
     triggerRows,
@@ -450,6 +452,7 @@ export async function saveDerivedAbility(
     } else {
       const [stored] = await tx.select({
         createdByUserId: derivedAbility.createdByUserId,
+        isSystemCanon: derivedAbility.isSystemCanon,
         sourceSystem: derivedAbility.sourceSystem,
         sourceExternalId: derivedAbility.sourceExternalId,
         acquisitionType: derivedAbility.acquisitionType,
@@ -522,6 +525,8 @@ export async function saveDerivedAbility(
     const submittedAbilityIds = [...new Set(ownedDefinition.requirements.flatMap(({ requiredDerivedAbilityId }) => (
       requiredDerivedAbilityId === null ? [] : [requiredDerivedAbilityId]
     )))];
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "skill", submittedSkillIds, [...storedSkillIds]);
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "derivedAbility", submittedAbilityIds, [...storedAbilityIds]);
     if (submittedSkillIds.length) {
       const referencedSkills = await tx
         .select({ id: skill.id, archivedAt: skill.archivedAt })

@@ -1,5 +1,15 @@
 # Catalog visibility and administrator views
 
+## Privacy boundary (October 4, 2026)
+
+All six G.O.D. master catalogs enforce **System Canon or created by the signed-in user**. Non-canon records with no creator are private too. The activation switch controls personal display preferences; it cannot disable this access boundary. Administrators retain their explicit All/review workflow.
+
+Lists, facets, hierarchy context, direct editor reads and new submitted references enforce this policy on the server. A hidden ancestor does not become readable just because an owned child points to it. Existing references are retained only when read from an authorized saved record; a client cannot claim arbitrary IDs as retained content. Reference checks run inside the save transaction and lock newly selected roots against concurrent reclassification.
+
+Campaign access is separate: authorized members can read assigned Races, Skills, Derived Abilities, Items and persistent Creature snapshots. Campaign Skill/Derived Ability catalogs include canon, the Campaign creator's content and existing assignments/grants. Personal browse preferences never change gameplay eligibility. Campaign membership does not unlock someone else's master library. New Campaign selections, NPC sources and encounter Creature sources enforce creator/canon access; established assignments, ownership, inventory and snapshots are preserved.
+
+No schema migration or canon/ownership data rewrite accompanies this fix. Deploying the application change is required for shared environments to enforce it.
+
 These concepts are independent:
 
 | Concept | Authority and meaning |
@@ -18,7 +28,7 @@ The session-bound `setSystemCanon` action delegates to the shared server-only `s
 
 Marking sets the acting Administrator and server timestamp. Repeating the current designation is a no-op. Unmarking clears both fields. These fields describe the **current designation**, not an immutable history of every promotion/removal. Database checks require both attribution fields when canon is true and neither when false. The marking-user FK restricts deletion, and the existing account-deletion plan reports current canon attribution as a blocker. Neither operation changes creator, import provenance, parentage, archive state, or existence; an actual change updates `updatedAt`.
 
-Existing `shared-library-access.ts` authoring rules remain authoritative and do not inspect `isSystemCanon`. User-authored roots remain editable by their G.O.D. creator or an Administrator. Imported, system-owned, or ambiguous legacy roots retain their G.O.D. authoring boundary; Admin-only governance does not grant edit access to them. Promotion does not add edit protection or grant additional authoring rights. Existing lifecycle protections remain based on the current ownership/provenance policy. A new Race variant copies its parent's definition but starts non-canon with its own creator and empty canon attribution; ordinary authoring payloads do not write canon fields.
+Existing `shared-library-access.ts` authoring rules remain authoritative after the creator/canon read boundary is checked. User-authored roots remain editable by their G.O.D. creator or an Administrator. Accessible imported or legacy roots retain their G.O.D. authoring boundary; Admin-only governance does not grant edit access to them. Promotion does not add edit protection or grant additional authoring rights. Existing lifecycle protections remain based on the current ownership/provenance policy. A new Race variant copies its parent's definition but starts non-canon with its own creator and empty canon attribution; ordinary authoring payloads do not write canon fields.
 
 ## Preferences and exact visibility semantics
 
@@ -85,7 +95,7 @@ The migration preserves `catalog_visibility_activation` unchanged. Only the appr
 
 Any current Administrator can enable or disable filtering separately on each catalog. The session-bound action validates the payload, checks and locks the current Admin role, and records manual attribution. Repeated enables preserve existing evidence; disable removes only that scope's activation row. The original receipt remains historical evidence and does not reactivate a manually disabled scope on subsequent requests. This table records current activation, not a history of manual toggles.
 
-Normal workflow: author/review records, mark official definitions System Canon individually, then enable that catalog when ready. Inactive catalogs retain full browsing while saving personal preferences. Active catalogs immediately use those same saved choices. Controls explain their database-wide effect; normal G.O.D.s do not receive mutation controls. Canon designation, personal preference, and activation are independent concepts.
+Normal workflow: author/review records, mark official definitions System Canon individually, then enable that catalog when ready. Inactive catalogs enforce Canon + Mine while saving personal preferences. Active catalogs immediately use those same saved choices. Controls explain their database-wide effect; normal G.O.D.s do not receive mutation controls. Canon designation, personal preference, and activation are independent concepts.
 
 DEV and Production each use their own rows, Item IDs, content, preferences and canon designations. No deployment or runtime code synchronizes them. Apply migrations only to a verified target; manual canon and activation work without bulk classification.
 
@@ -105,13 +115,13 @@ Verified on 2026-09-28: 297 catalog/authoring tests, 41 disposable database test
 
 All six authoring pages apply preferences when their own scope is activated: Races, Creatures, Skills, Derived Abilities, Equipment and Inventory. Their signed-in server actions read the same persisted preferences as Profile and use `catalogBrowseWhere` / `catalogVisibilityPredicate`. Search, facets, counts and page boundaries apply to matching eligible records in SQL. Required context can add rows without inflating counts or consuming matching-record slots. Context has no artificial depth cutoff.
 
-Race and Creature lists include the minimum parent chain for each page's matches. Parent-first ordering, restrained indentation, "Variant of" text, and `Context` badges explain ancestry. Expansion goes upward only, including an archived ancestor when necessary; it never pulls unrelated siblings. A recursive SQL `UNION` keeps cycles finite. Lifecycle labels remain visible.
+Race and Creature lists include the minimum parent chain for each page's matches. Parent-first ordering, restrained indentation, "Variant of" text, and `Context` badges explain ancestry. Expansion goes upward only within creator/canon access (or Administrator review), including an accessible archived ancestor when necessary; it never pulls unrelated siblings. A recursive SQL `UNION` keeps cycles finite. Lifecycle labels remain visible.
 
-Skills use the same predicate and ancestor expansion in both list and recursive tree views. Each retained exact path includes its required parent chain, including archived context. Search excludes context-only endpoints while retaining the ancestry for matching visible Skills. Tree counts exclude context. Tiers, relationship ordering, governing attributes, and fallback rules use the existing recursive builder. Editing still loads the complete graph for structural validation and previews, but new relationship endpoints and framework choices must be eligible for discovery. Runtime consumers keep their existing rules. Changing discovery does not invalidate the draft or make a context parent editable.
+Skills use the same predicate and ancestor expansion in both list and recursive tree views. Accessible parent chains include archived context; foreign non-canon context is omitted from master browse results. Search excludes context-only endpoints while retaining the ancestry for matching visible Skills. Tree counts exclude context. Tiers, relationship ordering, governing attributes, and fallback rules use the existing recursive builder. Structural validation uses the complete graph on the server; editor hierarchies and affected-Skill preview labels omit private roots. New relationship endpoints and framework choices must satisfy creator/canon access. Runtime consumers keep their existing rules. Changing discovery does not invalidate the draft or make a context parent editable.
 
 Derived Abilities have prerequisite relationships, not a browse hierarchy. Existing requirement summaries continue resolving the prerequisite Skill/Ability names for each visible definition; the editor retains its referenced dependencies. No additional unrelated definitions need to become browse rows. Character-owned acquisition, evaluation, and effects remain in the existing runtime service.
 
-Library identity areas show `Serrian Tide Canon`, `Mine`, or `Context`; a user's promoted record is Canon even in Mine Only. No creator IDs are sent for display. Opening a direct record and saving it still use the existing access/ownership checks. Visibility neither grants editing authority nor detaches a Campaign, Character, NPC, Form, snapshot, encounter, or allocation.
+Library identity areas show `Serrian Tide Canon`, `Mine`, or `Context`; a user's promoted record is Canon even in Mine Only. No creator IDs are sent for display. Opening a direct record requires creator/canon access (or Administrator review); saves also enforce existing edit ownership. Visibility neither grants editing authority nor detaches a Campaign, Character, NPC, Form, snapshot, encounter, or allocation.
 
 ## Administrator designation controls
 
@@ -123,7 +133,7 @@ Equipment and Inventory share Item definitions and canon flags, but each candida
 
 Admin-only **Needs Canon Review** shows non-canon Items in the current scope/lifecycle view. It is a temporary review view, never a fourth saved preference or automatic promotion. The server checks the current Admin role for both results and facets. Homebrew may intentionally remain non-canon indefinitely. Item mark/remove controls use the same root governance service in Equipment and Inventory and preserve definitions, profiles and relationships.
 
-Tags remain shared Item metadata, without private tag stores. Active browse facets derive only from matching Items. Authoring and Campaign choices derive from the visible Item pool plus currently stored tag IDs. Inactive scopes preserve full discovery. Tags attached to an edited Item (including unsaved tags) and tags retained by an existing Campaign stay readable. Choosing a tag cannot reveal hidden Items.
+Tags remain shared Item metadata, without private tag stores. Active browse facets derive only from matching Items. Authoring and Campaign choices derive from the visible Item pool plus currently stored tag IDs. Inactive scopes use the Canon + Mine baseline. Tags attached to an edited Item (including unsaved tags) and tags retained by an existing Campaign stay readable. Choosing a tag cannot reveal hidden Items.
 
 New Related Item, ammunition, magazine and Related Creature searches filter before limits. Stored relationships hydrate through existing direct reads and remain selectable. Skill path/power source lists combine eligible Skills with stored governance, power, framework and effect references; complete ancestry is still used for canonical path validation. Race and Creature Skill search, Derived Ability requirements, Form access choices, Skill relationships/framework selection, and interaction-rule catalogs apply corresponding discovery preferences. Their existing stored references remain readable/editable. Runtime resolution, allocation, authorization, weapons, armor, purchases and effect services never read visibility preferences.
 
@@ -131,7 +141,7 @@ New Related Item, ammunition, magazine and Related Creature searches filter befo
 
 New Campaigns use the current creator's preferences immediately. Editing uses the persisted Campaign creator, even when another Administrator edits it. Available Races use that creator's Race pool plus necessary ancestry Context. Existing Campaign Races and Playable Races are loaded separately, retained even when hidden or archived, and marked **Existing Campaign selection**. Context-only ancestry cannot be newly selected. A hidden world-only Race stays in the world list without becoming a new Playable choice; already saved hidden Playable selections remain removable and restorable within the draft.
 
-Campaign Item candidates independently apply Equipment and Inventory visibility, then intersect selected tags. Already-selected Items and tags are fetched separately for retention. Hidden retained Items do not become eligible tag matches. Move All uses only the currently visible eligible list, including the active type/search filters. Direct valid persisted relationships remain legal; visibility is discovery, not authorization. Changing preferences, activation, tabs, search or tags does not mutate persisted membership. Only an explicit Campaign save changes it.
+Campaign Item candidates independently apply Equipment and Inventory visibility, then intersect selected tags. Already-selected Items and tags are fetched separately for retention. Hidden retained Items do not become eligible tag matches. Move All uses only the currently visible eligible list, including the active type/search filters. Authorized persisted relationships remain legal; new submitted IDs must also satisfy creator/canon access. Changing preferences, activation, tabs, search or tags does not mutate persisted membership. Only an explicit Campaign save changes it.
 
 ## Master Content scrolling
 

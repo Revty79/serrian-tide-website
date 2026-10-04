@@ -97,7 +97,7 @@ test("manual activation is current-Admin only, catalog-local, and cannot mutate 
   await pool.query("insert into user_role(user_id,role) values($1,'admin')", [admin]);
   await activation("equipment", false);
   const full = await items.listItems({ catalogScope: "equipment", search: "P4 equipment" });
-  assert.equal(full.total, 7); assert.equal(full.visibility.mode, "mine"); assert.equal(full.visibility.enabled, false);
+  assert.equal(full.total, 5); assert.equal(full.visibility.mode, "mine"); assert.equal(full.visibility.enabled, false);
   assert.deepEqual(await snapshot(), before);
   await activation("equipment"); await activation("inventory");
 });
@@ -111,14 +111,14 @@ for (const scope of ["equipment", "inventory"]) test(`${scope}: modes, promoted 
     assert.deepEqual(result.items.filter((row) => row.catalogSource !== "context").map(({ id }) => id).sort((a,b) => a-b), expected.map((index) => ids[index]).sort((a,b) => a-b));
     assert.equal(result.items.find(({ id }) => id === ids[3]).catalogSource, "canon");
     if (mode === "mine") {
-      assert.deepEqual(result.items.filter((row) => row.catalogSource === "context").map(({ id }) => id), [ids[0], ids[5]]);
+      assert.deepEqual(result.items.filter((row) => row.catalogSource === "context").map(({ id }) => id), [ids[0]]);
       assert.ok(!result.items.some(({ id }) => id === ids[6]));
     }
     assert.ok(!(await items.listItemFacets(scope)).tags.includes("Pass Four Hidden"));
   }
   await prefs.update({ catalog: scope, mode: "mine" });
   const page = await items.listItems({ catalogScope: scope, search: `P4 ${scope} Mine`, pageSize: 1 });
-  assert.equal(page.total, 1); assert.equal(page.pageCount, 1); assert.equal(page.items.length, 3);
+  assert.equal(page.total, 1); assert.equal(page.pageCount, 1); assert.equal(page.items.length, 2);
 });
 
 test("Needs Canon Review and Item designation are Admin-only and preserve all Item definitions and metadata", async () => {
@@ -176,10 +176,11 @@ test("embedded discovery filters new choices and keeps stored Item power/Skill/t
   assert.ok(!(await forms.listFormAccessReferences("skill", "P4")).some(({ id }) => id === hiddenSkill));
   assert.ok(!(await abilities.getDerivedAbilityEditorReferences()).skills.some(({ id }) => id === hiddenSkill));
   const hierarchy = await skills.getSkillEditorHierarchy();
-  assert.equal(hierarchy.skills.find(({ id }) => id === hiddenSkill).canDiscover, false);
+  assert.ok(!hierarchy.skills.some(({ id }) => id === hiddenSkill));
   const fresh = await items.listItemAuthoringReferences(undefined, "equipment");
   assert.ok(!fresh.skills.some(({ id }) => id === hiddenSkill)); assert.ok(!fresh.powerSources.some(({ skillId }) => skillId === hiddenSkill));
-  const retained = await items.listItemAuthoringReferences(powerItem, "equipment");
+  await assert.rejects(items.listItemAuthoringReferences(powerItem, "equipment"), /not available/);
+  const retained = await actors.run(foreign, () => items.listItemAuthoringReferences(powerItem, "equipment"));
   assert.ok(retained.skills.some(({ id }) => id === hiddenSkill)); assert.ok(retained.powerSources.some(({ skillId }) => skillId === hiddenSkill));
   assert.ok(retained.tags.some(({ name }) => name === "Pass Four Hidden"));
   assert.ok(!(await items.findRelatedItems("P4 equipment Foreign")).some(({ id }) => id === powerItem));

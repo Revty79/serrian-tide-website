@@ -1,4 +1,6 @@
 "use server";
+import { catalogVisibilityPredicate } from "@/features/catalog-visibility/catalog-query";
+import { assertNewCatalogReferences } from "@/features/catalog-visibility/catalog-access";
 import { emptyCreatureAttackAuthoring } from "@/features/creatures/creature-authoring";
 import { assertCampaignSkillGrantsInTransaction, assertCampaignRaceGrantsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
@@ -328,6 +330,7 @@ export async function createCreatureNpc(
     fallbackRoleLabel: creature.family,
   }).from(creature).where(and(
     eq(creature.id, creatureId),
+    catalogVisibilityPredicate(creature, manager.actorUserId, "canon-and-mine"),
     isNull(creature.archivedAt),
   )).limit(1);
   if (!source) throw new Error("The selected master Creature is archived or no longer exists.");
@@ -364,7 +367,7 @@ export async function listNpcOrigins(campaignId: number): Promise<NpcOriginOptio
     family: creature.family,
     creatureType: creature.creatureType,
   }).from(creature)
-    .where(isNull(creature.archivedAt))
+    .where(and(isNull(creature.archivedAt), catalogVisibilityPredicate(creature, manager.actorUserId, "canon-and-mine")))
     .orderBy(asc(creature.canonicalName), asc(creature.id));
   return [
     ...raceRows.map((entry) => ({
@@ -482,6 +485,7 @@ export async function createNpc(input: CreateNpcValues): Promise<CreateNpcResult
       return created.id;
     }
 
+    await assertNewCatalogReferences(tx, { userId: access.session.user.id, roles: access.roles }, "creature", [normalized.sourceId]);
     const template = await readCreatureNpcTemplateInTransaction(
       tx,
       normalized.sourceId,

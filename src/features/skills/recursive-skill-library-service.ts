@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, count, inArray } from "drizzle-orm";
+import { and, asc, count, inArray, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { creatureSkillLink } from "@/db/creature-schema";
@@ -30,7 +30,7 @@ export type SkillConsumerImpact = Readonly<{
   total: number;
 }>;
 
-export async function loadRecursiveSkillLibrary(executor: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0] = db): Promise<RecursiveSkillLibrary> {
+export async function loadRecursiveSkillLibrary(executor: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0] = db, where?: SQL): Promise<RecursiveSkillLibrary> {
   const skillRows = await executor
     .select({
       id: skill.id,
@@ -44,9 +44,11 @@ export async function loadRecursiveSkillLibrary(executor: typeof db | Parameters
       sourceExternalId: skill.sourceExternalId,
     })
     .from(skill)
+    .where(where)
     .orderBy(asc(skill.name), asc(skill.id));
 
-  const relationshipRows = await executor
+  const ids = skillRows.map(row => row.id);
+  const relationshipRows = ids.length ? await executor
     .select({
       id: skillRelationship.id,
       skillId: skillRelationship.skillId,
@@ -55,11 +57,12 @@ export async function loadRecursiveSkillLibrary(executor: typeof db | Parameters
       sortOrder: skillRelationship.sortOrder,
     })
     .from(skillRelationship)
+    .where(and(inArray(skillRelationship.skillId, ids), inArray(skillRelationship.relatedSkillId, ids)))
     .orderBy(
       asc(skillRelationship.skillId),
       asc(skillRelationship.sortOrder),
       asc(skillRelationship.id),
-    );
+    ) : [];
 
   return buildRecursiveSkillLibrary(skillRows, relationshipRows);
 }

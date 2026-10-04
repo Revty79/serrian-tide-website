@@ -1,3 +1,5 @@
+import { campaignSkillWhere } from "./campaign-catalog-access";
+import { skill } from "@/db/skill-schema";
 import "server-only";
 import { loadRecursiveSkillLibrary } from "@/features/skills/recursive-skill-library-service";
 import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
@@ -7,7 +9,7 @@ import { item, itemTagCatalog, itemTagLink } from "@/db/item-schema";
 import { campaignRace, campaignAllowedRace, campaignInventoryItem, campaignInventoryTag } from "@/db/realm-schema";
 import { buildCampaignInventoryPool, createCampaignInventoryPersistence, sortCampaignInventoryTags, type CampaignInventoryItemRecord } from "@/features/campaigns/campaign-inventory";
 import type { CampaignReferenceData } from "@/app/heavens/campaigns/actions";
-import { catalogAncestorIds, catalogBrowseWhere, catalogSourceLabel, getCatalogBrowseState, itemDiscoveryWhere } from "./catalog-query";
+import { catalogVisibilityPredicate, catalogAncestorIds, catalogBrowseWhere, catalogSourceLabel, getCatalogBrowseState, itemDiscoveryWhere } from "./catalog-query";
 import { itemTagDiscoveryWhere } from "./item-catalog-service";
 
 /** The caller authorizes Campaign access; discovery belongs to its creator. */
@@ -22,12 +24,12 @@ export async function loadCampaignCatalogReferences(creatorId: string, campaignI
   const fields = { id: race.id, name: race.name, size: race.size, parentRaceId: race.parentRaceId, isSystemCanon: race.isSystemCanon, createdByUserId: race.createdByUserId };
   const matches = await db.select(fields).from(race).where(catalogBrowseWhere(race, creatorId, visibility, isNull(race.archivedAt))).orderBy(asc(race.name), asc(race.id));
   const matchIds = new Set(matches.map(({ id }) => id));
-  const included = visibility.enabled ? await catalogAncestorIds("race", [...new Set([...matchIds, ...retained])]) : [...retained];
+  const included = await catalogAncestorIds("race", [...new Set([...matchIds, ...retained])]);
   const additional = included.filter((id) => !matchIds.has(id));
-  if (additional.length) matches.push(...await db.select(fields).from(race).where(inArray(race.id, additional)));
+  if (additional.length) matches.push(...await db.select(fields).from(race).where(and(inArray(race.id, additional), or(catalogVisibilityPredicate(race, creatorId, "canon-and-mine"), retained.size ? inArray(race.id, [...retained]) : undefined))));
   const tags = await db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description })
     .from(itemTagCatalog).where(await itemTagDiscoveryWhere(creatorId, retainedTags.map(({ id }) => id)));
-  return { skillLibrary: await loadRecursiveSkillLibrary(), races: matches.map(({ isSystemCanon, createdByUserId, ...row }) => ({ ...row,
+  return { skillLibrary: await loadRecursiveSkillLibrary(db, campaignId ? campaignSkillWhere(campaignId) : catalogVisibilityPredicate(skill, creatorId, "canon-and-mine")), races: matches.map(({ isSystemCanon, createdByUserId, ...row }) => ({ ...row,
     catalogSource: catalogSourceLabel({ isSystemCanon, createdByUserId }, creatorId, !matchIds.has(row.id) && !retained.has(row.id)),
     existingSelection: retained.has(row.id) && !matchIds.has(row.id),
     existingPlayableSelection: playable.some(({ id }) => id === row.id),

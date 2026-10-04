@@ -1,9 +1,10 @@
 "use server";
+import { catalogReadWhere, assertAuthoredCatalogReferences, assertNewCatalogReferences } from "@/features/catalog-visibility/catalog-access";
 import { emptyCreatureAttackAuthoring } from "@/features/creatures/creature-authoring";
 import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
 import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
 import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
-import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogContextWhere, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 import { orderCatalogLineage } from "@/features/catalog-visibility/catalog-lineage";
 
 import { readCreatureFormsInTransaction, saveCreatureFormsInTransaction } from "@/features/creatures/creature-form-service";
@@ -175,7 +176,7 @@ export async function listCreatures(
     archivedAt: creature.archivedAt,
   }).from(creature).where(where).orderBy(...catalogManagementOrder(creature, creature.canonicalName, visibility)).limit(pageSize).offset((page - 1) * pageSize);
   const matchIds = new Set(items.map((row) => row.id));
-  if (visibility.enabled || visibility.admin) {
+  if (matchIds.size) {
     const ancestorIds = (await catalogAncestorIds("creature", [...matchIds])).filter((id) => !matchIds.has(id));
     if (ancestorIds.length) items.push(...await db.select({
     id: creature.id,
@@ -190,7 +191,7 @@ export async function listCreatures(
     challengeRating: creature.challengeRating,
     killXp: creature.killXp,
     archivedAt: creature.archivedAt,
-  }).from(creature).where(inArray(creature.id, ancestorIds)));
+  }).from(creature).where(and(inArray(creature.id, ancestorIds), catalogContextWhere(creature, session.user.id, visibility))));
   }
 
   return {
@@ -239,7 +240,8 @@ export async function listCreatureSkillCandidates(search = ""): Promise<Creature
 }
 
 export async function getCreature(id: number): Promise<CreatureAggregate | null> {
-  await requireGodOrAdminAccessContext();
+  const { session, roles } = await requireGodOrAdminAccessContext();
+  const access = catalogReadWhere(creature, { userId: session.user.id, roles });
   const [row] = await db.select({
     id: creature.id,
     canonicalId: creature.canonicalId,
@@ -270,7 +272,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     archiveReason: creature.archiveReason,
     createdAt: creature.createdAt,
     updatedAt: creature.updatedAt,
-  }).from(creature).where(eq(creature.id, id)).limit(1);
+  }).from(creature).where(and(eq(creature.id, id), access)).limit(1);
   if (!row) return null;
 
   let parentCreatureName: string | null = null;
@@ -289,7 +291,7 @@ export async function getCreature(id: number): Promise<CreatureAggregate | null>
     db.select({ id: creatureAbility.id, canonicalId: creatureAbility.canonicalId, abilityName: creatureAbility.abilityName, abilityType: creatureAbility.abilityType, activation: creatureAbility.activation, requirements: creatureAbility.requirements, usesRecharge: creatureAbility.usesRecharge, description: creatureAbility.description, mechanicalEffect: creatureAbility.mechanicalEffect, authoring: creatureAbility.authoring, notes: creatureAbility.notes, sortOrder: creatureAbility.sortOrder, crImpact: creatureAbility.crImpact }).from(creatureAbility).where(and(eq(creatureAbility.creatureId, id), isNull(creatureAbility.variantId))).orderBy(asc(creatureAbility.sortOrder), asc(creatureAbility.id)),
     db.select({ seedIdentity: creatureDefense.seedIdentity, defenseType: creatureDefense.defenseType, against: creatureDefense.against, value: creatureDefense.value, notes: creatureDefense.notes, sortOrder: creatureDefense.sortOrder, crImpact: creatureDefense.crImpact }).from(creatureDefense).where(and(eq(creatureDefense.creatureId, id), isNull(creatureDefense.variantId))).orderBy(asc(creatureDefense.sortOrder), asc(creatureDefense.id)),
     db.select({ seedIdentity: creatureUse.seedIdentity, useName: creatureUse.useName, notes: creatureUse.notes, sortOrder: creatureUse.sortOrder }).from(creatureUse).where(and(eq(creatureUse.creatureId, id), isNull(creatureUse.variantId))).orderBy(asc(creatureUse.sortOrder), asc(creatureUse.id)),
-    db.select({ id: creature.id, canonicalId: creature.canonicalId, canonicalName: creature.canonicalName, size: creature.size, challengeRating: creature.challengeRating, killXp: creature.killXp, archivedAt: creature.archivedAt }).from(creature).where(eq(creature.parentCreatureId, id)).orderBy(asc(creature.canonicalName), asc(creature.id)),
+    db.select({ id: creature.id, canonicalId: creature.canonicalId, canonicalName: creature.canonicalName, size: creature.size, challengeRating: creature.challengeRating, killXp: creature.killXp, archivedAt: creature.archivedAt }).from(creature).where(and(eq(creature.parentCreatureId, id), access)).orderBy(asc(creature.canonicalName), asc(creature.id)),
     db.select().from(challengeRatingReference).orderBy(asc(challengeRatingReference.challengeRating)),
   ]);
 
@@ -419,9 +421,12 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
   normalized.core.killXp = calculation.killXp;
 
   const savedId = await db.transaction(async (tx) => {
+    const [previousRules] = input.id === undefined ? [] : await tx.select({ profile: creature.interactionRules }).from(creature).where(eq(creature.id, input.id));
+    await assertAuthoredCatalogReferences(tx, { userId: session.user.id, roles }, normalized.core.interactionRules, previousRules?.profile);
     await assertInteractionRuleReferences(tx, normalized.core.interactionRules);
     let id = input.id;
     if (id === undefined) {
+      await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "creature", normalized.core.parentCreatureId === null ? [] : [normalized.core.parentCreatureId]);
       const [created] = await tx.insert(creature).values({
         ...normalized.core,
         sourceSystem: null,
@@ -434,6 +439,7 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
           canonicalId: creature.canonicalId,
           parentCreatureId: creature.parentCreatureId,
           createdByUserId: creature.createdByUserId,
+          isSystemCanon: creature.isSystemCanon,
           sourceSystem: creature.sourceSystem,
           archivedAt: creature.archivedAt,
         })
@@ -529,6 +535,7 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
     if (normalized.attacks.length) await tx.insert(creatureAttack).values(normalized.attacks.map((row) => ({ creatureId: id!, variantId: null, ...row, authoring: row.authoring ?? (storedAttacks.some(stored => stored.canonicalId === row.canonicalId && stored.authoring === null) ? null : emptyCreatureAttackAuthoring()) })));
     if (normalized.skillLinks.length) {
       const skillIds = [...new Set(normalized.skillLinks.map(({ skillId }) => skillId))];
+      await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "skill", skillIds, storedSkillLinks.map(row => row.skillId));
       const existing = await tx
         .select({ id: skill.id, archivedAt: skill.archivedAt })
         .from(skill)
@@ -596,6 +603,7 @@ export async function saveCreature(input: CreatureDraft): Promise<CreatureAggreg
 
     const finalForms = formsWithAssignedAccessIds ?? await readCreatureFormsInTransaction(tx, id!);
     await assertEvolutionSourceReferences(tx, id!, new Set(normalized.abilities.map(row => row.canonicalId)), new Set(finalForms.map(form => form.key.trim())));
+    await assertAuthoredCatalogReferences(tx, { userId: session.user.id, roles }, formsWithAssignedAccessIds, await readCreatureFormsInTransaction(tx, id!));
     await saveCreatureFormsInTransaction(tx, id!, formsWithAssignedAccessIds, { ...normalized, core: { ...normalized.core, parentCreatureName: input.core.parentCreatureName }, derivedCreatures: [] });
     return id;
   });

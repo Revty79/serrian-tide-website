@@ -1,4 +1,5 @@
 "use server";
+import { catalogReadWhere, assertAuthoredCatalogReferences, assertCatalogRootReadable, assertNewCatalogReferences } from "@/features/catalog-visibility/catalog-access";
 import { normalizeWeaponDamageType, normalizeArmorDamageTypes } from "@/features/items/item-damage-types";
 import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
 import { loadItemCatalog, loadItemFacets, itemTagDiscoveryWhere } from "@/features/catalog-visibility/item-catalog-service";
@@ -514,6 +515,7 @@ export async function listItemAuthoringReferences(
 ): Promise<ItemAuthoringReferences> {
   const { session } = await requireGodOrAdminAccessContext();
   const stored = forItemId ? await getItem(forItemId) : null;
+  if (forItemId && !stored) throw new Error("This record is not available in your catalog.");
   const preservedSkillRows = forItemId
     ? await db
         .select({ id: weaponSkillPathMapping.endpointSkillId })
@@ -652,7 +654,8 @@ export async function createItemTag(input: {
 }
 
 export async function getWeaponSkillGovernance(itemId: number): Promise<WeaponSkillGovernanceReadModel | null> {
-  await requireGodOrAdminAccessContext();
+  const { session, roles } = await requireGodOrAdminAccessContext();
+  await db.transaction(tx => assertCatalogRootReadable(tx, { userId: session.user.id, roles }, "item", itemId));
   return readWeaponSkillGovernance(itemId);
 }
 
@@ -664,6 +667,7 @@ export async function saveCanonicalWeaponSkillGovernance(
   const [stored] = await db
     .select({
       createdByUserId: item.createdByUserId,
+      isSystemCanon: item.isSystemCanon,
       sourceSystem: item.sourceSystem,
       archivedAt: item.archivedAt,
     })
@@ -706,8 +710,9 @@ export async function saveCanonicalWeaponSkillGovernance(
 }
 
 export async function getItem(id: number): Promise<ItemAggregate | null> {
-  await requireGodOrAdminAccessContext();
-  const [row] = await db.select().from(item).where(eq(item.id, id)).limit(1);
+  const { session, roles } = await requireGodOrAdminAccessContext();
+  const access = catalogReadWhere(item, { userId: session.user.id, roles });
+  const [row] = await db.select().from(item).where(and(eq(item.id, id), access)).limit(1);
   if (!row) return null;
   let parentItemName: string | null = null;
   if (row.parentItemId) {
@@ -736,7 +741,7 @@ export async function getItem(id: number): Promise<ItemAggregate | null> {
       .leftJoin(armorLocationReference, eq(armorLocationReference.locationCode, armorLocation.locationCode))
       .where(eq(armorLocation.itemId, id)).orderBy(asc(armorLocation.sortOrder)),
     db.select({ name: itemTagCatalog.name }).from(itemTagLink).innerJoin(itemTagCatalog, eq(itemTagCatalog.id, itemTagLink.tagId)).where(eq(itemTagLink.itemId, id)).orderBy(asc(itemTagCatalog.name)),
-    db.select({ id: item.id, canonicalId: item.canonicalId, name: item.name, catalogScope: item.catalogScope, archivedAt: item.archivedAt }).from(item).where(eq(item.parentItemId, id)).orderBy(asc(item.name), asc(item.id)),
+    db.select({ id: item.id, canonicalId: item.canonicalId, name: item.name, catalogScope: item.catalogScope, archivedAt: item.archivedAt }).from(item).where(and(eq(item.parentItemId, id), access)).orderBy(asc(item.name), asc(item.id)),
     db.select().from(itemRuntimeProfile).where(eq(itemRuntimeProfile.itemId, id)).limit(1),
     db.select({
       schemaVersion: itemEffect.schemaVersion,
@@ -973,6 +978,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
   const savedId = await db.transaction(async (tx) => {
     let id = input.id;
     if (id === undefined) {
+      await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "item", normalized.core.parentItemId === null ? [] : [normalized.core.parentItemId]);
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext('serrian-tide:item-canonical-id'))`);
       const canonicalRows = await tx
         .select({ canonicalId: item.canonicalId })
@@ -1002,6 +1008,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
           canonicalId: item.canonicalId,
           parentItemId: item.parentItemId,
           createdByUserId: item.createdByUserId,
+          isSystemCanon: item.isSystemCanon,
           sourceSystem: item.sourceSystem,
           sourceExternalId: item.sourceExternalId,
           archivedAt: item.archivedAt,
@@ -1088,6 +1095,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
         ? []
         : [normalized.weapon.ammunitionItemId]),
     ])];
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "item", submittedRelatedItemIds, [...storedRelatedItemIds]);
     if (submittedRelatedItemIds.length) {
       const referencedItems = await tx
         .select({ id: item.id, archivedAt: item.archivedAt })
@@ -1108,9 +1116,10 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
     ))];
     if (submittedRelatedCreatureIds.length) {
       const referencedCreatures = await tx
-        .select({ canonicalId: creature.canonicalId, archivedAt: creature.archivedAt })
+        .select({ id: creature.id, canonicalId: creature.canonicalId, archivedAt: creature.archivedAt })
         .from(creature)
         .where(inArray(creature.canonicalId, submittedRelatedCreatureIds));
+      await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "creature", referencedCreatures.map(row => row.id), referencedCreatures.filter(row => storedRelatedCreatureIds.has(row.canonicalId)).map(row => row.id));
       if (referencedCreatures.length !== submittedRelatedCreatureIds.length) {
         throw new Error("One or more related Creatures no longer exist.");
       }
@@ -1156,6 +1165,7 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
       .where(eq(itemPower.itemId, id!));
     const existingSourceByPowerId = new Map(existingPowerSources.map((entry) => [entry.itemPowerId, entry.sourceSkillId]));
     const sourceSkillIds = normalized.powers.flatMap((power) => power.source ? [power.source.sourceSkillId] : []);
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "skill", sourceSkillIds, existingPowerSources.map(row => row.sourceSkillId));
     let sourceRows: Array<{ skillId: number; schemaVersion: number; dataJson: string; archivedAt: Date | null }> = [];
     if (sourceSkillIds.length) {
       sourceRows = await tx.select({
@@ -1244,7 +1254,8 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
     }
     if (normalized.powerResource) await tx.insert(itemPowerResource).values({ itemId: id!, ...normalized.powerResource }).onConflictDoUpdate({ target: itemPowerResource.itemId, set: { ...normalized.powerResource, updatedAt: new Date() } });
     else await tx.delete(itemPowerResource).where(eq(itemPowerResource.itemId, id!));
-    const storedPassiveRows = await tx.select({ id: itemPassiveEffect.id }).from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id!));
+    const storedPassiveRows = await tx.select().from(itemPassiveEffect).where(eq(itemPassiveEffect.itemId, id!));
+    await assertAuthoredCatalogReferences(tx, { userId: session.user.id, roles }, [normalized.powers, normalized.passiveEffects], [existingPowerEffects, storedPassiveRows, existingPowerSources]);
     const storedPassiveIds = new Set(storedPassiveRows.map(({ id: passiveId }) => passiveId));
     const submittedPassiveIds = new Set(normalized.passiveEffects.flatMap(({ id: passiveId }) => passiveId === null ? [] : [passiveId]));
     if ([...submittedPassiveIds].some((passiveId) => !storedPassiveIds.has(passiveId))) {
@@ -1395,6 +1406,10 @@ async function saveItemDefinition(input: ItemDraft, allowUnreviewedNewModes: boo
       if (tagRows.length !== normalized.tags.length) throw new Error("One or more selected Item tags no longer exist.");
       await tx.insert(itemTagLink).values(tagRows.map(({ id: tagId }) => ({ itemId: id!, tagId })));
     }
+    const previousAmmo = await tx.select({ id: magazineAmmunition.ammunitionItemId }).from(magazineAmmunition).where(eq(magazineAmmunition.magazineItemId, id!));
+    const previousMagazines = storedWeaponProfile ? await tx.select({ id: weaponMagazine.magazineItemId }).from(weaponMagazine).where(eq(weaponMagazine.weaponProfileId, storedWeaponProfile.id)) : [];
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "item", (input.magazineProfile?.ammunition ?? []).map(row => row.id), previousAmmo.map(row => row.id));
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "item", (input.weaponProfile?.compatibleMagazines ?? []).map(row => row.id), previousMagazines.map(row => row.id));
     await saveMagazineCatalogInTransaction(tx, id!, input.magazineProfile ?? null, input.weaponProfile?.compatibleMagazines ?? []);
     // Older callers may omit the profile; preserve it rather than disabling a container.
     if (input.containerProfile !== undefined) await saveContainerProfileInTransaction(tx, id!, input.containerProfile);
@@ -1420,6 +1435,7 @@ export async function createItemVariant(parentItemId: number, variantName: strin
     { userId: session.user.id, roles },
     {
       createdByUserId: parent.createdByUserId,
+      isSystemCanon: parent.isSystemCanon,
       sourceSystem: parent.core.sourceSystem,
     },
     "Item",

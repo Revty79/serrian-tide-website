@@ -29,8 +29,13 @@ export function catalogVisibilityPredicate(table: { isSystemCanon: AnyPgColumn; 
 export function catalogBrowseWhere(table: { isSystemCanon: AnyPgColumn; createdByUserId: AnyPgColumn }, currentUserId: string, state: CatalogBrowseState, ...conditions: (SQL | undefined)[]) {
   const creatorId = state.admin?.options.creatorId;
   return and(...conditions,
-    state.admin?.options.all ? undefined : state.enabled || state.admin ? catalogVisibilityPredicate(table, currentUserId, state.mode) : undefined,
+    state.admin?.options.all ? undefined : catalogVisibilityPredicate(table, currentUserId, state.enabled || state.admin ? state.mode : "canon-and-mine"),
     creatorId ? creatorId === UNATTRIBUTED_CREATOR ? isNull(table.createdByUserId) : eq(table.createdByUserId, creatorId) : undefined);
+}
+
+/** Context may ignore a display preference, but never the catalog's access boundary. */
+export function catalogContextWhere(table: { isSystemCanon: AnyPgColumn; createdByUserId: AnyPgColumn }, currentUserId: string, state: CatalogBrowseState) {
+  return state.admin ? undefined : catalogVisibilityPredicate(table, currentUserId, "canon-and-mine");
 }
 
 /** Discovery across both Item scopes uses two independent preferences/activations. */

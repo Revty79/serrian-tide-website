@@ -1,4 +1,5 @@
 "use server";
+import { assertNewCatalogReferences } from "@/features/catalog-visibility/catalog-access";
 import { loadCampaignCatalogReferences, loadCampaignItemChoices } from "@/features/catalog-visibility/campaign-catalog-service";
 import type { CampaignSkillExclusion } from "@/features/campaigns/campaign-skill-access";
 import type { RecursiveSkillLibrary } from "@/features/skills/recursive-skill-library";
@@ -310,6 +311,7 @@ export async function getCampaignMembers(
 
 export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<CampaignAdminDraft> {
   const session = await requireOwner(input.id);
+  const { roles } = await requireGodOrAdminAccessContext();
   const name = required(input.name, "Campaign Name");
   const allowedSystems = [...new Set(input.allowedSystems)];
   for (const system of allowedSystems) {
@@ -351,6 +353,8 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
     const existingAllowedRaceRows = await tx.select({ id: campaignAllowedRace.raceId })
       .from(campaignAllowedRace)
       .where(eq(campaignAllowedRace.campaignId, input.id));
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "race", campaignRaceIds, existingCampaignRaceRows.map(row => row.id));
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "race", raceIds, existingAllowedRaceRows.map(row => row.id));
     const campaignRaceValidationIds = [...new Set([...existingCampaignRaceRows.map(({ id }) => id), ...campaignRaceIds])];
     const allowedRaceValidationIds = [...new Set([...existingAllowedRaceRows.map(({ id }) => id), ...raceIds])];
     const activeCampaignRaceRows = campaignRaceValidationIds.length
@@ -378,6 +382,7 @@ export async function saveCampaignAdmin(input: CampaignAdminDraft): Promise<Camp
     })
       .from(campaignInventoryItem)
       .where(eq(campaignInventoryItem.campaignId, input.id));
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "item", inventorySelection.itemIds, existingItemRows.map(row => row.id));
     const activeItemRows = inventorySelection.itemIds.length
       ? await tx.select({ id: item.id })
           .from(item)

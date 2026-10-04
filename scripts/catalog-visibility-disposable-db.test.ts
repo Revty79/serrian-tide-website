@@ -87,7 +87,7 @@ async function main() {
     await verifyUpgrade(pool, temporaryRoot);
     await pool.end();
     pool = undefined;
-    for (const script of ["scripts/catalog-visibility-db.test.ts", "scripts/admin-account-lifecycle-db.test.ts", "scripts/catalog-pass-three-db.test.ts", "scripts/catalog-pass-four-db.test.mjs", "scripts/admin-catalog-db.test.mjs", "scripts/derived-ability-runtime-db.test.ts"]) {
+    for (const script of ["scripts/catalog-visibility-db.test.ts", "scripts/admin-account-lifecycle-db.test.ts", "scripts/catalog-pass-three-db.test.ts", "scripts/catalog-pass-four-db.test.mjs", "scripts/admin-catalog-db.test.mjs", "scripts/catalog-privacy-db.test.mjs", "scripts/derived-ability-runtime-db.test.ts"]) {
       execFileSync(process.execPath, ["--experimental-test-module-mocks", "--conditions=react-server", "--import", "tsx", "--test", script], {
         cwd: process.cwd(), windowsHide: true, stdio: "inherit",
         env: { ...process.env, DATABASE_URL: connectionString, NODE_ENV: "test", SERRIAN_CATALOG_DISPOSABLE: "true", SERRIAN_TIDE_ENABLE_PERMANENT_DELETION: "true" },

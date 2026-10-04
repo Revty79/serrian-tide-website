@@ -1,3 +1,4 @@
+import { assertAuthoredCatalogReferences } from "@/features/catalog-visibility/catalog-access";
 import "server-only";
 import { normalizeAuthoredDamageTypes } from "@/features/damage-types/damage-types";
 import { createHash } from "node:crypto";
@@ -90,6 +91,9 @@ export async function saveSkillExtensionMutations(tx: Transaction, input: {
       await tx.delete(skillExtension).where(and(eq(skillExtension.skillId, input.skillId), eq(skillExtension.extensionType, mutation.extensionType)));
       continue;
     }
+    let retainedReferences: unknown;
+    try { retainedReferences = previous ? JSON.parse(previous.dataJson) : null; } catch { retainedReferences = null; }
+    await assertAuthoredCatalogReferences(tx, input.actor, mutation.data, retainedReferences);
     let schemaVersion = mutation.schemaVersion, dataJson: string;
     if (mutation.extensionType === SPECIAL_ABILITY_MECHANICS_EXTENSION) {
       // A newer row remains protected even if its JSON is malformed or exceeds

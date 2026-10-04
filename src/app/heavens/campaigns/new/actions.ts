@@ -1,4 +1,5 @@
 "use server";
+import { assertNewCatalogReferences } from "@/features/catalog-visibility/catalog-access";
 import { saveCampaignSkillExclusionsInTransaction } from "@/features/campaigns/campaign-skill-access-service";
 
 import { and, eq, inArray, isNull } from "drizzle-orm";
@@ -400,6 +401,8 @@ export async function createCampaign(formData: FormData) {
   }
 
   const createdCampaignId = await db.transaction(async (tx) => {
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles: ["god"] }, "race", campaignRaceIds);
+    await assertNewCatalogReferences(tx, { userId: session.user.id, roles: ["god"] }, "item", explicitInventoryItemIds);
     const [createdCampaign] = await tx
       .insert(campaign)
       .values({

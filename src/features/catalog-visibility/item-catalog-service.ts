@@ -7,7 +7,7 @@ import { userRole } from "@/db/authorization-schema";
 import { item, itemTagCatalog, itemTagLink, itemRuntimeProfile, weaponProfile, armorProfile, type ItemCatalogScope } from "@/db/item-schema";
 import type { ItemFacets, ItemLibraryFilters, ItemLibraryResult } from "@/app/heavens/items/actions";
 import type { ItemUseMode } from "@/features/items/item-runtime";
-import { catalogAncestorIds, catalogBrowseWhere, catalogSourceLabel, getCatalogBrowseState, itemDiscoveryWhere } from "./catalog-query";
+import { catalogContextWhere, catalogAncestorIds, catalogBrowseWhere, catalogSourceLabel, getCatalogBrowseState, itemDiscoveryWhere } from "./catalog-query";
 import { orderCatalogLineage } from "./catalog-lineage";
 
 async function itemPool(actorId: string, scope: ItemCatalogScope, archived: boolean, review: boolean, adminBrowse?: AdminCatalogBrowse) {
@@ -45,9 +45,9 @@ export async function loadItemCatalog(actorId: string, filters: ItemLibraryFilte
   const rows = await db.select(summaryFields).from(item).leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id))
     .where(where).orderBy(...catalogManagementOrder(item, item.name, visibility)).limit(pageSize).offset((page - 1) * pageSize);
   const matches = new Set(rows.map(({ id }) => id));
-  if (visibility.enabled || visibility.admin || filters.needsCanonReview) {
+  if (matches.size) {
     const context = (await catalogAncestorIds("item", [...matches])).filter((id) => !matches.has(id));
-    if (context.length) rows.push(...await db.select(summaryFields).from(item).leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id)).where(inArray(item.id, context)));
+    if (context.length) rows.push(...await db.select(summaryFields).from(item).leftJoin(itemRuntimeProfile, eq(itemRuntimeProfile.itemId, item.id)).where(and(inArray(item.id, context), catalogContextWhere(item, actorId, visibility))));
   }
   const ids = rows.map(({ id }) => id);
   const [tags, weapons, armor] = ids.length ? await Promise.all([
@@ -80,9 +80,6 @@ export async function itemTagDiscoveryWhere(actorId: string, retainedTagIds: num
   const where = scope
     ? catalogBrowseWhere(item, actorId, await getCatalogBrowseState(actorId, scope), eq(item.catalogScope, scope), isNull(item.archivedAt))
     : await itemDiscoveryWhere(actorId, isNull(item.archivedAt));
-  // Before activation, preserve the existing shared tag catalog, including unused tags.
-  const states = await Promise.all((scope ? [scope] : ["equipment", "inventory"] as const).map((key) => getCatalogBrowseState(actorId, key)));
-  if (states.every((state) => !state.enabled)) return undefined;
   return or(retainedTagIds.length ? inArray(itemTagCatalog.id, retainedTagIds) : undefined,
     sql`exists(select 1 from ${itemTagLink} join ${item} on ${item.id} = ${itemTagLink.itemId} where ${itemTagLink.tagId} = ${itemTagCatalog.id} and ${where})`);
 }

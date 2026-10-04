@@ -8,7 +8,13 @@ export type SharedLibraryActor = {
 export type SharedLibraryRootOwnership = {
   createdByUserId: string | null;
   sourceSystem: string | null;
+  isSystemCanon: boolean;
 };
+
+/** Campaign participation authorizes campaign views, never another user's master catalog. */
+export function canReadSharedLibraryRoot(actor: SharedLibraryActor, root: Pick<SharedLibraryRootOwnership, "createdByUserId" | "isSystemCanon">): boolean {
+  return canAccessSharedLibrary(actor) && (actor.roles.includes("admin") || root.isSystemCanon || root.createdByUserId === actor.userId);
+}
 
 export function canAccessSharedLibrary(actor: SharedLibraryActor): boolean {
   return actor.roles.includes("god") || actor.roles.includes("admin");
@@ -24,7 +30,7 @@ export function canEditSharedLibraryRoot(
   actor: SharedLibraryActor,
   root: SharedLibraryRootOwnership,
 ): boolean {
-  if (!canAccessSharedLibrary(actor)) return false;
+  if (!canReadSharedLibraryRoot(actor, root)) return false;
 
   if (!isUserCreatedSharedLibraryRoot(root)) {
     // Preserve the established G.O.D. master-content authoring boundary for
@@ -44,6 +50,10 @@ export function assertCanEditSharedLibraryRoot(
 ): void {
   if (!canAccessSharedLibrary(actor)) {
     throw new Error("G.O.D. or administrator access is required.");
+  }
+
+  if (!canReadSharedLibraryRoot(actor, root)) {
+    throw new Error(`Only the ${label} creator or an administrator can access non-canon content.`);
   }
 
   if (!isUserCreatedSharedLibraryRoot(root)) {

@@ -89,7 +89,7 @@ async function mutateEncounter<T>(
 }
 
 export async function getEncounterCreatureCatalog(encounterId: number): Promise<CreatureCatalogEntry[]> {
-  return mutateEncounter(encounterId, (tx) => listCreatureCatalogInTransaction(tx), null);
+  return mutateEncounter(encounterId, (tx, _context, actorUserId) => listCreatureCatalogInTransaction(tx, actorUserId), null);
 }
 
 export async function spawnEncounterCreatures(

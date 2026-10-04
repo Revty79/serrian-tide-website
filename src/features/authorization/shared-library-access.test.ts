@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   assertCanEditSharedLibraryRoot,
   canAccessSharedLibrary,
+  canReadSharedLibraryRoot,
   canEditSharedLibraryRoot,
 } from "./shared-library-access";
 
@@ -17,9 +18,9 @@ const godAdministrator = {
 } as const;
 const player = { userId: "player", roles: ["player"] } as const;
 
-const userCreated = { createdByUserId: "owner", sourceSystem: null };
-const canonical = { createdByUserId: null, sourceSystem: "serrian-tide-core" };
-const ambiguousLegacy = { createdByUserId: null, sourceSystem: null };
+const userCreated = { createdByUserId: "owner", sourceSystem: null, isSystemCanon: false };
+const canonical = { createdByUserId: null, sourceSystem: "serrian-tide-core", isSystemCanon: true };
+const ambiguousLegacy = { createdByUserId: null, sourceSystem: null, isSystemCanon: false };
 
 function source(path: string): string {
   return readFileSync(path, "utf8");
@@ -43,7 +44,7 @@ test("user-created shared roots are editable only by their creator or an adminis
 });
 
 test("protected master content retains G.O.D. authoring without granting it to Admin-only users", () => {
-  for (const root of [canonical, ambiguousLegacy]) {
+  for (const root of [canonical]) {
     assert.equal(canEditSharedLibraryRoot(ownerGod, root), true);
     assert.equal(canEditSharedLibraryRoot(otherGod, root), true);
     assert.equal(canEditSharedLibraryRoot(godAdministrator, root), true);
@@ -113,4 +114,15 @@ test("Campaign workspace and global creation references admit Admin-only users",
       /requireGodOrAdminAccessContext\(\)/,
     );
   }
+});
+
+test("private and ownerless non-canon roots cannot be read or edited by another G.O.D.", () => {
+  for (const root of [userCreated, ambiguousLegacy, { ...userCreated, sourceSystem: "import" }]) {
+    assert.equal(canReadSharedLibraryRoot(otherGod, root), false);
+    assert.equal(canEditSharedLibraryRoot(otherGod, root), false);
+    assert.equal(canReadSharedLibraryRoot(administrator, root), true);
+    assert.equal(canReadSharedLibraryRoot(player, root), false);
+  }
+  assert.equal(canReadSharedLibraryRoot(ownerGod, userCreated), true);
+  assert.equal(canReadSharedLibraryRoot(otherGod, canonical), true);
 });

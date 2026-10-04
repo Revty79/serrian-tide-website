@@ -1,3 +1,4 @@
+import { catalogReadWhere } from "@/features/catalog-visibility/catalog-access";
 import { creatureEvolutionEvent } from "@/db/evolution-event-schema";
 import "server-only";
 import { and, asc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
@@ -33,7 +34,7 @@ export async function readCreatureEvolutionsInTransaction(tx: Transaction, sourc
 export async function readCreatureEvolutionAuthoring(sourceCreatureId: number, actor: SharedLibraryActor) {
   requireEvolutionId(sourceCreatureId, "Source Creature");
   return db.transaction(async tx => {
-    const [source] = await tx.select().from(creature).where(eq(creature.id, sourceCreatureId));
+    const [source] = await tx.select().from(creature).where(and(eq(creature.id, sourceCreatureId), catalogReadWhere(creature, actor)));
     if (!source) throw new Error("Source Creature no longer exists.");
     return { paths: await readCreatureEvolutionsInTransaction(tx, sourceCreatureId), canEdit: !source.archivedAt && canEditSharedLibraryRoot(actor, source) };
   });
@@ -137,7 +138,7 @@ export async function cloneCreatureEvolutionsInTransaction(tx: Transaction, sour
 export async function readEvolutionRequirementAuthoring(sourceCreatureId: number, pathId: number, actor: SharedLibraryActor) {
   requireEvolutionId(sourceCreatureId, "Source Creature"); requireEvolutionId(pathId, "Evolution path");
   return db.transaction(async tx => {
-    const [source] = await tx.select().from(creature).where(eq(creature.id, sourceCreatureId));
+    const [source] = await tx.select().from(creature).where(and(eq(creature.id, sourceCreatureId), catalogReadWhere(creature, actor)));
     if (!source) throw new Error("Source Creature no longer exists.");
     const selected = (await readCreatureEvolutionsInTransaction(tx, sourceCreatureId)).find(row => row.id === pathId);
     if (!selected) throw new Error("Evolution path no longer exists on this source Creature.");

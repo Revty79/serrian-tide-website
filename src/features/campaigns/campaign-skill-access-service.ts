@@ -1,3 +1,4 @@
+import { campaignSkillWhere } from "@/features/catalog-visibility/campaign-catalog-access";
 import "server-only";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -19,7 +20,7 @@ export async function readCampaignSkillExclusions(executor: Tx | typeof db, camp
 export async function loadCampaignSkillAccessInTransaction(tx: Tx, campaignId: number) {
   const [row] = await tx.select({ id: campaign.id }).from(campaign).where(eq(campaign.id, campaignId)).for("update");
   if (!row) throw new Error("Campaign not found.");
-  const library = await loadRecursiveSkillLibrary(tx);
+  const library = await loadRecursiveSkillLibrary(tx, campaignSkillWhere(campaignId));
   const systems = await tx.select({ system: campaignAllowedSystem.system }).from(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, campaignId));
   const exclusions = await readCampaignSkillExclusions(tx, campaignId);
   return { library, access: createCampaignSkillAccess(library, systems.map(row => row.system), exclusions) };
@@ -27,7 +28,7 @@ export async function loadCampaignSkillAccessInTransaction(tx: Tx, campaignId: n
 
 export async function saveCampaignSkillExclusionsInTransaction(tx: Tx, campaignId: number, input: readonly CampaignSkillExclusion[]) {
   await tx.select({ id: campaign.id }).from(campaign).where(eq(campaign.id, campaignId)).for("update");
-  const exclusions = validateCampaignSkillExclusions(await loadRecursiveSkillLibrary(tx), input);
+  const exclusions = validateCampaignSkillExclusions(await loadRecursiveSkillLibrary(tx, campaignSkillWhere(campaignId)), input);
   await tx.delete(campaignSkillExclusion).where(eq(campaignSkillExclusion.campaignId, campaignId));
   if (exclusions.length) await tx.insert(campaignSkillExclusion).values(exclusions.map(row => ({ ...row, campaignId })));
 }
@@ -57,7 +58,7 @@ function snapshotGrants(snapshot: unknown): { skillId: number }[] {
 }
 
 export async function getCampaignSkillConflicts(campaignId: number): Promise<CampaignSkillConflict[]> {
-  const library = await loadRecursiveSkillLibrary();
+  const library = await loadRecursiveSkillLibrary(db, campaignSkillWhere(campaignId));
   const systems = await db.select({ system: campaignAllowedSystem.system }).from(campaignAllowedSystem).where(eq(campaignAllowedSystem.campaignId, campaignId));
   const access = createCampaignSkillAccess(library, systems.map(row => row.system), await readCampaignSkillExclusions(db, campaignId));
   const characters = await db.select({ id: campaignCharacter.id, name: campaignCharacter.name }).from(campaignCharacter).where(eq(campaignCharacter.campaignId, campaignId));

@@ -1,8 +1,9 @@
 "use server";
+import { catalogReadWhere, assertNewCatalogReferences } from "@/features/catalog-visibility/catalog-access";
 import { getCatalogManagementState, catalogManagementOrder, catalogCreatorLabel } from "@/features/catalog-visibility/admin-catalog-query";
 import type { AdminCatalogBrowse } from "@/features/catalog-visibility/admin-catalog-browse";
 import { loadVisibleRecursiveSkillLibrary } from "@/features/catalog-visibility/skill-catalog-service";
-import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
+import { catalogCandidateWhere, catalogBrowseWhere, catalogSourceLabel, catalogContextWhere, catalogAncestorIds, type CatalogBrowseState, type CatalogSourceLabel } from "@/features/catalog-visibility/catalog-query";
 
 
 import {
@@ -154,13 +155,11 @@ export async function getRecursiveSkillLibrary(adminBrowse?: AdminCatalogBrowse)
   return loadVisibleRecursiveSkillLibrary(session.user.id, adminBrowse);
 }
 
-// Editing references and structural previews retain the established complete graph.
+// Editor discovery cannot return private roots, even as non-selectable graph context.
 export async function getSkillEditorHierarchy(): Promise<RecursiveSkillLibrary> {
   const { session } = await requireGodOrAdminAccessContext();
-  const [library, candidates] = await Promise.all([loadRecursiveSkillLibrary(), db.select({ id: skill.id }).from(skill)
-    .where(await catalogCandidateWhere("skill", skill, session.user.id, [], isNull(skill.archivedAt)))]);
-  const ids = new Set(candidates.map(({ id }) => id));
-  return buildRecursiveSkillLibrary(library.skills.map((row) => ({ ...row, canDiscover: ids.has(row.id) })), library.relationships);
+  const library = await loadVisibleRecursiveSkillLibrary(session.user.id);
+  return buildRecursiveSkillLibrary(library.skills.map(row => ({ ...row, canDiscover: row.catalogSource !== "context" })), library.relationships);
 }
 
 async function buildSkillMutationPreview(
@@ -191,10 +190,15 @@ async function buildSkillMutationPreview(
 export async function previewSkillMutation(
   input: SkillDraft,
 ): Promise<SkillMutationPreview> {
-  await requireGodOrAdminAccessContext();
+  const { session, roles } = await requireGodOrAdminAccessContext();
+  const previous = input.id === undefined ? null : await getSkill(input.id);
+  if (input.id !== undefined && !previous) throw new Error("This record is not available in your catalog.");
+  await db.transaction(tx => assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "skill", input.relationships.map(row => row.relatedSkillId), previous?.relationships.map(row => row.relatedSkillId) ?? []));
   const core = normalizeCore(input.core);
   const relationships = normalizeRelationships(input.id, input.relationships);
-  return buildSkillMutationPreview({ ...input, core, relationships });
+  const preview = await buildSkillMutationPreview({ ...input, core, relationships });
+  const visible = new Set((await db.select({ id: skill.id }).from(skill).where(catalogReadWhere(skill, { userId: session.user.id, roles }))).map(row => row.id));
+  return { ...preview, affectedSkills: preview.affectedSkills.filter(row => visible.has(row.id)), affectedSkillIds: preview.affectedSkillIds.filter(id => visible.has(id)) };
 }
 
 function optionalText(
@@ -602,7 +606,7 @@ export async function listSkills(
       (page - 1) * pageSize,
     );
   const matchIds = new Set(baseRows.map((row) => row.id));
-  if (visibility.enabled || visibility.admin) {
+  if (matchIds.size) {
     const ancestorIds = (await catalogAncestorIds("skill", [...matchIds])).filter((id) => !matchIds.has(id));
     if (ancestorIds.length) baseRows.push(...await db.select({
       id: skill.id,
@@ -618,7 +622,7 @@ export async function listSkills(
         skill.secondaryAttribute,
       archivedAt:
         skill.archivedAt,
-    }).from(skill).where(inArray(skill.id, ancestorIds)));
+    }).from(skill).where(and(inArray(skill.id, ancestorIds), catalogContextWhere(skill, session.user.id, visibility))));
   }
 
 
@@ -700,10 +704,7 @@ export async function listSkills(
           })
           .from(skill)
           .where(
-            inArray(
-              skill.id,
-              parentIds,
-            ),
+            and(inArray(skill.id, parentIds), catalogContextWhere(skill, session.user.id, visibility)),
           )
       : [];
 
@@ -963,9 +964,9 @@ Promise<SkillFilterOptions> {
 }
 
 export async function getSkill(id: number): Promise<SkillAggregate | null> {
-  await requireGodOrAdminAccessContext();
+  const { session, roles } = await requireGodOrAdminAccessContext();
   return db.transaction(async tx => {
-    const [exists] = await tx.select({ id: skill.id }).from(skill).where(eq(skill.id, id));
+    const [exists] = await tx.select({ id: skill.id }).from(skill).where(and(eq(skill.id, id), catalogReadWhere(skill, { userId: session.user.id, roles })));
     if (!exists) return null;
     const state = await readSkillWriteState(tx, id);
     const row = state.root;
@@ -1123,6 +1124,7 @@ export async function saveSkill(
 ): Promise<SkillAggregate> {
   const { session, roles } =
     await requireGodOrAdminAccessContext();
+  if (input.id !== undefined && !await getSkill(input.id)) throw new Error("This record is not available in your catalog.");
 
   const core =
     normalizeCore(input.core);
@@ -1196,6 +1198,7 @@ export async function saveSkill(
         const submittedRelatedSkillIds = [
           ...new Set(relationships.map(({ relatedSkillId }) => relatedSkillId)),
         ];
+        await assertNewCatalogReferences(tx, { userId: session.user.id, roles }, "skill", submittedRelatedSkillIds, [...previouslyRelatedSkillIds]);
         if (submittedRelatedSkillIds.length) {
           const relatedSkillRows = await tx
             .select({ id: skill.id, archivedAt: skill.archivedAt })
@@ -1238,6 +1241,7 @@ export async function saveSkill(
               .select({
                 createdByUserId:
                   skill.createdByUserId,
+                isSystemCanon: skill.isSystemCanon,
                 sourceSystem:
                   skill.sourceSystem,
                 sourceExternalId:

@@ -83,6 +83,18 @@ export async function runCatalogPassFourBrowserChecks({ page, pool, baseUrl, scr
     await page.goto(`${baseUrl}/heavens/${scope}`);
     assert.equal(await page.getByRole("button", { name: /Enable visibility filtering|Disable filtering|System Canon/ }).count(), 0);
     assert.equal(await page.getByRole("combobox", { name: "Administrative review", exact: true }).count(), 0);
+    await page.locator("#item-search").fill(`P4 ${scope}`);
+    await row(`P4 ${scope} Mine`).waitFor({ state: "detached" });
+    await row(`P4 ${scope} Promoted`).waitFor();
+    await page.goto(`${baseUrl}/heavens/${scope}?item=${ids.get(scope)![1]}`);
+    assert.equal(await page.getByRole("heading", { name: `P4 ${scope} Mine`, exact: true }).count(), 0, "A direct URL cannot open another creator's private Item");
+    // A disabled personal filter still enforces creator/canon access.
+    await pool.query("delete from catalog_visibility_scope_activation where catalog_key=$1", [scope]);
+    await page.goto(`${baseUrl}/heavens/${scope}`);
+    await page.locator("#item-search").fill(`P4 ${scope}`);
+    await row(`P4 ${scope} Mine`).waitFor({ state: "detached" });
+    await row(`P4 ${scope} Promoted`).waitFor();
+    await pool.query("insert into catalog_visibility_scope_activation(catalog_key,activation_method,activated_by_user_id) values($1,'manual','profile-all')", [scope]);
   }
   assert.ok(canonRequest);
   const forged = await page.request.post(canonRequest.url(), { headers: {

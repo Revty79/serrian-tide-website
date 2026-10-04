@@ -83,7 +83,7 @@ test("plan is read-only and reports exact official, ambiguous, user-authored, an
   await prefs.update({ catalog: "race", mode: "mine" });
   const state = await getCatalogBrowseState(actor, "race");
   assert.deepEqual(state, { mode: "mine", enabled: false });
-  assert.equal((await db.select().from(race).where(catalogBrowseWhere(race, actor, state, eq(race.id, fixtures.get("race")![3])))).length, 1);
+  assert.equal((await db.select().from(race).where(catalogBrowseWhere(race, actor, state, eq(race.id, fixtures.get("race")![3])))).length, 0);
 });
 
 test("apply requires a database-resolved current Administrator; god, player, missing actor, and revoked role fail", async () => {
@@ -180,10 +180,11 @@ for (const key of ["race", "creature", "skill"] as const) test(`${key}: nested c
   assert.deepEqual((await catalogAncestorIds(key, [ids[1]])).sort((a, b) => a - b), [ids[0], ids[1], ids[3]].sort((a, b) => a - b));
   if (key === "skill") {
     const tree = await loadVisibleRecursiveSkillLibrary(actor);
-    for (const index of [0, 3]) assert.equal(tree.skills.find((row) => row.id === ids[index])?.catalogSource, "context");
+    assert.equal(tree.skills.find((row) => row.id === ids[0])?.catalogSource, "context");
+    assert.ok(!tree.skills.some(row => row.id === ids[3]), "Private ancestors cannot leak through context");
     assert.ok(!tree.skills.some((row) => row.id === ids[4]));
     assert.equal(tree.skills.find((row) => row.id === ids[0])?.archived, true);
-    assert.deepEqual(tree.paths.find((row) => row.endpointSkillId === ids[1])?.rootToEndpointIds, [ids[0], ids[3], ids[1]]);
+    assert.ok(!tree.paths.some(row => row.rootToEndpointIds.includes(ids[3])));
   }
 });
 
