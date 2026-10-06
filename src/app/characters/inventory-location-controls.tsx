@@ -5,11 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
 import { calculateContainerPhysics, displayMeasurement, formatPhysical } from "@/features/items/container-physics";
 import type { ContainmentCommand, PhysicalInventoryView, SubstanceCommand } from "@/features/items/inventory-containment-service";
-import { getPhysicalInventoryAction, moveInventoryLocationAction, changeContainerSubstanceAction, handleInventoryAction } from "./inventory-location-actions";
+import { type ActionResult, getPhysicalInventoryAction, moveInventoryLocationAction, changeContainerSubstanceAction, handleInventoryAction } from "./inventory-location-actions";
 import type { InventoryHandlingCommand } from "@/features/items/inventory-custody-service";
 import { InventoryCustodyControls } from "./inventory-custody-controls";
 import { resolveInventoryAvailability } from "@/features/items/inventory-access";
 import "./inventory-location-controls.css";
+
+function unwrap<T>(result: ActionResult<T>): T {
+  if (!result.ok) throw new Error(result.error);
+  return result.value;
+}
 
 export function useInventoryLocations(characterId: number, version: number, revision: string, onVersionChange: (version: number) => void) {
   const [formEquipmentReason, setFormEquipmentReason] = useState('');
@@ -30,7 +35,7 @@ export function useInventoryLocations(characterId: number, version: number, revi
     if (busy) return;
     sequence.current++; setBusy(true); setError(null); setNotice(null);
     try {
-      const result = await moveInventoryLocationAction({ ...command, ...(formEquipmentReason ? { formEquipmentReason } : {}) });
+      const result = unwrap(await moveInventoryLocationAction({ ...command, ...(formEquipmentReason ? { formEquipmentReason } : {}) }));
       setView(result); onVersionChange(result.commerceVersion); setNotice("Inventory location saved.");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "The Item could not be moved."); }
     finally { setBusy(false); }
@@ -39,7 +44,7 @@ export function useInventoryLocations(characterId: number, version: number, revi
     if (busy) return;
     sequence.current++; setBusy(true); setError(null); setNotice(null);
     try {
-      const result = await changeContainerSubstanceAction({ ...command, ...(formEquipmentReason ? { formEquipmentReason } : {}) });
+      const result = unwrap(await changeContainerSubstanceAction({ ...command, ...(formEquipmentReason ? { formEquipmentReason } : {}) }));
       setView(result.view); onVersionChange(result.view.commerceVersion);
       setNotice(`${command.operation === "draw" ? "Drew" : "Added"} ${formatPhysical(result.adjustment.quantity)} ${result.adjustment.substance.unit} ${result.adjustment.substance.name}.`);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Substance could not be changed."); }
@@ -48,7 +53,7 @@ export function useInventoryLocations(characterId: number, version: number, revi
   async function handle(command: InventoryHandlingCommand) {
     if (busy) return;
     sequence.current++; setBusy(true); setError(null); setNotice(null);
-    try { const result = await handleInventoryAction({ ...command, ...(formEquipmentReason ? { formEquipmentReason } : {}) }); setView(result); onVersionChange(result.commerceVersion); setNotice("Inventory custody/access saved."); }
+    try { const result = unwrap(await handleInventoryAction({ ...command, ...(formEquipmentReason ? { formEquipmentReason } : {}) })); setView(result); onVersionChange(result.commerceVersion); setNotice("Inventory custody/access saved."); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Inventory handling failed."); }
     finally { setBusy(false); }
   }
