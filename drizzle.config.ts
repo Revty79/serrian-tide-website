@@ -12,6 +12,7 @@ export default defineConfig({
   schema: [
     "./src/db/auth-schema.ts",
     "./src/db/password-recovery-schema.ts",
+    "./src/db/world-schema.ts",
     "./src/db/catalog-preferences-schema.ts",
     "./src/db/appearance-schema.ts",
     "./src/db/authorization-schema.ts",

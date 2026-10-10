@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "validate:profile-browser": "node --import tsx scripts/profile-disposable-browser.test.ts",
     "validate:password-recovery": "node --conditions=react-server --import tsx scripts/password-recovery-disposable-browser.test.ts",
+    "validate:worlds": "node --import tsx --test src/features/worlds/*.test.ts",
+    "validate:worlds-disposable": "node --conditions=react-server --import tsx scripts/worlds-pass-one-disposable.test.ts",
     "validate:catalog-visibility": "tsx --test src/features/catalog-visibility/*.test.ts",
     "validate:catalog-visibility-db": "node --import tsx scripts/catalog-visibility-disposable-db.test.ts",
     "validate:unit": "node scripts/run-feature-tests.mjs",
