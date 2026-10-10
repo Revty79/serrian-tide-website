@@ -7,3 +7,5 @@
 @media(max-width:800px){.brushOptions{padding:.7rem;gap:.5rem}.brushOptions>*{min-width:120px}.layerRows label{min-height:44px}.coastActions{align-items:start}.coastActions small{width:100%}}
 
 .exportScene{position:fixed;left:-10000px;top:0;width:2000px;height:1200px;visibility:hidden;pointer-events:none}
+
+.breadcrumbs{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.65rem 1rem;border:1px solid var(--st-border);border-radius:.7rem;background:var(--st-surface-soft);color:var(--st-text-secondary)}.breadcrumbs button{color:var(--st-primary-text);min-height:44px;padding:.25rem .4rem;overflow-wrap:anywhere;text-align:left}.breadcrumbs button[aria-current]{color:var(--st-text-strong);font-weight:600}.dialog form{display:grid;gap:1rem}.dialog hr{border-color:var(--st-border);margin:.8rem 0}.dialog>p{margin-bottom:1rem;color:var(--st-text-secondary)}

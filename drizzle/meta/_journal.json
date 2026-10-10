@@ -757,6 +757,13 @@
       "when": 1791644312906,
       "tag": "0107_worlds_atlas_refinement",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1791651681820,
+      "tag": "0108_worlds_atlas_navigation",
+      "breakpoints": true
     }
   ]
 }

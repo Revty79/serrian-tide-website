@@ -28,8 +28,8 @@ async function reading(page:Page){return page.evaluate<FrameReading>(`(async () 
 })()`);}
 
 
-export async function refinementBrowserChecks(browser:Browser,baseUrl:string,f:{worldId:string}){
-  const captures=path.resolve("docs/screenshots/worlds-atlas-refinement");await mkdir(captures,{recursive:true});
+export async function refinementBrowserChecks(browser:Browser,baseUrl:string,f:{worldId:string},captureDirectory="docs/screenshots/worlds-atlas-refinement"){
+  const captures=path.resolve(captureDirectory);await mkdir(captures,{recursive:true});
   const context=await browser.newContext({viewport:{width:1440,height:1100},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.71"}}),page=await context.newPage(),errors:string[]=[];
   page.on("pageerror",e=>errors.push(e.message));page.on("dialog",dialog=>dialog.accept());
   const login=await context.request.post(`${baseUrl}/api/auth/sign-in/email`,{headers:{Origin:baseUrl},data:{email:"other-god@example.invalid",password:"Worlds-Test-Only-Password!"}});assert.equal(login.status(),200);

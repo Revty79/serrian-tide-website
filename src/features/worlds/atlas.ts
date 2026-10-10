@@ -7,7 +7,8 @@ export { MAP_WIDTH, MAP_HEIGHT, boundedPoint, rounded } from "./atlas-coordinate
 export const atlasId = z.string().uuid();
 const revision = z.number().int().positive();
 const name = z.string().trim().min(1, "Give this record a name.").max(160);
-export const geographyDraftSchema = z.object({id: atlasId, revision: revision.nullable(), name, description: z.string().max(12000), kind: z.enum(["continent", "island", "location"]), parentId: atlasId.nullable()}).strict();
+export const locationContexts = ["place", "region", "local area", "settlement", "building site", "interior"] as const;
+export const geographyDraftSchema = z.object({id: atlasId, revision: revision.nullable(), name, description: z.string().max(12000), kind: z.enum(["continent", "island", "location"]), context: z.enum(locationContexts).optional(), parentId: atlasId.nullable()}).strict();
 const coordinate = z.number().finite();
 const xy = z.object({x: coordinate, y: coordinate}).strict();
 const vertex = xy.extend({id: atlasId});
@@ -24,8 +25,9 @@ export type AtlasFeature = z.infer<typeof featureSchema>;
 export type GeographyDraft = z.infer<typeof geographyDraftSchema>;
 export type MapDraft = z.infer<typeof mapDraftSchema>;
 export type GeographyRecord = Omit<GeographyDraft, "revision"> & {revision: number; archived: boolean};
-export type AtlasMap = {id: string; name: string; description: string; scope: MapDraft["scope"]; width: number; height: number; revision: number; archived: boolean; features: AtlasFeature[]; drawings?: MapDrawing[]; presentation?: MapPresentation; generation?: GenerationProvenance|null};
-export type AtlasBundle = {maps: AtlasMap[]; geographies: GeographyRecord[]; canEdit: boolean};
+export type AtlasMap = {id: string; name: string; description: string; scope: MapDraft["scope"]; geographyId?: string|null; width: number; height: number; revision: number; archived: boolean; features: AtlasFeature[]; drawings?: MapDrawing[]; presentation?: MapPresentation; generation?: GenerationProvenance|null};
+export type AtlasConnection = {id: string; sourceMapId: string; geographyId: string; destinationMapId: string; revision: number};
+export type AtlasBundle = {maps: AtlasMap[]; geographies: GeographyRecord[]; connections?: AtlasConnection[]; canEdit: boolean};
 export type Viewport = {x: number; y: number; width: number; height: number};
 export const fitViewport = (): Viewport => ({x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT});
 export function signedArea(points: Point[]) {return points.reduce((sum, p, i) => {const next = points[(i + 1) % points.length]; return sum + p.x * next.y - next.x * p.y;}, 0) / 2;}
@@ -58,7 +60,7 @@ export function validateParents(records: {id: string; parentId: string|null}[]) 
 }
 export function draftOf(map: AtlasMap, geographies: GeographyRecord[]): MapDraft {
   const ids = new Set([...map.features.map(f=>f.geographyId),...(map.drawings??[]).flatMap(d=>d.geographyId?[d.geographyId]:[])]);
-  return {name: map.name, description: map.description, scope: map.scope, features: structuredClone(map.features), drawings: structuredClone(map.drawings??[]), presentation: structuredClone(map.presentation??defaultPresentation()), geographies: geographies.filter(g=>ids.has(g.id)).map(g=>({id:g.id,revision:g.revision,name:g.name,description:g.description,kind:g.kind,parentId:g.parentId}))};
+  return {name: map.name, description: map.description, scope: map.scope, features: structuredClone(map.features), drawings: structuredClone(map.drawings??[]), presentation: structuredClone(map.presentation??defaultPresentation()), geographies: geographies.filter(g=>ids.has(g.id)).map(g=>({id:g.id,revision:g.revision,name:g.name,description:g.description,kind:g.kind,context:g.context,parentId:g.parentId}))};
 }
 export function moveGeometry(geometry: Geometry, dx: number, dy: number): Geometry {
   const points = geometry.type === "polygon" ? geometry.points : [geometry.point];

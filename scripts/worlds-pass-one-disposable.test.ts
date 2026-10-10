@@ -16,6 +16,7 @@ import type { EntryDraft, HistoricalTime } from "../src/features/worlds/history"
 import { calendarServiceChecks, calendarBrowserChecks } from "./worlds-calendar-checks";
 import { evolutionServiceChecks, evolutionBrowserChecks } from "./worlds-calendar-evolution-checks";
 import { generationServiceChecks, generationBrowserChecks } from "./worlds-generation-checks";
+import { connectedGeographyServiceChecks, connectedGeographyBrowserChecks } from "./worlds-connected-geography-checks";
 import { refinementBrowserChecks } from "./worlds-refinement-checks";
 import { cartographyServiceChecks, cartographyBrowserChecks } from "./worlds-cartography-checks";
 import { atlasServiceChecks, atlasBrowserChecks } from "./worlds-atlas-checks";
@@ -119,7 +120,7 @@ async function main() {
     pool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await pool.query("create database serrian_worlds_test");await pool.end();pool=new pg.Pool({connectionString:databaseUrl});
     // Rehearse an upgrade with pre-existing users, tags and Campaign/runtime data.
     const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")) as {entries:{tag:string;idx:number}[]};
-    assert.equal(journal.entries.at(-1)?.tag,"0107_worlds_atlas_refinement");
+    assert.equal(journal.entries.at(-1)?.tag,"0108_worlds_atlas_navigation");
     const baseline=path.join(temporaryRoot,"baseline");await mkdir(path.join(baseline,"meta"),{recursive:true});
     for(const entry of journal.entries.filter(e=>e.idx<102))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
     await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<102)}));
@@ -183,15 +184,27 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     for(const f of legacyGenerated.draft.features)await pool.query("insert into world_atlas_feature(id,world_id,map_id,geography_id,geometry) values($1,$2,$3,$4,$5)",[f.id,legacyWorld,legacyGeneratedId,f.geographyId,f.geometry]);
     for(const [i,d] of legacyGenerated.draft.drawings!.entries())await pool.query("insert into world_atlas_drawing(id,world_id,map_id,content,sort_order,geography_id) values($1,$2,$3,$4,$5,$6)",[d.id,legacyWorld,legacyGeneratedId,d,i,d.geographyId]);
     const v1Snapshot=new Map<string,unknown>();for(const table of ["world_atlas_map","world_atlas_feature","world_atlas_drawing","world_geography"])v1Snapshot.set(table,(await pool.query(`select to_jsonb(t) as row from ${table} t order by id`)).rows);
-    await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});for(const [table,rows] of v1Snapshot)assert.deepEqual((await pool.query(`select to_jsonb(t) as row from ${table} t order by id`)).rows,rows);
+    const refinement=path.join(temporaryRoot,"refinement");await mkdir(path.join(refinement,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=107))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(refinement,`${entry.tag}.sql`));await writeFile(path.join(refinement,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=107)}));
+    await migrate(drizzle(pool),{migrationsFolder:refinement});for(const [table,rows] of v1Snapshot)assert.deepEqual((await pool.query(`select to_jsonb(t) as row from ${table} t order by id`)).rows,rows);
+    // Rehearse 0108 over both frozen generator editions and hand-edited source.
+    const v2=await import("../src/features/worlds/map-generator");const v2Spec=presetSpec("continental","3d-upgrade-v2"),v2Generated=v2.generateMap(v2Spec,randomUUID),v2Map=randomUUID();
+    await pool.query("insert into world_atlas_map(id,world_id,name,generation,presentation) values($1,$2,'Saved v2 before connections',$3,$4)",[v2Map,legacyWorld,{...legacyProvenance,requestId:v2Map,requestHash:"b".repeat(64),spec:v2Spec},v2Generated.draft.presentation]);
+    for(const g of v2Generated.draft.geographies)await pool.query("insert into world_geography(id,world_id,name,description,kind,parent_id) values($1,$2,$3,$4,$5,$6)",[g.id,legacyWorld,g.name,g.description,g.kind,g.parentId]);
+    for(const f of v2Generated.draft.features)await pool.query("insert into world_atlas_feature(id,world_id,map_id,geography_id,geometry) values($1,$2,$3,$4,$5)",[f.id,legacyWorld,v2Map,f.geographyId,f.geometry]);
+    for(const [i,d] of v2Generated.draft.drawings!.entries())await pool.query("insert into world_atlas_drawing(id,world_id,map_id,geography_id,content,sort_order) values($1,$2,$3,$4,$5,$6)",[d.id,legacyWorld,v2Map,d.geographyId,d,i]);
+    const connectionUpgrade=new Map<string,unknown>();for(const table of ["world_atlas_map","world_atlas_feature","world_atlas_drawing","world_geography"])connectionUpgrade.set(table,(await pool.query(`select to_jsonb(t) as row from ${table} t order by id`)).rows);
+    await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});
+    for(const [table,rows] of connectionUpgrade){const projection=table==="world_atlas_map"?"to_jsonb(t)-'geography_id'":table==="world_geography"?"to_jsonb(t)-'context'":"to_jsonb(t)";assert.deepEqual((await pool.query(`select ${projection} as row from ${table} t order by id`)).rows,rows);}
+    assert.equal((await pool.query("select count(*)::int as n from world_atlas_connection")).rows[0].n,0);
+
     // Compare pre-0106 rows as well; the v1 fixture is deliberately added between migrations.
-    for(const [table,rows]of existingAtlas){const projection=table==="world_atlas_map"?"to_jsonb(t)-'generation'-'source_map_id'":"to_jsonb(t)";assert.deepEqual((await pool.query(`select ${projection} as row from ${table} t order by id`)).rows.filter(r=>(rows as {row:{id:string}}[]).some(old=>old.row.id===r.row.id)),rows);}assert.deepEqual((await pool.query("select to_jsonb(d)-'sort_order' as row from world_atlas_drawing d where map_id=$1 order by id",[paintedMap])).rows,paintedBefore);assert.deepEqual((await pool.query("select to_jsonb(m)-'presentation'-'generation'-'source_map_id' as row from world_atlas_map m where id=$1",[oldMap])).rows,oldMapBefore);assert.deepEqual((await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows,atlasUpgradeBefore);assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
+    for(const [table,rows]of existingAtlas){const projection=table==="world_atlas_map"?"to_jsonb(t)-'generation'-'source_map_id'-'geography_id'":table==="world_geography"?"to_jsonb(t)-'context'":"to_jsonb(t)";assert.deepEqual((await pool.query(`select ${projection} as row from ${table} t order by id`)).rows.filter(r=>(rows as {row:{id:string}}[]).some(old=>old.row.id===r.row.id)),rows);}assert.deepEqual((await pool.query("select to_jsonb(d)-'sort_order' as row from world_atlas_drawing d where map_id=$1 order by id",[paintedMap])).rows,paintedBefore);assert.deepEqual((await pool.query("select to_jsonb(m)-'presentation'-'generation'-'source_map_id'-'geography_id' as row from world_atlas_map m where id=$1",[oldMap])).rows,oldMapBefore);assert.deepEqual((await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows,atlasUpgradeBefore);assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
     assert.equal((await pool.query("select * from world_historical_entry where dating_system_id is not null or source_dating is not null")).rowCount,1);assert.equal((await pool.query("select * from world_dating_system")).rowCount,1);assert.equal((await pool.query("select * from world_chronology_preference")).rowCount,1);
     assert.equal((await pool.query("select count(*)::int as count from drizzle.__drizzle_migrations")).rows[0].count,journal.entries.length);
     // Code rollback retains the additive schema and source metadata. Rehearse an older reader.
     assert.deepEqual((await pool.query("select historical_time from world_historical_entry where world_id=$1 order by title",[legacyWorld])).rows.map(({historical_time})=>historical_time),legacyTimes);
     await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await legacySnapshot(),legacyBefore);
-    console.log("PASS: migrations 0102/0103 and 0104/0105 plus 0106/0107 upgrade existing data through 0103 and painted 0104 maps and preserve existing 0102 geometry, including existing calendar evolution, original source snapshots, calendars and preferences, with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible; saved v1 source and metadata unchanged across 0107.");
+    console.log("PASS: migrations 0102/0103 and 0104/0105 plus 0106/0107 upgrade existing data through 0103 and painted 0104 maps and preserve existing 0102 geometry, including existing calendar evolution, original source snapshots, calendars and preferences, with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible; saved v1 source and metadata unchanged across 0107; 0108 preserves v1/v2 source, all old row projections and metadata while adding empty links and default map/place association fields.");
     process.env.DATABASE_URL=databaseUrl;const service=await import("../src/features/worlds/world-service");applicationPool=(await import("../src/db")).pool;
     const references=await service.worldReferences("world-god"),validTag=references.find((tag)=>tag.name==="High Fantasy")!;
     assert.equal(references.some((tag)=>tag.name==="Mechanical"),false);
@@ -262,6 +275,7 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const atlasFixture=await atlasServiceChecks(atlasService,service,pool,foreign);
     const generationFixture=await generationServiceChecks(atlasService,pool,legacyWorld,atlasFixture.worldId);
     const artFixture=await cartographyServiceChecks(atlasService,pool,{worldId:legacyWorld,mapId:oldMap,featureId:oldFeature,geographyId:oldGeography},foreign);
+    const connectedFixture=await connectedGeographyServiceChecks(atlasService,service,pool,foreign);
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-pass-one-next.log`)));});
     console.log("PASS: isolated production build and TypeScript verification.");
@@ -270,14 +284,17 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     browser=await chromium.launch({executablePath:process.env.SERRIAN_TEST_CHROME??"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true});
     const god=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.40"}});await signIn(god,baseUrl,"world-god");
     const page=await god.newPage();activePage=page;page.on("pageerror",(error)=>errors.push(error.message));
+    if(process.argv.includes("--connected-only")){await connectedGeographyBrowserChecks(browser,baseUrl,connectedFixture,pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
+    await connectedGeographyBrowserChecks(browser,baseUrl,connectedFixture,pool);
     await checkEraLabelNavigation(page,baseUrl,labelWorld,artifactRoot);
     await chronologyBrowserChecks(service,page,god,baseUrl,chronologyFixture,artifactRoot);
     await calendarBrowserChecks(calendarService,page,god,baseUrl,calendarFixture,artifactRoot);
     await evolutionBrowserChecks(page,god,baseUrl,evolutionFixture,artifactRoot);
     await atlasBrowserChecks(page,god,baseUrl,atlasFixture,artifactRoot);
     await cartographyBrowserChecks(browser,baseUrl,artFixture,artifactRoot);
-    await generationBrowserChecks(browser,baseUrl,generationFixture,artifactRoot);
-    await refinementBrowserChecks(browser,baseUrl,generationFixture);
+    await generationBrowserChecks(browser,baseUrl,generationFixture,artifactRoot,"docs/screenshots/worlds-atlas-pass-3d/regressions/generation");
+    await refinementBrowserChecks(browser,baseUrl,generationFixture,"docs/screenshots/worlds-atlas-pass-3d/regressions/refinement");
+
     await page.goto(`${baseUrl}/worlds`);await hydrated(page);await page.getByRole("heading",{name:"Worlds",exact:true}).waitFor();assert.equal(await page.getByText("Other owner's private world",{exact:true}).count(),0);
     await page.getByRole("button",{name:"Create world",exact:true}).click();await page.getByLabel("World name",{exact:true}).fill("Lantern Reach");
     await page.getByRole("button",{name:"Choose",exact:true}).click();await page.getByRole("group",{name:"Available Genre classifications",exact:true}).getByRole("button",{name:"High Fantasy",exact:true}).click();await page.getByRole("button",{name:"Era",exact:true}).click();await page.getByLabel("Search classifications",{exact:true}).fill("Anc");await page.getByRole("group",{name:"Available Era classifications",exact:true}).getByRole("button",{name:"Ancient",exact:true}).click();

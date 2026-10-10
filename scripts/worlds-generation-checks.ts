@@ -45,8 +45,8 @@ export async function generationServiceChecks(service:Service,pool:pg.Pool,world
 async function openAtlas(page:Page,url:string){await page.goto(url);await page.getByRole("button",{name:"Atlas",exact:true}).click();await page.getByRole("heading",{name:"Atlas",exact:true}).waitFor();}
 async function save(page:Page){await page.getByRole("button",{name:"Save map",exact:true}).click();await page.getByRole("status").filter({hasText:"Map saved."}).waitFor();}
 async function point(page:Page,x:number,y:number){const svg=page.getByRole("application",{name:"Editable map canvas"});await svg.scrollIntoViewIfNeeded();return svg.evaluate((node,p)=>{const m=(node as SVGSVGElement).getScreenCTM()!;const q=new DOMPoint(p.x,p.y).matrixTransform(m);return{x:q.x,y:q.y};},{x,y});}
-export async function generationBrowserChecks(browser:Browser,baseUrl:string,f:{worldId:string},artifacts:string){
-  const captures=path.resolve("docs/screenshots/worlds-atlas-refinement/regressions");await mkdir(captures,{recursive:true});
+export async function generationBrowserChecks(browser:Browser,baseUrl:string,f:{worldId:string},artifacts:string,captureDirectory="docs/screenshots/worlds-atlas-refinement/regressions"){
+  const captures=path.resolve(captureDirectory);await mkdir(captures,{recursive:true});
   const context=await browser.newContext({viewport:{width:1440,height:1100},hasTouch:false,extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.51"}}),page=await context.newPage(),errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
   const signed=await context.request.post(`${baseUrl}/api/auth/sign-in/email`,{headers:{Origin:baseUrl},data:{email:"other-god@example.invalid",password:"Worlds-Test-Only-Password!"}});assert.equal(signed.status(),200);
   const url=`${baseUrl}/worlds/${f.worldId}`,api=`${baseUrl}/api/worlds/${f.worldId}/atlas`,read=async()=>{const r=await context.request.get(api);assert.equal(r.status(),200);return await r.json() as AtlasBundle;};
