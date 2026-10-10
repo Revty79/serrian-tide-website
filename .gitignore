@@ -91,3 +91,4 @@ next-env.d.ts
 /.next-spell-damage-types/
 /artifacts/campaign-skills-ui/
 /artifacts/campaign-skill-*-tests.log
+/artifacts/worlds-atlas-refinement/

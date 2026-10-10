@@ -1,6 +1,7 @@
-import { memo } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { MAP_HEIGHT, MAP_WIDTH, mapLabels, type AtlasFeature, type MapDraft } from "./atlas";
 import { curvedPath, defaultPresentation, drawingLayer, terrainMarks, type MapDrawing, type TerrainDrawing } from "./cartography";
+import { terrainBitmap } from "./cartography-raster";
 import styles from "./cartography.module.css";
 
 // Original vector marks. The reference maps are inspiration, not an asset library.
@@ -21,31 +22,49 @@ export function CartographicSymbol({kind,variant=0}:{kind:string;variant?:number
   return <g className={styles.settlement}><path d="M 0 -23 l 0 35 M -13 -15 Q 0 -28 13 -15 M -24 2 Q -24 20 0 20 Q 24 20 24 2 M -28 1 l 8 0 M 20 1 l 8 0 M -15 15 L 0 26 L 15 15"/></g>;
 }
 
-const TerrainArt=memo(function TerrainArt({drawing}:{drawing:TerrainDrawing}) {
-  return <g className={styles.terrainArt}>
+const TerrainArt=memo(function TerrainArt({drawing,prefix}:{drawing:TerrainDrawing;prefix:string}) {
+  const marks=useMemo(()=>terrainMarks(drawing),[drawing]);
+  return <g className={styles.terrainArt} data-terrain-source>
     {drawing.kind==="lake"&&drawing.points.length===1&&<circle cx={drawing.points[0].x} cy={drawing.points[0].y} r={drawing.radius*.8} className={styles.lakeSpot}/>}
     {drawing.kind==="lake"&&<path d={curvedPath(drawing.points)} className={styles.lakePaint} strokeWidth={drawing.radius*1.6}/>}
     {drawing.kind==="snow"&&drawing.points.length===1&&<circle cx={drawing.points[0].x} cy={drawing.points[0].y} r={drawing.radius*.8} className={styles.snowSpot}/>}
     {drawing.kind==="snow"&&<path d={curvedPath(drawing.points)} className={styles.snowPaint} strokeWidth={drawing.radius*1.5}/>}
-    {terrainMarks(drawing).map(mark=><g key={mark.key} transform={`translate(${mark.x} ${mark.y}) scale(${mark.scale})`}><CartographicSymbol kind={drawing.kind} variant={mark.variant}/></g>)}
+    {marks.map(mark=><use key={mark.key} data-terrain-mark href={`#${prefix}-${drawing.kind}-${mark.variant}`} transform={`translate(${mark.x} ${mark.y}) scale(${mark.scale})`}/>)}
   </g>;
 });
-function DrawingArt({drawing,unitsPerPixel}:{drawing:MapDrawing;unitsPerPixel:number}) {
-  if(drawing.type==="terrain")return <TerrainArt drawing={drawing}/>;
+const CachedTerrain=memo(function CachedTerrain({drawing,prefix,motion,palette,unitsPerPixel,allowRaster}:{drawing:TerrainDrawing;prefix:string;motion:boolean;palette:string;unitsPerPixel:number;allowRaster:boolean}) {
+  const root=useRef<SVGGElement>(null),[cached,setCached]=useState<{drawing:TerrainDrawing;prefix:string;palette:string;image:Awaited<ReturnType<typeof terrainBitmap>>}|null>(null);
+  const image=cached?.drawing===drawing&&cached.prefix===prefix&&cached.palette===palette?cached.image:null;
+  useEffect(()=>{
+    let alive=true,url:string|undefined;
+    const source=root.current?.querySelector<SVGGElement>("[data-terrain-source]");
+    if(source)void terrainBitmap(source,prefix,drawing).then(image=>{url=image.url;if(alive)setCached({drawing,prefix,palette,image});else URL.revokeObjectURL(url);}).catch(()=>{});
+    return()=>{alive=false;if(url)URL.revokeObjectURL(url);};
+  },[drawing,prefix,palette]);
+  // At rest, use the cache only when it exceeds the actual display resolution.
+  // Deep zoom and the selected drawing keep live vectors. Motion can reuse the cache temporarily.
+  const fast=allowRaster&&image!==null&&(motion||image.scale*unitsPerPixel>=1.2*(typeof window==="undefined"?1:window.devicePixelRatio||1));
+  return <g ref={root} data-terrain-cache-ready={image!==null}><g style={{display:fast?"none":undefined}}><TerrainArt drawing={drawing} prefix={prefix}/></g>{fast&&<image data-terrain-raster href={image.url} x={image.x} y={image.y} width={image.width} height={image.height} pointerEvents="none"/>}</g>;
+});
+const DrawingArt=memo(function DrawingArt({drawing,unitsPerPixel,prefix,motion,cacheTerrain,palette,allowRaster}:{drawing:MapDrawing;unitsPerPixel:number;prefix:string;motion:boolean;cacheTerrain:boolean;palette:string;allowRaster:boolean}) {
+  if(drawing.type==="terrain")return cacheTerrain?<CachedTerrain drawing={drawing} prefix={prefix} motion={motion} palette={palette} unitsPerPixel={unitsPerPixel} allowRaster={allowRaster}/>:<TerrainArt drawing={drawing} prefix={prefix}/>;
   if(drawing.type==="path")return <g className={styles.route} data-kind={drawing.kind}><path d={curvedPath(drawing.points,drawing.curve)} className={styles.routeUnder} strokeWidth={drawing.width+3}/><path d={curvedPath(drawing.points,drawing.curve)} strokeWidth={drawing.width}/></g>;
   if(drawing.type==="symbol")return <g transform={`translate(${drawing.point.x} ${drawing.point.y}) rotate(${drawing.rotation}) scale(${drawing.scale})`} data-ink={drawing.style==="ink"}><CartographicSymbol kind={drawing.kind}/></g>;
   return <text transform={`translate(${drawing.point.x} ${drawing.point.y}) rotate(${drawing.rotation})`} className={styles.label} data-style={drawing.style} fontSize={Math.max(drawing.size,11*unitsPerPixel)} textAnchor="middle">{drawing.text}</text>;
-}
-export function CartographyScene({draft,id,selectedId,unitsPerPixel=1,editable=true}:{draft:MapDraft;id:string;selectedId?:string|null;unitsPerPixel?:number;editable?:boolean}) {
+});
+export const CartographyScene=memo(function CartographyScene({draft,id,selectedId,unitsPerPixel=1,editable=true,motion=false,cacheTerrain=false}:{draft:MapDraft;id:string;selectedId?:string|null;unitsPerPixel?:number;editable?:boolean;motion?:boolean;cacheTerrain?:boolean}) {
+  const [themeRevision,setThemeRevision]=useState(0);
+  useEffect(()=>{if(!cacheTerrain)return;const observer=new MutationObserver(()=>setThemeRevision(n=>n+1));observer.observe(document.documentElement,{attributes:true,attributeFilter:["style","data-appearance-preset"]});return()=>observer.disconnect();},[cacheTerrain]);
   const presentation=draft.presentation??defaultPresentation(),land=draft.features.filter(f=>!f.archived&&f.geometry.type==="polygon"),labels=mapLabels(draft.features.filter(f=>!f.archived),new Map(draft.geographies.map(g=>[g.id,g.name])),unitsPerPixel);
+  const terrainKinds=useMemo(()=>[...new Set((draft.drawings??[]).filter((d):d is TerrainDrawing=>d.type==="terrain"&&!d.archived).map(d=>d.kind))],[draft.drawings]);
   const place=(f:AtlasFeature)=>f.geometry.type==="point"?f.geometry.point:{x:0,y:0};
   return <g data-cartography-scene className={styles.scene} data-style={presentation.style}>
-    <defs><pattern id={`${id}-grain`} width="53" height="47" patternUnits="userSpaceOnUse"><path d="M 4 7 l 3 0 M 34 12 l 2 1 M 19 29 l 4 -1 M 43 38 l 2 0 M 8 44 l 2 0" className={styles.paperGrain}/></pattern><pattern id={`${id}-sea`} width="130" height="105" patternUnits="userSpaceOnUse"><path d="M 14 50 q 12 -7 24 0 t 24 0 M 76 90 q 12 -7 24 0" className={styles.seaHatch}/></pattern><pattern id={`${id}-grid`} width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" className={styles.grid}/></pattern><clipPath id={`${id}-extent`}><rect width={MAP_WIDTH} height={MAP_HEIGHT}/></clipPath><clipPath id={`${id}-land`}>{land.length?land.map(f=>f.geometry.type==="polygon"&&<polygon key={f.id} points={f.geometry.points.map(p=>`${p.x},${p.y}`).join(" ")}/>):<rect width={MAP_WIDTH} height={MAP_HEIGHT}/>}</clipPath></defs>
+    <defs>{terrainKinds.map(kind=>[0,1,2].map(variant=><g key={`${kind}-${variant}`} id={`${id}-${kind}-${variant}`}><CartographicSymbol kind={kind} variant={variant}/></g>))}<pattern id={`${id}-grain`} width="53" height="47" patternUnits="userSpaceOnUse"><path d="M 4 7 l 3 0 M 34 12 l 2 1 M 19 29 l 4 -1 M 43 38 l 2 0 M 8 44 l 2 0" className={styles.paperGrain}/></pattern><pattern id={`${id}-sea`} width="130" height="105" patternUnits="userSpaceOnUse"><path d="M 14 50 q 12 -7 24 0 t 24 0 M 76 90 q 12 -7 24 0" className={styles.seaHatch}/></pattern><pattern id={`${id}-grid`} width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" className={styles.grid}/></pattern><clipPath id={`${id}-extent`}><rect width={MAP_WIDTH} height={MAP_HEIGHT}/></clipPath><clipPath id={`${id}-land`}>{land.length?land.map(f=>f.geometry.type==="polygon"&&<polygon key={f.id} points={f.geometry.points.map(p=>`${p.x},${p.y}`).join(" ")}/>):<rect width={MAP_WIDTH} height={MAP_HEIGHT}/>}</clipPath></defs>
     <g clipPath={`url(#${id}-extent)`}>
       <rect width={MAP_WIDTH} height={MAP_HEIGHT} className={styles.sea}/><rect width={MAP_WIDTH} height={MAP_HEIGHT} fill={`url(#${id}-sea)`} pointerEvents="none"/>
       {presentation.layers.land.visible&&land.map(f=>f.geometry.type==="polygon"&&<g key={f.id} data-feature={f.id} data-selected={selectedId===f.id} className={styles.landFeature} pointerEvents={presentation.layers.land.locked||!editable?"none":undefined}><polygon points={f.geometry.points.map(p=>`${p.x},${p.y}`).join(" ")} className={styles.coastalHalo}/><polygon points={f.geometry.points.map(p=>`${p.x},${p.y}`).join(" ")} className={styles.land}/><polygon points={f.geometry.points.map(p=>`${p.x},${p.y}`).join(" ")} fill={`url(#${id}-grain)`} pointerEvents="none"/><title>{draft.geographies.find(g=>g.id===f.geographyId)?.name}</title></g>)}
       {(["terrain","waterways","paths","symbols","labels"] as const).map(layer=>presentation.layers[layer].visible&&<g key={layer} data-layer={layer} pointerEvents={presentation.layers[layer].locked||!editable?"none":undefined}>{(draft.drawings??[]).filter(d=>!d.archived&&drawingLayer(d)===layer).map(d=><g key={d.id} data-drawing={d.id} data-selected={selectedId===d.id} className={styles.drawing} clipPath={layer==="terrain"?`url(#${id}-land)`:undefined}>
-        <DrawingArt drawing={d} unitsPerPixel={unitsPerPixel}/>
+        <DrawingArt drawing={d} unitsPerPixel={unitsPerPixel} prefix={id} motion={motion} allowRaster={selectedId!==d.id} cacheTerrain={cacheTerrain} palette={`${presentation.style}:${themeRevision}`}/>
         {editable&&(d.type==="terrain"||d.type==="path"?<path d={curvedPath(d.points,d.type==="path"?d.curve:.75)} data-export-omit className={styles.hitPath} strokeWidth={Math.max(44*unitsPerPixel,d.type==="terrain"?d.radius*1.5:d.width+12)}/>:<rect x={d.point.x-22*unitsPerPixel} y={d.point.y-22*unitsPerPixel} width={44*unitsPerPixel} height={44*unitsPerPixel} data-export-omit className={styles.hit}/>)}
         {selectedId===d.id&&(d.type==="terrain"||d.type==="path")&&<path d={curvedPath(d.points)} data-export-omit className={styles.selectedStroke} strokeWidth={2*unitsPerPixel}/>}<title>{d.name}</title>
       </g>)}</g>)}
@@ -56,4 +75,4 @@ export function CartographyScene({draft,id,selectedId,unitsPerPixel=1,editable=t
       <g transform={`translate(${MAP_WIDTH-105} 105)`} className={styles.compass}><circle r="47"/><circle r="38"/><path d="M 0 -61 L 11 -9 L 61 0 L 11 9 L 0 61 L -11 9 L -61 0 L -11 -9 Z"/><path d="M 0 -61 L 0 0 L 11 -9 Z M 61 0 L 0 0 L 11 9 Z M 0 61 L 0 0 L -11 9 Z M -61 0 L 0 0 L -11 -9 Z" className={styles.compassShade}/><text y="-72" textAnchor="middle">N</text></g>
     </g>
   </g>;
-}
+});

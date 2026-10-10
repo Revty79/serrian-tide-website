@@ -1,0 +1,181 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 1100
+  },
+  "browser": "134.0.6998.166",
+  "mode": "production Chromium; native full-detail SVG; synthetic private data",
+  "algorithmTimings": {
+    "small-serrian-atlas-v1": {
+      "runsMs": [
+        70.03,
+        53.68,
+        46.41
+      ],
+      "stats": {
+        "landCoverage": 8.82,
+        "continents": 1,
+        "islands": 0,
+        "drawings": 9,
+        "terrainMarks": 211
+      }
+    },
+    "small-serrian-atlas-v2": {
+      "runsMs": [
+        76.31,
+        80.4,
+        66.38
+      ],
+      "stats": {
+        "landCoverage": 10.42,
+        "continents": 1,
+        "islands": 0,
+        "drawings": 12,
+        "terrainMarks": 107
+      }
+    },
+    "medium-serrian-atlas-v1": {
+      "runsMs": [
+        412.22,
+        392.87,
+        380.96
+      ],
+      "stats": {
+        "landCoverage": 19.38,
+        "continents": 3,
+        "islands": 8,
+        "drawings": 68,
+        "terrainMarks": 1004
+      }
+    },
+    "medium-serrian-atlas-v2": {
+      "runsMs": [
+        556.94,
+        521.69,
+        525.91
+      ],
+      "stats": {
+        "landCoverage": 22.23,
+        "continents": 3,
+        "islands": 8,
+        "drawings": 90,
+        "terrainMarks": 403
+      }
+    },
+    "dense-serrian-atlas-v1": {
+      "runsMs": [
+        1482.41,
+        1473.57,
+        1484.14
+      ],
+      "stats": {
+        "landCoverage": 29.96,
+        "continents": 4,
+        "islands": 24,
+        "drawings": 166,
+        "terrainMarks": 3418
+      }
+    },
+    "dense-serrian-atlas-v2": {
+      "runsMs": [
+        1053.14,
+        1050.13,
+        1072.42
+      ],
+      "stats": {
+        "landCoverage": 26.95,
+        "continents": 4,
+        "islands": 24,
+        "drawings": 218,
+        "terrainMarks": 1138
+      }
+    }
+  },
+  "description-serrian-atlas-v1": {
+    "elapsedMs": 271.1,
+    "frames": 15,
+    "p95FrameMs": 126,
+    "maxFrameMs": 126,
+    "longTasks": [],
+    "elements": 1071,
+    "terrainUses": 883
+  },
+  "description-serrian-atlas-v2": {
+    "elapsedMs": 253.82,
+    "frames": 16,
+    "p95FrameMs": 18.100000000000023,
+    "maxFrameMs": 18.100000000000023,
+    "longTasks": [],
+    "elements": 452,
+    "terrainUses": 231
+  },
+  "continental": {
+    "elapsedMs": 880.21,
+    "frames": 49,
+    "p95FrameMs": 18.100000000000136,
+    "maxFrameMs": 36,
+    "longTasks": [],
+    "elements": 880,
+    "terrainUses": 403
+  },
+  "archipelago": {
+    "elapsedMs": 267.54,
+    "frames": 16,
+    "p95FrameMs": 36,
+    "maxFrameMs": 36,
+    "longTasks": [],
+    "elements": 974,
+    "terrainUses": 253
+  },
+  "northern": {
+    "elapsedMs": 247.94,
+    "frames": 15,
+    "p95FrameMs": 18.100000000000023,
+    "maxFrameMs": 18.100000000000023,
+    "longTasks": [],
+    "elements": 569,
+    "terrainUses": 281
+  },
+  "dense-generation": {
+    "elapsedMs": 872.56,
+    "frames": 50,
+    "p95FrameMs": 18.09999999999991,
+    "maxFrameMs": 18.100000000000364,
+    "longTasks": [],
+    "elements": 934,
+    "terrainUses": 429
+  },
+  "denseSource": {
+    "marks": 5460,
+    "elements": 6294,
+    "drawings": 107,
+    "cachedStrokes": 88,
+    "rasterStrokes": 88
+  },
+  "denseZoom": {
+    "elapsedMs": 1268.28,
+    "frames": 60,
+    "p95FrameMs": 36.100000000000364,
+    "maxFrameMs": 163.19999999999982,
+    "longTasks": []
+  },
+  "densePan": {
+    "frames": 44,
+    "p95FrameMs": 18.100000000000364,
+    "maxFrameMs": 18.100000000000364,
+    "longTasks": []
+  },
+  "denseEdit": {
+    "elapsedMs": 241.96,
+    "frames": 10,
+    "p95FrameMs": 54.19999999999891,
+    "maxFrameMs": 54.19999999999891,
+    "longTasks": [
+      83
+    ]
+  },
+  "denseSave": {
+    "revision": 4,
+    "sourceIdsRetained": true
+  }
+}

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const GENERATOR_VERSION = "serrian-atlas-v1" as const;
+export const GENERATOR_VERSION = "serrian-atlas-v2" as const;
+export const generatorVersions = ["serrian-atlas-v1", GENERATOR_VERSION] as const;
 export const regions = ["center", "north", "south", "east", "west", "northeast", "northwest", "southeast", "southwest"] as const;
 export type Region = typeof regions[number];
 export const directions = ["automatic", "north", "south", "east", "west"] as const;
@@ -47,7 +48,7 @@ export const generationPlanSchema = z.object({
 export type GenerationPlan = z.infer<typeof generationPlanSchema>;
 export const defaultPlan = (): GenerationPlan => ({landPosition: "center", islandPosition: "scattered", ruggedCoast: "all", baySide: "all", additionalBaySide: "none", bays: 2, bayDepth: 2, mountainRegion: "center", mountainOrientation: "varied", mountainRanges: 1, forestRegion: "automatic", riverDirection: "automatic", lakeRegion: "automatic", desertRegion: "automatic", grasslandRegion: "automatic", wetlandRegion: "automatic", snowRegion: "automatic", extraTerrain: []});
 export const generationSpecSchema = z.object({
-  version: z.literal(1), algorithm: z.literal(GENERATOR_VERSION), seed: z.string().trim().min(1).max(64),
+  version: z.literal(1), algorithm: z.enum(generatorVersions), seed: z.string().trim().min(1).max(64),
   settings: generationSettingsSchema, plan: generationPlanSchema,
   description: z.string().trim().min(1).max(4000).nullable(),
   interpretation: z.object({version: z.literal(1), understood: z.array(z.string().max(300)).max(48), warnings: z.array(z.string().max(500)).max(48)}).strict().nullable(),

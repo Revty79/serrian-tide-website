@@ -16,6 +16,7 @@ export function interpretDescription(raw: string, base: GenerationSpec): Generat
   if(/\b(?:thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred|thousand)\b/i.test(description))throw new Error("Use digits for counts above twelve, such as 28 islands. Written compound numbers are not supported.");
   if(/(?:-\d+|\d+[.,]\d+)\s+(?:\w+\s+){0,3}(?:continents?|landmasses?|islands?|rivers?|streams?|lakes?|bays?|ranges?)\b/i.test(description))throw new Error("Geography counts must be nonnegative whole numbers.");
   const input=generationSpecSchema.parse(base),spec=presetSpec("continental",input.seed),understood:string[]=[],warnings:string[]=[],writes=new Map<string,string>();
+  spec.algorithm=input.algorithm;
   spec.settings={...spec.settings,mapType:"continent",continents:1,islands:0,size:"large",shape:"balanced",rivers:1,lakes:0,biome:"temperate",style:input.settings.style};
   spec.description=description;
   const clauses=description.toLowerCase().split(/[.!?;\n]+/).flatMap(s=>s.split(new RegExp(`,\\s*(?:and\\s+)?|\\s+and\\s+(?=${subjectStart})`))).map(s=>s.trim()).filter(Boolean);

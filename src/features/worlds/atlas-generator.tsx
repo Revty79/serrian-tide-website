@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { GuidedField } from "@/components/field-guidance";
 import type { AtlasMap } from "./atlas";
 import { CartographyScene } from "./cartography-scene";
-import { generateMap, type GenerationResult } from "./map-generator";
-import { directions, generationSpecSchema, presetSpec, presets, regions, type GenerationPlan, type GenerationSettings, type GenerationSpec, type Preset } from "./generation-spec";
+import type { GenerationResult } from "./map-generator";
+import { directions, generatorVersions, generationSpecSchema, presetSpec, presets, regions, type GenerationPlan, type GenerationSettings, type GenerationSpec, type Preset } from "./generation-spec";
 import { descriptionExample, interpretDescription, validateDescriptionSpec } from "./description-interpreter";
 import { GenerationPlanReview } from "./generation-plan-review";
 import styles from "./generation.module.css";
@@ -15,6 +15,9 @@ export function AtlasGenerator({source,onClose,onSave,onDirtyChange}:{source:Atl
   const [name,setName]=useState(source?`${source.name.slice(0,140)} variation`:"New generated map"),[description,setDescription]=useState("");
   const [preview,setPreview]=useState<Preview|null>(null),[pending,setPending]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[dirty,setDirty]=useState(false);
   const [method,setMethod]=useState(source?.generation?.spec?.description?"describe":"configure"),[written,setWritten]=useState(source?.generation?.spec?.description??""),[warningsAccepted,setWarningsAccepted]=useState(false);
+  const worker=useRef<Worker|null>(null);
+  useEffect(()=>()=>{worker.current?.terminate();worker.current=null;},[]);
+  function cancelPreview(){worker.current?.terminate();worker.current=null;setBusy(false);}
   const sceneId=useId().replace(/:/g,""),reviewed=method==="describe"&&spec.description===written.trim()&&spec.interpretation!==null;
   const ready=method==="configure"||reviewed&&(!spec.interpretation!.warnings.length||warningsAccepted);
   const stale=!!preview&&(JSON.stringify(spec)!==JSON.stringify(preview.spec)||!ready);
@@ -30,7 +33,24 @@ export function AtlasGenerator({source,onClose,onSave,onDirtyChange}:{source:Atl
   function plan<K extends keyof GenerationPlan>(key:K,value:GenerationPlan[K]){change({...spec,plan:{...spec.plan,[key]:value}});}
   function changeMethod(value:string){setMethod(value);setWarningsAccepted(false);change({...spec,description:null,interpretation:null});}
   function interpret(){setError("");setWarningsAccepted(false);try{change(interpretDescription(written,spec));}catch(failure){setError((failure as Error).message);}}
-  async function buildPreview(next=spec){if(!ready)return;setBusy(true);setError("");try{await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));const parsed=generationSpecSchema.parse(next);validateDescriptionSpec(parsed);const result=generateMap(parsed);setSpec(parsed);setPreview({...result,spec:parsed,id:crypto.randomUUID()});setDirty(true);}catch(failure){setError((failure as Error).message);}finally{setBusy(false);}}
+  function buildPreview(next=spec){
+    if(!ready||worker.current)return;
+    setBusy(true);setError("");
+    try{
+      const parsed=generationSpecSchema.parse(next);validateDescriptionSpec(parsed);
+      const job=new Worker(new URL("./generation.worker.ts",import.meta.url),{type:"module"});worker.current=job;
+      const finish=()=>{job.terminate();if(worker.current===job){worker.current=null;setBusy(false);}};
+      job.onmessage=(event:MessageEvent<{result?:GenerationResult;error?:string}>)=>{
+        if(worker.current!==job)return;
+        if(event.data.error)setError(event.data.error);
+        else if(event.data.result){setSpec(parsed);setPreview({...event.data.result,spec:parsed,id:crypto.randomUUID()});setDirty(true);}
+        else setError("The preview worker returned an incomplete result. Try again.");
+        finish();
+      };
+      job.onerror=event=>{event.preventDefault();if(worker.current===job)setError("The preview could not start. Reload this page or try again; your recipe is retained.");finish();};
+      job.postMessage(parsed);
+    }catch(failure){worker.current?.terminate();worker.current=null;setError((failure as Error).message);setBusy(false);}
+  }
   function close(){if(!pending&&(!dirty||window.confirm("Discard this unsaved map preview?"))){onDirtyChange(false);onClose();}}
   const select=<K extends keyof GenerationSettings>(key:K,label:string,help:string,values:readonly GenerationSettings[K][],disabled=false)=><GuidedField label={label} help={help}><select className="st-control" disabled={disabled} value={String(spec.settings[key])} onChange={e=>setting(key,e.target.value as GenerationSettings[K])}>{values.map(v=><option key={String(v)} value={String(v)}>{String(v)}</option>)}</select></GuidedField>;
   const number=(key:keyof GenerationSettings,label:string,help:string,min:number,max:number)=><GuidedField label={label} help={help}><input className="st-control" type="number" min={min} max={max} step={1} required value={String(spec.settings[key])} onChange={e=>setting(key,Number(e.target.value))}/></GuidedField>;
@@ -39,6 +59,7 @@ export function AtlasGenerator({source,onClose,onSave,onDirtyChange}:{source:Atl
   return <section className={styles.generator} aria-label="Generate a World map"><header className={styles.heading}><div><p className={styles.eyebrow}>Shape a new horizon</p><h2>Generate map</h2><p>Create editable land, terrain and waterways, then make the map your own.</p></div><button className="st-button is-secondary" disabled={pending||busy} onClick={close}>Map library</button></header>
     {source&&<p className={styles.source}>Starting a variation of <strong>{source.name}</strong>. Saving creates a new map with new geography. Its source map and all manual edits stay saved.</p>}
     <form onSubmit={e=>{e.preventDefault();void buildPreview();}}><fieldset disabled={pending||busy} className={styles.settings}>
+      <GuidedField label="Landscape generation" help="Natural landscapes vary sizes, coastline character and terrain pockets. Original 3C keeps the earlier seed arrangement. Saved maps always retain their original recipe; choosing another version creates a new preview."><select className="st-control" value={spec.algorithm} onChange={e=>change({...spec,algorithm:e.target.value as GenerationSpec["algorithm"]})}>{generatorVersions.map(v=><option key={v} value={v}>{v==="serrian-atlas-v2"?"Natural landscapes":"Original 3C landscapes"}</option>)}</select></GuidedField>
       <GuidedField label="Creation method" help="Configure a recipe, or describe supported geography and review its plan. Switching to settings keeps the plan but removes the written-interpretation claim."><select className="st-control" value={method} onChange={e=>changeMethod(e.target.value)}><option value="configure">Configure settings</option><option value="describe">Describe geography</option></select></GuidedField>
       {method==="describe"&&<div className={styles.description}>
         <GuidedField label="Describe the geography" help="Use short English sentences with supported counts, directions and terrain. Interpretation stays in this private application and uses a documented vocabulary, without an external AI service."><textarea className="st-control" maxLength={4000} rows={6} value={written} onChange={e=>{setWritten(e.target.value);setWarningsAccepted(false);setDirty(true);setError("");}}/></GuidedField>
@@ -47,7 +68,7 @@ export function AtlasGenerator({source,onClose,onSave,onDirtyChange}:{source:Atl
         {reviewed?<><GenerationPlanReview spec={spec}/>{!!spec.interpretation!.warnings.length&&<section className={styles.limits} aria-label="Description limits"><h3>Details needing review</h3><ul>{spec.interpretation!.warnings.map((line,i)=><li key={i}>{line}</li>)}</ul><GuidedField label="Use the supported plan despite these limits" help="Acknowledge the listed unsupported or ambiguous details, or revise and interpret again. Those details are not promised in the generated map."><input type="checkbox" checked={warningsAccepted} onChange={e=>setWarningsAccepted(e.target.checked)}/></GuidedField></section>}</>:<p>Interpret your current description before previewing. Editing the text requires another review.</p>}
       </div>}
       {method==="configure"&&<fieldset className={styles.configuration}>
-      <GuidedField label="Generation preset" help="Choose a useful starting recipe. You can adjust its settings before previewing; this never changes an existing map."><select className="st-control" defaultValue="" onChange={e=>{if(e.target.value)change(presetSpec(e.target.value as Preset,spec.seed));}}><option value="">Choose a starting recipe</option>{Object.entries(presets).map(([key,p])=><option key={key} value={key}>{p.label}</option>)}</select></GuidedField>
+      <GuidedField label="Generation preset" help="Choose a useful starting recipe. You can adjust its settings before previewing; this never changes an existing map."><select className="st-control" defaultValue="" onChange={e=>{if(e.target.value)change({...presetSpec(e.target.value as Preset,spec.seed),algorithm:spec.algorithm});}}><option value="">Choose a starting recipe</option>{Object.entries(presets).map(([key,p])=><option key={key} value={key}>{p.label}</option>)}</select></GuidedField>
       <div className={styles.basicFields}>{select("mapType","Map type","A continent map has one main continent. A world overview can contain several continents, or only islands.",["world","continent"])}{number("continents","Major continents","The exact number of major landmasses, from zero to six. Zero creates an island-only world.",spec.settings.mapType==="continent"?1:0,spec.settings.mapType==="continent"?1:6)}{number("islands","Offshore islands","The exact number of additional islands, from zero to 32. Land separation may require a different seed or fewer islands.",0,32)}{select("biome","Terrain tendency","Temperate, northern, arid, tropical or mixed terrain sets broad illustrated regions. This does not set a real climate simulation.",["temperate","northern","arid","tropical","mixed"])}{select("style","Map appearance","Use the existing Parchment, Illuminated or Night map style. You can change it in the manual editor later.",["parchment","illuminated","night"])}</div>
       <details className={styles.advanced}><summary>Advanced geography settings</summary><div className={styles.basicFields}>
         {number("landCoverage","Approximate land coverage (%)","A target tendency from 10 to 55 percent. Ocean space, shape, size and island separation can lower the result; the preview reports actual coverage.",10,55)}
@@ -78,6 +99,7 @@ export function AtlasGenerator({source,onClose,onSave,onDirtyChange}:{source:Atl
       <GuidedField label="Generation seed" help="The same seed, settings and generator version reproduce the same geographical arrangement. Separate saved maps get separate drawing identities."><input className="st-control" required maxLength={64} value={spec.seed} onChange={e=>change({...spec,seed:e.target.value})}/></GuidedField>
       <div className={styles.actions}><button className="st-button" type="submit" disabled={!ready}>{busy?"Generating preview...":"Preview map"}</button><button className="st-button is-secondary" type="button" disabled={!ready} onClick={()=>{const next={...spec,seed:crypto.randomUUID()};change(next);void buildPreview(next);}}>New seed and preview</button></div>
     </fieldset></form>
+    {busy&&<p role="status">Building your landscape in the background. <button type="button" className="st-button is-secondary" onClick={cancelPreview}>Cancel preview</button></p>}
     {error&&<p role="alert" className={styles.feedback}>{error} Your settings and preview are retained.</p>}
     <div className={styles.preview} aria-label="Generated map preview" aria-busy={busy}>{preview?<><div className={styles.previewHeading}><h3>{stale?"Preview needs updating":"Unsaved preview"}</h3><p role="status">{preview.stats.continents} continents · {preview.stats.islands} islands · {preview.stats.landCoverage}% land · {preview.stats.drawings} editable drawings</p></div><svg viewBox="0 0 2000 1200" aria-label="Generated map artwork"><CartographyScene draft={preview.draft} id={`generation-${sceneId}`} editable={false}/></svg>{preview.notices.map(n=><p key={n}>{n}</p>)}{stale&&<p>The recipe or its review changed. Preview again before saving.</p>}</>:<div className={styles.empty}><h3>Your new geography starts here</h3><p>Choose settings or describe geography, then preview the result. Nothing is saved until you accept it.</p></div>}</div>
     <form onSubmit={accept} className={styles.accept}><fieldset disabled={pending||busy}>
