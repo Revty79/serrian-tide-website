@@ -9,9 +9,10 @@ import { WorldError, worldReadAccess, worldWriteTransaction } from "./world-serv
 import { atlasId, geographyDraftSchema, mapDraftSchema, validateMapDraft, validateParents, type AtlasBundle, type GeographyDraft, type MapDraft } from "./atlas";
 import { generationSpecSchema, generationProvenanceSchema } from "./generation-spec";
 import { generateMap } from "./map-generator";
+import { validateDescriptionSpec } from "./description-interpreter";
 const revision=z.number().int().positive();
 const command=z.discriminatedUnion("action",[
-  z.object({action:z.literal("generate"),id:atlasId,name:z.string().trim().min(1).max(160),description:z.string().max(12000),spec:generationSpecSchema,sourceMapId:atlasId.nullable(),sourceRevision:revision.nullable()}).strict(),
+  z.object({action:z.literal("generate"),id:atlasId,name:z.string().trim().min(1).max(160),description:z.string().max(12000),spec:generationSpecSchema,sourceMapId:atlasId.nullable(),sourceRevision:revision.nullable(),descriptionWarningsAccepted:z.literal(true).optional()}).strict(),
   z.object({action:z.literal("duplicate"),id:atlasId,revision,newId:atlasId,name:z.string().trim().min(1).max(160)}).strict(),
   z.object({action:z.literal("create"),name:z.string().trim().min(1).max(160),description:z.string().max(12000),scope:z.enum(["world","continent","regional","local"])}).strict(),
   z.object({action:z.literal("save"),id:atlasId,revision,draft:mapDraftSchema}).strict(),
@@ -102,7 +103,8 @@ export async function changeAtlas(userId:string,worldId:string,input:unknown) {
       if(sourceId&&(!source||source.archivedAt))throw unavailable();if(source&&source.revision!==expected)throw conflict();
       let draft:MapDraft;
       if(c.action==="generate"){
-        if(c.spec.description!==null)throw new WorldError("Description interpretation is not enabled in this checkpoint.",400);
+        validate(()=>validateDescriptionSpec(c.spec));
+        if(c.spec.interpretation?.warnings.length&&!c.descriptionWarningsAccepted)throw new WorldError("Review and acknowledge the description's unsupported or ambiguous details before saving.",400);
         draft=validate(()=>generateMap(c.spec,randomUUID)).draft;draft.name=c.name;draft.description=c.description;
       }else{
         const features=await tx.select().from(worldAtlasFeature).where(eq(worldAtlasFeature.mapId,source!.id));
