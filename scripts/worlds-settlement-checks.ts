@@ -1,3 +1,4 @@
+import { captureWorldsScreenshot } from "./worlds-browser-evidence";
 import assert from "node:assert/strict";
 import { randomUUID as id } from "node:crypto";
 import { mkdir,writeFile } from "node:fs/promises";
@@ -58,7 +59,7 @@ export async function settlementBrowserChecks(browser:Browser,baseUrl:string,f:F
  async function tool(name:string,nameOfPlace:string){await page.getByRole("button",{name,exact:true}).click();await page.getByLabel("New place name",{exact:true}).fill(nameOfPlace);}
  async function pathTool(name:string,place:string,points:number[][],touch=false){await tool(name,place);for(const [x,y]of points)await tap(x,y,touch);await page.getByRole("button",{name:"Complete object",exact:true}).click();}
  async function save(p=page){const button=p.getByRole("button",{name:"Save settlement",exact:true});assert.equal(await button.isEnabled(),true,`Save must be enabled after the edit. Alerts: ${(await p.getByRole("alert").allTextContents()).join(" | ")}; status: ${(await p.getByRole("status").allTextContents()).join(" | ")}`);await button.click();await p.getByRole("status").filter({hasText:"Settlement saved"}).waitFor();}
- async function shot(name:string){await page.evaluate(()=>{document.documentElement.style.scrollBehavior="auto";window.scrollTo({top:0,behavior:"instant"});});await page.waitForTimeout(120);await page.screenshot({path:path.join(capture,name),fullPage:true});}
+ async function shot(name:string){await page.evaluate(()=>{document.documentElement.style.scrollBehavior="auto";window.scrollTo({top:0,behavior:"instant"});});await page.waitForTimeout(120);await captureWorldsScreenshot(page,{path:path.join(capture,name),fullPage:true});}
  await library();await page.getByRole("button",{name:"New settlement map",exact:true}).click();const dialog=page.getByRole("dialog");await dialog.getByLabel("Map name",{exact:true}).fill("Glasshaven town plan");await dialog.getByLabel("Description",{exact:true}).fill("A settlement built without any required genre or origin.");await dialog.getByLabel("Represented place",{exact:true}).selectOption(f.settlementId);await dialog.getByLabel("Map scale",{exact:true}).selectOption("local");await dialog.getByRole("button",{name:"Create map",exact:true}).click();await page.getByRole("region",{name:"Settlement editor",exact:true}).waitFor();
  await pathTool("District","Gardens quarter",[[300,180],[1250,180],[1250,900],[300,900]]);
  await page.getByLabel("Place description",{exact:true}).fill("A district of botanical workshops and floating gardens.");await page.getByRole("button",{name:"Apply properties",exact:true}).click();await shot("district-properties.png");

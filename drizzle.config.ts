@@ -13,6 +13,7 @@ export default defineConfig({
     "./src/db/auth-schema.ts",
     "./src/db/password-recovery-schema.ts",
     "./src/db/world-schema.ts",
+    "./src/db/world-timeline-schema.ts",
     "./src/db/world-calendar-schema.ts",
     "./src/db/world-calendar-history-schema.ts",
     "./src/db/world-atlas-schema.ts",

@@ -10,7 +10,7 @@ import styles from "./worlds.module.css";
 import { ClassificationPicker } from "./classification-picker";
 import { CalendarEntryFields, draftFromSource } from "./calendar-entry-fields";
 export type EditorTarget = { kind: "world"; record?: WorldRecord; section?: "identity" | "introduction" | "history" } | { kind: "era"; record?: EraRecord } | { kind: "entry"; record?: EntryRecord };
-export function WorldEditor({ target, tags, eras = [], datingSystems=[], displaySystem=null, worldId, onClose, onSave, onReload }: { target: EditorTarget; tags: TagReference[]; eras?: EraRecord[]; datingSystems?:DatingSystem[];displaySystem?:DatingSystem|null;worldId?:string; onClose: () => void; onSave: (draft: WorldDraft | EraDraft | EntryDraft) => Promise<void>; onReload?: () => Promise<void> }) {
+export function WorldEditor({ target, tags, eras = [], datingSystems=[], displaySystem=null, worldId, onClose, onSave, onReload,timelineName,onDirty }: { target: EditorTarget; tags: TagReference[]; eras?: EraRecord[]; datingSystems?:DatingSystem[];displaySystem?:DatingSystem|null;worldId?:string; onClose: () => void; onSave: (draft: WorldDraft | EraDraft | EntryDraft) => Promise<void>; onReload?: () => Promise<void>;timelineName?:string;onDirty?:(dirty:boolean)=>void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [worldDraft, setWorldDraft] = useState(() => worldDraftOf(target.kind === "world" ? target.record : undefined));
   const initialSystem = target.kind !== "world" && target.record ? datingSystems.find((system)=>system.id === target.record?.datingSystemId) ?? null : displaySystem?.archived ? null : displaySystem;
@@ -23,6 +23,7 @@ export function WorldEditor({ target, tags, eras = [], datingSystems=[], display
   const draft = target.kind === "world" ? worldDraft : target.kind === "era" ? eraDraft : entryDraft;
   const [original] = useState(() => JSON.stringify(draft));
   const dirty = original !== JSON.stringify(draft);
+  useEffect(()=>{onDirty?.(dirty);return()=>onDirty?.(false);},[dirty,onDirty]);
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState(false);
   const [pending, setPending] = useState(false);
@@ -42,6 +43,7 @@ export function WorldEditor({ target, tags, eras = [], datingSystems=[], display
       try { await onSave(parsed.data); } catch (failure) { setError(failure instanceof Error ? failure.message : "The save failed. Your draft is retained."); setConflict(failure instanceof SaveError && failure.status === 409); } finally { setPending(false); }
     }}>
     <fieldset disabled={pending} className={styles.editorFields}>
+      {target.kind!=="world"&&<p className={styles.caption}>Writing in {timelineName??"Primary History"}.{target.record?.historyContext?.sourceTimelineId?" Saving creates a branch interpretation of this source identity. The parent's account and existing descendants stay unchanged.":""}</p>}
       {target.kind === "world" && section === "identity" && <>
         <Field label="World name" help="A name is all you need to begin. You can change it later."><input required maxLength={160} autoFocus value={worldDraft.name} onChange={(e) => setWorldDraft({...worldDraft,name:e.target.value})} /></Field>
         <Field label="Description" help="A short introduction shown in the world gallery. Optional; up to 4,000 characters."><textarea rows={3} maxLength={4000} value={worldDraft.description} onChange={(e) => setWorldDraft({...worldDraft,description:e.target.value})} /></Field>

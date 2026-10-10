@@ -18,7 +18,8 @@ export function HistoricalTimeline({ eras, entries, onEntry, onEra, compact = fa
   useEffect(() => { if (!root.current) return; const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width)); observer.observe(root.current); return () => observer.disconnect(); }, []);
   const groups = useMemo(() => groupTimelineEntries(entries, view, width), [entries, view, width]);
   const visibleGroups = groups.slice(0, 200);
-  const visibleEras = eras.filter((era) => (era.endYear === null || era.endYear >= view.start) && (era.startYear === null || era.startYear <= view.end)).slice(0, 40);
+  const knownEnd=(era:EraRecord)=>era.historyContext?.mode==="partial"?era.historyContext.coveredUntil:era.endYear;
+  const visibleEras = eras.filter((era) => (knownEnd(era) === null || knownEnd(era)! >= view.start) && (era.startYear === null || era.startYear <= view.end)).slice(0, 40);
   const lanes = visibleGroups.reduce((max, group) => Math.max(max, group.lane + 1), 1);
   const undated = entries.filter((entry) => entry.time.kind === "undated");
   function fit() { setView(fitHistory(eras, entries)); }
@@ -38,8 +39,9 @@ export function HistoricalTimeline({ eras, entries, onEntry, onEra, compact = fa
     }} onPointerDown={(event) => { if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return; drag.current = {x:event.clientX,view}; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { if (!drag.current) return; const fraction = -(event.clientX - drag.current.x) / Math.max(1,width); setView(panViewport(drag.current.view,fraction)); }} onPointerUp={() => {drag.current = null;}} onPointerCancel={() => {drag.current = null;}}>
       <div className={styles.axis}>{timelineTicks(view, width < 500 ? 3 : 8).map((tick) => <span key={tick} title={formatYear(tick,displaySystem)} style={{left:`${position(tick,view)}%`}}>{displaySystem ? formatYear(tick,displaySystem) : yearLabel(tick)}</span>)}</div>
       <div className={styles.eraBands}>{visibleEras.map((era) => {
-        const left = Math.min(100 - 4400 / Math.max(44,width),position(Math.max(view.start,era.startYear ?? view.start),view)), right = position(Math.min(view.end,era.endYear ?? view.end),view);
-        return <div key={era.id} className={styles.eraLane}><button className={styles.eraBand} data-tone={era.tone} data-open={era.startYear === null || era.endYear === null} style={{marginLeft:`${left}%`,width:`${Math.max(1,right-left)}%`}} onClick={() => onEra(era)} title={`${era.name}: ${formatEra(era,displaySystem)}`}><span>{era.name}</span><small>{formatEra(era,displaySystem)}</small></button></div>;
+        const left = Math.min(100 - 4400 / Math.max(44,width),position(Math.max(view.start,era.startYear ?? view.start),view)), right = position(Math.min(view.end,knownEnd(era) ?? view.end),view);
+        const partial=era.historyContext?.mode==="partial";
+        return <div key={era.id} className={styles.eraLane}><button className={styles.eraBand} data-tone={era.tone} data-open={era.startYear === null || era.endYear === null} data-known-through={partial?era.historyContext?.coveredUntil:undefined} style={{marginLeft:`${left}%`,width:`${Math.max(1,right-left)}%`}} onClick={() => onEra(era)} title={`${era.name}: ${partial?`Existence known through Year ${era.historyContext?.coveredUntil}; continuation unknown`:formatEra(era,displaySystem)}`}><span>{era.name}</span><small>{partial?"Pre-divergence existence only":formatEra(era,displaySystem)}</small></button></div>;
       })}</div>
       <div className={styles.eventStage} style={{height:`${Math.max(100,lanes*58 + 24)}px`}}>
         {visibleGroups.map((group) => {

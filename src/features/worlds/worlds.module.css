@@ -179,3 +179,14 @@
 @media(prefers-reduced-motion:reduce) { .worldCard {transition:none;} }
 
 .workspaceTabs { flex-wrap:wrap; }
+.timelineSelection { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; margin-block:1rem; padding:1rem; border:1px solid var(--st-border); border-radius:1rem; background:var(--st-surface); }
+.timelineSelection label { flex:1 1 14rem; }
+.timelineSelection p { flex:2 1 16rem; color:var(--st-text-secondary); overflow-wrap:anywhere; }
+.timelineBranches { list-style:none; padding:0; display:grid; gap:.75rem; }
+.timelineBranches li { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem; border:1px solid var(--st-border); border-radius:.75rem; padding:1rem; background:var(--st-surface-soft); }
+.timelineBranches li[data-selected="true"] { border-color:var(--st-primary); }
+.timelineBranches p { color:var(--st-text-secondary); overflow-wrap:anywhere; margin-block:.5rem 0; }
+.inheritanceList { display:grid; gap:1rem; margin-block:1rem; }
+.inheritanceList article { padding:1rem; border:1px solid var(--st-border); border-radius:.75rem; background:var(--st-surface-soft); overflow-wrap:anywhere; }
+.inheritanceList small { color:var(--st-text-secondary); }
+.inheritanceList details { margin-block:1rem; }

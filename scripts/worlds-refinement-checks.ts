@@ -1,3 +1,4 @@
+import { captureWorldsScreenshot } from "./worlds-browser-evidence";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -47,7 +48,7 @@ export async function refinementBrowserChecks(browser:Browser,baseUrl:string,f:{
     else await page.getByLabel("Generation preset",{exact:true}).selectOption(preset);
     await page.getByLabel("Generation seed",{exact:true}).fill(seed);
   }
-  async function artworkShot(file:string){const art=page.getByLabel("Generated map artwork",{exact:true});await art.evaluate(node=>{document.documentElement.style.scrollBehavior="auto";node.scrollIntoView({block:"center",behavior:"instant"});});await page.waitForTimeout(120);await art.screenshot({path:path.join(captures,file)});}
+  async function artworkShot(file:string){const art=page.getByLabel("Generated map artwork",{exact:true});await art.evaluate(node=>{document.documentElement.style.scrollBehavior="auto";node.scrollIntoView({block:"center",behavior:"instant"});});await page.waitForTimeout(120);await captureWorldsScreenshot(art,{path:path.join(captures,file)});}
   async function preview(name:string){
     await monitor(page);const began=performance.now();await page.getByRole("button",{name:"Preview map",exact:true}).click();
     await page.getByRole("heading",{name:"Unsaved preview",exact:true}).waitFor();
@@ -74,7 +75,7 @@ export async function refinementBrowserChecks(browser:Browser,baseUrl:string,f:{
     const terrainUses=await canvas.locator("[data-terrain-mark]").count();assert.equal(terrainUses,marks);assert.ok(marks>=5200);
     const elements=await canvas.locator("*").count();assert.ok(elements<marks*2,"Reusable full-detail symbols avoid repeating multi-path DOM per mark.");
     await page.waitForFunction(()=>document.querySelectorAll('[data-terrain-cache-ready="false"]').length===0);
-    measures.denseSource={marks,elements,drawings:draft.drawings!.length,cachedStrokes:await canvas.locator('[data-terrain-cache-ready="true"]').count(),rasterStrokes:await canvas.locator("[data-terrain-raster]").count()};await canvas.screenshot({path:path.join(captures,"dense-map.png")});
+    measures.denseSource={marks,elements,drawings:draft.drawings!.length,cachedStrokes:await canvas.locator('[data-terrain-cache-ready="true"]').count(),rasterStrokes:await canvas.locator("[data-terrain-raster]").count()};await captureWorldsScreenshot(canvas,{path:path.join(captures,"dense-map.png")});
     // Resolve controls outside the probe: repeated accessibility-tree queries over thousands of
     // SVG use instances can themselves stall Chromium and are not application interaction work.
     const zoomIn=await page.getByRole("button",{name:"Zoom in",exact:true}).elementHandle(),zoomOut=await page.getByRole("button",{name:"Zoom out",exact:true}).elementHandle();assert.ok(zoomIn&&zoomOut);
@@ -90,6 +91,6 @@ export async function refinementBrowserChecks(browser:Browser,baseUrl:string,f:{
     await writeFile(path.join(captures,"performance.json"),JSON.stringify(measures,null,2)+"\n");
     // Timing limits are broad correctness guards; report actual measurements, not a device guarantee.
     for(const key of ["denseZoom","densePan","denseEdit"]){const m=measures[key] as {maxFrameMs:number};assert.ok(m.maxFrameMs<1000,`${key}: interaction stalled for over a second`);}
-    console.log("PASS: v1/v2 identical-description screenshots, irregular world/archipelago/continent previews, cancelled worker cannot publish late source; 5200+ full-detail native marks, compact SVG, zoom/pan/edit/undo/redo/save/reopen and PNG export with stable source IDs and provenance.");
+    console.log("PASS: v1/v2 identical-description preview checks, irregular world/archipelago/continent previews, cancelled worker cannot publish late source; 5200+ full-detail native marks, compact SVG, zoom/pan/edit/undo/redo/save/reopen and PNG export with stable source IDs and provenance.");
   }finally{await context.close();}
 }

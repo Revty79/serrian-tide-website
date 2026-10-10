@@ -3,11 +3,11 @@ import { randomUUID } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { world, worldEntry } from "@/db/world-schema";
+import { world, worldEntry, worldTimeline } from "@/db/world-schema";
 import { worldCalendar, worldCalendarVersion } from "@/db/world-calendar-schema";
 import { worldDayReference, worldCalendarAnchor, worldCalendarHistory, worldCalendarAdoption, worldCalendarReform, worldCalendarEntryDate } from "@/db/world-calendar-history-schema";
 import { calendarPeriodSchema, adoptionSchema, reformSchema, type CalendarEvolution } from "./calendar-evolution";
-import { endpointSchema, elapsedDaySchema, toElapsed, endpointNotation, validateCutover, type CalendarEndpoint, type CalendarEntryDraft } from "./calendar-dates";
+import { endpointSchema, elapsedDaySchema, toElapsed, endpointNotation, validateCutover, type CalendarEndpoint, type CalendarEntryDraft, type CalendarSource } from "./calendar-dates";
 import { WorldError, worldWriteTransaction } from "./world-service";
 type Tx=Parameters<Parameters<typeof db.transaction>[0]>[0];
 const id=z.string().uuid(),revision=z.number().int().positive();
@@ -43,10 +43,16 @@ export async function saveEntryCalendarDate(tx:Tx,worldId:string,entryId:string,
   if(draft===undefined)return; // Older clients retain precise context; no inferred day is ever added.
   if(draft===null){await tx.delete(worldCalendarEntryDate).where(eq(worldCalendarEntryDate.entryId,entryId));return;}
   const [previous]=await tx.select().from(worldCalendarEntryDate).where(and(eq(worldCalendarEntryDate.entryId,entryId),eq(worldCalendarEntryDate.worldId,worldId)));
-  const start=await endpoint(tx,worldId,draft.start,previous?.source.start),end="end"in draft?await endpoint(tx,worldId,draft.end,previous?.source.end):undefined;
-  if(end&&BigInt(end.elapsedDay)<BigInt(start.elapsedDay))throw new WorldError("The ending calendar date must be at or after the starting date on the elapsed-day reference.",400);
-  const values={worldId,startVersionId:start.versionId,endVersionId:end?.versionId??null,source:{version:1 as const,kind:draft.kind,start,...(end?{end}:{})}};
+  const source=(await resolveHistoryCalendarSource(tx,worldId,draft,previous?.source))!;
+  const values={worldId,startVersionId:source.start.versionId,endVersionId:source.end?.versionId??null,source};
   await tx.insert(worldCalendarEntryDate).values({entryId,...values}).onConflictDoUpdate({target:worldCalendarEntryDate.entryId,set:values});
+}
+export async function resolveHistoryCalendarSource(tx:Tx,worldId:string,draft:CalendarEntryDraft|null|undefined,previous?:CalendarSource|null):Promise<CalendarSource|null>{
+  if(draft===undefined)return previous??null;
+  if(draft===null)return null;
+  const start=await endpoint(tx,worldId,draft.start,previous?.start),end="end"in draft?await endpoint(tx,worldId,draft.end,previous?.end):undefined;
+  if(end&&BigInt(end.elapsedDay)<BigInt(start.elapsedDay))throw new WorldError("The ending calendar date must be at or after the starting date on the elapsed-day reference.",400);
+  return {version:1,kind:draft.kind,start,...(end?{end}:{})};
 }
 export async function changeCalendarEvolution(userId:string,worldId:string,input:unknown){
   return worldWriteTransaction(userId,worldId,async(tx)=>{
@@ -67,7 +73,7 @@ export async function changeCalendarEvolution(userId:string,worldId:string,input
       active(await available(tx,worldId,c.draft.versionId));result=randomUUID();await tx.insert(worldCalendarAdoption).values({id:result,worldId,...c.draft});
     }else if(c.action==="reform"){
       active(await available(tx,worldId,c.draft.predecessorId));active(await available(tx,worldId,c.draft.successorId));
-      if(c.draft.entryId){const [entry]=await tx.select().from(worldEntry).where(and(eq(worldEntry.id,c.draft.entryId),eq(worldEntry.worldId,worldId)));if(!entry)throw new WorldError("This historical entry is unavailable.",404);if(entry.archivedAt)throw new WorldError("Restore this historical entry before linking a new reform.",400);}
+      if(c.draft.entryId){const [entry]=await tx.select().from(worldEntry).where(and(eq(worldEntry.id,c.draft.entryId),eq(worldEntry.worldId,worldId)));if(!entry)throw new WorldError("This historical entry is unavailable.",404);const [entryTimeline]=await tx.select().from(worldTimeline).where(eq(worldTimeline.id,entry.timelineId));if(!entryTimeline?.primary)throw new WorldError("Calendar reforms currently reference Primary History. Write alternate reform accounts in the selected timeline's History.",400);if(entry.archivedAt)throw new WorldError("Restore this historical entry before linking a new reform.",400);}
       let cutover=null;if(c.draft.cutover){if(c.draft.cutover.before.versionId!==c.draft.predecessorId||c.draft.cutover.after.versionId!==c.draft.successorId)throw new WorldError("Cutover dates must use the selected predecessor and successor versions.",400);const before=await endpoint(tx,worldId,c.draft.cutover.before),after=await endpoint(tx,worldId,c.draft.cutover.after);try{validateCutover(before.elapsedDay,after.elapsedDay);}catch(failure){throw new WorldError((failure as Error).message,400);}cutover={before,after};}
       result=randomUUID();await tx.insert(worldCalendarReform).values({id:result,worldId,...c.draft,cutover});
     }else{

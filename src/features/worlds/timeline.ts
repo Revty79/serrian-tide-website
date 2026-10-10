@@ -8,7 +8,7 @@ export function normalizeViewport(start: number, end: number): Viewport {
 }
 export function fitHistory(eras: EraRecord[], entries: EntryRecord[]): Viewport {
   let min = Infinity, max = -Infinity;
-  for (const era of eras) for (const year of [era.startYear, era.endYear]) if (year !== null) { min = Math.min(min, year); max = Math.max(max, year); }
+  for (const era of eras) for (const year of [era.startYear, era.historyContext?.mode==="partial"?era.historyContext.coveredUntil:era.endYear]) if (year !== null) { min = Math.min(min, year); max = Math.max(max, year); }
   for (const entry of entries) { const range = timeBounds(entry.time); if (range) { min = Math.min(min, range[0]); max = Math.max(max, range[1]); } }
   if (!Number.isFinite(min)) return { start: -100, end: 100 };
   const padding = Math.max(10, (max - min) * .08);

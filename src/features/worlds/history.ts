@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { DatingSystem, SourceDating } from "./chronology";
 import { calendarEntryDraftSchema, type CalendarSource } from "./calendar-dates";
 import { yearSchema } from "./world-year";
+import type { HistoryContext, InheritanceReview, WorldTimeline } from "./branching-history";
 export { YEAR_LIMIT, yearSchema } from "./world-year";
 
 const base = { version: z.literal(1), scale: z.literal("world-year") };
@@ -28,10 +29,10 @@ export type WorldDraft = z.infer<typeof worldDraftSchema>;
 export type EraDraft = z.infer<typeof eraDraftSchema>;
 export type EntryDraft = z.infer<typeof entryDraftSchema>;
 export type WorldRecord = WorldDraft & { id: string; ownerId: string; ownerName: string; revision: number; archived: boolean; updatedAt: string; eraCount: number; entryCount: number };
-export type EraRecord = EraDraft & { id: string; worldId: string; revision: number; archived: boolean; sourceDating?: SourceDating|null };
-export type EntryRecord = EntryDraft & { id: string; worldId: string; revision: number; archived: boolean; updatedAt: string; sourceDating?: SourceDating|null; calendarSource?:CalendarSource|null };
+export type EraRecord = EraDraft & { id: string; worldId: string; revision: number; archived: boolean; sourceDating?: SourceDating|null; historyContext?:HistoryContext };
+export type EntryRecord = EntryDraft & { id: string; worldId: string; revision: number; archived: boolean; updatedAt: string; sourceDating?: SourceDating|null; calendarSource?:CalendarSource|null; historyContext?:HistoryContext };
 export type TagReference = { id: number; name: string; tagGroup: string; description: string };
-export type WorldBundle = { world: WorldRecord; eras: EraRecord[]; entries: EntryRecord[]; canEdit: boolean; datingSystems:DatingSystem[]; defaultDatingSystemId:string|null };
+export type WorldBundle = { world: WorldRecord; eras: EraRecord[]; entries: EntryRecord[]; canEdit: boolean; canManageTimelines:boolean; datingSystems:DatingSystem[]; defaultDatingSystemId:string|null; timelines:WorldTimeline[]; selectedTimeline:WorldTimeline; inheritanceReview:InheritanceReview[] };
 export function yearLabel(year: number) { return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(year); }
 export function timeBounds(time: HistoricalTime): [number, number] | null {
   if (time.kind === "undated") return null;
