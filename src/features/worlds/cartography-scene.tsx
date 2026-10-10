@@ -1,3 +1,4 @@
+import { InteriorScene } from "./interior-scene";
 import { SettlementScene } from "./settlement-scene";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { MAP_HEIGHT, MAP_WIDTH, mapLabels, type AtlasFeature, type MapDraft } from "./atlas";
@@ -74,6 +75,7 @@ export const CartographyScene=memo(function CartographyScene({draft,id,selectedI
       <rect x="12" y="12" width={MAP_WIDTH-24} height={MAP_HEIGHT-24} className={styles.frame}/><rect x="22" y="22" width={MAP_WIDTH-44} height={MAP_HEIGHT-44} className={styles.innerFrame}/>
       {presentation.grid&&<rect width={MAP_WIDTH} height={MAP_HEIGHT} fill={`url(#${id}-grid)`} pointerEvents="none"/>}
       <g transform={`translate(${MAP_WIDTH-105} 105)`} className={styles.compass}><circle r="47"/><circle r="38"/><path d="M 0 -61 L 11 -9 L 61 0 L 11 9 L 0 61 L -11 9 L -61 0 L -11 -9 Z"/><path d="M 0 -61 L 0 0 L 11 -9 Z M 61 0 L 0 0 L 11 9 Z M 0 61 L 0 0 L -11 9 Z M -61 0 L 0 0 L -11 -9 Z" className={styles.compassShade}/><text y="-72" textAnchor="middle">N</text></g>
+      {draft.interiorState&&<InteriorScene draft={draft} selectedId={selectedId} unitsPerPixel={unitsPerPixel}/>}
       {settlement&&draft.settlementShapes&&<SettlementScene draft={draft} selectedId={selectedId} units={unitsPerPixel} explorable={explorable}/>}
     </g>
   </g>;

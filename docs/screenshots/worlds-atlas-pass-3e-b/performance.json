@@ -1,0 +1,13 @@
+{
+  "objects": 960,
+  "loadMs": 767,
+  "panMs": 988,
+  "payloadBytes": 402025,
+  "otherFloorSourcesLoaded": 0,
+  "sourceReadMs": 41,
+  "editorLoadMs": 297,
+  "selectionMs": 83,
+  "editingMs": 91,
+  "saveMs": 993,
+  "floorNavigationMs": 65
+}

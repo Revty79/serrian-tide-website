@@ -45,8 +45,8 @@ export async function settlementServiceChecks(service:Service,worlds:Worlds,pool
 }
 
 async function login(c:BrowserContext,url:string,user="world-god"){const r=await c.request.post(`${url}/api/auth/sign-in/email`,{headers:{Origin:url},data:{email:`${user}@example.invalid`,password:"Worlds-Test-Only-Password!"}});assert.equal(r.status(),200,await r.text());}
-export async function settlementBrowserChecks(browser:Browser,baseUrl:string,f:Fixture,pool:pg.Pool){
- const capture=path.resolve("docs/screenshots/worlds-atlas-pass-3e-a");await mkdir(capture,{recursive:true});const c=await browser.newContext({viewport:{width:1440,height:1100},hasTouch:true,extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.101"}});await login(c,baseUrl);const page=await c.newPage(),errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));page.on("dialog",d=>d.accept());const api=`${baseUrl}/api/worlds/${f.worldId}/atlas`,url=`${baseUrl}/worlds/${f.worldId}`;
+export async function settlementBrowserChecks(browser:Browser,baseUrl:string,f:Fixture,pool:pg.Pool,captureRoot="docs/screenshots/worlds-atlas-pass-3e-a"){
+ const capture=path.resolve(captureRoot);await mkdir(capture,{recursive:true});const c=await browser.newContext({viewport:{width:1440,height:1100},hasTouch:true,extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.101"}});await login(c,baseUrl);const page=await c.newPage(),errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));page.on("dialog",d=>d.accept());const api=`${baseUrl}/api/worlds/${f.worldId}/atlas`,url=`${baseUrl}/worlds/${f.worldId}`;
  async function read(mapId?:string){const r=await c.request.get(`${api}${mapId?`?map=${mapId}`:""}`);assert.equal(r.status(),200);return await r.json() as AtlasBundle;}
  async function post(body:unknown){const r=await c.request.post(api,{headers:{Origin:baseUrl},data:body});assert.equal(r.status(),200,await r.text());return await r.json() as {id:string};}
  async function library(p=page){await p.goto(url);await p.getByRole("button",{name:"Atlas",exact:true}).click();await p.getByRole("heading",{name:"Atlas",exact:true}).waitFor();}

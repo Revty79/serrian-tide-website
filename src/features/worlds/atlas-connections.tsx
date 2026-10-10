@@ -10,7 +10,7 @@ export function AtlasConnections({worldId,bundle:initialBundle,map:initialMap,on
   const dialog=useRef<HTMLDialogElement>(null),[subject,setSubject]=useState(map.geographyId??""),[place,setPlace]=useState(""),[destination,setDestination]=useState(""),[error,setError]=useState(""),[pending,setPending]=useState(false);
   useEffect(()=>{dialog.current?.showModal();},[]);
   const link=(bundle.connections??[]).find(c=>c.sourceMapId===map.id&&c.geographyId===place);
-  const candidates=bundle.maps.filter(m=>!m.archived&&m.id!==map.id);
+  const candidates=bundle.maps.filter(m=>!m.archived&&!m.unavailable&&m.id!==map.id);
   const hasChanges=subject!==(map.geographyId??"")||!!place&&destination!==(link?.destinationMapId??"");
   const dirty=useRef(hasChanges);
   useEffect(()=>{dirty.current=hasChanges;onDirtyChange(hasChanges);},[hasChanges,onDirtyChange]);

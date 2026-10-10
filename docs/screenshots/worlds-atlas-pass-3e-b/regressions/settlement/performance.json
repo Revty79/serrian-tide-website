@@ -1,0 +1,17 @@
+{
+  "buildings": 900,
+  "openingMs": 1263.864300000001,
+  "selectionMs": 123.40480000000389,
+  "editSaveMs": 2060.0734000000084,
+  "navigationMs": 501.34109999999055,
+  "desktop": [
+    1440,
+    1100
+  ],
+  "phone": [
+    390,
+    844
+  ],
+  "nativeTouchAuthoring": true,
+  "staleDraftRetained": true
+}

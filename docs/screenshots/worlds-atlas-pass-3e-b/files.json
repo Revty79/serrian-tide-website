@@ -1,0 +1,285 @@
+{
+  "origin": "Actual isolated production-build browser tests with disposable persisted data",
+  "files": [
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/01-editor-desktop.png",
+      "bytes": 903515,
+      "sha256": "3d58bc66fbac854d5b63291b44cc08ebe9f22b4300ed69e161fd0532d21fce06"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/02-room-properties.png",
+      "bytes": 903039,
+      "sha256": "ed833e85a63a7b7cc37b63a9cffa2503ffeab94f743ebc24c437256899c4e54a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/03-attached-opening.png",
+      "bytes": 982418,
+      "sha256": "bb7305b7c89e92e871feb736d619ca67adfe3c841f7d7e1e9bf4ff50c9144480"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/04-furnishing-properties.png",
+      "bytes": 934307,
+      "sha256": "bdc4507d58753d02beefe6faebb611b92bc5060a37e17ed52a5bcfc15017d14b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/05-completed-interior.png",
+      "bytes": 1022076,
+      "sha256": "e2cdcd62dada240e0de584a699f3b387c6746abb48003179f8814a66526ac05d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/06-floor-navigation-basement.png",
+      "bytes": 836451,
+      "sha256": "98242403ba053ac6356a4ee3625b64f3e399745a3ce407caf4918d9df1f7dc95"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/07-transition-properties.png",
+      "bytes": 990134,
+      "sha256": "fe55785cce6929675a65166f03903905e2b45750a9d8e06ed77537082dbb5c05"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/08-authored-stair-arrival.png",
+      "bytes": 811747,
+      "sha256": "0c1f59610e3a53d2be0c326009f99e21c605bfe55616daead879931631d44329"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/09-explore-interior.png",
+      "bytes": 837719,
+      "sha256": "5260d5f9425396389dac411dffd98b3a76a1e59f089406e64ff20f1413886524"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/10-exterior-interior-choices.png",
+      "bytes": 801542,
+      "sha256": "029ec6473048affda05e106ac0f722390abb4773d361ab2f6513d6461351d4ee"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/11-phone-editor.png",
+      "bytes": 399782,
+      "sha256": "460124f1b96e130ef21deb815d2e3980d222393e54bb4d76526b1b35512eea86"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/12-phone-explore.png",
+      "bytes": 302610,
+      "sha256": "1214f81a09b60c2c8b6254a59f0061a232124e7625c20f42b1db0a0f8669a2be"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/13-dense-interior.png",
+      "bytes": 1119018,
+      "sha256": "b7e37499629cd8e442176450ad05e24b98b707b534c80a69db8cd699c8850656"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/performance.json",
+      "bytes": 241,
+      "sha256": "12184a39f2a9df5767225c2b582279a2f15627b5720ffe5db684e06e01468b21"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/connected/breadcrumbs.png",
+      "bytes": 797374,
+      "sha256": "1cb7f079db6a3260c71b642565a7173bd4971fa47511c52d65d618159c8b4b5b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/connected/continent-selection.png",
+      "bytes": 940442,
+      "sha256": "5eca7cfc92cc5577c5eb8d753d7976e4f61d017f04a0938e936f04cb00f85c14"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/connected/dense-exploration.png",
+      "bytes": 961230,
+      "sha256": "8f37c4d7b6e1fdeb32351e48abfd05974e7a9f68f34029da476bd87c47488ba9"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/connected/navigation.json",
+      "bytes": 1443,
+      "sha256": "d5885cf6c5d1b8f0845b9d9e965f9a283db113f92908b19943bdff2479c67c5e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/connected/phone-connections.png",
+      "bytes": 57091,
+      "sha256": "f9b45d14bb3e3cdd9b64cec1dabb4467b8d71e444fbf1c76098194d5453287a8"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/connected/phone-region.png",
+      "bytes": 287773,
+      "sha256": "feaf2eeb2255c28e6218d1555e941c62f3fac36716bab24edf5247c1ea3c3ea5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/connected/phone-town.png",
+      "bytes": 270708,
+      "sha256": "6359534004308f9b331b9f03f72e3750162b23274d2e15b6628a75ffe5894c0d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/connected/place-information.png",
+      "bytes": 847406,
+      "sha256": "fc274f492de3d90b4ebb8cfd4ab2308607211b418b887ecfb044ccf2b4f960c0"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/connected/regional-towns.png",
+      "bytes": 836220,
+      "sha256": "3c2ab7ec79429151011e5bf8d43fa44ee32ad8deb9dd65ce17502c4a2477d155"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/connected/world-connected.png",
+      "bytes": 870697,
+      "sha256": "cd1604e266e549d5c2a691d2c1a09e1845753b1d83222d9b5c356d62f30e1e5f"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/archipelago.png",
+      "bytes": 174023,
+      "sha256": "9b4cc2d4bdd426400154d688d7757a255a30ca4bae7209f42ef3a96f96423db4"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/continental-world.png",
+      "bytes": 220733,
+      "sha256": "f51f04fe41f4270b3b966e70b21e57eb35d8da7c802c57e1d4dc412d497d9ccb"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/description-controls.png",
+      "bytes": 989889,
+      "sha256": "046f2e935ef63f5a64820f018b0a63d7a490999b5f09f24664daf2b15005ec75"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/description-driven.png",
+      "bytes": 136144,
+      "sha256": "bf6b14166afcc28bc81c941c73ba4a04602fc1f583eb9f6adf0dceaa08253a41"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/edited-generated-map.png",
+      "bytes": 96134,
+      "sha256": "44f73a2fecfe865c77922bb9d584b1bf32a90ea91e0c5120dafb67054cadfeaf"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/generation-controls.png",
+      "bytes": 971898,
+      "sha256": "ed2eea06d80ce2f5de79055abf935fcbd61c4e9a215faee407e982a07c345b76"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/northern-continent.png",
+      "bytes": 116115,
+      "sha256": "acf44247c064fac3448703058bd42287d1fca16543b14a479e644618604277bc"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/phone-description-map.png",
+      "bytes": 23567,
+      "sha256": "6ec8035cf0647a9731c0262c5aa04e481298e0198e4ca1de647d3f2dc92df1dc"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/phone-description.png",
+      "bytes": 372125,
+      "sha256": "835436c162c9126eef5e74154b419acb8486ceab195fd90d7499342b2df438a4"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/phone-editor.png",
+      "bytes": 28758,
+      "sha256": "62886a90e01d325c09133549dd3b671a7f6ee666a28b7604b18c0f8cec1784d3"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/phone-generation.png",
+      "bytes": 311393,
+      "sha256": "16702dd4dc5f45c3193c37bc436ca5bc7f945fd0e950c1a146b540801edd89ae"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/generation/rugged-world.png",
+      "bytes": 239604,
+      "sha256": "8ecf8455c2e61a0c5de8674c244d82d17601666d3a17aad85285b1b8be60ec1d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/refinement/broken-archipelago.png",
+      "bytes": 181896,
+      "sha256": "7af2b95a33975eb11bb33c0a988539574e2090daa22647792d9eae9acc481d15"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/refinement/chaotic-world.png",
+      "bytes": 210443,
+      "sha256": "6933db2b3f6e5cf1e60b864a436ad7aebfc56cf7690838388f2ef6dba222ed23"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/refinement/dense-export.png",
+      "bytes": 597794,
+      "sha256": "e35afb46e43ba04a1b8f9832093aae68dfe23641888dd9d8ef2945f4ee08330d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/refinement/dense-map.png",
+      "bytes": 193822,
+      "sha256": "609f12d88f96e9092e609b64c5d9ac4c2f0731f9feb93119cfe40e8492f8ec84"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/refinement/description-after.png",
+      "bytes": 135848,
+      "sha256": "f0368408d3f33342fd0fc0866c82f6f90b06457ff7d27d4001d30906772e0678"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/refinement/description-before.png",
+      "bytes": 204671,
+      "sha256": "94f08f6d72d8f25522894dbdb5f5d5cf53fe12e7f4bab5f22af82e4bf3ce9cf5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/refinement/dramatic-continent.png",
+      "bytes": 153913,
+      "sha256": "c7033cdf48c2fc4211233347438faf38270c6b3745e04a77d27475c38a042863"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/refinement/performance.json",
+      "bytes": 3755,
+      "sha256": "63eea53339292a6a042ce66794475937011b6ecadc720a63b98587191d6d91e5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/building-properties.png",
+      "bytes": 1009583,
+      "sha256": "ff22f2acc5b02eee756e9c5b88cfc0fa027762254559d400caa8cf3f210c9c9e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/connected-navigation.png",
+      "bytes": 853240,
+      "sha256": "e2949427eb23e12462a70a8bfb563325326583a84039843ac54cd82672496adf"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/dense-settlement-explore.png",
+      "bytes": 991158,
+      "sha256": "4d22b43afa8715026dfb9c8f686f545b658e2c4b5e52544a7bb2f78a7fabcf09"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/dense-settlement.png",
+      "bytes": 1096506,
+      "sha256": "79d04ed6e527b53cab21ee847f77f48dee9bdeee7708807ecd02c3969841be25"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/desktop-settlement-editor.png",
+      "bytes": 999819,
+      "sha256": "c9384ecfa652aef6b66100fb0cf0359f3e933af4c449f0dc21f8978680785e4f"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/desktop-town-map.png",
+      "bytes": 852700,
+      "sha256": "7f57fdad7c427465ea0b37919cb3272d124b939ca8406b30341ff6b0e8a56ff7"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/district-properties.png",
+      "bytes": 909580,
+      "sha256": "2d0a2c2cc9f3ff98dacef34881bf70fb07e45c84126cdb569f39b0746f52eef7"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/mobile-settlement-editor.png",
+      "bytes": 374394,
+      "sha256": "4e5667e6cc291f98aa2ad772dc11fa173a2fffdf49e2f1ca345fe5d92515cc7a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/mobile-settlement-explore.png",
+      "bytes": 298660,
+      "sha256": "6807bdfd1a37fbe2317f57455d720aedcd4e6201a6ba989b5bda81c1f3a2d46d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/performance.json",
+      "bytes": 303,
+      "sha256": "00088b944e1866eb118e009229696d516923e735a8f88a677b95c79b5f675af9"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/settlement-explore.png",
+      "bytes": 856212,
+      "sha256": "4f99cb4d02e87158fd9255335e92041dae822f5a412bd073ce72aa4325d64f32"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-pass-3e-b/regressions/settlement/streets-footprints.png",
+      "bytes": 1000572,
+      "sha256": "b6727376de7aa0c114dd0ed5fec27ac4ed5ab1a067c4aa09bb31650a0ae0f1ec"
+    }
+  ]
+}
