@@ -29,3 +29,9 @@ Never push remotely, deploy or modify Production without explicit authorization 
 ## Resuming combat work
 
 When the user says “let's finish fixing combat,” “resume combat,” or similar, read [COMBAT-RESUME.md](COMBAT-RESUME.md) first. Check for intervening checkout changes, briefly recap the status, and start with the first unresolved priority under the user's current direction. Update that handoff after each completed combat fix so Cody and Ember share the same record. Its latest confirmed rulings supersede the older combat notes it identifies.
+
+## Atlas continuity and future scales
+
+Atlas passes preserve editable source data, stable geography/location identities, World ownership and explicit read-only Administrator review. Never rewrite published or finalized migrations, including 0102 and later; database changes require new numbered migrations. Future System Canon marking is Administrator-only; no canon controls are authorized in Pass 3B.
+
+Dedicated future Atlas passes will cover city, building-interior and dungeon authoring, with connected scales World -> Continent -> Region -> City -> Building -> Dungeon Floor. City tools need editable streets, buildings, walls, districts and landmarks. Dungeon tools need rooms, corridors, doors, stairs, levels, traps, optional grids and protected G.O.D.-only elements. These are future requirements, not active controls or permission changes in continent cartography. See [Atlas future tools](docs/architecture/worlds-atlas-roadmap.md).

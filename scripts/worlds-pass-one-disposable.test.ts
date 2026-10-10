@@ -15,6 +15,7 @@ import { entryDraftOf, worldDraftOf } from "../src/features/worlds/client-api";
 import type { EntryDraft, HistoricalTime } from "../src/features/worlds/history";
 import { calendarServiceChecks, calendarBrowserChecks } from "./worlds-calendar-checks";
 import { evolutionServiceChecks, evolutionBrowserChecks } from "./worlds-calendar-evolution-checks";
+import { cartographyServiceChecks, cartographyBrowserChecks } from "./worlds-cartography-checks";
 import { atlasServiceChecks, atlasBrowserChecks } from "./worlds-atlas-checks";
 import { blankCalendarRules } from "../src/features/worlds/calendar";
 import { chronologyServiceChecks, chronologyBrowserChecks } from "./worlds-chronology-checks";
@@ -116,10 +117,10 @@ async function main() {
     pool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await pool.query("create database serrian_worlds_test");await pool.end();pool=new pg.Pool({connectionString:databaseUrl});
     // Rehearse an upgrade with pre-existing users, tags and Campaign/runtime data.
     const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")) as {entries:{tag:string;idx:number}[]};
-    assert.equal(journal.entries.at(-1)?.tag,"0103_worlds_atlas_geometry_integrity");
+    assert.equal(journal.entries.at(-1)?.tag,"0105_worlds_atlas_drawing_order");
     const baseline=path.join(temporaryRoot,"baseline");await mkdir(path.join(baseline,"meta"),{recursive:true});
-    for(const entry of journal.entries.slice(0,-2))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
-    await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.slice(0,-2)}));
+    for(const entry of journal.entries.filter(e=>e.idx<102))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
+    await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<102)}));
     await migrate(drizzle(pool),{migrationsFolder:baseline});
     const password=await hashPassword("Worlds-Test-Only-Password!");
     for(const [id,role] of [["world-god","god"],["other-god","god"],["world-admin","admin"],["world-player","player"]]) {
@@ -162,18 +163,22 @@ async function main() {
     async function legacySnapshot(){const snapshot:Record<string,unknown>={};for(const table of legacyTables){const expression="to_jsonb(t)";snapshot[table]=(await pool!.query(`select coalesce(jsonb_agg(${expression} order by to_jsonb(t)::text),'[]'::jsonb) as rows from ${table} t`)).rows[0].rows;}return snapshot;}
     const legacyBefore=await legacySnapshot(),before=await runtimeSnapshot();
     const foundation=path.join(temporaryRoot,"foundation");await mkdir(path.join(foundation,"meta"),{recursive:true});
-    for(const entry of journal.entries.slice(0,-1))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(foundation,`${entry.tag}.sql`));
-    await writeFile(path.join(foundation,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.slice(0,-1)}));
+    for(const entry of journal.entries.filter(e=>e.idx<=102))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(foundation,`${entry.tag}.sql`));
+    await writeFile(path.join(foundation,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=102)}));
     await migrate(drizzle(pool),{migrationsFolder:foundation});assert.deepEqual(await legacySnapshot(),legacyBefore);assert.deepEqual(await runtimeSnapshot(),before);
-    const oldMap=randomUUID(),oldGeography=randomUUID(),oldFeature=randomUUID();await pool.query("insert into world_atlas_map(id,world_id,name) values($1,$2,'Existing 0102 chart')",[oldMap,legacyWorld]);await pool.query("insert into world_geography(id,world_id,name,kind) values($1,$2,'Existing 0102 continent','continent')",[oldGeography,legacyWorld]);await pool.query("insert into world_atlas_feature(id,world_id,map_id,geography_id,geometry) values($1,$2,$3,$4,$5)",[oldFeature,legacyWorld,oldMap,oldGeography,{version:1,type:"polygon",points:[[100,100],[500,100],[500,500],[100,500]].map(([x,y])=>({id:randomUUID(),x,y}))}]);
+    const oldMap=randomUUID(),oldGeography=randomUUID(),oldFeature=randomUUID();await pool.query("insert into world_atlas_map(id,world_id,name) values($1,$2,'The Valdorian Atlas')",[oldMap,legacyWorld]);await pool.query("insert into world_geography(id,world_id,name,kind) values($1,$2,'Valdoria (3A)','continent')",[oldGeography,legacyWorld]);await pool.query("insert into world_atlas_feature(id,world_id,map_id,geography_id,geometry) values($1,$2,$3,$4,$5)",[oldFeature,legacyWorld,oldMap,oldGeography,{version:1,type:"polygon",points:[[200,200],[1100,120],[1600,300],[1500,850],[900,1050],[300,950]].map(([x,y])=>({id:randomUUID(),x,y}))}]);
     const atlasUpgradeBefore=(await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows;
-await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual((await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows,atlasUpgradeBefore);assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
+const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integrity,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=103))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(integrity,`${entry.tag}.sql`));await writeFile(path.join(integrity,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=103)}));await migrate(drizzle(pool),{migrationsFolder:integrity});
+    const oldMapBefore=(await pool.query("select to_jsonb(m) as row from world_atlas_map m where id=$1",[oldMap])).rows;
+    const cartography=path.join(temporaryRoot,"cartography");await mkdir(path.join(cartography,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=104))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(cartography,`${entry.tag}.sql`));await writeFile(path.join(cartography,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=104)}));await migrate(drizzle(pool),{migrationsFolder:cartography});
+    const paintedMap=randomUUID();await pool.query("insert into world_atlas_map(id,world_id,name) values($1,$2,'Existing painted chart')",[paintedMap,legacyWorld]);for(let i=0;i<2;i++){const id=randomUUID();await pool.query("insert into world_atlas_drawing(id,world_id,map_id,content) values($1,$2,$3,$4)",[id,legacyWorld,paintedMap,{version:1,id,name:`Existing stroke ${i}`,archived:false,geographyId:null,type:"terrain",kind:i?"forest":"mountains",points:[{id:randomUUID(),x:400+i*200,y:400}],radius:55,spacing:40,density:2,seed:i+1}]);}const paintedBefore=(await pool.query("select to_jsonb(d) as row from world_atlas_drawing d where map_id=$1 order by id",[paintedMap])).rows;
+    await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual((await pool.query("select to_jsonb(d)-'sort_order' as row from world_atlas_drawing d where map_id=$1 order by id",[paintedMap])).rows,paintedBefore);assert.deepEqual((await pool.query("select to_jsonb(m)-'presentation' as row from world_atlas_map m where id=$1",[oldMap])).rows,oldMapBefore);assert.deepEqual((await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows,atlasUpgradeBefore);assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
     assert.equal((await pool.query("select * from world_historical_entry where dating_system_id is not null or source_dating is not null")).rowCount,1);assert.equal((await pool.query("select * from world_dating_system")).rowCount,1);assert.equal((await pool.query("select * from world_chronology_preference")).rowCount,1);
     assert.equal((await pool.query("select count(*)::int as count from drizzle.__drizzle_migrations")).rows[0].count,journal.entries.length);
     // Code rollback retains the additive schema and source metadata. Rehearse an older reader.
     assert.deepEqual((await pool.query("select historical_time from world_historical_entry where world_id=$1 order by title",[legacyWorld])).rows.map(({historical_time})=>historical_time),legacyTimes);
     await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await legacySnapshot(),legacyBefore);
-    console.log("PASS: migrations 0102 and new 0103 upgrade 0101 and preserve existing 0102 geometry, including existing calendar evolution, original source snapshots, calendars and preferences, with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible.");
+    console.log("PASS: migrations 0102/0103 and new 0104/0105 upgrade existing data through 0103 and painted 0104 maps and preserve existing 0102 geometry, including existing calendar evolution, original source snapshots, calendars and preferences, with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible.");
     process.env.DATABASE_URL=databaseUrl;const service=await import("../src/features/worlds/world-service");applicationPool=(await import("../src/db")).pool;
     const references=await service.worldReferences("world-god"),validTag=references.find((tag)=>tag.name==="High Fantasy")!;
     assert.equal(references.some((tag)=>tag.name==="Mechanical"),false);
@@ -242,6 +247,7 @@ await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.d
     const evolutionFixture=await evolutionServiceChecks(service,calendarService,evolutionService,pool,foreign,calendarFixture.foreignVersion);
     const atlasService=await import("../src/features/worlds/atlas-service");
     const atlasFixture=await atlasServiceChecks(atlasService,service,pool,foreign);
+    const artFixture=await cartographyServiceChecks(atlasService,pool,{worldId:legacyWorld,mapId:oldMap,featureId:oldFeature,geographyId:oldGeography},foreign);
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-pass-one-next.log`)));});
     console.log("PASS: isolated production build and TypeScript verification.");
@@ -255,6 +261,7 @@ await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.d
     await calendarBrowserChecks(calendarService,page,god,baseUrl,calendarFixture,artifactRoot);
     await evolutionBrowserChecks(page,god,baseUrl,evolutionFixture,artifactRoot);
     await atlasBrowserChecks(page,god,baseUrl,atlasFixture,artifactRoot);
+    await cartographyBrowserChecks(browser,baseUrl,artFixture,artifactRoot);
     await page.goto(`${baseUrl}/worlds`);await hydrated(page);await page.getByRole("heading",{name:"Worlds",exact:true}).waitFor();assert.equal(await page.getByText("Other owner's private world",{exact:true}).count(),0);
     await page.getByRole("button",{name:"Create world",exact:true}).click();await page.getByLabel("World name",{exact:true}).fill("Lantern Reach");
     await page.getByRole("button",{name:"Choose",exact:true}).click();await page.getByRole("group",{name:"Available Genre classifications",exact:true}).getByRole("button",{name:"High Fantasy",exact:true}).click();await page.getByRole("button",{name:"Era",exact:true}).click();await page.getByLabel("Search classifications",{exact:true}).fill("Anc");await page.getByRole("group",{name:"Available Era classifications",exact:true}).getByRole("button",{name:"Ancient",exact:true}).click();

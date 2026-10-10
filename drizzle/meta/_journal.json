@@ -729,6 +729,20 @@
       "when": 1791605966088,
       "tag": "0103_worlds_atlas_geometry_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1791608511715,
+      "tag": "0104_worlds_atlas_cartography",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1791610138279,
+      "tag": "0105_worlds_atlas_drawing_order",
+      "breakpoints": true
     }
   ]
 }

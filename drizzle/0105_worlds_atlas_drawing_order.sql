@@ -1,0 +1,2 @@
+ALTER TABLE "world_atlas_drawing" ADD COLUMN "sort_order" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "world_atlas_drawing" ADD CONSTRAINT "world_atlas_drawing_sort_valid" CHECK ("world_atlas_drawing"."sort_order" BETWEEN 0 AND 511);

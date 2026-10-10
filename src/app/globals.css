@@ -117,6 +117,26 @@
   --st-focus: color-mix(in srgb, var(--st-secondary) 88%, white 12%);
   --st-selection: color-mix(in srgb, var(--st-primary) 35%, transparent);
   --st-shadow: rgb(0 0 0 / 38%);
+  /* Shared cartographic artwork roles; controls retain the normal screen theme. */
+  --st-map-paper: color-mix(in srgb, var(--st-text-strong) 78%, var(--st-secondary) 22%);
+  --st-map-land: color-mix(in srgb, var(--st-map-paper) 94%, var(--st-secondary-deep) 6%);
+  --st-map-light-land: color-mix(in srgb, var(--st-map-paper) 87%, white 13%);
+  --st-map-water: color-mix(in srgb, var(--st-map-paper) 74%, var(--st-muted) 26%);
+  --st-map-blue-water: color-mix(in srgb, var(--st-info) 58%, var(--st-map-paper) 42%);
+  --st-map-ink: color-mix(in srgb, var(--st-page) 82%, var(--st-secondary) 18%);
+  --st-map-mountain: color-mix(in srgb, var(--st-muted) 45%, var(--st-map-paper) 55%);
+  --st-map-shadow: color-mix(in srgb, var(--st-muted) 68%, var(--st-map-ink) 32%);
+  --st-map-snow: color-mix(in srgb, var(--st-text-strong) 82%, white 18%);
+  --st-map-forest: color-mix(in srgb, var(--st-primary) 55%, var(--st-map-paper) 45%);
+  --st-map-dune: color-mix(in srgb, var(--st-secondary-deep) 70%, var(--st-map-ink) 30%);
+  --st-map-marsh: color-mix(in srgb, var(--st-primary) 48%, var(--st-map-ink) 52%);
+  --st-map-ice: color-mix(in srgb, var(--st-info) 65%, var(--st-map-ink) 35%);
+  --st-map-lake: color-mix(in srgb, var(--st-info) 55%, var(--st-map-paper) 45%);
+  --st-map-river: color-mix(in srgb, var(--st-info) 46%, var(--st-map-ink) 54%);
+  --st-map-road: color-mix(in srgb, var(--st-secondary-deep) 50%, var(--st-map-ink) 50%);
+  --st-map-roof: color-mix(in srgb, var(--st-secondary-deep) 62%, var(--st-map-ink) 38%);
+  --st-map-selection: var(--st-info);
+
 
   /* Compatibility aliases retained for existing screens. */
   --st-deep: var(--st-page);

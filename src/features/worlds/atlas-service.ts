@@ -4,7 +4,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { world } from "@/db/world-schema";
-import { worldAtlasMap, worldAtlasFeature, worldGeography } from "@/db/world-atlas-schema";
+import { worldAtlasMap, worldAtlasFeature, worldAtlasDrawing, worldGeography } from "@/db/world-atlas-schema";
 import { WorldError, worldReadAccess, worldWriteTransaction } from "./world-service";
 import { atlasId, geographyDraftSchema, mapDraftSchema, validateMapDraft, validateParents, type AtlasBundle, type GeographyDraft } from "./atlas";
 const revision=z.number().int().positive();
@@ -24,8 +24,9 @@ export async function getAtlas(userId:string,worldId:string,review=false):Promis
   return db.transaction(async tx=>{
     const maps=await tx.select().from(worldAtlasMap).where(eq(worldAtlasMap.worldId,worldId)).orderBy(asc(worldAtlasMap.createdAt),asc(worldAtlasMap.id));
     const features=await tx.select().from(worldAtlasFeature).where(eq(worldAtlasFeature.worldId,worldId)).orderBy(asc(worldAtlasFeature.id));
+    const drawings=await tx.select().from(worldAtlasDrawing).where(eq(worldAtlasDrawing.worldId,worldId)).orderBy(asc(worldAtlasDrawing.sortOrder),asc(worldAtlasDrawing.id));
     const geographies=await tx.select().from(worldGeography).where(eq(worldGeography.worldId,worldId)).orderBy(asc(worldGeography.name),asc(worldGeography.id));
-    return {canEdit:parent.ownerId===userId&&!parent.archivedAt&&!review,maps:maps.map(m=>({id:m.id,name:m.name,description:m.description,scope:m.scope as AtlasBundle["maps"][number]["scope"],width:m.width,height:m.height,revision:m.revision,archived:!!m.archivedAt,features:features.filter(f=>f.mapId===m.id).map(f=>({id:f.id,geographyId:f.geographyId,geometry:f.geometry,archived:!!f.archivedAt}))})),geographies:geographies.map(g=>({id:g.id,revision:g.revision,name:g.name,description:g.description,kind:g.kind as GeographyDraft["kind"],parentId:g.parentId,archived:!!g.archivedAt}))};
+    return {canEdit:parent.ownerId===userId&&!parent.archivedAt&&!review,maps:maps.map(m=>({id:m.id,name:m.name,description:m.description,scope:m.scope as AtlasBundle["maps"][number]["scope"],width:m.width,height:m.height,revision:m.revision,archived:!!m.archivedAt,presentation:m.presentation,drawings:drawings.filter(d=>d.mapId===m.id).map(d=>d.content),features:features.filter(f=>f.mapId===m.id).map(f=>({id:f.id,geographyId:f.geographyId,geometry:f.geometry,archived:!!f.archivedAt}))})),geographies:geographies.map(g=>({id:g.id,revision:g.revision,name:g.name,description:g.description,kind:g.kind as GeographyDraft["kind"],parentId:g.parentId,archived:!!g.archivedAt}))};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 async function saveGeographies(tx:Tx,worldId:string,drafts:GeographyDraft[]) {
@@ -57,7 +58,7 @@ export async function changeAtlas(userId:string,worldId:string,input:unknown) {
     else if(c.action==="geography") {await saveGeographies(tx,worldId,[c.draft]);result=c.draft.id;}
     else if(c.action==="archive-geography"||c.action==="restore-geography") {
       const [g]=await tx.select().from(worldGeography).where(and(eq(worldGeography.id,c.id),eq(worldGeography.worldId,worldId)));if(!g)throw unavailable();if(g.revision!==c.revision)throw conflict();
-      if(c.action==="archive-geography") {const [used]=await tx.select({id:worldAtlasFeature.id}).from(worldAtlasFeature).where(and(eq(worldAtlasFeature.geographyId,g.id),eq(worldAtlasFeature.worldId,worldId)));const [child]=await tx.select({id:worldGeography.id}).from(worldGeography).where(eq(worldGeography.parentId,g.id));if(used||child)throw new WorldError("This geography is linked to a map or child geography. Archive its map features instead; its stable identity is retained.",400);}
+      if(c.action==="archive-geography") {const [used]=await tx.select({id:worldAtlasFeature.id}).from(worldAtlasFeature).where(and(eq(worldAtlasFeature.geographyId,g.id),eq(worldAtlasFeature.worldId,worldId)));const [child]=await tx.select({id:worldGeography.id}).from(worldGeography).where(eq(worldGeography.parentId,g.id));const [drawingUse]=await tx.select({id:worldAtlasDrawing.id}).from(worldAtlasDrawing).where(and(eq(worldAtlasDrawing.geographyId,g.id),eq(worldAtlasDrawing.worldId,worldId)));if(used||child||drawingUse)throw new WorldError("This geography is linked to a map or child geography. Archive its map features instead; its stable identity is retained.",400);}
       await tx.update(worldGeography).set({archivedAt:c.action==="archive-geography"?new Date():null,revision:g.revision+1,updatedAt:new Date()}).where(eq(worldGeography.id,g.id));result=g.id;
     } else {
       const [map]=await tx.select().from(worldAtlasMap).where(and(eq(worldAtlasMap.id,c.id),eq(worldAtlasMap.worldId,worldId)));if(!map)throw unavailable();if(map.revision!==c.revision)throw conflict();
@@ -70,6 +71,11 @@ export async function changeAtlas(userId:string,worldId:string,input:unknown) {
         const ids=c.draft.features.map(f=>f.id);
         const collisions=ids.length?await tx.select().from(worldAtlasFeature).where(inArray(worldAtlasFeature.id,ids)):[];
         if(collisions.some(f=>f.mapId!==map.id||f.worldId!==worldId))throw unavailable();
+        const oldDrawings=await tx.select().from(worldAtlasDrawing).where(eq(worldAtlasDrawing.mapId,map.id));
+        const incoming=c.draft.drawings??[];
+        if(oldDrawings.some(d=>!incoming.some(n=>n.id===d.id)))throw new WorldError("Keep saved drawings and archive unwanted artwork. This draft is incomplete; compare the saved map.",400);
+        const drawingIds=incoming.map(d=>d.id),drawingCollisions=drawingIds.length?await tx.select().from(worldAtlasDrawing).where(inArray(worldAtlasDrawing.id,drawingIds)):[];
+        if(drawingCollisions.some(d=>d.mapId!==map.id||d.worldId!==worldId))throw unavailable();
         await saveGeographies(tx,worldId,c.draft.geographies);
         const geographies=await tx.select().from(worldGeography).where(eq(worldGeography.worldId,worldId));
         for(const f of c.draft.features) {
@@ -79,7 +85,17 @@ export async function changeAtlas(userId:string,worldId:string,input:unknown) {
           if((f.geometry.type==="point")!==(g.kind==="location"))throw new WorldError("Locations use markers; continents and islands use closed outlines.",400);
           await tx.insert(worldAtlasFeature).values({id:f.id,worldId,mapId:map.id,geographyId:f.geographyId,geometry:f.geometry,archivedAt:f.archived?new Date():null}).onConflictDoUpdate({target:worldAtlasFeature.id,set:{geometry:f.geometry,archivedAt:f.archived?old?.archivedAt??new Date():null}});
         }
-        await tx.update(worldAtlasMap).set({name:c.draft.name,description:c.draft.description,scope:c.draft.scope,revision:map.revision+1,updatedAt:new Date()}).where(eq(worldAtlasMap.id,map.id));
+        for(const [sortOrder,d] of incoming.entries()){
+          const old=oldDrawings.find(n=>n.id===d.id),g=d.geographyId?geographies.find(g=>g.id===d.geographyId):null;
+          if(d.geographyId&&!g)throw unavailable();
+          if(g?.archivedAt&&!old)throw new WorldError("Restore this geography before adding linked artwork.",400);
+          if(old&&(old.geographyId!==d.geographyId||old.content.type!==d.type))throw new WorldError("Saved drawings retain their type and geography identity.",400);
+          if(d.type==="terrain"&&d.geographyId)throw new WorldError("Decorative terrain strokes do not need geography records.",400);
+          if(d.type==="symbol"&&["village","city","castle","tower","ruin","port"].includes(d.kind)&&(!g||g.kind!=="location"))throw new WorldError("Link a landmark or settlement symbol to a location in this World.",400);
+          const archivedAt=d.archived?old?.archivedAt??new Date():null;
+          await tx.insert(worldAtlasDrawing).values({id:d.id,worldId,mapId:map.id,geographyId:d.geographyId,content:d,archivedAt,sortOrder}).onConflictDoUpdate({target:worldAtlasDrawing.id,set:{content:d,archivedAt,sortOrder}});
+        }
+        await tx.update(worldAtlasMap).set({presentation:c.draft.presentation??map.presentation,name:c.draft.name,description:c.draft.description,scope:c.draft.scope,revision:map.revision+1,updatedAt:new Date()}).where(eq(worldAtlasMap.id,map.id));
       }result=map.id;
     }
     await tx.update(world).set({updatedAt:new Date()}).where(eq(world.id,worldId));return result;
