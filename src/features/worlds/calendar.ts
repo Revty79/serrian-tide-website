@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { YEAR_LIMIT, yearSchema } from "./history";
+import { YEAR_LIMIT, yearSchema } from "./world-year";
+import type { CalendarEvolution } from "./calendar-evolution";
 
 const name = z.string().trim().min(1,"Enter a name.").max(120);
 const integer = z.number().int();
@@ -40,7 +41,7 @@ export function blankCalendarRules():CalendarRules{return {version:1,numbering:"
 export const calendarIdentitySchema=z.object({name:z.string().trim().min(1).max(160),description:z.string().max(4000),context:z.string().max(10000)}).strict();
 export type CalendarIdentity=z.infer<typeof calendarIdentitySchema> & {id:string;worldId:string;revision:number;archived:boolean};
 export type CalendarVersion={id:string;worldId:string;calendarId:string;title:string;rules:CalendarRules;revision:number;archived:boolean};
-export type CalendarBundle={calendars:CalendarIdentity[];versions:CalendarVersion[];defaultVersionId:string|null;worldRevision:number;canEdit:boolean};
+export type CalendarBundle={calendars:CalendarIdentity[];versions:CalendarVersion[];defaultVersionId:string|null;worldRevision:number;canEdit:boolean;evolution:CalendarEvolution};
 
 function floor(a:bigint,b:bigint){const q=a/b;return a<BigInt("0") && a%b!==BigInt("0") ? q-BigInt("1") : q;}
 function mod(a:bigint,b:bigint){return ((a%b)+b)%b;}

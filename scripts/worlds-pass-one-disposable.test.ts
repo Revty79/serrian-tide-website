@@ -14,6 +14,8 @@ import { chromium, type BrowserContext, type Locator, type Page } from "playwrig
 import { entryDraftOf, worldDraftOf } from "../src/features/worlds/client-api";
 import type { EntryDraft, HistoricalTime } from "../src/features/worlds/history";
 import { calendarServiceChecks, calendarBrowserChecks } from "./worlds-calendar-checks";
+import { evolutionServiceChecks, evolutionBrowserChecks } from "./worlds-calendar-evolution-checks";
+import { blankCalendarRules } from "../src/features/worlds/calendar";
 import { chronologyServiceChecks, chronologyBrowserChecks } from "./worlds-chronology-checks";
 
 const postgresBin = process.env.SERRIAN_TEST_POSTGRES_BIN ?? "C:/Program Files/PostgreSQL/18/bin";
@@ -113,7 +115,7 @@ async function main() {
     pool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await pool.query("create database serrian_worlds_test");await pool.end();pool=new pg.Pool({connectionString:databaseUrl});
     // Rehearse an upgrade with pre-existing users, tags and Campaign/runtime data.
     const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")) as {entries:{tag:string;idx:number}[]};
-    assert.equal(journal.entries.at(-1)?.tag,"0100_worlds_calendar_creator");
+    assert.equal(journal.entries.at(-1)?.tag,"0101_worlds_calendar_evolution");
     const baseline=path.join(temporaryRoot,"baseline");await mkdir(path.join(baseline,"meta"),{recursive:true});
     for(const entry of journal.entries.slice(0,-1))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
     await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.slice(0,-1)}));
@@ -145,7 +147,8 @@ async function main() {
       await pool.query("insert into world_entry_era(world_id,entry_id,era_id) values($1,$2,$3)",[legacyWorld,id,legacyEra]);
     }
     await pool.query("insert into world_classification_tag(world_id,tag_id) values($1,$2)",[legacyWorld,classificationIds.get("Ancient")]);
-    const legacyTables=["world","world_historical_era","world_historical_entry","world_entry_era","world_classification_tag","world_dating_system","world_chronology_preference"];
+    const legacyCalendar=randomUUID(),legacyVersion=randomUUID();await pool.query("insert into world_calendar(id,world_id,name) values($1,$2,'Legacy Calendar')",[legacyCalendar,legacyWorld]);await pool.query("insert into world_calendar_version(id,world_id,calendar_id,title,rules) values($1,$2,$3,'Original rules',$4)",[legacyVersion,legacyWorld,legacyCalendar,blankCalendarRules()]);await pool.query("insert into world_calendar_preference(world_id,default_version_id) values($1,$2)",[legacyWorld,legacyVersion]);
+    const legacyTables=["world_calendar","world_calendar_version","world_calendar_preference","world","world_historical_era","world_historical_entry","world_entry_era","world_classification_tag","world_dating_system","world_chronology_preference"];
     async function legacySnapshot(){const snapshot:Record<string,unknown>={};for(const table of legacyTables){const expression="to_jsonb(t)";snapshot[table]=(await pool!.query(`select coalesce(jsonb_agg(${expression} order by to_jsonb(t)::text),'[]'::jsonb) as rows from ${table} t`)).rows[0].rows;}return snapshot;}
     const legacyBefore=await legacySnapshot(),before=await runtimeSnapshot();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
     assert.equal((await pool.query("select * from world_historical_entry where dating_system_id is not null or source_dating is not null")).rowCount,1);assert.equal((await pool.query("select * from world_dating_system")).rowCount,1);assert.equal((await pool.query("select * from world_chronology_preference")).rowCount,1);
@@ -153,7 +156,7 @@ async function main() {
     // Code rollback retains the additive schema and source metadata. Rehearse an older reader.
     assert.deepEqual((await pool.query("select historical_time from world_historical_entry where world_id=$1 order by title",[legacyWorld])).rows.map(({historical_time})=>historical_time),legacyTimes);
     await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await legacySnapshot(),legacyBefore);
-    console.log("PASS: migration 0100 upgrades 0099 with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible.");
+    console.log("PASS: migration 0101 upgrades 0100, including existing calendars and preferences, with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible.");
     process.env.DATABASE_URL=databaseUrl;const service=await import("../src/features/worlds/world-service");applicationPool=(await import("../src/db")).pool;
     const references=await service.worldReferences("world-god"),validTag=references.find((tag)=>tag.name==="High Fantasy")!;
     assert.equal(references.some((tag)=>tag.name==="Mechanical"),false);
@@ -218,6 +221,8 @@ async function main() {
     const chronologyFixture=await chronologyServiceChecks(service,pool,primary,foreign);
     const calendarService=await import("../src/features/worlds/calendar-service");
     const calendarFixture=await calendarServiceChecks(calendarService,service,pool,primary,foreign,adminWorld);
+    const evolutionService=await import("../src/features/worlds/calendar-evolution-service");
+    const evolutionFixture=await evolutionServiceChecks(service,calendarService,evolutionService,pool,foreign,calendarFixture.foreignVersion);
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-pass-one-next.log`)));});
     console.log("PASS: isolated production build and TypeScript verification.");
@@ -229,6 +234,7 @@ async function main() {
     await checkEraLabelNavigation(page,baseUrl,labelWorld,artifactRoot);
     await chronologyBrowserChecks(service,page,god,baseUrl,chronologyFixture,artifactRoot);
     await calendarBrowserChecks(calendarService,page,god,baseUrl,calendarFixture,artifactRoot);
+    await evolutionBrowserChecks(page,god,baseUrl,evolutionFixture,artifactRoot);
     await page.goto(`${baseUrl}/worlds`);await hydrated(page);await page.getByRole("heading",{name:"Worlds",exact:true}).waitFor();assert.equal(await page.getByText("Other owner's private world",{exact:true}).count(),0);
     await page.getByRole("button",{name:"Create world",exact:true}).click();await page.getByLabel("World name",{exact:true}).fill("Lantern Reach");
     await page.getByRole("button",{name:"Choose",exact:true}).click();await page.getByRole("group",{name:"Available Genre classifications",exact:true}).getByRole("button",{name:"High Fantasy",exact:true}).click();await page.getByRole("button",{name:"Era",exact:true}).click();await page.getByLabel("Search classifications",{exact:true}).fill("Anc");await page.getByRole("group",{name:"Available Era classifications",exact:true}).getByRole("button",{name:"Ancient",exact:true}).click();
@@ -288,6 +294,13 @@ async function main() {
     for(const [context,status] of [[anon,401],[player,403],[other,404],[admin,404]] as const){const read=await context.request.get(baseUrl+'/api/worlds/'+calendarFixture.worldId+'/calendars');assert.equal(read.status(),status);assert.equal((await read.text()).includes('Coastal Calendar'),false);const write=await context.request.post(baseUrl+'/api/worlds/'+calendarFixture.worldId+'/calendars',{headers:{Origin:baseUrl},data:{action:'default',revision:1,versionId:null}});assert.equal(write.status(),status);}
     await adminPage.goto(baseUrl+'/worlds/'+calendarFixture.worldId+'?review=1');await hydrated(adminPage);await adminPage.getByRole('button',{name:'Calendars',exact:true}).click();await adminPage.getByRole('button',{name:'Open Coastal Calendar',exact:true}).waitFor();assert.equal(await adminPage.getByRole('button',{name:'New calendar',exact:true}).count(),0);assert.equal((await admin.request.get(baseUrl+'/api/worlds/'+calendarFixture.worldId+'/calendars?review=1')).status(),200);
     assert.equal((await god.request.post(baseUrl+'/api/worlds/'+calendarFixture.worldId+'/calendars',{headers:{Origin:'https://untrusted.example.invalid'},data:{action:'default',revision:1,versionId:null}})).status(),403);
+    for(const [context,status] of [[anon,401],[player,403],[other,404],[admin,404]] as const){
+      const result=await context.request.post(`${baseUrl}/api/worlds/${evolutionFixture.worldId}/calendars/history`,{headers:{Origin:baseUrl},data:{action:"origin",label:"Forged origin",description:"Forbidden"}});assert.equal(result.status(),status);assert.equal((await result.text()).includes("Days since the First Dawn"),false);
+      const read=await context.request.get(`${baseUrl}/api/worlds/${evolutionFixture.worldId}/calendars`);assert.equal(read.status(),status);assert.equal((await read.text()).includes("Imperial reform"),false);
+    }
+    await adminPage.goto(`${baseUrl}/worlds/${evolutionFixture.worldId}?review=1`);await hydrated(adminPage);await adminPage.getByRole("button",{name:"Calendars",exact:true}).click();await adminPage.getByRole("button",{name:"Open Imperial Tradition",exact:true}).click();await adminPage.getByText("History, adoption & date comparison",{exact:true}).click();await adminPage.getByRole("heading",{name:"Imperial reform",exact:true}).waitFor();assert.equal(await adminPage.getByRole("button",{name:"Record reform",exact:true}).count(),0);assert.equal(await adminPage.getByRole("button",{name:"Set effective period",exact:true}).count(),0);
+    assert.equal((await admin.request.post(`${baseUrl}/api/worlds/${evolutionFixture.worldId}/calendars/history?review=1`,{headers:{Origin:baseUrl},data:{action:"period",versionId:evolutionFixture.newId,revision:1,period:{time:{version:1,scale:"world-year",kind:"undated"},notes:""}}})).status(),404);
+    assert.equal((await god.request.post(`${baseUrl}/api/worlds/${evolutionFixture.worldId}/calendars/history`,{headers:{Origin:"https://untrusted.example.invalid"},data:{action:"origin",label:"CSRF",description:"Forbidden"}})).status(),403);
     assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(errors,[]);
     console.log("PASS: G.O.D./Admin/Player/anonymous direct route and HTTP authorization, no private ID leaks, no-store responses, CSRF rejection, unchanged Campaign/combat/Form/Evolution data and no browser runtime errors.");
   } catch (failure) {

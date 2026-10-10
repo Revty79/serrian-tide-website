@@ -62,3 +62,15 @@
 @media(max-width:650px){.gallery,.columns {grid-template-columns:1fr;}.selected {padding:1rem;}.selectedHeading {flex-direction:column;}.selectedHeading > label {width:100%;max-width:none;}.calendarCard {padding:1rem;grid-template-columns:44px 1fr;}.previewHeading {flex-wrap:wrap;}.monthGallery {grid-template-columns:repeat(2,minmax(0,1fr));}.day {padding:.45rem;min-height:70px;}.weekGrid {gap:.25rem;}.selected h2 {font-size:1.7rem;}.jump {align-items:end;}.jump > div {min-width:0;}.actions {gap:.6rem;}}
 
 .editorFields :global(input[type="checkbox"]) { width:20px; height:20px; padding:0; justify-self:start; }
+.evolution { margin:1.4rem 0; padding:1rem; border:1px solid var(--st-border); border-radius:.6rem; }
+.evolution > summary {cursor:pointer;color:var(--st-text-strong);font-weight:600;min-height:44px;display:list-item;}
+.evolution > nav {margin:.8rem 0;}
+.evolution h3 {margin:1.2rem 0 .8rem;font-size:1.2rem;color:var(--st-text-strong);}
+.evolution h4 {font-size:1rem;color:var(--st-text-strong);}
+.historyCards {display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.8rem;}
+.historyCard {padding:1rem;margin:.8rem 0;border:1px solid var(--st-border);border-radius:.5rem;background:var(--st-surface-deep);overflow-wrap:anywhere;}
+.historyCard p {margin:.6rem 0;line-height:1.6;font-size:.85rem;}
+.historyCard button {margin:.4rem .5rem .4rem 0;}
+.dateFields {display:grid;gap:1rem;padding:.8rem 0;}
+.evolution > section {display:grid;gap:.8rem;}
+@media(max-width:650px){.historyCards{grid-template-columns:1fr;}.evolution{padding:.8rem;}.dayDetail{overflow-wrap:anywhere;}}

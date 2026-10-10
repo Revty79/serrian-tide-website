@@ -9,6 +9,9 @@ import { itemTagCatalog } from "@/db/item-schema";
 import { itemTagDiscoveryWhere } from "@/features/catalog-visibility/item-catalog-service";
 import { world, worldEra, worldEntry, worldEntryEra, worldTag, worldDatingSystem, worldChronologyPreference } from "@/db/world-schema";
 import { datingDraftSchema, toReckoning, type DatingSystem, type SourceDating } from "./chronology";
+import { worldCalendarEntryDate } from "@/db/world-calendar-history-schema";
+import type { CalendarSource } from "./calendar-dates";
+import { saveEntryCalendarDate } from "./calendar-evolution-service";
 import { entryDraftSchema, eraDraftSchema, worldDraftSchema, type EntryRecord, type EraRecord, type Tone, type WorldBundle, type WorldRecord } from "./history";
 
 export class WorldError extends Error { constructor(message: string, public status: number) { super(message); } }
@@ -59,7 +62,7 @@ function worldDto(row: typeof world.$inferSelect, ownerName: string, tagIds: num
   return { id: row.id, ownerId: row.ownerId, ownerName, name: row.name, description: row.description, introduction: row.introduction, historicalOverview: row.historicalOverview, tone: row.tone as Tone, revision: row.revision, archived: !!row.archivedAt, updatedAt: row.updatedAt.toISOString(), tagIds, eraCount, entryCount };
 }
 function eraDto(row: typeof worldEra.$inferSelect): EraRecord { return { id: row.id, worldId: row.worldId, name: row.name, description: row.description, startYear: row.startYear, endYear: row.endYear, tone: row.tone as Tone, revision: row.revision, archived: !!row.archivedAt, datingSystemId:row.datingSystemId,datingSystemRevision:row.sourceDating?.revision,sourceDating:row.sourceDating }; }
-function entryDto(row: typeof worldEntry.$inferSelect, eraIds: string[]): EntryRecord { return { id: row.id, worldId: row.worldId, title: row.title, account: row.account, notes: row.notes, time: row.time, accuracy: row.accuracy as EntryRecord["accuracy"], narrative: row.narrative as EntryRecord["narrative"], revision: row.revision, archived: !!row.archivedAt, updatedAt: row.updatedAt.toISOString(), eraIds,datingSystemId:row.datingSystemId,datingSystemRevision:row.sourceDating?.revision,sourceDating:row.sourceDating }; }
+function entryDto(row: typeof worldEntry.$inferSelect, eraIds: string[],calendarSource:CalendarSource|null): EntryRecord { return { id: row.id, worldId: row.worldId, title: row.title, account: row.account, notes: row.notes, time: row.time, accuracy: row.accuracy as EntryRecord["accuracy"], narrative: row.narrative as EntryRecord["narrative"], revision: row.revision, archived: !!row.archivedAt, updatedAt: row.updatedAt.toISOString(), eraIds,datingSystemId:row.datingSystemId,datingSystemRevision:row.sourceDating?.revision,sourceDating:row.sourceDating,calendarSource }; }
 function datingDto(row:typeof worldDatingSystem.$inferSelect):DatingSystem {return {id:row.id,worldId:row.worldId,name:row.name,description:row.description,origin:row.origin,epochYear:row.epochYear,numbering:row.numbering as DatingSystem["numbering"],beforeLabel:row.beforeLabel,afterLabel:row.afterLabel,notes:row.notes,revision:row.revision,archived:!!row.archivedAt,referenced:!!row.referencedAt};}
 export async function listWorlds(userId: string, scope: "mine" | "review" = "mine") {
   const access = await actor(userId);
@@ -85,10 +88,11 @@ export async function getWorld(userId: string, worldId: string, review = false):
     const eras = await tx.select().from(worldEra).where(eq(worldEra.worldId, worldId)).orderBy(asc(worldEra.name), asc(worldEra.id));
     const entries = await tx.select().from(worldEntry).where(eq(worldEntry.worldId, worldId)).orderBy(desc(worldEntry.updatedAt), asc(worldEntry.id));
     const memberships = await tx.select().from(worldEntryEra).where(eq(worldEntryEra.worldId, worldId));
+    const calendarDates=await tx.select().from(worldCalendarEntryDate).where(eq(worldCalendarEntryDate.worldId,worldId));
     const classifications = await tx.select().from(worldTag).where(eq(worldTag.worldId, worldId));
     const systems = await tx.select().from(worldDatingSystem).where(eq(worldDatingSystem.worldId,worldId)).orderBy(asc(worldDatingSystem.name),asc(worldDatingSystem.id));
     const [preference] = await tx.select().from(worldChronologyPreference).where(eq(worldChronologyPreference.worldId,worldId));
-    return { world: worldDto(fresh, owner.name, classifications.map((tag) => tag.tagId), eras.filter((era) => !era.archivedAt).length, entries.filter((entry) => !entry.archivedAt).length), eras: eras.map(eraDto), entries: entries.map((entry) => entryDto(entry, memberships.filter((m) => m.entryId === entry.id).map((m) => m.eraId))), canEdit: fresh.ownerId === userId && !fresh.archivedAt, datingSystems:systems.map(datingDto),defaultDatingSystemId:preference?.defaultDatingSystemId ?? null };
+    return { world: worldDto(fresh, owner.name, classifications.map((tag) => tag.tagId), eras.filter((era) => !era.archivedAt).length, entries.filter((entry) => !entry.archivedAt).length), eras: eras.map(eraDto), entries: entries.map((entry) => entryDto(entry, memberships.filter((m) => m.entryId === entry.id).map((m) => m.eraId),calendarDates.find(item=>item.entryId===entry.id)?.source??null)), canEdit: fresh.ownerId === userId && !fresh.archivedAt, datingSystems:systems.map(datingDto),defaultDatingSystemId:preference?.defaultDatingSystemId ?? null };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export async function createWorld(userId: string, input: unknown) {
@@ -153,7 +157,7 @@ export async function changeHistory(userId: string, worldId: string, input: unkn
         if (current) await tx.update(worldEra).set({ ...draft,...source, ...lifecycle }).where(and(eq(worldEra.id, id), eq(worldEra.worldId, worldId)));
         else await tx.insert(worldEra).values({ id, worldId, ...draft,...source });
       } else {
-        const { eraIds,datingSystemId,datingSystemRevision, ...draft } = command.draft;
+        const { eraIds,datingSystemId,datingSystemRevision,calendarDate, ...draft } = command.draft;
         const years = draft.time.kind === "undated" ? [] : "year" in draft.time ? [draft.time.year] : [draft.time.startYear,draft.time.endYear];
         const source = await sourceDatingFor(tx,worldId,datingSystemId,datingSystemRevision,years,current);
         const ids = [...new Set(eraIds)];
@@ -165,6 +169,7 @@ export async function changeHistory(userId: string, worldId: string, input: unkn
         }
         if (current) await tx.update(worldEntry).set({ ...draft,...source, ...lifecycle }).where(and(eq(worldEntry.id, id), eq(worldEntry.worldId, worldId)));
         else await tx.insert(worldEntry).values({ id, worldId, ...draft,...source });
+        await saveEntryCalendarDate(tx,worldId,id,calendarDate);
         await tx.delete(worldEntryEra).where(eq(worldEntryEra.entryId, id));
         if (ids.length) await tx.insert(worldEntryEra).values(ids.map((eraId) => ({ worldId, entryId: id, eraId })));
       }

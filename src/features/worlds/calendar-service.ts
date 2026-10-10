@@ -7,6 +7,7 @@ import { world } from "@/db/world-schema";
 import { worldCalendar, worldCalendarVersion, worldCalendarPreference } from "@/db/world-calendar-schema";
 import { calendarIdentitySchema, calendarRulesSchema, type CalendarBundle, type CalendarIdentity, type CalendarVersion } from "./calendar";
 import { WorldError, worldReadAccess, worldWriteTransaction } from "./world-service";
+import { evolutionRows } from "./calendar-evolution-service";
 const id=z.string().uuid(),revision=z.number().int().positive(),title=z.string().trim().min(1).max(160);
 const command=z.discriminatedUnion("action",[
   z.object({action:z.literal("create"),draft:calendarIdentitySchema,title,rules:calendarRulesSchema}).strict(),
@@ -27,7 +28,7 @@ export async function getCalendars(userId:string,worldId:string,review=false):Pr
     const calendars=await tx.select().from(worldCalendar).where(eq(worldCalendar.worldId,worldId)).orderBy(asc(worldCalendar.name),asc(worldCalendar.id));
     const versions=await tx.select().from(worldCalendarVersion).where(eq(worldCalendarVersion.worldId,worldId)).orderBy(asc(worldCalendarVersion.createdAt),asc(worldCalendarVersion.id));
     const [preference]=await tx.select().from(worldCalendarPreference).where(eq(worldCalendarPreference.worldId,worldId));
-    return {calendars:calendars.map(calendarDto),versions:versions.map(versionDto),defaultVersionId:preference?.defaultVersionId??null,worldRevision:parent.revision,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!review};
+    return {calendars:calendars.map(calendarDto),versions:versions.map(versionDto),defaultVersionId:preference?.defaultVersionId??null,worldRevision:parent.revision,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!review,evolution:await evolutionRows(tx,worldId)};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function changeCalendar(userId:string,worldId:string,input:unknown){

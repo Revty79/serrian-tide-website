@@ -1,0 +1,19 @@
+"use client";
+import { yearDays, type CalendarBundle } from "./calendar";
+import type { CalendarEntryDraft } from "./calendar-dates";
+import { Field } from "./world-field";
+import styles from "./calendar.module.css";
+type Endpoint=CalendarEntryDraft["start"];
+export function initialEndpoint(bundle:CalendarBundle,versionId:string):Endpoint{const version=bundle.versions.find(item=>item.id===versionId)!;return {versionId,revision:version.revision,date:bundle.evolution.anchors.find(item=>item.versionId===versionId)?.date??{year:version.rules.numbering==="year-zero"?0:1,month:1,day:1}};}
+export function CalendarDateFields({bundle,value,onChange,label,locked=false,includeArchived=false}:{bundle:CalendarBundle;value:Endpoint;onChange:(value:Endpoint)=>void;label:string;locked?:boolean;includeArchived?:boolean}){
+  const version=bundle.versions.find(item=>item.id===value.versionId);let error="";
+  try{if(version&&!yearDays(version.rules,value.date.year).some(day=>day.month===value.date.month&&day.day===value.date.day&&day.intercalaryId===value.date.intercalaryId))error="This date does not occur in that version's year.";}catch(failure){error=(failure as Error).message;}
+  if(!version)return <p role="alert">Choose an available calendar version.</p>;
+  const date=value.date,patch=(change:Partial<typeof date>)=>onChange({...value,revision:version.revision,date:{...date,...change}});
+  return <div className={styles.dateFields}>
+    <Field label={`${label} version`} help="Choose an explicit calendar and immutable rule version. Printed dates alone cannot distinguish reforms, repeated epochs or calendars."><select disabled={locked} value={value.versionId} onChange={e=>onChange(initialEndpoint(bundle,e.target.value))}>{bundle.versions.filter(item=>includeArchived||!item.archived&&!bundle.calendars.find(c=>c.id===item.calendarId)?.archived||item.id===value.versionId).map(item=><option key={item.id} value={item.id}>{bundle.calendars.find(c=>c.id===item.calendarId)?.name} · {item.title} · {item.id.slice(0,8)}{item.archived?" (archived)":""}</option>)}</select></Field>
+    <div className={styles.columns}><Field label={`${label} calendar year`} help="A printed year in this version. It has no inferred relationship to canonical World years."><input required type="number" min={-1e12} max={1e12} value={date.year} onChange={e=>patch({year:e.target.value?Number(e.target.value):NaN})}/></Field><Field label={`${label} month`} help="The numbered month distinguishes even months with the same name."><select value={date.month} onChange={e=>onChange({...value,revision:version.revision,date:{year:date.year,month:Number(e.target.value),day:1}})}>{version.rules.months.map((month,i)=><option key={i} value={i+1}>{i+1} · {month.name}</option>)}</select></Field></div>
+    <Field label={`${label} day notation`} help="Use an ordinary numbered day or an explicitly named intercalary occurrence. An insertion must actually occur in the selected year."><select value={date.intercalaryId??"ordinary"} onChange={e=>{const extra=version.rules.intercalations.find(item=>item.id===e.target.value);onChange({...value,revision:version.revision,date:extra?{year:date.year,month:extra.month,day:extra.afterDay,intercalaryId:extra.id}:{year:date.year,month:date.month,day:1}});}}><option value="ordinary">Ordinary day</option>{version.rules.intercalations.map(extra=><option key={extra.id} value={extra.id}>{extra.name} · month {extra.month}, after {extra.afterDay}</option>)}</select></Field>
+    {!date.intercalaryId&&<Field label={`${label} day`} help="An ordinary day number in the selected month. Invalid dates are rejected rather than normalized."><input required type="number" min={1} max={version.rules.months[date.month-1]?.days??400} value={date.day} onChange={e=>patch({day:e.target.value?Number(e.target.value):NaN})}/></Field>}{error&&<p role="alert" className={styles.feedback}>{error}</p>}
+  </div>;
+}
