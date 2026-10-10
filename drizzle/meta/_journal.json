@@ -715,6 +715,20 @@
       "when": 1791601672832,
       "tag": "0101_worlds_calendar_evolution",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1791605392911,
+      "tag": "0102_worlds_atlas_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1791605966088,
+      "tag": "0103_worlds_atlas_geometry_integrity",
+      "breakpoints": true
     }
   ]
 }

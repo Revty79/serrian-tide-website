@@ -15,6 +15,7 @@ import { entryDraftOf, worldDraftOf } from "../src/features/worlds/client-api";
 import type { EntryDraft, HistoricalTime } from "../src/features/worlds/history";
 import { calendarServiceChecks, calendarBrowserChecks } from "./worlds-calendar-checks";
 import { evolutionServiceChecks, evolutionBrowserChecks } from "./worlds-calendar-evolution-checks";
+import { atlasServiceChecks, atlasBrowserChecks } from "./worlds-atlas-checks";
 import { blankCalendarRules } from "../src/features/worlds/calendar";
 import { chronologyServiceChecks, chronologyBrowserChecks } from "./worlds-chronology-checks";
 
@@ -115,10 +116,10 @@ async function main() {
     pool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await pool.query("create database serrian_worlds_test");await pool.end();pool=new pg.Pool({connectionString:databaseUrl});
     // Rehearse an upgrade with pre-existing users, tags and Campaign/runtime data.
     const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")) as {entries:{tag:string;idx:number}[]};
-    assert.equal(journal.entries.at(-1)?.tag,"0101_worlds_calendar_evolution");
+    assert.equal(journal.entries.at(-1)?.tag,"0103_worlds_atlas_geometry_integrity");
     const baseline=path.join(temporaryRoot,"baseline");await mkdir(path.join(baseline,"meta"),{recursive:true});
-    for(const entry of journal.entries.slice(0,-1))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
-    await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.slice(0,-1)}));
+    for(const entry of journal.entries.slice(0,-2))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
+    await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.slice(0,-2)}));
     await migrate(drizzle(pool),{migrationsFolder:baseline});
     const password=await hashPassword("Worlds-Test-Only-Password!");
     for(const [id,role] of [["world-god","god"],["other-god","god"],["world-admin","admin"],["world-player","player"]]) {
@@ -148,15 +149,31 @@ async function main() {
     }
     await pool.query("insert into world_classification_tag(world_id,tag_id) values($1,$2)",[legacyWorld,classificationIds.get("Ancient")]);
     const legacyCalendar=randomUUID(),legacyVersion=randomUUID();await pool.query("insert into world_calendar(id,world_id,name) values($1,$2,'Legacy Calendar')",[legacyCalendar,legacyWorld]);await pool.query("insert into world_calendar_version(id,world_id,calendar_id,title,rules) values($1,$2,$3,'Original rules',$4)",[legacyVersion,legacyWorld,legacyCalendar,blankCalendarRules()]);await pool.query("insert into world_calendar_preference(world_id,default_version_id) values($1,$2)",[legacyWorld,legacyVersion]);
-    const legacyTables=["world_calendar","world_calendar_version","world_calendar_preference","world","world_historical_era","world_historical_entry","world_entry_era","world_classification_tag","world_dating_system","world_chronology_preference"];
+    const legacyPeriod={time:{version:1,scale:"world-year",kind:"known",year:1},notes:"Legacy active calendar",continues:true};
+    await pool.query("insert into world_day_reference(world_id,label,description) values($1,'Existing origin','Existing day-zero description')",[legacyWorld]);
+    await pool.query("insert into world_calendar_anchor(version_id,world_id,calendar_date,elapsed_day) values($1,$2,$3,'9007199254740993')",[legacyVersion,legacyWorld,{year:1,month:1,day:1}]);
+    await pool.query("insert into world_calendar_history(version_id,world_id,period) values($1,$2,$3)",[legacyVersion,legacyWorld,legacyPeriod]);
+    await pool.query("insert into world_calendar_adoption(id,world_id,version_id,label,period) values($1,$2,$3,'Existing people',$4)",[randomUUID(),legacyWorld,legacyVersion,legacyPeriod]);
+    const legacySuccessor=randomUUID();await pool.query("insert into world_calendar_version(id,world_id,calendar_id,title,rules) values($1,$2,$3,'Existing successor',$4)",[legacySuccessor,legacyWorld,legacyCalendar,blankCalendarRules()]);
+    const legacyEntry=(await pool.query("select id from world_historical_entry where world_id=$1 order by title limit 1",[legacyWorld])).rows[0].id;
+    await pool.query("insert into world_calendar_reform(id,world_id,name,predecessor_id,successor_id,effective_time,reason,details,entry_id) values($1,$2,'Existing reform',$3,$4,$5,'Existing reason','Existing transition',$6)",[randomUUID(),legacyWorld,legacyVersion,legacySuccessor,legacyPeriod.time,legacyEntry]);
+    await pool.query("insert into world_calendar_entry_date(entry_id,world_id,start_version_id,source) values($1,$2,$3,$4)",[legacyEntry,legacyWorld,legacyVersion,{version:1,kind:"known",start:{versionId:legacyVersion,calendarId:legacyCalendar,revision:1,calendarName:"Legacy Calendar",versionTitle:"Original rules",date:{year:1,month:1,day:1},elapsedDay:"9007199254740993",notation:"Original source notation"}}]);
+    const legacyTables=["world_day_reference","world_calendar_anchor","world_calendar_history","world_calendar_adoption","world_calendar_reform","world_calendar_entry_date","world_calendar","world_calendar_version","world_calendar_preference","world","world_historical_era","world_historical_entry","world_entry_era","world_classification_tag","world_dating_system","world_chronology_preference"];
     async function legacySnapshot(){const snapshot:Record<string,unknown>={};for(const table of legacyTables){const expression="to_jsonb(t)";snapshot[table]=(await pool!.query(`select coalesce(jsonb_agg(${expression} order by to_jsonb(t)::text),'[]'::jsonb) as rows from ${table} t`)).rows[0].rows;}return snapshot;}
-    const legacyBefore=await legacySnapshot(),before=await runtimeSnapshot();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
+    const legacyBefore=await legacySnapshot(),before=await runtimeSnapshot();
+    const foundation=path.join(temporaryRoot,"foundation");await mkdir(path.join(foundation,"meta"),{recursive:true});
+    for(const entry of journal.entries.slice(0,-1))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(foundation,`${entry.tag}.sql`));
+    await writeFile(path.join(foundation,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.slice(0,-1)}));
+    await migrate(drizzle(pool),{migrationsFolder:foundation});assert.deepEqual(await legacySnapshot(),legacyBefore);assert.deepEqual(await runtimeSnapshot(),before);
+    const oldMap=randomUUID(),oldGeography=randomUUID(),oldFeature=randomUUID();await pool.query("insert into world_atlas_map(id,world_id,name) values($1,$2,'Existing 0102 chart')",[oldMap,legacyWorld]);await pool.query("insert into world_geography(id,world_id,name,kind) values($1,$2,'Existing 0102 continent','continent')",[oldGeography,legacyWorld]);await pool.query("insert into world_atlas_feature(id,world_id,map_id,geography_id,geometry) values($1,$2,$3,$4,$5)",[oldFeature,legacyWorld,oldMap,oldGeography,{version:1,type:"polygon",points:[[100,100],[500,100],[500,500],[100,500]].map(([x,y])=>({id:randomUUID(),x,y}))}]);
+    const atlasUpgradeBefore=(await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows;
+await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual((await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows,atlasUpgradeBefore);assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
     assert.equal((await pool.query("select * from world_historical_entry where dating_system_id is not null or source_dating is not null")).rowCount,1);assert.equal((await pool.query("select * from world_dating_system")).rowCount,1);assert.equal((await pool.query("select * from world_chronology_preference")).rowCount,1);
     assert.equal((await pool.query("select count(*)::int as count from drizzle.__drizzle_migrations")).rows[0].count,journal.entries.length);
     // Code rollback retains the additive schema and source metadata. Rehearse an older reader.
     assert.deepEqual((await pool.query("select historical_time from world_historical_entry where world_id=$1 order by title",[legacyWorld])).rows.map(({historical_time})=>historical_time),legacyTimes);
     await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await legacySnapshot(),legacyBefore);
-    console.log("PASS: migration 0101 upgrades 0100, including existing calendars and preferences, with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible.");
+    console.log("PASS: migrations 0102 and new 0103 upgrade 0101 and preserve existing 0102 geometry, including existing calendar evolution, original source snapshots, calendars and preferences, with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible.");
     process.env.DATABASE_URL=databaseUrl;const service=await import("../src/features/worlds/world-service");applicationPool=(await import("../src/db")).pool;
     const references=await service.worldReferences("world-god"),validTag=references.find((tag)=>tag.name==="High Fantasy")!;
     assert.equal(references.some((tag)=>tag.name==="Mechanical"),false);
@@ -223,6 +240,8 @@ async function main() {
     const calendarFixture=await calendarServiceChecks(calendarService,service,pool,primary,foreign,adminWorld);
     const evolutionService=await import("../src/features/worlds/calendar-evolution-service");
     const evolutionFixture=await evolutionServiceChecks(service,calendarService,evolutionService,pool,foreign,calendarFixture.foreignVersion);
+    const atlasService=await import("../src/features/worlds/atlas-service");
+    const atlasFixture=await atlasServiceChecks(atlasService,service,pool,foreign);
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-pass-one-next.log`)));});
     console.log("PASS: isolated production build and TypeScript verification.");
@@ -235,6 +254,7 @@ async function main() {
     await chronologyBrowserChecks(service,page,god,baseUrl,chronologyFixture,artifactRoot);
     await calendarBrowserChecks(calendarService,page,god,baseUrl,calendarFixture,artifactRoot);
     await evolutionBrowserChecks(page,god,baseUrl,evolutionFixture,artifactRoot);
+    await atlasBrowserChecks(page,god,baseUrl,atlasFixture,artifactRoot);
     await page.goto(`${baseUrl}/worlds`);await hydrated(page);await page.getByRole("heading",{name:"Worlds",exact:true}).waitFor();assert.equal(await page.getByText("Other owner's private world",{exact:true}).count(),0);
     await page.getByRole("button",{name:"Create world",exact:true}).click();await page.getByLabel("World name",{exact:true}).fill("Lantern Reach");
     await page.getByRole("button",{name:"Choose",exact:true}).click();await page.getByRole("group",{name:"Available Genre classifications",exact:true}).getByRole("button",{name:"High Fantasy",exact:true}).click();await page.getByRole("button",{name:"Era",exact:true}).click();await page.getByLabel("Search classifications",{exact:true}).fill("Anc");await page.getByRole("group",{name:"Available Era classifications",exact:true}).getByRole("button",{name:"Ancient",exact:true}).click();
@@ -301,6 +321,8 @@ async function main() {
     await adminPage.goto(`${baseUrl}/worlds/${evolutionFixture.worldId}?review=1`);await hydrated(adminPage);await adminPage.getByRole("button",{name:"Calendars",exact:true}).click();await adminPage.getByRole("button",{name:"Open Imperial Tradition",exact:true}).click();await adminPage.getByText("History, adoption & date comparison",{exact:true}).click();await adminPage.getByRole("heading",{name:"Imperial reform",exact:true}).waitFor();assert.equal(await adminPage.getByRole("button",{name:"Record reform",exact:true}).count(),0);assert.equal(await adminPage.getByRole("button",{name:"Set effective period",exact:true}).count(),0);
     assert.equal((await admin.request.post(`${baseUrl}/api/worlds/${evolutionFixture.worldId}/calendars/history?review=1`,{headers:{Origin:baseUrl},data:{action:"period",versionId:evolutionFixture.newId,revision:1,period:{time:{version:1,scale:"world-year",kind:"undated"},notes:""}}})).status(),404);
     assert.equal((await god.request.post(`${baseUrl}/api/worlds/${evolutionFixture.worldId}/calendars/history`,{headers:{Origin:"https://untrusted.example.invalid"},data:{action:"origin",label:"CSRF",description:"Forbidden"}})).status(),403);
+    for(const [context,status] of [[anon,401],[player,403],[other,404],[admin,404]] as const){const r=await context.request.get(`${baseUrl}/api/worlds/${atlasFixture.worldId}/atlas`);assert.equal(r.status(),status);assert.match(r.headers()["cache-control"],/no-store/);assert.equal((await r.text()).includes("Valdoria"),false);const write=await context.request.post(`${baseUrl}/api/worlds/${atlasFixture.worldId}/atlas`,{headers:{Origin:baseUrl},data:{action:"create",name:"Forbidden",description:"",scope:"world"}});assert.equal(write.status(),status);}
+    await adminPage.goto(`${baseUrl}/worlds/${atlasFixture.worldId}?review=1`);await hydrated(adminPage);await adminPage.getByRole("button",{name:"Atlas",exact:true}).click();await adminPage.getByRole("button",{name:"Open The Northern Seas",exact:true}).click();await adminPage.getByRole("application",{name:"Editable map canvas"}).waitFor();assert.equal(await adminPage.getByRole("button",{name:"Draw landmass",exact:true}).count(),0);assert.equal(await adminPage.getByRole("button",{name:"Save map",exact:true}).count(),0);assert.equal((await admin.request.get(`${baseUrl}/api/worlds/${atlasFixture.worldId}/atlas?review=1`)).status(),200);assert.equal((await admin.request.post(`${baseUrl}/api/worlds/${atlasFixture.worldId}/atlas?review=1`,{headers:{Origin:baseUrl},data:{action:"create",name:"Forbidden",description:"",scope:"world"}})).status(),404);assert.equal((await god.request.post(`${baseUrl}/api/worlds/${atlasFixture.worldId}/atlas`,{headers:{Origin:"https://untrusted.example.invalid"},data:{action:"create",name:"CSRF",description:"",scope:"world"}})).status(),403);
     assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(errors,[]);
     console.log("PASS: G.O.D./Admin/Player/anonymous direct route and HTTP authorization, no private ID leaks, no-store responses, CSRF rejection, unchanged Campaign/combat/Form/Evolution data and no browser runtime errors.");
   } catch (failure) {
