@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { DatingSystem, SourceDating } from "./chronology";
 
 export const YEAR_LIMIT = 1_000_000_000_000;
 export const yearSchema = z.number().int().min(-YEAR_LIMIT).max(YEAR_LIMIT);
@@ -19,16 +20,17 @@ export type Tone = typeof tones[number];
 const name = z.string().trim().min(1, "Enter a name.").max(160);
 const account = z.string().max(50_000);
 export const worldDraftSchema = z.object({ name, description: z.string().max(4000).default(""), introduction: account.default(""), historicalOverview: account.default(""), tone: z.enum(tones).default("primary"), tagIds: z.array(z.number().int().positive()).max(40).default([]) }).strict();
-export const eraDraftSchema = z.object({ name, description: account.default(""), startYear: yearSchema.nullable(), endYear: yearSchema.nullable(), tone: z.enum(tones).default("primary") }).strict().refine((era) => era.startYear === null || era.endYear === null || era.startYear <= era.endYear, "The ending year must be at or after the starting year.");
-export const entryDraftSchema = z.object({ title: name, account: account.trim().min(1, "Write a historical account."), notes: account.default(""), time: historicalTimeSchema, accuracy: z.enum(["established", "disputed", "unverified", "disproven"]), narrative: z.enum(["recorded", "planned"]), eraIds: z.array(z.string().uuid()).max(100).default([]) }).strict();
+const sourceFields = { datingSystemId: z.string().uuid().nullable().optional(), datingSystemRevision: z.number().int().positive().optional() };
+export const eraDraftSchema = z.object({ name, description: account.default(""), startYear: yearSchema.nullable(), endYear: yearSchema.nullable(), tone: z.enum(tones).default("primary"), ...sourceFields }).strict().refine((era) => era.startYear === null || era.endYear === null || era.startYear <= era.endYear, "The ending year must be at or after the starting year.");
+export const entryDraftSchema = z.object({ title: name, account: account.trim().min(1, "Write a historical account."), notes: account.default(""), time: historicalTimeSchema, accuracy: z.enum(["established", "disputed", "unverified", "disproven"]), narrative: z.enum(["recorded", "planned"]), eraIds: z.array(z.string().uuid()).max(100).default([]), ...sourceFields }).strict();
 export type WorldDraft = z.infer<typeof worldDraftSchema>;
 export type EraDraft = z.infer<typeof eraDraftSchema>;
 export type EntryDraft = z.infer<typeof entryDraftSchema>;
 export type WorldRecord = WorldDraft & { id: string; ownerId: string; ownerName: string; revision: number; archived: boolean; updatedAt: string; eraCount: number; entryCount: number };
-export type EraRecord = EraDraft & { id: string; worldId: string; revision: number; archived: boolean };
-export type EntryRecord = EntryDraft & { id: string; worldId: string; revision: number; archived: boolean; updatedAt: string };
+export type EraRecord = EraDraft & { id: string; worldId: string; revision: number; archived: boolean; sourceDating?: SourceDating|null };
+export type EntryRecord = EntryDraft & { id: string; worldId: string; revision: number; archived: boolean; updatedAt: string; sourceDating?: SourceDating|null };
 export type TagReference = { id: number; name: string; tagGroup: string; description: string };
-export type WorldBundle = { world: WorldRecord; eras: EraRecord[]; entries: EntryRecord[]; canEdit: boolean };
+export type WorldBundle = { world: WorldRecord; eras: EraRecord[]; entries: EntryRecord[]; canEdit: boolean; datingSystems:DatingSystem[]; defaultDatingSystemId:string|null };
 export function yearLabel(year: number) { return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(year); }
 export function timeBounds(time: HistoricalTime): [number, number] | null {
   if (time.kind === "undated") return null;

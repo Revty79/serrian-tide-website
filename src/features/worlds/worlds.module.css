@@ -104,6 +104,12 @@
 .eraBand { position:relative; overflow:visible; min-height:44px; height:44px; }
 .eraBand span { position:absolute; left:.65rem; top:8px; max-width:calc(100% - 1.3rem); padding:.15rem .4rem; border-radius:.25rem; background:var(--st-surface-deep); color:var(--st-text); text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }
 .eraBand small { display:none; }
+.displayConvention { display:flex; align-items:center; flex-wrap:wrap; gap:.8rem; margin:1rem 0 1.5rem; color:var(--st-text); font-size:.85rem; }
+.displayConvention select { width:min(100%,320px); }
+.displayConvention .muted { font-size:.75rem; }
+.axis span { max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.range { overflow-wrap:anywhere; }
+@media(max-width:650px) { .axis span {max-width:90px;} .displayConvention {align-items:stretch;flex-direction:column;gap:.5rem;} .displayConvention select {width:100%;} }
 .eventStage { position:relative; min-height:100px; }
 .eventMarker { position:absolute; display:flex; gap:.5rem; align-items:center; min-width:44px; max-width:100%; min-height:44px; width:140px; text-align:left; padding:.4rem .55rem; border:1px solid var(--st-primary-border); color:var(--st-text); background:var(--st-surface-raised); border-radius:.4rem; font-size:.75rem; cursor:pointer; overflow:hidden; }
 .eventMarker > span:last-child { text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }

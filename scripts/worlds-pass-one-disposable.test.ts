@@ -13,6 +13,7 @@ import pg from "pg";
 import { chromium, type BrowserContext, type Locator, type Page } from "playwright-core";
 import { entryDraftOf, worldDraftOf } from "../src/features/worlds/client-api";
 import type { EntryDraft, HistoricalTime } from "../src/features/worlds/history";
+import { chronologyServiceChecks, chronologyBrowserChecks } from "./worlds-chronology-checks";
 
 const postgresBin = process.env.SERRIAN_TEST_POSTGRES_BIN ?? "C:/Program Files/PostgreSQL/18/bin";
 const executable = (name:string) => path.join(postgresBin,process.platform === "win32" ? `${name}.exe` : name);
@@ -111,7 +112,7 @@ async function main() {
     pool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await pool.query("create database serrian_worlds_test");await pool.end();pool=new pg.Pool({connectionString:databaseUrl});
     // Rehearse an upgrade with pre-existing users, tags and Campaign/runtime data.
     const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")) as {entries:{tag:string;idx:number}[]};
-    assert.equal(journal.entries.at(-1)?.tag,"0098_worlds_pass_one");
+    assert.equal(journal.entries.at(-1)?.tag,"0099_worlds_chronology");
     const baseline=path.join(temporaryRoot,"baseline");await mkdir(path.join(baseline,"meta"),{recursive:true});
     for(const entry of journal.entries.slice(0,-1))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
     await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.slice(0,-1)}));
@@ -132,8 +133,24 @@ async function main() {
       for(const {tablename} of tables){assert.match(tablename,/^[a-z_]+$/);snapshot[tablename]=(await pool!.query(`select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text),'[]'::jsonb) as rows from "${tablename}" t`)).rows[0].rows;}
       return snapshot;
     }
-    const before=await runtimeSnapshot();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await runtimeSnapshot(),before);
-    console.log("PASS: migration 0098 upgrades 0097 with existing user, catalog, Campaign and active-session data unchanged.");
+    const legacyWorld=randomUUID(),legacyEra=randomUUID();
+    await pool.query("insert into world(id,owner_id,name,introduction,historical_overview) values($1,'other-god','Legacy history','Existing introduction','Existing overview')",[legacyWorld]);
+    await pool.query("insert into world_historical_era(id,world_id,name,start_year,end_year) values($1,$2,'An open legacy era',null,0)",[legacyEra,legacyWorld]);
+    const legacyTimes:HistoricalTime[]=[{version:1,scale:"world-year",kind:"known",year:0},{version:1,scale:"world-year",kind:"approximate",year:-1e12},{version:1,scale:"world-year",kind:"window",startYear:-1,endYear:1},{version:1,scale:"world-year",kind:"duration",startYear:0,endYear:1e12},{version:1,scale:"world-year",kind:"undated"}];
+    for(const [index,time] of legacyTimes.entries()){
+      const id=randomUUID();await pool.query("insert into world_historical_entry(id,world_id,title,account,historical_time,accuracy,narrative) values($1,$2,$3,'Existing account',$4,'disputed','planned')",[id,legacyWorld,`Legacy ${index}`,time]);
+      await pool.query("insert into world_entry_era(world_id,entry_id,era_id) values($1,$2,$3)",[legacyWorld,id,legacyEra]);
+    }
+    await pool.query("insert into world_classification_tag(world_id,tag_id) values($1,$2)",[legacyWorld,classificationIds.get("Ancient")]);
+    const legacyTables=["world","world_historical_era","world_historical_entry","world_entry_era","world_classification_tag"];
+    async function legacySnapshot(afterMigration=false){const snapshot:Record<string,unknown>={};for(const table of legacyTables){const expression=afterMigration && ["world_historical_era","world_historical_entry"].includes(table) ? "to_jsonb(t)-'dating_system_id'-'source_dating'" : "to_jsonb(t)";snapshot[table]=(await pool!.query(`select coalesce(jsonb_agg(${expression} order by to_jsonb(t)::text),'[]'::jsonb) as rows from ${table} t`)).rows[0].rows;}return snapshot;}
+    const legacyBefore=await legacySnapshot(),before=await runtimeSnapshot();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(true),legacyBefore);
+    assert.equal((await pool.query("select * from world_historical_entry where dating_system_id is not null or source_dating is not null")).rowCount,0);assert.equal((await pool.query("select * from world_dating_system")).rowCount,0);assert.equal((await pool.query("select * from world_chronology_preference")).rowCount,0);
+    assert.equal((await pool.query("select count(*)::int as count from drizzle.__drizzle_migrations")).rows[0].count,journal.entries.length);
+    // Code rollback retains the additive schema and source metadata. Rehearse an older reader.
+    assert.deepEqual((await pool.query("select historical_time from world_historical_entry where world_id=$1 order by title",[legacyWorld])).rows.map(({historical_time})=>historical_time),legacyTimes);
+    await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await legacySnapshot(true),legacyBefore);
+    console.log("PASS: migration 0099 upgrades 0098 with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible.");
     process.env.DATABASE_URL=databaseUrl;const service=await import("../src/features/worlds/world-service");applicationPool=(await import("../src/db")).pool;
     const references=await service.worldReferences("world-god"),validTag=references.find((tag)=>tag.name==="High Fantasy")!;
     assert.equal(references.some((tag)=>tag.name==="Mechanical"),false);
@@ -195,6 +212,7 @@ async function main() {
     console.log("PASS: private ownership, explicit Admin review, persistence, independent date/status representations, overlapping/open eras, archive/restore, composite FK rejection and concurrent stale edits.");
     // Dense fixture exists only in this disposable database, never in product seed data.
     for(let index=0;index<60;index++)await service.changeHistory("world-god",primary,{entity:"entry",action:"save",draft:entryDraft(`Gathering ${index+1}`,{version:1,scale:"world-year",kind:"known",year:500},{eraIds:[]})});
+    const chronologyFixture=await chronologyServiceChecks(service,pool,primary,foreign);
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-pass-one-next.log`)));});
     console.log("PASS: isolated production build and TypeScript verification.");
@@ -204,6 +222,7 @@ async function main() {
     const god=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.40"}});await signIn(god,baseUrl,"world-god");
     const page=await god.newPage();activePage=page;page.on("pageerror",(error)=>errors.push(error.message));
     await checkEraLabelNavigation(page,baseUrl,labelWorld,artifactRoot);
+    await chronologyBrowserChecks(service,page,god,baseUrl,chronologyFixture,artifactRoot);
     await page.goto(`${baseUrl}/worlds`);await hydrated(page);await page.getByRole("heading",{name:"Worlds",exact:true}).waitFor();assert.equal(await page.getByText("Other owner's private world",{exact:true}).count(),0);
     await page.getByRole("button",{name:"Create world",exact:true}).click();await page.getByLabel("World name",{exact:true}).fill("Lantern Reach");
     await page.getByRole("button",{name:"Choose",exact:true}).click();await page.getByRole("group",{name:"Available Genre classifications",exact:true}).getByRole("button",{name:"High Fantasy",exact:true}).click();await page.getByRole("button",{name:"Era",exact:true}).click();await page.getByLabel("Search classifications",{exact:true}).fill("Anc");await page.getByRole("group",{name:"Available Era classifications",exact:true}).getByRole("button",{name:"Ancient",exact:true}).click();
@@ -250,11 +269,16 @@ async function main() {
       const read=await context.request.get(`${baseUrl}/api/worlds/${primary}`);assert.equal(read.status(),status);assert.equal((await read.text()).includes("Asterfall"),false);assert.match(read.headers()["cache-control"],/no-store/);
       const change=await context.request.patch(`${baseUrl}/api/worlds/${primary}`,{headers:{Origin:baseUrl},data:{action:"archive",revision:1}});assert.equal(change.status(),status);
       const historical=await context.request.post(`${baseUrl}/api/worlds/${primary}/history`,{headers:{Origin:baseUrl},data:{entity:"entry",id:known,revision:1,action:"archive"}});assert.equal(historical.status(),status);
+      const chronology=await context.request.post(`${baseUrl}/api/worlds/${chronologyFixture.worldId}/chronology`,{headers:{Origin:baseUrl},data:{action:"default",revision:1,systemId:chronologyFixture.foreignSystem}});assert.equal(chronology.status(),status);assert.equal((await chronology.text()).includes("Foreign secret reckoning"),false);
     }
     for(const context of [anon,player]) {const blocked=await context.newPage();await blocked.goto(`${baseUrl}/worlds/${primary}`);assert.equal((await blocked.content()).includes("Asterfall"),false);assert.ok(!new URL(blocked.url()).pathname.startsWith("/worlds"));}
     const adminPage=await admin.newPage();await adminPage.goto(`${baseUrl}/worlds?scope=review`);await hydrated(adminPage);await adminPage.getByRole("link",{name:"Open Asterfall",exact:true}).click();await adminPage.getByText(/Administrator review · Read-only/).waitFor();assert.equal(await adminPage.getByRole("button",{name:"Write introduction",exact:true}).count(),0);assert.equal((await admin.request.get(`${baseUrl}/api/worlds/${primary}`)).status(),404);assert.equal((await admin.request.get(`${baseUrl}/api/worlds/${primary}?review=1`)).status(),200);assert.equal((await admin.request.patch(`${baseUrl}/api/worlds/${primary}`,{headers:{Origin:baseUrl},data:{action:"archive",revision:1}})).status(),404);
     assert.equal((await god.request.post(`${baseUrl}/api/worlds`,{headers:{Origin:"https://untrusted.example.invalid"},data:{name:"CSRF"}})).status(),403);
     assert.equal((await god.request.get(`${baseUrl}/api/worlds/${foreign}?review=1`)).status(),404);assert.equal((await god.request.get(`${baseUrl}/api/worlds?scope=review`)).status(),403);
+    await adminPage.goto(`${baseUrl}/worlds/${chronologyFixture.worldId}?review=1`);await hydrated(adminPage);await adminPage.getByRole("button",{name:"Chronology",exact:true}).click();await adminPage.getByRole("heading",{name:"Founding Reckoning",exact:true}).waitFor();assert.equal(await adminPage.getByRole("button",{name:"New dating system",exact:true}).count(),0);assert.equal(await adminPage.getByRole("button",{name:/^(Edit|Archive|Use).*Count/}).count(),0);
+    assert.equal((await admin.request.post(`${baseUrl}/api/worlds/${chronologyFixture.worldId}/chronology?review=1`,{headers:{Origin:baseUrl},data:{action:"save",draft:{name:"Forbidden"}}})).status(),400);
+    const reviewWrite=await admin.request.post(`${baseUrl}/api/worlds/${chronologyFixture.worldId}/chronology?review=1`,{headers:{Origin:baseUrl},data:{action:"default",revision:1,systemId:null}});assert.equal(reviewWrite.status(),404);
+    const chronologyBundle=await service.getWorld("world-god",chronologyFixture.worldId);const forgedDefault=await god.request.post(`${baseUrl}/api/worlds/${chronologyFixture.worldId}/chronology`,{headers:{Origin:baseUrl},data:{action:"default",revision:chronologyBundle.world.revision,systemId:chronologyFixture.foreignSystem}});assert.equal(forgedDefault.status(),404);assert.equal((await forgedDefault.text()).includes("Foreign secret reckoning"),false);
     assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(errors,[]);
     console.log("PASS: G.O.D./Admin/Player/anonymous direct route and HTTP authorization, no private ID leaks, no-store responses, CSRF rejection, unchanged Campaign/combat/Form/Evolution data and no browser runtime errors.");
   } catch (failure) {

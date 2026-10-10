@@ -18,6 +18,14 @@ See [Theme development](docs/architecture/theme-development.md) for the permanen
 
 New or modified fields should explain their meaning and use in plain language. Reuse the shared field/page guidance, retain visible validation, and verify descriptions against the actual rules rather than inventing mechanics. See [Field guidance](docs/architecture/field-guidance.md).
 
+## Independently deployable passes
+
+Every completed development pass must leave the entire application functional and ready for controlled production deployment without a later pass. Deliver complete working increments; omit unfinished routes, controls and dependencies. Preserve existing systems and user data. Version all required migrations, rehearse upgrades with existing data in disposable databases, and document migration order and recovery: reverting code does not reverse database changes.
+
+Before completion, verify the production build, TypeScript, lint, relevant regressions, authorization and actual desktop/phone behavior. Preserve unrelated changes and create a clean local commit or explicitly identified commit-ready checkpoint. Provide a short deployment-readiness report with the commit, features, checks, ordered migrations, configuration, deployment steps, rollback/recovery, blockers and readiness for push/deployment. Divide oversized work into smaller complete increments. See [Pass deployment standard](docs/operations/pass-deployment-standard.md).
+
+Never push remotely, deploy or modify Production without explicit authorization for that action.
+
 ## Resuming combat work
 
 When the user says “let's finish fixing combat,” “resume combat,” or similar, read [COMBAT-RESUME.md](COMBAT-RESUME.md) first. Check for intervening checkout changes, briefly recap the status, and start with the first unresolved priority under the user's current direction. Update that handoff after each completed combat fix so Cody and Ember share the same record. Its latest confirmed rulings supersede the older combat notes it identifies.

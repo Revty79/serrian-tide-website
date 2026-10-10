@@ -7,7 +7,8 @@ import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
 import { itemTagCatalog } from "@/db/item-schema";
 import { itemTagDiscoveryWhere } from "@/features/catalog-visibility/item-catalog-service";
-import { world, worldEra, worldEntry, worldEntryEra, worldTag } from "@/db/world-schema";
+import { world, worldEra, worldEntry, worldEntryEra, worldTag, worldDatingSystem, worldChronologyPreference } from "@/db/world-schema";
+import { datingDraftSchema, toReckoning, type DatingSystem, type SourceDating } from "./chronology";
 import { entryDraftSchema, eraDraftSchema, worldDraftSchema, type EntryRecord, type EraRecord, type Tone, type WorldBundle, type WorldRecord } from "./history";
 
 export class WorldError extends Error { constructor(message: string, public status: number) { super(message); } }
@@ -55,8 +56,9 @@ async function tags(tx: Tx, userId: string, worldId: string, tagIds: number[]) {
 function worldDto(row: typeof world.$inferSelect, ownerName: string, tagIds: number[], eraCount: number, entryCount: number): WorldRecord {
   return { id: row.id, ownerId: row.ownerId, ownerName, name: row.name, description: row.description, introduction: row.introduction, historicalOverview: row.historicalOverview, tone: row.tone as Tone, revision: row.revision, archived: !!row.archivedAt, updatedAt: row.updatedAt.toISOString(), tagIds, eraCount, entryCount };
 }
-function eraDto(row: typeof worldEra.$inferSelect): EraRecord { return { id: row.id, worldId: row.worldId, name: row.name, description: row.description, startYear: row.startYear, endYear: row.endYear, tone: row.tone as Tone, revision: row.revision, archived: !!row.archivedAt }; }
-function entryDto(row: typeof worldEntry.$inferSelect, eraIds: string[]): EntryRecord { return { id: row.id, worldId: row.worldId, title: row.title, account: row.account, notes: row.notes, time: row.time, accuracy: row.accuracy as EntryRecord["accuracy"], narrative: row.narrative as EntryRecord["narrative"], revision: row.revision, archived: !!row.archivedAt, updatedAt: row.updatedAt.toISOString(), eraIds }; }
+function eraDto(row: typeof worldEra.$inferSelect): EraRecord { return { id: row.id, worldId: row.worldId, name: row.name, description: row.description, startYear: row.startYear, endYear: row.endYear, tone: row.tone as Tone, revision: row.revision, archived: !!row.archivedAt, datingSystemId:row.datingSystemId,datingSystemRevision:row.sourceDating?.revision,sourceDating:row.sourceDating }; }
+function entryDto(row: typeof worldEntry.$inferSelect, eraIds: string[]): EntryRecord { return { id: row.id, worldId: row.worldId, title: row.title, account: row.account, notes: row.notes, time: row.time, accuracy: row.accuracy as EntryRecord["accuracy"], narrative: row.narrative as EntryRecord["narrative"], revision: row.revision, archived: !!row.archivedAt, updatedAt: row.updatedAt.toISOString(), eraIds,datingSystemId:row.datingSystemId,datingSystemRevision:row.sourceDating?.revision,sourceDating:row.sourceDating }; }
+function datingDto(row:typeof worldDatingSystem.$inferSelect):DatingSystem {return {id:row.id,worldId:row.worldId,name:row.name,description:row.description,origin:row.origin,epochYear:row.epochYear,numbering:row.numbering as DatingSystem["numbering"],beforeLabel:row.beforeLabel,afterLabel:row.afterLabel,notes:row.notes,revision:row.revision,archived:!!row.archivedAt,referenced:!!row.referencedAt};}
 export async function listWorlds(userId: string, scope: "mine" | "review" = "mine") {
   const access = await actor(userId);
   if (scope === "review" && !access.admin) throw new WorldError("Administrator review requires administrator access.", 403);
@@ -82,7 +84,9 @@ export async function getWorld(userId: string, worldId: string, review = false):
     const entries = await tx.select().from(worldEntry).where(eq(worldEntry.worldId, worldId)).orderBy(desc(worldEntry.updatedAt), asc(worldEntry.id));
     const memberships = await tx.select().from(worldEntryEra).where(eq(worldEntryEra.worldId, worldId));
     const classifications = await tx.select().from(worldTag).where(eq(worldTag.worldId, worldId));
-    return { world: worldDto(fresh, owner.name, classifications.map((tag) => tag.tagId), eras.filter((era) => !era.archivedAt).length, entries.filter((entry) => !entry.archivedAt).length), eras: eras.map(eraDto), entries: entries.map((entry) => entryDto(entry, memberships.filter((m) => m.entryId === entry.id).map((m) => m.eraId))), canEdit: fresh.ownerId === userId && !fresh.archivedAt };
+    const systems = await tx.select().from(worldDatingSystem).where(eq(worldDatingSystem.worldId,worldId)).orderBy(asc(worldDatingSystem.name),asc(worldDatingSystem.id));
+    const [preference] = await tx.select().from(worldChronologyPreference).where(eq(worldChronologyPreference.worldId,worldId));
+    return { world: worldDto(fresh, owner.name, classifications.map((tag) => tag.tagId), eras.filter((era) => !era.archivedAt).length, entries.filter((entry) => !entry.archivedAt).length), eras: eras.map(eraDto), entries: entries.map((entry) => entryDto(entry, memberships.filter((m) => m.entryId === entry.id).map((m) => m.eraId))), canEdit: fresh.ownerId === userId && !fresh.archivedAt, datingSystems:systems.map(datingDto),defaultDatingSystemId:preference?.defaultDatingSystemId ?? null };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export async function createWorld(userId: string, input: unknown) {
@@ -112,6 +116,18 @@ const historyCommand = z.discriminatedUnion("entity", [
   z.object({ entity: z.literal("era"), id: idSchema.optional(), revision: revisionSchema.optional(), action: z.enum(["save","archive","restore"]), draft: eraDraftSchema.optional() }).strict(),
   z.object({ entity: z.literal("entry"), id: idSchema.optional(), revision: revisionSchema.optional(), action: z.enum(["save","archive","restore"]), draft: entryDraftSchema.optional() }).strict(),
 ]);
+async function sourceDatingFor(tx:Tx,worldId:string,systemId:string|null|undefined,revision:number|undefined,years:(number|null)[],previous:{datingSystemId:string|null;sourceDating:SourceDating|null}|undefined) {
+  if (!systemId || years.every((year)=>year === null)) return {datingSystemId:null,sourceDating:null};
+  const [system] = await tx.select().from(worldDatingSystem).where(and(eq(worldDatingSystem.id,systemId),eq(worldDatingSystem.worldId,worldId))).for("update");
+  if (!system) throw notFound();
+  if (system.revision !== revision) throw conflict();
+  if (system.archivedAt && previous?.datingSystemId !== systemId) throw new WorldError("Restore this dating system before assigning a new historical date to it.",400);
+  const sourceYears = years.map((year)=>year === null ? null : toReckoning(year,{...system,numbering:system.numbering as DatingSystem["numbering"]}));
+  const retained = previous?.datingSystemId === systemId && JSON.stringify(previous.sourceDating?.years) === JSON.stringify(sourceYears);
+  if (!system.referencedAt) await tx.update(worldDatingSystem).set({referencedAt:new Date()}).where(eq(worldDatingSystem.id,systemId));
+  const sourceDating:SourceDating = retained && previous.sourceDating ? previous.sourceDating : {version:1,kind:"year-reckoning",systemId,revision:system.revision,name:system.name,origin:system.origin,epochYear:system.epochYear,numbering:system.numbering as DatingSystem["numbering"],beforeLabel:system.beforeLabel,afterLabel:system.afterLabel,years:sourceYears};
+  return {datingSystemId:systemId,sourceDating};
+}
 export async function changeHistory(userId: string, worldId: string, input: unknown) {
   await actor(userId);
   const command = historyCommand.parse(input);
@@ -119,7 +135,7 @@ export async function changeHistory(userId: string, worldId: string, input: unkn
   await db.transaction(async (tx) => {
     await lockOwned(tx, userId, worldId);
     const table = command.entity === "era" ? worldEra : worldEntry;
-    const [current] = command.id ? await tx.select({ revision: table.revision, archivedAt: table.archivedAt }).from(table).where(and(eq(table.id, id), eq(table.worldId, worldId))).for("update") : [];
+    const [current] = command.id ? await tx.select({ revision: table.revision, archivedAt: table.archivedAt,datingSystemId:table.datingSystemId,sourceDating:table.sourceDating }).from(table).where(and(eq(table.id, id), eq(table.worldId, worldId))).for("update") : [];
     if (command.id && !current) throw notFound();
     if (current && current.revision !== command.revision) throw conflict();
     if (command.action !== "save") {
@@ -130,10 +146,14 @@ export async function changeHistory(userId: string, worldId: string, input: unkn
       if (!command.draft) throw new WorldError("Enter the historical record's details.", 400);
       const lifecycle = { revision: (current?.revision ?? 0) + 1, updatedAt: new Date() };
       if (command.entity === "era") {
-        if (current) await tx.update(worldEra).set({ ...command.draft, ...lifecycle }).where(and(eq(worldEra.id, id), eq(worldEra.worldId, worldId)));
-        else await tx.insert(worldEra).values({ id, worldId, ...command.draft });
+        const {datingSystemId,datingSystemRevision,...draft} = command.draft;
+        const source = await sourceDatingFor(tx,worldId,datingSystemId,datingSystemRevision,[draft.startYear,draft.endYear],current);
+        if (current) await tx.update(worldEra).set({ ...draft,...source, ...lifecycle }).where(and(eq(worldEra.id, id), eq(worldEra.worldId, worldId)));
+        else await tx.insert(worldEra).values({ id, worldId, ...draft,...source });
       } else {
-        const { eraIds, ...draft } = command.draft;
+        const { eraIds,datingSystemId,datingSystemRevision, ...draft } = command.draft;
+        const years = draft.time.kind === "undated" ? [] : "year" in draft.time ? [draft.time.year] : [draft.time.startYear,draft.time.endYear];
+        const source = await sourceDatingFor(tx,worldId,datingSystemId,datingSystemRevision,years,current);
         const ids = [...new Set(eraIds)];
         if (ids.length) {
           const matches = await tx.select({ id: worldEra.id, archivedAt: worldEra.archivedAt }).from(worldEra).where(and(inArray(worldEra.id, ids), eq(worldEra.worldId, worldId)));
@@ -141,8 +161,8 @@ export async function changeHistory(userId: string, worldId: string, input: unkn
           const retained = current ? await tx.select().from(worldEntryEra).where(eq(worldEntryEra.entryId, id)) : [];
           if (matches.some((era) => era.archivedAt && !retained.some((link) => link.eraId === era.id))) throw new WorldError("Restore an archived era before assigning new entries to it.", 400);
         }
-        if (current) await tx.update(worldEntry).set({ ...draft, ...lifecycle }).where(and(eq(worldEntry.id, id), eq(worldEntry.worldId, worldId)));
-        else await tx.insert(worldEntry).values({ id, worldId, ...draft });
+        if (current) await tx.update(worldEntry).set({ ...draft,...source, ...lifecycle }).where(and(eq(worldEntry.id, id), eq(worldEntry.worldId, worldId)));
+        else await tx.insert(worldEntry).values({ id, worldId, ...draft,...source });
         await tx.delete(worldEntryEra).where(eq(worldEntryEra.entryId, id));
         if (ids.length) await tx.insert(worldEntryEra).values(ids.map((eraId) => ({ worldId, entryId: id, eraId })));
       }
@@ -150,4 +170,42 @@ export async function changeHistory(userId: string, worldId: string, input: unkn
     await tx.update(world).set({ updatedAt: new Date() }).where(eq(world.id, worldId));
   });
   return id;
+}
+const chronologyCommand = z.union([
+  z.object({action:z.literal("default"),revision:revisionSchema,systemId:idSchema.nullable()}).strict(),
+  z.object({action:z.literal("save"),id:idSchema.optional(),revision:revisionSchema.optional(),draft:datingDraftSchema}).strict(),
+  z.object({action:z.enum(["archive","restore"]),id:idSchema,revision:revisionSchema}).strict(),
+]);
+export async function changeChronology(userId:string,worldId:string,input:unknown) {
+  await actor(userId);const command = chronologyCommand.parse(input);
+  return db.transaction(async(tx)=>{
+    const parent = await lockOwned(tx,userId,worldId);
+    if (command.action === "default") {
+      if (parent.revision !== command.revision) throw conflict();
+      if (command.systemId) {
+        const [system] = await tx.select().from(worldDatingSystem).where(and(eq(worldDatingSystem.id,command.systemId),eq(worldDatingSystem.worldId,worldId)));
+        if (!system) throw notFound();
+        if (system.archivedAt) throw new WorldError("Restore the dating system before making it the default.",400);
+      }
+      await tx.insert(worldChronologyPreference).values({worldId,defaultDatingSystemId:command.systemId}).onConflictDoUpdate({target:worldChronologyPreference.worldId,set:{defaultDatingSystemId:command.systemId}});
+      await tx.update(world).set({revision:parent.revision+1,updatedAt:new Date()}).where(eq(world.id,worldId));return command.systemId;
+    }
+    const id = command.id ?? randomUUID();
+    const [current] = command.id ? await tx.select().from(worldDatingSystem).where(and(eq(worldDatingSystem.id,id),eq(worldDatingSystem.worldId,worldId))).for("update") : [];
+    if (command.id && !current) throw notFound();
+    if (current && current.revision !== command.revision) throw conflict();
+    if (command.action === "save") {
+      if (current?.archivedAt) throw new WorldError("Restore this dating system before editing it.",400);
+      if (current?.referencedAt && (current.epochYear !== command.draft.epochYear || current.numbering !== command.draft.numbering)) throw new WorldError("This epoch and numbering rule are locked because historical dates use them. Create a separate reckoning for a different origin or rule.",400);
+      if (current) await tx.update(worldDatingSystem).set({...command.draft,revision:current.revision+1,updatedAt:new Date()}).where(eq(worldDatingSystem.id,id));
+      else await tx.insert(worldDatingSystem).values({id,worldId,...command.draft});
+    } else {
+      if (command.action === "archive") {
+        const [preference] = await tx.select().from(worldChronologyPreference).where(and(eq(worldChronologyPreference.worldId,worldId),eq(worldChronologyPreference.defaultDatingSystemId,id)));
+        if (preference) throw new WorldError("Choose another default display system before archiving this one.",400);
+      }
+      await tx.update(worldDatingSystem).set({archivedAt:command.action === "archive" ? new Date() : null,revision:current!.revision+1,updatedAt:new Date()}).where(eq(worldDatingSystem.id,id));
+    }
+    await tx.update(world).set({updatedAt:new Date()}).where(eq(world.id,worldId));return id;
+  });
 }
