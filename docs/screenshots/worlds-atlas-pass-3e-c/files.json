@@ -1,0 +1,567 @@
+{
+  "pass": "Atlas 3E-C",
+  "origin": "Actual isolated production Next.js builds with persisted disposable PostgreSQL fixtures; native Chrome desktop and phone workflows. Earlier pass files remain unchanged.",
+  "screenshots": 107,
+  "files": [
+    {
+      "path": "01-dungeon-creation.png",
+      "bytes": 1845259,
+      "sha256": "d9f3f15109423ba9cd5a715ccf567f98f3db39b0582931f4f1d6c2a1a2cf4aab"
+    },
+    {
+      "path": "02-dungeon-workshop.png",
+      "bytes": 923229,
+      "sha256": "245c429b86b7de7826cbe8790d901db054427f5dcc6d515a3dd89fcedf5fde25"
+    },
+    {
+      "path": "03-chamber-properties.png",
+      "bytes": 1035502,
+      "sha256": "5c5d47ecc21630f7642ecfee1d725d10549a0f0b8f3be982adde5eae14aed0f4"
+    },
+    {
+      "path": "04-editable-natural-caverns.png",
+      "bytes": 1143274,
+      "sha256": "21f712e6cef49191ef318d60c49a76b6037b18d2a72536f716b2c53f924b3777"
+    },
+    {
+      "path": "05-secret-opening-properties.png",
+      "bytes": 1190762,
+      "sha256": "a6e9cc4b299299aa271dfc3073b14cb3e28b39b4abeda332946543c9cad78e1c"
+    },
+    {
+      "path": "06-trap-and-hazard-authoring.png",
+      "bytes": 1098746,
+      "sha256": "21663ab9cde16ff416e325792eb20407cb5e0e4fc832202cf484668b3350ef47"
+    },
+    {
+      "path": "07-square-grid.png",
+      "bytes": 1224256,
+      "sha256": "cc8dcc638c870e84ebe0147b6b1bfd7203b3704ff4f1d7ee9a47f10e237ea60a"
+    },
+    {
+      "path": "08-hex-grid.png",
+      "bytes": 1335985,
+      "sha256": "a676f9f4989e87722c8ad299faf7daa43439f9aa8e19fe9b334ba987a53c4910"
+    },
+    {
+      "path": "09-ordinary-server-preview.png",
+      "bytes": 1010041,
+      "sha256": "d04b93ea437e241c7e2d1dd46bc6340fda457f28185c9929136516f629243273"
+    },
+    {
+      "path": "10-multi-level-explore.png",
+      "bytes": 872865,
+      "sha256": "2236dcd12952473016dfd3f3fbb4c46270040837801b045e31b1ae864b3408f7"
+    },
+    {
+      "path": "11-building-dungeon-navigation.png",
+      "bytes": 840183,
+      "sha256": "b37192e865abb4607c407f12ba24c057fd3824961787ed3f02ebcb11a8311799"
+    },
+    {
+      "path": "12-dense-dungeon.png",
+      "bytes": 1217133,
+      "sha256": "f05cf9634bd57ecfe00d929f331b9ba2144cee5d8a0ccb5aec74252057122812"
+    },
+    {
+      "path": "13-phone-workshop.png",
+      "bytes": 554813,
+      "sha256": "3dddfb2fde57f62dbe9258ef99f8b87cddb48e30dcbec41338e22495f46e37b0"
+    },
+    {
+      "path": "13b-phone-workshop-viewport.png",
+      "bytes": 95386,
+      "sha256": "2d245412b398492541e5c3a87f300eefac78b63ec990cfca016a2b8302b6da04"
+    },
+    {
+      "path": "14-phone-explore.png",
+      "bytes": 297197,
+      "sha256": "4a62f4f8bf1050028dd727463b29955d170965c5bab47dbd4abce381b8151f75"
+    },
+    {
+      "path": "14b-phone-explore-viewport.png",
+      "bytes": 89760,
+      "sha256": "650ffda8aba35bec7dae8fe3fda77b4d2d192cda0bc0fb9af7cc4602d4eacd82"
+    },
+    {
+      "path": "performance.json",
+      "bytes": 219,
+      "sha256": "e3aeaa6768a03f731152e9e4c6f224d8059fc1f476b6ed6fc6cafb9dd9d84d3b"
+    },
+    {
+      "path": "regressions/authentication/password-login-desktop.png",
+      "bytes": 1389538,
+      "sha256": "92770353b9dad73a52b3f811361af6c64b8e136823d07296112e484821049705"
+    },
+    {
+      "path": "regressions/authentication/password-profile-phone.png",
+      "bytes": 483665,
+      "sha256": "1ef22130fbe96526c3c320d5de699a5d334ba7d9b6f2bca947547c28dada07b5"
+    },
+    {
+      "path": "regressions/authentication/password-recovery-guidance-phone.png",
+      "bytes": 123198,
+      "sha256": "053d5da6be3d5c2c129bb856adb785f2aa82bc1c1a28b60c3b3af924c65f1680"
+    },
+    {
+      "path": "regressions/authentication/password-recovery-phone.png",
+      "bytes": 118928,
+      "sha256": "bf4063f190d8bdba134241d233f2f740b865124b3e2087ea88f8dcc1c0585582"
+    },
+    {
+      "path": "regressions/connected/breadcrumbs.png",
+      "bytes": 796805,
+      "sha256": "86630dca67e7853a2988787e423ab138fe64de66eb5b62f49d8e62ccd65e09ec"
+    },
+    {
+      "path": "regressions/connected/continent-selection.png",
+      "bytes": 894021,
+      "sha256": "4153d45f608a47cf84f2f5e79b97ea2f7da4461f8a6c58b88e9374ca782e5ba1"
+    },
+    {
+      "path": "regressions/connected/dense-exploration.png",
+      "bytes": 961611,
+      "sha256": "7e34bde058f8a96d4b3efafa18b64e48a9536bc6e039c442574915bd8fdff094"
+    },
+    {
+      "path": "regressions/connected/navigation.json",
+      "bytes": 1441,
+      "sha256": "8d1a2e00503e5913319959af8984f1be0e21c1b3bc9d2fc4fe24f3b549d7514a"
+    },
+    {
+      "path": "regressions/connected/phone-connections.png",
+      "bytes": 57031,
+      "sha256": "a501ca1c443e83946adae9baf9a0f2735a992dc81e0c40882ac3c9729db415c8"
+    },
+    {
+      "path": "regressions/connected/phone-region.png",
+      "bytes": 294502,
+      "sha256": "65235c37dd684db23e98ddd598d289f6329aa742084f786d9aaccd38ed865083"
+    },
+    {
+      "path": "regressions/connected/phone-town.png",
+      "bytes": 270816,
+      "sha256": "da648d7d7ad9a5109b356f06c6ab21e93abbe0c553eabaf898413fde680da961"
+    },
+    {
+      "path": "regressions/connected/place-information.png",
+      "bytes": 837541,
+      "sha256": "890faabc108d2c03dc9787b41018a94cd02907e9cb690bf4c300e92669112d05"
+    },
+    {
+      "path": "regressions/connected/regional-towns.png",
+      "bytes": 835205,
+      "sha256": "fec2195394e44f8cfe4d3f0c2da7a9a5fa8cfa09ad159001d03f6880957dbd7f"
+    },
+    {
+      "path": "regressions/connected/world-connected.png",
+      "bytes": 872418,
+      "sha256": "05bf695d803d78e364ac4db0df5afeb81d6ab8176d2e52a501ce54100445e61c"
+    },
+    {
+      "path": "regressions/generation/archipelago.png",
+      "bytes": 174052,
+      "sha256": "2744af3c12929f87293ec381b09fa218b52fcdb99119ee28c7014a35e6c86018"
+    },
+    {
+      "path": "regressions/generation/continental-world.png",
+      "bytes": 220715,
+      "sha256": "489b83192ade9d487741f238e38c0f2e69526e5550d7bfd175ee58f269048703"
+    },
+    {
+      "path": "regressions/generation/description-controls.png",
+      "bytes": 990393,
+      "sha256": "a3bbdbc5a04a79e11b79ad2579f7cdc119faf1038c874c24bb75b245804c9116"
+    },
+    {
+      "path": "regressions/generation/description-driven.png",
+      "bytes": 151348,
+      "sha256": "8bb6e15ca70e437e8527f87535b2991b571f15ff422279370cf3a3dc57cfeb76"
+    },
+    {
+      "path": "regressions/generation/edited-generated-map.png",
+      "bytes": 96058,
+      "sha256": "9a7698dde6edc7d5e9e2e672b3ab0a70a71abf1dc14f384b327a1b599c9d5867"
+    },
+    {
+      "path": "regressions/generation/generation-controls.png",
+      "bytes": 972195,
+      "sha256": "03b53359ca95e74f6978927f8a077e68976d319ed4d54c505ad5fd5df5343586"
+    },
+    {
+      "path": "regressions/generation/northern-continent.png",
+      "bytes": 116111,
+      "sha256": "7008f9a949b48df2afa9b3ac8dbc7a01d6aa311d90f8e2dca8efa6e0f73c4e52"
+    },
+    {
+      "path": "regressions/generation/phone-description-map.png",
+      "bytes": 23562,
+      "sha256": "4fed6ce3e6239873c2450d00376e024212d3fe544b7ec997982590ae03074523"
+    },
+    {
+      "path": "regressions/generation/phone-description.png",
+      "bytes": 372166,
+      "sha256": "db78359543c53c6aaf049bf29a7aed4e056716ed38d16f07a8b97e1903743dda"
+    },
+    {
+      "path": "regressions/generation/phone-editor.png",
+      "bytes": 28794,
+      "sha256": "01409a834e30059e6a0eb4bedf215435a576fee7e0c010bcd10ba48362d73349"
+    },
+    {
+      "path": "regressions/generation/phone-generation.png",
+      "bytes": 311373,
+      "sha256": "a867bab24c80de0e197a1da397b3fd5eaa0f567694443223bc83aa2e75becb77"
+    },
+    {
+      "path": "regressions/generation/rugged-world.png",
+      "bytes": 239619,
+      "sha256": "8f549948c249133f720cf375386bd383371f44285c6449e361da3da420612186"
+    },
+    {
+      "path": "regressions/interior/01-editor-desktop.png",
+      "bytes": 903468,
+      "sha256": "363feec381a8bde300ac1c9ced7f2f18064bccefb488c6c8dec9ec19e1a19705"
+    },
+    {
+      "path": "regressions/interior/02-room-properties.png",
+      "bytes": 903062,
+      "sha256": "0547638e0ee350a8a64c94d9de53b6493efffe19b5fbdf65d947fdc1bc0806c3"
+    },
+    {
+      "path": "regressions/interior/03-attached-opening.png",
+      "bytes": 983012,
+      "sha256": "98a91075edd1551c9903071df97a940283088cce52e804be2786b8cd290b77e9"
+    },
+    {
+      "path": "regressions/interior/04-furnishing-properties.png",
+      "bytes": 934218,
+      "sha256": "bd643b12b746e9dcd6f4d8649a1c34a9ef27590aae2d2a1a4a308cbd37b95f5f"
+    },
+    {
+      "path": "regressions/interior/05-completed-interior.png",
+      "bytes": 1021199,
+      "sha256": "58fa5346c1be9cd58400a3f40a77b1f93e75a169d4d0aa26c04e86ca914692fe"
+    },
+    {
+      "path": "regressions/interior/06-floor-navigation-basement.png",
+      "bytes": 836478,
+      "sha256": "f3ca1995812f20170c8604956ac70adbe3b3dd5b6485aa1dd873f9021fbdf060"
+    },
+    {
+      "path": "regressions/interior/07-transition-properties.png",
+      "bytes": 989628,
+      "sha256": "479d50d53d12e69f92c9c7483ca408a603214836604994b9218da590b40ca68f"
+    },
+    {
+      "path": "regressions/interior/08-authored-stair-arrival.png",
+      "bytes": 810923,
+      "sha256": "8879ef0f42c7dbeb0f15882f1c317b46c969db09daa0ad0efdcbc30f11c1121b"
+    },
+    {
+      "path": "regressions/interior/09-explore-interior.png",
+      "bytes": 837630,
+      "sha256": "a1b221f9d1a6e8082944cc79ce2ee435a11f599e2bd36886878fa029a2ae9355"
+    },
+    {
+      "path": "regressions/interior/10-exterior-interior-choices.png",
+      "bytes": 811554,
+      "sha256": "860de79a6574c35510047ef7a72a71154907d04f65936b7c907522c82ff5e625"
+    },
+    {
+      "path": "regressions/interior/11-phone-editor.png",
+      "bytes": 399782,
+      "sha256": "460124f1b96e130ef21deb815d2e3980d222393e54bb4d76526b1b35512eea86"
+    },
+    {
+      "path": "regressions/interior/12-phone-explore.png",
+      "bytes": 302602,
+      "sha256": "1d2f73301e1b0422399fd2217a39de1a4e0df5135e7907e2b84951fa7a3a1268"
+    },
+    {
+      "path": "regressions/interior/13-dense-interior.png",
+      "bytes": 1119327,
+      "sha256": "b1a5cd62a1a1ddc0a243860d3e579cb13a7d10d0542154ad26618b74ccff3ca4"
+    },
+    {
+      "path": "regressions/interior/performance.json",
+      "bytes": 242,
+      "sha256": "f5345ea24c91fe6961ab55965f68dcaf6cee796e65bbcddba8cf00fcd3e873bc"
+    },
+    {
+      "path": "regressions/refinement/broken-archipelago.png",
+      "bytes": 181927,
+      "sha256": "cf9b58187063401fb24890c9aeb6f12adb7e530d6fe77c82c9144af8a373c448"
+    },
+    {
+      "path": "regressions/refinement/chaotic-world.png",
+      "bytes": 210445,
+      "sha256": "5c50eee9dcf35ea063b41c9bf3e34e112ff0cc5318a70b53afd8926bb98fd7fd"
+    },
+    {
+      "path": "regressions/refinement/dense-export.png",
+      "bytes": 598046,
+      "sha256": "80c15619fd60e5a400686dfc05fade5a1dfc03889dca5a1025abcc6468e54bb7"
+    },
+    {
+      "path": "regressions/refinement/dense-map.png",
+      "bytes": 193822,
+      "sha256": "609f12d88f96e9092e609b64c5d9ac4c2f0731f9feb93119cfe40e8492f8ec84"
+    },
+    {
+      "path": "regressions/refinement/description-after.png",
+      "bytes": 135848,
+      "sha256": "12a6b5c77e616f702010c28643c6d3f397386ff530eef0c0870a9011d832c142"
+    },
+    {
+      "path": "regressions/refinement/description-before.png",
+      "bytes": 204671,
+      "sha256": "f7555f8d30b84b26c5a1e23b27a6177fa6f74de597d01f394bc447a1bee55292"
+    },
+    {
+      "path": "regressions/refinement/dramatic-continent.png",
+      "bytes": 153905,
+      "sha256": "124c1bed84a8a78a4bce091b54c57198f315fc707a19ed7f48b156828a9fd530"
+    },
+    {
+      "path": "regressions/refinement/performance.json",
+      "bytes": 3768,
+      "sha256": "be2e3a5d4269645209d950e7b88e8d178add4cb8ad3cf2bcf9b9a0c668c64a4d"
+    },
+    {
+      "path": "regressions/settlement/building-properties.png",
+      "bytes": 1009896,
+      "sha256": "8c52d0824ceacfdb063d11b72d2b12285dcddd7011387641be4ff21602727264"
+    },
+    {
+      "path": "regressions/settlement/connected-navigation.png",
+      "bytes": 853075,
+      "sha256": "1ea6366c3c06ae8807a00c5fc7c944884523472aa4f448e764d66611c0977397"
+    },
+    {
+      "path": "regressions/settlement/dense-settlement-explore.png",
+      "bytes": 990887,
+      "sha256": "6c6a0c47fd98f7a3154fc2d3612c39eeadb5d8f0e686a043866c0b6fa5b9b3b1"
+    },
+    {
+      "path": "regressions/settlement/dense-settlement.png",
+      "bytes": 1095896,
+      "sha256": "38fda1bbd4c260d349c6c1e7b4cb018b63990ed125bf7ea011d7a67dffe4837a"
+    },
+    {
+      "path": "regressions/settlement/desktop-settlement-editor.png",
+      "bytes": 1000277,
+      "sha256": "6f334259ac13d6edeb37e31715fdae125eb0bc2114f6f8f19de31d6d605c1391"
+    },
+    {
+      "path": "regressions/settlement/desktop-town-map.png",
+      "bytes": 852979,
+      "sha256": "e0ac1bb3e27532712e9e884e28354e75d4ae9599d40623df3a4296667b7970b7"
+    },
+    {
+      "path": "regressions/settlement/district-properties.png",
+      "bytes": 909380,
+      "sha256": "a0845c7f2f235214efe6bf7187d586850dea350b6ce9c1ce8100a1bc64bda6e5"
+    },
+    {
+      "path": "regressions/settlement/mobile-settlement-editor.png",
+      "bytes": 374374,
+      "sha256": "d0396516fa196fe8b248b39b13e428b21c944defad63923ef40a2ab49d6f2b56"
+    },
+    {
+      "path": "regressions/settlement/mobile-settlement-explore.png",
+      "bytes": 298784,
+      "sha256": "8940d90eb96277c256164505b429a8ad02c6a70b42da8d6b44ec4cf577452f03"
+    },
+    {
+      "path": "regressions/settlement/performance.json",
+      "bytes": 303,
+      "sha256": "e6bfb39945f04ea9a58b93117a8bd4b89deaa5c8aebdf66d6b76189eb10b378f"
+    },
+    {
+      "path": "regressions/settlement/settlement-explore.png",
+      "bytes": 855600,
+      "sha256": "33445c4617d6dd8633884e1e832aa5857c6bbb0c6101057eade989fb8e5d48ec"
+    },
+    {
+      "path": "regressions/settlement/streets-footprints.png",
+      "bytes": 1000203,
+      "sha256": "4f2a11e440dc6071505d716859555928d4b46c9b5edd0fcf33c4560a0bacd6b7"
+    },
+    {
+      "path": "regressions/worlds/worlds-atlas-canvas-mobile.png",
+      "bytes": 25152,
+      "sha256": "2871d10eb7f6b2b59cc26b8474086c99395e30abb1b6431488e3c770401ca7ef"
+    },
+    {
+      "path": "regressions/worlds/worlds-atlas-editor-desktop.png",
+      "bytes": 657404,
+      "sha256": "9004f5628974c1394eca7d439fdc3a7689ab2b9b2658974e51e747e0e0a0d0f0"
+    },
+    {
+      "path": "regressions/worlds/worlds-atlas-editor-mobile.png",
+      "bytes": 312650,
+      "sha256": "8051e581b1ebaf8f4ea7994b6d160165fdda781324409fcaccf45ed47c287016"
+    },
+    {
+      "path": "regressions/worlds/worlds-atlas-information-mobile.png",
+      "bytes": 40954,
+      "sha256": "7fea72c405b9bda634bc430a194053490793becf31967a07b68dbda6332f40de"
+    },
+    {
+      "path": "regressions/worlds/worlds-atlas-library-desktop.png",
+      "bytes": 750726,
+      "sha256": "84e8dfc8b8d39bf8fc71c5c13830cc45386dca991b1a2c40d76188fe270a299f"
+    },
+    {
+      "path": "regressions/worlds/worlds-calendar-anchor-mobile.png",
+      "bytes": 25242,
+      "sha256": "2e470d1ef3c92c177797d6e6db3af1b0835a359dc3ec22fce0f83a3e36f0cbb3"
+    },
+    {
+      "path": "regressions/worlds/worlds-calendar-conversion-desktop.png",
+      "bytes": 50766,
+      "sha256": "3fa59d82d59ed5f378e6cc0a471b3a65b1414f3be6b8a1891b0e2f0dad894fee"
+    },
+    {
+      "path": "regressions/worlds/worlds-calendar-desktop.png",
+      "bytes": 652150,
+      "sha256": "19ae55158035b4c6f3b8f85d90689ce8fdc76ad1c7d155bb87f5c2d88073d1e2"
+    },
+    {
+      "path": "regressions/worlds/worlds-calendar-editor-mobile.png",
+      "bytes": 37232,
+      "sha256": "66db2136e412d2373ddb28002c1d528628bfd3b716b42b72d44c70e238e61d15"
+    },
+    {
+      "path": "regressions/worlds/worlds-calendar-evolution-desktop.png",
+      "bytes": 715753,
+      "sha256": "dc2f075385ed7cd2d919bd30d12ab95500c4403b7571bbf3b1391993f2babf69"
+    },
+    {
+      "path": "regressions/worlds/worlds-calendar-evolution-mobile.png",
+      "bytes": 377745,
+      "sha256": "144c32a415e377637f14553217b8c165c086ae6b87298183c7dcdb7caf56aa9b"
+    },
+    {
+      "path": "regressions/worlds/worlds-calendar-history-desktop.png",
+      "bytes": 111838,
+      "sha256": "fceb195960a4ab8c301902f57145b864310111c8e0fa61cd322959558084f1d5"
+    },
+    {
+      "path": "regressions/worlds/worlds-calendar-mobile.png",
+      "bytes": 353015,
+      "sha256": "fcb5d69c9d2897448d382b0ba281c637f0fd0e7ef0e5e2de0061d7ce0009d8b7"
+    },
+    {
+      "path": "regressions/worlds/worlds-calendar-source-mobile.png",
+      "bytes": 53382,
+      "sha256": "dc5a9dbb27b3549305dad5f8117e1c67f58dc2f2ca921a80831feceb94de7740"
+    },
+    {
+      "path": "regressions/worlds/worlds-cartography-desktop.png",
+      "bytes": 134773,
+      "sha256": "4a11b850f572a06c9026bd5cefb9ba277248876f31bf28b96bc421d8e42cc5dc"
+    },
+    {
+      "path": "regressions/worlds/worlds-cartography-export-mobile.png",
+      "bytes": 300172,
+      "sha256": "70a0992d80ab5b24e9b850bca954dafde397cfcbd23c53528c9d977f2fd92539"
+    },
+    {
+      "path": "regressions/worlds/worlds-cartography-export.png",
+      "bytes": 300172,
+      "sha256": "70a0992d80ab5b24e9b850bca954dafde397cfcbd23c53528c9d977f2fd92539"
+    },
+    {
+      "path": "regressions/worlds/worlds-cartography-mobile-page.png",
+      "bytes": 313671,
+      "sha256": "a216cddb8de965ae55342362f8c9ca164fd182d35b6125c9e51a8518f8655839"
+    },
+    {
+      "path": "regressions/worlds/worlds-cartography-mobile.png",
+      "bytes": 45360,
+      "sha256": "820692150436504c1e3b8cadfc277cb432fb7c94ccbb26af7e8e047e12559100"
+    },
+    {
+      "path": "regressions/worlds/worlds-chronology-desktop.png",
+      "bytes": 708236,
+      "sha256": "cc2474f87727365880993ece1505cbe492b38b524e3104259b2ea620ab9cf87d"
+    },
+    {
+      "path": "regressions/worlds/worlds-chronology-editor-desktop.png",
+      "bytes": 118603,
+      "sha256": "9dd5a956c34e7afd4a94d16cf14a14dc161a7f254c5fbd62e6c19066b7c256da"
+    },
+    {
+      "path": "regressions/worlds/worlds-chronology-editor-mobile.png",
+      "bytes": 40372,
+      "sha256": "da7defdb86f4ba53eee0beb6b3dcd3a0178d3150918e761851094fd633733d60"
+    },
+    {
+      "path": "regressions/worlds/worlds-chronology-mobile.png",
+      "bytes": 391096,
+      "sha256": "d134ce1ed3e861767ef9e55bba2c5ca3325075bf961775e80a2b84df6daa7fcf"
+    },
+    {
+      "path": "regressions/worlds/worlds-classifications-desktop.png",
+      "bytes": 140239,
+      "sha256": "87e3aff4f927b1bb8f71495b2cda6d0b67d1de9e1fda25351338e6633d1f63fc"
+    },
+    {
+      "path": "regressions/worlds/worlds-classifications-mobile.png",
+      "bytes": 34978,
+      "sha256": "b5331917d4cfb23a5b3d02bb4b7a1e8b00c36de16a98cc9d00f55160395a59b2"
+    },
+    {
+      "path": "regressions/worlds/worlds-entry-editor-mobile.png",
+      "bytes": 41823,
+      "sha256": "86475bce88a46276e21f54468f9c26f1f5464567e461d89166e8b700da56d385"
+    },
+    {
+      "path": "regressions/worlds/worlds-era-labels-desktop.png",
+      "bytes": 249470,
+      "sha256": "47a9bca1c2920681dcb09aa7603f6d225702cafcfd35d1bce53fbd754e305e00"
+    },
+    {
+      "path": "regressions/worlds/worlds-era-labels-mobile.png",
+      "bytes": 68409,
+      "sha256": "581cc607b5f38a9b752452620851432655517832f5c224c7fa144fa0951ac08a"
+    },
+    {
+      "path": "regressions/worlds/worlds-history-desktop.png",
+      "bytes": 768780,
+      "sha256": "82a7c34c5ebd8b84f15be2ade61ea9ad15c138240d7400e524f3aedef43f0f13"
+    },
+    {
+      "path": "regressions/worlds/worlds-history-mobile.png",
+      "bytes": 346717,
+      "sha256": "d1b6c7a46ae2e1888683adbbabf83bab6c3e3483274113072762518a0e7b1ea3"
+    },
+    {
+      "path": "regressions/worlds/worlds-overview-desktop.png",
+      "bytes": 760097,
+      "sha256": "bea7d5d5a0f0deebcd3d091913761abb1150d56044ee54afdb95d98e961eda39"
+    },
+    {
+      "path": "regressions/worlds/worlds-overview-mobile.png",
+      "bytes": 310671,
+      "sha256": "e7b09096133e8f824d895dc3fe939659ed2775dff71c04e1fb193b9dc020ece0"
+    },
+    {
+      "path": "regressions/worlds/worlds-registry-desktop.png",
+      "bytes": 1607496,
+      "sha256": "c1a91a2de8b314f141c33a09a80c093c5aedfebba5e78857bf3fa2816026e608"
+    },
+    {
+      "path": "regressions/worlds/worlds-registry-mobile.png",
+      "bytes": 1120561,
+      "sha256": "3fc20f2b9de29473eca4b07e6b6fa12108bd67bfcdf14b7168901cb4ea6d76c8"
+    },
+    {
+      "path": "regressions/worlds/worlds-timeline-mobile.png",
+      "bytes": 69864,
+      "sha256": "2db996e7f2ab65f62ef841ea2c7182c92f0ab451c1426d37210b070d1bc93d85"
+    }
+  ]
+}

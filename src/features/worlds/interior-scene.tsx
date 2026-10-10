@@ -5,6 +5,9 @@ import styles from "./interior.module.css";
 
 function ObjectMark({symbol}:{symbol:string}) {
  const frame=<rect x="-48" y="-48" width="96" height="96" rx="5"/>;
+ if(symbol==="trap")return <><path d="M 0 -44 L 44 38 H -44 Z"/><path d="M 0 -22 V 12 M -3 23 H 3"/></>;
+ if(symbol==="hazard")return <><path d="M -40 -20 L -15 -40 L 12 -28 L 40 -5 L 28 28 L 0 42 L -35 22 Z"/><path d="M -20 -12 L 10 24 M 18 -18 L -15 25"/></>;
+ if(symbol==="annotation")return <><path d="M -36 -44 H 36 V 44 H -36 Z M -24 -20 H 22 M -24 0 H 22 M -24 20 H 12"/></>;
  if(symbol==="stairs"||symbol==="ramp"||symbol==="ladder")return <>{frame}{Array.from({length:7},(_,i)=><path key={i} d={`M -44 ${-36+i*12} H 44`}/>)}<path d="M 0 33 V -29 m -10 12 l 10 -12 l 10 12"/></>;
  if(symbol==="portal")return <><ellipse rx="35" ry="45"/><ellipse rx="24" ry="34"/><path d="M -9 0 Q 20 -20 14 6 Q -10 22 -9 0"/></>;
  if(symbol==="lift"||symbol==="shaft"||symbol==="hatch")return <>{frame}<path d="M -22 16 V -23 m -10 10 l 10 -10 l 10 10 M 22 -16 V 23 m -10 -10 l 10 10 l 10 -10"/></>;
@@ -20,7 +23,7 @@ function ObjectMark({symbol}:{symbol:string}) {
  if(symbol==="decoration")return <><circle r="35"/><path d="M 0 -28 L 8 -7 L 28 0 L 8 7 L 0 28 L -8 7 L -28 0 L -8 -7 Z"/></>;
  return <><path d="M 0 -44 L 44 0 L 0 44 L -44 0 Z"/><circle r="18"/></>;
 }
-const ShapeArt=memo(function ShapeArt({shape,entity,shapes,selected,units}:{shape:InteriorShape;entity:InteriorEntity;shapes:InteriorShape[];selected:boolean;units:number}) {
+export const ShapeArt=memo(function ShapeArt({shape,entity,shapes,selected,units}:{shape:InteriorShape;entity:InteriorEntity;shapes:InteriorShape[];selected:boolean;units:number}) {
  const attrs={"data-interior":shape.id,"data-entity":entity.id,"data-geography":entity.geographyId??undefined,className:`${styles.shape} ${selected?styles.selected:""}`};
  if(shape.variant==="area")return <g {...attrs}><polygon className={styles.room} points={shape.points.map(p=>`${p.x},${p.y}`).join(" ")}/></g>;
  if(shape.variant==="wall")return <g {...attrs}>{wallSegments(shape,shapes).map((s,i)=><g key={i}><path className={styles.wallHit} strokeWidth={Math.max(shape.width,12*units)} d={`M ${s.a.x} ${s.a.y} L ${s.b.x} ${s.b.y}`}/><path className={styles.wall} strokeWidth={shape.width} d={`M ${s.a.x} ${s.a.y} L ${s.b.x} ${s.b.y}`}/></g>)}</g>;

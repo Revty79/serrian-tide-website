@@ -1,0 +1,12 @@
+{
+  "sourceReadMs": 52,
+  "payloadBytes": 415746,
+  "otherLevelSourcesLoaded": 0,
+  "mapOpenMs": 468,
+  "selectionMs": 105,
+  "editMs": 83,
+  "saveMs": 982,
+  "objects": 810,
+  "panZoomMs": 661,
+  "switchLevelMs": 71
+}

@@ -1,8 +1,9 @@
+import { validateArrival } from "./atlas-destinations";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { worldAtlasConnection, worldAtlasFeature, worldAtlasDrawing, worldAtlasSettlementShape, worldAtlasInteriorShape, worldAtlasMap, worldGeography, worldInteriorEntity, worldInteriorFloor, worldSettlementEntity } from "@/db/world-atlas-schema";
+import { worldAtlasConnection, worldAtlasInteriorShape, worldAtlasMap, worldGeography, worldInteriorEntity, worldInteriorFloor, worldSettlementEntity } from "@/db/world-atlas-schema";
 import { WorldError } from "./world-service";
 import { floorDraftSchema, geographicInterior, validateInterior, type InteriorEntity } from "./interior";
 import type { MapDraft } from "./atlas";
@@ -51,11 +52,8 @@ export async function saveInterior(tx:Tx,worldId:string,mapId:string,floorId:str
  }
  const previousLinks=await tx.select().from(worldAtlasConnection).where(eq(worldAtlasConnection.sourceMapId,mapId));
  for(const e of entities.filter(e=>e.kind==="transition"))if(!links.some(l=>l.entityId===e.id))throw new WorldError("Retain each transition's destination field, including unconnected transitions.",400);
- for(const link of links){const previous=previousLinks.find(c=>c.geographyId===link.entityId);const unchanged=previous?.destinationMapId===link.destinationMapId&&previous?.destinationGeographyId===link.destinationGeographyId;
-  if(link.destinationMapId&&!unchanged){const [destination]=await tx.select().from(worldAtlasMap).where(and(eq(worldAtlasMap.id,link.destinationMapId),eq(worldAtlasMap.worldId,worldId)));if(!destination||destination.archivedAt||destination.id===mapId)throw unavailable();if(destination.mapKind==="interior")await activeFloor(tx,worldId,destination.geographyId!);
-   if(link.destinationGeographyId){const [g]=await tx.select().from(worldGeography).where(and(eq(worldGeography.id,link.destinationGeographyId),eq(worldGeography.worldId,worldId)));if(!g||g.archivedAt)throw unavailable();const source=destination.mapKind==="interior"?await interiorSource(tx,worldId,destination.id):null;if(g.id!==destination.geographyId){let represented=source?.interiorShapes.some(s=>s.entityId===g.id&&!s.archived)??false;if(!source){const [feature]=await tx.select().from(worldAtlasFeature).where(and(eq(worldAtlasFeature.mapId,destination.id),eq(worldAtlasFeature.geographyId,g.id))).limit(1);const [drawing]=await tx.select().from(worldAtlasDrawing).where(and(eq(worldAtlasDrawing.mapId,destination.id),eq(worldAtlasDrawing.geographyId,g.id))).limit(1);const [settlement]=await tx.select().from(worldAtlasSettlementShape).where(and(eq(worldAtlasSettlementShape.mapId,destination.id),eq(worldAtlasSettlementShape.geographyId,g.id))).limit(1);represented=!!(feature&&!feature.archivedAt||drawing&&!drawing.archivedAt||settlement&&!settlement.content.archived);}if(!represented)throw new WorldError("Choose an active arrival place represented on the destination map.",400);}}
-  }
- }
+ for(const link of links){const previous=previousLinks.find(c=>c.geographyId===link.entityId);if(link.destinationMapId&&(previous?.destinationMapId!==link.destinationMapId||previous?.destinationGeographyId!==link.destinationGeographyId))await validateArrival(tx,worldId,mapId,link.destinationMapId,link.destinationGeographyId);}
+
  for(const e of entities){const previous=byId.get(e.id),{id,revision:_,...fields}=e;void _;const changed=!previous||["name","description","classification"].some(k=>previous[k as "name"]!==e[k as "name"]);
   if(!previous)await tx.insert(worldInteriorEntity).values({id,worldId,floorId,...fields});else if(changed)await tx.update(worldInteriorEntity).set({...fields,revision:previous.revision+1}).where(eq(worldInteriorEntity.id,id));
  }

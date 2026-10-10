@@ -14,7 +14,7 @@ const VisibleArtwork=memo(function VisibleArtwork({map,geographies}:{map:AtlasMa
 export function AtlasThumbnail({map,geographies,worldId,review=false}:{map:AtlasMap;geographies:GeographyRecord[];worldId?:string;review?:boolean}) {
   const ref=useRef<HTMLDivElement>(null),[visible,setVisible]=useState(false);
   const [source,setSource]=useState<AtlasBundle|null>(null);
-  useEffect(()=>{if(!visible||!worldId||!["settlement","interior"].includes(map.mapKind??"")||map.archived||map.unavailable||(map.mapKind==="settlement"?map.settlementShapes:map.interiorShapes))return;let alive=true;worldApi<AtlasBundle>(`/api/worlds/${worldId}/atlas?map=${map.id}${review?"&review=1":""}`).then(b=>{if(alive)setSource(b);}).catch(()=>{});return()=>{alive=false;};},[visible,worldId,map,review]);
+  useEffect(()=>{if(!visible||!worldId||!["settlement","interior","dungeon"].includes(map.mapKind??"")||map.archived||map.unavailable||(map.mapKind==="settlement"?map.settlementShapes:map.mapKind==="dungeon"?map.dungeonShapes:map.interiorShapes))return;let alive=true;worldApi<AtlasBundle>(`/api/worlds/${worldId}/atlas?map=${map.id}&ordinary=1${review?"&review=1":""}`).then(b=>{if(alive)setSource(b);}).catch(()=>{});return()=>{alive=false;};},[visible,worldId,map,review]);
   useEffect(()=>{
     const observer=new IntersectionObserver(entries=>setVisible(entries[0].isIntersecting),{rootMargin:"240px"});
     if(ref.current)observer.observe(ref.current);
