@@ -101,7 +101,7 @@
 .eraBand[data-tone="info"],.eraCard[data-tone="info"] { --world-accent:var(--st-info); }
 .eraBand[data-tone="muted"],.eraCard[data-tone="muted"] { --world-accent:var(--st-muted); }
 .eraBand[data-open="true"] { border-style:dashed; }
-.eraBand { overflow:visible; min-height:44px; height:44px; }
+.eraBand { position:relative; overflow:visible; min-height:44px; height:44px; }
 .eraBand span { position:absolute; left:.65rem; top:8px; max-width:calc(100% - 1.3rem); padding:.15rem .4rem; border-radius:.25rem; background:var(--st-surface-deep); color:var(--st-text); text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }
 .eraBand small { display:none; }
 .eventStage { position:relative; min-height:100px; }

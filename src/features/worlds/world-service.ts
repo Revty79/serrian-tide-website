@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
 import { itemTagCatalog } from "@/db/item-schema";
+import { itemTagDiscoveryWhere } from "@/features/catalog-visibility/item-catalog-service";
 import { world, worldEra, worldEntry, worldEntryEra, worldTag } from "@/db/world-schema";
 import { entryDraftSchema, eraDraftSchema, worldDraftSchema, type EntryRecord, type EraRecord, type Tone, type WorldBundle, type WorldRecord } from "./history";
 
@@ -34,11 +35,19 @@ async function lockOwned(tx: Tx, userId: string, worldId: string, allowArchived 
   if (row.archivedAt && !allowArchived) throw new WorldError("Restore this world before editing its history.", 400);
   return row;
 }
-async function tags(tx: Tx, worldId: string, tagIds: number[]) {
+async function classificationWhere(userId: string, scope: "mine" | "review" = "mine", connection: typeof db | Tx = db) {
+  // Retention comes only from server-read worlds in the authorized scope, never client IDs.
+  const retained = await connection.selectDistinct({ id: worldTag.tagId }).from(worldTag)
+    .innerJoin(world, eq(world.id, worldTag.worldId))
+    .where(scope === "review" ? ne(world.ownerId, userId) : eq(world.ownerId, userId));
+  return and(sql`lower(trim(${itemTagCatalog.tagGroup})) in ('era','genre')`,
+    await itemTagDiscoveryWhere(userId, retained.map(({ id }) => id)));
+}
+async function tags(tx: Tx, userId: string, worldId: string, tagIds: number[]) {
   const ids = [...new Set(tagIds)];
   if (ids.length) {
-    const matches = await tx.select({ id: itemTagCatalog.id }).from(itemTagCatalog).where(and(inArray(itemTagCatalog.id, ids), sql`lower(trim(${itemTagCatalog.tagGroup})) in ('era','genre')`));
-    if (matches.length !== ids.length) throw new WorldError("Choose existing Era or Genre classification tags.", 400);
+    const matches = await tx.select({ id: itemTagCatalog.id }).from(itemTagCatalog).where(and(inArray(itemTagCatalog.id, ids), await classificationWhere(userId, "mine", tx)));
+    if (matches.length !== ids.length) throw new WorldError("Choose available Era or Genre classification tags.", 400);
   }
   await tx.delete(worldTag).where(eq(worldTag.worldId, worldId));
   if (ids.length) await tx.insert(worldTag).values(ids.map((tagId) => ({ worldId, tagId })));
@@ -58,9 +67,10 @@ export async function listWorlds(userId: string, scope: "mine" | "review" = "min
   const associations = rows.length ? await db.select().from(worldTag).where(inArray(worldTag.worldId, rows.map(({row}) => row.id))) : [];
   return rows.map(({row, ownerName, eraCount, entryCount}) => worldDto(row, ownerName, associations.filter((tag) => tag.worldId === row.id).map((tag) => tag.tagId), eraCount, entryCount));
 }
-export async function worldReferences(userId: string) {
-  await actor(userId);
-  return db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).where(sql`lower(trim(${itemTagCatalog.tagGroup})) in ('era','genre')`).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name));
+export async function worldReferences(userId: string, scope: "mine" | "review" = "mine") {
+  const access = await actor(userId);
+  if (scope === "review" && !access.admin) throw new WorldError("Administrator review requires administrator access.", 403);
+  return db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).where(await classificationWhere(userId, scope)).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name));
 }
 export async function getWorld(userId: string, worldId: string, review = false): Promise<WorldBundle> {
   const row = await readWorld(userId, worldId, review);
@@ -79,7 +89,7 @@ export async function createWorld(userId: string, input: unknown) {
   await actor(userId);
   const { tagIds, ...draft } = worldDraftSchema.parse(input);
   const id = randomUUID();
-  await db.transaction(async (tx) => { await tx.insert(world).values({ id, ownerId: userId, ...draft }); await tags(tx, id, tagIds); });
+  await db.transaction(async (tx) => { await tx.insert(world).values({ id, ownerId: userId, ...draft }); await tags(tx, userId, id, tagIds); });
   return id;
 }
 export async function changeWorld(userId: string, worldId: string, input: unknown) {
@@ -94,7 +104,7 @@ export async function changeWorld(userId: string, worldId: string, input: unknow
     if (command.action === "save") {
       const { tagIds, ...draft } = command.draft;
       await tx.update(world).set({ ...draft, revision: current.revision + 1, updatedAt: new Date() }).where(eq(world.id, worldId));
-      await tags(tx, worldId, tagIds);
+      await tags(tx, userId, worldId, tagIds);
     } else await tx.update(world).set({ archivedAt: command.action === "archive" ? new Date() : null, revision: current.revision + 1, updatedAt: new Date() }).where(eq(world.id, worldId));
   });
 }

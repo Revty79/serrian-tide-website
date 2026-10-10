@@ -8,6 +8,6 @@ export default async function WorldsPage({ searchParams }: { searchParams: Promi
   const access = await requireGodOrAdminAccessContext();
   const isAdmin = access.roles.includes("admin");
   const review = isAdmin && (await searchParams).scope === "review";
-  const [worlds, tags] = await Promise.all([listWorlds(access.session.user.id, review ? "review" : "mine"), worldReferences(access.session.user.id)]);
+  const [worlds, tags] = await Promise.all([listWorlds(access.session.user.id, review ? "review" : "mine"), worldReferences(access.session.user.id, review ? "review" : "mine")]);
   return <WorldRegistry key={review ? "review" : "mine"} initialWorlds={worlds} tags={tags} isAdmin={isAdmin} review={review} />;
 }

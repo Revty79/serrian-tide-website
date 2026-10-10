@@ -9,6 +9,6 @@ export default async function WorldPage({ params, searchParams }: { params: Prom
   const review = access.roles.includes("admin") && (await searchParams).review === "1";
   const worldId = (await params).worldId;
   const bundle = await getWorld(access.session.user.id, worldId, review).catch((error) => { if (error instanceof WorldError && error.status === 404) notFound(); throw error; });
-  const [worlds, tags] = await Promise.all([listWorlds(access.session.user.id, review ? "review" : "mine"), worldReferences(access.session.user.id)]);
+  const [worlds, tags] = await Promise.all([listWorlds(access.session.user.id, review ? "review" : "mine"), worldReferences(access.session.user.id, review ? "review" : "mine")]);
   return <WorldWorkspace key={worldId} initialBundle={bundle} worlds={worlds} tags={tags} review={review} />;
 }
