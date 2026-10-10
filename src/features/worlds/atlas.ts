@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { GenerationProvenance } from "./generation-spec";
 
 import { MAP_WIDTH, MAP_HEIGHT, rounded } from "./atlas-coordinates";
 import { defaultPresentation, drawingsSchema, presentationSchema, validateDrawings, type MapDrawing, type MapPresentation } from "./cartography";
@@ -23,7 +24,7 @@ export type AtlasFeature = z.infer<typeof featureSchema>;
 export type GeographyDraft = z.infer<typeof geographyDraftSchema>;
 export type MapDraft = z.infer<typeof mapDraftSchema>;
 export type GeographyRecord = Omit<GeographyDraft, "revision"> & {revision: number; archived: boolean};
-export type AtlasMap = {id: string; name: string; description: string; scope: MapDraft["scope"]; width: number; height: number; revision: number; archived: boolean; features: AtlasFeature[]; drawings?: MapDrawing[]; presentation?: MapPresentation};
+export type AtlasMap = {id: string; name: string; description: string; scope: MapDraft["scope"]; width: number; height: number; revision: number; archived: boolean; features: AtlasFeature[]; drawings?: MapDrawing[]; presentation?: MapPresentation; generation?: GenerationProvenance|null};
 export type AtlasBundle = {maps: AtlasMap[]; geographies: GeographyRecord[]; canEdit: boolean};
 export type Viewport = {x: number; y: number; width: number; height: number};
 export const fitViewport = (): Viewport => ({x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT});

@@ -1,0 +1,74 @@
+"use client";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { GuidedField } from "@/components/field-guidance";
+import type { AtlasMap } from "./atlas";
+import { CartographyScene } from "./cartography-scene";
+import { generateMap, type GenerationResult } from "./map-generator";
+import { directions, generationSpecSchema, presetSpec, presets, regions, type GenerationPlan, type GenerationSettings, type GenerationSpec, type Preset } from "./generation-spec";
+import styles from "./generation.module.css";
+
+type Preview = GenerationResult & {spec: GenerationSpec; id:string};
+export function AtlasGenerator({source,onClose,onSave,onDirtyChange}:{source:AtlasMap|null;onClose:()=>void;onSave:(body:unknown)=>Promise<void>;onDirtyChange:(dirty:boolean)=>void}) {
+  const [spec,setSpec]=useState<GenerationSpec>(()=>source?.generation?.spec?structuredClone(source.generation.spec):presetSpec("continental","serrian-tide"));
+  const [name,setName]=useState(source?`${source.name.slice(0,140)} variation`:"New generated map"),[description,setDescription]=useState("");
+  const [preview,setPreview]=useState<Preview|null>(null),[pending,setPending]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[dirty,setDirty]=useState(false);
+  const previewRef=useRef<HTMLDivElement>(null),sceneId=useId().replace(/:/g,"");
+  const stale=!!preview&&JSON.stringify(spec)!==JSON.stringify(preview.spec);
+  useEffect(()=>{onDirtyChange(dirty);return()=>onDirtyChange(false);},[dirty,onDirtyChange]);
+  useEffect(()=>{
+    const guard=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue="";}};
+    const navigation=(e:MouseEvent)=>{const anchor=(e.target as Element).closest?.("a[href]") as HTMLAnchorElement|null;if(!dirty||!anchor||anchor.hasAttribute("download")||anchor.href===location.href)return;if(!window.confirm("Leave this unsaved map preview?"))e.preventDefault();};
+    window.addEventListener("beforeunload",guard);document.addEventListener("click",navigation);
+    return()=>{window.removeEventListener("beforeunload",guard);document.removeEventListener("click",navigation);};
+  },[dirty]);
+  function change(next:GenerationSpec){setSpec(next);setDirty(true);setError("");}
+  function setting<K extends keyof GenerationSettings>(key:K,value:GenerationSettings[K]){const settings={...spec.settings,[key]:value};if(key==="mapType"&&value==="continent")settings.continents=1;const plan={...spec.plan};if(settings.continents!==1)plan.landPosition="center";change({...spec,settings,plan});}
+  function plan<K extends keyof GenerationPlan>(key:K,value:GenerationPlan[K]){change({...spec,plan:{...spec.plan,[key]:value}});}
+  async function buildPreview(next=spec){setBusy(true);setError("");try{await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));const parsed=generationSpecSchema.parse(next),result=generateMap(parsed);setSpec(parsed);setPreview({...result,spec:parsed,id:crypto.randomUUID()});setDirty(true);}catch(failure){setError((failure as Error).message);}finally{setBusy(false);}}
+  function close(){if(!pending&&(!dirty||window.confirm("Discard this unsaved map preview?"))){onDirtyChange(false);onClose();}}
+  const select=<K extends keyof GenerationSettings>(key:K,label:string,help:string,values:readonly GenerationSettings[K][],disabled=false)=><GuidedField label={label} help={help}><select className="st-control" disabled={disabled} value={String(spec.settings[key])} onChange={e=>setting(key,e.target.value as GenerationSettings[K])}>{values.map(v=><option key={String(v)} value={String(v)}>{String(v)}</option>)}</select></GuidedField>;
+  const number=(key:keyof GenerationSettings,label:string,help:string,min:number,max:number)=><GuidedField label={label} help={help}><input className="st-control" type="number" min={min} max={max} step={1} required value={String(spec.settings[key])} onChange={e=>setting(key,Number(e.target.value))}/></GuidedField>;
+  const placement=(key:keyof GenerationPlan,label:string,help:string,values:readonly string[],disabled=false)=><GuidedField label={label} help={help}><select className="st-control" disabled={disabled} value={String(spec.plan[key])} onChange={e=>plan(key,e.target.value as GenerationPlan[typeof key])}>{values.map(v=><option key={v}>{v}</option>)}</select></GuidedField>;
+  async function accept(e:FormEvent){e.preventDefault();if(!preview||stale)return;setPending(true);setError("");try{await onSave({action:"generate",id:preview.id,name,description,spec:preview.spec,sourceMapId:source?.id??null,sourceRevision:source?.revision??null});setDirty(false);}catch(failure){setError((failure as Error).message);}finally{setPending(false);}}
+  return <section className={styles.generator} aria-label="Generate a World map"><header className={styles.heading}><div><p className={styles.eyebrow}>Shape a new horizon</p><h2>Generate map</h2><p>Create editable land, terrain and waterways, then make the map your own.</p></div><button className="st-button is-secondary" disabled={pending||busy} onClick={close}>Map library</button></header>
+    {source&&<p className={styles.source}>Starting a variation of <strong>{source.name}</strong>. Saving creates a new map with new geography. Its source map and all manual edits stay saved.</p>}
+    <form onSubmit={e=>{e.preventDefault();void buildPreview();}}><fieldset disabled={pending||busy} className={styles.settings}>
+      <GuidedField label="Generation preset" help="Choose a useful starting recipe. You can adjust its settings before previewing; this never changes an existing map."><select className="st-control" defaultValue="" onChange={e=>{if(e.target.value)change(presetSpec(e.target.value as Preset,spec.seed));}}><option value="">Choose a starting recipe</option>{Object.entries(presets).map(([key,p])=><option key={key} value={key}>{p.label}</option>)}</select></GuidedField>
+      <div className={styles.basicFields}>{select("mapType","Map type","A continent map has one main continent. A world overview can contain several continents, or only islands.",["world","continent"])}{number("continents","Major continents","The exact number of major landmasses, from zero to six. Zero creates an island-only world.",spec.settings.mapType==="continent"?1:0,spec.settings.mapType==="continent"?1:6)}{number("islands","Offshore islands","The exact number of additional islands, from zero to 32. Land separation may require a different seed or fewer islands.",0,32)}{select("biome","Terrain tendency","Temperate, northern, arid, tropical or mixed terrain sets broad illustrated regions. This does not set a real climate simulation.",["temperate","northern","arid","tropical","mixed"])}{select("style","Map appearance","Use the existing Parchment, Illuminated or Night map style. You can change it in the manual editor later.",["parchment","illuminated","night"])}</div>
+      <GuidedField label="Generation seed" help="The same seed, settings and generator version reproduce the same geographical arrangement. Separate saved maps get separate drawing identities."><input className="st-control" required maxLength={64} value={spec.seed} onChange={e=>change({...spec,seed:e.target.value})}/></GuidedField>
+      <details className={styles.advanced}><summary>Advanced geography settings</summary><div className={styles.basicFields}>
+        {number("landCoverage","Approximate land coverage (%)","A target tendency from 10 to 55 percent. Ocean space, shape, size and island separation can lower the result; the preview reports actual coverage.",10,55)}
+        {select("size","Landmass size","Small, medium or large scales the landmass within its available space. Varied creates mixed sizes.",["small","medium","large","varied"])}
+        {select("shape","General shape","Balanced, elongated, crescent or varied silhouettes retain editable coastline vertices.",["balanced","elongated","crescent","varied"])}
+        {number("ruggedness","Coastline ruggedness (%)","Higher values add finer headlands and inlets. Deep bays are controlled separately.",0,100)}
+        {number("mountains","Mountain density (%)","Zero omits mountains. Higher values place more illustrated peaks along coherent ranges.",0,100)}
+        {number("forest","Woodland coverage tendency (%)","Zero omits woodlands. Higher values add larger concentrations of trees; this is an artistic tendency, not measured forest area.",0,100)}
+        {number("rivers","Rivers and streams","Create zero to twelve routes from the interior toward real coastlines. Narrow designs may require fewer rivers.",0,12)}
+        {number("lakes","Lakes","Create zero to ten editable lake groups within land.",0,10)}
+      </div></details>
+      <details className={styles.advanced}><summary>Place major features</summary><p>Directions are relative to the map for the main continent, and to each landmass for terrain. Detailed placement is optional.</p><div className={styles.basicFields}>
+        {placement("landPosition","Continent position","Directional placement supports one main continent. Worlds with several continents use separated automatic positions.",regions,spec.settings.continents!==1)}
+        {placement("islandPosition","Island placement","Scattered uses available ocean. A direction places offshore islands on that side of the first continent.",["scattered",...regions])}
+        {placement("ruggedCoast","Rugged coast","Concentrate fine coastal detail on one side, or use it around all coastlines.",["all","north","south","east","west"])}
+        {placement("additionalBaySide","Additional bay coast","Optionally add one bay on another coast, such as an eastern river mouth beside a rugged western coast.",["none","north","south","east","west"])}
+        {placement("baySide","Bay side","Choose the coast where carved bays appear, or distribute them around the land.",["all","north","south","east","west"])}
+        <GuidedField label="Bay count" help="Zero to four major coastal indentations per continent; small islands also get coastline variation."><input className="st-control" type="number" min={0} max={4} required value={spec.plan.bays} onChange={e=>plan("bays",Number(e.target.value))}/></GuidedField>
+        <GuidedField label="Bay depth" help="One is shallow; three cuts deeper inlets while retaining valid coastlines."><input className="st-control" type="number" min={1} max={3} required value={spec.plan.bayDepth} onChange={e=>plan("bayDepth",Number(e.target.value))}/></GuidedField>
+        {placement("mountainRegion","Mountain region","Choose the broad part of each landmass containing its mountain range.",regions)}
+        {placement("mountainOrientation","Range orientation","Choose the general direction of each range. Ranges keep some natural bends.",["north-south","east-west","northeast-southwest","northwest-southeast","varied"])}
+        <GuidedField label="Mountain ranges" help="One to three ranges per major continent when mountains are enabled. Islands use a smaller range."><input className="st-control" type="number" min={1} max={3} required value={spec.plan.mountainRanges} onChange={e=>plan("mountainRanges",Number(e.target.value))}/></GuidedField>
+        {placement("forestRegion","Woodland region","Concentrate woodland in this part of each landmass, or let the seed choose interior regions.",["automatic",...regions])}
+        {placement("riverDirection","River outlet direction","Route rivers toward this coast. Automatic varies their outlet sides; carved bays can provide their mouths.",directions)}
+        {placement("lakeRegion","Lake region","Choose a broad inland lake region, or use automatic placement.",["automatic",...regions])}
+      </div></details>
+      <div className={styles.actions}><button className="st-button" type="submit">{busy?"Generating preview...":"Preview map"}</button><button className="st-button is-secondary" type="button" onClick={()=>{const next={...spec,seed:crypto.randomUUID()};change(next);void buildPreview(next);}}>New seed and preview</button></div>
+    </fieldset></form>
+    {error&&<p role="alert" className={styles.feedback}>{error} Your settings and preview are retained.</p>}
+    <div ref={previewRef} className={styles.preview} aria-label="Generated map preview" aria-busy={busy}>{preview?<><div className={styles.previewHeading}><h3>{stale?"Preview needs updating":"Unsaved preview"}</h3><p role="status">{preview.stats.continents} continents · {preview.stats.islands} islands · {preview.stats.landCoverage}% land · {preview.stats.drawings} editable drawings</p></div><svg viewBox="0 0 2000 1200" aria-label="Generated map artwork"><CartographyScene draft={preview.draft} id={`generation-${sceneId}`} editable={false}/></svg>{preview.notices.map(n=><p key={n}>{n}</p>)}{stale&&<p>Settings changed. Preview again before saving.</p>}</>:<div className={styles.empty}><h3>Your new geography starts here</h3><p>Choose a recipe and preview the result. Nothing is saved until you accept it.</p></div>}</div>
+    <form onSubmit={accept} className={styles.accept}><fieldset disabled={pending||busy}>
+      <GuidedField label="Generated map name" help="Name this new chart in your World's Atlas. Saved features can be renamed in the manual editor."><input className="st-control" required maxLength={160} value={name} onChange={e=>{setName(e.target.value);setDirty(true);}}/></GuidedField>
+      <GuidedField label="Map description" help="Optional narrative context for this chart, kept separately from the generation recipe."><textarea className="st-control" maxLength={12000} rows={2} value={description} onChange={e=>{setDescription(e.target.value);setDirty(true);}}/></GuidedField>
+      <button className="st-button" disabled={!preview||stale||pending||busy}>{pending?"Saving...":"Save as new editable map"}</button><p>Saving opens the existing editor. It creates a new map and never replaces another chart.</p>
+    </fieldset></form>
+  </section>;
+}

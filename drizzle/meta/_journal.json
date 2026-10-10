@@ -743,6 +743,13 @@
       "when": 1791610138279,
       "tag": "0105_worlds_atlas_drawing_order",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1791612572578,
+      "tag": "0106_worlds_atlas_generation",
+      "breakpoints": true
     }
   ]
 }
