@@ -13,12 +13,13 @@ const catalogReview = {
 };
 
 const guides: Record<string, PageHelp> = {
-  profile: { title: "Your Profile", introduction: "Review your account information and choose your personal catalog browsing preferences.", steps: ["Choose one visibility mode for each catalog.", "Each change saves automatically. Wait for Saved before leaving; if it fails, your previous choice stays selected and you can try again.", "Your choices remain saved after logging out and signing back in."], topics: {
+  profile: { title: "Your Profile", introduction: "Review your account, save password recovery codes, and choose your personal catalog browsing preferences.", steps: ["Save recovery codes by confirming your current password, then copy or download the codes and keep them private.", "Choose one visibility mode for each catalog. Each change saves automatically; wait for Saved before leaving.", "Your catalog choices remain saved after logging out and signing back in."], topics: {
     "Canon and Mine": "Canon means official Serrian Tide content. Mine means content you created, including your content that later becomes Canon. It does not mean all content created by other users.",
     "Independent catalog settings": "Races, Creatures, Skills, Derived Abilities, Equipment and Inventory each remember their own selection. Choose Canon Only, Canon + Mine or Mine Only. Equipment and Inventory can have different settings.",
     "Browsing and existing Campaigns": "These preferences are for catalog browsing and discovery. Hiding content from browsing does not delete it or remove it from existing Campaigns.",
     "Current availability": "Each catalog uses your saved choice once an Administrator enables filtering for it in this database. Inactive catalogs show System Canon and content you created. Other users' non-canon content stays private; Campaign members can see content assigned to their Campaign. Equipment and Inventory remain independent; Campaign discovery uses its creator's choices and retains existing selections.",
     "Account information": "Name, username and email are read-only here. Profile belongs to your account and is available from any of your paths.",
+    "Password recovery codes": "Confirm your current password to generate eight codes. Copy or download them immediately; only hashes are stored, so the full codes cannot be shown again later. Each code works once at Forgot your password? and gives you ten minutes to set a new password. Generating another set or completing recovery invalidates the old codes. Save a fresh set after recovering your account.",
   } },
   race: { title: "Race authoring", introduction: "Define the racial information a Character uses without replacing the Character's own choices.", steps: authoring, fields: ["race", "interaction"], topics: { ...lifecycle, ...catalogReview,
     "HP & Hit Locations": "Keep Standard humanoid or choose Custom Race anatomy. Name shared HP pools, allocate percentages of character Total HP, and map results 0 through 9 to those pools. Repeated results share damage. Race changes apply to assigned Characters; removed pools keep their recorded damage and injuries. Review numbered protection and armor coverage when changing the table. Variant anatomy is an independent copy.",
@@ -130,7 +131,8 @@ const guides: Record<string, PageHelp> = {
   } },
   account: { title: "Signing in and choosing a path", introduction: "Use your account to enter the paths available to your assigned roles.", steps: ["Sign in with your account, or register if you need one.", "After signing in, choose an available path on Access.", "The Heavens contains G.O.D. tools; The Realms contains player tools; Worlds is the narrative world-building destination. Administration requires its corresponding access."], topics: {
     Username: "Use the account name requested by the sign-in form. This identifies the account; it is separate from a Character's name.",
-    Password: "Enter your account password. Registration requires the form's stated password rules and confirmation; do not use a Character name as a substitute.",
+    Password: "Enter your account password. Show and Hide change whether you can see what you typed. Registration and password recovery require 8 to 128 characters and matching confirmation.",
+    "Forgotten passwords": "While signed in, open Profile and save password recovery codes after confirming your current password. If you forget your password, choose Forgot your password? and enter a saved code. Each code works once. You have ten minutes to choose a new password. Resetting signs out existing sessions and invalidates the old recovery codes; sign in and save a fresh set.",
     "Unavailable paths": "Access follows the account's assigned roles. Creating an account does not automatically grant administrative or G.O.D. access.",
   } },
   worlds: { title: "Worlds and world building", introduction: "Worlds is the narrative home for the people, places, histories, and lore around your games.", steps: ["Enter Worlds from Choose Your Path or Switch Path.", "This first screen introduces the space; writing and organizing tools are coming next.", "Use Return to Paths to choose another destination."], topics: {
@@ -149,7 +151,7 @@ const guides: Record<string, PageHelp> = {
 export function getPageHelp(pathname: string): PageHelp {
   let key = "dashboard";
   if (pathname === "/profile") key = "profile";
-  else if (/\/(login|register|access)(\/|$)/.test(pathname)) key = "account";
+  else if (/\/(login|register|access|forgot-password|reset-password)(\/|$)/.test(pathname)) key = "account";
   else if (/^\/worlds(?:\/|$)/.test(pathname)) key = "worlds";
   else if (pathname.startsWith("/admin")) key = "admin";
   else if (pathname.startsWith("/chat")) key = "chat";

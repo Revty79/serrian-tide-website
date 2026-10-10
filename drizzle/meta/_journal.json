@@ -680,6 +680,13 @@
       "when": 1791089369508,
       "tag": "0096_forms_lifecycle_history_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1791590425881,
+      "tag": "0097_password_recovery_codes",
+      "breakpoints": true
     }
   ]
 }

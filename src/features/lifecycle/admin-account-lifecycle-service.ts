@@ -4,6 +4,7 @@ import { eq, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { account, session, user, verification } from "@/db/auth-schema";
+import { passwordRecoveryCode } from "@/db/password-recovery-schema";
 import { userRole } from "@/db/authorization-schema";
 import { userCatalogPreferences } from "@/db/catalog-preferences-schema";
 import { campaignPlayer } from "@/db/campaign-schema";
@@ -305,6 +306,7 @@ async function deleteCleanupRows(
   await tx.delete(session).where(eq(session.userId, targetUserId));
   await tx.delete(account).where(eq(account.userId, targetUserId));
   await tx.delete(verification).where(eq(verification.value, targetUserId));
+  await tx.delete(passwordRecoveryCode).where(eq(passwordRecoveryCode.userId, targetUserId));
   await tx.delete(chatRoomMember).where(eq(chatRoomMember.userId, targetUserId));
   await tx.delete(campaignPlayer).where(eq(campaignPlayer.userId, targetUserId));
   await tx.delete(userCatalogPreferences).where(eq(userCatalogPreferences.userId, targetUserId));

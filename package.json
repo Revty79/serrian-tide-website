@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "validate:profile-browser": "node --import tsx scripts/profile-disposable-browser.test.ts",
+    "validate:password-recovery": "node --conditions=react-server --import tsx scripts/password-recovery-disposable-browser.test.ts",
     "validate:catalog-visibility": "tsx --test src/features/catalog-visibility/*.test.ts",
     "validate:catalog-visibility-db": "node --import tsx scripts/catalog-visibility-disposable-db.test.ts",
     "validate:unit": "node scripts/run-feature-tests.mjs",
@@ -133,7 +134,8 @@
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

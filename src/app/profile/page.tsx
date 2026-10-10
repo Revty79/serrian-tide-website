@@ -9,15 +9,18 @@ import { getCurrentCatalogPreferences } from "@/features/catalog-visibility/acti
 import { CatalogPreferencesEditor } from "@/features/catalog-visibility/catalog-preferences-editor";
 import { auth } from "@/lib/auth";
 import styles from "./profile.module.css";
+import { countPasswordRecoveryCodes } from "@/features/authorization/password-recovery-service";
+import { PasswordRecoveryControl } from "./password-recovery-control";
 
 export const metadata: Metadata = { title: "Profile | Serrian Tide" };
 
 export default async function ProfilePage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
-  const [preferences, assignments] = await Promise.all([
+  const [preferences, assignments, remainingCodes] = await Promise.all([
     getCurrentCatalogPreferences(),
     db.select({ role: userRole.role }).from(userRole).where(eq(userRole.userId, session.user.id)),
+    countPasswordRecoveryCodes(session.user.id),
   ]);
   return <>
     <AuthenticatedNavigation context={null} roles={assignments.map(({ role }) => role)} username={session.user.displayUsername || session.user.username || session.user.name} />
@@ -30,6 +33,10 @@ export default async function ProfilePage() {
           <div><dt>Username</dt><dd>{session.user.displayUsername || session.user.username || "Not set"}</dd></div>
           <div><dt>Email</dt><dd>{session.user.email}</dd></div>
         </dl>
+      </section>
+      <section className={styles.section} aria-labelledby="profile-recovery">
+        <h2 id="profile-recovery">Password recovery</h2>
+        <PasswordRecoveryControl remainingCodes={remainingCodes} accountLabel={session.user.username || session.user.email} />
       </section>
       <section className={styles.section} aria-labelledby="profile-visibility">
         <h2 id="profile-visibility">Content Visibility</h2>

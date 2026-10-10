@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { PasswordInput } from "@/components/password-input";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -135,10 +136,9 @@ export default function LoginPage() {
                 Password
               </label>
 
-              <input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -199,6 +199,9 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-7 space-y-3 text-center">
+            <div>
+              <Link href="/forgot-password" className="text-sm text-amber-200 transition hover:text-amber-100">Forgot your password?</Link>
+            </div>
             <div>
               <span className="text-sm text-slate-400">
                 New to Serrian Tide?{" "}

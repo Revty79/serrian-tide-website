@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { PasswordInput } from "@/components/password-input";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -46,7 +47,7 @@ export default function RegisterPage() {
         return;
       }
 
-      setSuccess("Account created successfully. You can now sign in.");
+      setSuccess("Account created successfully. Sign in, then open Profile to save password recovery codes.");
     } catch {
       setError("Unable to create account.");
     } finally {
@@ -216,10 +217,9 @@ export default function RegisterPage() {
                 Password
               </label>
 
-              <input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -241,8 +241,11 @@ export default function RegisterPage() {
                 "
                 placeholder="Create a password"
                 minLength={8}
+                maxLength={128}
+                aria-describedby="password-rules"
                 required
               />
+              <p id="password-rules" className="mt-2 text-sm text-slate-400">Use 8 to 128 characters. Show lets you check what you typed.</p>
             </div>
 
             <div>
@@ -253,10 +256,10 @@ export default function RegisterPage() {
                 Confirm Password
               </label>
 
-              <input
+              <PasswordInput
                 id="confirmPassword"
                 name="confirmPassword"
-                type="password"
+                label="confirmation password"
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
@@ -278,6 +281,7 @@ export default function RegisterPage() {
                 "
                 placeholder="Confirm your password"
                 minLength={8}
+                maxLength={128}
                 required
               />
             </div>
