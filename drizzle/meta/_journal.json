@@ -701,6 +701,13 @@
       "when": 1791597211689,
       "tag": "0099_worlds_chronology",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1791598491432,
+      "tag": "0100_worlds_calendar_creator",
+      "breakpoints": true
     }
   ]
 }

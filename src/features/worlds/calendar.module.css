@@ -1,0 +1,64 @@
+.workspace { margin-top:1.5rem; }
+.gallery { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin:1.2rem 0 2rem; }
+.calendarCard { display:grid; grid-template-columns:70px 1fr; gap:1rem; padding:1.4rem; border:1px solid var(--st-border); border-radius:.8rem; background:var(--st-surface); overflow-wrap:anywhere; }
+.calendarCard[data-selected="true"] { border-color:var(--st-primary); background:linear-gradient(130deg,var(--st-primary-soft),var(--st-surface) 70%); }
+.calendarCard[data-archived="true"] {border-style:dashed;}
+.calendarCard > button {grid-column:2;justify-self:start;}
+.cardIcon { display:flex; align-items:center; flex-direction:column; gap:.7rem; color:var(--st-primary); padding-top:.3rem; }
+.cardIcon span {font-size:.7rem;letter-spacing:.2em;}
+.calendarCard h3,.preview h3,.monthHeading h3 {font-family:Georgia,"Times New Roman",serif;font-size:1.8rem;color:var(--st-text-strong);line-height:1.2;}
+.calendarCard p { margin:.7rem 0;line-height:1.5; }
+.calendarCard small,.caption,.previewHeading p,.monthHeading p {color:var(--st-muted);font-size:.8rem;line-height:1.6;}
+.eyebrow {color:var(--st-secondary);font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;font-weight:700;}
+.archiveToggle {display:flex;gap:.6rem;align-items:center;color:var(--st-muted);font-size:.85rem;}
+.selected {padding:1.5rem;border:1px solid var(--st-border);border-radius:.8rem;background:var(--st-surface);}
+.selectedHeading,.previewHeading {display:flex;justify-content:space-between;align-items:start;gap:1.2rem;}
+.selectedHeading > div {flex:1;min-width:0;overflow-wrap:anywhere;}
+.selectedHeading > label {min-width:200px;max-width:350px;}
+.selectedHeading p,.prose {white-space:pre-wrap;line-height:1.6;overflow-wrap:anywhere;}
+.selected details {color:var(--st-muted);margin:1rem 0;}
+.caption {margin:1rem 0;}
+.actions,.yearControls {display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0;}
+.preview {margin-top:1.5rem;min-width:0;}
+.jump {display:flex;gap:.7rem;align-items:end;margin:1rem 0;}
+.jump > div {flex:1;max-width:280px;}
+.jump > button {margin-bottom:0;}
+.monthGallery {display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.7rem;margin:1.5rem 0;}
+.monthTile {display:flex;flex-direction:column;align-items:start;gap:.5rem;text-align:left;padding:.9rem;border:1px solid var(--st-border);border-radius:.5rem;background:var(--st-surface-deep);color:var(--st-text);overflow-wrap:anywhere;cursor:pointer;}
+.monthTile[aria-pressed="true"] {border-color:var(--st-primary);background:var(--st-primary-soft);}
+.monthTile > span {color:var(--st-secondary);font-size:.65rem;letter-spacing:.12em;}
+.monthTile > small {color:var(--st-muted);font-size:.7rem;}
+.monthHeading {margin:1rem 0;}
+.weekScroll {overflow-x:auto;padding-bottom:.5rem;}
+.weekGrid {display:grid;gap:.4rem;}
+.weekGrid > span {padding:.4rem .2rem;font-size:.65rem;text-align:center;color:var(--st-muted);overflow-wrap:anywhere;}
+.day {min-height:76px;display:flex;flex-direction:column;align-items:start;gap:.4rem;text-align:left;padding:.6rem;background:var(--st-surface-deep);color:var(--st-text);border:1px solid var(--st-border);border-radius:.4rem;cursor:pointer;min-width:44px;overflow-wrap:anywhere;}
+.day[data-season="true"] {border-top:3px solid var(--st-primary);}
+.day[data-observed="true"] {background:var(--st-secondary-soft);border-color:var(--st-secondary-border);}
+.day small {font-size:.6rem;color:var(--st-muted);}
+.day > span {font-size:.65rem;color:var(--st-secondary);}
+.dayDetail {padding:1rem;margin:1rem 0;border-left:3px solid var(--st-secondary);background:var(--st-surface-deep);color:var(--st-text);}
+.dayDetail h4 {font-size:1.1rem;color:var(--st-text-strong);margin:.6rem 0;}
+.dayDetail p {line-height:1.6;font-size:.85rem;}
+.extraDays {margin:1rem 0;display:flex;gap:.6rem;flex-wrap:wrap;}
+.extraDays h4 {width:100%;color:var(--st-muted);font-size:.8rem;}
+.yearAgenda {margin-top:1.4rem;padding:1rem;border:1px solid var(--st-border);border-radius:.5rem;}
+.yearAgenda summary {cursor:pointer;color:var(--st-text);}
+.yearAgenda p {font-size:.85rem;line-height:1.6;}
+.agendaItem {display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;width:100%;text-align:left;padding:.8rem 0;border-bottom:1px solid var(--st-border);color:var(--st-text);cursor:pointer;}
+.agendaItem > span {font-size:.8rem;color:var(--st-muted);}
+.empty {padding:3rem 1rem;text-align:center;border:1px dashed var(--st-border);border-radius:.8rem;color:var(--st-muted);}
+.empty svg {margin:auto;color:var(--st-primary);}
+.empty h3 {font-family:Georgia,serif;font-size:2rem;color:var(--st-text-strong);margin:1rem 0;}
+.empty p {max-width:600px;margin:auto;line-height:1.6;}
+.feedback {padding:1rem;margin:1rem 0;background:color-mix(in srgb,var(--st-warning) 10%,var(--st-surface));border:1px solid color-mix(in srgb,var(--st-warning) 35%,transparent);color:var(--st-text);overflow-wrap:anywhere;}
+.editorTabs {display:flex;gap:.4rem;flex-wrap:wrap;border-bottom:1px solid var(--st-border);padding-bottom:.7rem;}
+.editorTabs button {padding:.7rem .8rem;border-radius:.4rem;border:1px solid var(--st-border);font-size:.8rem;cursor:pointer;color:var(--st-muted);}
+.editorTabs button[aria-pressed="true"] {background:var(--st-primary-soft);color:var(--st-text);border-color:var(--st-primary);}
+.columns {display:grid;grid-template-columns:1fr 1fr;align-items:start;gap:1rem;}
+.ruleCard {padding:1rem;border:1px solid var(--st-border);border-radius:.5rem;background:var(--st-surface-deep);display:grid;gap:1rem;}
+.ruleDetails summary {color:var(--st-secondary);cursor:pointer;font-size:.85rem;}
+.ruleDetails > div {margin-top:1rem;}
+@media(max-width:650px){.gallery,.columns {grid-template-columns:1fr;}.selected {padding:1rem;}.selectedHeading {flex-direction:column;}.selectedHeading > label {width:100%;max-width:none;}.calendarCard {padding:1rem;grid-template-columns:44px 1fr;}.previewHeading {flex-wrap:wrap;}.monthGallery {grid-template-columns:repeat(2,minmax(0,1fr));}.day {padding:.45rem;min-height:70px;}.weekGrid {gap:.25rem;}.selected h2 {font-size:1.7rem;}.jump {align-items:end;}.jump > div {min-width:0;}.actions {gap:.6rem;}}
+
+.editorFields :global(input[type="checkbox"]) { width:20px; height:20px; padding:0; justify-self:start; }

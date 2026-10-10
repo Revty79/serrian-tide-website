@@ -36,6 +36,8 @@ async function lockOwned(tx: Tx, userId: string, worldId: string, allowArchived 
   if (row.archivedAt && !allowArchived) throw new WorldError("Restore this world before editing its history.", 400);
   return row;
 }
+export async function worldReadAccess(userId:string,worldId:string,review=false){return readWorld(userId,worldId,review);}
+export async function worldWriteTransaction<T>(userId:string,worldId:string,run:(tx:Tx,parent:typeof world.$inferSelect)=>Promise<T>){await actor(userId);return db.transaction(async tx=>run(tx,await lockOwned(tx,userId,worldId)));}
 async function classificationWhere(userId: string, scope: "mine" | "review" = "mine", connection: typeof db | Tx = db) {
   // Retention comes only from server-read worlds in the authorized scope, never client IDs.
   const retained = await connection.selectDistinct({ id: worldTag.tagId }).from(worldTag)
