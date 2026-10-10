@@ -1,0 +1,77 @@
+{
+  "sourceMaps": 9,
+  "generatedTerrainStrokes": 66,
+  "denseExplorer": {
+    "marks": 5069,
+    "openingAndCacheWarmMilliseconds": 2130.9
+  },
+  "nativeTerrainMarks": 383,
+  "navigationTimings": [
+    {
+      "map": "Valdoria detail",
+      "milliseconds": 527.2,
+      "phone": false
+    },
+    {
+      "map": "Ashenfall regional chart",
+      "milliseconds": 229.9,
+      "phone": false
+    },
+    {
+      "map": "Grayhaven local chart",
+      "milliseconds": 230.8,
+      "phone": false
+    },
+    {
+      "map": "Aetheria world chart",
+      "milliseconds": 408.1,
+      "phone": false
+    },
+    {
+      "map": "Valdoria detail",
+      "milliseconds": 216.6,
+      "phone": false
+    },
+    {
+      "map": "Valdoria detail",
+      "milliseconds": 313.4,
+      "phone": false
+    },
+    {
+      "map": "Valdoria detail",
+      "milliseconds": 303,
+      "phone": true
+    },
+    {
+      "map": "Ashenfall regional chart",
+      "milliseconds": 206.6,
+      "phone": true
+    },
+    {
+      "map": "Grayhaven local chart",
+      "milliseconds": 195.6,
+      "phone": true
+    },
+    {
+      "map": "Aetheria world chart",
+      "milliseconds": 434.8,
+      "phone": true
+    },
+    {
+      "map": "Valdoria detail",
+      "milliseconds": 1612.5,
+      "phone": false
+    }
+  ],
+  "linkedLevels": 4,
+  "desktop": [
+    1440,
+    1100
+  ],
+  "phone": [
+    390,
+    844
+  ],
+  "browserBackForward": true,
+  "sameWorldAuthorization": true
+}

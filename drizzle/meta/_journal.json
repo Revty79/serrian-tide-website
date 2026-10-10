@@ -764,6 +764,13 @@
       "when": 1791651681820,
       "tag": "0108_worlds_atlas_navigation",
       "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1791662108978,
+      "tag": "0109_worlds_atlas_settlements",
+      "breakpoints": true
     }
   ]
 }

@@ -9,3 +9,5 @@
 .hit{fill:transparent;stroke:none;pointer-events:all}.hitPath{stroke:transparent;fill:none;pointer-events:stroke}.drawing>g,.drawing>text{pointer-events:none}.selectedStroke{fill:none;stroke:var(--st-map-selection);stroke-dasharray:8 5;pointer-events:none}.label,.placeLabel{fill:var(--map-ink);stroke:var(--map-paper);paint-order:stroke;stroke-width:3;stroke-linejoin:round;pointer-events:none}.label[data-style=region]{letter-spacing:3px;font-variant:small-caps}.label[data-style=water]{fill:var(--st-map-river);font-style:italic}.placeLabel{font-weight:600;stroke-width:3}.place[data-selected=true] .settlement{stroke:var(--st-map-selection);stroke-width:3}.compass{fill:none;stroke:var(--map-ink);stroke-width:1.2;opacity:.75;pointer-events:none}.compassShade{fill:var(--map-ink);stroke:none}.compass text{fill:var(--map-ink);stroke:none;font-size:22px}
 
 .lakeSpot{fill:var(--st-map-lake)}.snowSpot{fill:var(--st-map-snow);opacity:.65}
+
+.settlementPaper{fill:var(--map-paper)}

@@ -1,3 +1,6 @@
+import { signedArea, validateGeometry } from "./atlas-geometry";
+export { signedArea, validateGeometry } from "./atlas-geometry";
+import { settlementEntitySchema, settlementShapeSchema, settlementStateSchema, validateSettlement, type SettlementEntity, type SettlementShape, type SettlementState } from "./settlement";
 import { z } from "zod";
 import type { GenerationProvenance } from "./generation-spec";
 
@@ -17,7 +20,7 @@ export const geometrySchema = z.discriminatedUnion("type", [
   z.object({version: z.literal(1), type: z.literal("point"), point: xy}).strict(),
 ]);
 export const featureSchema = z.object({id: atlasId, geographyId: atlasId, geometry: geometrySchema, archived: z.boolean()}).strict();
-export const mapDraftSchema = z.object({name, description: z.string().max(12000), scope: z.enum(["world", "continent", "regional", "local"]), features: z.array(featureSchema).max(128), drawings: drawingsSchema.optional(), presentation: presentationSchema.optional(), geographies: z.array(geographyDraftSchema).max(128)}).strict();
+export const mapDraftSchema = z.object({name, description: z.string().max(12000), scope: z.enum(["world", "continent", "regional", "local"]), features: z.array(featureSchema).max(128), drawings: drawingsSchema.optional(), presentation: presentationSchema.optional(), settlementShapes:z.array(settlementShapeSchema).max(4000).optional(), settlementEntities:z.array(settlementEntitySchema).max(4000).optional(), settlementState:settlementStateSchema.optional(), geographies: z.array(geographyDraftSchema).max(4128)}).strict();
 export type Point = z.infer<typeof xy>;
 export type Vertex = z.infer<typeof vertex>;
 export type Geometry = z.infer<typeof geometrySchema>;
@@ -25,32 +28,15 @@ export type AtlasFeature = z.infer<typeof featureSchema>;
 export type GeographyDraft = z.infer<typeof geographyDraftSchema>;
 export type MapDraft = z.infer<typeof mapDraftSchema>;
 export type GeographyRecord = Omit<GeographyDraft, "revision"> & {revision: number; archived: boolean};
-export type AtlasMap = {id: string; name: string; description: string; scope: MapDraft["scope"]; geographyId?: string|null; width: number; height: number; revision: number; archived: boolean; features: AtlasFeature[]; drawings?: MapDrawing[]; presentation?: MapPresentation; generation?: GenerationProvenance|null};
+export type AtlasMap = {id: string; name: string; description: string; scope: MapDraft["scope"]; mapKind?:"generic"|"settlement"; settlementShapes?:SettlementShape[]; settlementEntities?:SettlementEntity[]; settlementState?:SettlementState; geographyId?: string|null; width: number; height: number; revision: number; archived: boolean; features: AtlasFeature[]; drawings?: MapDrawing[]; presentation?: MapPresentation; generation?: GenerationProvenance|null};
 export type AtlasConnection = {id: string; sourceMapId: string; geographyId: string; destinationMapId: string; revision: number};
 export type AtlasBundle = {maps: AtlasMap[]; geographies: GeographyRecord[]; connections?: AtlasConnection[]; canEdit: boolean};
 export type Viewport = {x: number; y: number; width: number; height: number};
 export const fitViewport = (): Viewport => ({x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT});
-export function signedArea(points: Point[]) {return points.reduce((sum, p, i) => {const next = points[(i + 1) % points.length]; return sum + p.x * next.y - next.x * p.y;}, 0) / 2;}
-const cross = (a: Point, b: Point, c: Point) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-function intersects(a: Point, b: Point, c: Point, d: Point) {
-  const on = (p: Point, q: Point, r: Point) => Math.abs(cross(p,q,r)) < 1e-8 && r.x >= Math.min(p.x,q.x) && r.x <= Math.max(p.x,q.x) && r.y >= Math.min(p.y,q.y) && r.y <= Math.max(p.y,q.y);
-  return (cross(a,b,c) * cross(a,b,d) < 0 && cross(c,d,a) * cross(c,d,b) < 0) || on(a,b,c) || on(a,b,d) || on(c,d,a) || on(c,d,b);
-}
-export function validateGeometry(geometry: Geometry, width = MAP_WIDTH, height = MAP_HEIGHT) {
-  const points = geometry.type === "polygon" ? geometry.points : [geometry.point];
-  if (points.some(p => !Number.isFinite(p.x) || !Number.isFinite(p.y) || p.x < 0 || p.y < 0 || p.x > width || p.y > height || Math.abs(p.x-rounded(p.x)) > 1e-8 || Math.abs(p.y-rounded(p.y)) > 1e-8)) throw new Error("Points must be inside the map, with at most two decimal places.");
-  if (geometry.type === "point") return;
-  if (points.length < 3 || points.length > 256 || Math.abs(signedArea(points)) < 1) throw new Error("An outline needs 3 to 256 points and a visible area of at least one square map unit.");
-  if (new Set(geometry.points.map(p => p.id)).size !== points.length || new Set(points.map(p => `${p.x}:${p.y}`)).size !== points.length) throw new Error("Every boundary point must have a distinct identity and position.");
-  for (let i=0; i<points.length; i++) {
-    const a=points[i], b=points[(i+1)%points.length], prev=points[(i+points.length-1)%points.length];
-    if (Math.abs(cross(prev,a,b)) < 1e-8 && (a.x-prev.x)*(b.x-a.x)+(a.y-prev.y)*(b.y-a.y) <= 0) throw new Error("The outline must not double back along an edge.");
-    for (let j=i+1; j<points.length; j++) {if (j === i+1 || (i === 0 && j === points.length-1)) continue; if (intersects(a,b,points[j],points[(j+1)%points.length])) throw new Error("The outline must not cross or touch itself. Move the conflicting points before saving.");}
-  }
-}
 export function validateMapDraft(draft: MapDraft) {
   if (new Set(draft.features.map(f=>f.id)).size !== draft.features.length || new Set(draft.geographies.map(g=>g.id)).size !== draft.geographies.length) throw new Error("Map and geography identities must not be repeated.");
   if (draft.features.reduce((sum,f)=>sum+(f.geometry.type === "polygon" ? f.geometry.points.length : 1),0) > 8192) throw new Error("A map supports at most 8,192 total points.");
+  validateSettlement(draft.settlementShapes??[],draft.settlementEntities??[]);
   draft.features.forEach(f=>validateGeometry(f.geometry));
   validateDrawings(draft.drawings??[]);
 }
@@ -59,8 +45,8 @@ export function validateParents(records: {id: string; parentId: string|null}[]) 
   for (const record of records) {const seen = new Set<string>(); let current: string|null = record.id; while (current) {if (seen.has(current)) throw new Error("Geography cannot contain itself, directly or through its parents."); seen.add(current); if (!parents.has(current)) throw new Error("Choose a parent geography from this World."); current = parents.get(current)!;}}
 }
 export function draftOf(map: AtlasMap, geographies: GeographyRecord[]): MapDraft {
-  const ids = new Set([...map.features.map(f=>f.geographyId),...(map.drawings??[]).flatMap(d=>d.geographyId?[d.geographyId]:[])]);
-  return {name: map.name, description: map.description, scope: map.scope, features: structuredClone(map.features), drawings: structuredClone(map.drawings??[]), presentation: structuredClone(map.presentation??defaultPresentation()), geographies: geographies.filter(g=>ids.has(g.id)).map(g=>({id:g.id,revision:g.revision,name:g.name,description:g.description,kind:g.kind,context:g.context,parentId:g.parentId}))};
+  const ids = new Set([...map.features.map(f=>f.geographyId),...(map.drawings??[]).flatMap(d=>d.geographyId?[d.geographyId]:[]),...(map.settlementEntities??[]).map(e=>e.geographyId)]);
+  return {...(map.mapKind==="settlement"?{settlementShapes:structuredClone(map.settlementShapes??[]),settlementEntities:structuredClone(map.settlementEntities??[]),settlementState:structuredClone(map.settlementState)}:{}),name: map.name, description: map.description, scope: map.scope, features: structuredClone(map.features), drawings: structuredClone(map.drawings??[]), presentation: structuredClone(map.presentation??defaultPresentation()), geographies: geographies.filter(g=>ids.has(g.id)).map(g=>({id:g.id,revision:g.revision,name:g.name,description:g.description,kind:g.kind,context:g.context,parentId:g.parentId}))};
 }
 export function moveGeometry(geometry: Geometry, dx: number, dy: number): Geometry {
   const points = geometry.type === "polygon" ? geometry.points : [geometry.point];
@@ -78,6 +64,7 @@ export function acceptSavedHistory(history: EditingHistory, saved: MapDraft): Ed
   const retain=(draft:MapDraft):MapDraft=>({...draft,
     drawings:[...(draft.drawings??[]),...(saved.drawings??[]).filter(d=>!draft.drawings?.some(old=>old.id===d.id)).map(d=>({...d,archived:true}))],
     features:[...draft.features,...saved.features.filter(f=>!draft.features.some(old=>old.id===f.id)).map(f=>({...f,archived:true}))],
+    ...(saved.settlementShapes?{settlementShapes:[...(draft.settlementShapes??[]),...saved.settlementShapes.filter(s=>!draft.settlementShapes?.some(old=>old.id===s.id)).map(s=>({...s,archived:true}))],settlementEntities:[...(draft.settlementEntities??[]).map(e=>({...e,revision:saved.settlementEntities?.find(n=>n.geographyId===e.geographyId)?.revision??e.revision})),...(saved.settlementEntities??[]).filter(e=>!draft.settlementEntities?.some(n=>n.geographyId===e.geographyId))]}:{}),
     geographies:[...draft.geographies.map(g=>({...g,revision:revisions.get(g.id)??g.revision})),...saved.geographies.filter(g=>!draft.geographies.some(old=>old.id===g.id))],
   });
   return {past:history.past.map(retain),present:saved,future:history.future.map(retain)};

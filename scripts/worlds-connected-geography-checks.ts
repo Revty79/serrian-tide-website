@@ -59,8 +59,8 @@ export async function connectedGeographyServiceChecks(service:Service,worlds:Wor
 
 async function signIn(context:BrowserContext,url:string,id:string){const r=await context.request.post(`${url}/api/auth/sign-in/email`,{headers:{Origin:url},data:{email:`${id}@example.invalid`,password:"Worlds-Test-Only-Password!"}});assert.equal(r.status(),200,await r.text());}
 async function hydrated(page:Page){await page.waitForFunction(()=>[...document.querySelectorAll("button")].some(b=>Object.keys(b).some(k=>k.startsWith("__reactProps$"))));}
-export async function connectedGeographyBrowserChecks(browser:Browser,baseUrl:string,f:Fixture,pool:pg.Pool) {
-  const captures=path.resolve("docs/screenshots/worlds-atlas-pass-3d");await mkdir(captures,{recursive:true});
+export async function connectedGeographyBrowserChecks(browser:Browser,baseUrl:string,f:Fixture,pool:pg.Pool,captureDirectory="docs/screenshots/worlds-atlas-pass-3d") {
+  const captures=path.resolve(captureDirectory);await mkdir(captures,{recursive:true});
   const context=await browser.newContext({viewport:{width:1440,height:1100},hasTouch:true,extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.81"}});await signIn(context,baseUrl,"world-god");
   const page=await context.newPage(),errors:string[]=[],navigationTimings:{map:string;milliseconds:number;phone:boolean}[]=[];page.on("pageerror",e=>errors.push(e.message));page.on("dialog",d=>d.accept());
   const api=`${baseUrl}/api/worlds/${f.worldId}/atlas`,url=`${baseUrl}/worlds/${f.worldId}`;
