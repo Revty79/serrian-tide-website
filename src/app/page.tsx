@@ -30,7 +30,7 @@ export default function Home() {
         </h1>
 
         <p className="mt-5 text-lg tracking-wide text-slate-300">
-          Enter your imagination.
+          
         </p>
 
         <div className="mt-10">
