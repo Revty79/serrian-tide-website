@@ -12,7 +12,6 @@ const known=(year:number):HistoricalTime=>({version:1,scale:"world-year",kind:"k
 const undated:HistoricalTime={version:1,scale:"world-year",kind:"undated"};
 const participant=(targetId:string,role:string,secret=false)=>({targetId,role,authoredReference:"",account:"",...secret?{protected:true}:{}});
 const event=(type:string,year:number)=>({eventType:type,draft:{title:`Aralyn: ${type}`,account:`Aralyn's explicitly authored ${type} in Year ${year}.`,notes:"",time:known(year),accuracy:"disputed" as const,narrative:"recorded" as const,visibility:"ordinary" as const,eraIds:[]}});
-const directory="artifacts/guidance/worlds-4b";
 
 export async function seedIndividualsUpgrade(pool:pg.Pool) {
   const tables=(await pool.query("select tablename from pg_tables where schemaname='public' and tablename like 'world%' order by tablename")).rows;
@@ -25,7 +24,7 @@ export async function seedIndividualsUpgrade(pool:pg.Pool) {
   };
 }
 
-export async function individualsServiceChecks(worlds:Worlds,timelines:Timelines,pool:pg.Pool,foreignWorld:string) {
+export async function individualsServiceChecks(worlds:Worlds,timelines:Timelines,pool:pg.Pool,foreignWorld:string,directory="artifacts/guidance/worlds-4b") {
   const lore=await import("../src/features/worlds/peoples-service"),atlas=await import("../src/features/worlds/atlas-service"),links=await import("../src/features/worlds/milestone-service"),history=await import("../src/features/worlds/history-index-service");
   const worldId=await worlds.createWorld("world-god",{name:"4B Aralyn's possible lives",description:"Persisted acceptance scenario; narrative individuals without Heavens or Campaigns."}),primary=(await worlds.getWorld("world-god",worldId)).selectedTimeline.id;
   const get=(id:string,timelineId=primary)=>lore.getPeople("world-god",worldId,timelineId,id);
@@ -98,7 +97,7 @@ export async function individualsServiceChecks(worlds:Worlds,timelines:Timelines
 async function signIn(context:BrowserContext,base:string,user="world-god") {const response=await context.request.post(`${base}/api/auth/sign-in/email`,{headers:{Origin:base},data:{email:`${user}@example.invalid`,password:"Worlds-Test-Only-Password!"}});assert.equal(response.status(),200,await response.text());}
 async function noOverflow(page:Page){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1&&[...document.querySelectorAll("dialog[open]")].every(d=>d.scrollWidth<=d.clientWidth+1)),"Page and modal controls must fit the viewport");}
 
-export async function individualsBrowserChecks(browser:Browser,base:string,fixture:Awaited<ReturnType<typeof individualsServiceChecks>>,pool:pg.Pool) {
+export async function individualsBrowserChecks(browser:Browser,base:string,fixture:Awaited<ReturnType<typeof individualsServiceChecks>>,pool:pg.Pool,directory="artifacts/guidance/worlds-4b") {
   const lore=await import("../src/features/worlds/peoples-service"),errors:string[]=[],context=await browser.newContext({viewport:{width:1440,height:1000},extraHTTPHeaders:{"X-Forwarded-For":"198.51.100.181"}});await signIn(context,base);const page=await context.newPage();page.on("pageerror",e=>errors.push(e.message));page.on("dialog",d=>d.accept());const url=`${base}/worlds/${fixture.worldId}?tab=individuals&timeline=${fixture.primary}`;
   async function simple(p:Page,name:string,touch=false){await p.goto(url);const create=p.getByRole("button",{name:"Create individuals",exact:true});await create.waitFor({state:"visible"});if(touch)await create.tap();else await create.click();const editor=p.getByRole("dialog");await editor.getByLabel("Name",{exact:true}).fill(name);if(touch)await editor.getByRole("button",{name:"Save record",exact:true}).tap();else await editor.getByRole("button",{name:"Save record",exact:true}).click();await editor.waitFor({state:"hidden"});await p.getByRole("heading",{name,exact:true}).waitFor({state:"visible"});return new URL(p.url()).searchParams.get("entity")!;}
   try{

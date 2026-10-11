@@ -3,6 +3,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { worldGeography } from "@/db/world-atlas-schema";
 import { worldLoreGeography, worldLoreHead, worldLoreVersion } from "@/db/world-peoples-schema";
 import type { HistoryTx } from "./history-version-service";
+import { ordinaryLoreSource } from "./ordinary-knowledge";
 
 export function ordinaryPlace() {
   return sql`not exists (select 1 from world_dungeon_entity d where d.world_id=${worldGeography.worldId} and d.visibility<>'ordinary' and (d.id=${worldGeography.id} or d.geography_id=${worldGeography.id}))`;
@@ -22,7 +23,7 @@ export async function entitiesAtPlace(tx:HistoryTx,worldId:string,timelineId:str
   const rows=await tx.selectDistinct({id:worldLoreHead.entityId}).from(worldLoreGeography)
     .innerJoin(worldLoreHead,and(eq(worldLoreHead.versionId,worldLoreGeography.versionId),eq(worldLoreHead.timelineId,timelineId)))
     .innerJoin(worldLoreVersion,eq(worldLoreVersion.id,worldLoreHead.versionId))
-    .where(and(eq(worldLoreGeography.worldId,worldId),sql`(${worldLoreGeography.geographyId}=${placeId} or ${worldLoreGeography.destinationId}=${placeId})`,inArray(worldLoreHead.mode,["authored","inherited","interpretation"]),ordinary?eq(worldLoreVersion.visibility,"ordinary"):undefined,ordinary?eq(worldLoreGeography.protected,false):undefined,ordinary?sql`not exists (select 1 from world_dungeon_entity d where d.world_id=${worldId} and d.visibility<>'ordinary' and (d.geography_id=${worldLoreGeography.geographyId} or d.id=${worldLoreGeography.geographyId} or d.geography_id=${worldLoreGeography.destinationId} or d.id=${worldLoreGeography.destinationId}))`:undefined)).limit(2000);
+    .where(and(eq(worldLoreGeography.worldId,worldId),sql`(${worldLoreGeography.geographyId}=${placeId} or ${worldLoreGeography.destinationId}=${placeId})`,inArray(worldLoreHead.mode,["authored","inherited","interpretation"]),ordinary?ordinaryLoreSource(worldId,timelineId,sql`${worldLoreVersion.id}`):undefined,ordinary?eq(worldLoreGeography.protected,false):undefined,ordinary?sql`not exists (select 1 from world_dungeon_entity d where d.world_id=${worldId} and d.visibility<>'ordinary' and (d.geography_id=${worldLoreGeography.geographyId} or d.id=${worldLoreGeography.geographyId} or d.geography_id=${worldLoreGeography.destinationId} or d.id=${worldLoreGeography.destinationId}))`:undefined)).limit(2000);
   return new Set(rows.map(r=>r.id));
 }
 

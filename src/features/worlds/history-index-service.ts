@@ -7,6 +7,7 @@ import { selectedTimeline, type HistoryTx } from "./history-version-service";
 import { inheritedProjection, HISTORY_LIMIT } from "./branching-history";
 import { historyFilterSchema, type HistoryIndex } from "./history-index";
 import { chronologicalEntries, type EntryRecord } from "./history";
+import { ordinaryLoreSource, ordinaryHistorySource } from "./ordinary-knowledge";
 
 // One metadata relation per selected source. No narrative graph traversal or per-entity reads.
 function visibleLinks(worldId:string,timelineId:string,ordinary:boolean) {
@@ -25,10 +26,10 @@ function visibleLinks(worldId:string,timelineId:string,ordinary:boolean) {
     left join world_belief_version b on b.version_id=v.id left join world_tradition_version tr on tr.version_id=v.id left join world_individual_version iv on iv.version_id=v.id
     where l.world_id=${worldId} and exists(select 1 from world_history_head selected where selected.world_id=l.world_id and selected.timeline_id=${timelineId} and selected.version_id=l.version_id and selected.mode in ('authored','inherited','partial','interpretation')) and ${ordinary?sql`(
       (l.geography_id is not null and not exists(select 1 from world_dungeon_entity d where d.world_id=l.world_id and d.visibility<>'ordinary' and (d.id=g.id or d.geography_id=g.id)))
-      or (l.lore_id is not null and ch.version_id is not null and ch.mode in ('authored','inherited','interpretation') and v.visibility='ordinary' and not (v.family='relationship' and exists(select 1 from world_lore_participant pp where pp.version_id=v.id and pp.protected))))`:sql`true`}`;
+      or (l.lore_id is not null and ${ordinaryLoreSource(worldId,timelineId,sql`ch.version_id`)}))`:sql`true`}`;
 }
 export async function historyEntryInTransaction(tx:HistoryTx,worldId:string,timelineId:string,id:string,ordinary=false) {
-  const [row]=await tx.select({h:worldHistoryHead,v:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,id)));
+  const [row]=await tx.select({h:worldHistoryHead,v:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,id),ordinary?ordinaryHistorySource(worldId,timelineId,sql`${worldHistoryVersion.id}`):undefined));
   if(!row?.v.entryId||["pending","excluded"].includes(row.h.mode)||(ordinary&&(row.v.payload as EntryRecord).visibility==="protected"))throw new WorldError("This historical account is unavailable.",404);
   const record=inheritedProjection({...row.v.payload,revision:row.h.revision},{mode:row.h.mode,timelineId,versionId:row.v.id,sourceTimelineId:row.h.sourceTimelineId,sourceVersionId:row.h.sourceVersionId,sourceRevision:row.h.sourceRevision,coveredUntil:row.h.coveredUntil,newerParent:false,parentRevision:null,parentVersionId:null}) as EntryRecord;
   return {...record,...ordinary?{notes:""}: {}};
@@ -42,7 +43,7 @@ export async function searchHistory(userId:string,worldId:string,timelineId:stri
   const f=historyFilterSchema.parse(input);
   return db.transaction(async tx=>{
     await selectedTimeline(tx,worldId,timelineId);
-    const base=sql`h.world_id=${worldId} and h.timeline_id=${timelineId} and h.mode in ('authored','inherited','partial','interpretation') and v.entry_id is not null and ${ordinary?sql`coalesce(v.payload->>'visibility','ordinary')='ordinary'`:sql`true`}`;
+    const base=sql`h.world_id=${worldId} and h.timeline_id=${timelineId} and h.mode in ('authored','inherited','partial','interpretation') and v.entry_id is not null and ${ordinary?ordinaryHistorySource(worldId,timelineId,sql`v.id`):sql`true`}`;
     const facets=(await tx.execute<{category:string|null;event_type:string|null}>(sql`with visible_links as (${visibleLinks(worldId,timelineId,ordinary)}) select distinct l.entity_category category,l.event_type from world_history_head h join world_history_version v on v.id=h.version_id join visible_links l on l.version_id=v.id where ${base} union select distinct null category,v.payload->>'eventType' event_type from world_history_head h join world_history_version v on v.id=h.version_id where ${base} and length(coalesce(v.payload->>'eventType',''))>0 limit 2000`)).rows;
     // Approximate dates match their authored anchor only; no precision tolerance is invented.
     const start=sql`coalesce((v.payload->'time'->>'year')::numeric,(v.payload->'time'->>'startYear')::numeric)`;

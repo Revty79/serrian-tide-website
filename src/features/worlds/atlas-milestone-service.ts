@@ -11,6 +11,7 @@ import { historyEntryInTransaction } from "./history-index-service";
 import { selectedTimeline } from "./history-version-service";
 import { worldReadAccess, worldWriteTransaction, changeHistoryInTransaction, WorldError } from "./world-service";
 import { ordinaryPlace } from "./peoples-geography-service";
+import { ordinaryHistorySource } from "./ordinary-knowledge";
 const id=z.string().uuid();
 const commandSchema=z.object({timelineId:id,geographyId:id,geographyRevision:z.number().int().positive(),requestId:id,entryId:id.optional(),revision:z.number().int().positive().optional(),eventType:z.string().trim().min(1).max(160),draft:entryDraftSchema}).strict().refine(c=>!!c.entryId===!!c.revision,"Choose an existing event with its revision, or author a new event.");
 export type PlaceMilestones={place:{id:string;name:string;revision:number;archived:boolean};timelineName:string;canEdit:boolean;events:(EntryRecord&{eventType:string})[]};
@@ -20,9 +21,9 @@ export async function placeMilestones(userId:string,worldId:string,timelineId:st
     const timeline=await selectedTimeline(tx,worldId,timelineId);
     const [place]=await tx.select().from(worldGeography).where(and(eq(worldGeography.worldId,worldId),eq(worldGeography.id,placeId),ordinary?ordinaryPlace():undefined));
     if(!place)throw new WorldError("This place is unavailable.",404);
-    const rows=await tx.select({id:worldHistoryHead.entityId,eventType:links.eventType}).from(links).innerJoin(worldHistoryHead,and(eq(worldHistoryHead.versionId,links.versionId),eq(worldHistoryHead.timelineId,timelineId))).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,links.versionId)).where(and(eq(links.worldId,worldId),eq(links.geographyId,placeId),inArray(worldHistoryHead.mode,["authored","inherited","partial","interpretation"]),ordinary?sql`coalesce(${worldHistoryVersion.payload}->>'visibility','ordinary')='ordinary'`:undefined)).limit(101);
+    const rows=await tx.select({id:worldHistoryHead.entityId,eventType:links.eventType}).from(links).innerJoin(worldHistoryHead,and(eq(worldHistoryHead.versionId,links.versionId),eq(worldHistoryHead.timelineId,timelineId))).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,links.versionId)).where(and(eq(links.worldId,worldId),eq(links.geographyId,placeId),inArray(worldHistoryHead.mode,["authored","inherited","partial","interpretation"]),ordinary?ordinaryHistorySource(worldId,timelineId,sql`${worldHistoryVersion.id}`):undefined)).limit(101);
     if(rows.length>100)throw new WorldError("A place supports 100 retained milestones.",400);
-    // A single batched source query; no entity graph traversal.
+    // A single batched source query; no per-entity source reads.
     const sources=rows.length?await tx.select({h:worldHistoryHead,v:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.worldId,worldId),inArray(worldHistoryHead.entityId,rows.map(r=>r.id)))):[];
     const types=new Map(rows.map(r=>[r.id,r.eventType]));
     const events=sources.map(({h,v})=>({...v.payload as EntryRecord,revision:h.revision,eventType:types.get(h.entityId)!,...ordinary?{notes:""}:{}}));

@@ -22,7 +22,7 @@ import styles from "./atlas.module.css";
 export function AtlasWorkspace({worldId,worldName,review,onDirtyChange,timelineId,timelineName,timelineArchived,eras,onHistoryChanged}:{worldId:string;worldName:string;review:boolean;onDirtyChange:(dirty:boolean)=>void;timelineId:string;timelineName:string;timelineArchived:boolean;eras:EraRecord[];onHistoryChanged:()=>Promise<unknown>}) {
   const [historyPlace,setHistoryPlace]=useState<{id:string;ordinary:boolean}|null>(null),[mapDirty,setMapDirty]=useState(false),[historyDirty,setHistoryDirty]=useState(false);
   useEffect(()=>{onDirtyChange(mapDirty||historyDirty);return()=>onDirtyChange(false);},[mapDirty,historyDirty,onDirtyChange]);
-  function openHistory(id:string,ordinary=false){setHistoryPlace({id,ordinary});}
+  function openHistory(id:string,ordinary=false){setHistoryPlace({id,ordinary:ordinary||params.get("knowledge")==="ordinary"||params.get("ordinary")==="1"});}
   const historyDialog=historyPlace&&<AtlasPlaceHistory key={`${timelineId}:${historyPlace.id}`} worldId={worldId} timelineId={timelineId} placeId={historyPlace.id} eras={eras} review={review} ordinary={historyPlace.ordinary} onDirty={setHistoryDirty} onClose={()=>setHistoryPlace(null)} onChanged={onHistoryChanged}/>;
   const params=useSearchParams(),exploring=params.get("atlas");
   const [dungeonTarget,setDungeonTarget]=useState<DungeonTarget|null>(null);

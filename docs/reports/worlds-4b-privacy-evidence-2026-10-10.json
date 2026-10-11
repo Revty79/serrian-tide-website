@@ -1,0 +1,119 @@
+{
+  "startingSha": "d86531e3ffdd36abeaf13e74678f675cef726916",
+  "endingCommit": "The local commit containing this evidence file; exact SHA reported in the completion response.",
+  "privacyService": {
+    "worldId": "ecbcc831-4af7-4d89-825e-471a7ab25e17",
+    "primary": "d0dcda59-9bed-48df-afef-56ead3530cdf",
+    "branch": "5eed02ab-af25-4c58-8e34-f75ce4714a5d",
+    "nested": "7103f2fb-7c5b-4557-8e16-a39dc26a887b",
+    "iona": "de008bd9-c98b-4507-8a3e-ea8127aa749d",
+    "vale": "de14397c-42ef-4485-8ca5-92f29ed31878",
+    "rin": "27ec2cc4-d7fa-41ea-bc29-c655ee9ee879",
+    "parent": "99bdaa37-7e1d-4f6a-85c1-e1c5ad228693",
+    "companion": "64ff90af-0856-4b01-a04b-c3e57a699bfb",
+    "explicit": "51c2815f-4a4e-45a7-92fe-2f05558c2479",
+    "multi": "b0699e6a-6de8-4e61-b605-c434f049fa15",
+    "authoredEvent": "96b6d154-d274-409b-a95b-2e5e8a87e8ca",
+    "manualEvent": "de64679a-5e59-415a-9915-27f95171f17a",
+    "oldPinEvent": "19e00b0e-216c-484f-aecf-2e68935ad865",
+    "oldPinVersion": "a2f0e9eb-ef10-4426-ae6d-7fb931ba6370",
+    "publicEvent": "ba7f5227-ea09-4a81-a4ba-8364488e4ee9",
+    "publicVersion": "4ff6073c-f68c-41d3-b265-2363d5a69f38",
+    "place": "984c289f-fa71-4b85-83e9-4073813f95f8",
+    "lateRelationship": "0afbc479-9320-40b4-84b4-609ba95819cc",
+    "actualSavedUnprotectedParticipants": 2,
+    "cases": [
+      "A protected target/unprotected link",
+      "B explicit link protection",
+      "C public biography/private affiliation",
+      "D editor/manual/corrected events and old pins",
+      "E selected inherited/interpretation/pending/excluded/missing/nested sources",
+      "F multi-party and cyclic relationships",
+      "G stable IDs and immutable sources",
+      "H owner/foreign/Player/anonymous/read-only Administrator"
+    ],
+    "ordinaryHiddenEvents": [
+      "96b6d154-d274-409b-a95b-2e5e8a87e8ca",
+      "de64679a-5e59-415a-9915-27f95171f17a",
+      "19e00b0e-216c-484f-aecf-2e68935ad865"
+    ],
+    "immutableSourcesUnchangedByReads": true
+  },
+  "privacyBrowser": {
+    "productionDesktop": "passed",
+    "nativeTouchPhone390": "passed",
+    "ordinaryEndpointChecks": 16,
+    "knowledgePreservedAcrossNavigationAndReload": true,
+    "selectedPrimaryAlternateNestedPrivacy": "passed",
+    "authorizationAndReadOnlyReview": "passed",
+    "errors": []
+  },
+  "checks": {
+    "focusedDisposablePrivacy": "passed A-H",
+    "worlds": {
+      "passed": 104,
+      "failed": 0
+    },
+    "unit": {
+      "passed": 1989,
+      "failed": 0,
+      "files": 229
+    },
+    "fullWorldsDisposable": "passed final complete regression",
+    "productionBuild": "passed",
+    "typeGeneration": "passed",
+    "typescript": "passed",
+    "lint": "passed plus focused updated test lint",
+    "drizzle": "passed",
+    "accountLifecycle": {
+      "passed": 1,
+      "failed": 0
+    },
+    "migrationFreshPopulatedReapplicationAndLedger": "passed through unchanged 0117",
+    "visualProductionBrowser": "passed with desktop/phone screenshots inspected",
+    "immutableSourcesAndStableIds": "passed",
+    "campaignCombatCharacterFormEvolutionUnchanged": "passed",
+    "gitWhitespace": "passed"
+  },
+  "newMigrations": [],
+  "finalizedMigrationsModified": false,
+  "configurationChanges": [],
+  "devDatabaseOrServerModified": false,
+  "productionDatabaseOrServerModified": false,
+  "remotePush": false,
+  "deployment": false,
+  "phase4CStarted": false,
+  "finalSourceHashes": {
+    "scripts/worlds-association-checks.ts": "653bb6c33a8547f15a36b3c4e3448848b1dde835e96b8705d16435f83beaaf09",
+    "scripts/worlds-historical-atlas-checks.ts": "f846694a7e53b11301e67294fa90f7d169f16ef3d5e7ad037321f564377c0148",
+    "scripts/worlds-individual-privacy-checks.ts": "9733852a098ec9ab18e5abb3a361e94411f1e095415cb59338c0c7ca31a427d4",
+    "scripts/worlds-individuals-checks.ts": "b28f97f9ac73036f82aa568905c8dbfbccccb079ce34a8caf7ca2c3d724dd8e0",
+    "scripts/worlds-pass-one-disposable.test.ts": "a822d02b5bbeb769960982dac28f3dc988510b709e8175eaa4655b3f82a8157e",
+    "src/features/worlds/atlas-milestone-service.ts": "c5a068ea69c31cb7b6ca69300226d28a31cc25c6a7dfb2489c67c99ce4a31a8f",
+    "src/features/worlds/atlas-workspace.tsx": "8da68bd2256408c47972b736c74a55aaadf4921f29d93c4bb93c1338eaa5877e",
+    "src/features/worlds/historical-entity-links.tsx": "53f8cb528980de177f3b4e7dae6e3f1cb24d09059dc6115c09499cc1009f6e69",
+    "src/features/worlds/history-browser.tsx": "6aa19dc05261c8ced189f4066a0c3be337985c1dd16c4360f37c10d97004bffe",
+    "src/features/worlds/history-index-service.ts": "b477ff45a7e010898bd3d65ac122c6aacfdfba174a513cac88d45b15c4fbce4b",
+    "src/features/worlds/milestone-service.ts": "93f317f6a13b0ebefce7f953842da05f3c1c549eafd347d5ac127fffef758fbb",
+    "src/features/worlds/ordinary-knowledge.ts": "d459c2910c78c04920f8fda1c09fb47d65898e0893aefc727cfcbb160c493576",
+    "src/features/worlds/peoples-geography-service.ts": "598f250f8c552c79d880cf953cb1b0a77c7e876f5368f470d1c0e877ce154ee8",
+    "src/features/worlds/peoples-service.ts": "6e0efc4cf30bf2db9b4c222353fc7c837098d3d909964fcb385c07f4c82eb095",
+    "src/features/worlds/peoples-workspace.tsx": "5661885248d1ca3749eb4de4132c1b11bac3a7a8c041ebe665cbdaf4f8e897c2",
+    "src/features/worlds/world-workspace.tsx": "83de209eb0bdc901df2a21d8743f6922356aca0e557cb6c42c258f2d123526f4"
+  },
+  "artifactRoot": "artifacts/guidance/worlds-4b-privacy",
+  "logs": {
+    "beforeFix": "logs/before-correction.log",
+    "focusedService": "logs/focused-privacy.log",
+    "finalFullRegression": "logs/full-disposable.log",
+    "visualPrivacyBrowser": "logs/visual-browser.log"
+  },
+  "screenshots": [
+    "desktop-author.png",
+    "desktop-ordinary.png",
+    "phone-ordinary.png"
+  ],
+  "regressionWaitCorrection": "Association test now awaits POST 200 and saved summary before the original persisted-selection assertions; no Campaign runtime change.",
+  "readiness": "Complete for independent review; controlled remote push/deployment remains separately authorized.",
+  "rollback": "Code rollback is schema-compatible but reopens the privacy defect; prefer a forward correction or restricted Worlds access during recovery."
+}

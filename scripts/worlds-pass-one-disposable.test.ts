@@ -1,4 +1,5 @@
 import { individualsServiceChecks, individualsBrowserChecks, seedIndividualsUpgrade } from "./worlds-individuals-checks";
+import { individualPrivacyServiceChecks, individualPrivacyBrowserChecks } from "./worlds-individual-privacy-checks";
 import {historicalAtlasServiceChecks,historicalAtlasBrowserChecks,seedHistoricalAtlasUpgrade} from "./worlds-historical-atlas-checks";
 import {seedSocietiesUpgrade,societiesServiceChecks,societiesBrowserChecks} from "./worlds-societies-checks";
 import { peoplesServiceChecks, peoplesBrowserChecks, seedPeoplesUpgrade } from "./worlds-peoples-checks";
@@ -119,9 +120,9 @@ async function main() {
   const temporaryRoot=path.resolve(await mkdtemp(path.join(temporaryParent,"serrian-worlds-pass-one-")));
   const data=path.join(temporaryRoot,"data"),dbPort=await freePort(),appPort=await freePort();
   const databaseUrl=`postgresql://postgres@127.0.0.1:${dbPort}/serrian_worlds_test`,baseUrl=`http://127.0.0.1:${appPort}`;
-  const worldsEvidence=path.resolve("artifacts/guidance/worlds-4b/regressions/worlds"),artifactRoot=path.resolve("artifacts/guidance"),distName=`artifacts/guidance/worlds-next-${appPort}`,distPath=path.resolve(distName);
+  const worldsEvidence=path.resolve("artifacts/guidance/worlds-4b-privacy/regressions/regressions/worlds"),artifactRoot=path.resolve("artifacts/guidance"),distName=`artifacts/guidance/worlds-next-${appPort}`,distPath=path.resolve(distName);
   const originalConfig=await readFile("tsconfig.json","utf8"),originalNextEnv=await readFile("next-env.d.ts","utf8");
-  await mkdir(worldsEvidence,{recursive:true});await mkdir(artifactRoot,{recursive:true});const log=createWriteStream(path.join(artifactRoot,"worlds-4b-next.log"));
+  await mkdir(worldsEvidence,{recursive:true});await mkdir(artifactRoot,{recursive:true});const log=createWriteStream(path.join(artifactRoot,"worlds-4b-privacy-next.log"));
   let started=false,pool:pg.Pool|undefined,applicationPool:pg.Pool|undefined,server:ChildProcess|undefined,browser:Awaited<ReturnType<typeof chromium.launch>>|undefined;
   const errors:string[]=[];
   let activePage: Page | undefined;
@@ -261,6 +262,7 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await legacySnapshot(),legacyBefore);
     console.log("PASS: migrations 0102/0103 and 0104/0105 plus 0106/0107 upgrade existing data through 0103 and painted 0104 maps and preserve existing 0102 geometry, including existing calendar evolution, original source snapshots, calendars and preferences, with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible; saved v1 source and metadata unchanged across 0107; 0108 preserves v1/v2 source, all old row projections and metadata while adding empty links and default map/place association fields.");
     process.env.DATABASE_URL=databaseUrl;const service=await import("../src/features/worlds/world-service");applicationPool=(await import("../src/db")).pool;
+    if(process.argv.includes("--privacy-service-only")){await individualPrivacyServiceChecks(service,await import("../src/features/worlds/branching-history-service"),pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
     const references=await service.worldReferences("world-god"),validTag=references.find((tag)=>tag.name==="High Fantasy")!;
     assert.equal(references.some((tag)=>tag.name==="Mechanical"),false);
     const publicNames = ["Ancient","High Fantasy"];
@@ -337,23 +339,25 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const settlementFixture=await settlementServiceChecks(atlasService,service,pool,foreign);
     const interiorFixture=await interiorServiceChecks(atlasService,service,pool,foreign);
     const dungeonFixture=await dungeonServiceChecks(atlasService,pool,interiorFixture,foreign);
-    const peoplesFixture=await peoplesServiceChecks(service,timelineService,pool,foreign,chronologyFixture,evolutionFixture,"artifacts/guidance/worlds-4b/4a-1-regression");
-    const societiesFixture=await societiesServiceChecks(service,timelineService,pool,foreign,societiesUpgrade,"artifacts/guidance/worlds-4b/4a-2-regression");
-    const historicalFixture=await historicalAtlasServiceChecks(service,timelineService,pool,foreign,"artifacts/guidance/worlds-4b/4a-h-regression");
-    const individualsFixture=await individualsServiceChecks(service,timelineService,pool,foreign);
+    const peoplesFixture=await peoplesServiceChecks(service,timelineService,pool,foreign,chronologyFixture,evolutionFixture,"artifacts/guidance/worlds-4b-privacy/regressions/4a-1-regression");
+    const societiesFixture=await societiesServiceChecks(service,timelineService,pool,foreign,societiesUpgrade,"artifacts/guidance/worlds-4b-privacy/regressions/4a-2-regression");
+    const historicalFixture=await historicalAtlasServiceChecks(service,timelineService,pool,foreign,"artifacts/guidance/worlds-4b-privacy/regressions/4a-h-regression");
+    const privacyFixture=await individualPrivacyServiceChecks(service,timelineService,pool);
+    const individualsFixture=await individualsServiceChecks(service,timelineService,pool,foreign,"artifacts/guidance/worlds-4b-privacy/regressions/4b");
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     if(process.argv.includes("--services-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
-    await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-4b-next.log`)));});
+    await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-4b-privacy-next.log`)));});
     console.log("PASS: isolated production build and TypeScript verification.");
     server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--port",String(appPort)],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});server.stdout!.pipe(log,{end:false});server.stderr!.pipe(log,{end:false});
     const deadline=Date.now()+120000;let ready=false;while(Date.now()<deadline){assert.equal(server.exitCode,null);try{if((await fetch(`${baseUrl}/login`,{signal:AbortSignal.timeout(5000)})).ok){ready=true;break;}}catch{}await new Promise((resolve)=>setTimeout(resolve,300));}assert.ok(ready);
     browser=await chromium.launch({executablePath:process.env.SERRIAN_TEST_CHROME??"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true});
     const god=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.40"}});await signIn(god,baseUrl,"world-god");
     const page=await god.newPage();activePage=page;page.on("pageerror",(error)=>errors.push(error.message));
-    await peoplesBrowserChecks(browser,baseUrl,peoplesFixture,service,pool,"artifacts/guidance/worlds-4b/4a-1-regression");
-    await societiesBrowserChecks(browser,baseUrl,societiesFixture,pool,"artifacts/guidance/worlds-4b/4a-2-regression");
-    await historicalAtlasBrowserChecks(browser,baseUrl,historicalFixture,pool,"artifacts/guidance/worlds-4b/4a-h-regression");
-    await individualsBrowserChecks(browser,baseUrl,individualsFixture,pool);
+    await peoplesBrowserChecks(browser,baseUrl,peoplesFixture,service,pool,"artifacts/guidance/worlds-4b-privacy/regressions/4a-1-regression");
+    await societiesBrowserChecks(browser,baseUrl,societiesFixture,pool,"artifacts/guidance/worlds-4b-privacy/regressions/4a-2-regression");
+    await historicalAtlasBrowserChecks(browser,baseUrl,historicalFixture,pool,"artifacts/guidance/worlds-4b-privacy/regressions/4a-h-regression");
+    await individualsBrowserChecks(browser,baseUrl,individualsFixture,pool,"artifacts/guidance/worlds-4b-privacy/regressions/4b");
+    await individualPrivacyBrowserChecks(browser,baseUrl,privacyFixture);
     if(process.argv.includes("--individuals-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--historical-atlas-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--societies-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
@@ -363,21 +367,21 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     if(process.argv.includes("--associations-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--branching-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--dungeon-only")){await dungeonBrowserChecks(browser,baseUrl,dungeonFixture,pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
-    if(process.argv.includes("--interior-only")){await interiorBrowserChecks(browser,baseUrl,interiorFixture,pool,"artifacts/guidance/worlds-4b/regressions/interior");await interiorPerformanceChecks(browser,baseUrl,interiorFixture.worldId,"artifacts/guidance/worlds-4b/regressions/interior");assert.deepEqual(await runtimeSnapshot(),before);return;}
+    if(process.argv.includes("--interior-only")){await interiorBrowserChecks(browser,baseUrl,interiorFixture,pool,"artifacts/guidance/worlds-4b-privacy/regressions/regressions/interior");await interiorPerformanceChecks(browser,baseUrl,interiorFixture.worldId,"artifacts/guidance/worlds-4b-privacy/regressions/regressions/interior");assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--settlement-only")){await settlementBrowserChecks(browser,baseUrl,settlementFixture,pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--connected-only")){await connectedGeographyBrowserChecks(browser,baseUrl,connectedFixture,pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
     await dungeonBrowserChecks(browser,baseUrl,dungeonFixture,pool);
-    await interiorBrowserChecks(browser,baseUrl,interiorFixture,pool,"artifacts/guidance/worlds-4b/regressions/interior");await interiorPerformanceChecks(browser,baseUrl,interiorFixture.worldId,"artifacts/guidance/worlds-4b/regressions/interior");
-    await settlementBrowserChecks(browser,baseUrl,settlementFixture,pool,"artifacts/guidance/worlds-4b/regressions/settlement");
-    await connectedGeographyBrowserChecks(browser,baseUrl,connectedFixture,pool,"artifacts/guidance/worlds-4b/regressions/connected");
+    await interiorBrowserChecks(browser,baseUrl,interiorFixture,pool,"artifacts/guidance/worlds-4b-privacy/regressions/regressions/interior");await interiorPerformanceChecks(browser,baseUrl,interiorFixture.worldId,"artifacts/guidance/worlds-4b-privacy/regressions/regressions/interior");
+    await settlementBrowserChecks(browser,baseUrl,settlementFixture,pool,"artifacts/guidance/worlds-4b-privacy/regressions/regressions/settlement");
+    await connectedGeographyBrowserChecks(browser,baseUrl,connectedFixture,pool,"artifacts/guidance/worlds-4b-privacy/regressions/regressions/connected");
     await checkEraLabelNavigation(page,baseUrl,labelWorld,worldsEvidence);
     await chronologyBrowserChecks(service,page,god,baseUrl,chronologyFixture,worldsEvidence);
     await calendarBrowserChecks(calendarService,page,god,baseUrl,calendarFixture,worldsEvidence);
     await evolutionBrowserChecks(page,god,baseUrl,evolutionFixture,worldsEvidence);
     await atlasBrowserChecks(page,god,baseUrl,atlasFixture,worldsEvidence);
     await cartographyBrowserChecks(browser,baseUrl,artFixture,worldsEvidence);
-    await generationBrowserChecks(browser,baseUrl,generationFixture,worldsEvidence,"artifacts/guidance/worlds-4b/regressions/generation");
-    await refinementBrowserChecks(browser,baseUrl,generationFixture,"artifacts/guidance/worlds-4b/regressions/refinement");
+    await generationBrowserChecks(browser,baseUrl,generationFixture,worldsEvidence,"artifacts/guidance/worlds-4b-privacy/regressions/regressions/generation");
+    await refinementBrowserChecks(browser,baseUrl,generationFixture,"artifacts/guidance/worlds-4b-privacy/regressions/regressions/refinement");
 
     await page.goto(`${baseUrl}/worlds`);await hydrated(page);await page.getByRole("heading",{name:"Worlds",exact:true}).waitFor();assert.equal(await page.getByText("Other owner's private world",{exact:true}).count(),0);
     await page.getByRole("button",{name:"Create world",exact:true}).click();await page.getByLabel("World name",{exact:true}).fill("Lantern Reach");
