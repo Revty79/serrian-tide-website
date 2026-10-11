@@ -14,6 +14,7 @@ const commandSchema=z.discriminatedUnion("action",[
   z.object({action:z.literal("create"),parentRevision:revision,draft:branchDraftSchema}).strict(),
   z.object({action:z.literal("save"),id,revision,draft:timelineDraftSchema}).strict(),
   z.object({action:z.enum(["archive","restore"]),id,revision}).strict(),
+  z.object({action:z.literal("adopt-parent"),id,revision,entityId:id,parentRevision:revision,parentVersionId:id}).strict(),
   z.object({action:z.literal("resolve"),id,entityId:id,revision,decision:z.enum(["include","exclude"])}).strict(),
   z.object({action:z.literal("accept-parent"),id,entityId:id,revision,parentRevision:revision,parentVersionId:id}).strict(),
 ]);
@@ -54,6 +55,17 @@ export async function changeTimeline(userId:string,worldId:string,input:unknown)
     }
     if(timeline.primary||timeline.archivedAt)throw new WorldError("Choose an active alternate timeline to resolve inherited history.",400);
     if(!("entityId" in command))throw new WorldError("Choose an inherited source.",400);
+    if(command.action==="adopt-parent"){
+      if(timeline.revision!==command.revision||!timeline.parentId)throw conflict();
+      const [existing]=await tx.select().from(worldHistoryHead).where(and(eq(worldHistoryHead.timelineId,timeline.id),eq(worldHistoryHead.entityId,command.entityId)));
+      if(existing)throw conflict();
+      const [parent]=await tx.select({h:worldHistoryHead,v:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timeline.parentId),eq(worldHistoryHead.entityId,command.entityId)));
+      if(!parent||parent.h.revision!==command.parentRevision||parent.v.id!==command.parentVersionId||["pending","excluded"].includes(parent.h.mode))throw conflict();
+      const [count]=await tx.select({n:sql<number>`count(*)::integer`}).from(worldHistoryHead).where(eq(worldHistoryHead.timelineId,timeline.id));if(count.n>=HISTORY_LIMIT)throw new WorldError("This timeline has reached its retained-history limit.",400);
+      let mode=inheritanceMode(parent.v.entryId?"entry":"era",parent.v.payload,timeline.divergenceYear!);if(parent.h.mode==="partial"&&mode!=="excluded")mode="partial";
+      await tx.insert(worldHistoryHead).values({worldId,timelineId:timeline.id,entityId:command.entityId,versionId:parent.v.id,mode,revision:1,sourceTimelineId:timeline.parentId,sourceVersionId:parent.v.id,sourceRevision:parent.h.revision,coveredUntil:mode==="partial"?Math.min(timeline.divergenceYear!-1,parent.h.coveredUntil??timeline.divergenceYear!-1):null});
+      await touch(tx,worldId);return timeline.id;
+    }
     const [row]=await tx.select({head:worldHistoryHead,version:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.timelineId,timeline.id),eq(worldHistoryHead.entityId,command.entityId),eq(worldHistoryHead.worldId,worldId)));
     if(!row||!row.head.sourceTimelineId)throw unavailable();
     if(row.head.revision!==command.revision)throw conflict();
@@ -104,7 +116,7 @@ export async function changeBranchHistory(tx:HistoryTx,worldId:string,timeline:t
       const effective=await effectiveHistory(tx,worldId,timeline);
       const retained=new Set(previousEntry?.eraIds??[]);
       if(fields.eraIds.some(id=>!effective.eras.some(era=>era.id===id&&(!era.archived||retained.has(id)))&&!retained.has(id)))throw new WorldError("Choose an available era in this timeline. Existing source relationships may be retained.",400);
-      record={...fields,...source,id:entityId,worldId,revision:nextRevision,archived:false,updatedAt:new Date().toISOString(),calendarSource:await resolveHistoryCalendarSource(tx,worldId,calendarDate,previousEntry?.calendarSource)};
+      record={...previous&&"time"in previous?{prominence:previous.prominence,eventType:previous.eventType}:{},...fields,...source,id:entityId,worldId,revision:nextRevision,archived:false,updatedAt:new Date().toISOString(),calendarSource:await resolveHistoryCalendarSource(tx,worldId,calendarDate,previousEntry?.calendarSource)};
       if(!row)await tx.insert(worldEntry).values({id:entityId,worldId,timelineId:timeline.id,title:fields.title,account:fields.account,notes:fields.notes,time:fields.time,accuracy:fields.accuracy,narrative:fields.narrative,...source});
     }
   }

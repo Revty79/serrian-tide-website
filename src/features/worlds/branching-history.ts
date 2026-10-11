@@ -19,7 +19,7 @@ export type HistoryContext = {
   sourceVersionId: string | null; sourceRevision: number | null; newerParent: boolean;
   parentRevision: number | null; parentVersionId: string | null; coveredUntil: number | null;
 };
-export type InheritanceReview = { entity: "entry" | "era"; record: HistoricalSnapshot; context: HistoryContext };
+export type InheritanceReview = { availableParent?:boolean; entity: "entry" | "era"; record: HistoricalSnapshot; context: HistoryContext };
 export function inheritanceMode(entity: "entry" | "era", record: HistoricalSnapshot, year: number): "inherited" | "partial" | "pending" | "excluded" {
   if (record.archived) return "excluded";
   if (entity === "era") {

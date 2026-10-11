@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { accuracyLabels, dateLabels, narrativeLabels, entryDraftSchema, eraDraftSchema, worldDraftSchema, type EntryDraft, type EntryRecord, type EraDraft, type EraRecord, type TagReference, type WorldDraft, type WorldRecord } from "./history";
+import { accuracyLabels, prominenceLabels, dateLabels, narrativeLabels, entryDraftSchema, eraDraftSchema, worldDraftSchema, type EntryDraft, type EntryRecord, type EraDraft, type EraRecord, type TagReference, type WorldDraft, type WorldRecord } from "./history";
 import { Field } from "./world-field";
 import { ChronologyYearInput } from "./chronology-year-input";
 import type { DatingSystem } from "./chronology";
@@ -63,6 +63,8 @@ export function WorldEditor({ target, tags, eras = [], datingSystems=[], display
         <Field label="Era band style" help="A theme color helps distinguish this era's band. Its name remains visible for accessibility."><select value={eraDraft.tone} onChange={(e) => setEraDraft({...eraDraft,tone:e.target.value as EraDraft["tone"]})}><option value="primary">Verdant</option><option value="secondary">Golden</option><option value="info">Starlight</option><option value="muted">Quiet</option></select></Field>
       </>}
       {target.kind === "entry" && <>
+        <Field label="Historical event type" help="Optionally name an original type such as Founding, Discovery or Renewal. Manual events can have a type even without linked entities."><input maxLength={160} value={entryDraft.eventType??""} onChange={e=>setEntryDraft({...entryDraft,eventType:e.target.value})}/></Field>
+        <Field label="Timeline prominence" help="Featured emphasizes this account. Standard shows it normally. Index-only keeps it searchable and linked while omitting its visual marker unless requested. This does not change truth or access."><select value={entryDraft.prominence??"standard"} onChange={e=>setEntryDraft({...entryDraft,prominence:e.target.value as EntryDraft["prominence"]})}>{Object.entries(prominenceLabels).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></Field>
         <Field label="Entry title" help="Name the event, legend, development or historical account."><input autoFocus required maxLength={160} value={entryDraft.title} onChange={(e) => setEntryDraft({...entryDraft,title:e.target.value})} /></Field>
         <Field label="Historical account" help="Write what happened, or what is planned. Paragraphs are preserved; up to 50,000 characters."><textarea required rows={5} maxLength={50000} value={entryDraft.account} onChange={(e) => setEntryDraft({...entryDraft,account:e.target.value})} /></Field>
         <Field label="Date representation" help="An uncertain window means a single occurrence somewhere in that range. A duration spans the range. Undated entries have no implied year."><select value={entryDraft.time.kind} onChange={(e) => { const kind = e.target.value as EntryDraft["time"]["kind"]; const old = entryDraft.time; const year = "year" in old ? old.year : "startYear" in old ? old.startYear : 0; setEntryDraft({...entryDraft,time:kind === "undated" ? {version:1,scale:"world-year",kind} : kind === "known" || kind === "approximate" ? {version:1,scale:"world-year",kind,year} : {version:1,scale:"world-year",kind,startYear:year,endYear:"endYear" in old ? old.endYear : year}}); }} >{Object.entries(dateLabels).map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select></Field>

@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, notInArray } from "drizzle-orm";
 import { db } from "@/db";
 import { worldTimeline } from "@/db/world-schema";
 import { worldHistoryHead, worldHistoryVersion, worldHistoryVersionEra } from "@/db/world-timeline-schema";
@@ -52,6 +52,10 @@ export async function effectiveHistory(tx:HistoryTx,worldId:string,timeline:type
     if(head.mode==="pending"||head.mode==="excluded")continue;
     const projection=inheritedProjection(record,context);
     if(entity==="entry")entries.push(projection as EntryRecord);else eras.push(projection as EraRecord);
+  }
+  if(timeline.parentId){
+    const missing=await tx.select({head:worldHistoryHead,version:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timeline.parentId),rows.length?notInArray(worldHistoryHead.entityId,rows.map(r=>r.head.entityId)):undefined)).limit(HISTORY_LIMIT);
+    for(const {head,version}of missing){if(head.mode==="pending"||head.mode==="excluded")continue;inheritanceReview.push({availableParent:true,entity:version.entryId?"entry":"era",record:{...version.payload,revision:head.revision},context:{mode:"pending",timelineId:timeline.id,versionId:version.id,sourceTimelineId:timeline.parentId,sourceVersionId:version.id,sourceRevision:head.revision,parentRevision:head.revision,parentVersionId:version.id,newerParent:true,coveredUntil:null}});}
   }
   return {eras,entries,inheritanceReview};
 }

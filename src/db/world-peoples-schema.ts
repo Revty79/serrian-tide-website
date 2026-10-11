@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, foreignKey, index, integer, jsonb, pgTable, primaryKey, serial, text, timestamp, unique, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
-import { world, worldTimeline, worldDatingSystem } from "./world-schema";
+import { worldEntry, world, worldTimeline, worldDatingSystem } from "./world-schema";
 import { worldCalendarAnchor } from "./world-calendar-history-schema";
 import { worldHistoryVersion } from "./world-timeline-schema";
 import { worldGeography } from "./world-atlas-schema";
@@ -60,3 +60,8 @@ export const worldLoreChange = pgTable("world_lore_change", { id: serial("id").p
 
 // Universal event links pin the existing History source. Atlas retains its original geography identity.
 export const worldHistoryVersionEntity = pgTable("world_history_version_entity", { versionId:text("version_id").notNull(),worldId:text("world_id").notNull(),entryId:text("entry_id").notNull(),targetId:text("target_id").notNull(),loreId:text("lore_id"),geographyId:text("geography_id"),eventType:text("event_type").notNull(),entityCategory:text("entity_category").notNull() }, t => [primaryKey({columns:[t.versionId,t.targetId]}),foreignKey({name:"history_entity_version_fk",columns:[t.versionId,t.worldId,t.entryId],foreignColumns:[worldHistoryVersion.id,worldHistoryVersion.worldId,worldHistoryVersion.entityId]}).onDelete("restrict"),foreignKey({name:"history_entity_lore_fk",columns:[t.loreId,t.worldId],foreignColumns:[worldLoreIdentity.id,worldLoreIdentity.worldId]}).onDelete("restrict"),foreignKey({name:"history_entity_geography_fk",columns:[t.geographyId,t.worldId],foreignColumns:[worldGeography.id,worldGeography.worldId]}).onDelete("restrict"),index("history_entity_target_idx").on(t.worldId,t.targetId),index("history_entity_category_idx").on(t.worldId,t.entityCategory),index("history_entity_type_idx").on(t.worldId,t.eventType),check("history_entity_target_valid",sql`coalesce(length(trim(${t.entityCategory})) between 1 and 160 and length(trim(${t.eventType})) between 1 and 160 and ((${t.loreId}=${t.targetId} and ${t.geographyId} is null) or (${t.geographyId}=${t.targetId} and ${t.loreId} is null)),false)`)]);
+
+// Acknowledged Atlas save receipts are idempotency metadata, never a second event source.
+export const worldAtlasMilestoneReceipt = pgTable("world_atlas_milestone_receipt", {
+  worldId:text("world_id").notNull(),timelineId:text("timeline_id").notNull(),requestId:text("request_id").notNull(),geographyId:text("geography_id").notNull(),entryId:text("entry_id").notNull(),draftHash:text("draft_hash").notNull(),
+},t=>[primaryKey({columns:[t.worldId,t.timelineId,t.requestId]}),foreignKey({name:"atlas_milestone_timeline_fk",columns:[t.timelineId,t.worldId],foreignColumns:[worldTimeline.id,worldTimeline.worldId]}).onDelete("restrict"),foreignKey({name:"atlas_milestone_place_fk",columns:[t.geographyId,t.worldId],foreignColumns:[worldGeography.id,worldGeography.worldId]}).onDelete("restrict"),foreignKey({name:"atlas_milestone_entry_fk",columns:[t.entryId,t.worldId],foreignColumns:[worldEntry.id,worldEntry.worldId]}).onDelete("restrict"),check("atlas_milestone_hash_valid",sql`length(${t.draftHash})=64`)]);

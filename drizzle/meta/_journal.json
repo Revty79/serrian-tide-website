@@ -813,6 +813,13 @@
       "when": 1791684351177,
       "tag": "0115_worlds_cultures_societies",
       "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1791687533141,
+      "tag": "0116_worlds_historical_atlas",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,11 @@
+{
+  "events": 1200,
+  "writeMs": 5713,
+  "filteredResults": 100,
+  "readMs": 17,
+  "payloadBytes": 70712,
+  "timelineLimit": 5000,
+  "listIncrement": 40,
+  "densityLoadMs": 1016,
+  "browserSearchMs": 243
+}

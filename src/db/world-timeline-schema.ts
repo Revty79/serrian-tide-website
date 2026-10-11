@@ -17,6 +17,8 @@ export const worldHistoryVersion = pgTable("world_history_version", {
   foreignKey({name:"history_version_start_fk",columns:[t.startVersionId,t.worldId],foreignColumns:[worldCalendarAnchor.versionId,worldCalendarAnchor.worldId]}).onDelete("restrict"),
   foreignKey({name:"history_version_end_fk",columns:[t.endVersionId,t.worldId],foreignColumns:[worldCalendarAnchor.versionId,worldCalendarAnchor.worldId]}).onDelete("restrict"),
   index("world_history_version_entity_idx").on(t.worldId,t.entityId,t.createdAt),
+  index("history_search_text_idx").using("gin",sql`to_tsvector('simple', coalesce(${t.payload}->>'title','') || ' ' || coalesce(${t.payload}->>'account','') || ' ' || coalesce(${t.payload}->>'notes',''))`),
+  check("history_prominence_valid",sql`coalesce(${t.payload}->>'prominence','standard') in ('featured','standard','index-only')`),
   check("world_history_version_valid",sql`((${t.entryId}=${t.entityId} and ${t.eraId} is null) or (${t.eraId}=${t.entityId} and ${t.entryId} is null)) and coalesce(${t.payload}->>'id'=${t.entityId} and ${t.payload}->>'worldId'=${t.worldId} and (${t.payload}->>'revision')::integer>0 and jsonb_typeof(${t.payload})='object',false)`)]);
 export const worldHistoryHead = pgTable("world_history_head", {
   timelineId:text("timeline_id").notNull(),worldId:text("world_id").notNull(),entityId:text("entity_id").notNull(),

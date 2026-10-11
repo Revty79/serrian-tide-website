@@ -200,3 +200,5 @@
 .associationCard { padding:1rem; border:1px solid var(--st-border); border-radius:.75rem; background:var(--st-surface-soft); overflow-wrap:anywhere; }
 .associationCard .actions { margin-top:1rem; flex-wrap:wrap; }
 .campaignSettingsContexts a,.associationCard>a { color:var(--st-primary); text-decoration:underline; }
+
+.eventMarker[data-prominence="featured"] { font-weight: 800; border-color: var(--st-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-primary) 24%, transparent); }
