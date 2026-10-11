@@ -7,7 +7,7 @@ import { emptyLore, type LoreDraft, type LoreFamily } from "../src/features/worl
 import type { HistoricalTime } from "../src/features/worlds/history";
 type Worlds=typeof import("../src/features/worlds/world-service");
 type Timelines=typeof import("../src/features/worlds/branching-history-service");
-const directory="artifacts/guidance/worlds-5a";
+const defaultDirectory="artifacts/guidance/worlds-5a";
 const known=(year:number):HistoricalTime=>({version:1,scale:"world-year",kind:"known",year});
 const member=(targetId:string,role:string,protectedLink=false)=>({targetId,role,authoredReference:"",account:"",protected:protectedLink});
 const cosmicEvent=(title:string,eventType:string,year:number,targets:NonNullable<LoreDraft["milestones"][number]["targets"]>=[])=>({eventType,targets,draft:{title,eventType,account:title,notes:"Private cosmic provenance",time:known(year),accuracy:"disputed" as const,narrative:"recorded" as const,visibility:"ordinary" as const,eraIds:[]}});
@@ -41,7 +41,7 @@ export async function seedCosmologyUpgrade(pool:pg.Pool,worldId:string) {
   };
 }
 
-export async function cosmologyServiceChecks(worlds:Worlds,timelines:Timelines,pool:pg.Pool) {
+export async function cosmologyServiceChecks(worlds:Worlds,timelines:Timelines,pool:pg.Pool,directory=defaultDirectory) {
   const lore=await import("../src/features/worlds/peoples-service"),history=await import("../src/features/worlds/history-index-service"),links=await import("../src/features/worlds/milestone-service"),atlas=await import("../src/features/worlds/atlas-service");
   const worldId=await worlds.createWorld("world-god",{name:"The Veiled Concordance"}),primary=(await worlds.getWorld("world-god",worldId)).selectedTimeline.id;
   const create=(family:LoreFamily,name:string,extra:Partial<LoreDraft>={})=>lore.changePeople("world-god",worldId,{action:"create",timelineId:primary,requestId:randomUUID(),draft:{...emptyLore(family),name,...extra}});
@@ -113,14 +113,14 @@ export async function cosmologyServiceChecks(worlds:Worlds,timelines:Timelines,p
   const priorName=await get(minimal);await save(minimal,{name:"Only a Dream, renamed"});assert.equal((await get(minimal)).id,priorName.id);assert.notEqual((await get(minimal)).versionId,priorName.versionId);
   await assert.rejects(pool.query("update world_celestial_version set name='Retcon' where version_id=$1",[(await get(moon)).versionId]));await assert.rejects(pool.query("delete from world_lore_period where version_id=$1",[(await get(principle)).versionId]));
   assert.equal((await pool.query("select count(*)::int n from world_lore_identity where id=$1",[deity])).rows[0].n,1);
-  const performanceFixture=await cosmologyPerformance(worlds,timelines,pool,lore,history);
+  const performanceFixture=await cosmologyPerformance(worlds,timelines,pool,lore,history,directory);
   const fixture={worldId,primary,branch,nested,aster,multiverse,outer,system,star,serra,moon,hollow,quiet,throne,hidden,minimal,principle,connection,portal,secretConnection,secretLaw,cycleA,cycleB,safeCycle,divineOrigin,eternalOrigin,deity,belief,church,scholar,places,observation,shattering,secretEvent,alternativeEvent,witness,witnessPin,...performanceFixture};
   await mkdir(directory,{recursive:true});await writeFile(`${directory}/service-results.json`,JSON.stringify(fixture,null,2)+"\n");
   console.log("PASS: 5A saved Veiled Concordance, conventional and nonphysical cosmologies, nested/overlapping/cyclic realities, laws/scopes, contradictory origins, saved deity/belief/organization/Atlas links, shared corrected events, stable surviving moon across alternate/nested sources, whole-source privacy, roles/CAS/archive/immutable sources and forged references.");
   return fixture;
 }
 
-async function cosmologyPerformance(worlds:Worlds,timelines:Timelines,pool:pg.Pool,lore:typeof import("../src/features/worlds/peoples-service"),history:typeof import("../src/features/worlds/history-index-service")) {
+async function cosmologyPerformance(worlds:Worlds,timelines:Timelines,pool:pg.Pool,lore:typeof import("../src/features/worlds/peoples-service"),history:typeof import("../src/features/worlds/history-index-service"),directory:string) {
   const denseWorld=await worlds.createWorld("world-god",{name:"Dense cosmic network"}),denseTimeline=(await worlds.getWorld("world-god",denseWorld)).selectedTimeline.id;
   const participants:string[]=[];for(let i=0;i<20;i++)participants.push(await lore.changePeople("world-god",denseWorld,{action:"create",timelineId:denseTimeline,requestId:randomUUID(),draft:{...emptyLore(i%2?"civilization":"individual"),name:`Shared cosmic observer ${i}`}}));
   const atlas=await import("../src/features/worlds/atlas-service"),place=randomUUID();await atlas.changeAtlas("world-god",denseWorld,{action:"geography",draft:{id:place,revision:null,name:"Shared cosmic temple",description:"",kind:"location",context:"building site",parentId:null}});
@@ -161,7 +161,7 @@ async function noOverflow(page:Page) {
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1&&[...document.querySelectorAll("dialog[open]")].every(d=>d.scrollWidth<=d.clientWidth+1)));
 }
 
-export async function cosmologyBrowserChecks(browser:Browser,base:string,fixture:Awaited<ReturnType<typeof cosmologyServiceChecks>>,pool:pg.Pool) {
+export async function cosmologyBrowserChecks(browser:Browser,base:string,fixture:Awaited<ReturnType<typeof cosmologyServiceChecks>>,pool:pg.Pool,directory=defaultDirectory) {
   const contexts:BrowserContext[]=[],errors:string[]=[];
   const context=await browser.newContext({viewport:{width:1440,height:1000},extraHTTPHeaders:{"X-Forwarded-For":"198.51.100.211"}});contexts.push(context);await signIn(context,base);
   const page=await context.newPage();page.on("pageerror",e=>errors.push(e.message));page.on("dialog",d=>d.accept());

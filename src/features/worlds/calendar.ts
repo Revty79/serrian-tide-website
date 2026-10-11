@@ -38,7 +38,7 @@ export type CalendarDate={year:number;month:number;day:number;intercalaryId?:str
 export type CalendarDay=CalendarDate & {ordinal:number;weekday:number|null;name:string;seasons:string[];observances:{name:string;kind:string;description:string}[]};
 export const annual=():PeriodicRule=>({every:1,offset:0,exceptEvery:null,restoreEvery:null,includeYears:[],excludeYears:[]});
 export function blankCalendarRules():CalendarRules{return {version:1,numbering:"year-zero",months:[{name:"First month",days:30}],weekdays:["First day"],progression:"continuous",firstWeekday:0,timeUnits:null,intercalations:[],seasons:[],observances:[]};}
-export const calendarIdentitySchema=z.object({name:z.string().trim().min(1).max(160),description:z.string().max(4000),context:z.string().max(10000)}).strict();
+export const calendarIdentitySchema=z.object({name:z.string().trim().min(1).max(160),description:z.string().max(4000),context:z.string().max(10000),visibility:z.enum(["ordinary","protected"]).optional()}).strict();
 export type CalendarIdentity=z.infer<typeof calendarIdentitySchema> & {id:string;worldId:string;revision:number;archived:boolean};
 export type CalendarVersion={id:string;worldId:string;calendarId:string;title:string;rules:CalendarRules;revision:number;archived:boolean};
 export type CalendarBundle={calendars:CalendarIdentity[];versions:CalendarVersion[];defaultVersionId:string|null;worldRevision:number;canEdit:boolean;evolution:CalendarEvolution};

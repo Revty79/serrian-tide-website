@@ -17,18 +17,18 @@ const command=z.discriminatedUnion("action",[
   z.object({action:z.enum(["archive-version","restore-version"]),id,revision}).strict(),
   z.object({action:z.literal("default"),revision,versionId:id.nullable()}).strict(),
 ]);
-function calendarDto(row:typeof worldCalendar.$inferSelect):CalendarIdentity{return {id:row.id,worldId:row.worldId,name:row.name,description:row.description,context:row.context,revision:row.revision,archived:!!row.archivedAt};}
+function calendarDto(row:typeof worldCalendar.$inferSelect):CalendarIdentity{return {id:row.id,worldId:row.worldId,name:row.name,description:row.description,context:row.context,visibility:row.visibility,revision:row.revision,archived:!!row.archivedAt};}
 function versionDto(row:typeof worldCalendarVersion.$inferSelect):CalendarVersion{return {id:row.id,worldId:row.worldId,calendarId:row.calendarId,title:row.title,rules:row.rules,revision:row.revision,archived:!!row.archivedAt};}
 const unavailable=()=>new WorldError("This calendar or version is unavailable.",404);
 const conflict=()=>new WorldError("A newer version was saved in another tab. Your draft is retained. Load the latest version before saving again.",409);
-export async function getCalendars(userId:string,worldId:string,review=false):Promise<CalendarBundle>{
+export async function getCalendars(userId:string,worldId:string,review=false,ordinary=false):Promise<CalendarBundle>{
   await worldReadAccess(userId,worldId,review);
   return db.transaction(async tx=>{
     const [parent]=await tx.select().from(world).where(eq(world.id,worldId));
     const calendars=await tx.select().from(worldCalendar).where(eq(worldCalendar.worldId,worldId)).orderBy(asc(worldCalendar.name),asc(worldCalendar.id));
     const versions=await tx.select().from(worldCalendarVersion).where(eq(worldCalendarVersion.worldId,worldId)).orderBy(asc(worldCalendarVersion.createdAt),asc(worldCalendarVersion.id));
     const [preference]=await tx.select().from(worldCalendarPreference).where(eq(worldCalendarPreference.worldId,worldId));
-    return {calendars:calendars.map(calendarDto),versions:versions.map(versionDto),defaultVersionId:preference?.defaultVersionId??null,worldRevision:parent.revision,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!review,evolution:await evolutionRows(tx,worldId)};
+    const visibleCalendars=calendars.filter(c=>!ordinary||c.visibility==="ordinary"),calendarIds=new Set(visibleCalendars.map(c=>c.id)),visibleVersions=versions.filter(v=>calendarIds.has(v.calendarId)),versionIds=new Set(visibleVersions.map(v=>v.id)),evolution=await evolutionRows(tx,worldId);if(ordinary){evolution.anchors=evolution.anchors.filter(a=>versionIds.has(a.versionId));evolution.histories=evolution.histories.filter(h=>versionIds.has(h.versionId));evolution.adoptions=evolution.adoptions.filter(a=>versionIds.has(a.versionId));evolution.reforms=evolution.reforms.filter(r=>versionIds.has(r.predecessorId)&&versionIds.has(r.successorId));}return {calendars:visibleCalendars.map(calendarDto),versions:visibleVersions.map(versionDto),defaultVersionId:preference?.defaultVersionId&&versionIds.has(preference.defaultVersionId)?preference.defaultVersionId:null,worldRevision:parent.revision,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!review&&!ordinary,evolution};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function changeCalendar(userId:string,worldId:string,input:unknown){

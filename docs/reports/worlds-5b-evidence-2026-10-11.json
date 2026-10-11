@@ -1,0 +1,113 @@
+{
+  "phase": "Worlds 5B",
+  "date": "2026-10-11",
+  "startingSHA": "cee6672cd0fedfff45752cc2beefe5ea9c304cf0",
+  "endingSHAResolution": "git log -1 --format=%H -- docs/reports/worlds-5b-2026-10-11.md",
+  "resolvedReceipt": "artifacts/guidance/worlds-5b/phase-report.md",
+  "inventory": [
+    "docs/architecture/worlds-astronomy.md",
+    "docs/reports/worlds-5b-2026-10-11.md",
+    "docs/reports/worlds-5b-evidence-2026-10-11.json",
+    "drizzle/0121_worlds_living_skies.sql",
+    "drizzle/meta/0121_snapshot.json",
+    "drizzle/meta/_journal.json",
+    "scripts/worlds-astronomy-checks.ts",
+    "scripts/worlds-cosmology-checks.ts",
+    "scripts/worlds-pass-one-disposable.test.ts",
+    "src/app/api/worlds/[worldId]/calendars/route.ts",
+    "src/app/api/worlds/[worldId]/peoples/route.ts",
+    "src/app/api/worlds/[worldId]/sky/route.ts",
+    "src/db/world-calendar-schema.ts",
+    "src/db/world-peoples-schema.ts",
+    "src/features/guidance/page-help.ts",
+    "src/features/worlds/astronomy-fields.tsx",
+    "src/features/worlds/astronomy-service.ts",
+    "src/features/worlds/astronomy-source-service.ts",
+    "src/features/worlds/astronomy.test.ts",
+    "src/features/worlds/astronomy.ts",
+    "src/features/worlds/calendar-editor.tsx",
+    "src/features/worlds/calendar-service.ts",
+    "src/features/worlds/calendar-source-details.tsx",
+    "src/features/worlds/calendar-workspace.tsx",
+    "src/features/worlds/calendar.ts",
+    "src/features/worlds/historical-source-reader.tsx",
+    "src/features/worlds/ordinary-knowledge.ts",
+    "src/features/worlds/peoples-service.ts",
+    "src/features/worlds/peoples-workspace.tsx",
+    "src/features/worlds/peoples.ts",
+    "src/features/worlds/political-account-fields.tsx",
+    "src/features/worlds/sky-workspace.tsx",
+    "src/features/worlds/world-workspace.tsx"
+  ],
+  "migration": {
+    "tag": "0121_worlds_living_skies",
+    "sha256": "df8f7147548bafacc765e26148307145e4ec3415a92fa8bc7eab055492980899",
+    "olderMigrations": "SQL and snapshots through 0120 unchanged",
+    "fresh": "PASS",
+    "populated": "PASS: all old World/cosmic/calendar projections preserved; visibility defaults ordinary",
+    "reapplication": "PASS",
+    "ledgerHashesAndTimestamps": "PASS",
+    "sqlGuards": "PASS: committed rule/phase immutability, zero denominator, missing shared day reference and signed-year range"
+  },
+  "checks": {
+    "worlds": "128/128",
+    "featureUnit": "2013/2013 in 233 files",
+    "disposable": "PASS: full earlier services, production build, desktop/native touch, HTTP/role/privacy and unchanged runtime snapshots",
+    "adminAccount": "1/1",
+    "nextTypegen": "PASS",
+    "standaloneTypeScript": "PASS: --noEmit --incremental false",
+    "lint": "PASS: zero errors/warnings",
+    "drizzleCheck": "PASS",
+    "generationConsistency": "No schema changes, nothing to migrate",
+    "diffCheck": "PASS"
+  },
+  "performance": {
+    "cycles": 300,
+    "observations": 400,
+    "calendars": 3,
+    "moons": 3,
+    "sharedCalendarReferences": 700,
+    "alternateTimelines": 3,
+    "sourcePayloadBytes": 62524,
+    "timings": {
+      "libraryMs": 21,
+      "detailMs": 27,
+      "referencesMs": 21,
+      "chronicleMs": 35,
+      "ordinaryMs": 397,
+      "pointCalculationMs": 21,
+      "dateConversionMs": 22,
+      "historyAssociationMs": 25,
+      "branchSeedMs": 184
+    },
+    "limits": {
+      "modelsPerPage": 50,
+      "observationsPerPage": 100,
+      "occurrencesPerModel": 200,
+      "forecastHorizon": 1000000
+    }
+  },
+  "browser": {
+    "desktopMs": 12566,
+    "phoneMs": 3703,
+    "denseLoadMs": 593,
+    "created": "96f338d0-948f-4bcb-82c5-9b0529dcbe5e",
+    "errors": [],
+    "desktop": "two-tab real revision conflict and retained draft recovery; saved qualitative cycle, exact original phases and failed draft, offset edit/reload, signed year projections, named calendar dates, surviving alternate cycle, History navigation, privacy and pagination",
+    "phone": "390px native-touch saved exact fractional cycle, original phase and ceremonial calendar association/reload; selected fractional phase, safe source navigation/reload, no overflow",
+    "roles": "owner, foreign G.O.D., Player, anonymous and explicit read-only Administrator"
+  },
+  "scope": {
+    "devDatabaseWrites": false,
+    "productionDatabaseWrites": false,
+    "remotePush": false,
+    "deployment": false,
+    "phase6Started": false
+  },
+  "readiness": {
+    "independentlyDeployable": true,
+    "configurationChanges": [],
+    "blockers": [],
+    "authorization": "Independent review before remote push, controlled database migration or deployment"
+  }
+}
