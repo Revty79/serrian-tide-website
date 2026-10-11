@@ -83,7 +83,7 @@ export async function worldReferences(userId: string, scope: "mine" | "review" =
   if (scope === "review" && !access.admin) throw new WorldError("Administrator review requires administrator access.", 403);
   return db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).where(await classificationWhere(userId, scope)).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name));
 }
-export async function getWorld(userId: string, worldId: string, review = false, timelineId?:string|null): Promise<WorldBundle> {
+export async function getWorld(userId: string, worldId: string, review = false, timelineId?:string|null,ordinary=false): Promise<WorldBundle> {
   const row = await readWorld(userId, worldId, review);
   // Read one consistent snapshot even while another tab saves associations.
   return db.transaction(async (tx) => {
@@ -91,11 +91,11 @@ export async function getWorld(userId: string, worldId: string, review = false, 
     const [owner] = await tx.select({ name: user.name }).from(user).where(eq(user.id, fresh.ownerId));
     const timeline=await selectedTimeline(tx,worldId,timelineId);
     const timelines=await tx.select().from(worldTimeline).where(eq(worldTimeline.worldId,worldId)).orderBy(desc(worldTimeline.primary),asc(worldTimeline.createdAt)).limit(TIMELINE_LIMIT);
-    const history=timeline.primary?await primaryHistoryRows(tx,worldId,timeline.id):await effectiveHistory(tx,worldId,timeline);
+    const history=timeline.primary&&!ordinary?await primaryHistoryRows(tx,worldId,timeline.id):await effectiveHistory(tx,worldId,timeline,ordinary);
     const classifications = await tx.select().from(worldTag).where(eq(worldTag.worldId, worldId));
     const systems = await tx.select().from(worldDatingSystem).where(eq(worldDatingSystem.worldId,worldId)).orderBy(asc(worldDatingSystem.name),asc(worldDatingSystem.id));
     const [preference] = await tx.select().from(worldChronologyPreference).where(eq(worldChronologyPreference.worldId,worldId));
-    return { world: worldDto(fresh, owner.name, classifications.map((tag) => tag.tagId), history.eras.filter(era=>!era.archived).length, history.entries.filter(entry=>!entry.archived).length), ...history, canEdit: !review && fresh.ownerId === userId && !fresh.archivedAt && !timeline.archivedAt,canManageTimelines:!review&&fresh.ownerId===userId&&!fresh.archivedAt, datingSystems:systems.map(datingDto),defaultDatingSystemId:preference?.defaultDatingSystemId ?? null,timelines:timelines.map(timelineDto),selectedTimeline:timelineDto(timeline),inheritanceReview:history.inheritanceReview };
+    return { world: worldDto(fresh, owner.name, classifications.map((tag) => tag.tagId), history.eras.filter(era=>!era.archived).length, history.entries.filter(entry=>!entry.archived).length), ...history, canEdit: !ordinary && !review && fresh.ownerId === userId && !fresh.archivedAt && !timeline.archivedAt,canManageTimelines:!ordinary&&!review&&fresh.ownerId===userId&&!fresh.archivedAt, datingSystems:systems.map(datingDto),defaultDatingSystemId:preference?.defaultDatingSystemId ?? null,timelines:timelines.map(timelineDto),selectedTimeline:timelineDto(timeline),inheritanceReview:history.inheritanceReview };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export async function primaryHistoryRows(tx:Tx,worldId:string,timelineId:string){

@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, notInArray } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { worldTimeline } from "@/db/world-schema";
 import { worldHistoryHead, worldHistoryVersion, worldHistoryVersionEra } from "@/db/world-timeline-schema";
@@ -8,6 +8,7 @@ import { worldHistoryVersionEntity } from "@/db/world-peoples-schema";
 import { HISTORY_LIMIT, inheritedProjection, type HistoricalSnapshot, type HistoryContext, type InheritanceReview, type WorldTimeline } from "./branching-history";
 import type { EntryRecord, EraRecord } from "./history";
 import { WorldError } from "./world-service";
+import { ordinaryHistorySource } from "./ordinary-knowledge";
 export type HistoryTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export function timelineDto(row: typeof worldTimeline.$inferSelect): WorldTimeline {
   return { id:row.id,worldId:row.worldId,primary:row.primary,parentId:row.parentId,divergenceYear:row.divergenceYear,name:row.name,description:row.description,explanation:row.explanation,revision:row.revision,archived:!!row.archivedAt };
@@ -33,27 +34,27 @@ export async function capturePrimaryVersion(tx:HistoryTx,timelineId:string,recor
   if(head)await tx.update(worldHistoryHead).set({versionId,revision:head.revision+1}).where(and(eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,record.id)));
   else await tx.insert(worldHistoryHead).values({timelineId,worldId:record.worldId,entityId:record.id,versionId,mode:"authored",revision:record.revision});
 }
-export async function historyHeads(tx:HistoryTx,worldId:string,timelineId:string) {
-  const rows=await tx.select({head:worldHistoryHead,version:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId))).orderBy(asc(worldHistoryHead.entityId)).limit(HISTORY_LIMIT+1);
+export async function historyHeads(tx:HistoryTx,worldId:string,timelineId:string,ordinary=false) {
+  const rows=await tx.select({head:worldHistoryHead,version:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId),ordinary?inArray(worldHistoryHead.mode,["authored","inherited","partial","interpretation"]):undefined,ordinary?ordinaryHistorySource(worldId,timelineId,sql`${worldHistoryVersion.id}`):undefined)).orderBy(asc(worldHistoryHead.entityId)).limit(HISTORY_LIMIT+1);
   if(rows.length>HISTORY_LIMIT)throw new WorldError(`This timeline exceeds the supported ${HISTORY_LIMIT.toLocaleString()} retained records. Contact support before adding more.`,400);
   return rows;
 }
-export async function effectiveHistory(tx:HistoryTx,worldId:string,timeline:typeof worldTimeline.$inferSelect) {
-  const rows=await historyHeads(tx,worldId,timeline.id);
-  const parentHeads=timeline.parentId?await tx.select().from(worldHistoryHead).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timeline.parentId))).limit(HISTORY_LIMIT+1):[];
+export async function effectiveHistory(tx:HistoryTx,worldId:string,timeline:typeof worldTimeline.$inferSelect,ordinary=false) {
+  const rows=await historyHeads(tx,worldId,timeline.id,ordinary);
+  const parentHeads=timeline.parentId&&!ordinary?await tx.select().from(worldHistoryHead).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timeline.parentId))).limit(HISTORY_LIMIT+1):[];
   const parentById=new Map(parentHeads.map(head=>[head.entityId,head]));
   const eras:EraRecord[]=[],entries:EntryRecord[]=[],inheritanceReview:InheritanceReview[]=[];
   for(const {head,version}of rows){
     const parent=parentById.get(head.entityId);
-    const context:HistoryContext={mode:head.mode,timelineId:timeline.id,versionId:version.id,sourceTimelineId:head.sourceTimelineId,sourceVersionId:head.sourceVersionId,sourceRevision:head.sourceRevision,newerParent:!!parent&&parent.revision!==head.sourceRevision,parentRevision:parent?.revision??null,parentVersionId:parent?.versionId??null,coveredUntil:head.coveredUntil};
-    const record={...version.payload,revision:head.revision};
+    const context:HistoryContext={mode:head.mode,timelineId:timeline.id,versionId:version.id,sourceTimelineId:head.sourceTimelineId,sourceVersionId:ordinary?null:head.sourceVersionId,sourceRevision:ordinary?null:head.sourceRevision,newerParent:!!parent&&parent.revision!==head.sourceRevision,parentRevision:parent?.revision??null,parentVersionId:parent?.versionId??null,coveredUntil:head.coveredUntil};
+    const record={...version.payload,revision:head.revision,...ordinary&&version.entryId?{notes:""}:{}};
     const entity=version.entryId?"entry":"era";
-    if(head.mode!=="authored")inheritanceReview.push({entity,record,context});
+    if(!ordinary&&head.mode!=="authored")inheritanceReview.push({entity,record,context});
     if(head.mode==="pending"||head.mode==="excluded")continue;
     const projection=inheritedProjection(record,context);
     if(entity==="entry")entries.push(projection as EntryRecord);else eras.push(projection as EraRecord);
   }
-  if(timeline.parentId){
+  if(timeline.parentId&&!ordinary){
     const missing=await tx.select({head:worldHistoryHead,version:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timeline.parentId),rows.length?notInArray(worldHistoryHead.entityId,rows.map(r=>r.head.entityId)):undefined)).limit(HISTORY_LIMIT);
     for(const {head,version}of missing){if(head.mode==="pending"||head.mode==="excluded")continue;inheritanceReview.push({availableParent:true,entity:version.entryId?"entry":"era",record:{...version.payload,revision:head.revision},context:{mode:"pending",timelineId:timeline.id,versionId:version.id,sourceTimelineId:timeline.parentId,sourceVersionId:version.id,sourceRevision:head.revision,parentRevision:head.revision,parentVersionId:version.id,newerParent:true,coveredUntil:null}});}
   }

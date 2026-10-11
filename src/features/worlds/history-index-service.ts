@@ -27,7 +27,7 @@ function visibleLinks(worldId:string,timelineId:string,ordinary:boolean) {
 export async function historyEntryInTransaction(tx:HistoryTx,worldId:string,timelineId:string,id:string,ordinary=false) {
   const [row]=await tx.select({h:worldHistoryHead,v:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,id),ordinary?ordinaryHistorySource(worldId,timelineId,sql`${worldHistoryVersion.id}`):undefined));
   if(!row?.v.entryId||["pending","excluded"].includes(row.h.mode)||(ordinary&&(row.v.payload as EntryRecord).visibility==="protected"))throw new WorldError("This historical account is unavailable.",404);
-  const record=inheritedProjection({...row.v.payload,revision:row.h.revision},{mode:row.h.mode,timelineId,versionId:row.v.id,sourceTimelineId:row.h.sourceTimelineId,sourceVersionId:row.h.sourceVersionId,sourceRevision:row.h.sourceRevision,coveredUntil:row.h.coveredUntil,newerParent:false,parentRevision:null,parentVersionId:null}) as EntryRecord;
+  const record=inheritedProjection({...row.v.payload,revision:row.h.revision},{mode:row.h.mode,timelineId,versionId:row.v.id,sourceTimelineId:row.h.sourceTimelineId,sourceVersionId:ordinary?null:row.h.sourceVersionId,sourceRevision:ordinary?null:row.h.sourceRevision,coveredUntil:row.h.coveredUntil,newerParent:false,parentRevision:null,parentVersionId:null}) as EntryRecord;
   return {...record,...ordinary?{notes:""}: {}};
 }
 export async function historyEntry(userId:string,worldId:string,timelineId:string,id:string,review=false,ordinary=false) {

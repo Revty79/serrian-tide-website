@@ -8,13 +8,13 @@ import { individualSections,principleSections,pilotFieldSection } from "../src/f
 
 type IndividualFixture={worldId:string;primary:string;branch:string;aralyn:string;cultureA:string;species:string;languageA:string;firstCompanion:string;region:string;birth:string};
 type CosmicFixture={worldId:string;primary:string;branch:string;principle:string;quiet:string;moon:string};
-const directory="artifacts/guidance/worlds-repair-a";
+const defaultDirectory="artifacts/guidance/worlds-repair-a";
 // History associations are identity sets; their SQL read order is not an authored ordering.
 const comparableDraft=(draft:LoreDraft)=>({...draft,milestones:[...draft.milestones].sort((a,b)=>(a.entryId??"").localeCompare(b.entryId??"")),historyRefs:[...draft.historyRefs].sort((a,b)=>a.entityId.localeCompare(b.entityId))});
 async function signIn(context:BrowserContext,base:string,user="world-god"){const response=await context.request.post(`${base}/api/auth/sign-in/email`,{headers:{Origin:base},data:{email:`${user}@example.invalid`,password:"Worlds-Test-Only-Password!"}});assert.equal(response.status(),200,await response.text());}
 async function fits(page:Page){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1&&[...document.querySelectorAll<HTMLDialogElement>("dialog[open]")].every(d=>d.scrollWidth<=d.clientWidth+1)),"Workshop must fit width");const dialog=page.getByRole("dialog");if(await dialog.count()){const save=dialog.getByRole("button",{name:"Save record",exact:true});if(await save.count()){const box=await save.boundingBox();assert.ok(box&&box.y>=0&&box.y+box.height<=page.viewportSize()!.height+1,"Persistent save must fit height");}}}
 
-export async function creatorRepairBrowserChecks(browser:Browser,base:string,individuals:IndividualFixture,cosmos:CosmicFixture,pool:pg.Pool){
+export async function creatorRepairBrowserChecks(browser:Browser,base:string,individuals:IndividualFixture,cosmos:CosmicFixture,pool:pg.Pool,directory=defaultDirectory){
   await mkdir(directory,{recursive:true});
   const errors:string[]=[],contexts:BrowserContext[]=[],preservation:unknown[]=[];
   const context=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"198.51.100.231"}});contexts.push(context);await signIn(context,base);

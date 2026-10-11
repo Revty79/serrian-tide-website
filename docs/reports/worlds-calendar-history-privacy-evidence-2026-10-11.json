@@ -1,0 +1,104 @@
+{
+  "startingCommit": "d694718d587a484bf11b8a9284cb5aefc515e061",
+  "endingCommitResolver": "git log -1 --format=%H -- docs/reports/worlds-calendar-history-privacy-2026-10-11.md",
+  "beforeFix": {
+    "startingCommit": "d694718d587a484bf11b8a9284cb5aefc515e061",
+    "results": [
+      {
+        "device": "desktop",
+        "ordinaryHistoryApiWithholdsBothSecrets": true,
+        "calendarPanelExposesBothSecretTitlesAndSourceNotation": true
+      },
+      {
+        "device": "native-touch phone",
+        "ordinaryHistoryApiWithholdsBothSecrets": true,
+        "calendarPanelExposesBothSecretTitlesAndSourceNotation": true
+      }
+    ]
+  },
+  "server": {
+    "ordinaryCount": 67,
+    "authorCount": 71,
+    "pageSize": 50,
+    "publicReforms": [
+      "Public harbor calendar reform",
+      "Independent public reform"
+    ],
+    "selectedAlternateAndNested": true,
+    "wholeAccountPrivacyAndOldPins": true,
+    "originalRowsPreserved": true
+  },
+  "browser": {
+    "results": [
+      {
+        "device": "desktop",
+        "publicEventsAcrossPages": 67,
+        "secretAccountsAndReformsWithheld": true,
+        "loadingTransitionSafe": true,
+        "selectedTimelineThroughNavigationReloadAndBackForward": true,
+        "retainedReaderAndComparisonsSafe": true
+      },
+      {
+        "device": "native-touch phone",
+        "publicEventsAcrossPages": 67,
+        "secretAccountsAndReformsWithheld": true,
+        "loadingTransitionSafe": true,
+        "selectedTimelineThroughNavigationReloadAndBackForward": true,
+        "retainedReaderAndComparisonsSafe": true
+      }
+    ],
+    "administratorAuthorAndOrdinaryReviewReadOnly": true,
+    "foreignGodPlayerAnonymousDenied": true,
+    "noBrowserErrors": true,
+    "immutableSavedDataUnchanged": true
+  },
+  "pilots": {
+    "minimalCreation": true,
+    "everySection": true,
+    "fullDraftRoundTrip": true,
+    "richFieldComparison": true,
+    "reuseWithoutDuplicates": true,
+    "separateChildSave": true,
+    "cancelParentKeepsChild": true,
+    "controlledReadReturn": true,
+    "canonicalHistoryCorrection": true,
+    "hiddenValidationFocus": true,
+    "httpFailureRetention": true,
+    "twoTabConflict": true,
+    "archiveRestore": true,
+    "alternateInterpretation": true,
+    "ordinaryRedaction": true,
+    "administratorReadOnly": true,
+    "desktop": true,
+    "nativeTouchPhone": true,
+    "phoneWidth": 390,
+    "shortHeight": 320,
+    "zoomEquivalentViewport": "720x450 at a 1440x900 display",
+    "errors": []
+  },
+  "checks": {
+    "worlds": 132,
+    "feature": 2017,
+    "featureFiles": 234,
+    "accountLifecycle": 1,
+    "fullDisposableWorlds": true,
+    "productionBuild": true,
+    "typeScript": true,
+    "lintErrors": 0,
+    "lintWarnings": 0,
+    "migrationConsistency": true,
+    "freshAndPopulatedMigrationRehearsalsThrough": "0121_worlds_living_skies"
+  },
+  "scope": {
+    "repairACompositionsAndWorkshopsUnchanged": true,
+    "centralPrivacyRulesReusedUnchanged": true,
+    "ordinaryServerRenderedAndWorldApiHistoryProjected": true,
+    "newMigrations": [],
+    "configurationChanges": [],
+    "sharedDatabaseWrites": false,
+    "remotePush": false,
+    "deployment": false,
+    "repairB": false,
+    "phase6": false
+  }
+}

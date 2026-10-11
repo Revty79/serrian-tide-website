@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { world, worldEntry, worldTimeline } from "@/db/world-schema";
@@ -9,6 +9,7 @@ import { worldDayReference, worldCalendarAnchor, worldCalendarHistory, worldCale
 import { calendarPeriodSchema, adoptionSchema, reformSchema, type CalendarEvolution } from "./calendar-evolution";
 import { endpointSchema, elapsedDaySchema, toElapsed, endpointNotation, validateCutover, type CalendarEndpoint, type CalendarEntryDraft, type CalendarSource } from "./calendar-dates";
 import { WorldError, worldWriteTransaction } from "./world-service";
+import { ordinaryHistorySource } from "./ordinary-knowledge";
 type Tx=Parameters<Parameters<typeof db.transaction>[0]>[0];
 const id=z.string().uuid(),revision=z.number().int().positive();
 const command=z.discriminatedUnion("action",[
@@ -22,12 +23,14 @@ const command=z.discriminatedUnion("action",[
 const conflict=()=>new WorldError("A newer calendar history was saved in another tab. Your draft is retained. Load the latest calendar history before saving again.",409);
 async function available(tx:Tx,worldId:string,versionId:string){const [row]=await tx.select({v:worldCalendarVersion,c:worldCalendar}).from(worldCalendarVersion).innerJoin(worldCalendar,eq(worldCalendar.id,worldCalendarVersion.calendarId)).where(and(eq(worldCalendarVersion.id,versionId),eq(worldCalendarVersion.worldId,worldId)));if(!row)throw new WorldError("This calendar version is unavailable.",404);return row;}
 function active(row:Awaited<ReturnType<typeof available>>){if(row.v.archivedAt||row.c.archivedAt)throw new WorldError("Restore this calendar and version before creating new historical uses.",400);}
-export async function evolutionRows(tx:Tx,worldId:string):Promise<CalendarEvolution>{
+export async function evolutionRows(tx:Tx,worldId:string,context:{timelineId:string;primary:boolean;ordinary:boolean}):Promise<CalendarEvolution>{
   const [reference]=await tx.select().from(worldDayReference).where(eq(worldDayReference.worldId,worldId));
   const anchors=await tx.select().from(worldCalendarAnchor).where(eq(worldCalendarAnchor.worldId,worldId));
-  const histories=await tx.select().from(worldCalendarHistory).where(eq(worldCalendarHistory.worldId,worldId));
-  const adoptions=await tx.select().from(worldCalendarAdoption).where(eq(worldCalendarAdoption.worldId,worldId)).orderBy(asc(worldCalendarAdoption.createdAt),asc(worldCalendarAdoption.id));
-  const reforms=await tx.select().from(worldCalendarReform).where(eq(worldCalendarReform.worldId,worldId)).orderBy(asc(worldCalendarReform.createdAt),asc(worldCalendarReform.id));
+  const histories=context.primary?await tx.select().from(worldCalendarHistory).where(eq(worldCalendarHistory.worldId,worldId)):[];
+  const adoptions=context.primary?await tx.select().from(worldCalendarAdoption).where(eq(worldCalendarAdoption.worldId,worldId)).orderBy(asc(worldCalendarAdoption.createdAt),asc(worldCalendarAdoption.id)):[];
+  // A reform's free prose can reveal its linked event. Withhold the entire
+  // account, including its ID, cutover and reason, when that source is unsafe.
+  const reforms=context.primary?await tx.select().from(worldCalendarReform).where(and(eq(worldCalendarReform.worldId,worldId),context.ordinary?sql`(${worldCalendarReform.entryId} is null or exists(select 1 from world_history_head h join world_history_version v on v.id=h.version_id where h.world_id=${worldId} and h.timeline_id=${context.timelineId} and h.entity_id=${worldCalendarReform.entryId} and v.entry_id is not null and ${ordinaryHistorySource(worldId,context.timelineId,sql`v.id`)}))`:undefined)).orderBy(asc(worldCalendarReform.createdAt),asc(worldCalendarReform.id)):[];
   return {reference:reference?{label:reference.label,description:reference.description}:null,anchors:anchors.map(({versionId,date,elapsedDay})=>({versionId,date,elapsedDay})),histories:histories.map(({versionId,period,revision})=>({versionId,period,revision})),adoptions:adoptions.map(({archivedAt,...row})=>({...row,archived:!!archivedAt})),reforms:reforms.map(({archivedAt,...row})=>({...row,archived:!!archivedAt}))};
 }
 async function endpoint(tx:Tx,worldId:string,input:z.infer<typeof endpointSchema>,retained?:CalendarEndpoint):Promise<CalendarEndpoint>{
