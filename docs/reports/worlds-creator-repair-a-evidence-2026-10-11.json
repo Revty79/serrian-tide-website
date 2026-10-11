@@ -1,0 +1,88 @@
+{
+  "pass": "Creator Experience Repair A",
+  "startingSha": "3e050fc8d860af6b965a6a95abae7a54dfad0707",
+  "endingSha": {
+    "resolve": "git log -1 --format=%H -- docs/reports/worlds-creator-repair-a-2026-10-11.md"
+  },
+  "inventory": {
+    "creators": 32,
+    "subjectFields": 300,
+    "commonDraftFields": 23,
+    "subordinateForms": 13
+  },
+  "pilots": [
+    "individual",
+    "cosmicPrinciple"
+  ],
+  "checks": {
+    "worlds": {
+      "passed": 132,
+      "failed": 0
+    },
+    "features": {
+      "passed": 2017,
+      "failed": 0,
+      "files": 234
+    },
+    "fullDisposable": true,
+    "productionBuild": true,
+    "typecheck": true,
+    "lint": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "accountLifecycle": {
+      "passed": 1,
+      "failed": 0
+    },
+    "migrationCheck": true,
+    "schemaGeneration": "No changes",
+    "unchangedGameplaySnapshot": true
+  },
+  "browser": {
+    "minimalCreation": true,
+    "everySection": true,
+    "fullDraftRoundTrip": true,
+    "richFieldComparison": true,
+    "reuseWithoutDuplicates": true,
+    "separateChildSave": true,
+    "cancelParentKeepsChild": true,
+    "controlledReadReturn": true,
+    "canonicalHistoryCorrection": true,
+    "hiddenValidationFocus": true,
+    "httpFailureRetention": true,
+    "twoTabConflict": true,
+    "archiveRestore": true,
+    "alternateInterpretation": true,
+    "ordinaryRedaction": true,
+    "administratorReadOnly": true,
+    "desktop": true,
+    "nativeTouchPhone": true,
+    "phoneWidth": 390,
+    "shortHeight": 320,
+    "zoomEquivalentViewport": "720x450 at a 1440x900 display",
+    "errors": []
+  },
+  "dev": {
+    "httpAvailable": true,
+    "database": "serrian_tide_dev",
+    "readOnlyChecked": true,
+    "phase5BTableCount": 6,
+    "lastMigration": "0121_worlds_living_skies",
+    "hash": "df8f7147548bafacc765e26148307145e4ec3415a92fa8bc7eab055492980899"
+  },
+  "migrations": {
+    "new": [],
+    "journalLastIndex": 121,
+    "orderedCount": 122
+  },
+  "configurationChanges": [],
+  "sharedDatabaseWrites": false,
+  "pushed": false,
+  "deployed": false,
+  "experienceAcceptance": "Awaiting user walkthrough",
+  "stopBefore": [
+    "Repair B",
+    "Phase 6"
+  ]
+}

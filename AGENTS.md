@@ -18,6 +18,10 @@ See [Theme development](docs/architecture/theme-development.md) for the permanen
 
 New or modified fields should explain their meaning and use in plain language. Reuse the shared field/page guidance, retain visible validation, and verify descriptions against the actual rules rather than inventing mechanics. See [Field guidance](docs/architecture/field-guidance.md).
 
+## Worlds creator workshops
+
+Follow the provisional [creator experience standard and acceptance checklist](docs/architecture/worlds-creator-experience.md) and [Phase 4–5 field coverage inventory](docs/architecture/worlds-creator-coverage.md). Repair A pilots are Individual and Cosmic Principle. Preserve every saved field and historical/privacy invariant; do not expand this design to other creators, begin Repair B or Phase 6 before user review and separate authorization.
+
 ## Independently deployable passes
 
 Every completed development pass must leave the entire application functional and ready for controlled production deployment without a later pass. Deliver complete working increments; omit unfinished routes, controls and dependencies. Preserve existing systems and user data. Version all required migrations, rehearse upgrades with existing data in disposable databases, and document migration order and recovery: reverting code does not reverse database changes.
