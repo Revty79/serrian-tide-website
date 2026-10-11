@@ -11,10 +11,10 @@ import { selectedTimeline } from "./history-version-service";
 import type { EntryRecord } from "./history";
 const id=z.string().uuid();
 const linkSchema=z.object({timelineId:id,entryId:id,revision:z.number().int().positive(),targetId:id,kind:z.enum(["lore","geography"]),eventType:z.string().trim().min(1).max(160)}).strict();
-export type MilestoneLinks={links:{id:string;name:string;kind:"lore"|"geography";eventType:string;timelineId:string}[];choices:{id:string;name:string;kind:"lore"|"geography"}[]};
+export type MilestoneLinks={links:{id:string;name:string;kind:"lore"|"geography";eventType:string;timelineId:string;family?:string}[];choices:{id:string;name:string;kind:"lore"|"geography"}[]};
 export async function milestoneLinks(userId:string,worldId:string,timelineId:string,entryId:string,review=false,ordinary=false):Promise<MilestoneLinks> {
   await worldReadAccess(userId,worldId,review);
-  return db.transaction(async tx=>{const refs=await peoplesReferencesInTransaction(tx,worldId,timelineId,ordinary);const [h]=await tx.select({h:worldHistoryHead,v:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,entryId)));if(!h?.v.entryId||(ordinary&&(h.v.payload as EntryRecord).visibility==="protected"))throw new WorldError("This event is unavailable.",404);
+  return db.transaction(async tx=>{const refs=await peoplesReferencesInTransaction(tx,worldId,timelineId,ordinary);const [h]=await tx.select({h:worldHistoryHead,v:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,entryId)));if(!h?.v.entryId||["pending","excluded"].includes(h.h.mode)||(ordinary&&(h.v.payload as EntryRecord).visibility==="protected"))throw new WorldError("This event is unavailable.",404);
     const places=await tx.select({id:worldGeography.id,name:worldGeography.name,archivedAt:worldGeography.archivedAt}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),ordinary?sql`not exists (select 1 from world_dungeon_entity d where d.world_id=${worldId} and d.visibility<>'ordinary' and (d.id=${worldGeography.id} or d.geography_id=${worldGeography.id}))`:undefined)).limit(2000);
     const choices=[...refs.entities.filter(e=>!e.archived).map(e=>({id:e.id,name:e.name,kind:"lore" as const})),...places.filter(p=>!p.archivedAt).map(p=>({id:p.id,name:p.name,kind:"geography" as const}))];const names=new Map([...refs.entities,...places].map(e=>[e.id,e.name]));
     const current=await tx.select().from(links).where(eq(links.versionId,h.h.versionId)).limit(101);if(current.length>100)throw new WorldError("This event exceeds its supported 100 participating entities.",400);
@@ -22,7 +22,7 @@ export async function milestoneLinks(userId:string,worldId:string,timelineId:str
     if(missingPlaces.length){const retainedPlaces=await tx.select({id:worldGeography.id,name:worldGeography.name}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),inArray(worldGeography.id,missingPlaces),ordinary?sql`not exists (select 1 from world_dungeon_entity d where d.world_id=${worldId} and d.visibility<>'ordinary' and (d.id=${worldGeography.id} or d.geography_id=${worldGeography.id}))`:undefined));for(const p of retainedPlaces)names.set(p.id,p.name);}
     const missing=current.filter(l=>l.loreId&&!names.has(l.targetId)).map(l=>l.targetId);
     const retained=!ordinary&&missing.length?(await tx.execute<{id:string;name:string;timeline_id:string}>(sql`
-      select i.id,coalesce(s.name,p.name,o.name,r.name,cuv.name,civ.name,lv.name,pv.name,bv.name,tv.name) name,coalesce(ch.timeline_id,oh.timeline_id) timeline_id
+      select i.id,coalesce(s.name,p.name,o.name,r.name,cuv.name,civ.name,lv.name,pv.name,bv.name,tv.name,iv.name) name,coalesce(ch.timeline_id,oh.timeline_id) timeline_id
       from world_lore_identity i
       left join world_lore_head ch on ch.entity_id=i.id and ch.timeline_id=${timelineId} and ch.world_id=i.world_id
       left join world_lore_head oh on oh.entity_id=i.id and oh.timeline_id=i.origin_timeline_id and oh.world_id=i.world_id
@@ -34,10 +34,10 @@ export async function milestoneLinks(userId:string,worldId:string,timelineId:str
       left join world_language_version lv on lv.version_id=v.id
       left join world_population_version pv on pv.version_id=v.id
       left join world_belief_version bv on bv.version_id=v.id
-      left join world_tradition_version tv on tv.version_id=v.id
+      left join world_tradition_version tv on tv.version_id=v.id left join world_individual_version iv on iv.version_id=v.id
       where i.world_id=${worldId} and i.id in (${sql.join(missing.map(id=>sql`${id}`),sql`,` )})
     `)).rows:[];
-    const retainedById=new Map(retained.map(r=>[r.id,r]));return {choices,links:current.filter(l=>!ordinary||names.has(l.targetId)).map(l=>({id:l.targetId,name:names.get(l.targetId)??retainedById.get(l.targetId)?.name??"Retained unavailable entity",timelineId:retainedById.get(l.targetId)?.timeline_id??timelineId,kind:l.loreId?"lore":"geography",eventType:l.eventType}))};
+    const retainedById=new Map(retained.map(r=>[r.id,r]));return {choices,links:current.filter(l=>!ordinary||names.has(l.targetId)).map(l=>({id:l.targetId,name:names.get(l.targetId)??retainedById.get(l.targetId)?.name??"Retained unavailable entity",timelineId:retainedById.get(l.targetId)?.timeline_id??timelineId,kind:l.loreId?"lore":"geography",family:l.entityCategory,eventType:l.eventType}))};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function linkMilestone(userId:string,worldId:string,input:unknown) {

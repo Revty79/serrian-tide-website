@@ -1,0 +1,1299 @@
+{
+  "kind": "Disposable PostgreSQL and actual production browser evidence",
+  "date": "2026-10-10",
+  "startingSha": "3944a5418477ab868328683d7c746f98ba6c851a",
+  "databaseDisposition": "Temporary test databases were used; no DEV or Production records are created by this evidence file.",
+  "performance": {
+    "individuals": 1000,
+    "relationships": 999,
+    "seedMs": 303,
+    "listMs": 31,
+    "detailMs": 35,
+    "discoveryMs": 28,
+    "listPayloadBytes": 36959,
+    "detailPayloadBytes": 48383,
+    "reverseReferenceLimit": 100
+  },
+  "browser": {
+    "desktop": true,
+    "nativeTouchPhone": true,
+    "phoneWidth": 390,
+    "failedDraft": true,
+    "twoTabConflict": true,
+    "administratorReadOnly": true,
+    "ordinaryRedaction": true,
+    "browserListMs": 585,
+    "browserSearchMs": 235,
+    "errors": []
+  },
+  "acceptance": {
+    "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+    "primary": "4bfdb889-e257-4045-875e-5308c9a6c0b8",
+    "branch": "17d94934-abae-4750-b7c1-913aef2f2755",
+    "nested": "4f565851-ccb9-4ff0-99a5-53957e2b468f",
+    "aralyn": "4bf03ddd-508c-41ad-bd6d-69f71b55e249",
+    "birth": "63be411a-0375-4822-90f9-7f452870e7cc",
+    "achievement": "d98a6d64-8ff0-4e91-b8cb-ac5303b31bdd",
+    "death": "5adf3daa-f4d8-4561-b620-5bfe846f65e5",
+    "coronation": "e7211bcc-df8c-490d-88eb-8828968b0077",
+    "construct": "aaf2c565-2b47-4e55-b94a-bb26b4ceafb2",
+    "minimal": "7582e26d-5079-475a-beec-f78777b560fb",
+    "companionAccount": "85be6a39-af02-4a1e-9690-1d8aa621a5fb",
+    "rivalry": "0c38d9c3-1da7-441a-8431-466700fe1554",
+    "ancestry": "13747e03-86e0-4111-8a18-2e6baa7ec6a5",
+    "opposing": "d79fed70-e92f-4c86-8d60-d1833771cac8",
+    "hiddenParticipant": "3c7c6c93-de17-4147-9a99-95121b23ba3b",
+    "region": "755f48f4-2d59-4fdb-bf65-98b9b0da3ddd",
+    "primaryRecord": {
+      "id": "4bf03ddd-508c-41ad-bd6d-69f71b55e249",
+      "family": "individual",
+      "name": "Aralyn of the Reed",
+      "revision": 4,
+      "versionId": "50b6216a-2fb6-4603-a1b5-0ed4177f46ad",
+      "mode": "authored",
+      "archived": false,
+      "time": {
+        "kind": "known",
+        "year": 810,
+        "scale": "world-year",
+        "version": 1
+      },
+      "sourceRevision": null,
+      "sourceTimelineId": null,
+      "parentVersionId": null,
+      "parentRevision": null,
+      "classification": "Historical figure",
+      "draft": {
+        "family": "individual",
+        "name": "Aralyn of the Reed",
+        "description": "Biography revised without a new event",
+        "fields": {
+          "aliases": "Reedwalker",
+          "titles": "Optional authored titles",
+          "identity": "Optional authored identity",
+          "classification": "Historical figure",
+          "reputation": "Optional authored reputation",
+          "form": "Optional authored form",
+          "existence": "Mortal humanoid",
+          "distinctions": "Optional authored distinctions",
+          "transformations": "Optional authored transformations",
+          "aging": "Optional authored aging",
+          "personality": "Optional authored personality",
+          "values": "Optional authored values",
+          "beliefs": "Hidden inward-flame beliefs",
+          "motivations": "Optional authored motivations",
+          "goals": "Optional authored goals",
+          "fears": "Optional authored fears",
+          "habits": "Optional authored habits",
+          "strengths": "Optional authored strengths",
+          "weaknesses": "Optional authored weaknesses",
+          "education": "Optional authored education",
+          "experience": "Optional authored experience",
+          "communication": "Optional authored communication",
+          "discoveries": "Optional authored discoveries",
+          "talents": "Optional authored talents",
+          "skills": "Optional authored skills",
+          "affiliations": "Optional authored affiliations",
+          "citizenship": "Optional authored citizenship",
+          "occupations": "Optional authored occupations",
+          "community": "Optional authored community",
+          "privateReputation": "Optional authored privateReputation",
+          "origins": "Optional authored origins",
+          "development": "Optional authored development",
+          "experiences": "Optional authored experiences",
+          "achievements": "Optional authored achievements",
+          "failures": "Optional authored failures",
+          "returns": "Optional authored returns",
+          "accounts": "A newer Primary biography"
+        },
+        "protectedFields": [
+          "beliefs"
+        ],
+        "nameAccounts": [
+          {
+            "id": "32c5fa40-1603-4c55-86c2-f9ae49f385ea",
+            "name": "The secret true name",
+            "kind": "true name",
+            "meaning": "Secret name meaning",
+            "perspective": "A protected account",
+            "time": {
+              "kind": "undated",
+              "scale": "world-year",
+              "version": 1
+            },
+            "protected": true
+          }
+        ],
+        "time": {
+          "kind": "known",
+          "year": 810,
+          "scale": "world-year",
+          "version": 1
+        },
+        "accuracy": "unverified",
+        "narrative": "recorded",
+        "visibility": "ordinary",
+        "privateNotes": "",
+        "geographies": [
+          {
+            "id": "f180d543-cfc3-4b86-85fc-7367acbf554c",
+            "geographyId": "755f48f4-2d59-4fdb-bf65-98b9b0da3ddd",
+            "destinationId": null,
+            "relationshipType": "home region",
+            "account": "Saved shared homeland",
+            "time": {
+              "kind": "known",
+              "year": 810,
+              "scale": "world-year",
+              "version": 1
+            },
+            "protected": false
+          },
+          {
+            "id": "997dfc90-727d-40c1-8573-0e9b3e2beb3f",
+            "geographyId": "755f48f4-2d59-4fdb-bf65-98b9b0da3ddd",
+            "destinationId": null,
+            "relationshipType": "secret refuge",
+            "account": "Hidden personal refuge",
+            "time": {
+              "kind": "undated",
+              "scale": "world-year",
+              "version": 1
+            },
+            "protected": true
+          }
+        ],
+        "participants": [
+          {
+            "targetId": "c5c3a778-be32-4a70-aed1-2917db0b5afc",
+            "authoredReference": "",
+            "role": "ancestry",
+            "account": ""
+          },
+          {
+            "targetId": "25186756-51e1-49ee-ad19-a8146842ce3c",
+            "authoredReference": "",
+            "role": "raised within",
+            "account": ""
+          },
+          {
+            "targetId": "16411099-3f84-42f7-b768-d42ad202119b",
+            "authoredReference": "",
+            "role": "influenced by",
+            "account": ""
+          },
+          {
+            "targetId": "3f1ede62-fb62-40c2-b817-3cb02e1ce88e",
+            "authoredReference": "",
+            "role": "speaks",
+            "account": ""
+          },
+          {
+            "targetId": "647ec2e0-1c58-4ca3-8abc-11d0cff70472",
+            "authoredReference": "",
+            "role": "speaks",
+            "account": ""
+          },
+          {
+            "targetId": "6006ac2c-ee75-4f0a-ade4-41e9b876c935",
+            "authoredReference": "",
+            "role": "associated with",
+            "account": ""
+          },
+          {
+            "targetId": "dcdf4dec-9fa4-4082-a33b-d38bfecb88c7",
+            "authoredReference": "",
+            "role": "associated with",
+            "account": ""
+          },
+          {
+            "targetId": "11cb8aeb-4f80-48a6-a0ba-22c2cce2dc5e",
+            "authoredReference": "",
+            "role": "associated with",
+            "account": ""
+          },
+          {
+            "targetId": "f022293e-94a0-4fad-b485-1d108d2213fd",
+            "authoredReference": "",
+            "role": "associated with",
+            "account": ""
+          },
+          {
+            "targetId": "23b7b05f-c7d5-4962-b62d-8fbbc9b023e4",
+            "authoredReference": "",
+            "role": "associated with",
+            "account": ""
+          },
+          {
+            "targetId": "16411099-3f84-42f7-b768-d42ad202119b",
+            "authoredReference": "",
+            "role": "secret affiliation",
+            "account": "Hidden cultural affiliation",
+            "protected": true
+          }
+        ],
+        "historyRefs": [],
+        "sections": [],
+        "datingSystemId": null,
+        "milestones": [
+          {
+            "entryId": "d98a6d64-8ff0-4e91-b8cb-ac5303b31bdd",
+            "revision": 2,
+            "eventType": "achievement",
+            "draft": {
+              "title": "Aralyn: achievement",
+              "account": "Aralyn's explicitly authored achievement in Year 830.",
+              "notes": "",
+              "visibility": "ordinary",
+              "prominence": "standard",
+              "time": {
+                "version": 1,
+                "scale": "world-year",
+                "kind": "known",
+                "year": 830
+              },
+              "accuracy": "disputed",
+              "narrative": "recorded",
+              "eraIds": [],
+              "datingSystemId": null
+            }
+          },
+          {
+            "entryId": "63be411a-0375-4822-90f9-7f452870e7cc",
+            "revision": 2,
+            "eventType": "birth",
+            "draft": {
+              "title": "Aralyn: birth",
+              "account": "Corrected birth account; the year remains 810.",
+              "notes": "",
+              "visibility": "ordinary",
+              "prominence": "standard",
+              "time": {
+                "version": 1,
+                "scale": "world-year",
+                "kind": "known",
+                "year": 810
+              },
+              "accuracy": "disputed",
+              "narrative": "recorded",
+              "eraIds": [],
+              "datingSystemId": null
+            }
+          },
+          {
+            "entryId": "5adf3daa-f4d8-4561-b620-5bfe846f65e5",
+            "revision": 1,
+            "eventType": "death",
+            "draft": {
+              "title": "Aralyn: death",
+              "account": "Aralyn's explicitly authored death in Year 840.",
+              "notes": "",
+              "visibility": "ordinary",
+              "prominence": "standard",
+              "time": {
+                "version": 1,
+                "scale": "world-year",
+                "kind": "known",
+                "year": 840
+              },
+              "accuracy": "disputed",
+              "narrative": "recorded",
+              "eraIds": [],
+              "datingSystemId": null
+            }
+          }
+        ]
+      },
+      "geographies": [
+        {
+          "id": "f180d543-cfc3-4b86-85fc-7367acbf554c",
+          "geographyId": "755f48f4-2d59-4fdb-bf65-98b9b0da3ddd",
+          "destinationId": null,
+          "relationshipType": "home region",
+          "account": "Saved shared homeland",
+          "time": {
+            "kind": "known",
+            "year": 810,
+            "scale": "world-year",
+            "version": 1
+          },
+          "protected": false,
+          "name": "Aralyn's home region",
+          "destinationName": null,
+          "unavailable": false
+        },
+        {
+          "id": "997dfc90-727d-40c1-8573-0e9b3e2beb3f",
+          "geographyId": "755f48f4-2d59-4fdb-bf65-98b9b0da3ddd",
+          "destinationId": null,
+          "relationshipType": "secret refuge",
+          "account": "Hidden personal refuge",
+          "time": {
+            "kind": "undated",
+            "scale": "world-year",
+            "version": 1
+          },
+          "protected": true,
+          "name": "Aralyn's home region",
+          "destinationName": null,
+          "unavailable": false
+        }
+      ],
+      "participants": [
+        {
+          "targetId": "c5c3a778-be32-4a70-aed1-2917db0b5afc",
+          "authoredReference": "",
+          "role": "ancestry",
+          "account": "",
+          "family": "species",
+          "name": "Reedborn",
+          "unavailable": false
+        },
+        {
+          "targetId": "25186756-51e1-49ee-ad19-a8146842ce3c",
+          "authoredReference": "",
+          "role": "raised within",
+          "account": "",
+          "family": "culture",
+          "name": "River upbringing",
+          "unavailable": false
+        },
+        {
+          "targetId": "16411099-3f84-42f7-b768-d42ad202119b",
+          "authoredReference": "",
+          "role": "influenced by",
+          "account": "",
+          "family": "culture",
+          "name": "Hill philosophy",
+          "unavailable": false
+        },
+        {
+          "targetId": "3f1ede62-fb62-40c2-b817-3cb02e1ce88e",
+          "authoredReference": "",
+          "role": "speaks",
+          "account": "",
+          "family": "language",
+          "name": "Reed speech",
+          "unavailable": false
+        },
+        {
+          "targetId": "647ec2e0-1c58-4ca3-8abc-11d0cff70472",
+          "authoredReference": "",
+          "role": "speaks",
+          "account": "",
+          "family": "language",
+          "name": "Signs of light",
+          "unavailable": false
+        },
+        {
+          "targetId": "6006ac2c-ee75-4f0a-ade4-41e9b876c935",
+          "authoredReference": "",
+          "role": "associated with",
+          "account": "",
+          "family": "people",
+          "name": "Reed communities",
+          "unavailable": false
+        },
+        {
+          "targetId": "dcdf4dec-9fa4-4082-a33b-d38bfecb88c7",
+          "authoredReference": "",
+          "role": "associated with",
+          "account": "",
+          "family": "civilization",
+          "name": "Gathered river settlements",
+          "unavailable": false
+        },
+        {
+          "targetId": "11cb8aeb-4f80-48a6-a0ba-22c2cce2dc5e",
+          "authoredReference": "",
+          "role": "associated with",
+          "account": "",
+          "family": "population",
+          "name": "Home community",
+          "unavailable": false
+        },
+        {
+          "targetId": "f022293e-94a0-4fad-b485-1d108d2213fd",
+          "authoredReference": "",
+          "role": "associated with",
+          "account": "",
+          "family": "belief",
+          "name": "The inward flame",
+          "unavailable": false
+        },
+        {
+          "targetId": "23b7b05f-c7d5-4962-b62d-8fbbc9b023e4",
+          "authoredReference": "",
+          "role": "associated with",
+          "account": "",
+          "family": "tradition",
+          "name": "Lantern observance",
+          "unavailable": false
+        },
+        {
+          "targetId": "16411099-3f84-42f7-b768-d42ad202119b",
+          "authoredReference": "",
+          "role": "secret affiliation",
+          "account": "Hidden cultural affiliation",
+          "protected": true,
+          "family": "culture",
+          "name": "Hill philosophy",
+          "unavailable": false
+        }
+      ],
+      "historyNames": [],
+      "related": [
+        {
+          "id": "0c38d9c3-1da7-441a-8431-466700fe1554",
+          "family": "relationship",
+          "name": "Aralyn and Vey",
+          "revision": 1,
+          "versionId": "0f0a8c47-f614-4441-a07c-e0520a2d05b0",
+          "mode": "authored",
+          "archived": false,
+          "time": {
+            "kind": "known",
+            "year": 830,
+            "scale": "world-year",
+            "version": 1
+          },
+          "sourceRevision": null,
+          "sourceTimelineId": null,
+          "parentVersionId": null,
+          "parentRevision": null
+        },
+        {
+          "id": "13747e03-86e0-4111-8a18-2e6baa7ec6a5",
+          "family": "relationship",
+          "name": "Protected disputed ancestry",
+          "revision": 1,
+          "versionId": "75f673a7-c53b-4e2e-ad9a-6481906ad2c3",
+          "mode": "authored",
+          "archived": false,
+          "time": {
+            "kind": "undated",
+            "scale": "world-year",
+            "version": 1
+          },
+          "sourceRevision": null,
+          "sourceTimelineId": null,
+          "parentVersionId": null,
+          "parentRevision": null
+        },
+        {
+          "id": "85be6a39-af02-4a1e-9690-1d8aa621a5fb",
+          "family": "relationship",
+          "name": "Aralyn's companions",
+          "revision": 2,
+          "versionId": "8ec0eb34-b08d-4378-9b6d-2468f37d40cb",
+          "mode": "authored",
+          "archived": false,
+          "time": {
+            "kind": "known",
+            "year": 820,
+            "scale": "world-year",
+            "version": 1
+          },
+          "sourceRevision": null,
+          "sourceTimelineId": null,
+          "parentVersionId": null,
+          "parentRevision": null
+        },
+        {
+          "id": "d79fed70-e92f-4c86-8d60-d1833771cac8",
+          "family": "relationship",
+          "name": "Another ancestry attribution",
+          "revision": 1,
+          "versionId": "edb2a3ec-8eb9-42aa-859d-3fe2e36172d1",
+          "mode": "authored",
+          "archived": false,
+          "time": {
+            "kind": "undated",
+            "scale": "world-year",
+            "version": 1
+          },
+          "sourceRevision": null,
+          "sourceTimelineId": null,
+          "parentVersionId": null,
+          "parentRevision": null
+        }
+      ],
+      "milestoneRecords": [
+        {
+          "id": "d98a6d64-8ff0-4e91-b8cb-ac5303b31bdd",
+          "time": {
+            "kind": "known",
+            "year": 830,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: achievement",
+          "eraIds": [],
+          "account": "Aralyn's explicitly authored achievement in Year 830.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 2,
+          "eventType": "achievement",
+          "narrative": "recorded",
+          "updatedAt": "2026-10-11T04:23:27.323Z",
+          "prominence": "standard",
+          "sourceDating": null,
+          "calendarSource": null,
+          "datingSystemId": null,
+          "sourceEventType": ""
+        },
+        {
+          "id": "63be411a-0375-4822-90f9-7f452870e7cc",
+          "time": {
+            "kind": "known",
+            "year": 810,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: birth",
+          "eraIds": [],
+          "account": "Corrected birth account; the year remains 810.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 2,
+          "eventType": "birth",
+          "narrative": "recorded",
+          "updatedAt": "2026-10-11T04:23:27.449Z",
+          "prominence": "standard",
+          "sourceDating": null,
+          "calendarSource": null,
+          "datingSystemId": null,
+          "sourceEventType": ""
+        },
+        {
+          "id": "5adf3daa-f4d8-4561-b620-5bfe846f65e5",
+          "time": {
+            "kind": "known",
+            "year": 840,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: death",
+          "eraIds": [],
+          "account": "Aralyn's explicitly authored death in Year 840.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 1,
+          "eventType": "death",
+          "narrative": "recorded",
+          "updatedAt": "2026-10-10T22:23:27.065Z",
+          "prominence": "standard",
+          "sourceDating": null,
+          "calendarSource": null,
+          "datingSystemId": null,
+          "sourceEventType": ""
+        }
+      ],
+      "sourceDating": null,
+      "calendarSource": null,
+      "authorId": "world-god",
+      "createdAt": "2026-10-10T22:23:28.344Z"
+    },
+    "alternateRecord": {
+      "id": "4bf03ddd-508c-41ad-bd6d-69f71b55e249",
+      "family": "individual",
+      "name": "Aralyn of the Reed",
+      "revision": 6,
+      "versionId": "e5b02267-7cea-4b23-bf4c-09debc0eb5a0",
+      "mode": "interpretation",
+      "archived": false,
+      "time": {
+        "kind": "known",
+        "year": 810,
+        "scale": "world-year",
+        "version": 1
+      },
+      "sourceRevision": 4,
+      "sourceTimelineId": "4bfdb889-e257-4045-875e-5308c9a6c0b8",
+      "parentVersionId": "50b6216a-2fb6-4603-a1b5-0ed4177f46ad",
+      "parentRevision": 4,
+      "classification": "Historical figure",
+      "draft": {
+        "family": "individual",
+        "name": "Aralyn of the Reed",
+        "description": "Biography revised without a new event",
+        "fields": {
+          "aliases": "Reedwalker",
+          "titles": "Optional authored titles",
+          "identity": "Optional authored identity",
+          "classification": "Historical figure",
+          "reputation": "Optional authored reputation",
+          "form": "Optional authored form",
+          "existence": "Mortal humanoid",
+          "distinctions": "Optional authored distinctions",
+          "transformations": "Optional authored transformations",
+          "aging": "Optional authored aging",
+          "personality": "Optional authored personality",
+          "values": "Optional authored values",
+          "beliefs": "Hidden inward-flame beliefs",
+          "motivations": "Optional authored motivations",
+          "goals": "Optional authored goals",
+          "fears": "Optional authored fears",
+          "habits": "Optional authored habits",
+          "strengths": "Optional authored strengths",
+          "weaknesses": "Optional authored weaknesses",
+          "education": "Optional authored education",
+          "experience": "Optional authored experience",
+          "communication": "Optional authored communication",
+          "discoveries": "Optional authored discoveries",
+          "talents": "Optional authored talents",
+          "skills": "Optional authored skills",
+          "affiliations": "Optional authored affiliations",
+          "citizenship": "Optional authored citizenship",
+          "occupations": "Optional authored occupations",
+          "community": "Optional authored community",
+          "privateReputation": "Optional authored privateReputation",
+          "origins": "Optional authored origins",
+          "development": "Optional authored development",
+          "experiences": "Optional authored experiences",
+          "achievements": "Optional authored achievements",
+          "failures": "Optional authored failures",
+          "returns": "Survives the Primary History death",
+          "accounts": "A newer Primary biography"
+        },
+        "protectedFields": [
+          "beliefs"
+        ],
+        "nameAccounts": [
+          {
+            "id": "32c5fa40-1603-4c55-86c2-f9ae49f385ea",
+            "name": "The secret true name",
+            "kind": "true name",
+            "meaning": "Secret name meaning",
+            "perspective": "A protected account",
+            "time": {
+              "kind": "undated",
+              "scale": "world-year",
+              "version": 1
+            },
+            "protected": true
+          }
+        ],
+        "time": {
+          "kind": "known",
+          "year": 810,
+          "scale": "world-year",
+          "version": 1
+        },
+        "accuracy": "unverified",
+        "narrative": "recorded",
+        "visibility": "ordinary",
+        "privateNotes": "",
+        "geographies": [
+          {
+            "id": "f180d543-cfc3-4b86-85fc-7367acbf554c",
+            "geographyId": "755f48f4-2d59-4fdb-bf65-98b9b0da3ddd",
+            "destinationId": null,
+            "relationshipType": "home region",
+            "account": "Saved shared homeland",
+            "time": {
+              "kind": "known",
+              "year": 810,
+              "scale": "world-year",
+              "version": 1
+            },
+            "protected": false
+          },
+          {
+            "id": "997dfc90-727d-40c1-8573-0e9b3e2beb3f",
+            "geographyId": "755f48f4-2d59-4fdb-bf65-98b9b0da3ddd",
+            "destinationId": null,
+            "relationshipType": "secret refuge",
+            "account": "Hidden personal refuge",
+            "time": {
+              "kind": "undated",
+              "scale": "world-year",
+              "version": 1
+            },
+            "protected": true
+          }
+        ],
+        "participants": [
+          {
+            "targetId": "c5c3a778-be32-4a70-aed1-2917db0b5afc",
+            "authoredReference": "",
+            "role": "ancestry",
+            "account": ""
+          },
+          {
+            "targetId": "25186756-51e1-49ee-ad19-a8146842ce3c",
+            "authoredReference": "",
+            "role": "raised within",
+            "account": ""
+          },
+          {
+            "targetId": "16411099-3f84-42f7-b768-d42ad202119b",
+            "authoredReference": "",
+            "role": "influenced by",
+            "account": ""
+          },
+          {
+            "targetId": "3f1ede62-fb62-40c2-b817-3cb02e1ce88e",
+            "authoredReference": "",
+            "role": "speaks",
+            "account": ""
+          },
+          {
+            "targetId": "647ec2e0-1c58-4ca3-8abc-11d0cff70472",
+            "authoredReference": "",
+            "role": "speaks",
+            "account": ""
+          },
+          {
+            "targetId": "6006ac2c-ee75-4f0a-ade4-41e9b876c935",
+            "authoredReference": "",
+            "role": "associated with",
+            "account": ""
+          },
+          {
+            "targetId": "dcdf4dec-9fa4-4082-a33b-d38bfecb88c7",
+            "authoredReference": "",
+            "role": "associated with",
+            "account": ""
+          },
+          {
+            "targetId": "11cb8aeb-4f80-48a6-a0ba-22c2cce2dc5e",
+            "authoredReference": "",
+            "role": "associated with",
+            "account": ""
+          },
+          {
+            "targetId": "f022293e-94a0-4fad-b485-1d108d2213fd",
+            "authoredReference": "",
+            "role": "associated with",
+            "account": ""
+          },
+          {
+            "targetId": "23b7b05f-c7d5-4962-b62d-8fbbc9b023e4",
+            "authoredReference": "",
+            "role": "associated with",
+            "account": ""
+          },
+          {
+            "targetId": "16411099-3f84-42f7-b768-d42ad202119b",
+            "authoredReference": "",
+            "role": "secret affiliation",
+            "account": "Hidden cultural affiliation",
+            "protected": true
+          }
+        ],
+        "historyRefs": [],
+        "sections": [],
+        "datingSystemId": null,
+        "milestones": [
+          {
+            "entryId": "d98a6d64-8ff0-4e91-b8cb-ac5303b31bdd",
+            "revision": 1,
+            "eventType": "achievement",
+            "draft": {
+              "title": "Aralyn: achievement",
+              "account": "Aralyn's explicitly authored achievement in Year 830.",
+              "notes": "",
+              "visibility": "ordinary",
+              "prominence": "standard",
+              "time": {
+                "version": 1,
+                "scale": "world-year",
+                "kind": "known",
+                "year": 830
+              },
+              "accuracy": "disputed",
+              "narrative": "recorded",
+              "eraIds": [],
+              "datingSystemId": null
+            }
+          },
+          {
+            "entryId": "e7211bcc-df8c-490d-88eb-8828968b0077",
+            "revision": 1,
+            "eventType": "appointment as queen",
+            "draft": {
+              "title": "Aralyn: appointment as queen",
+              "account": "Aralyn's explicitly authored appointment as queen in Year 845.",
+              "notes": "",
+              "visibility": "ordinary",
+              "time": {
+                "version": 1,
+                "scale": "world-year",
+                "kind": "known",
+                "year": 845
+              },
+              "accuracy": "disputed",
+              "narrative": "recorded",
+              "eraIds": [],
+              "datingSystemId": null
+            }
+          },
+          {
+            "entryId": "63be411a-0375-4822-90f9-7f452870e7cc",
+            "revision": 1,
+            "eventType": "birth",
+            "draft": {
+              "title": "Aralyn: birth",
+              "account": "Corrected birth account; the year remains 810.",
+              "notes": "",
+              "visibility": "ordinary",
+              "prominence": "standard",
+              "time": {
+                "version": 1,
+                "scale": "world-year",
+                "kind": "known",
+                "year": 810
+              },
+              "accuracy": "disputed",
+              "narrative": "recorded",
+              "eraIds": [],
+              "datingSystemId": null
+            }
+          },
+          {
+            "entryId": "0c67c925-8878-4fdc-b3b5-4cdf8a5447e1",
+            "revision": 1,
+            "eventType": "survival",
+            "draft": {
+              "title": "Aralyn: survival",
+              "account": "Aralyn's explicitly authored survival in Year 840.",
+              "notes": "",
+              "visibility": "ordinary",
+              "time": {
+                "version": 1,
+                "scale": "world-year",
+                "kind": "known",
+                "year": 840
+              },
+              "accuracy": "disputed",
+              "narrative": "recorded",
+              "eraIds": [],
+              "datingSystemId": null
+            }
+          }
+        ]
+      },
+      "geographies": [
+        {
+          "id": "f180d543-cfc3-4b86-85fc-7367acbf554c",
+          "geographyId": "755f48f4-2d59-4fdb-bf65-98b9b0da3ddd",
+          "destinationId": null,
+          "relationshipType": "home region",
+          "account": "Saved shared homeland",
+          "time": {
+            "kind": "known",
+            "year": 810,
+            "scale": "world-year",
+            "version": 1
+          },
+          "protected": false,
+          "name": "Aralyn's home region",
+          "destinationName": null,
+          "unavailable": false
+        },
+        {
+          "id": "997dfc90-727d-40c1-8573-0e9b3e2beb3f",
+          "geographyId": "755f48f4-2d59-4fdb-bf65-98b9b0da3ddd",
+          "destinationId": null,
+          "relationshipType": "secret refuge",
+          "account": "Hidden personal refuge",
+          "time": {
+            "kind": "undated",
+            "scale": "world-year",
+            "version": 1
+          },
+          "protected": true,
+          "name": "Aralyn's home region",
+          "destinationName": null,
+          "unavailable": false
+        }
+      ],
+      "participants": [
+        {
+          "targetId": "c5c3a778-be32-4a70-aed1-2917db0b5afc",
+          "authoredReference": "",
+          "role": "ancestry",
+          "account": "",
+          "family": "species",
+          "name": "Reedborn",
+          "unavailable": false
+        },
+        {
+          "targetId": "25186756-51e1-49ee-ad19-a8146842ce3c",
+          "authoredReference": "",
+          "role": "raised within",
+          "account": "",
+          "family": "culture",
+          "name": "River upbringing",
+          "unavailable": false
+        },
+        {
+          "targetId": "16411099-3f84-42f7-b768-d42ad202119b",
+          "authoredReference": "",
+          "role": "influenced by",
+          "account": "",
+          "family": "culture",
+          "name": "Hill philosophy",
+          "unavailable": false
+        },
+        {
+          "targetId": "3f1ede62-fb62-40c2-b817-3cb02e1ce88e",
+          "authoredReference": "",
+          "role": "speaks",
+          "account": "",
+          "family": "language",
+          "name": "Reed speech",
+          "unavailable": false
+        },
+        {
+          "targetId": "647ec2e0-1c58-4ca3-8abc-11d0cff70472",
+          "authoredReference": "",
+          "role": "speaks",
+          "account": "",
+          "family": "language",
+          "name": "Signs of light",
+          "unavailable": false
+        },
+        {
+          "targetId": "6006ac2c-ee75-4f0a-ade4-41e9b876c935",
+          "authoredReference": "",
+          "role": "associated with",
+          "account": "",
+          "family": "people",
+          "name": "Reed communities",
+          "unavailable": true
+        },
+        {
+          "targetId": "dcdf4dec-9fa4-4082-a33b-d38bfecb88c7",
+          "authoredReference": "",
+          "role": "associated with",
+          "account": "",
+          "family": "civilization",
+          "name": "Gathered river settlements",
+          "unavailable": true
+        },
+        {
+          "targetId": "11cb8aeb-4f80-48a6-a0ba-22c2cce2dc5e",
+          "authoredReference": "",
+          "role": "associated with",
+          "account": "",
+          "family": "population",
+          "name": "Home community",
+          "unavailable": true
+        },
+        {
+          "targetId": "f022293e-94a0-4fad-b485-1d108d2213fd",
+          "authoredReference": "",
+          "role": "associated with",
+          "account": "",
+          "family": "belief",
+          "name": "The inward flame",
+          "unavailable": true
+        },
+        {
+          "targetId": "23b7b05f-c7d5-4962-b62d-8fbbc9b023e4",
+          "authoredReference": "",
+          "role": "associated with",
+          "account": "",
+          "family": "tradition",
+          "name": "Lantern observance",
+          "unavailable": true
+        },
+        {
+          "targetId": "16411099-3f84-42f7-b768-d42ad202119b",
+          "authoredReference": "",
+          "role": "secret affiliation",
+          "account": "Hidden cultural affiliation",
+          "protected": true,
+          "family": "culture",
+          "name": "Hill philosophy",
+          "unavailable": false
+        }
+      ],
+      "historyNames": [],
+      "related": [
+        {
+          "id": "0c38d9c3-1da7-441a-8431-466700fe1554",
+          "family": "relationship",
+          "name": "Aralyn and Vey",
+          "revision": 3,
+          "versionId": "7fdce0eb-1d86-4673-abed-2866c56fabcd",
+          "mode": "interpretation",
+          "archived": false,
+          "time": {
+            "kind": "known",
+            "year": 830,
+            "scale": "world-year",
+            "version": 1
+          },
+          "sourceRevision": 1,
+          "sourceTimelineId": "4bfdb889-e257-4045-875e-5308c9a6c0b8",
+          "parentVersionId": "0f0a8c47-f614-4441-a07c-e0520a2d05b0",
+          "parentRevision": 1
+        },
+        {
+          "id": "85be6a39-af02-4a1e-9690-1d8aa621a5fb",
+          "family": "relationship",
+          "name": "Aralyn's companions",
+          "revision": 2,
+          "versionId": "5343d84f-4ad0-4e16-8494-7f498c5bbffd",
+          "mode": "inherited",
+          "archived": false,
+          "time": {
+            "kind": "known",
+            "year": 820,
+            "scale": "world-year",
+            "version": 1
+          },
+          "sourceRevision": 1,
+          "sourceTimelineId": "4bfdb889-e257-4045-875e-5308c9a6c0b8",
+          "parentVersionId": "8ec0eb34-b08d-4378-9b6d-2468f37d40cb",
+          "parentRevision": 2
+        }
+      ],
+      "milestoneRecords": [
+        {
+          "id": "d98a6d64-8ff0-4e91-b8cb-ac5303b31bdd",
+          "time": {
+            "kind": "known",
+            "year": 830,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: achievement",
+          "eraIds": [],
+          "account": "Aralyn's explicitly authored achievement in Year 830.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 1,
+          "eventType": "achievement",
+          "narrative": "recorded",
+          "updatedAt": "2026-10-11T04:23:27.323Z",
+          "prominence": "standard",
+          "sourceDating": null,
+          "calendarSource": null,
+          "datingSystemId": null,
+          "sourceEventType": ""
+        },
+        {
+          "id": "e7211bcc-df8c-490d-88eb-8828968b0077",
+          "time": {
+            "kind": "known",
+            "year": 845,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: appointment as queen",
+          "eraIds": [],
+          "account": "Aralyn's explicitly authored appointment as queen in Year 845.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 1,
+          "narrative": "recorded",
+          "updatedAt": "2026-10-11T04:23:28.063Z",
+          "visibility": "ordinary",
+          "sourceDating": null,
+          "calendarSource": null,
+          "datingSystemId": null,
+          "eventType": "appointment as queen",
+          "sourceEventType": ""
+        },
+        {
+          "id": "63be411a-0375-4822-90f9-7f452870e7cc",
+          "time": {
+            "kind": "known",
+            "year": 810,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: birth",
+          "eraIds": [],
+          "account": "Corrected birth account; the year remains 810.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 1,
+          "eventType": "birth",
+          "narrative": "recorded",
+          "updatedAt": "2026-10-11T04:23:27.449Z",
+          "prominence": "standard",
+          "sourceDating": null,
+          "calendarSource": null,
+          "datingSystemId": null,
+          "sourceEventType": ""
+        },
+        {
+          "id": "0c67c925-8878-4fdc-b3b5-4cdf8a5447e1",
+          "time": {
+            "kind": "known",
+            "year": 840,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: survival",
+          "eraIds": [],
+          "account": "Aralyn's explicitly authored survival in Year 840.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 1,
+          "narrative": "recorded",
+          "updatedAt": "2026-10-11T04:23:28.057Z",
+          "visibility": "ordinary",
+          "sourceDating": null,
+          "calendarSource": null,
+          "datingSystemId": null,
+          "eventType": "survival",
+          "sourceEventType": ""
+        }
+      ],
+      "sourceDating": null,
+      "calendarSource": null,
+      "authorId": "world-god",
+      "createdAt": "2026-10-10T22:23:28.578Z"
+    },
+    "alternateHistory": {
+      "entries": [
+        {
+          "id": "63be411a-0375-4822-90f9-7f452870e7cc",
+          "time": {
+            "kind": "known",
+            "year": 810,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: birth",
+          "eraIds": [],
+          "account": "Corrected birth account; the year remains 810.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 1,
+          "eventType": "",
+          "narrative": "recorded",
+          "updatedAt": "2026-10-11T04:23:27.449Z",
+          "prominence": "standard",
+          "datingSystemId": null
+        },
+        {
+          "id": "d98a6d64-8ff0-4e91-b8cb-ac5303b31bdd",
+          "time": {
+            "kind": "known",
+            "year": 830,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: achievement",
+          "eraIds": [],
+          "account": "Aralyn's explicitly authored achievement in Year 830.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 1,
+          "eventType": "",
+          "narrative": "recorded",
+          "updatedAt": "2026-10-11T04:23:27.323Z",
+          "prominence": "standard",
+          "datingSystemId": null
+        },
+        {
+          "id": "0c67c925-8878-4fdc-b3b5-4cdf8a5447e1",
+          "time": {
+            "kind": "known",
+            "year": 840,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: survival",
+          "eraIds": [],
+          "account": "Aralyn's explicitly authored survival in Year 840.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 1,
+          "narrative": "recorded",
+          "updatedAt": "2026-10-11T04:23:28.057Z",
+          "visibility": "ordinary",
+          "datingSystemId": null
+        },
+        {
+          "id": "e7211bcc-df8c-490d-88eb-8828968b0077",
+          "time": {
+            "kind": "known",
+            "year": 845,
+            "scale": "world-year",
+            "version": 1
+          },
+          "notes": "",
+          "title": "Aralyn: appointment as queen",
+          "eraIds": [],
+          "account": "Aralyn's explicitly authored appointment as queen in Year 845.",
+          "worldId": "c0fb156f-0d4e-437f-9e47-fbe384156733",
+          "accuracy": "disputed",
+          "archived": false,
+          "revision": 1,
+          "narrative": "recorded",
+          "updatedAt": "2026-10-11T04:23:28.063Z",
+          "visibility": "ordinary",
+          "datingSystemId": null
+        }
+      ],
+      "categories": [
+        "individual",
+        "relationship"
+      ],
+      "eventTypes": [
+        "achievement",
+        "appointment as queen",
+        "birth",
+        "companion at achievement",
+        "creator gathering",
+        "survival"
+      ]
+    }
+  },
+  "checks": {
+    "worldsUnit": {
+      "passed": 104,
+      "failed": 0
+    },
+    "featureUnit": {
+      "passed": 1989,
+      "files": 229,
+      "failed": 0
+    },
+    "accountLifecycle": {
+      "passed": 1,
+      "failed": 0
+    },
+    "typegen": true,
+    "typecheck": true,
+    "lint": true,
+    "drizzleCheck": true,
+    "fullDisposableRegressionExitCode": 0,
+    "productionBuild": true,
+    "freshAndPopulatedMigrationRehearsal": true,
+    "migrationReapplication": true,
+    "allLedgerHashesAndTimestamps": true,
+    "campaignGameplaySnapshotsUnchanged": true,
+    "developmentAndProductionWrites": false,
+    "remotePush": false,
+    "deployment": false
+  }
+}

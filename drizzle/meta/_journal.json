@@ -820,6 +820,13 @@
       "when": 1791687533141,
       "tag": "0116_worlds_historical_atlas",
       "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1791691372861,
+      "tag": "0117_worlds_individuals",
+      "breakpoints": true
     }
   ]
 }
