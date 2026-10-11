@@ -13,18 +13,18 @@ export function ordinaryLoreSources(worldId: string, timelineId: string) {
   ), unavailable(entity_id) as (
     select s.entity_id from sources s
     where s.mode not in ('authored','inherited','interpretation') or s.visibility<>'ordinary'
-      or (s.family in ('relationship','appointment','claim','agreement','conflict') and exists (
+      or (s.family in ('relationship','appointment','claim','agreement','conflict','organizationRole','membership','assignment','network') and exists (
         select 1 from world_lore_participant p
         left join sources target on target.entity_id=p.target_id
         where p.version_id=s.version_id and (
           p.protected or (p.target_id is not null and (target.entity_id is null or target.archived))
         )
       ))
-      or (s.family in ('appointment','claim','agreement','conflict') and exists (select 1 from world_lore_geography a where a.version_id=s.version_id and (a.protected or exists(select 1 from world_dungeon_entity d where d.world_id=a.world_id and d.visibility<>'ordinary' and (d.id=a.geography_id or d.geography_id=a.geography_id or d.id=a.destination_id or d.geography_id=a.destination_id)))))
+      or (s.family in ('appointment','claim','agreement','conflict','organizationRole','membership','assignment','network') and exists (select 1 from world_lore_geography a where a.version_id=s.version_id and (a.protected or exists(select 1 from world_dungeon_entity d where d.world_id=a.world_id and d.visibility<>'ordinary' and (d.id=a.geography_id or d.geography_id=a.geography_id or d.id=a.destination_id or d.geography_id=a.destination_id)))))
     union
     select s.entity_id from unavailable u
     join world_lore_participant p on p.target_id=u.entity_id and p.world_id=${worldId}
-    join sources s on s.version_id=p.version_id and s.family in ('relationship','appointment','claim','agreement','conflict')
+    join sources s on s.version_id=p.version_id and s.family in ('relationship','appointment','claim','agreement','conflict','organizationRole','membership','assignment','network')
   )
   select s.entity_id, s.version_id from sources s
   where not exists (select 1 from unavailable u where u.entity_id=s.entity_id)`;

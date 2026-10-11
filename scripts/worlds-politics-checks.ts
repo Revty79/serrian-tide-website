@@ -7,7 +7,7 @@ import { emptyLore, type LoreDraft, type LoreFamily } from "../src/features/worl
 import type { HistoricalTime } from "../src/features/worlds/history";
 type Worlds=typeof import("../src/features/worlds/world-service");
 type Timelines=typeof import("../src/features/worlds/branching-history-service");
-const directory="artifacts/guidance/worlds-4c";
+const defaultDirectory="artifacts/guidance/worlds-4c";
 const known=(year:number):HistoricalTime=>({version:1,scale:"world-year",kind:"known",year});
 const member=(targetId:string,role:string,protectedLink=false)=>({targetId,role,authoredReference:"",account:"",protected:protectedLink});
 const event=(title:string,eventType:string,year:number,targets:NonNullable<LoreDraft["milestones"][number]["targets"]>=[])=>({eventType,targets,draft:{title,eventType,account:title,notes:"Confidential notes",time:known(year),accuracy:"disputed" as const,narrative:"recorded" as const,visibility:"ordinary" as const,eraIds:[]}});
@@ -33,7 +33,7 @@ export async function seedPoliticsUpgrade(pool:pg.Pool,worldId:string){
     console.log("PASS: populated 0117 to 0118 upgrade/reapplication preserves every prior World source and private individual alias; political tables start empty.");};
 }
 
-export async function politicsServiceChecks(worlds:Worlds,timelines:Timelines,pool:pg.Pool){
+export async function politicsServiceChecks(worlds:Worlds,timelines:Timelines,pool:pg.Pool,directory=defaultDirectory){
   const lore=await import("../src/features/worlds/peoples-service"),history=await import("../src/features/worlds/history-index-service"),links=await import("../src/features/worlds/milestone-service"),atlas=await import("../src/features/worlds/atlas-service");
   const worldId=await worlds.createWorld("world-god",{name:"Governments of the Gathered Hearths"}),primary=(await worlds.getWorld("world-god",worldId)).selectedTimeline.id;
   const create=(family:LoreFamily,name:string,extra:Partial<LoreDraft>={})=>lore.changePeople("world-god",worldId,{action:"create",timelineId:primary,requestId:randomUUID(),draft:{...emptyLore(family),name,time:known(700),...extra}});
@@ -91,12 +91,12 @@ export async function politicsServiceChecks(worlds:Worlds,timelines:Timelines,po
   const stale=await get(ember);await save(ember,{fields:{...stale.draft.fields,reform:"A revised reform account"}});await assert.rejects(lore.changePeople("world-god",worldId,{action:"save",timelineId:primary,id:ember,revision:stale.revision,draft:stale.draft}),e=>Object(e).status===409);
   await assert.rejects(pool.query("update world_government_version set name='retcon' where version_id=$1",[(await get(ember)).versionId]));await assert.rejects(pool.query("delete from world_lore_period where version_id=$1",[(await get(council)).versionId]));
   assert.equal((await history.searchHistory("world-god",worldId,primary,{category:"agreement"})).entries.some(e=>e.id===treatyEvent),true);
-  const performanceResults=await politicalPerformance(worlds,timelines,pool,lore,history,atlas);
+  const performanceResults=await politicalPerformance(worlds,timelines,pool,lore,history,atlas,directory);
   const fixture={worldId,primary,branch,nested,civilization,polityA,polityB,ember,crown,river,minimal,institution,office,throne,vale,rin,iona,council,disputed,secret,region,claims,treaty,conflict,appointmentEvent,treatyEvent,warEvent,secretEvent,collapse,...performanceResults};
   await mkdir(directory,{recursive:true});await writeFile(`${directory}/service-results.json`,JSON.stringify(fixture,null,2)+"\n");console.log("PASS: 4C saved polities/governments/offices, joint/disputed appointments, three simultaneous claims, multi-party treaty/conflict, immutable corrected shared events, branch/nested outcomes, secret ruler propagation, roles/CAS/archive/forged references.");return fixture;
 }
 
-async function politicalPerformance(worlds:Worlds,timelines:Timelines,pool:pg.Pool,lore:typeof import("../src/features/worlds/peoples-service"),history:typeof import("../src/features/worlds/history-index-service"),atlas:typeof import("../src/features/worlds/atlas-service")){
+async function politicalPerformance(worlds:Worlds,timelines:Timelines,pool:pg.Pool,lore:typeof import("../src/features/worlds/peoples-service"),history:typeof import("../src/features/worlds/history-index-service"),atlas:typeof import("../src/features/worlds/atlas-service"),directory:string){
   const denseWorld=await worlds.createWorld("world-god",{name:"Dense political fixture"}),denseTimeline=(await worlds.getWorld("world-god",denseWorld)).selectedTimeline.id,person=await lore.changePeople("world-god",denseWorld,{action:"create",timelineId:denseTimeline,requestId:randomUUID(),draft:{...emptyLore("individual"),name:"Shared political individual"}}),place=randomUUID();await atlas.changeAtlas("world-god",denseWorld,{action:"geography",draft:{id:place,revision:null,name:"Shared dense region",description:"",kind:"location",context:"region",parentId:null}});
   const sharedIndividuals=[person];for(let i=1;i<20;i++)sharedIndividuals.push(await lore.changePeople("world-god",denseWorld,{action:"create",timelineId:denseTimeline,requestId:randomUUID(),draft:{...emptyLore("individual"),name:`Shared representative ${i}`}}));
   const ids=Array.from({length:800},()=>randomUUID()),versions=ids.map(()=>randomUUID()),client=await pool.connect(),start=performance.now();
@@ -126,7 +126,7 @@ async function politicalPerformance(worlds:Worlds,timelines:Timelines,pool:pg.Po
 
 async function signIn(context:BrowserContext,base:string,user="world-god"){const response=await context.request.post(`${base}/api/auth/sign-in/email`,{headers:{Origin:base},data:{email:`${user}@example.invalid`,password:"Worlds-Test-Only-Password!"}});assert.equal(response.status(),200,await response.text());}
 async function noOverflow(page:Page){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1&&[...document.querySelectorAll("dialog[open]")].every(d=>d.scrollWidth<=d.clientWidth+1)));}
-export async function politicsBrowserChecks(browser:Browser,base:string,fixture:Awaited<ReturnType<typeof politicsServiceChecks>>,pool:pg.Pool){
+export async function politicsBrowserChecks(browser:Browser,base:string,fixture:Awaited<ReturnType<typeof politicsServiceChecks>>,pool:pg.Pool,directory=defaultDirectory){
   const errors:string[]=[],context=await browser.newContext({viewport:{width:1440,height:1000},extraHTTPHeaders:{"X-Forwarded-For":"198.51.100.194"}});await signIn(context,base);const page=await context.newPage();page.on("pageerror",e=>errors.push(e.message));page.on("dialog",d=>d.accept());
   const url=(id?:string,timeline=fixture.primary,ordinary=false)=>`${base}/worlds/${fixture.worldId}?tab=politics&timeline=${timeline}${id?`&entity=${id}`:""}${ordinary?"&knowledge=ordinary":""}`;
   async function createGovernment(p:Page,name:string,touch=false){await p.goto(url());const create=p.getByRole("button",{name:"Create governments",exact:true});await create.waitFor();if(touch)await create.tap();else await create.click();const dialog=p.getByRole("dialog");await dialog.getByLabel("Name",{exact:true}).fill(name);if(touch)await dialog.getByRole("button",{name:"Save record",exact:true}).tap();else await dialog.getByRole("button",{name:"Save record",exact:true}).click();await dialog.waitFor({state:"hidden"});await p.getByRole("heading",{name,exact:true}).waitFor();return new URL(p.url()).searchParams.get("entity")!;}

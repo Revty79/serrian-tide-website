@@ -1,0 +1,13 @@
+export const organizationFamilies = {
+  organization: "Organizations", organizationRole: "Organization roles and ranks",
+  membership: "Membership accounts", assignment: "Organization role assignments", network: "Organization networks and relationships",
+} as const;
+export const organizationFields = {
+  organization: { aliases: "Alternate names", classification: "Creator classification", foundations: "Founding accounts", purpose: "Purpose and ideals", mission: "Mission and objectives", confidentialGoals: "Confidential goals", values: "Values and beliefs", traditions: "Customs and traditions", culture: "Internal culture", recruitment: "Recruitment and membership requirements", resources: "Resources and facilities", funding: "Wealth and funding accounts", influence: "Influence and reputation", activities: "Fields of activity", methods: "Methods of operation", image: "Public image", secretOperations: "Secret operations", achievements: "Notable achievements", disputes: "Internal disputes and reform", development: "Splits, mergers, dissolution and return" },
+  organizationRole: { classification: "Creator classification", responsibilities: "Responsibilities", privileges: "Privileges", qualifications: "Qualifications", authority: "Authored authority", relationships: "Relations to other roles", development: "Historical development" },
+  membership: { classification: "Creator classification", status: "Authored membership status", recruitment: "Joining and recruitment account", obligations: "Authored responsibilities", interpretations: "Disputed or uncertain accounts", provenance: "Evidence and provenance" },
+  assignment: { classification: "Creator classification", status: "Authored assignment status", selection: "Selection or appointment account", authority: "Claimed authority", succession: "Replacement and shared leadership", provenance: "Evidence and provenance" },
+  network: { classification: "Creator classification", relationshipType: "Original relationship type", status: "Authored relationship status", purpose: "Purpose and terms", structure: "Chapters, branches and overlapping networks", interpretations: "Competing interpretations", provenance: "Evidence and provenance" },
+} as const;
+export const organizationMilestoneTypes = ["founding", "appointment", "membership expansion", "headquarters opens", "alliance", "betrayal", "schism", "merger", "expansion", "uprising", "victory", "defeat", "dissolution", "reformation", "return"];
+export function isOrganizationFamily(family:string):family is keyof typeof organizationFamilies{return family in organizationFamilies;}

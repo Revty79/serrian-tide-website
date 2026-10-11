@@ -1,3 +1,4 @@
+import { seedOrganizationsUpgrade, organizationsServiceChecks, organizationsBrowserChecks } from "./worlds-organizations-checks";
 import { seedPoliticsUpgrade, politicsServiceChecks, politicsBrowserChecks } from "./worlds-politics-checks";
 import { individualsServiceChecks, individualsBrowserChecks, seedIndividualsUpgrade } from "./worlds-individuals-checks";
 import { individualPrivacyServiceChecks, individualPrivacyBrowserChecks } from "./worlds-individual-privacy-checks";
@@ -121,9 +122,9 @@ async function main() {
   const temporaryRoot=path.resolve(await mkdtemp(path.join(temporaryParent,"serrian-worlds-pass-one-")));
   const data=path.join(temporaryRoot,"data"),dbPort=await freePort(),appPort=await freePort();
   const databaseUrl=`postgresql://postgres@127.0.0.1:${dbPort}/serrian_worlds_test`,baseUrl=`http://127.0.0.1:${appPort}`;
-  const worldsEvidence=path.resolve("artifacts/guidance/worlds-4c/regressions/regressions/worlds"),artifactRoot=path.resolve("artifacts/guidance"),distName=`artifacts/guidance/worlds-next-${appPort}`,distPath=path.resolve(distName);
+  const worldsEvidence=path.resolve("artifacts/guidance/worlds-4d/regressions/regressions/worlds"),artifactRoot=path.resolve("artifacts/guidance"),distName=`artifacts/guidance/worlds-next-${appPort}`,distPath=path.resolve(distName);
   const originalConfig=await readFile("tsconfig.json","utf8"),originalNextEnv=await readFile("next-env.d.ts","utf8");
-  await mkdir(worldsEvidence,{recursive:true});await mkdir(artifactRoot,{recursive:true});const log=createWriteStream(path.join(artifactRoot,"worlds-4c-next.log"));
+  await mkdir(worldsEvidence,{recursive:true});await mkdir(artifactRoot,{recursive:true});const log=createWriteStream(path.join(artifactRoot,"worlds-4d-next.log"));
   let started=false,pool:pg.Pool|undefined,applicationPool:pg.Pool|undefined,server:ChildProcess|undefined,browser:Awaited<ReturnType<typeof chromium.launch>>|undefined;
   const errors:string[]=[];
   let activePage: Page | undefined;
@@ -133,7 +134,7 @@ async function main() {
     pool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await pool.query("create database serrian_worlds_test");await pool.end();pool=new pg.Pool({connectionString:databaseUrl});
     // Rehearse an upgrade with pre-existing users, tags and Campaign/runtime data.
     const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")) as {entries:{tag:string;idx:number}[]};
-    assert.equal(journal.entries.at(-1)?.tag,"0118_worlds_politics");
+    assert.equal(journal.entries.at(-1)?.tag,"0119_worlds_organizations");
     const baseline=path.join(temporaryRoot,"baseline");await mkdir(path.join(baseline,"meta"),{recursive:true});
     for(const entry of journal.entries.filter(e=>e.idx<102))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
     await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<102)}));
@@ -254,8 +255,10 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const historicalMigration=path.join(temporaryRoot,"historical-atlas");await mkdir(path.join(historicalMigration,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=116))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(historicalMigration,`${entry.tag}.sql`));await writeFile(path.join(historicalMigration,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=116)}));await migrate(drizzle(pool),{migrationsFolder:historicalMigration});await historicalUpgrade.verify();await migrate(drizzle(pool),{migrationsFolder:historicalMigration});await historicalUpgrade.verify();
     const verifyIndividualsUpgrade=await seedIndividualsUpgrade(pool);
     const individualsMigration=path.join(temporaryRoot,"individuals");await mkdir(path.join(individualsMigration,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=117))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(individualsMigration,`${entry.tag}.sql`));await writeFile(path.join(individualsMigration,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=117)}));await migrate(drizzle(pool),{migrationsFolder:individualsMigration});await verifyIndividualsUpgrade();await migrate(drizzle(pool),{migrationsFolder:individualsMigration});await verifyIndividualsUpgrade();
-    const verifyPoliticsUpgrade=await seedPoliticsUpgrade(pool,legacyWorld);await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await verifyPoliticsUpgrade();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await verifyPoliticsUpgrade();
-    await pool.query("create database serrian_worlds_fresh");const freshPool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/serrian_worlds_fresh`});try{await migrate(drizzle(freshPool),{migrationsFolder:path.resolve("drizzle")});assert.equal((await freshPool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,journal.entries.length);await migrate(drizzle(freshPool),{migrationsFolder:path.resolve("drizzle")});console.log("PASS: fresh database ordered migrations through 0118 and safe reapplication.");}finally{await freshPool.end();}
+    const verifyPoliticsUpgrade=await seedPoliticsUpgrade(pool,legacyWorld);
+    const politicsMigration=path.join(temporaryRoot,"politics");await mkdir(path.join(politicsMigration,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=118))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(politicsMigration,`${entry.tag}.sql`));await writeFile(path.join(politicsMigration,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=118)}));await migrate(drizzle(pool),{migrationsFolder:politicsMigration});await verifyPoliticsUpgrade();await migrate(drizzle(pool),{migrationsFolder:politicsMigration});await verifyPoliticsUpgrade();
+    const verifyOrganizationsUpgrade=await seedOrganizationsUpgrade(pool,legacyWorld);await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await verifyOrganizationsUpgrade();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await verifyOrganizationsUpgrade();
+    await pool.query("create database serrian_worlds_fresh");const freshPool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/serrian_worlds_fresh`});try{await migrate(drizzle(freshPool),{migrationsFolder:path.resolve("drizzle")});assert.equal((await freshPool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,journal.entries.length);await migrate(drizzle(freshPool),{migrationsFolder:path.resolve("drizzle")});console.log("PASS: fresh database ordered migrations through 0119 and safe reapplication.");}finally{await freshPool.end();}
     // Compare pre-0106 rows as well; the v1 fixture is deliberately added between migrations.
     for(const [table,rows]of existingAtlas){const projection=table==="world_atlas_map"?"to_jsonb(t)-'generation'-'source_map_id'-'geography_id'-'map_kind'-'settlement_state'-'interior_state'-'dungeon_state'":table==="world_geography"?"to_jsonb(t)-'context'":"to_jsonb(t)";assert.deepEqual((await pool.query(`select ${projection} as row from ${table} t order by id`)).rows.filter(r=>(rows as {row:{id:string}}[]).some(old=>old.row.id===r.row.id)),rows);}assert.deepEqual((await pool.query("select to_jsonb(d)-'sort_order' as row from world_atlas_drawing d where map_id=$1 order by id",[paintedMap])).rows,paintedBefore);assert.deepEqual((await pool.query("select to_jsonb(m)-'presentation'-'generation'-'source_map_id'-'geography_id'-'map_kind'-'settlement_state'-'interior_state'-'dungeon_state' as row from world_atlas_map m where id=$1",[oldMap])).rows,oldMapBefore);assert.deepEqual((await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows,atlasUpgradeBefore);assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
     assert.equal((await pool.query("select * from world_historical_entry where dating_system_id is not null or source_dating is not null")).rowCount,1);assert.equal((await pool.query("select * from world_dating_system")).rowCount,1);assert.equal((await pool.query("select * from world_chronology_preference")).rowCount,1);
@@ -265,6 +268,7 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});assert.deepEqual(await legacySnapshot(),legacyBefore);
     console.log("PASS: migrations 0102/0103 and 0104/0105 plus 0106/0107 upgrade existing data through 0103 and painted 0104 maps and preserve existing 0102 geometry, including existing calendar evolution, original source snapshots, calendars and preferences, with existing Worlds/all five date representations, user, catalog, Campaign and active-session data unchanged; ledger complete, reapply safe and old read projection compatible; saved v1 source and metadata unchanged across 0107; 0108 preserves v1/v2 source, all old row projections and metadata while adding empty links and default map/place association fields.");
     process.env.DATABASE_URL=databaseUrl;const service=await import("../src/features/worlds/world-service");applicationPool=(await import("../src/db")).pool;
+    if(process.argv.includes("--organizations-service-only")){await organizationsServiceChecks(service,await import("../src/features/worlds/branching-history-service"),pool);await individualPrivacyServiceChecks(service,await import("../src/features/worlds/branching-history-service"),pool,"artifacts/guidance/worlds-4d/regressions/4b-privacy");assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--politics-service-only")){await politicsServiceChecks(service,await import("../src/features/worlds/branching-history-service"),pool);await individualPrivacyServiceChecks(service,await import("../src/features/worlds/branching-history-service"),pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--privacy-service-only")){await individualPrivacyServiceChecks(service,await import("../src/features/worlds/branching-history-service"),pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
     const references=await service.worldReferences("world-god"),validTag=references.find((tag)=>tag.name==="High Fantasy")!;
@@ -343,27 +347,29 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const settlementFixture=await settlementServiceChecks(atlasService,service,pool,foreign);
     const interiorFixture=await interiorServiceChecks(atlasService,service,pool,foreign);
     const dungeonFixture=await dungeonServiceChecks(atlasService,pool,interiorFixture,foreign);
-    const peoplesFixture=await peoplesServiceChecks(service,timelineService,pool,foreign,chronologyFixture,evolutionFixture,"artifacts/guidance/worlds-4c/regressions/4a-1-regression");
-    const societiesFixture=await societiesServiceChecks(service,timelineService,pool,foreign,societiesUpgrade,"artifacts/guidance/worlds-4c/regressions/4a-2-regression");
-    const historicalFixture=await historicalAtlasServiceChecks(service,timelineService,pool,foreign,"artifacts/guidance/worlds-4c/regressions/4a-h-regression");
-    const politicsFixture=await politicsServiceChecks(service,timelineService,pool);
-    const privacyFixture=await individualPrivacyServiceChecks(service,timelineService,pool);
-    const individualsFixture=await individualsServiceChecks(service,timelineService,pool,foreign,"artifacts/guidance/worlds-4c/regressions/4b");
+    const peoplesFixture=await peoplesServiceChecks(service,timelineService,pool,foreign,chronologyFixture,evolutionFixture,"artifacts/guidance/worlds-4d/regressions/4a-1-regression");
+    const societiesFixture=await societiesServiceChecks(service,timelineService,pool,foreign,societiesUpgrade,"artifacts/guidance/worlds-4d/regressions/4a-2-regression");
+    const historicalFixture=await historicalAtlasServiceChecks(service,timelineService,pool,foreign,"artifacts/guidance/worlds-4d/regressions/4a-h-regression");
+    const organizationsFixture=await organizationsServiceChecks(service,timelineService,pool);
+    const politicsFixture=await politicsServiceChecks(service,timelineService,pool,"artifacts/guidance/worlds-4d/regressions/4c");
+    const privacyFixture=await individualPrivacyServiceChecks(service,timelineService,pool,"artifacts/guidance/worlds-4d/regressions/4b-privacy");
+    const individualsFixture=await individualsServiceChecks(service,timelineService,pool,foreign,"artifacts/guidance/worlds-4d/regressions/4b");
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     if(process.argv.includes("--services-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
-    await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-4c-next.log`)));});
+    await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-4d-next.log`)));});
     console.log("PASS: isolated production build and TypeScript verification.");
     server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--port",String(appPort)],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});server.stdout!.pipe(log,{end:false});server.stderr!.pipe(log,{end:false});
     const deadline=Date.now()+120000;let ready=false;while(Date.now()<deadline){assert.equal(server.exitCode,null);try{if((await fetch(`${baseUrl}/login`,{signal:AbortSignal.timeout(5000)})).ok){ready=true;break;}}catch{}await new Promise((resolve)=>setTimeout(resolve,300));}assert.ok(ready);
     browser=await chromium.launch({executablePath:process.env.SERRIAN_TEST_CHROME??"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true});
     const god=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.40"}});await signIn(god,baseUrl,"world-god");
     const page=await god.newPage();activePage=page;page.on("pageerror",(error)=>errors.push(error.message));
-    await peoplesBrowserChecks(browser,baseUrl,peoplesFixture,service,pool,"artifacts/guidance/worlds-4c/regressions/4a-1-regression");
-    await societiesBrowserChecks(browser,baseUrl,societiesFixture,pool,"artifacts/guidance/worlds-4c/regressions/4a-2-regression");
-    await historicalAtlasBrowserChecks(browser,baseUrl,historicalFixture,pool,"artifacts/guidance/worlds-4c/regressions/4a-h-regression");
-    await politicsBrowserChecks(browser,baseUrl,politicsFixture,pool);
-    await individualsBrowserChecks(browser,baseUrl,individualsFixture,pool,"artifacts/guidance/worlds-4c/regressions/4b");
-    await individualPrivacyBrowserChecks(browser,baseUrl,privacyFixture);
+    await peoplesBrowserChecks(browser,baseUrl,peoplesFixture,service,pool,"artifacts/guidance/worlds-4d/regressions/4a-1-regression");
+    await societiesBrowserChecks(browser,baseUrl,societiesFixture,pool,"artifacts/guidance/worlds-4d/regressions/4a-2-regression");
+    await historicalAtlasBrowserChecks(browser,baseUrl,historicalFixture,pool,"artifacts/guidance/worlds-4d/regressions/4a-h-regression");
+    await organizationsBrowserChecks(browser,baseUrl,organizationsFixture,pool);
+    await politicsBrowserChecks(browser,baseUrl,politicsFixture,pool,"artifacts/guidance/worlds-4d/regressions/4c");
+    await individualsBrowserChecks(browser,baseUrl,individualsFixture,pool,"artifacts/guidance/worlds-4d/regressions/4b");
+    await individualPrivacyBrowserChecks(browser,baseUrl,privacyFixture,"artifacts/guidance/worlds-4d/regressions/4b-privacy");
     if(process.argv.includes("--individuals-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--historical-atlas-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--societies-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
@@ -373,21 +379,21 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     if(process.argv.includes("--associations-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--branching-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--dungeon-only")){await dungeonBrowserChecks(browser,baseUrl,dungeonFixture,pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
-    if(process.argv.includes("--interior-only")){await interiorBrowserChecks(browser,baseUrl,interiorFixture,pool,"artifacts/guidance/worlds-4c/regressions/regressions/interior");await interiorPerformanceChecks(browser,baseUrl,interiorFixture.worldId,"artifacts/guidance/worlds-4c/regressions/regressions/interior");assert.deepEqual(await runtimeSnapshot(),before);return;}
+    if(process.argv.includes("--interior-only")){await interiorBrowserChecks(browser,baseUrl,interiorFixture,pool,"artifacts/guidance/worlds-4d/regressions/regressions/interior");await interiorPerformanceChecks(browser,baseUrl,interiorFixture.worldId,"artifacts/guidance/worlds-4d/regressions/regressions/interior");assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--settlement-only")){await settlementBrowserChecks(browser,baseUrl,settlementFixture,pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--connected-only")){await connectedGeographyBrowserChecks(browser,baseUrl,connectedFixture,pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
     await dungeonBrowserChecks(browser,baseUrl,dungeonFixture,pool);
-    await interiorBrowserChecks(browser,baseUrl,interiorFixture,pool,"artifacts/guidance/worlds-4c/regressions/regressions/interior");await interiorPerformanceChecks(browser,baseUrl,interiorFixture.worldId,"artifacts/guidance/worlds-4c/regressions/regressions/interior");
-    await settlementBrowserChecks(browser,baseUrl,settlementFixture,pool,"artifacts/guidance/worlds-4c/regressions/regressions/settlement");
-    await connectedGeographyBrowserChecks(browser,baseUrl,connectedFixture,pool,"artifacts/guidance/worlds-4c/regressions/regressions/connected");
+    await interiorBrowserChecks(browser,baseUrl,interiorFixture,pool,"artifacts/guidance/worlds-4d/regressions/regressions/interior");await interiorPerformanceChecks(browser,baseUrl,interiorFixture.worldId,"artifacts/guidance/worlds-4d/regressions/regressions/interior");
+    await settlementBrowserChecks(browser,baseUrl,settlementFixture,pool,"artifacts/guidance/worlds-4d/regressions/regressions/settlement");
+    await connectedGeographyBrowserChecks(browser,baseUrl,connectedFixture,pool,"artifacts/guidance/worlds-4d/regressions/regressions/connected");
     await checkEraLabelNavigation(page,baseUrl,labelWorld,worldsEvidence);
     await chronologyBrowserChecks(service,page,god,baseUrl,chronologyFixture,worldsEvidence);
     await calendarBrowserChecks(calendarService,page,god,baseUrl,calendarFixture,worldsEvidence);
     await evolutionBrowserChecks(page,god,baseUrl,evolutionFixture,worldsEvidence);
     await atlasBrowserChecks(page,god,baseUrl,atlasFixture,worldsEvidence);
     await cartographyBrowserChecks(browser,baseUrl,artFixture,worldsEvidence);
-    await generationBrowserChecks(browser,baseUrl,generationFixture,worldsEvidence,"artifacts/guidance/worlds-4c/regressions/regressions/generation");
-    await refinementBrowserChecks(browser,baseUrl,generationFixture,"artifacts/guidance/worlds-4c/regressions/regressions/refinement");
+    await generationBrowserChecks(browser,baseUrl,generationFixture,worldsEvidence,"artifacts/guidance/worlds-4d/regressions/regressions/generation");
+    await refinementBrowserChecks(browser,baseUrl,generationFixture,"artifacts/guidance/worlds-4d/regressions/regressions/refinement");
 
     await page.goto(`${baseUrl}/worlds`);await hydrated(page);await page.getByRole("heading",{name:"Worlds",exact:true}).waitFor();assert.equal(await page.getByText("Other owner's private world",{exact:true}).count(),0);
     await page.getByRole("button",{name:"Create world",exact:true}).click();await page.getByLabel("World name",{exact:true}).fill("Lantern Reach");

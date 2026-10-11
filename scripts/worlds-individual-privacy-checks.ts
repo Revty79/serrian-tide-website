@@ -10,12 +10,12 @@ import { emptyLore, type LoreDraft } from "../src/features/worlds/peoples";
 
 type Worlds = typeof import("../src/features/worlds/world-service");
 type Timelines = typeof import("../src/features/worlds/branching-history-service");
-const directory = "artifacts/guidance/worlds-4b-privacy";
+const defaultDirectory = "artifacts/guidance/worlds-4b-privacy";
 const known = (year: number): HistoricalTime => ({ version: 1, scale: "world-year", kind: "known", year });
 const member = (targetId: string, role: string, protectedLink = false) => ({ targetId, role, authoredReference: "", account: "", protected: protectedLink });
 const eventDraft = (title: string, eventType: string) => ({ title, eventType, account: title, notes: "PRIVATE_HISTORY_NOTES", time: known(10), accuracy: "disputed" as const, narrative: "recorded" as const, visibility: "ordinary" as const, eraIds: [] });
 
-export async function individualPrivacyServiceChecks(worlds: Worlds, timelines: Timelines, pool: pg.Pool) {
+export async function individualPrivacyServiceChecks(worlds: Worlds, timelines: Timelines, pool: pg.Pool, directory=defaultDirectory) {
   const lore = await import("../src/features/worlds/peoples-service");
   const history = await import("../src/features/worlds/history-index-service");
   const links = await import("../src/features/worlds/milestone-service");
@@ -192,7 +192,7 @@ async function signIn(context: BrowserContext, base: string, user = "world-god")
   assert.equal(response.status(), 200, await response.text());
 }
 
-export async function individualPrivacyBrowserChecks(browser: Browser, base: string, fixture: Awaited<ReturnType<typeof individualPrivacyServiceChecks>>) {
+export async function individualPrivacyBrowserChecks(browser: Browser, base: string, fixture: Awaited<ReturnType<typeof individualPrivacyServiceChecks>>, directory=defaultDirectory) {
   const contexts: BrowserContext[] = [], errors: string[] = [];
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, extraHTTPHeaders: { "X-Forwarded-For": "198.51.100.201" } }); contexts.push(context);
   await signIn(context, base);
