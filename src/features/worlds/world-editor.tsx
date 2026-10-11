@@ -9,10 +9,13 @@ import { entryDraftOf, eraDraftOf, SaveError, worldDraftOf } from "./client-api"
 import styles from "./worlds.module.css";
 import { ClassificationPicker } from "./classification-picker";
 import { CalendarEntryFields, draftFromSource } from "./calendar-entry-fields";
+import { worldCreationSchema, type CampaignChoice, type WorldCreationDraft } from "./campaign-associations";
+import { CreationCampaignPicker } from "./creation-campaign-picker";
 export type EditorTarget = { kind: "world"; record?: WorldRecord; section?: "identity" | "introduction" | "history" } | { kind: "era"; record?: EraRecord } | { kind: "entry"; record?: EntryRecord };
-export function WorldEditor({ target, tags, eras = [], datingSystems=[], displaySystem=null, worldId, onClose, onSave, onReload,timelineName,onDirty }: { target: EditorTarget; tags: TagReference[]; eras?: EraRecord[]; datingSystems?:DatingSystem[];displaySystem?:DatingSystem|null;worldId?:string; onClose: () => void; onSave: (draft: WorldDraft | EraDraft | EntryDraft) => Promise<void>; onReload?: () => Promise<void>;timelineName?:string;onDirty?:(dirty:boolean)=>void }) {
+export function WorldEditor({ target, tags, eras = [], datingSystems=[], displaySystem=null, worldId, onClose, onSave, onReload,timelineName,onDirty,campaignChoices=[] }: { target: EditorTarget; tags: TagReference[]; eras?: EraRecord[]; datingSystems?:DatingSystem[];displaySystem?:DatingSystem|null;worldId?:string; onClose: () => void; onSave: (draft: WorldDraft | EraDraft | EntryDraft) => Promise<void>; onReload?: () => Promise<void>;timelineName?:string;onDirty?:(dirty:boolean)=>void;campaignChoices?:CampaignChoice[] }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [worldDraft, setWorldDraft] = useState(() => worldDraftOf(target.kind === "world" ? target.record : undefined));
+  const [associatedCampaigns,setAssociatedCampaigns] = useState<WorldCreationDraft["associatedCampaigns"]>([]);
   const initialSystem = target.kind !== "world" && target.record ? datingSystems.find((system)=>system.id === target.record?.datingSystemId) ?? null : displaySystem?.archived ? null : displaySystem;
   const source = {datingSystemId:initialSystem?.id ?? null,datingSystemRevision:initialSystem?.revision};
   const [eraDraft, setEraDraft] = useState(() => ({...eraDraftOf(target.kind === "era" ? target.record : undefined),...source}));
@@ -20,7 +23,7 @@ export function WorldEditor({ target, tags, eras = [], datingSystems=[], display
   const sourceDraft = target.kind === "era" ? eraDraft : entryDraft;
   const system = datingSystems.find((item)=>item.id === sourceDraft.datingSystemId) ?? null;
   const datingSelector = <Field label="Enter years using" help="This only changes the numbering used to enter years. Historical positions stay in canonical world years. Negative numbers mean Before; positive numbers mean After. Archived conventions can be retained on existing dates."><select value={system?.id ?? ""} onChange={(event)=>{const selected=datingSystems.find((item)=>item.id === event.target.value);const change={datingSystemId:selected?.id ?? null,datingSystemRevision:selected?.revision};if(target.kind === "era")setEraDraft({...eraDraft,...change});else setEntryDraft({...entryDraft,...change});}}><option value="">Canonical world years</option>{datingSystems.filter((item)=>!item.archived || (target.kind !== "world" && target.record?.datingSystemId === item.id)).map((item)=><option key={item.id} value={item.id}>{item.name}{item.archived ? " (archived context)" : ""}</option>)}</select></Field>;
-  const draft = target.kind === "world" ? worldDraft : target.kind === "era" ? eraDraft : entryDraft;
+  const draft = target.kind === "world" ? target.record ? worldDraft : {...worldDraft,associatedCampaigns} : target.kind === "era" ? eraDraft : entryDraft;
   const [original] = useState(() => JSON.stringify(draft));
   const dirty = original !== JSON.stringify(draft);
   useEffect(()=>{onDirty?.(dirty);return()=>onDirty?.(false);},[dirty,onDirty]);
@@ -37,7 +40,7 @@ export function WorldEditor({ target, tags, eras = [], datingSystems=[], display
     <header className={styles.editorHeader}><div><p className={styles.eyebrow}>World workshop · private</p><h2 id="world-editor-title">{title}</h2></div><button className="st-button is-ghost" type="button" aria-label="Close editor" disabled={pending} onClick={close}><X size={20} /></button></header>
     <form onSubmit={async (event) => {
       event.preventDefault(); setError(""); setConflict(false);
-      const parsed = (target.kind === "world" ? worldDraftSchema : target.kind === "era" ? eraDraftSchema : entryDraftSchema).safeParse(draft);
+      const parsed = (target.kind === "world" ? target.record ? worldDraftSchema : worldCreationSchema : target.kind === "era" ? eraDraftSchema : entryDraftSchema).safeParse(draft);
       if (!parsed.success) { setError(parsed.error.issues.map((issue) => issue.message).join(" ")); return; }
       setPending(true);
       try { await onSave(parsed.data); } catch (failure) { setError(failure instanceof Error ? failure.message : "The save failed. Your draft is retained."); setConflict(failure instanceof SaveError && failure.status === 409); } finally { setPending(false); }
@@ -49,6 +52,7 @@ export function WorldEditor({ target, tags, eras = [], datingSystems=[], display
         <Field label="Description" help="A short introduction shown in the world gallery. Optional; up to 4,000 characters."><textarea rows={3} maxLength={4000} value={worldDraft.description} onChange={(e) => setWorldDraft({...worldDraft,description:e.target.value})} /></Field>
         <Field label="Cover style" help="Choose a theme-based visual identity for this world. This does not change its content."><select value={worldDraft.tone} onChange={(e) => setWorldDraft({...worldDraft,tone:e.target.value as WorldDraft["tone"]})}><option value="primary">Verdant orbit</option><option value="secondary">Golden horizon</option><option value="info">Distant stars</option><option value="muted">Quiet ruins</option></select></Field>
         <ClassificationPicker tags={tags} selected={worldDraft.tagIds} onChange={(tagIds) => setWorldDraft({...worldDraft,tagIds})} />
+        {!target.record && <CreationCampaignPicker initialChoices={campaignChoices} selected={associatedCampaigns} onChange={setAssociatedCampaigns}/>}
       </>}
       {target.kind === "world" && section !== "identity" && <Field label={section === "introduction" ? "Introductory story" : "Historical overview"} help="Write a readable account in your own words. Paragraph breaks are preserved. Optional; up to 50,000 characters."><textarea autoFocus rows={14} maxLength={50000} value={section === "introduction" ? worldDraft.introduction : worldDraft.historicalOverview} onChange={(e) => setWorldDraft({...worldDraft,[section === "introduction" ? "introduction" : "historicalOverview"]:e.target.value})} /></Field>}
       {target.kind === "era" && <>

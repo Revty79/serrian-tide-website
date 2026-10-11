@@ -15,6 +15,8 @@ import { worldCalendarEntryDate } from "@/db/world-calendar-history-schema";
 import type { CalendarSource } from "./calendar-dates";
 import { saveEntryCalendarDate } from "./calendar-evolution-service";
 import { entryDraftSchema, eraDraftSchema, worldDraftSchema, type EntryRecord, type EraRecord, type Tone, type WorldBundle, type WorldRecord } from "./history";
+import { worldCreationSchema } from "./campaign-associations";
+import { initialCampaignAssociations, lockCreationCampaigns } from "./campaign-association-service";
 
 export class WorldError extends Error { constructor(message: string, public status: number) { super(message); } }
 const notFound = () => new WorldError("This world or historical record is unavailable.", 404);
@@ -109,9 +111,9 @@ export async function primaryHistoryRows(tx:Tx,worldId:string,timelineId:string)
 }
 export async function createWorld(userId: string, input: unknown) {
   await actor(userId);
-  const { tagIds, ...draft } = worldDraftSchema.parse(input);
+  const { tagIds, associatedCampaigns, ...draft } = worldCreationSchema.parse(input);
   const id = randomUUID();
-  await db.transaction(async (tx) => { await tx.insert(world).values({ id, ownerId: userId, ...draft }); await tags(tx, userId, id, tagIds); });
+  await db.transaction(async (tx) => { await lockCreationCampaigns(tx,userId,associatedCampaigns); await tx.insert(world).values({ id, ownerId: userId, ...draft }); await tags(tx, userId, id, tagIds); await initialCampaignAssociations(tx,userId,id,associatedCampaigns); });
   return id;
 }
 export async function changeWorld(userId: string, worldId: string, input: unknown) {

@@ -6,6 +6,7 @@ import { currentMigrationSnapshotName } from "../../../scripts/current-migration
 import {
   CAMPAIGN_GRAPH_DELETE_STEPS,
   CAMPAIGN_GRAPH_SELF_REFERENCE_BREAKS,
+  CAMPAIGN_RETAINED_WORLD_TABLES,
 } from "./campaign-delete-plan";
 
 type SnapshotForeignKey = {
@@ -40,6 +41,7 @@ function campaignOwnedClosure(): Set<string> {
     }
   }
   owned.delete("campaign");
+  for (const table of CAMPAIGN_RETAINED_WORLD_TABLES) owned.delete(table);
   return owned;
 }
 
@@ -47,6 +49,15 @@ test("the explicit Campaign delete plan covers the complete owned FK closure", (
   const planned = CAMPAIGN_GRAPH_DELETE_STEPS.map(({ tableName }) => tableName);
   assert.equal(new Set(planned).size, planned.length, "delete plan contains duplicate tables");
   assert.deepEqual([...planned].sort(), [...campaignOwnedClosure()].sort());
+});
+
+test("standalone World relationships are retained with restrictive Campaign references", () => {
+  for (const tableName of CAMPAIGN_RETAINED_WORLD_TABLES) {
+    const table = snapshot.tables[`public.${tableName}`];
+    assert.ok(table, `${tableName} must exist`);
+    assert.equal(CAMPAIGN_GRAPH_DELETE_STEPS.some(step => String(step.tableName) === tableName), false);
+    for (const key of Object.values(table.foreignKeys)) assert.equal(key.onDelete, "restrict");
+  }
 });
 
 test("every cross-table Campaign FK is deleted child before parent", () => {

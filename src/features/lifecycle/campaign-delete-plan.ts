@@ -12,6 +12,10 @@ export type CampaignDeleteStep = {
   scope: CampaignDeleteScope;
 };
 
+// These belong to standalone Worlds. Linked Campaigns must be archived rather
+// than purging private associations, authoring preferences and audit history.
+export const CAMPAIGN_RETAINED_WORLD_TABLES = ["world_campaign_context", "world_campaign_home", "world_campaign_context_change", "world_authoring_selection"] as const;
+
 /**
  * Child-before-parent order for every table in the Campaign-owned FK closure.
  * The list is deliberately explicit: adding a Campaign-owned table requires a

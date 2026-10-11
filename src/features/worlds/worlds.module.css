@@ -190,3 +190,13 @@
 .inheritanceList article { padding:1rem; border:1px solid var(--st-border); border-radius:.75rem; background:var(--st-surface-soft); overflow-wrap:anywhere; }
 .inheritanceList small { color:var(--st-text-secondary); }
 .inheritanceList details { margin-block:1rem; }
+.associationPicker,.authoringContext,.campaignSettingsContexts { padding:1rem; border:1px solid var(--st-border); border-radius:.75rem; background:var(--st-surface); color:var(--st-text); margin-block:1rem; }
+.associationChoices { display:grid; gap:.5rem; max-height:14rem; overflow:auto; margin-block:.75rem; }
+.associationChoices label,.associationPicker>label { display:flex; align-items:center; gap:.65rem; min-height:44px; }
+.associationForm { display:grid; gap:1rem; border:0; padding:0; max-width:42rem; }
+.associationToolbar { display:flex; flex-wrap:wrap; align-items:end; gap:1rem; margin-block:1.5rem; }
+.associationToolbar>label:first-child { flex:1; min-width:min(18rem,100%); }
+.associationList { display:grid; gap:1rem; }
+.associationCard { padding:1rem; border:1px solid var(--st-border); border-radius:.75rem; background:var(--st-surface-soft); overflow-wrap:anywhere; }
+.associationCard .actions { margin-top:1rem; flex-wrap:wrap; }
+.campaignSettingsContexts a,.associationCard>a { color:var(--st-primary); text-decoration:underline; }

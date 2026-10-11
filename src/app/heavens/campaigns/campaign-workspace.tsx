@@ -1,6 +1,7 @@
 "use client";
 
 import { CampaignSkillSelector } from "./campaign-skill-selector";
+import { CampaignWorldContexts } from "@/features/worlds/campaign-world-contexts";
 import { GuidedField } from "@/components/field-guidance";
 import { fieldHelp } from "@/features/guidance/field-help";
 
@@ -209,6 +210,7 @@ export function CampaignWorkspace({
         {draft.skillConflicts.length ? <details className="campaign-notice"><summary>{draft.skillConflicts.length} saved Skill restriction conflicts</summary><p>These records are retained. No allocations, investment, or points were removed or refunded. Restricted paths are frozen for new investment.</p><ul>{draft.skillConflicts.map((conflict, index) => <li key={index}>{conflict.subject}: {conflict.skillName} ({conflict.source}): {conflict.path}. {conflict.reason}</li>)}</ul></details> : null}
         {tab === "skills" ? <CampaignSkillSelector library={references.skillLibrary} allowedSystems={draft.allowedSystems} exclusions={draft.skillExclusions} disabled={saving} onChange={skillExclusions => change({ ...draft, skillExclusions })} /> : null}
         {tab === "rules" ? <Rules draft={draft} onChange={change} /> : null}
+        {tab === "rules" ? <CampaignWorldContexts key={draft.id} campaignId={draft.id} owner={selectedSummary?.accessKind === "owner"}/> : null}
         {tab === "races" ? <Races draft={draft} races={references.races} search={raceSearch} onSearch={setRaceSearch} onChange={change} /> : null}
         {tab === "inventory" ? <CampaignInventorySelector key={draft.id} campaignId={draft.id} tags={references.tags} selectedTagIds={draft.inventoryTagIds} selectedItemIds={draft.inventoryItemIds} onSelectedTagIdsChange={(inventoryTagIds) => void preserveScroll(() => change({ ...draft, inventoryTagIds }))} onSelectedItemIdsChange={(inventoryItemIds) => void preserveScroll(() => change({ ...draft, inventoryItemIds }))} /> : null}
       </div></section> : <section className="campaign-editor campaign-empty"><p>CAMPAIGN SETTINGS</p><h2>Select a Campaign to edit, or create a new one.</h2></section>}

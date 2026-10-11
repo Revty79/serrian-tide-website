@@ -1,3 +1,4 @@
+import { seedAssociationCampaigns, seedAssociationUpgrade, associationServiceChecks, associationBrowserChecks } from "./worlds-association-checks";
 import { captureWorldsScreenshot } from "./worlds-browser-evidence";
 import { branchingServiceChecks, branchingBrowserChecks, branchingSourceChecks, seedBridgeUpgrade } from "./worlds-branching-checks";
 import { dungeonServiceChecks, dungeonBrowserChecks } from "./worlds-dungeon-checks";
@@ -125,7 +126,7 @@ async function main() {
     pool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await pool.query("create database serrian_worlds_test");await pool.end();pool=new pg.Pool({connectionString:databaseUrl});
     // Rehearse an upgrade with pre-existing users, tags and Campaign/runtime data.
     const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")) as {entries:{tag:string;idx:number}[]};
-    assert.equal(journal.entries.at(-1)?.tag,"0112_worlds_branching_timelines");
+    assert.equal(journal.entries.at(-1)?.tag,"0113_worlds_campaign_associations");
     const baseline=path.join(temporaryRoot,"baseline");await mkdir(path.join(baseline,"meta"),{recursive:true});
     for(const entry of journal.entries.filter(e=>e.idx<102))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
     await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<102)}));
@@ -140,6 +141,7 @@ async function main() {
     const campaign=(await pool.query(`insert into campaign (name,overview,attribute_points,skill_points,max_starting_skill,points_to_unlock_next_tier,max_points_in_skill,starting_credit_amount,currency_system,fate_point_method,created_by_user_id${ownerColumn}) values ('Untouched Campaign','Clock safety fixture',100,100,10,10,10,100,'Credits','Assigned','world-god'${ownerColumn ? ",'world-god'" : ""}) returning id`)).rows[0];
     const session=(await pool.query("insert into campaign_session (campaign_id,title,sequence_number,status,started_at) values ($1,'Untouched active session',1,'active',now()) returning id",[campaign.id])).rows[0];
     await pool.query("insert into campaign_session_scene (campaign_id,session_id,sequence_number,title,status,started_at) values ($1,$2,1,'Untouched scene','active',now())",[campaign.id,session.id]);
+    const associationCampaigns=await seedAssociationCampaigns(pool);
     async function runtimeSnapshot() {
       const tables=(await pool!.query("select tablename from pg_tables where schemaname='public' and (tablename like 'campaign%' or tablename like 'form_%' or tablename in ('race_evolution_events','creature_evolution_events','owned_creature_disposition','item_inventory_operation','races','creatures','skill','derived_ability','items','item_tags_catalog','item_tag_links','user_role','user_catalog_preferences','catalog_visibility_scope_activation')) order by tablename")).rows;
       const snapshot:Record<string,unknown>={};
@@ -233,7 +235,9 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     for(const [table,rows]of interiorUpgrade){const projection=table==="world_atlas_map"?"to_jsonb(t)-'interior_state'-'dungeon_state'":table==="world_atlas_connection"?"to_jsonb(t)-'destination_geography_id'":"to_jsonb(t)";const actual:{row:Record<string,unknown>}[]=(await pool.query(`select ${projection} as row from ${table} t`)).rows.filter(r=>!(table==="world_geography"?[retainedFloor,retainedRoom]:table==="world_atlas_map"?[retainedInterior]:[]).some(id=>id===String(r.row.id)));assert.deepEqual(actual.sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))), (rows as typeof actual).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))));}
     console.log("PASS: additive 0110 upgrade preserves existing 3E-A settlement/building geometry and every prior map/entity/connection row; migration reapplication is safe.");
 
-    const assertBridgeUpgrade=await seedBridgeUpgrade(pool,legacyWorld);await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await assertBridgeUpgrade();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await assertBridgeUpgrade();
+    const assertBridgeUpgrade=await seedBridgeUpgrade(pool,legacyWorld);
+    const bridgeMigration=path.join(temporaryRoot,"bridge-a");await mkdir(path.join(bridgeMigration,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=112))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(bridgeMigration,`${entry.tag}.sql`));await writeFile(path.join(bridgeMigration,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=112)}));await migrate(drizzle(pool),{migrationsFolder:bridgeMigration});await assertBridgeUpgrade();
+    const assertAssociationUpgrade=await seedAssociationUpgrade(pool,legacyWorld);await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await assertAssociationUpgrade();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await assertAssociationUpgrade();
     // Compare pre-0106 rows as well; the v1 fixture is deliberately added between migrations.
     for(const [table,rows]of existingAtlas){const projection=table==="world_atlas_map"?"to_jsonb(t)-'generation'-'source_map_id'-'geography_id'-'map_kind'-'settlement_state'-'interior_state'-'dungeon_state'":table==="world_geography"?"to_jsonb(t)-'context'":"to_jsonb(t)";assert.deepEqual((await pool.query(`select ${projection} as row from ${table} t order by id`)).rows.filter(r=>(rows as {row:{id:string}}[]).some(old=>old.row.id===r.row.id)),rows);}assert.deepEqual((await pool.query("select to_jsonb(d)-'sort_order' as row from world_atlas_drawing d where map_id=$1 order by id",[paintedMap])).rows,paintedBefore);assert.deepEqual((await pool.query("select to_jsonb(m)-'presentation'-'generation'-'source_map_id'-'geography_id'-'map_kind'-'settlement_state'-'interior_state'-'dungeon_state' as row from world_atlas_map m where id=$1",[oldMap])).rows,oldMapBefore);assert.deepEqual((await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows,atlasUpgradeBefore);assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
     assert.equal((await pool.query("select * from world_historical_entry where dating_system_id is not null or source_dating is not null")).rowCount,1);assert.equal((await pool.query("select * from world_dating_system")).rowCount,1);assert.equal((await pool.query("select * from world_chronology_preference")).rowCount,1);
@@ -304,6 +308,7 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     // Dense fixture exists only in this disposable database, never in product seed data.
     for(let index=0;index<60;index++)await service.changeHistory("world-god",primary,{entity:"entry",action:"save",draft:entryDraft(`Gathering ${index+1}`,{version:1,scale:"world-year",kind:"known",year:500},{eraIds:[]})});
     const timelineService=await import("../src/features/worlds/branching-history-service");const branchingFixture=await branchingServiceChecks(service,timelineService,pool,foreign);
+    const associationService=await import("../src/features/worlds/campaign-association-service");const associationFixture=await associationServiceChecks(service,associationService,timelineService,pool,associationCampaigns,foreign);
     const chronologyFixture=await chronologyServiceChecks(service,pool,primary,foreign);
     const calendarService=await import("../src/features/worlds/calendar-service");
     const calendarFixture=await calendarServiceChecks(calendarService,service,pool,primary,foreign,adminWorld);
@@ -328,6 +333,8 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const god=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.40"}});await signIn(god,baseUrl,"world-god");
     const page=await god.newPage();activePage=page;page.on("pageerror",(error)=>errors.push(error.message));
     await branchingBrowserChecks(browser,baseUrl,branchingFixture,service,timelineService,branchingSources);
+    await associationBrowserChecks(browser,baseUrl,associationFixture,service,associationService,timelineService,pool);
+    if(process.argv.includes("--associations-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--branching-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--dungeon-only")){await dungeonBrowserChecks(browser,baseUrl,dungeonFixture,pool);assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--interior-only")){await interiorBrowserChecks(browser,baseUrl,interiorFixture,pool,"artifacts/guidance/worlds-bridge-a/regressions/interior");await interiorPerformanceChecks(browser,baseUrl,interiorFixture.worldId,"artifacts/guidance/worlds-bridge-a/regressions/interior");assert.deepEqual(await runtimeSnapshot(),before);return;}

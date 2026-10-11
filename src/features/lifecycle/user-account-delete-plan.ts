@@ -18,6 +18,9 @@ export type UserAccountForeignKeyPlanEntry = {
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "world_campaign_context", columnName: "creator_id", constraintName: "world_campaign_context_creator_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Private World–Campaign association ownership" },
+  { tableName: "world_campaign_context_change", columnName: "actor_id", constraintName: "world_campaign_context_change_actor_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "World–Campaign association audit history" },
+  { tableName: "world_authoring_selection", columnName: "user_id", constraintName: "world_authoring_selection_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Retained Worlds authoring context" },
   { tableName: "world", columnName: "owner_id", constraintName: "world_owner_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Owned Worlds and private histories" },
   { tableName: "user_password_recovery_code", columnName: "user_id", constraintName: "user_password_recovery_code_user_id_user_id_fk", onDelete: "cascade", disposition: "cleanup", label: "Password recovery codes" },
   { tableName: "companion_profile", columnName: "updated_by_user_id", constraintName: "companion_profile_updated_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Companion Profile attribution" },
@@ -123,4 +126,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 103;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 106;
