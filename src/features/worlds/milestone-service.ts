@@ -22,13 +22,19 @@ export async function milestoneLinks(userId:string,worldId:string,timelineId:str
     if(missingPlaces.length){const retainedPlaces=await tx.select({id:worldGeography.id,name:worldGeography.name}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),inArray(worldGeography.id,missingPlaces),ordinary?sql`not exists (select 1 from world_dungeon_entity d where d.world_id=${worldId} and d.visibility<>'ordinary' and (d.id=${worldGeography.id} or d.geography_id=${worldGeography.id}))`:undefined));for(const p of retainedPlaces)names.set(p.id,p.name);}
     const missing=current.filter(l=>l.loreId&&!names.has(l.targetId)).map(l=>l.targetId);
     const retained=!ordinary&&missing.length?(await tx.execute<{id:string;name:string;timeline_id:string}>(sql`
-      select i.id,coalesce(s.name,p.name,o.name,r.name) name,coalesce(ch.timeline_id,oh.timeline_id) timeline_id
+      select i.id,coalesce(s.name,p.name,o.name,r.name,cuv.name,civ.name,lv.name,pv.name,bv.name,tv.name) name,coalesce(ch.timeline_id,oh.timeline_id) timeline_id
       from world_lore_identity i
       left join world_lore_head ch on ch.entity_id=i.id and ch.timeline_id=${timelineId} and ch.world_id=i.world_id
       left join world_lore_head oh on oh.entity_id=i.id and oh.timeline_id=i.origin_timeline_id and oh.world_id=i.world_id
       join world_lore_version v on v.id=coalesce(ch.version_id,oh.version_id)
       left join world_species_version s on s.version_id=v.id left join world_people_version p on p.version_id=v.id
       left join world_origin_version o on o.version_id=v.id left join world_relationship_version r on r.version_id=v.id
+      left join world_culture_version cuv on cuv.version_id=v.id
+      left join world_civilization_version civ on civ.version_id=v.id
+      left join world_language_version lv on lv.version_id=v.id
+      left join world_population_version pv on pv.version_id=v.id
+      left join world_belief_version bv on bv.version_id=v.id
+      left join world_tradition_version tv on tv.version_id=v.id
       where i.world_id=${worldId} and i.id in (${sql.join(missing.map(id=>sql`${id}`),sql`,` )})
     `)).rows:[];
     const retainedById=new Map(retained.map(r=>[r.id,r]));return {choices,links:current.filter(l=>!ordinary||names.has(l.targetId)).map(l=>({id:l.targetId,name:names.get(l.targetId)??retainedById.get(l.targetId)?.name??"Retained unavailable entity",timelineId:retainedById.get(l.targetId)?.timeline_id??timelineId,kind:l.loreId?"lore":"geography",eventType:l.eventType}))};

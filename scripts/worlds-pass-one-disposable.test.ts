@@ -1,3 +1,4 @@
+import {seedSocietiesUpgrade,societiesServiceChecks,societiesBrowserChecks} from "./worlds-societies-checks";
 import { peoplesServiceChecks, peoplesBrowserChecks, seedPeoplesUpgrade } from "./worlds-peoples-checks";
 import { seedAssociationCampaigns, seedAssociationUpgrade, associationServiceChecks, associationBrowserChecks } from "./worlds-association-checks";
 import { captureWorldsScreenshot } from "./worlds-browser-evidence";
@@ -127,7 +128,7 @@ async function main() {
     pool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await pool.query("create database serrian_worlds_test");await pool.end();pool=new pg.Pool({connectionString:databaseUrl});
     // Rehearse an upgrade with pre-existing users, tags and Campaign/runtime data.
     const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")) as {entries:{tag:string;idx:number}[]};
-    assert.equal(journal.entries.at(-1)?.tag,"0114_worlds_peoples_origins");
+    assert.equal(journal.entries.at(-1)?.tag,"0115_worlds_cultures_societies");
     const baseline=path.join(temporaryRoot,"baseline");await mkdir(path.join(baseline,"meta"),{recursive:true});
     for(const entry of journal.entries.filter(e=>e.idx<102))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
     await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<102)}));
@@ -240,7 +241,9 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const bridgeMigration=path.join(temporaryRoot,"bridge-a");await mkdir(path.join(bridgeMigration,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=112))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(bridgeMigration,`${entry.tag}.sql`));await writeFile(path.join(bridgeMigration,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=112)}));await migrate(drizzle(pool),{migrationsFolder:bridgeMigration});await assertBridgeUpgrade();
     const assertAssociationUpgrade=await seedAssociationUpgrade(pool,legacyWorld);
     const associationMigration=path.join(temporaryRoot,"bridge-b");await mkdir(path.join(associationMigration,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=113))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(associationMigration,`${entry.tag}.sql`));await writeFile(path.join(associationMigration,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=113)}));await migrate(drizzle(pool),{migrationsFolder:associationMigration});await assertAssociationUpgrade();await migrate(drizzle(pool),{migrationsFolder:associationMigration});await assertAssociationUpgrade();
-    const assertPeoplesUpgrade=await seedPeoplesUpgrade(pool,legacyWorld);await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await assertPeoplesUpgrade();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await assertPeoplesUpgrade();
+    const assertPeoplesUpgrade=await seedPeoplesUpgrade(pool,legacyWorld);
+    const peoplesMigration=path.join(temporaryRoot,"peoples");await mkdir(path.join(peoplesMigration,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=114))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(peoplesMigration,`${entry.tag}.sql`));await writeFile(path.join(peoplesMigration,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=114)}));await migrate(drizzle(pool),{migrationsFolder:peoplesMigration});await assertPeoplesUpgrade();await migrate(drizzle(pool),{migrationsFolder:peoplesMigration});await assertPeoplesUpgrade();
+    const societiesUpgrade=await seedSocietiesUpgrade(pool,legacyWorld);await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await societiesUpgrade.verify();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await societiesUpgrade.verify();
     // Compare pre-0106 rows as well; the v1 fixture is deliberately added between migrations.
     for(const [table,rows]of existingAtlas){const projection=table==="world_atlas_map"?"to_jsonb(t)-'generation'-'source_map_id'-'geography_id'-'map_kind'-'settlement_state'-'interior_state'-'dungeon_state'":table==="world_geography"?"to_jsonb(t)-'context'":"to_jsonb(t)";assert.deepEqual((await pool.query(`select ${projection} as row from ${table} t order by id`)).rows.filter(r=>(rows as {row:{id:string}}[]).some(old=>old.row.id===r.row.id)),rows);}assert.deepEqual((await pool.query("select to_jsonb(d)-'sort_order' as row from world_atlas_drawing d where map_id=$1 order by id",[paintedMap])).rows,paintedBefore);assert.deepEqual((await pool.query("select to_jsonb(m)-'presentation'-'generation'-'source_map_id'-'geography_id'-'map_kind'-'settlement_state'-'interior_state'-'dungeon_state' as row from world_atlas_map m where id=$1",[oldMap])).rows,oldMapBefore);assert.deepEqual((await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows,atlasUpgradeBefore);assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
     assert.equal((await pool.query("select * from world_historical_entry where dating_system_id is not null or source_dating is not null")).rowCount,1);assert.equal((await pool.query("select * from world_dating_system")).rowCount,1);assert.equal((await pool.query("select * from world_chronology_preference")).rowCount,1);
@@ -326,7 +329,8 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const settlementFixture=await settlementServiceChecks(atlasService,service,pool,foreign);
     const interiorFixture=await interiorServiceChecks(atlasService,service,pool,foreign);
     const dungeonFixture=await dungeonServiceChecks(atlasService,pool,interiorFixture,foreign);
-    const peoplesFixture=await peoplesServiceChecks(service,timelineService,pool,foreign,chronologyFixture,evolutionFixture);
+    const peoplesFixture=await peoplesServiceChecks(service,timelineService,pool,foreign,chronologyFixture,evolutionFixture,"artifacts/guidance/worlds-4a-2/4a-1-regression");
+    const societiesFixture=await societiesServiceChecks(service,timelineService,pool,foreign,societiesUpgrade);
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     if(process.argv.includes("--services-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-pass-one-next.log`)));});
@@ -336,7 +340,9 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     browser=await chromium.launch({executablePath:process.env.SERRIAN_TEST_CHROME??"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true});
     const god=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.40"}});await signIn(god,baseUrl,"world-god");
     const page=await god.newPage();activePage=page;page.on("pageerror",(error)=>errors.push(error.message));
-    await peoplesBrowserChecks(browser,baseUrl,peoplesFixture,service,pool);
+    await peoplesBrowserChecks(browser,baseUrl,peoplesFixture,service,pool,"artifacts/guidance/worlds-4a-2/4a-1-regression");
+    await societiesBrowserChecks(browser,baseUrl,societiesFixture,pool);
+    if(process.argv.includes("--societies-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     if(process.argv.includes("--peoples-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await branchingBrowserChecks(browser,baseUrl,branchingFixture,service,timelineService,branchingSources);
     await associationBrowserChecks(browser,baseUrl,associationFixture,service,associationService,timelineService,pool);

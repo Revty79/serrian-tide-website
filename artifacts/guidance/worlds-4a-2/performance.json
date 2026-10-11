@@ -1,0 +1,17 @@
+{
+  "entities": 360,
+  "families": 6,
+  "milestones": 52,
+  "geographicAssociations": 360,
+  "relationships": 359,
+  "writeMs": 2176,
+  "listMs": 19,
+  "detailMs": 21,
+  "referenceMs": 19,
+  "placeMs": 22,
+  "listDetailReferencesAndPlaceMs": 81,
+  "listBytes": 33869,
+  "detailBytes": 9291,
+  "referenceBytes": 46614,
+  "placeBytes": 33869
+}
