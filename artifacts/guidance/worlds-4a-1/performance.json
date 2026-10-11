@@ -1,0 +1,10 @@
+{
+  "entities": 300,
+  "species": 120,
+  "relationships": 180,
+  "listPage": 100,
+  "listAndDetailAndReferencesMs": 35,
+  "listBytes": 34613,
+  "detailBytes": 5661,
+  "referenceBytes": 31729
+}

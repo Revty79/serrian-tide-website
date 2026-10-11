@@ -4,6 +4,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { worldTimeline } from "@/db/world-schema";
 import { worldHistoryHead, worldHistoryVersion, worldHistoryVersionEra } from "@/db/world-timeline-schema";
+import { worldHistoryVersionEntity } from "@/db/world-peoples-schema";
 import { HISTORY_LIMIT, inheritedProjection, type HistoricalSnapshot, type HistoryContext, type InheritanceReview, type WorldTimeline } from "./branching-history";
 import type { EntryRecord, EraRecord } from "./history";
 import { WorldError } from "./world-service";
@@ -22,6 +23,7 @@ export async function insertHistoryVersion(tx:HistoryTx,timelineId:string,record
   const entry="time" in payload?payload:null;
   await tx.insert(worldHistoryVersion).values({id,worldId:record.worldId,entityId:record.id,timelineId,entryId:entry?record.id:null,eraId:entry?null:record.id,payload,datingSystemId:record.datingSystemId??null,startVersionId:entry?.calendarSource?.start.versionId??null,endVersionId:entry?.calendarSource?.end?.versionId??null});
   if(entry?.eraIds.length)await tx.insert(worldHistoryVersionEra).values([...new Set(entry.eraIds)].map(eraId=>({versionId:id,worldId:record.worldId,entryId:record.id,eraId})));
+  if(entry){const [previous]=await tx.select().from(worldHistoryHead).where(and(eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,record.id)));if(previous){const links=await tx.select().from(worldHistoryVersionEntity).where(eq(worldHistoryVersionEntity.versionId,previous.versionId));if(links.length)await tx.insert(worldHistoryVersionEntity).values(links.map(link=>({...link,versionId:id})));}}
   return id;
 }
 export async function capturePrimaryVersion(tx:HistoryTx,timelineId:string,record:HistoricalSnapshot) {

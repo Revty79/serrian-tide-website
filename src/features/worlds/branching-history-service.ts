@@ -41,6 +41,7 @@ export async function changeTimeline(userId:string,worldId:string,input:unknown)
         else if(head.mode==="partial"&&mode!=="excluded")mode="partial";
         return {timelineId,worldId,entityId:head.entityId,versionId:head.versionId,mode,revision:1,sourceTimelineId:parent.id,sourceVersionId:head.versionId,sourceRevision:head.revision,coveredUntil:mode==="partial"?Math.min(divergenceYear-1,head.coveredUntil??divergenceYear-1):null};
       }));
+      const {inheritPeoples}=await import("./peoples-service");await inheritPeoples(tx,userId,worldId,parent.id,timelineId,divergenceYear);
       await touch(tx,worldId);return timelineId;
     }
     const timeline=await selectedTimeline(tx,worldId,command.id);

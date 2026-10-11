@@ -1,3 +1,4 @@
+import { peoplesServiceChecks, peoplesBrowserChecks, seedPeoplesUpgrade } from "./worlds-peoples-checks";
 import { seedAssociationCampaigns, seedAssociationUpgrade, associationServiceChecks, associationBrowserChecks } from "./worlds-association-checks";
 import { captureWorldsScreenshot } from "./worlds-browser-evidence";
 import { branchingServiceChecks, branchingBrowserChecks, branchingSourceChecks, seedBridgeUpgrade } from "./worlds-branching-checks";
@@ -126,7 +127,7 @@ async function main() {
     pool=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await pool.query("create database serrian_worlds_test");await pool.end();pool=new pg.Pool({connectionString:databaseUrl});
     // Rehearse an upgrade with pre-existing users, tags and Campaign/runtime data.
     const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")) as {entries:{tag:string;idx:number}[]};
-    assert.equal(journal.entries.at(-1)?.tag,"0113_worlds_campaign_associations");
+    assert.equal(journal.entries.at(-1)?.tag,"0114_worlds_peoples_origins");
     const baseline=path.join(temporaryRoot,"baseline");await mkdir(path.join(baseline,"meta"),{recursive:true});
     for(const entry of journal.entries.filter(e=>e.idx<102))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(baseline,`${entry.tag}.sql`));
     await writeFile(path.join(baseline,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<102)}));
@@ -170,7 +171,7 @@ async function main() {
     await pool.query("insert into world_calendar_reform(id,world_id,name,predecessor_id,successor_id,effective_time,reason,details,entry_id) values($1,$2,'Existing reform',$3,$4,$5,'Existing reason','Existing transition',$6)",[randomUUID(),legacyWorld,legacyVersion,legacySuccessor,legacyPeriod.time,legacyEntry]);
     await pool.query("insert into world_calendar_entry_date(entry_id,world_id,start_version_id,source) values($1,$2,$3,$4)",[legacyEntry,legacyWorld,legacyVersion,{version:1,kind:"known",start:{versionId:legacyVersion,calendarId:legacyCalendar,revision:1,calendarName:"Legacy Calendar",versionTitle:"Original rules",date:{year:1,month:1,day:1},elapsedDay:"9007199254740993",notation:"Original source notation"}}]);
     const legacyTables=["world_day_reference","world_calendar_anchor","world_calendar_history","world_calendar_adoption","world_calendar_reform","world_calendar_entry_date","world_calendar","world_calendar_version","world_calendar_preference","world","world_historical_era","world_historical_entry","world_entry_era","world_classification_tag","world_dating_system","world_chronology_preference"];
-    async function legacySnapshot(){const snapshot:Record<string,unknown>={};for(const table of legacyTables){const hasTimelineColumn=(await pool!.query("select 1 from information_schema.columns where table_name=$1 and column_name='timeline_id'",[table])).rowCount;const expression=hasTimelineColumn&&(table==="world_historical_entry"||table==="world_historical_era")?"to_jsonb(t)-'timeline_id'":"to_jsonb(t)";snapshot[table]=(await pool!.query(`select coalesce(jsonb_agg(${expression} order by to_jsonb(t)::text),'[]'::jsonb) as rows from ${table} t`)).rows[0].rows;}return snapshot;}
+    async function legacySnapshot(){const snapshot:Record<string,unknown>={};for(const table of legacyTables){const hasTimelineColumn=(await pool!.query("select 1 from information_schema.columns where table_name=$1 and column_name='timeline_id'",[table])).rowCount;const expression=hasTimelineColumn&&(table==="world_historical_entry"||table==="world_historical_era")?"to_jsonb(t)-'timeline_id'-'visibility'":"to_jsonb(t)";snapshot[table]=(await pool!.query(`select coalesce(jsonb_agg(${expression} order by to_jsonb(t)::text),'[]'::jsonb) as rows from ${table} t`)).rows[0].rows;}return snapshot;}
     const legacyBefore=await legacySnapshot(),before=await runtimeSnapshot();
     const foundation=path.join(temporaryRoot,"foundation");await mkdir(path.join(foundation,"meta"),{recursive:true});
     for(const entry of journal.entries.filter(e=>e.idx<=102))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(foundation,`${entry.tag}.sql`));
@@ -237,7 +238,9 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
 
     const assertBridgeUpgrade=await seedBridgeUpgrade(pool,legacyWorld);
     const bridgeMigration=path.join(temporaryRoot,"bridge-a");await mkdir(path.join(bridgeMigration,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=112))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(bridgeMigration,`${entry.tag}.sql`));await writeFile(path.join(bridgeMigration,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=112)}));await migrate(drizzle(pool),{migrationsFolder:bridgeMigration});await assertBridgeUpgrade();
-    const assertAssociationUpgrade=await seedAssociationUpgrade(pool,legacyWorld);await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await assertAssociationUpgrade();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await assertAssociationUpgrade();
+    const assertAssociationUpgrade=await seedAssociationUpgrade(pool,legacyWorld);
+    const associationMigration=path.join(temporaryRoot,"bridge-b");await mkdir(path.join(associationMigration,"meta"),{recursive:true});for(const entry of journal.entries.filter(e=>e.idx<=113))await copyFile(path.resolve(`drizzle/${entry.tag}.sql`),path.join(associationMigration,`${entry.tag}.sql`));await writeFile(path.join(associationMigration,"meta/_journal.json"),JSON.stringify({...journal,entries:journal.entries.filter(e=>e.idx<=113)}));await migrate(drizzle(pool),{migrationsFolder:associationMigration});await assertAssociationUpgrade();await migrate(drizzle(pool),{migrationsFolder:associationMigration});await assertAssociationUpgrade();
+    const assertPeoplesUpgrade=await seedPeoplesUpgrade(pool,legacyWorld);await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await assertPeoplesUpgrade();await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});await assertPeoplesUpgrade();
     // Compare pre-0106 rows as well; the v1 fixture is deliberately added between migrations.
     for(const [table,rows]of existingAtlas){const projection=table==="world_atlas_map"?"to_jsonb(t)-'generation'-'source_map_id'-'geography_id'-'map_kind'-'settlement_state'-'interior_state'-'dungeon_state'":table==="world_geography"?"to_jsonb(t)-'context'":"to_jsonb(t)";assert.deepEqual((await pool.query(`select ${projection} as row from ${table} t order by id`)).rows.filter(r=>(rows as {row:{id:string}}[]).some(old=>old.row.id===r.row.id)),rows);}assert.deepEqual((await pool.query("select to_jsonb(d)-'sort_order' as row from world_atlas_drawing d where map_id=$1 order by id",[paintedMap])).rows,paintedBefore);assert.deepEqual((await pool.query("select to_jsonb(m)-'presentation'-'generation'-'source_map_id'-'geography_id'-'map_kind'-'settlement_state'-'interior_state'-'dungeon_state' as row from world_atlas_map m where id=$1",[oldMap])).rows,oldMapBefore);assert.deepEqual((await pool.query("select to_jsonb(f) as row from world_atlas_feature f where id=$1",[oldFeature])).rows,atlasUpgradeBefore);assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(await legacySnapshot(),legacyBefore);
     assert.equal((await pool.query("select * from world_historical_entry where dating_system_id is not null or source_dating is not null")).rowCount,1);assert.equal((await pool.query("select * from world_dating_system")).rowCount,1);assert.equal((await pool.query("select * from world_chronology_preference")).rowCount,1);
@@ -323,6 +326,7 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const settlementFixture=await settlementServiceChecks(atlasService,service,pool,foreign);
     const interiorFixture=await interiorServiceChecks(atlasService,service,pool,foreign);
     const dungeonFixture=await dungeonServiceChecks(atlasService,pool,interiorFixture,foreign);
+    const peoplesFixture=await peoplesServiceChecks(service,timelineService,pool,foreign,chronologyFixture,evolutionFixture);
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     if(process.argv.includes("--services-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see artifacts/guidance/worlds-pass-one-next.log`)));});
@@ -332,6 +336,8 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     browser=await chromium.launch({executablePath:process.env.SERRIAN_TEST_CHROME??"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true});
     const god=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.40"}});await signIn(god,baseUrl,"world-god");
     const page=await god.newPage();activePage=page;page.on("pageerror",(error)=>errors.push(error.message));
+    await peoplesBrowserChecks(browser,baseUrl,peoplesFixture,service,pool);
+    if(process.argv.includes("--peoples-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await branchingBrowserChecks(browser,baseUrl,branchingFixture,service,timelineService,branchingSources);
     await associationBrowserChecks(browser,baseUrl,associationFixture,service,associationService,timelineService,pool);
     if(process.argv.includes("--associations-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}

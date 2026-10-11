@@ -66,7 +66,7 @@ function worldDto(row: typeof world.$inferSelect, ownerName: string, tagIds: num
   return { id: row.id, ownerId: row.ownerId, ownerName, name: row.name, description: row.description, introduction: row.introduction, historicalOverview: row.historicalOverview, tone: row.tone as Tone, revision: row.revision, archived: !!row.archivedAt, updatedAt: row.updatedAt.toISOString(), tagIds, eraCount, entryCount };
 }
 export function eraDto(row: typeof worldEra.$inferSelect): EraRecord { return { id: row.id, worldId: row.worldId, name: row.name, description: row.description, startYear: row.startYear, endYear: row.endYear, tone: row.tone as Tone, revision: row.revision, archived: !!row.archivedAt, datingSystemId:row.datingSystemId,datingSystemRevision:row.sourceDating?.revision,sourceDating:row.sourceDating }; }
-export function entryDto(row: typeof worldEntry.$inferSelect, eraIds: string[],calendarSource:CalendarSource|null): EntryRecord { return { id: row.id, worldId: row.worldId, title: row.title, account: row.account, notes: row.notes, time: row.time, accuracy: row.accuracy as EntryRecord["accuracy"], narrative: row.narrative as EntryRecord["narrative"], revision: row.revision, archived: !!row.archivedAt, updatedAt: row.updatedAt.toISOString(), eraIds,datingSystemId:row.datingSystemId,datingSystemRevision:row.sourceDating?.revision,sourceDating:row.sourceDating,calendarSource }; }
+export function entryDto(row: typeof worldEntry.$inferSelect, eraIds: string[],calendarSource:CalendarSource|null): EntryRecord { return { id: row.id, worldId: row.worldId, title: row.title, account: row.account, notes: row.notes, ...(row.visibility === "protected" ? {visibility:"protected" as const} : {}), time: row.time, accuracy: row.accuracy as EntryRecord["accuracy"], narrative: row.narrative as EntryRecord["narrative"], revision: row.revision, archived: !!row.archivedAt, updatedAt: row.updatedAt.toISOString(), eraIds,datingSystemId:row.datingSystemId,datingSystemRevision:row.sourceDating?.revision,sourceDating:row.sourceDating,calendarSource }; }
 function datingDto(row:typeof worldDatingSystem.$inferSelect):DatingSystem {return {id:row.id,worldId:row.worldId,name:row.name,description:row.description,origin:row.origin,epochYear:row.epochYear,numbering:row.numbering as DatingSystem["numbering"],beforeLabel:row.beforeLabel,afterLabel:row.afterLabel,notes:row.notes,revision:row.revision,archived:!!row.archivedAt,referenced:!!row.referencedAt};}
 export async function listWorlds(userId: string, scope: "mine" | "review" = "mine") {
   const access = await actor(userId);
@@ -150,13 +150,15 @@ export async function sourceDatingFor(tx:Tx,worldId:string,systemId:string|null|
 }
 export async function changeHistory(userId: string, worldId: string, input: unknown) {
   await actor(userId);
+  return db.transaction(tx=>changeHistoryInTransaction(tx,userId,worldId,input));
+}
+export async function changeHistoryInTransaction(tx:Tx,userId:string,worldId:string,input:unknown) {
   const command = historyCommand.parse(input);
   const id = command.id ?? randomUUID();
-  await db.transaction(async (tx) => {
     await lockOwned(tx, userId, worldId);
     const timeline=await selectedTimeline(tx,worldId,command.timelineId);
     if(timeline.archivedAt)throw new WorldError("Restore this timeline before editing its history.",400);
-    if(!timeline.primary){const {changeBranchHistory}=await import("./branching-history-service");await changeBranchHistory(tx,worldId,timeline,command,id);return;}
+    if(!timeline.primary){const {changeBranchHistory}=await import("./branching-history-service");await changeBranchHistory(tx,worldId,timeline,command,id);return id;}
     const table = command.entity === "era" ? worldEra : worldEntry;
     const [current] = command.id ? await tx.select({ revision: table.revision, archivedAt: table.archivedAt,datingSystemId:table.datingSystemId,sourceDating:table.sourceDating }).from(table).where(and(eq(table.id, id), eq(table.worldId, worldId),eq(table.timelineId,timeline.id))).for("update") : [];
     if (command.id && !current) throw notFound();
@@ -195,7 +197,6 @@ export async function changeHistory(userId: string, worldId: string, input: unkn
     if(command.entity==="era"){const [row]=await tx.select().from(worldEra).where(eq(worldEra.id,id));await capturePrimaryVersion(tx,timeline.id,eraDto(row));}
     else {const [row]=await tx.select().from(worldEntry).where(eq(worldEntry.id,id));const links=await tx.select().from(worldEntryEra).where(eq(worldEntryEra.entryId,id));const [date]=await tx.select().from(worldCalendarEntryDate).where(eq(worldCalendarEntryDate.entryId,id));await capturePrimaryVersion(tx,timeline.id,entryDto(row,links.map(link=>link.eraId),date?.source??null));}
     await tx.update(world).set({ updatedAt: new Date() }).where(eq(world.id, worldId));
-  });
   return id;
 }
 const chronologyCommand = z.union([

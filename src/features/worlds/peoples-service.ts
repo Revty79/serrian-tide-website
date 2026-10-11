@@ -1,0 +1,143 @@
+import "server-only";
+import { createHash, randomUUID } from "node:crypto";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { world } from "@/db/world-schema";
+import { worldHistoryHead, worldHistoryVersion } from "@/db/world-timeline-schema";
+import { worldLoreIdentity as identity, worldLoreVersion as version, worldLoreHead as head, worldSpeciesVersion as species, worldPeopleVersion as people, worldOriginVersion as origin, worldRelationshipVersion as relationship, worldLoreParticipant as participant, worldLoreSection as section, worldLoreHistory as history, worldLoreChange as change, worldHistoryVersionEntity as eventLink } from "@/db/world-peoples-schema";
+import { worldReadAccess, worldWriteTransaction, WorldError, sourceDatingFor, changeHistoryInTransaction } from "./world-service";
+import { selectedTimeline, type HistoryTx } from "./history-version-service";
+import { loreCommandSchema, loreInheritance, LORE_LIMIT, type LoreDraft, type LoreRecord, type LoreSummary, type LoreList, type LoreReferences, type LoreFamily } from "./peoples";
+import { entryDraftSchema, type EntryRecord } from "./history";
+import type { HistoricalSnapshot } from "./branching-history";
+import type { CalendarSource } from "./calendar-dates";
+import { resolveHistoryCalendarSource } from "./calendar-evolution-service";
+
+const unavailable = () => new WorldError("This World record or historical source is unavailable.",404);
+const conflict = () => new WorldError("A newer version was saved in another tab. Your draft is retained. Load the latest record before saving again.",409);
+const name = sql<string>`coalesce(${species.name},${people.name},${origin.name},${relationship.name})`;
+function metadata(tx:HistoryTx,worldId:string,timelineId:string,ordinary=false) {
+  return tx.select({id:head.entityId,family:version.family,name,revision:head.revision,versionId:head.versionId,mode:head.mode,archived:version.archived,time:version.time,sourceRevision:head.sourceRevision,sourceTimelineId:head.sourceTimelineId})
+    .from(head).innerJoin(version,eq(version.id,head.versionId)).leftJoin(species,eq(species.versionId,version.id)).leftJoin(people,eq(people.versionId,version.id)).leftJoin(origin,eq(origin.versionId,version.id)).leftJoin(relationship,eq(relationship.versionId,version.id))
+    .where(and(eq(head.worldId,worldId),eq(head.timelineId,timelineId),ordinary?eq(version.visibility,"ordinary"):undefined)).orderBy(asc(head.entityId)).limit(LORE_LIMIT+1);
+}
+async function summaries(tx:HistoryTx,worldId:string,timelineId:string,ordinary=false):Promise<LoreSummary[]> {
+  const rows=await metadata(tx,worldId,timelineId,ordinary);if(rows.length>LORE_LIMIT)throw new WorldError("This timeline exceeds its retained entity limit.",400);
+  const timeline=await selectedTimeline(tx,worldId,timelineId);
+  const parents=timeline.parentId?await tx.select({entityId:head.entityId,versionId:head.versionId,revision:head.revision}).from(head).innerJoin(version,eq(version.id,head.versionId)).where(and(eq(head.worldId,worldId),eq(head.timelineId,timeline.parentId),ordinary?eq(version.visibility,"ordinary"):undefined)).limit(LORE_LIMIT+1):[];
+  const byId=new Map(parents.map(p=>[p.entityId,p]));
+  return rows.map(row=>({...row,parentVersionId:byId.get(row.id)?.versionId??null,parentRevision:byId.get(row.id)?.revision??null}));
+}
+export async function listPeoples(userId:string,worldId:string,timelineId:string,review=false,ordinary=false,query="",offset=0,family?:LoreFamily):Promise<LoreList> {
+  const parent=await worldReadAccess(userId,worldId,review);
+  return db.transaction(async tx=>{const timeline=await selectedTimeline(tx,worldId,timelineId);const all=await summaries(tx,worldId,timeline.id,ordinary);const filtered=all.filter(row=>(!family||row.family===family)&&`${row.name} ${row.family}`.toLowerCase().includes(query.toLowerCase()));return {records:filtered.slice(offset,offset+100),hasMore:filtered.length>offset+100,canEdit:!review&&parent.ownerId===userId&&!parent.archivedAt&&!timeline.archivedAt,timelineName:timeline.name};},{isolationLevel:"repeatable read",accessMode:"read only"});
+}
+export async function peoplesReferences(userId:string,worldId:string,timelineId:string,review=false,ordinary=false):Promise<LoreReferences> {
+  await worldReadAccess(userId,worldId,review);
+  return db.transaction(tx=>peoplesReferencesInTransaction(tx,worldId,timelineId,ordinary),{isolationLevel:"repeatable read",accessMode:"read only"});
+}
+export async function peoplesReferencesInTransaction(tx:HistoryTx,worldId:string,timelineId:string,ordinary=false):Promise<LoreReferences>{
+  const timeline=await selectedTimeline(tx,worldId,timelineId),rows=await summaries(tx,worldId,timelineId,ordinary);
+    const historyRows=await tx.select({entityId:worldHistoryHead.entityId,versionId:worldHistoryVersion.id,name:sql<string>`coalesce(${worldHistoryVersion.payload}->>'title',${worldHistoryVersion.payload}->>'name')`,archived:sql<boolean>`coalesce((${worldHistoryVersion.payload}->>'archived')::boolean,false)`}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timeline.id),inArray(worldHistoryHead.mode,["authored","inherited","partial","interpretation"]),ordinary?sql`coalesce(${worldHistoryVersion.payload}->>'visibility','ordinary')='ordinary'`:undefined)).limit(5000);
+    return {entities:rows.filter(row=>row.mode!=="pending"&&row.mode!=="excluded").map(({id,name,family,archived})=>({id,name,family,archived})),history:historyRows,parent:timeline.parentId?(await summaries(tx,worldId,timeline.parentId,ordinary)).filter(p=>!rows.some(r=>r.id===p.id)):[]};
+
+}
+function calendarDraft(source:CalendarSource|null) { if(!source)return undefined;const start={versionId:source.start.versionId,revision:source.start.revision,date:source.start.date};return source.kind==="window"||source.kind==="duration"?{kind:source.kind,start,end:{versionId:source.end!.versionId,revision:source.end!.revision,date:source.end!.date}}:{kind:source.kind,start}; }
+export function milestoneDraft(record:EntryRecord) { return entryDraftSchema.parse({title:record.title,account:record.account,notes:record.notes,visibility:record.visibility??"ordinary",time:record.time,accuracy:record.accuracy,narrative:record.narrative,eraIds:record.eraIds,datingSystemId:record.datingSystemId,datingSystemRevision:record.datingSystemRevision,calendarDate:calendarDraft(record.calendarSource??null)}); }
+export async function entityMilestones(tx:HistoryTx,worldId:string,timelineId:string,loreId:string,ordinary=false) {
+  const rows=await tx.select({payload:worldHistoryVersion.payload,revision:worldHistoryHead.revision,eventType:eventLink.eventType}).from(eventLink).innerJoin(worldHistoryHead,and(eq(worldHistoryHead.versionId,eventLink.versionId),eq(worldHistoryHead.timelineId,timelineId))).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(eventLink.worldId,worldId),eq(eventLink.loreId,loreId),inArray(worldHistoryHead.mode,["authored","inherited","partial","interpretation"]),ordinary?sql`coalesce(${worldHistoryVersion.payload}->>'visibility','ordinary')='ordinary'`:undefined)).limit(41);
+  if(rows.length>40)throw new WorldError("This entity exceeds its supported 40 milestones.",400);
+  return rows.map(row=>({...row.payload as EntryRecord,...(ordinary?{notes:""}:{}),revision:row.revision,eventType:row.eventType}));
+}
+async function detail(tx:HistoryTx,worldId:string,timelineId:string,id:string,ordinary=false):Promise<LoreRecord> {
+  const rows=await summaries(tx,worldId,timelineId,ordinary),summary=rows.find(row=>row.id===id);if(!summary)throw unavailable();
+  const [v]=await tx.select().from(version).where(eq(version.id,summary.versionId));
+  const [typed]=summary.family==="species"?await tx.select().from(species).where(eq(species.versionId,v.id)):summary.family==="people"?await tx.select().from(people).where(eq(people.versionId,v.id)):summary.family==="origin"?await tx.select().from(origin).where(eq(origin.versionId,v.id)):await tx.select().from(relationship).where(eq(relationship.versionId,v.id));
+  if(!typed)throw unavailable();
+  const {versionId:_,worldId:__,family:___,name:recordName,description,...fields}=typed;void _;void __;void ___;
+  const visible=new Map(rows.map(row=>[row.id,row]));
+  const participants=(await tx.select().from(participant).where(eq(participant.versionId,v.id)).orderBy(asc(participant.position))).filter(p=>!ordinary||!p.targetId||visible.has(p.targetId)).map(p=>({targetId:p.targetId,authoredReference:p.authoredReference,role:p.role,account:p.account,name:p.targetId?visible.get(p.targetId)?.name??"Retained unavailable reference":p.authoredReference,unavailable:!!p.targetId&&(!visible.has(p.targetId)||visible.get(p.targetId)!.archived||["pending","excluded"].includes(visible.get(p.targetId)!.mode))}));
+  const sections=await tx.select({id:section.id,title:section.title,body:section.body,protected:section.protected}).from(section).where(and(eq(section.versionId,v.id),ordinary?eq(section.protected,false):undefined)).orderBy(asc(section.position));
+  const historyRows=await tx.select({entityId:history.entityId,versionId:history.historyVersionId,name:sql<string>`coalesce(${worldHistoryVersion.payload}->>'title',${worldHistoryVersion.payload}->>'name')`}).from(history).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,history.historyVersionId)).where(and(eq(history.versionId,v.id),ordinary?sql`coalesce(${worldHistoryVersion.payload}->>'visibility','ordinary')='ordinary'`:undefined));
+  const inbound=await tx.select({id:head.entityId}).from(participant).innerJoin(head,and(eq(head.versionId,participant.versionId),eq(head.timelineId,timelineId))).where(and(eq(participant.targetId,id),eq(participant.worldId,worldId))).limit(100);
+  const relatedIds=new Set(inbound.map(r=>r.id));const related=rows.filter(row=>relatedIds.has(row.id)&&row.id!==id&&row.mode!=="pending"&&row.mode!=="excluded").slice(0,100);
+  const milestones=await entityMilestones(tx,worldId,timelineId,id,ordinary);
+  const draft:LoreDraft={family:summary.family,name:recordName,description,fields,time:v.time,accuracy:v.accuracy as LoreDraft["accuracy"],narrative:v.narrative,visibility:v.visibility,privateNotes:ordinary?"":v.privateNotes,participants:participants.map(({targetId,authoredReference,role,account})=>({targetId,authoredReference,role,account})),historyRefs:historyRows.map(({entityId,versionId})=>({entityId,versionId})),sections,datingSystemId:v.datingSystemId,datingSystemRevision:v.sourceDating?.revision,calendarDate:calendarDraft(v.calendarSource),milestones:milestones.filter(m=>!m.archived).map(m=>({entryId:m.id,revision:m.revision,eventType:m.eventType,draft:milestoneDraft(m)}))};
+  return {...summary,draft,participants,historyNames:historyRows,related,milestoneRecords:milestones,sourceDating:v.sourceDating,calendarSource:v.calendarSource,authorId:v.authorId,createdAt:v.createdAt.toISOString()};
+}
+export async function getPeople(userId:string,worldId:string,timelineId:string,id:string,review=false,ordinary=false) { await worldReadAccess(userId,worldId,review);return db.transaction(tx=>detail(tx,worldId,timelineId,id,ordinary),{isolationLevel:"repeatable read",accessMode:"read only"}); }
+
+async function appendVersion(tx:HistoryTx,userId:string,worldId:string,timelineId:string,entityId:string,draft:LoreDraft,previous?:LoreRecord,archived=false) {
+  const retained=new Set(previous?.draft.participants.map(p=>p.targetId).filter(Boolean));const ids=[...new Set(draft.participants.flatMap(p=>p.targetId?[p.targetId]:[]))];
+  const matches=ids.length?await tx.select({id:head.entityId,mode:head.mode,archived:version.archived}).from(head).innerJoin(version,eq(version.id,head.versionId)).where(and(eq(head.worldId,worldId),eq(head.timelineId,timelineId),inArray(head.entityId,ids))):[];
+  if(ids.some(id=>!matches.some(m=>m.id===id&&(retained.has(id)||(!m.archived&&m.mode!=="pending"&&m.mode!=="excluded")))))throw new WorldError("Choose available participants in this World and timeline. Existing references may be retained.",400);
+  if(draft.historyRefs.length){
+    const sources=await tx.select({id:worldHistoryVersion.id,entityId:worldHistoryVersion.entityId}).from(worldHistoryVersion).where(and(eq(worldHistoryVersion.worldId,worldId),inArray(worldHistoryVersion.id,draft.historyRefs.map(r=>r.versionId))));
+    const current=await tx.select({entityId:worldHistoryHead.entityId,versionId:worldHistoryHead.versionId}).from(worldHistoryHead).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId),inArray(worldHistoryHead.entityId,draft.historyRefs.map(r=>r.entityId)),inArray(worldHistoryHead.mode,["authored","inherited","partial","interpretation"])));
+    for(const ref of draft.historyRefs){if(!sources.some(r=>r.id===ref.versionId&&r.entityId===ref.entityId))throw unavailable();if(!previous?.draft.historyRefs.some(r=>r.entityId===ref.entityId&&r.versionId===ref.versionId)&&!current.some(r=>r.entityId===ref.entityId&&r.versionId===ref.versionId))throw conflict();}
+  }
+  const years=draft.time.kind==="undated"?[]:"year"in draft.time?[draft.time.year]:[draft.time.startYear,draft.time.endYear];
+  const source=await sourceDatingFor(tx,worldId,draft.datingSystemId,draft.datingSystemRevision,years,previous?{datingSystemId:previous.draft.datingSystemId??null,sourceDating:previous.sourceDating}:undefined);
+  const calendarSource=await resolveHistoryCalendarSource(tx,worldId,draft.calendarDate,previous?.calendarSource);
+  const versionId=randomUUID();await tx.insert(version).values({id:versionId,worldId,entityId,family:draft.family,timelineId,authorId:userId,archived,time:draft.time,accuracy:draft.accuracy,narrative:draft.narrative,visibility:draft.visibility,privateNotes:draft.privateNotes,...source,calendarSource,startVersionId:calendarSource?.start.versionId??null,endVersionId:calendarSource?.end?.versionId??null});
+  const keys={versionId,worldId,name:draft.name,description:draft.description};
+  if(draft.family==="species")await tx.insert(species).values({...keys,...draft.fields});else if(draft.family==="people")await tx.insert(people).values({...keys,...draft.fields});else if(draft.family==="origin")await tx.insert(origin).values({...keys,...draft.fields});else await tx.insert(relationship).values({...keys,...draft.fields});
+  if(draft.participants.length)await tx.insert(participant).values(draft.participants.map((p,position)=>({...p,versionId,worldId,position})));
+  if(draft.sections.length)await tx.insert(section).values(draft.sections.map((s,position)=>({...s,versionId,worldId,position})));
+  if(draft.historyRefs.length)await tx.insert(history).values(draft.historyRefs.map(r=>({versionId,worldId,entityId:r.entityId,historyVersionId:r.versionId})));
+  return versionId;
+}
+async function audit(tx:HistoryTx,userId:string,action:string,row:typeof head.$inferInsert) { await tx.insert(change).values({worldId:row.worldId,timelineId:row.timelineId,entityId:row.entityId,versionId:row.versionId,revision:row.revision,actorId:userId,action}); }
+export async function inheritPeoples(tx:HistoryTx,userId:string,worldId:string,parentId:string,timelineId:string,divergence:number) {
+  const sources=await tx.select({h:head,v:version}).from(head).innerJoin(version,eq(version.id,head.versionId)).where(and(eq(head.worldId,worldId),eq(head.timelineId,parentId))).limit(LORE_LIMIT+1);if(sources.length>LORE_LIMIT)throw new WorldError("The parent exceeds the supported entity limit.",400);
+  const pins=sources.map(({h,v})=>({worldId,timelineId,entityId:h.entityId,versionId:v.id,revision:1,mode:h.mode==="pending"||h.mode==="excluded"?h.mode:loreInheritance(v.time,v.archived,v.narrative,divergence),sourceTimelineId:parentId,sourceVersionId:v.id,sourceRevision:h.revision}));
+  if(pins.length){await tx.insert(head).values(pins);await tx.insert(change).values(pins.map(row=>({worldId:row.worldId,timelineId:row.timelineId,entityId:row.entityId,versionId:row.versionId,revision:row.revision,actorId:userId,action:"inherit"})));}
+}
+export async function changePeople(userId:string,worldId:string,input:unknown) {
+  return worldWriteTransaction(userId,worldId,async tx=>{
+    const command=loreCommandSchema.parse(input),timeline=await selectedTimeline(tx,worldId,command.timelineId);if(timeline.archivedAt)throw new WorldError("Restore this timeline before editing.",400);
+    const count=(await tx.select({n:sql<number>`count(*)::integer`}).from(identity).where(eq(identity.worldId,worldId)))[0].n;
+    let entityId:string,previous:LoreRecord|undefined,current:typeof head.$inferSelect|undefined;
+    if(command.action==="create"){
+      const requestHash=createHash("sha256").update(JSON.stringify({timelineId:timeline.id,draft:command.draft})).digest("hex");const [retry]=await tx.select().from(identity).where(and(eq(identity.worldId,worldId),eq(identity.creatorId,userId),eq(identity.requestId,command.requestId)));if(retry){if(retry.requestHash!==requestHash)throw conflict();return retry.id;}
+      if(count>=LORE_LIMIT)throw new WorldError(`A World supports ${LORE_LIMIT} retained entity identities in this checkpoint.`,400);entityId=randomUUID();await tx.insert(identity).values({id:entityId,worldId,family:command.draft.family,originTimelineId:timeline.id,creatorId:userId,requestId:command.requestId,requestHash});
+    }else{entityId=command.id;[current]=await tx.select().from(head).where(and(eq(head.worldId,worldId),eq(head.timelineId,timeline.id),eq(head.entityId,entityId)));if(command.action!=="adopt-source"&&!current)throw unavailable();if((current?.revision??0)!==command.revision)throw conflict();if(current)previous=await detail(tx,worldId,timeline.id,entityId);}
+    let next:typeof head.$inferInsert;
+    if(command.action==="resolve"||command.action==="accept-parent"||command.action==="adopt-source"){
+      if(timeline.primary)throw new WorldError("Choose an alternate timeline to manage sources.",400);
+      if(command.action==="resolve"){if(!current?.sourceTimelineId)throw unavailable();next={...current,mode:command.decision==="exclude"?"excluded":(await tx.select().from(version).where(eq(version.id,current.versionId)))[0].timelineId===timeline.id?"interpretation":"inherited",revision:current.revision+1};}
+      else {if(!timeline.parentId||(command.action==="adopt-source"&&current)||(command.action==="accept-parent"&&!current?.sourceTimelineId))throw unavailable();const [parent]=await tx.select({h:head,v:version}).from(head).innerJoin(version,eq(version.id,head.versionId)).where(and(eq(head.timelineId,timeline.parentId),eq(head.worldId,worldId),eq(head.entityId,entityId)));if(!parent||parent.h.revision!==command.parentRevision||parent.v.id!==command.parentVersionId)throw conflict();next={worldId,timelineId:timeline.id,entityId,versionId:parent.v.id,revision:(current?.revision??0)+1,sourceTimelineId:timeline.parentId,sourceVersionId:parent.v.id,sourceRevision:parent.h.revision,mode:parent.h.mode==="pending"||parent.h.mode==="excluded"?parent.h.mode:loreInheritance(parent.v.time,parent.v.archived,parent.v.narrative,timeline.divergenceYear!)};}
+    }else{
+      if(current&&["pending","excluded"].includes(current.mode))throw new WorldError("Explicitly include this source before editing its interpretation.",400);
+      const draft=command.action==="create"||command.action==="save"?command.draft:previous!.draft;
+      if(previous&&draft.family!==previous.family)throw new WorldError("Keep this entity's family; create a different identity deliberately.",400);
+      if(command.action==="save"&&previous?.archived)throw new WorldError("Restore this record before editing.",400);
+      if(command.action==="create"||command.action==="save"){const existing=new Set(previous?.milestoneRecords.map(m=>m.id)??[]);let added=0;for(const m of draft.milestones){if(m.entryId)existing.add(m.entryId);else added++;}if(existing.size+added>40)throw new WorldError("This entity supports 40 retained milestones, including archived accounts.",400);}
+      const versionId=await appendVersion(tx,userId,worldId,timeline.id,entityId,draft,previous,command.action==="archive");
+      next={worldId,timelineId:timeline.id,entityId,versionId,revision:(current?.revision??0)+1,mode:current?.sourceTimelineId?"interpretation":"authored",sourceTimelineId:current?.sourceTimelineId??null,sourceVersionId:current?.sourceVersionId??null,sourceRevision:current?.sourceRevision??null};
+      if(command.action==="create"||command.action==="save")for(const milestone of draft.milestones){
+        let old:EntryRecord|undefined;
+        if(milestone.entryId){const [h]=await tx.select({v:worldHistoryVersion,h:worldHistoryHead}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timeline.id),eq(worldHistoryHead.entityId,milestone.entryId),inArray(worldHistoryHead.mode,["authored","inherited","interpretation"])));if(!h||!h.v.entryId)throw unavailable();if(h.h.revision!==milestone.revision)throw conflict();old={...h.v.payload as EntryRecord,revision:h.h.revision};}
+        const eventDraft={...milestone.draft,visibility:draft.visibility==="protected"?"protected":milestone.draft.visibility??draft.visibility};
+        // An unchanged linked fact does not create a new fictional event or historical revision.
+        const [existingLink]=old?await tx.select().from(eventLink).where(and(eq(eventLink.targetId,entityId),eq(eventLink.entryId,old.id),eq(eventLink.versionId,(await tx.select().from(worldHistoryHead).where(and(eq(worldHistoryHead.timelineId,timeline.id),eq(worldHistoryHead.entityId,old.id))))[0].versionId))):[];
+        const unchanged=old&&existingLink&&existingLink.eventType===milestone.eventType&&JSON.stringify(milestoneDraft(old))===JSON.stringify(entryDraftSchema.parse(eventDraft));
+        const entryId=unchanged?old!.id:await changeHistoryInTransaction(tx,userId,worldId,{entity:"entry",timelineId:timeline.id,action:"save",id:milestone.entryId,revision:milestone.revision,draft:eventDraft});
+        const [eventHead]=await tx.select().from(worldHistoryHead).where(and(eq(worldHistoryHead.timelineId,timeline.id),eq(worldHistoryHead.entityId,entryId)));
+        const [link]=await tx.select().from(eventLink).where(and(eq(eventLink.versionId,eventHead.versionId),eq(eventLink.targetId,entityId)));
+        if(!link||link.eventType!==milestone.eventType)await tx.insert(eventLink).values({versionId:eventHead.versionId,worldId,entryId,targetId:entityId,loreId:entityId,entityCategory:draft.family,eventType:milestone.eventType}).onConflictDoUpdate({target:[eventLink.versionId,eventLink.targetId],set:{eventType:milestone.eventType}});
+      }
+    }
+    if(current)await tx.update(head).set(next).where(and(eq(head.timelineId,timeline.id),eq(head.entityId,entityId)));else await tx.insert(head).values(next);
+    await audit(tx,userId,command.action,next);await tx.update(world).set({updatedAt:new Date()}).where(eq(world.id,worldId));return entityId;
+  });
+}
+
+export async function pinnedHistoricalSource(userId:string,worldId:string,timelineId:string,entityId:string,versionId:string,review=false,ordinary=false):Promise<HistoricalSnapshot>{
+  await worldReadAccess(userId,worldId,review);
+  return db.transaction(async tx=>{
+    await selectedTimeline(tx,worldId,timelineId);
+    const [source]=await tx.select({payload:worldHistoryVersion.payload}).from(head).innerJoin(version,eq(version.id,head.versionId)).innerJoin(history,eq(history.versionId,head.versionId)).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,history.historyVersionId)).where(and(eq(head.worldId,worldId),eq(head.timelineId,timelineId),eq(head.entityId,entityId),eq(history.historyVersionId,versionId),ordinary?eq(version.visibility,"ordinary"):undefined,ordinary?sql`coalesce(${worldHistoryVersion.payload}->>'visibility','ordinary')='ordinary'`:undefined));
+    if(!source)throw unavailable();return ordinary&&"time"in source.payload?{...source.payload,notes:""}:source.payload;
+  },{isolationLevel:"repeatable read",accessMode:"read only"});
+}

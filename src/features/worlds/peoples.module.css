@@ -1,0 +1,27 @@
+.workspace {display:grid;gap:1rem;}
+.heading,.actions {display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:space-between;}
+.actions {justify-content:flex-start;}
+.grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr));gap:.8rem;}
+.card,.section {border:1px solid var(--st-border);border-radius:.7rem;background:var(--st-surface);padding:1rem;overflow-wrap:anywhere;}
+.card {text-align:left;color:var(--st-text);min-height:5rem;cursor:pointer;}
+.card strong,.card small {display:block;}
+.card small,.caption {color:var(--st-muted);}
+.dialog {width:min(56rem,calc(100vw - 1.5rem));max-height:calc(100dvh - 2rem);padding:1rem;border:1px solid var(--st-border);border-radius:.8rem;background:var(--st-surface);color:var(--st-text);overflow:auto;}
+.dialog::backdrop {background:color-mix(in srgb,var(--st-text) 45%,transparent);}
+.form {display:grid;gap:1rem;}
+.form fieldset {border:0;padding:0;min-width:0;display:grid;gap:1rem;}
+.section summary {cursor:pointer;font-weight:600;min-height:44px;}
+.form details.section > div {display:grid;gap:.7rem;}
+.section > p {margin-top:.65rem;}
+.section > section {margin-top:1rem;}
+.section h4 {font-weight:600;margin-bottom:.4rem;}
+.section section > p {margin-top:.45rem;}
+.section section > button {margin:.2rem .4rem .2rem 0;}
+.section > .actions {margin-top:1rem;}
+.section a {color:var(--st-primary-bright);text-decoration:underline;text-underline-offset:.2em;}
+.prose {white-space:pre-wrap;overflow-wrap:anywhere;}
+.feedback {padding:.8rem;border:1px solid var(--st-danger);border-radius:.5rem;background:color-mix(in srgb,var(--st-danger) 8%,var(--st-surface));}
+.workspace button,.dialog button {min-height:44px;}
+.toolbar {display:flex;gap:.75rem;flex-wrap:wrap;align-items:end;}
+.toolbar > :not(button) {flex:1;min-width:min(100%,12rem);}
+@media(max-width:600px){.dialog {padding:.7rem;}.actions {justify-content:flex-start;}.actions button {flex:1;}.section {padding:.7rem;}}
