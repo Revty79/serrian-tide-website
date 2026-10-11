@@ -12,18 +12,14 @@ import { ordinaryLoreSource, ordinaryHistorySource } from "./ordinary-knowledge"
 // One metadata relation per selected source. No narrative graph traversal or per-entity reads.
 function visibleLinks(worldId:string,timelineId:string,ordinary:boolean) {
   return sql`select l.version_id,l.target_id,l.entity_category,l.event_type,
-    coalesce(g.name,s.name,p.name,o.name,r.name,cu.name,ci.name,la.name,po.name,b.name,tr.name,iv.name) name
+    coalesce(g.name,ld.name) name
     from world_history_version_entity l
     left join world_geography g on g.id=l.geography_id and g.world_id=l.world_id
     left join world_lore_identity i on i.id=l.lore_id and i.world_id=l.world_id
     left join world_lore_head ch on ch.entity_id=i.id and ch.world_id=l.world_id and ch.timeline_id=${timelineId}
     left join world_lore_head oh on oh.entity_id=i.id and oh.world_id=l.world_id and oh.timeline_id=i.origin_timeline_id
     left join world_lore_version v on v.id=coalesce(ch.version_id,oh.version_id)
-    left join world_species_version s on s.version_id=v.id left join world_people_version p on p.version_id=v.id
-    left join world_origin_version o on o.version_id=v.id left join world_relationship_version r on r.version_id=v.id
-    left join world_culture_version cu on cu.version_id=v.id left join world_civilization_version ci on ci.version_id=v.id
-    left join world_language_version la on la.version_id=v.id left join world_population_version po on po.version_id=v.id
-    left join world_belief_version b on b.version_id=v.id left join world_tradition_version tr on tr.version_id=v.id left join world_individual_version iv on iv.version_id=v.id
+    left join world_lore_display ld on ld.version_id=v.id
     where l.world_id=${worldId} and exists(select 1 from world_history_head selected where selected.world_id=l.world_id and selected.timeline_id=${timelineId} and selected.version_id=l.version_id and selected.mode in ('authored','inherited','partial','interpretation')) and ${ordinary?sql`(
       (l.geography_id is not null and not exists(select 1 from world_dungeon_entity d where d.world_id=l.world_id and d.visibility<>'ordinary' and (d.id=g.id or d.geography_id=g.id)))
       or (l.lore_id is not null and ${ordinaryLoreSource(worldId,timelineId,sql`ch.version_id`)}))`:sql`true`}`;

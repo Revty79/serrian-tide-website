@@ -827,6 +827,13 @@
       "when": 1791691372861,
       "tag": "0117_worlds_individuals",
       "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1791697190314,
+      "tag": "0118_worlds_politics",
+      "breakpoints": true
     }
   ]
 }

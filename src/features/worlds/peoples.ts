@@ -3,9 +3,10 @@ import { historicalTimeSchema, entryDraftSchema, type HistoricalTime, type Entry
 import { calendarEntryDraftSchema, type CalendarSource } from "./calendar-dates";
 import type { SourceDating } from "./chronology";
 import { inheritanceMode } from "./branching-history";
+import { politicalFamilies, politicalFields, authoredPeriodSchema, isPoliticalFamily } from "./politics";
 import { individualFields, nameAccountSchema, relationshipPeriodSchema } from "./individuals";
 
-export const loreFamilies = { species: "Races and species", people: "Peoples", origin: "Origin accounts", relationship: "Relationships", culture: "Cultures", civilization: "Civilizations", language: "Languages", population: "Populations and communities", belief: "Beliefs", tradition: "Traditions and practices", individual: "Individuals" } as const;
+export const loreFamilies = { species: "Races and species", people: "Peoples", origin: "Origin accounts", relationship: "Relationships", culture: "Cultures", civilization: "Civilizations", language: "Languages", population: "Populations and communities", belief: "Beliefs", tradition: "Traditions and practices", individual: "Individuals", ...politicalFamilies } as const;
 export type LoreFamily = keyof typeof loreFamilies;
 export const LORE_LIMIT = 2000;
 const text = z.string().max(50_000).default("");
@@ -20,12 +21,13 @@ export const languageFields = {"method": "Communication method", "representation
 export const populationFields = {"identity": "Community identity", "habitat": "Habitats and adaptations", "estimates": "Population estimates and uncertainty", "demographics": "Demographic descriptions", "development": "Expansion and contraction", "movement": "Movement and migration accounts", "classification": "Creator classification"} as const;
 export const beliefFields = {"claims": "Beliefs and claims", "interpretations": "Competing interpretations", "perspective": "Religious or philosophical perspective", "origins": "Origins and development", "expression": "Expression and observance", "classification": "Creator classification"} as const;
 export const traditionFields = {"practice": "Practice and observance", "meaning": "Meaning and purposes", "transmission": "Transmission and teaching", "origins": "Origins and development", "variations": "Variations and interpretations", "classification": "Creator classification"} as const;
-export const fieldLabels = { species: speciesFields, people: peopleFields, origin: originFields, relationship: relationshipFields, culture: cultureFields, civilization: civilizationFields, language: languageFields, population: populationFields, belief: beliefFields, tradition: traditionFields, individual: individualFields };
+export const fieldLabels = { species: speciesFields, people: peopleFields, origin: originFields, relationship: relationshipFields, culture: cultureFields, civilization: civilizationFields, language: languageFields, population: populationFields, belief: beliefFields, tradition: traditionFields, individual: individualFields, ...politicalFields };
 const fieldsSchema = (fields: Record<string, string>) => z.object(Object.fromEntries(Object.keys(fields).map(key => [key, text]))).strict();
 export const participantSchema = z.object({ targetId: id.nullable(), authoredReference: z.string().trim().max(1000).default(""), role: z.string().trim().min(1).max(80), account: text, protected: z.boolean().optional() }).strict().refine(p => p.targetId ? !p.authoredReference : !!p.authoredReference, "Choose one World record or write one unresolved reference.");
 export const geographyAssociationSchema = z.object({ id, geographyId:id, destinationId:id.nullable().default(null), relationshipType:z.string().trim().min(1,"Describe this place relationship.").max(160), account:text, time:historicalTimeSchema.default({version:1,scale:"world-year",kind:"undated"}), protected:z.boolean().default(false) }).strict();
 export const loreDraftSchema = z.object({
-  family: z.enum(["species", "people", "origin", "relationship", "culture", "civilization", "language", "population", "belief", "tradition", "individual"]), name: z.string().trim().min(1, "Name this record.").max(160), description: text,
+  family: z.enum(["species", "people", "origin", "relationship", "culture", "civilization", "language", "population", "belief", "tradition", "individual", "polity", "government", "institution", "office", "appointment", "claim", "agreement", "conflict"]), name: z.string().trim().min(1, "Name this record.").max(160), description: text,
+  periods: z.array(authoredPeriodSchema).max(40).optional(),
   protectedFields: z.array(z.string()).max(40).optional(), nameAccounts: z.array(nameAccountSchema).max(40).optional(), relationshipPeriods: z.array(relationshipPeriodSchema).max(40).optional(),
   fields: z.record(z.string(), z.string().max(50_000)).default({}), time: historicalTimeSchema.default({ version: 1, scale: "world-year", kind: "undated" }),
   accuracy: z.enum(["established", "disputed", "unverified", "disproven"]).default("unverified"), narrative: z.enum(["recorded", "planned"]).default("recorded"),
@@ -34,17 +36,21 @@ export const loreDraftSchema = z.object({
   geographies:z.array(geographyAssociationSchema).max(100).default([]),
   participants: z.array(participantSchema).max(100).default([]), historyRefs: z.array(z.object({ entityId: id, versionId: id }).strict()).max(100).default([]),
   sections: z.array(z.object({ id, title: z.string().trim().min(1).max(160), body: text, protected: z.boolean() }).strict()).max(40).default([]),
-  milestones: z.array(z.object({ entryId: id.optional(), revision: z.number().int().positive().optional(), eventType: z.string().trim().min(1).max(160), draft: entryDraftSchema }).strict()).max(40).default([]),
+  milestones: z.array(z.object({ entryId: id.optional(), revision: z.number().int().positive().optional(), eventType: z.string().trim().min(1).max(160), draft: entryDraftSchema, targets: z.array(z.object({id,kind:z.enum(["lore","geography"])}).strict()).max(99).optional() }).strict()).max(40).default([]),
 }).strict().superRefine((draft, context) => {
   const result = fieldsSchema(fieldLabels[draft.family]).safeParse(draft.fields);
   if (!result.success) context.addIssue({ code: "custom", path: ["fields"], message: "Use this record's fields or add a custom section." });
   if (draft.family === "origin" && (!draft.description.trim() || !draft.participants.some(p => p.role === "subject" && p.targetId))) context.addIssue({ code: "custom", message: "Write an origin account and choose at least one subject." });
   if (draft.family === "relationship" && (!draft.fields.relationshipType?.trim() || draft.participants.length < 2)) context.addIssue({ code: "custom", message: "Describe the relationship type and at least two participants." });
-  if ((draft.protectedFields?.length || draft.nameAccounts?.length) && draft.family !== "individual") context.addIssue({code:"custom",message:"Historical names and field protection belong to an individual."});
+  if (draft.nameAccounts?.length && draft.family !== "individual") context.addIssue({code:"custom",message:"Historical names and field protection belong to an individual."});
   if (draft.relationshipPeriods?.length && draft.family !== "relationship") context.addIssue({code:"custom",message:"Personal relationship periods belong to a relationship account."});
-  if (draft.protectedFields?.some(key => key !== "description" && !(key in individualFields)) || new Set(draft.protectedFields).size !== (draft.protectedFields?.length ?? 0)) context.addIssue({code:"custom",message:"Choose distinct saved individual fields to protect."});
-  for (const rows of [draft.nameAccounts ?? [], draft.relationshipPeriods ?? []]) if (new Set(rows.map(row=>row.id)).size !== rows.length) context.addIssue({code:"custom",message:"Keep each personal account identity once."});
+  if (draft.protectedFields?.length && draft.family !== "individual" && !isPoliticalFamily(draft.family)) context.addIssue({code:"custom",message:"Field protection is available for individuals and political records."});
+  if (draft.periods?.length && !isPoliticalFamily(draft.family)) context.addIssue({code:"custom",message:"These authored periods belong to a political record."});
+  if (draft.protectedFields?.some(key => key !== "description" && !(key in fieldLabels[draft.family])) || new Set(draft.protectedFields).size !== (draft.protectedFields?.length ?? 0)) context.addIssue({code:"custom",message:"Choose distinct saved fields to protect."});
+  for (const rows of [draft.nameAccounts ?? [], draft.relationshipPeriods ?? [], draft.periods ?? []]) if (new Set(rows.map(row=>row.id)).size !== rows.length) context.addIssue({code:"custom",message:"Keep each personal account identity once."});
   if(new Set(draft.geographies.map(g=>g.id)).size!==draft.geographies.length)context.addIssue({code:"custom",path:["geographies"],message:"Keep each geographic association identity once."});
+  if (draft.milestones.some(m=>new Set(m.targets?.map(t=>t.id)).size!==(m.targets?.length??0))) context.addIssue({code:"custom",message:"Choose each milestone participant once."});
+  if (["appointment","claim","agreement","conflict"].includes(draft.family) && draft.participants.some(p=>!p.targetId)) context.addIssue({code:"custom",message:"Political connections use saved World identities. Keep unresolved claims in the account."});
   const entries=draft.milestones.flatMap(m=>m.entryId?[m.entryId]:[]);
   if (new Set(entries).size!==entries.length||draft.milestones.some(m=>!!m.entryId!==!!m.revision)) context.addIssue({code:"custom",path:["milestones"],message:"Keep each saved milestone once, with its current revision."});
   if (new Set(draft.sections.map(s => s.id)).size !== draft.sections.length || new Set(draft.historyRefs.map(s => s.entityId)).size !== draft.historyRefs.length) context.addIssue({ code: "custom", message: "Keep one section key and historical source per identity." });
@@ -67,3 +73,5 @@ export function loreInheritance(time: HistoricalTime, archived: boolean, narrati
   return mode==="partial"?"pending":mode;
 }
 export function emptyLore(family: LoreFamily): LoreDraft { return { family, ...family==="individual"?{protectedFields:["privateReputation"]}:{}, name: "", description: "", fields: {}, time: {version:1,scale:"world-year",kind:"undated"}, accuracy:"unverified", narrative:"recorded", visibility:"ordinary", privateNotes:"", geographies:[], participants:[], historyRefs:[], sections:[], milestones:[] }; }
+
+export function loreWorkspaceTab(family:string):"individuals"|"politics"|"peoples" { return family==="individual"?"individuals":isPoliticalFamily(family)?"politics":"peoples"; }
