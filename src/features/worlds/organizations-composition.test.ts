@@ -72,5 +72,5 @@ test("supporting validation reveals the correct section and nested endpoint with
 
 test("A2 through D workshops remain available while future creators retain their established editors", () => {
   for (const family of ["individual", "cosmicPrinciple", "language", "relationship", "government", "appointment", ...repairDFamilies]) assert.equal(hasCreatorWorkshop(family), true);
-  for (const family of ["realm", "celestial", "skyCycle"]) assert.equal(hasCreatorWorkshop(family), false);
+  for (const family of ["skyCycle", "skyObservation", "skyCalendarLink"]) assert.equal(hasCreatorWorkshop(family), false);
 });

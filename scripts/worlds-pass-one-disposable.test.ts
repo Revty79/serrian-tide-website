@@ -3,6 +3,7 @@ import { historyContextFixture, historyContextBrowserChecks } from "./worlds-his
 import { creatorRepairBrowserChecks } from "./worlds-creator-repair-checks";
 import { creatorBBrowserChecks } from "./worlds-creator-b-checks";
 import { creatorCBrowserChecks } from "./worlds-creator-c-checks";
+import { creatorEBrowserChecks } from "./worlds-creator-e-checks";
 import { creatorDBrowserChecks } from "./worlds-creator-d-checks";
 import { seedAstronomyUpgrade, astronomyServiceChecks, astronomyBrowserChecks } from "./worlds-astronomy-checks";
 import { seedCosmologyUpgrade, cosmologyServiceChecks, cosmologyBrowserChecks } from "./worlds-cosmology-checks";
@@ -161,12 +162,13 @@ async function main() {
       await pool.query('insert into "user" (id,name,email,email_verified,username,display_username) values ($1,$1,$2,true,$1,$1)',[id,`${id}@example.invalid`]);
       await pool.query("insert into account (id,issuer,account_id,provider_id,user_id,password,updated_at) values ($1,'local:credential',$2,'credential',$2,$3,now())",[`${id}-credential`,id,password]);await pool.query("insert into user_role (user_id,role) values ($1,$2)",[id,role]);
     }
-    if(process.argv.includes("--creator-b-only")||process.argv.includes("--creator-b-remaining")||process.argv.includes("--creator-c-only")||process.argv.includes("--creator-d-only")){
+    if(process.argv.includes("--creator-b-only")||process.argv.includes("--creator-b-remaining")||process.argv.includes("--creator-c-only")||process.argv.includes("--creator-d-only")||process.argv.includes("--creator-e-only")){
       // Focused UI reruns need fresh current storage, not the unrelated service fixtures.
       await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});
       process.env.DATABASE_URL=databaseUrl;applicationPool=(await import("../src/db")).pool;
       const focusedBefore=await runtimeSnapshot();browser=await startProductionBrowser();
-      if(process.argv.includes("--creator-d-only"))await creatorDBrowserChecks(browser,baseUrl,pool,evidenceDirectory);
+      if(process.argv.includes("--creator-e-only"))await creatorEBrowserChecks(browser,baseUrl,pool,evidenceDirectory);
+      else if(process.argv.includes("--creator-d-only"))await creatorDBrowserChecks(browser,baseUrl,pool,evidenceDirectory);
       else if(process.argv.includes("--creator-c-only"))await creatorCBrowserChecks(browser,baseUrl,pool,evidenceDirectory);
       else await creatorBBrowserChecks(browser,baseUrl,pool,evidenceDirectory,process.argv.includes("--creator-b-remaining"));
       assert.deepEqual(await runtimeSnapshot(),focusedBefore);

@@ -64,5 +64,5 @@ test("political supporting errors identify the right section and preserve unknow
 
 test("A2 and B compositions remain available; future families keep their current editors", () => {
   for (const family of ["individual", "cosmicPrinciple", "species", "language", "relationship"]) assert.equal(hasCreatorWorkshop(family), true);
-  for (const family of ["realm", "celestial", "skyCycle"]) assert.equal(hasCreatorWorkshop(family), false);
+  for (const family of ["skyCycle", "skyObservation", "skyCalendarLink"]) assert.equal(hasCreatorWorkshop(family), false);
 });
