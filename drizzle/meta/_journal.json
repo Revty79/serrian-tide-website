@@ -862,6 +862,13 @@
       "when": 1791837885509,
       "tag": "0122_worlds_linking_bridge",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1791843915035,
+      "tag": "0123_worlds_stories",
+      "breakpoints": true
     }
   ]
 }

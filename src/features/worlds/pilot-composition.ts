@@ -1,3 +1,4 @@
+import { storiesComposition } from "./stories-composition";
 import { individualFieldGroups } from "./individuals";
 import { cosmologyFields } from "./cosmology";
 import type { LoreDraft } from "./peoples";
@@ -14,6 +15,7 @@ import { repairFFieldSection, repairFIssueSection } from "./astronomy-compositio
 export const individualSections=[{id:"identity",label:"Identity"},{id:"personality",label:"Personality"},{id:"background",label:"Background"},{id:"community",label:"People & communities"},{id:"places",label:"Important places"},{id:"history",label:"History"},{id:"custom",label:"Original details"},{id:"private",label:"Private notes"}];
 export const principleSections=[{id:"identity",label:"The rule"},{id:"scope",label:"Where it applies"},{id:"when",label:"Circumstances"},{id:"periods",label:"Through history"},{id:"exceptions",label:"Exceptions"},{id:"accounts",label:"Different accounts"},{id:"history",label:"History"},{id:"custom",label:"Original details"},{id:"private",label:"Private notes"}];
 export function pilotFieldSection(family:string,key:string):string {
+  if(family==="story")return storiesComposition.fields[key]?.section??"custom";
   if(isRepairBFamily(family))return repairBFieldSection(family,key);
   if(isPoliticalFamily(family))return repairCFieldSection(family,key);
   if(isOrganizationFamily(family))return repairDFieldSection(family,key);
@@ -29,6 +31,7 @@ export function pilotFieldSection(family:string,key:string):string {
   return ({classification:"identity",statement:"identity",scope:"scope",conditions:"when",exceptions:"exceptions",interpretations:"accounts",provenance:"accounts",development:"periods"} as Record<string,string>)[key]??"custom";
 }
 export function pilotIssueSection(family:string,path:PropertyKey[]):string {
+  if(family==="story"){const first=String(path[0]??"");if(first==="storySources")return "sources";if(["storyContext","time","datingSystemId","calendarDate","accuracy","narrative"].includes(first))return "context";if(first==="periods")return "transmission";if(first==="participants")return "connections";if(first==="geographies")return "places";}
   if(isRepairBFamily(family))return repairBIssueSection(family,path);
   if(isPoliticalFamily(family))return repairCIssueSection(family,path);
   if(isOrganizationFamily(family))return repairDIssueSection(family,path);

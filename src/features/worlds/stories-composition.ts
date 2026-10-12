@@ -1,0 +1,42 @@
+import type { Composition } from "./peoples-composition";
+const q = (section: string, label: string, help: string) => ({ section, label, help: `${help} Optional; keep your own wording. Up to 50,000 characters.` });
+export const storiesComposition: Composition = {
+  subject: "story", introduction: "Write a legend, rumor, prophecy or an original narrative. Contradictory accounts can coexist. A classification never decides whether a story is true.",
+  overview: "Introduce this story", overviewHelp: "An optional summary for readers. Write the full account in The story; you do not need to repeat it here.",
+  sections: [
+    { id: "identity", label: "What is this story?", introduction: "Begin with a name. Choose a familiar kind or invent one; other details can wait." },
+    { id: "story", label: "The story", introduction: "Tell the account in your own words. Use Passages & details for named passages or chapters." },
+    { id: "voice", label: "Origins & voices", introduction: "Keep known authors, attributed origins and a narrator's perspective distinct. Unknown authorship is valid." },
+    { id: "transmission", label: "Audience & retellings", introduction: "Describe who hears the story and how it travels or changes. Unknown endings do not establish continuing circulation." },
+    { id: "context", label: "Dates & interpretations", introduction: "When a story was told or recorded differs from when its alleged events happened. Competing interpretations remain separate accounts." },
+    { id: "sources", label: "Earlier accounts", introduction: "Retain an exact saved story source, with its original revision and wording. Later edits never silently replace it." },
+    { id: "connections", label: "People & creations", introduction: "Choose saved World identities and original roles, or keep an unresolved name in your own words." },
+    { id: "places", label: "Places in the story", introduction: "Connect real saved places without inventing geometry, routes or geography." },
+    { id: "history", label: "Related History", introduction: "Read saved event and era sources. A story or alleged event creates no History entry unless you deliberately write one." },
+    { id: "custom", label: "Passages & details", introduction: "Add original chapters, passages or details with stable identities and your own titles." },
+    { id: "private", label: "Private knowledge", introduction: "Decide what the ordinary-knowledge preview may read. Revealing protected references or passages withhold the whole story." },
+  ],
+  fields: {
+    classification: q("identity", "What kind of story is it?", "Use myth, folklore, rumor, prophecy or an original classification. This does not establish the truth of its claims."),
+    story: q("story", "What does the story say?", "Write the full narrative, including contradictions or uncertain claims. No event is manufactured from this text."),
+    origin: q("voice", "Where is this account said to originate?", "Describe attributed beginnings, sources or unknown origins without choosing one explanation as objective fact."),
+    authorship: q("voice", "Who is said to have created or recorded it?", "Known, anonymous, collective, disputed and unknown authorship are welcome. The person saving this form is not inferred to be its fictional author."),
+    narrator: q("voice", "Whose voice or perspective tells it?", "Describe one narrator, several voices or an uncertain perspective. Connect saved figures in People & creations when useful."),
+    audience: q("transmission", "Who is the story intended for?", "Describe audiences, ceremonial listeners or groups who hear a different version. Audience does not grant app access."),
+    transmission: q("transmission", "How is it shared or retold?", "Describe oral, written, remembered or original forms of transmission. Use Earlier accounts to retain actual saved source versions."),
+    context: q("context", "What historical context is known or disputed?", "Describe uncertainty separately from the optional dates. An unknown date is a complete answer."),
+    interpretations: q("context", "How do different accounts interpret it?", "Preserve competing readings without resolving them. Separate saved stories and alternate timelines can disagree."),
+    sourceContext: q("sources", "What original source context should be kept?", "Describe manuscripts, witnesses, performances or attributed sources. Saved Earlier accounts retain exact World-native story versions; prose alone creates no reference."),
+  },
+  connections: [
+    { kind: "individual", role: "figure in the story", label: "Add figure" }, { kind: "people", role: "people connected to the account", label: "Add people" },
+    { kind: "species", role: "Race or species in the story", label: "Add Race or species" }, { kind: "culture", role: "cultural tradition", label: "Add culture" },
+    { kind: "civilization", role: "civilization in the story", label: "Add civilization" }, { kind: "polity", role: "political connection", label: "Add polity" },
+    { kind: "government", role: "government in the account", label: "Add government" }, { kind: "organization", role: "organization in the account", label: "Add organization" },
+    { kind: "belief", role: "belief connected to the account", label: "Add belief" }, { kind: "tradition", role: "transmission tradition", label: "Add tradition" },
+    { kind: "realm", role: "realm in the story", label: "Add Realm" }, { kind: "celestial", role: "cosmic subject", label: "Add celestial creation" },
+  ],
+  connectionHelp: "Choose actual saved identities or keep an unresolved name. Roles are authored narrative, not gameplay authority.",
+  placeHelp: "Choose genuine Atlas places and explain their part in this story. References do not create map geometry.",
+  eventHelp: "Link retained event and era sources. The date of a story, its alleged events and an actual History entry have separate meanings.",
+};

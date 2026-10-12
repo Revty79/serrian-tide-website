@@ -691,3 +691,24 @@ Completed focused evidence and pending independent technical/owner visual review
 ### Current linking bridge checkpoint
 
 Repair I at `46497452b17c1b2b8496809105b971715cd23a3b` is independently technically reviewed, and the owner confirmed its exact pushed appearance. The authorized bridge adds saved Realm-to-map and society-to-calendar/chronology connections. All 32 existing creator families and their saved fields remain unchanged. Connection controls have a separate [model, privacy and recovery record](worlds-linking-bridge.md); technical evidence is distinct from the required independent review and owner visual approval. Standalone G is canceled. Phases 6-8 require separate authorization, and the comprehensive whole-Worlds assessment is Phase 9 after them.
+
+
+## Phase 6A stories (new narrative coverage)
+
+The owner separately authorized Phase 6A from `3550f8bd765e9e3f0531ee56e14107a5bf944a56`. Existing Phase 4-5 fields remain authoritative. New story coverage is:
+
+| Saved field or form | Workshop destination | Reader meaning |
+| --- | --- | --- |
+| Name, description, classification | What is this story? | Summary and freely authored kind, without truth adjudication |
+| Full `story` text | The story | Complete narrative |
+| `origin`, `authorship`, `narrator` | Origins & voices | Attributed origins and voices, including unknown/disputed information |
+| `audience`, `transmission`, authored periods | Audience & retellings | Audience, circulation and independent period endpoints |
+| `context`, `interpretations`, telling date, `storyContext` | Dates & interpretations | Separate telling/alleged dates and optional retained chronology/calendar sources |
+| `sourceContext`, `storySources` | Earlier accounts | Original source wording, identity, chosen revision and authored relationship |
+| Participants and unresolved names | People & creations | Genuine saved links, roles, inverse accounts and attributed unresolved wording |
+| Geography associations | Places in the story | Existing Atlas identities with saved narrative roles |
+| History citations and explicit milestones | Related History | Exact event/era source pins and deliberately authored events |
+| Stable custom sections | Passages & details | Original titled passages, without an obligatory structure |
+| Visibility, protected fields/connections/context/periods/passages and private notes | Private knowledge and relevant sections | Server-filtered ordinary preview; no publication/access grant |
+
+Interaction, field guidance, reuse, saved reading and server data/security are technically verified in the [6A report](../reports/worlds-stories-phase-6a-2026-10-12.md). Independent technical review and human look-and-feel acceptance remain pending. Phase 9 integrated assessment is deferred; no Phase 6B is begun.

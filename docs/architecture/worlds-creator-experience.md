@@ -116,3 +116,8 @@ I's reproduced defects, completed focused checks and separate pending review sta
 ## Linking bridge
 
 Contextual saved connections extend Realm and society profiles without changing their workshop sections or fields. Real maps remain distinct from geographic places. Calendar traditions remain distinct from immutable rules and existing adoption/evolution accounts. Relationship roles, independent unknown boundaries, competing perspectives and selected timelines remain authored narrative. No link creates an event, geometry, mechanical ownership or Campaign state. Retained sources and effective sources both pass server privacy checks. See the [implemented model and recovery](worlds-linking-bridge.md).
+
+
+## Phase 6A narrative workshop
+
+Phase 6A is explicitly authorized from technically approved linking-corrections commit `3550f8bd765e9e3f0531ee56e14107a5bf944a56`. The [story architecture](worlds-stories.md) extends the approved workshop pattern with a name-only start, unrestricted classifications, story/passages, attributed voices, transmission, independent telling/alleged dates, genuine references and immutable original accounts. Direct retelling/contradiction controls begin separately saved drafts. Existing A2-I interfaces remain intact. Ordinary previews withhold revealing whole stories on the server; chronology, calendars, geometry and gameplay authority are unchanged. The [6A completion report](../reports/worlds-stories-phase-6a-2026-10-12.md) records focused validation. Independent Ember review and owner experience acceptance remain pending; the handoff authorizes no push, deployment, shared services/data action or automatic Phase 6B.
