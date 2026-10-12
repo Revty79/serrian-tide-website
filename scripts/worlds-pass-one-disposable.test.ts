@@ -1,4 +1,5 @@
 import { calendarPrivacyFixture, reproduceCalendarPrivacy, calendarPrivacyServiceChecks, calendarPrivacyBrowserChecks } from "./worlds-calendar-privacy-checks";
+import { historyContextFixture, historyContextBrowserChecks } from "./worlds-history-context-checks";
 import { creatorRepairBrowserChecks } from "./worlds-creator-repair-checks";
 import { seedAstronomyUpgrade, astronomyServiceChecks, astronomyBrowserChecks } from "./worlds-astronomy-checks";
 import { seedCosmologyUpgrade, cosmologyServiceChecks, cosmologyBrowserChecks } from "./worlds-cosmology-checks";
@@ -369,6 +370,7 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const individualsFixture=await individualsServiceChecks(service,timelineService,pool,foreign,`${evidenceDirectory}/regressions/4b`);
     const calendarPrivacy = await calendarPrivacyFixture(service,pool);
     if(!process.argv.includes("--calendar-privacy-reproduction"))await calendarPrivacyServiceChecks(service,pool,calendarPrivacy);
+    const historyContext = process.argv.includes("--calendar-privacy-reproduction")?null:await historyContextFixture(service,pool);
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     if(process.argv.includes("--services-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see ${path.join(artifactRoot,`${path.basename(evidenceDirectory)}-next.log`)}`)));});
@@ -379,6 +381,8 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const god=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.40"}});await signIn(god,baseUrl,"world-god");
     const page=await god.newPage();activePage=page;page.on("pageerror",(error)=>errors.push(error.message));
     if(process.argv.includes("--calendar-privacy-reproduction")){await reproduceCalendarPrivacy(browser,baseUrl,calendarPrivacy);assert.deepEqual(await runtimeSnapshot(),before);return;}
+    assert.ok(historyContext);await historyContextBrowserChecks(browser,baseUrl,historyContext,pool,evidenceDirectory);
+    if(process.argv.includes("--history-context-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await calendarPrivacyBrowserChecks(browser,baseUrl,calendarPrivacy,pool);
     if(process.argv.includes("--calendar-privacy-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await creatorRepairBrowserChecks(browser,baseUrl,individualsFixture,cosmologyFixture,pool,evidenceDirectory);

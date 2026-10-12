@@ -1,0 +1,94 @@
+{
+  "startingCommit": "2b601f6e56ae081ce97b9e32ef49792954f06a78",
+  "receiptDirectory": "artifacts/guidance/worlds-history-context-resumed-final",
+  "worldsTests": {
+    "passed": 132,
+    "failed": 0
+  },
+  "featureTests": {
+    "passed": 2017,
+    "failed": 0,
+    "files": 234
+  },
+  "disposableAccountTests": {
+    "passed": 1,
+    "failed": 0
+  },
+  "fullDisposableSuite": true,
+  "productionBuild": true,
+  "standaloneTypeScript": true,
+  "lint": true,
+  "drizzleConsistency": true,
+  "newMigrations": [],
+  "configurationChanges": [],
+  "historyContext": {
+    "results": [
+      {
+        "actor": "world-god",
+        "device": "desktop",
+        "actualInterfaceTimelineSwitches": true,
+        "ordinaryBundleResponsesFiltered": true,
+        "delayedAuthorToOrdinarySafe": true,
+        "staleTimelineAndKnowledgeResponsesRejected": true,
+        "protectedEraAndRetainedSourcesSafe": true,
+        "backForwardAndReload": true,
+        "worldSwitchPreservesKnowledgeAndReview": true,
+        "bundleResponsesChecked": 16
+      },
+      {
+        "actor": "world-god",
+        "device": "native-touch phone emulation",
+        "actualInterfaceTimelineSwitches": true,
+        "ordinaryBundleResponsesFiltered": true,
+        "delayedAuthorToOrdinarySafe": true,
+        "staleTimelineAndKnowledgeResponsesRejected": true,
+        "protectedEraAndRetainedSourcesSafe": true,
+        "backForwardAndReload": true,
+        "worldSwitchPreservesKnowledgeAndReview": true,
+        "bundleResponsesChecked": 16
+      },
+      {
+        "actor": "world-admin",
+        "device": "desktop",
+        "actualInterfaceTimelineSwitches": true,
+        "ordinaryBundleResponsesFiltered": true,
+        "delayedAuthorToOrdinarySafe": true,
+        "staleTimelineAndKnowledgeResponsesRejected": true,
+        "protectedEraAndRetainedSourcesSafe": true,
+        "backForwardAndReload": true,
+        "worldSwitchPreservesKnowledgeAndReview": true,
+        "bundleResponsesChecked": 15
+      }
+    ],
+    "immutableSourcesUnchanged": true,
+    "noBrowserErrors": true
+  },
+  "creatorRepairA": {
+    "minimalCreation": true,
+    "everySection": true,
+    "fullDraftRoundTrip": true,
+    "richFieldComparison": true,
+    "reuseWithoutDuplicates": true,
+    "separateChildSave": true,
+    "cancelParentKeepsChild": true,
+    "controlledReadReturn": true,
+    "canonicalHistoryCorrection": true,
+    "hiddenValidationFocus": true,
+    "httpFailureRetention": true,
+    "twoTabConflict": true,
+    "archiveRestore": true,
+    "alternateInterpretation": true,
+    "ordinaryRedaction": true,
+    "administratorReadOnly": true,
+    "desktop": true,
+    "nativeTouchPhone": true,
+    "phoneWidth": 390,
+    "shortHeight": 320,
+    "zoomEquivalentViewport": "720x450 at a 1440x900 display",
+    "errors": []
+  },
+  "sharedDatabaseWrites": false,
+  "remotePush": false,
+  "deployment": false,
+  "creatorRepairA2Started": false
+}

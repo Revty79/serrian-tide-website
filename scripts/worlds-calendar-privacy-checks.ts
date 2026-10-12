@@ -9,7 +9,7 @@ import type { EntryDraft } from "../src/features/worlds/history";
 import { entryDraftOf } from "../src/features/worlds/client-api";
 
 type Worlds = typeof import("../src/features/worlds/world-service");
-const directory = "artifacts/guidance/worlds-calendar-privacy";
+const directory = process.env.SERRIAN_WORLDS_EVIDENCE_DIR ?? "artifacts/guidance/worlds-calendar-privacy";
 const known = (year: number) => ({version: 1 as const, scale: "world-year" as const, kind: "known" as const, year});
 
 export async function calendarPrivacyFixture(worlds: Worlds, pool: pg.Pool) {

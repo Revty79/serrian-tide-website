@@ -12,7 +12,7 @@ import { CalendarEntryFields, draftFromSource } from "./calendar-entry-fields";
 import { worldCreationSchema, type CampaignChoice, type WorldCreationDraft } from "./campaign-associations";
 import { CreationCampaignPicker } from "./creation-campaign-picker";
 export type EditorTarget = { kind: "world"; record?: WorldRecord; section?: "identity" | "introduction" | "history" } | { kind: "era"; record?: EraRecord } | { kind: "entry"; record?: EntryRecord };
-export function WorldEditor({ target, tags, eras = [], datingSystems=[], displaySystem=null, worldId, onClose, onSave, onReload,timelineName,onDirty,campaignChoices=[] }: { target: EditorTarget; tags: TagReference[]; eras?: EraRecord[]; datingSystems?:DatingSystem[];displaySystem?:DatingSystem|null;worldId?:string; onClose: () => void; onSave: (draft: WorldDraft | EraDraft | EntryDraft) => Promise<void>; onReload?: () => Promise<void>;timelineName?:string;onDirty?:(dirty:boolean)=>void;campaignChoices?:CampaignChoice[] }) {
+export function WorldEditor({ target, tags, eras = [], datingSystems=[], displaySystem=null, worldId, onClose, onSave, onReload,timelineName,onDirty,campaignChoices=[],active=true }: { target: EditorTarget; tags: TagReference[]; eras?: EraRecord[]; datingSystems?:DatingSystem[];displaySystem?:DatingSystem|null;worldId?:string; onClose: () => void; onSave: (draft: WorldDraft | EraDraft | EntryDraft) => Promise<void>; onReload?: () => Promise<void>;timelineName?:string;onDirty?:(dirty:boolean)=>void;campaignChoices?:CampaignChoice[];active?:boolean }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [worldDraft, setWorldDraft] = useState(() => worldDraftOf(target.kind === "world" ? target.record : undefined));
   const [associatedCampaigns,setAssociatedCampaigns] = useState<WorldCreationDraft["associatedCampaigns"]>([]);
@@ -31,11 +31,14 @@ export function WorldEditor({ target, tags, eras = [], datingSystems=[], display
   const [conflict, setConflict] = useState(false);
   const [pending, setPending] = useState(false);
   const [discard, setDiscard] = useState(false);
-  useEffect(() => { dialog.current?.showModal(); }, []);
+  useEffect(() => { if(active)dialog.current?.showModal(); }, [active]);
   useEffect(() => { if (!dirty) return; const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); }; window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn); }, [dirty]);
   function close() { if (pending) return; if (dirty) setDiscard(true); else onClose(); }
   const section = target.kind === "world" ? target.section ?? "identity" : "identity";
   const title = target.kind === "world" ? !target.record ? "Create a world" : section === "introduction" ? "Write the introduction" : section === "history" ? "Write the historical overview" : "Edit world identity" : `${target.record ? "Edit" : "Create"} ${target.kind === "era" ? "historical era" : "historical entry"}`;
+  // Preserve the draft across a cancelled navigation without keeping any of
+  // its author-only fields in the DOM while another context is loading.
+  if(!active)return null;
   return <dialog ref={dialog} className={styles.editor} aria-labelledby="world-editor-title" onCancel={(event) => { event.preventDefault(); close(); }}>
     <header className={styles.editorHeader}><div><p className={styles.eyebrow}>World workshop · private</p><h2 id="world-editor-title">{title}</h2></div><button className="st-button is-ghost" type="button" aria-label="Close editor" disabled={pending} onClick={close}><X size={20} /></button></header>
     <form onSubmit={async (event) => {

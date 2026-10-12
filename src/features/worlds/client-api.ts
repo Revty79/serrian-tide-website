@@ -1,8 +1,8 @@
 import type { EntryDraft, EntryRecord, EraDraft, EraRecord, WorldDraft, WorldRecord } from "./history";
 export class SaveError extends Error { constructor(message: string, public status: number) { super(message); } }
-export async function worldApi<T>(url: string, method = "GET", body?: unknown): Promise<T> {
+export async function worldApi<T>(url: string, method = "GET", body?: unknown, signal?: AbortSignal): Promise<T> {
   let response: Response;
-  try { response = await fetch(url, { method, credentials: "same-origin", cache: "no-store", ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) }); }
+  try { response = await fetch(url, { method, credentials: "same-origin", cache: "no-store", signal, ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) }); }
   catch { throw new SaveError("The connection failed. Your draft is still here; try again when connected.", 0); }
   const data = await response.json().catch(() => ({ error: "The server response could not be read. Your draft is still here." }));
   if (!response.ok || data.error) throw new SaveError(data.error ?? "The request failed. Your draft is still here.", response.status);
