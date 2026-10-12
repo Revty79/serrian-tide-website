@@ -11,6 +11,8 @@ import { isAstronomyFamily } from "./astronomy";
 import { isRepairEFamily } from "./cosmology-composition";
 import {relationshipStatusLabels} from "./individuals";
 import { SkySourceDetails } from "./sky-source-details";
+import { LinkingPanel } from "./linking-panel";
+import { isSocietyFamily } from "./linking";
 import styles from "./creator-workshop.module.css";
 
 /** Render only entered data and authorized reference names; contradictions remain separate. */
@@ -35,6 +37,7 @@ export function PilotProfile({draft,refs,record,mode="draft",showName=true,onRel
     {draft.sections.map(s=><section key={s.id}><h4>{s.title||"Original detail needs a title"}{s.protected?" · private":""}</h4>{text(s.body)}</section>)}
     <details><summary>Date and perspective of this account</summary><p>{formatTime(draft.time,record?.sourceDating)} · {accuracyLabels[draft.accuracy]} · {narrativeLabels[draft.narrative]}</p><p>This dates the account about the creation; its date does not set the creation&apos;s beginning or an event date.</p>{record?.calendarSource?<p>{sourceLabel(record.calendarSource)}</p>:draft.calendarDate&&<p>Calendar {draft.calendarDate.kind}: year {draft.calendarDate.start.date.year}, month {draft.calendarDate.start.date.month}, day {draft.calendarDate.start.date.day}{"end"in draft.calendarDate?` through year ${draft.calendarDate.end.date.year}, month ${draft.calendarDate.end.date.month}, day ${draft.calendarDate.end.date.day}`:""}.</p>}</details>
     {isAstronomyFamily(draft.family)&&<SkySourceDetails draft={draft} record={record} worldId={worldId} timelineId={timelineId} review={review} ordinary={mode==="ordinary"}/>}
+    {mode!=="draft"&&record&&worldId&&timelineId&&(draft.family==="realm"||isSocietyFamily(draft.family))&&<LinkingPanel key={`${timelineId}:${record.id}:${mode}`} worldId={worldId} timelineId={timelineId} context={{kind:draft.family==="realm"?"realm-map":"society-time",loreId:record.id}} review={review} ordinary={mode==="ordinary"}/>}
     {draft.privateNotes&&<section><h4>Private author notes</h4>{text(draft.privateNotes)}</section>}{mode!=="ordinary"&&<p className={styles.hint}>{draft.visibility==="protected"?"The creation's identity is kept out of ordinary knowledge.":"Private details and revealing connections can be withheld in ordinary knowledge."} This setting does not publish the World.</p>}
   </div>;
 }

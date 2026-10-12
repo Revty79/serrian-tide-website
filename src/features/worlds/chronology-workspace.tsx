@@ -1,4 +1,6 @@
 "use client";
+import { useSearchParams } from "next/navigation";
+import { LinkingPanel } from "./linking-panel";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Compass, Plus, X } from "lucide-react";
 import { YEAR_LIMIT, yearLabel, type WorldBundle } from "./history";
@@ -43,6 +45,8 @@ function DatingEditor({record,onClose,onSave,onReload}:{record?:DatingSystem;onC
   </dialog>;
 }
 export function ChronologyWorkspace({bundle,canEdit,reload,onDefaultChanged}:{bundle:WorldBundle;canEdit:boolean;reload:()=>Promise<WorldBundle>;onDefaultChanged:(id:string|null)=>void}) {
+  const linkSearch=useSearchParams(),connectedSystem=linkSearch.get("datingSystem");
+  useEffect(()=>{if(connectedSystem)document.getElementById(`dating-${connectedSystem}`)?.scrollIntoView({block:"center"});},[connectedSystem]);
   const [editor,setEditor]=useState<{record?:DatingSystem}|null>(null);const [pending,setPending]=useState(false);const [error,setError]=useState("");const [notice,setNotice]=useState("");
   const [fromId,setFromId]=useState("");const [toId,setToId]=useState(bundle.defaultDatingSystemId ?? "");const [sample,setSample]=useState("0");
   const systems=bundle.datingSystems;const api=`/api/worlds/${bundle.world.id}/chronology`;
@@ -57,11 +61,12 @@ export function ChronologyWorkspace({bundle,canEdit,reload,onDefaultChanged}:{bu
     {error && <div role="alert" className={shared.feedback}><p>{error}</p><button className="st-button is-secondary" onClick={()=>reload().then(()=>setError("")).catch((failure)=>setError(failure.message))}>Reload chronology</button></div>}{notice && <p role="status" className={shared.notice}>{notice}</p>}
     <div className={styles.systemGrid}>
       <article className={styles.systemCard} data-default={!bundle.defaultDatingSystemId}><div className={styles.cardHeading}><span className={styles.seal}><Compass size={26}/></span><div><span className={shared.eyebrow}>Always available</span><h3>Canonical world years</h3></div>{!bundle.defaultDatingSystemId && <span className={shared.privateBadge}>Default display</span>}</div><p>The stable historical reference. Signed whole years include Year 0.</p><p className={styles.epoch}>−1 <ArrowRight size={14}/> 0 <ArrowRight size={14}/> 1</p><p className={shared.muted}>These World years keep every account in a stable order. Calendars separately describe days and months; a World year has no assumed length.</p>{canEdit && !!bundle.defaultDatingSystemId && <button className="st-button is-secondary" disabled={pending} onClick={()=>action({action:"default",revision:bundle.world.revision,systemId:null},"Canonical world years are now the default display.",null)}>Use canonical as default</button>}</article>
-      {systems.map((system)=><article key={system.id} className={styles.systemCard} data-default={bundle.defaultDatingSystemId===system.id} data-archived={system.archived}>
+      {systems.map((system)=><article id={`dating-${system.id}`} key={system.id} className={styles.systemCard} data-selected={connectedSystem===system.id} data-default={bundle.defaultDatingSystemId===system.id} data-archived={system.archived}>
         <div className={styles.cardHeading}><span className={styles.seal}>{system.numbering === "year-zero" ? "0" : "1"}</span><div><span className={shared.eyebrow}>{system.archived ? "Archived · context preserved" : system.numbering === "year-zero" ? "Includes Year 0" : "No Year 0"}</span><h3>{system.name}</h3></div>{bundle.defaultDatingSystemId===system.id && <span className={shared.privateBadge}>Default display</span>}</div>
         {system.description && <p>{system.description}</p>}<p className={styles.origin}>{system.origin}</p><p className={styles.epoch}>Canonical {yearLabel(system.epochYear)} <ArrowRight size={15}/>{formatYear(system.epochYear,system)}</p><NumberingPreview system={system}/>
         {system.referenced && <p className={shared.muted}>Epoch and numbering protected by historical use.</p>}{system.notes && <details className={shared.optional}><summary>Contextual notes</summary><p className={shared.prose}>{system.notes}</p></details>}
         {canEdit && <div className={styles.cardActions}>{system.archived ? <button className="st-button is-secondary" disabled={pending} onClick={()=>action({action:"restore",id:system.id,revision:system.revision},"Dating system restored.")}>Restore {system.name}</button> : <><button className="st-button is-secondary" disabled={pending} onClick={()=>setEditor({record:system})}>Edit {system.name}</button>{bundle.defaultDatingSystemId!==system.id && <button className="st-button" disabled={pending} onClick={()=>action({action:"default",systemId:system.id,revision:bundle.world.revision},`${system.name} is now the default display.`,system.id)}>Use {system.name} as default</button>}<button className="st-button is-ghost" disabled={pending || bundle.defaultDatingSystemId===system.id} title={bundle.defaultDatingSystemId===system.id ? "Choose another default before archiving." : "History and source context will be preserved."} onClick={()=>action({action:"archive",id:system.id,revision:system.revision},"Dating system archived. Historical context is preserved.")}>Archive {system.name}</button></>}</div>}
+        <LinkingPanel key={`${bundle.selectedTimeline.id}:${system.id}`} worldId={bundle.world.id} timelineId={bundle.selectedTimeline.id} context={{kind:"society-time",datingSystemId:system.id}} review={linkSearch.get("review")==="1"} ordinary={linkSearch.get("knowledge")==="ordinary"}/>
       </article>)}
     </div>
     <section className={styles.converter} aria-label="Year conversion"><div><p className={shared.eyebrow}>Try a historical year</p><h3>One position, different reckonings</h3><p className={shared.muted}>Compare how two dating systems name the same historical year. Negative inputs mean Before the origin. Calendar days are compared separately in Calendars.</p></div>

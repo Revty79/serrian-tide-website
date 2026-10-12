@@ -18,6 +18,8 @@ export type UserAccountForeignKeyPlanEntry = {
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "world_link_identity", columnName: "creator_id", constraintName: "world_link_identity_creator_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "World connection creation attribution" },
+  { tableName: "world_link_version", columnName: "author_id", constraintName: "world_link_version_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable World connection authorship" },
   { tableName: "world_lore_identity", columnName: "creator_id", constraintName: "world_lore_identity_creator_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "World entity creation attribution" },
   { tableName: "world_lore_version", columnName: "author_id", constraintName: "world_lore_version_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable World entity authorship" },
   { tableName: "world_lore_change", columnName: "actor_id", constraintName: "world_lore_change_actor_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "World entity source decisions and audit history" },
@@ -129,4 +131,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 109;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 111;
