@@ -44,7 +44,7 @@ export async function atlasServiceChecks(service:Service,worlds:Worlds,pool:pg.P
 async function openAtlas(page:Page,url:string){await page.goto(url);await page.getByRole("button",{name:"Atlas",exact:true}).click();await page.getByRole("heading",{name:"Atlas",exact:true}).waitFor();}
 async function screenPoint(page:Page,x:number,y:number){const canvas=page.getByRole("application",{name:"Editable map canvas"});await canvas.scrollIntoViewIfNeeded();return canvas.evaluate((node,p)=>{const matrix=(node as SVGSVGElement).getScreenCTM()!;const result=new DOMPoint(p.x,p.y).matrixTransform(matrix);return {x:result.x,y:result.y};},{x,y});}
 async function clickPoint(page:Page,x:number,y:number){const p=await screenPoint(page,x,y);await page.mouse.click(p.x,p.y);}
-async function save(page:Page){await page.getByRole("button",{name:"Save map",exact:true}).click();await page.getByText("Map saved. Your features and geography identities are preserved.",{exact:true}).waitFor();}
+async function save(page:Page){await page.getByRole("button",{name:"Save map",exact:true}).click();await page.getByRole("status").filter({hasText:"Map saved."}).waitFor();}
 async function rename(page:Page,name:string){await page.getByLabel("Feature name",{exact:true}).fill(name);await page.getByRole("button",{name:"Apply geography changes",exact:true}).click();}
 export async function atlasBrowserChecks(page:Page,god:BrowserContext,url:string,fixture:{worldId:string},artifacts:string) {
   const api=`${url}/api/worlds/${fixture.worldId}/atlas`,worldUrl=`${url}/worlds/${fixture.worldId}`;

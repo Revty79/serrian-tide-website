@@ -101,3 +101,13 @@ Retain the approved interfaces and workflows. History explains events, eras, unc
 Preserve exact original notation and source rules, referenced chronology arithmetic, distinct date precision, alternate interpretations, saved drafts and selections, ordinary-knowledge filtering and explicit read-only Administrator review. Calendar ownership/usage links remain a separately authorized bridge. Investigate navigation in production before changing its lifecycle; keep authorization and context boundaries, fresh return reads, visible loading/errors and request cancellation.
 
 G is postponed. H uses focused TypeScript, lint, domain and production/browser checks. Stop at a local H commit for independent technical and owner visual review. Do not begin I automatically. After separately authorized I, run one combined integrated acceptance and comprehensive regression checkpoint; retain earlier broad receipts as historical evidence.
+
+## Repair I Atlas and Map Maker polish
+
+H `e717c2dc4dc67675873760600d53c0e023f687a4` is technically approved; the owner confirmed its final visuals and resolution of the Calendar transition flash. The separately supplied I brief authorizes explanation/help polish and reproduced layout corrections across the existing Atlas, generator, geography, connections, settlements, interiors, dungeon plans, explorer and place History. Retain their accepted visual design and native forms. Use content-appropriate dialog widths, centered placement, scrollable short-height layouts, native focus/Escape and existing dirty-draft safeguards.
+
+Maps are editable drawings; geography records are shared saved places. Explain their different names, descriptions, representations, explicit destinations and historical accounts. Explain every affected control's purpose and effect without exposing technical references as the primary explanation. Preserve exact source geometry, styles, brush and generator behavior, deterministic seeds and original provenance, all map/place versions and identities, exports, archived destinations, selected timelines, immutable History and server-side privacy. No automatic routes, gameplay objects, Realm linking or historical map-state changes are introduced.
+
+Use focused production/browser, TypeScript, lint and Atlas domain checks, including representative H navigation regressions. Stop at a local I commit for independent technical and owner visual review. I's review does not itself authorize the later combined A2-I integrated acceptance/comprehensive regression, any push/deployment, linking bridges or Advanced Map Studio.
+
+I's reproduced defects, completed focused checks and separate pending review statuses are recorded in the [Repair I report](../reports/worlds-repair-i-2026-10-12.md).
