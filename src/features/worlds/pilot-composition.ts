@@ -1,10 +1,12 @@
 import { individualFieldGroups } from "./individuals";
 import { cosmologyFields } from "./cosmology";
 import type { LoreDraft } from "./peoples";
+import { isRepairBFamily, repairBFieldSection, repairBIssueSection } from "./peoples-composition";
 
 export const individualSections=[{id:"identity",label:"Identity"},{id:"personality",label:"Personality"},{id:"background",label:"Background"},{id:"community",label:"People & communities"},{id:"places",label:"Important places"},{id:"history",label:"History"},{id:"custom",label:"Original details"},{id:"private",label:"Private notes"}];
 export const principleSections=[{id:"identity",label:"The rule"},{id:"scope",label:"Where it applies"},{id:"when",label:"Circumstances"},{id:"periods",label:"Through history"},{id:"exceptions",label:"Exceptions"},{id:"accounts",label:"Different accounts"},{id:"history",label:"History"},{id:"custom",label:"Original details"},{id:"private",label:"Private notes"}];
 export function pilotFieldSection(family:string,key:string):string {
+  if(isRepairBFamily(family))return repairBFieldSection(family,key);
   if(family==="individual") {
     if(key==="privateReputation")return "private";
     if(key in individualFieldGroups["Identity and public perception"]||key in individualFieldGroups["Existence and physical nature"])return "identity";
@@ -15,6 +17,7 @@ export function pilotFieldSection(family:string,key:string):string {
   return ({classification:"identity",statement:"identity",scope:"scope",conditions:"when",exceptions:"exceptions",interpretations:"accounts",provenance:"accounts",development:"periods"} as Record<string,string>)[key]??"custom";
 }
 export function pilotIssueSection(family:string,path:PropertyKey[]):string {
+  if(isRepairBFamily(family))return repairBIssueSection(family,path);
   const first=String(path[0]??"");
   if(first==="fields")return pilotFieldSection(family,String(path[1]??""));
   return ({name:"identity",description:"identity",nameAccounts:"identity",participants:family==="individual"?"community":"scope",geographies:family==="individual"?"places":"scope",periods:"periods",historyRefs:"history",milestones:"history",time:"history",datingSystemId:"history",calendarDate:"history",accuracy:"history",narrative:"history",sections:"custom",protectedFields:"private",visibility:"private",privateNotes:"private"} as Record<string,string>)[first]??"identity";
@@ -38,6 +41,8 @@ export function patchPilotField(draft:LoreDraft,key:string,value:string):Partial
 /** Explain a domain validation failure without depending on interface labels. */
 export function pilotIssueMessage(family:string,issue:{path:PropertyKey[];message:string}):string {
   const path=issue.path.map(String),root=path[0],leaf=path.at(-1);
+  if(family==="origin"&&issue.message.startsWith("Choose at least one saved subject"))return issue.message;
+  if(isRepairBFamily(family)&&root==="participants"&&leaf==="targetId")return "Choose a saved creation, or describe one uncertain connection. Keep the two alternatives separate.";
   if(root==="participants"&&family==="cosmicPrinciple"&&(path.length===2||leaf==="targetId"))return "Choose a saved creation or remove this undecided connection. Describe uncertain reach in the rule's account.";
   if(issue.message.startsWith("Too small")) {
     if(root==="sections"&&leaf==="title")return "Give this original detail a title.";

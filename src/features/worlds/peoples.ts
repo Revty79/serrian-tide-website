@@ -44,8 +44,17 @@ export const loreDraftSchema = z.object({
 }).strict().superRefine((draft, context) => {
   const result = fieldsSchema(fieldLabels[draft.family]).safeParse(draft.fields);
   if (!result.success) context.addIssue({ code: "custom", path: ["fields"], message: "Use this record's fields or add a custom section." });
-  if (draft.family === "origin" && (!draft.description.trim() || !draft.participants.some(p => p.role === "subject" && p.targetId))) context.addIssue({ code: "custom", message: "Write an origin account and choose at least one subject." });
-  if (draft.family === "relationship" && (!draft.fields.relationshipType?.trim() || draft.participants.length < 2)) context.addIssue({ code: "custom", message: "Describe the relationship type and at least two participants." });
+  if (draft.family === "origin") {
+    if(!draft.description.trim())context.addIssue({code:"custom",path:["description"],message:"Tell the origin account. Other accounts can disagree with it."});
+    if(!draft.participants.some(p=>p.role==="subject"&&p.targetId)){
+      const subjectIndex=draft.participants.findIndex(p=>p.role==="subject"),savedIndex=draft.participants.findIndex(p=>!!p.targetId);
+      context.addIssue({code:"custom",path:subjectIndex>=0?["participants",subjectIndex,"targetId"]:savedIndex>=0?["participants",savedIndex,"role"]:["participants"],message:"Choose at least one saved subject and describe its connection as subject."});
+    }
+  }
+  if (draft.family === "relationship") {
+    if(!draft.fields.relationshipType?.trim())context.addIssue({code:"custom",path:["fields","relationshipType"],message:"Describe what kind of relationship this is."});
+    if(draft.participants.length<2)context.addIssue({code:"custom",path:["participants"],message:"Describe at least two participants in this relationship."});
+  }
   if (draft.nameAccounts?.length && draft.family !== "individual") context.addIssue({code:"custom",message:"Historical names and titles belong to an individual."});
   if (draft.relationshipPeriods?.length && draft.family !== "relationship") context.addIssue({code:"custom",message:"Personal relationship periods belong to a relationship account."});
   if (draft.protectedFields?.length && draft.family !== "individual" && !isPoliticalFamily(draft.family) && !isOrganizationFamily(draft.family) && !isCosmologyFamily(draft.family) && !isAstronomyFamily(draft.family)) context.addIssue({code:"custom",message:"Field protection is available for individuals, political records, organizations and cosmology."});

@@ -1,6 +1,7 @@
 import { calendarPrivacyFixture, reproduceCalendarPrivacy, calendarPrivacyServiceChecks, calendarPrivacyBrowserChecks } from "./worlds-calendar-privacy-checks";
 import { historyContextFixture, historyContextBrowserChecks } from "./worlds-history-context-checks";
 import { creatorRepairBrowserChecks } from "./worlds-creator-repair-checks";
+import { creatorBBrowserChecks } from "./worlds-creator-b-checks";
 import { seedAstronomyUpgrade, astronomyServiceChecks, astronomyBrowserChecks } from "./worlds-astronomy-checks";
 import { seedCosmologyUpgrade, cosmologyServiceChecks, cosmologyBrowserChecks } from "./worlds-cosmology-checks";
 import { seedOrganizationsUpgrade, organizationsServiceChecks, organizationsBrowserChecks } from "./worlds-organizations-checks";
@@ -134,6 +135,14 @@ async function main() {
   let started=false,pool:pg.Pool|undefined,applicationPool:pg.Pool|undefined,server:ChildProcess|undefined,browser:Awaited<ReturnType<typeof chromium.launch>>|undefined;
   const errors:string[]=[];
   let activePage: Page | undefined;
+  async function startProductionBrowser(){
+    const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
+    await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see ${path.join(artifactRoot,`${path.basename(evidenceDirectory)}-next.log`)}`)));});
+    console.log("PASS: isolated production build and TypeScript verification.");
+    server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--port",String(appPort)],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});server.stdout!.pipe(log,{end:false});server.stderr!.pipe(log,{end:false});
+    const deadline=Date.now()+120000;let ready=false;while(Date.now()<deadline){assert.equal(server.exitCode,null);try{if((await fetch(`${baseUrl}/login`,{signal:AbortSignal.timeout(5000)})).ok){ready=true;break;}}catch{}await new Promise((resolve)=>setTimeout(resolve,300));}assert.ok(ready);
+    return await chromium.launch({executablePath:process.env.SERRIAN_TEST_CHROME??"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true});
+  }
   try {
     execFileSync(executable("initdb"),["--auth=trust","--encoding=UTF8","--no-locale","--username=postgres","-D",data],{stdio:"pipe",windowsHide:true});
     execFileSync(executable("pg_ctl"),["-D",data,"-l",path.join(temporaryRoot,"postgres.log"),"-o",`-p ${dbPort} -h 127.0.0.1`,"-w","start"],{stdio:"ignore",windowsHide:true});started=true;
@@ -149,6 +158,14 @@ async function main() {
     for(const [id,role] of [["world-god","god"],["other-god","god"],["world-admin","admin"],["world-player","player"]]) {
       await pool.query('insert into "user" (id,name,email,email_verified,username,display_username) values ($1,$1,$2,true,$1,$1)',[id,`${id}@example.invalid`]);
       await pool.query("insert into account (id,issuer,account_id,provider_id,user_id,password,updated_at) values ($1,'local:credential',$2,'credential',$2,$3,now())",[`${id}-credential`,id,password]);await pool.query("insert into user_role (user_id,role) values ($1,$2)",[id,role]);
+    }
+    if(process.argv.includes("--creator-b-only")||process.argv.includes("--creator-b-remaining")){
+      // Focused UI reruns need fresh current storage, not the unrelated service fixtures.
+      await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});
+      process.env.DATABASE_URL=databaseUrl;applicationPool=(await import("../src/db")).pool;
+      const focusedBefore=await runtimeSnapshot();browser=await startProductionBrowser();
+      await creatorBBrowserChecks(browser,baseUrl,pool,evidenceDirectory,process.argv.includes("--creator-b-remaining"));
+      assert.deepEqual(await runtimeSnapshot(),focusedBefore);return;
     }
     const classificationIds = await seedClassificationFixtures(pool);
     const ownerColumn=(await pool.query("select column_name from information_schema.columns where table_name='campaign' and column_name='owner_user_id'")).rowCount ? ",owner_user_id" : "";
@@ -371,13 +388,8 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const calendarPrivacy = await calendarPrivacyFixture(service,pool);
     if(!process.argv.includes("--calendar-privacy-reproduction"))await calendarPrivacyServiceChecks(service,pool,calendarPrivacy);
     const historyContext = process.argv.includes("--calendar-privacy-reproduction")?null:await historyContextFixture(service,pool);
-    const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
     if(process.argv.includes("--services-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
-    await new Promise<void>((resolve,reject)=>{const build=spawn(process.execPath,["node_modules/next/dist/bin/next","build"],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});build.stdout!.pipe(log,{end:false});build.stderr!.pipe(log,{end:false});build.once("error",reject);build.once("exit",(code)=>code===0?resolve():reject(new Error(`Build failed (${code}); see ${path.join(artifactRoot,`${path.basename(evidenceDirectory)}-next.log`)}`)));});
-    console.log("PASS: isolated production build and TypeScript verification.");
-    server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--port",String(appPort)],{env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});server.stdout!.pipe(log,{end:false});server.stderr!.pipe(log,{end:false});
-    const deadline=Date.now()+120000;let ready=false;while(Date.now()<deadline){assert.equal(server.exitCode,null);try{if((await fetch(`${baseUrl}/login`,{signal:AbortSignal.timeout(5000)})).ok){ready=true;break;}}catch{}await new Promise((resolve)=>setTimeout(resolve,300));}assert.ok(ready);
-    browser=await chromium.launch({executablePath:process.env.SERRIAN_TEST_CHROME??"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true});
+    browser=await startProductionBrowser();
     const god=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.40"}});await signIn(god,baseUrl,"world-god");
     const page=await god.newPage();activePage=page;page.on("pageerror",(error)=>errors.push(error.message));
     if(process.argv.includes("--calendar-privacy-reproduction")){await reproduceCalendarPrivacy(browser,baseUrl,calendarPrivacy);assert.deepEqual(await runtimeSnapshot(),before);return;}
@@ -387,6 +399,7 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     await calendarPrivacyBrowserChecks(browser,baseUrl,calendarPrivacy,pool);
     if(process.argv.includes("--calendar-privacy-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await creatorRepairBrowserChecks(browser,baseUrl,individualsFixture,cosmologyFixture,pool,evidenceDirectory);
+    await creatorBBrowserChecks(browser,baseUrl,pool,`${evidenceDirectory}/repair-b`);
     if((process.argv.includes("--repair-a-only")||process.argv.includes("--creator-a2-only"))){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await astronomyBrowserChecks(browser,baseUrl,astronomyFixture,pool,`${evidenceDirectory}/regressions/5b`);
     if(process.argv.includes("--astronomy-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
