@@ -1,7 +1,7 @@
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { worldCalendar, worldCalendarVersion } from "@/db/world-calendar-schema";
 import { worldCalendarAdoption } from "@/db/world-calendar-history-schema";
@@ -12,10 +12,10 @@ import { worldLinkIdentity as identity, worldLinkVersion as version, worldLinkHe
 import { worldReadAccess, worldWriteTransaction, WorldError } from "./world-service";
 import { selectedTimeline, type HistoryTx } from "./history-version-service";
 import { ordinaryLoreSource, ordinaryLorePinnedSource } from "./ordinary-knowledge";
-import { isSocietyFamily, linkCommandSchema, type LinkBundle, type LinkDraft, type LinkSource, type WorldLink } from "./linking";
+import { isSocietyFamily, societyFamilies, linkCommandSchema, type LinkBundle, type LinkDraft, type LinkSource, type WorldLink } from "./linking";
 const unavailable = () => new WorldError("This connection or its saved source is unavailable in this timeline.",404);
 const conflict = () => new WorldError("A newer connection was saved in another tab. Your draft is retained. Load the latest connection before saving again.",409);
-const usableModes = ["authored", "inherited", "interpretation"];
+const usableModes = ["authored", "inherited", "interpretation"] as const;
 
 // Match Atlas's server projection: a map attached to a protected place or any
 // descendant of it cannot disclose its name through a bridge or its selectors.
@@ -28,7 +28,7 @@ function ordinaryMap(worldId: string) {
 async function choices(tx: HistoryTx,worldId:string,timelineId:string,ordinary:boolean,primary:boolean):Promise<LinkBundle["choices"]> {
   const lore=await tx.select({id:worldLoreHead.entityId,versionId:worldLoreHead.versionId,revision:worldLoreHead.revision,name:worldLoreDisplay.name,family:worldLoreVersion.family,archived:worldLoreVersion.archived,mode:worldLoreHead.mode}).from(worldLoreHead)
     .innerJoin(worldLoreVersion,eq(worldLoreHead.versionId,worldLoreVersion.id)).innerJoin(worldLoreDisplay,eq(worldLoreDisplay.versionId,worldLoreVersion.id))
-    .where(and(eq(worldLoreHead.worldId,worldId),eq(worldLoreHead.timelineId,timelineId),ordinary?ordinaryLoreSource(worldId,timelineId,sql`${worldLoreVersion.id}`):undefined)).orderBy(asc(worldLoreDisplay.name)).limit(2001);
+    .where(and(eq(worldLoreHead.worldId,worldId),eq(worldLoreHead.timelineId,timelineId),inArray(worldLoreVersion.family,["realm",...societyFamilies]),inArray(worldLoreHead.mode,usableModes),ordinary?ordinaryLoreSource(worldId,timelineId,sql`${worldLoreVersion.id}`):undefined)).orderBy(asc(worldLoreDisplay.name)).limit(2001);
   const maps=await tx.select().from(worldAtlasMap).where(and(eq(worldAtlasMap.worldId,worldId),ordinary?ordinaryMap(worldId):undefined)).orderBy(asc(worldAtlasMap.name)).limit(2001);
   const calendars=await tx.select().from(worldCalendar).where(and(eq(worldCalendar.worldId,worldId),ordinary?eq(worldCalendar.visibility,"ordinary"):undefined)).orderBy(asc(worldCalendar.name)).limit(2001);
   const versions=await tx.select().from(worldCalendarVersion).where(and(eq(worldCalendarVersion.worldId,worldId),ordinary?sql`exists(select 1 from world_calendar c where c.id=${worldCalendarVersion.calendarId} and c.world_id=${worldId} and c.visibility='ordinary')`:undefined)).orderBy(asc(worldCalendarVersion.createdAt)).limit(2001);
@@ -37,7 +37,7 @@ async function choices(tx: HistoryTx,worldId:string,timelineId:string,ordinary:b
   if([lore,maps,calendars,versions,dating,adoptions].some(rows=>rows.length>2000))throw new WorldError("Too many records to open these saved connections safely. Narrow the World archive before continuing.",409);
   const calendarIds=new Set(calendars.map(c=>c.id)),safeVersions=versions.filter(v=>calendarIds.has(v.calendarId)),versionIds=new Set(safeVersions.map(v=>v.id));
   return {
-    lore:lore.filter(l=>usableModes.includes(l.mode)&&(l.family==="realm"||isSocietyFamily(l.family))).map(l=>({...l,context:l.family})),
+    lore:lore.map(l=>({...l,context:l.family})),
     maps:maps.map(m=>({id:m.id,name:m.name,context:`${m.scope} · ${m.mapKind} map`,revision:m.revision,archived:!!m.archivedAt})),
     calendars:calendars.map(c=>({id:c.id,name:c.name,context:"Continuing calendar tradition",revision:c.revision,archived:!!c.archivedAt})),
     versions:safeVersions.map(v=>({id:v.id,calendarId:v.calendarId,name:v.title,context:`Rules revision ${v.revision}`,revision:v.revision,archived:!!v.archivedAt})),
@@ -111,7 +111,9 @@ export async function changeWorldLink(userId:string,worldId:string,input:unknown
       return c.id;
     }
     if(c.action==="exclude"){
-      if(!current)throw unavailable();await tx.update(head).set({mode:"excluded",revision:current.head.revision+1}).where(and(eq(head.timelineId,timeline.id),eq(head.linkId,c.id)));return c.id;
+      if(!current)throw unavailable();
+      if(!timeline.parentId||current.head.mode!=="inherited"||current.version.timelineId===timeline.id||current.version.archived)throw new WorldError("Only an active connection included from the parent timeline can be excluded. Archive locally authored or interpreted connections instead.",409);
+      await tx.update(head).set({mode:"excluded",revision:current.head.revision+1}).where(and(eq(head.timelineId,timeline.id),eq(head.linkId,c.id)));return c.id;
     }
     if(c.action!=="save"&&!current)throw unavailable();
     if(c.action==="save"&&current&&(current.version.archived||current.head.mode==="excluded"))throw new WorldError("Restore or explicitly include this connection before editing it.",409);
