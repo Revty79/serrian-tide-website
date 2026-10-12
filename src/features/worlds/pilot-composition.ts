@@ -8,6 +8,9 @@ import { isOrganizationFamily, organizationsComposition, repairDFieldSection, re
 
 import { isRepairEFamily, cosmologyComposition, repairEFieldSection, repairEIssueSection } from "./cosmology-composition";
 
+import { isAstronomyFamily } from "./astronomy";
+import { repairFFieldSection, repairFIssueSection } from "./astronomy-composition";
+
 export const individualSections=[{id:"identity",label:"Identity"},{id:"personality",label:"Personality"},{id:"background",label:"Background"},{id:"community",label:"People & communities"},{id:"places",label:"Important places"},{id:"history",label:"History"},{id:"custom",label:"Original details"},{id:"private",label:"Private notes"}];
 export const principleSections=[{id:"identity",label:"The rule"},{id:"scope",label:"Where it applies"},{id:"when",label:"Circumstances"},{id:"periods",label:"Through history"},{id:"exceptions",label:"Exceptions"},{id:"accounts",label:"Different accounts"},{id:"history",label:"History"},{id:"custom",label:"Original details"},{id:"private",label:"Private notes"}];
 export function pilotFieldSection(family:string,key:string):string {
@@ -15,6 +18,7 @@ export function pilotFieldSection(family:string,key:string):string {
   if(isPoliticalFamily(family))return repairCFieldSection(family,key);
   if(isOrganizationFamily(family))return repairDFieldSection(family,key);
   if(isRepairEFamily(family))return repairEFieldSection(family,key);
+  if(isAstronomyFamily(family))return repairFFieldSection(family,key);
   if(family==="individual") {
     if(key==="privateReputation")return "private";
     if(key in individualFieldGroups["Identity and public perception"]||key in individualFieldGroups["Existence and physical nature"])return "identity";
@@ -29,6 +33,7 @@ export function pilotIssueSection(family:string,path:PropertyKey[]):string {
   if(isPoliticalFamily(family))return repairCIssueSection(family,path);
   if(isOrganizationFamily(family))return repairDIssueSection(family,path);
   if(isRepairEFamily(family))return repairEIssueSection(family,path);
+  if(isAstronomyFamily(family))return repairFIssueSection(family,path);
   const first=String(path[0]??"");
   if(first==="fields")return pilotFieldSection(family,String(path[1]??""));
   return ({name:"identity",description:"identity",nameAccounts:"identity",participants:family==="individual"?"community":"scope",geographies:family==="individual"?"places":"scope",periods:"periods",historyRefs:"history",milestones:"history",time:"history",datingSystemId:"history",calendarDate:"history",accuracy:"history",narrative:"history",sections:"custom",protectedFields:"private",visibility:"private",privateNotes:"private"} as Record<string,string>)[first]??"identity";
@@ -56,12 +61,15 @@ export function pilotIssueMessage(family:string,issue:{path:PropertyKey[];messag
   if(isPoliticalFamily(family)&&root==="participants"&&leaf==="targetId")return politicalRelationshipFamilies.some(f=>f===family)?"Choose a saved creation or remove this undecided connection. Keep uncertain parties in the narrative account.":"Choose a saved creation, or describe one uncertain connection. Keep the two alternatives separate.";
   if(isOrganizationFamily(family)&&root==="participants"&&leaf==="targetId")return organizationsComposition[family].savedConnectionsOnly?"Choose a saved creation or remove this undecided connection. Keep uncertain membership, assignments or partners in the narrative account.":"Choose a saved creation, or describe one uncertain connection. Keep the two alternatives separate.";
   if(isRepairEFamily(family)&&root==="participants"&&leaf==="targetId")return cosmologyComposition[family].savedConnectionsOnly?"Choose a saved creation or remove this undecided connection. Keep uncertain cosmic claims in the narrative account.":"Choose a saved creation, or describe one uncertain connection. Keep the two alternatives separate.";
+  if(isAstronomyFamily(family)&&root==="participants"&&leaf==="targetId")return "Choose a saved creation or remove this undecided connection. Keep uncertain observers or sky claims in the narrative account.";
+  if(isAstronomyFamily(family)&&root==="calendarBindings"&&leaf==="calendarVersionId")return "Choose a saved calendar version, or remove this undecided association.";
+  if(isAstronomyFamily(family)&&root==="cycle"&&leaf==="name"&&issue.message.startsWith("Too small"))return "Give this phase a name.";
   if(isRepairBFamily(family)&&root==="participants"&&leaf==="targetId")return "Choose a saved creation, or describe one uncertain connection. Keep the two alternatives separate.";
   if(root==="participants"&&family==="cosmicPrinciple"&&(path.length===2||leaf==="targetId"))return "Choose a saved creation or remove this undecided connection. Describe uncertain reach in the rule's account.";
   if(issue.message.startsWith("Too small")) {
     if(root==="sections"&&leaf==="title")return "Give this original detail a title.";
     if(root==="periods"&&leaf==="label")return "Give this period a name.";
-    if(root==="periods"&&leaf==="status")return isPoliticalFamily(family)||isOrganizationFamily(family)||isRepairEFamily(family)?"Describe this period's status, or write unknown.":"Describe the rule's state, or write unknown.";
+    if(root==="periods"&&leaf==="status")return isPoliticalFamily(family)||isOrganizationFamily(family)||isRepairEFamily(family)||isAstronomyFamily(family)?"Describe this period's status, or write unknown.":"Describe the rule's state, or write unknown.";
     if(root==="participants"&&leaf==="role")return "Describe what this connection means.";
     if(root==="milestones"&&leaf==="eventType")return "Describe how this event relates to the creation.";
     if(root==="nameAccounts"&&leaf==="kind")return "Describe how this name was used.";

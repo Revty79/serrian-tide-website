@@ -71,7 +71,7 @@ test("cosmic validation reveals supporting sections and the independent failing 
   assert.match(pilotIssueMessage("cosmicConnection", { path: ["participants", 0, "targetId"], message: "Invalid input" }), /Keep uncertain cosmic claims/);
 });
 
-test("Cosmic Principle retains its A2 questions, sections and validation; Living Skies stays outside E", () => {
+test("Cosmic Principle retains its A2 questions, sections and validation; Living Skies is not an E composition", () => {
   assert.equal(isRepairEFamily("cosmicPrinciple"), false);
   assert.equal(getCreatorComposition("cosmicPrinciple"), null);
   assert.deepEqual(principleSections.map(s => [s.id, s.label]), [["identity", "The rule"], ["scope", "Where it applies"], ["when", "Circumstances"], ["periods", "Through history"], ["exceptions", "Exceptions"], ["accounts", "Different accounts"], ["history", "History"], ["custom", "Original details"], ["private", "Private notes"]]);
@@ -80,5 +80,5 @@ test("Cosmic Principle retains its A2 questions, sections and validation; Living
   assert.equal(pilotFieldSection("cosmicPrinciple", "exceptions"), "exceptions");
   assert.equal(pilotIssueMessage("cosmicPrinciple", { path: ["periods", 0, "status"], message: "Too small" }), "Describe the rule's state, or write unknown.");
   for (const family of ["individual", "cosmicPrinciple", "language", "relationship", "government", "appointment", "organization", "assignment", ...repairEFamilies]) assert.equal(hasCreatorWorkshop(family), true);
-  for (const family of ["skyCycle", "skyObservation", "skyCalendarLink"]) assert.equal(hasCreatorWorkshop(family), false);
+  for (const family of ["skyCycle", "skyObservation", "skyCalendarLink"]) assert.equal(isRepairEFamily(family), false);
 });
