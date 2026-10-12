@@ -5,10 +5,11 @@ export type RepairBFamily = typeof repairBFamilies[number];
 type Question = { section: string; label: string; help: string };
 type Section = { id: string; label: string; introduction: string };
 type Connection = { kind: LoreFamily; role: string; label: string };
-type Composition = {
+export type Composition = {
   subject: string; introduction: string; overview: string; overviewHelp: string;
   sections: Section[]; fields: Record<string, Question>; connections: Connection[];
   connectionHelp: string; placeHelp: string; eventHelp: string;
+  savedConnectionsOnly?: boolean;
 };
 const question = (section: string, label: string, help: string): Question => ({section,label,help: `${help} Up to 50,000 characters. Keep your own wording; leave optional details undecided.`});
 const section = (id: string, label: string, introduction: string): Section => ({id,label,introduction});

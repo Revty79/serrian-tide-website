@@ -9,13 +9,13 @@ import {individualMilestoneTypes} from "./individuals";
 import {MilestoneParticipants} from "./political-account-fields";
 import type {DatingSystem} from "./chronology";
 import {entryDraftOf,worldApi} from "./client-api";
-import {isRepairBFamily,peoplesComposition} from "./peoples-composition";
+import { getCreatorComposition } from "./creator-composition";
 import styles from "./creator-workshop.module.css";
 
 export function PilotHistoryFields({draft,patch,refs,worldId,timelineId,record,systems,displaySystem,onReadHistory}:{draft:LoreDraft;patch:(value:Partial<LoreDraft>)=>void;refs:LoreReferences;worldId:string;timelineId:string;record:LoreRecord|null;systems:DatingSystem[];displaySystem:DatingSystem|null;onReadHistory:(id:string,versionId?:string)=>void}) {
   const [lifeType,setLifeType]=useState("creation"),[search,setSearch]=useState(""),[limit,setLimit]=useState(60),[selected,setSelected]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState("");
   const choices=refs.history.filter(h=>h.name.toLowerCase().includes(search.toLowerCase())),events=choices.filter(h=>h.kind==="entry"&&!h.archived),individual=draft.family==="individual";
-  const composition=isRepairBFamily(draft.family)?peoplesComposition[draft.family]:null;
+  const composition=getCreatorComposition(draft.family);
   const system=systems.find(s=>s.id===draft.datingSystemId)??displaySystem;
   function update(index:number,change:Partial<LoreDraft["milestones"][number]>){patch({milestones:draft.milestones.map((m,i)=>i===index?{...m,...change}:m)});}
   function updateEvent(index:number,change:Partial<EntryDraft>){update(index,{draft:{...draft.milestones[index].draft,...change}});}

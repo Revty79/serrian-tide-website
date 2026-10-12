@@ -3,7 +3,7 @@ import {useState,type ReactNode} from "react";
 import {Field} from "./world-field";
 import type {LoreDraft,LoreRecord,LoreReferences,LoreFamily} from "./peoples";
 import type {HistoricalTime} from "./history";
-import {isRepairBFamily,peoplesComposition} from "./peoples-composition";
+import { getCreatorComposition } from "./creator-composition";
 import styles from "./peoples.module.css";
 
 export function LoreGeographyEditor({value,places,retained,onChange,newId,timeField,flat=false,pilot}:{value:LoreDraft["geographies"];places:LoreReferences["places"];retained?:LoreRecord["geographies"];onChange:(value:LoreDraft["geographies"])=>void;newId:()=>string;timeField:(value:HistoricalTime,label:string,onChange:(time:HistoricalTime)=>void,path?:string)=>ReactNode;flat?:boolean;pilot?:LoreFamily}) {
@@ -12,7 +12,7 @@ export function LoreGeographyEditor({value,places,retained,onChange,newId,timeFi
   const names=new Map(places.map(p=>[p.id,p.name]));for(const g of retained??[]){names.set(g.geographyId,g.name);if(g.destinationId)names.set(g.destinationId,g.destinationName??"Retained place");}
   function patch(index:number,change:Partial<LoreDraft["geographies"][number]>){onChange(value.map((g,i)=>i===index?{...g,...change}:g));}
   function options(selected:string|null){return <><option value="">Choose a place</option>{shown.map(p=><option key={p.id} value={p.id} disabled={p.archived&&p.id!==selected}>{p.name}{p.archived?" · archived":""}</option>)}{selected&&!shown.some(p=>p.id===selected)&&<option value={selected}>{names.get(selected)??"Retained place"}</option>}</>;}
-  const composition=pilot&&isRepairBFamily(pilot)?peoplesComposition[pilot]:null;
+  const composition=pilot?getCreatorComposition(pilot):null;
   const fields=<><p>{composition?.placeHelp??(pilot==="individual"?"Choose existing places important to this individual. Keep where they lived, travelled or were imagined distinct in your own description.":pilot?"Choose saved places where the rule applies, or places associated with claims about it. A symbolic connection can differ from a physical location.":"Connect saved Atlas identities. Several identities may share a place, and each identity may have several places. Physical location, cosmological claims, gateways, symbolic links and mythological accounts can remain distinct. A destination describes an authored movement; it does not invent a route or move Campaign actors.")}</p><Field label="Find geographic places" help="Search saved place names. Only the first 60 matching choices are shown; existing selections remain available."><input value={query} onChange={e=>setQuery(e.target.value)} maxLength={160}/></Field>
     {value.map((g,index)=><section key={g.id} className={styles.section} data-draft-path={`geographies.${index}`} aria-label={`Important place ${index+1}`}>
       <Field path={pilot?`geographies.${index}.geographyId`:undefined} label={pilot?`Choose a place ${index+1}`:`Place association ${index+1} place`} help="Choose the existing place this account concerns. Renaming or redrawing its map does not change this relationship."><select value={g.geographyId} onChange={e=>patch(index,{geographyId:e.target.value})}>{options(g.geographyId)}</select></Field>
