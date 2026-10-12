@@ -202,3 +202,11 @@
 .campaignSettingsContexts a,.associationCard>a { color:var(--st-primary); text-decoration:underline; }
 
 .eventMarker[data-prominence="featured"] { font-weight: 800; border-color: var(--st-primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-primary) 24%, transparent); }
+
+.displayConvention > div[data-field-guidance] {flex:1;max-width:320px;}
+.timelineSelection > div[data-field-guidance] {flex:1 1 14rem;}
+
+.chronicleEntry {min-width:0;overflow-wrap:anywhere;}
+.chronicleEntry > div {min-width:0;}
+.editorFields .tagOptions input[type="checkbox"] {width:auto;flex-shrink:0;}
+.tagOptions label,.tagOptions span {min-width:0;overflow-wrap:anywhere;}

@@ -1,3 +1,4 @@
+import { repairHBrowserChecks } from "./worlds-repair-h-checks";
 import { calendarPrivacyFixture, reproduceCalendarPrivacy, calendarPrivacyServiceChecks, calendarPrivacyBrowserChecks } from "./worlds-calendar-privacy-checks";
 import { historyContextFixture, historyContextBrowserChecks } from "./worlds-history-context-checks";
 import { creatorRepairBrowserChecks } from "./worlds-creator-repair-checks";
@@ -138,6 +139,7 @@ async function main() {
   await mkdir(worldsEvidence,{recursive:true});await mkdir(artifactRoot,{recursive:true});const log=createWriteStream(path.join(artifactRoot,`${path.basename(evidenceDirectory)}-next.log`));
   let started=false,pool:pg.Pool|undefined,applicationPool:pg.Pool|undefined,server:ChildProcess|undefined,browser:Awaited<ReturnType<typeof chromium.launch>>|undefined;
   const errors:string[]=[];
+  let keepFailedEnvironment=false;
   let activePage: Page | undefined;
   async function startProductionBrowser(){
     const environment:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:baseUrl,BETTER_AUTH_SECRET:"worlds-pass-one-disposable-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:distName,NEXT_TELEMETRY_DISABLED:"1"};
@@ -163,12 +165,13 @@ async function main() {
       await pool.query('insert into "user" (id,name,email,email_verified,username,display_username) values ($1,$1,$2,true,$1,$1)',[id,`${id}@example.invalid`]);
       await pool.query("insert into account (id,issuer,account_id,provider_id,user_id,password,updated_at) values ($1,'local:credential',$2,'credential',$2,$3,now())",[`${id}-credential`,id,password]);await pool.query("insert into user_role (user_id,role) values ($1,$2)",[id,role]);
     }
-    if(process.argv.includes("--creator-b-only")||process.argv.includes("--creator-b-remaining")||process.argv.includes("--creator-c-only")||process.argv.includes("--creator-d-only")||process.argv.includes("--creator-e-only")||process.argv.includes("--creator-f-only")){
+    if(process.argv.includes("--creator-b-only")||process.argv.includes("--creator-b-remaining")||process.argv.includes("--creator-c-only")||process.argv.includes("--creator-d-only")||process.argv.includes("--creator-e-only")||process.argv.includes("--creator-f-only")||process.argv.includes("--repair-h-only")){
       // Focused UI reruns need fresh current storage, not the unrelated service fixtures.
       await migrate(drizzle(pool),{migrationsFolder:path.resolve("drizzle")});
       process.env.DATABASE_URL=databaseUrl;applicationPool=(await import("../src/db")).pool;
       const focusedBefore=await runtimeSnapshot();browser=await startProductionBrowser();
-      if(process.argv.includes("--creator-f-only"))await creatorFBrowserChecks(browser,baseUrl,pool,evidenceDirectory);
+      if(process.argv.includes("--repair-h-only"))await repairHBrowserChecks(browser,baseUrl,pool,evidenceDirectory);
+      else if(process.argv.includes("--creator-f-only"))await creatorFBrowserChecks(browser,baseUrl,pool,evidenceDirectory);
       else if(process.argv.includes("--creator-e-only"))await creatorEBrowserChecks(browser,baseUrl,pool,evidenceDirectory);
       else if(process.argv.includes("--creator-d-only"))await creatorDBrowserChecks(browser,baseUrl,pool,evidenceDirectory);
       else if(process.argv.includes("--creator-c-only"))await creatorCBrowserChecks(browser,baseUrl,pool,evidenceDirectory);
@@ -516,13 +519,17 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     assert.deepEqual(await runtimeSnapshot(),before);assert.deepEqual(errors,[]);
     console.log("PASS: G.O.D./Admin/Player/anonymous direct route and HTTP authorization, no private ID leaks, no-store responses, CSRF rejection, unchanged Campaign/combat/Form/Evolution data and no browser runtime errors.");
   } catch (failure) {
+    if(process.argv.includes("--repair-h-only")&&process.env.SERRIAN_TEST_KEEP_FAILED==="1"){
+      keepFailedEnvironment=true;await writeFile(path.join(artifactRoot,"h-retained-environment.json"),JSON.stringify({temporaryRoot,data,dbPort,appPort,databaseUrl,baseUrl,distName,distPath},null,2)+"\n");
+      console.log("H failure retained only its disposable database/build for an unfinished-checkpoint resume.");
+    }
     if(activePage) { await activePage.screenshot({path:path.join(artifactRoot,"worlds-failure.png"),fullPage:false}).catch(()=>{}); console.log(JSON.stringify({browserErrors:errors,alerts:await activePage.getByRole("alert").allTextContents().catch(()=>[]),invalidFields:await activePage.locator("dialog :invalid").evaluateAll((fields)=>fields.map((field)=>({tag:field.tagName,name:field.getAttribute("aria-labelledby"),message:(field as HTMLInputElement).validationMessage}))).catch(()=>[])})); }
     throw failure;
   } finally {
     if(browser)await browser.close();if(server?.pid&&server.exitCode===null){if(process.platform==="win32")execFileSync("taskkill",["/pid",String(server.pid),"/t","/f"],{stdio:"ignore",windowsHide:true});else{server.kill();await new Promise<void>((resolve)=>server!.once("exit",()=>resolve()));}}
-    log.end();if(applicationPool)await applicationPool.end();if(pool)await pool.end();if(started&&existsSync(path.join(data,"postmaster.pid")))execFileSync(executable("pg_ctl"),["-D",data,"-m","fast","-w","stop"],{stdio:"ignore",windowsHide:true});
-    assert.equal(path.dirname(temporaryRoot),temporaryParent);assert.ok(path.basename(temporaryRoot).startsWith("serrian-worlds-pass-one-"));await rm(temporaryRoot,{recursive:true,force:true});
-    assert.equal(path.dirname(distPath),artifactRoot);assert.equal(path.basename(distPath),`worlds-next-${appPort}`);await rm(distPath,{recursive:true,force:true});
+    log.end();if(applicationPool)await applicationPool.end();if(pool)await pool.end();if(!keepFailedEnvironment&&started&&existsSync(path.join(data,"postmaster.pid")))execFileSync(executable("pg_ctl"),["-D",data,"-m","fast","-w","stop"],{stdio:"ignore",windowsHide:true});
+    assert.equal(path.dirname(temporaryRoot),temporaryParent);assert.ok(path.basename(temporaryRoot).startsWith("serrian-worlds-pass-one-"));if(!keepFailedEnvironment)await rm(temporaryRoot,{recursive:true,force:true});
+    assert.equal(path.dirname(distPath),artifactRoot);assert.equal(path.basename(distPath),`worlds-next-${appPort}`);if(!keepFailedEnvironment)await rm(distPath,{recursive:true,force:true});
     const config=JSON.parse(await readFile("tsconfig.json","utf8")) as {include:string[]};
     config.include=config.include.filter((entry)=>!entry.startsWith(`${distName}/`));
     const ending=originalConfig.includes("\r\n") ? "\r\n" : "\n";

@@ -1,6 +1,6 @@
 # Phase 4–5 creator coverage and repair map
 
-Baseline inspected: `3e050fc8d860af6b965a6a95abae7a54dfad0707`; migration journal ends at idx 121, `0121_worlds_living_skies`. This inventory uses actual field catalogs, schema columns, authoring components and services. Repair A changes Individual and Cosmic Principle only. This historical baseline is retained. A2 starts at `440fffcca807cc4fc20b7130ceb063a44c9f4061`, after the separately committed 5B privacy correction; the journal still has 122 entries ending at idx 121. The owner approved A2 technical and hands-on review at `98c4eafe1a0f68445a867445aef7dcad62f5c49c` and separately authorized Repair B. The expanded roadmap below records later work without authorizing it. Repair C is separately authorized from the approved B checkpoint `683cee206fbd4488d7ab0b570c52f6364fb62f6c`; its technical and human acceptance remain separate. Repair D is separately authorized from approved C `4e5619e12d468c70982750084270a70157e2be3f`, with its post-D broad checkpoint now complete. Repair E is separately authorized from clean, pushed D `10bdd69eb493b909a8d5045a5e821aab103deb5d`; the owner confirmed that exact D commit was independently reviewed and approved. E uses focused validation. Repair F is separately authorized from clean, pushed E `ddd7b4367b62276f781c17c7803a74e99edc2169`; its brief establishes independent technical approval and the owner explicitly accepted that exact E commit before F changes. F uses focused validation; the next planned broad checkpoint is G unless a concrete wider risk requires it.
+Baseline inspected: `3e050fc8d860af6b965a6a95abae7a54dfad0707`; migration journal ends at idx 121, `0121_worlds_living_skies`. This inventory uses actual field catalogs, schema columns, authoring components and services. Repair A changes Individual and Cosmic Principle only. This historical baseline is retained. A2 starts at `440fffcca807cc4fc20b7130ceb063a44c9f4061`, after the separately committed 5B privacy correction; the journal still has 122 entries ending at idx 121. The owner approved A2 technical and hands-on review at `98c4eafe1a0f68445a867445aef7dcad62f5c49c` and separately authorized Repair B. The expanded roadmap below records later work without authorizing it. Repair C is separately authorized from the approved B checkpoint `683cee206fbd4488d7ab0b570c52f6364fb62f6c`; its technical and human acceptance remain separate. Repair D is separately authorized from approved C `4e5619e12d468c70982750084270a70157e2be3f`, with its post-D broad checkpoint now complete. Repair E is separately authorized from clean, pushed D `10bdd69eb493b909a8d5045a5e821aab103deb5d`; the owner confirmed that exact D commit was independently reviewed and approved. E uses focused validation. Repair F is separately authorized from clean, pushed E `ddd7b4367b62276f781c17c7803a74e99edc2169`; its brief establishes independent technical approval and the owner explicitly accepted that exact E commit before F changes. F uses focused validation and is technically and visually approved at `91918aa6b4b9b24f76877448e29bf31e8998b8ed` under the H brief. H is separately authorized for existing History, Chronology and Calendar explanations/help and a production-investigated navigation flash; no creator redesign or linking bridge. G is postponed. H and separately authorized I precede one combined integrated acceptance and comprehensive regression checkpoint; broaden earlier only for a concrete wider risk.
 
 Observed baseline: LoreEditor is one scrolling dialog with disclosures, a scrolling footer and no draft profile preview. Individuals reuse one generic characteristic-help paragraph. Cosmology has more specific field help, but a general description and principle statement have unclear separate purposes. Saved library cards show name, family, source mode and archive state. Saved detail shows description, characteristics, pinned participants, place relationships, original dating/calendar source, milestones, historical sources, related identities, custom sections, and authorized private information. Existing immutable-version readers expose historical source provenance.
 
@@ -538,7 +538,7 @@ Repair E composition implemented from approved D; independently technically appr
 
 ## Celestial and seasonal cycles (skyCycle)
 
-Repair F composition implemented from the approved A2-E standard. Independent F technical review and owner experience acceptance remain pending. Common source, connection, History and privacy fields below also apply.
+Repair F composition implemented from the approved A2-E standard. F technical and owner visual approval is established by the H brief at `91918aa6b4b9b24f76877448e29bf31e8998b8ed`. Common source, connection, History and privacy fields below also apply.
 
 | Saved key / field | Creator's intent and information | Reuse already in Worlds | Current control and help | Saved location | Redesign destination | Preserve |
 |---|---|---|---|---|---|---|
@@ -552,7 +552,7 @@ Repair F composition implemented from the approved A2-E standard. Independent F 
 
 ## Sky observations and exceptional accounts (skyObservation)
 
-Repair F composition implemented from the approved A2-E standard. Independent F technical review and owner experience acceptance remain pending. Common source, connection, History and privacy fields below also apply.
+Repair F composition implemented from the approved A2-E standard. F technical and owner visual approval is established by the H brief at `91918aa6b4b9b24f76877448e29bf31e8998b8ed`. Common source, connection, History and privacy fields below also apply.
 
 | Saved key / field | Creator's intent and information | Reuse already in Worlds | Current control and help | Saved location | Redesign destination | Preserve |
 |---|---|---|---|---|---|---|
@@ -565,7 +565,7 @@ Repair F composition implemented from the approved A2-E standard. Independent F 
 
 ## Calendar and sky associations (skyCalendarLink)
 
-Repair F composition implemented from the approved A2-E standard. Independent F technical review and owner experience acceptance remain pending. Common source, connection, History and privacy fields below also apply.
+Repair F composition implemented from the approved A2-E standard. F technical and owner visual approval is established by the H brief at `91918aa6b4b9b24f76877448e29bf31e8998b8ed`. Common source, connection, History and privacy fields below also apply.
 
 | Saved key / field | Creator's intent and information | Reuse already in Worlds | Current control and help | Saved location | Redesign destination | Preserve |
 |---|---|---|---|---|---|---|
@@ -607,10 +607,10 @@ Repair A delivered the workshop shell and first pilots provisionally. The user a
 | B | Ten Peoples, societies, origins and personal relationship creators | Implemented and technically verified; owner approved the checkpoint as the C starting standard |
 | C | Eight political creators | Implemented and technically verified; owner approved the checkpoint as the D starting standard |
 | D | Five organization creators | Pushed at `10bdd69eb493b909a8d5045a5e821aab103deb5d`; owner confirmed independent review and approval; historical focused/post-D broad receipts retained |
-| E | Four remaining Phase 5A Cosmology creators, 54 typed fields | Authorized from approved D; implemented; focused verification complete; independent technical and owner experience review pending |
-| F | Phase 5B Living Skies and calendar connections | Separately authorized from approved E; implemented; focused evidence in F report; independent review and owner acceptance pending |
-| G | Integrated Phase 4–5 acceptance | Planned; separate authorization required |
-| H | History, Chronology and Calendars usability | Planned; separate authorization required |
+| E | Four remaining Phase 5A Cosmology creators, 54 typed fields | Technical and owner visual approval established as the F starting checkpoint; historical E completion report retained |
+| F | Phase 5B Living Skies and calendar connections | Technically and visually approved at `91918aa6b4b9b24f76877448e29bf31e8998b8ed` under the H brief; historical F evidence retained |
+| G | Integrated Phase 4?5 acceptance | Standalone G postponed; one combined integrated acceptance and comprehensive regression checkpoint after H and I |
+| H | History, Chronology and Calendars usability | Separately authorized from approved F; existing designs retained; independent H review pending |
 | I | Atlas and Map Maker usability/layout | Planned; separate authorization required |
 | Bridge | Small Realm-to-Map linking bridge | Planned; separate authorization required |
 | Phases 6–8 | Later Worlds development and final acceptance | Planned; separate authorization required |
@@ -670,4 +670,10 @@ Counts remain 32 main creators, 300 typed narrative fields, 23 common draft keys
 | Sky calendar binding | F | Explicit searchable rules selection; add/remove and targeted validation | Calendar identity, rules version, revision and original meaning explained | Actual saved versions; retained archived sources and exact IDs | Original names/titles/revisions/roles/accounts/protection and Calendars links | F focused retained-source/privacy checks; persistence unchanged; see F report | Independent F review and owner acceptance pending |
 | Sky query (read-only) | F | Existing celestial chronicle controls preserved | Existing exact-source and bounded-query guidance preserved | Original cycles, bodies, eras and explicit calendars remain available | Desktop/touch chronicle and source links accessible | F unchanged-input projections and ordinary filtering checked; query/service unchanged | Independent F review and owner acceptance pending |
 
-Baseline help remains historical evidence, rather than approved wording. Automated catalog coverage demonstrates destinations, not comprehensibility. Repair D is the pushed and approved starting checkpoint for authorized E. Stop after E for independent technical review and the owner's hands-on acceptance. F–I, the Realm-to-Map and Chronology linking bridges, Advanced Map Studio and Phases 6–8 need separate authorization. E retains focused validation; the next broad integration checkpoint is G unless a concrete wider risk requires earlier expansion.
+Baseline help remains historical evidence, rather than approved wording. Automated catalog coverage demonstrates destinations, not comprehensibility. F is the approved starting checkpoint for authorized H. Stop after H for independent technical and owner visual review. I, the Realm-to-Map and Chronology linking bridges, Advanced Map Studio and Phases 6?8 require separate authorization. G is postponed; focused H and separately authorized I precede one combined integrated acceptance and comprehensive regression checkpoint. Earlier broad receipts remain historical evidence.
+
+### Repair H existing History, Chronology and Calendar controls
+
+H preserves this inventory and all accepted workshops. The usability review covers History eras/events and filters; date representation, accuracy and planned/recorded status; original chronology/calendar notation and source versions; display/source dating conventions; chronology identity, origin, epoch, Year 0, suffix labels, defaults/conversions and referenced restrictions; calendar identity/privacy, immutable rules versions, months, weeks/year structure, time units, periodic intercalary rules, seasons, observances, previews, origins/anchors, periods/adoptions/reforms and conversions. Shared date fields remain complete and retain their original optionality, validation and source precision. Existing alternate-timeline and ordinary-knowledge boundaries remain authoritative.
+
+The application keeps the existing composition. Native question-mark disclosures receive plain language and illustrative examples; examples never become saved values. The Calendar view remains within the matching World/timeline/review/knowledge boundary while tab navigation preserves its selections and fresh reads. H technical evidence and pending independent technical/owner visual reviews remain separate. See the [H report](../reports/worlds-repair-h-2026-10-12.md). G is postponed; the next combined comprehensive checkpoint follows separately authorized I.

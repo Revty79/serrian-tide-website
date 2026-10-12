@@ -131,7 +131,7 @@ export async function historyContextBrowserChecks(browser: Browser, base: string
       async function noTransientLeaks() {assert.deepEqual(await page.evaluate(() => (window as unknown as Window & {contextPrivacyLeaks: string[]}).contextPrivacyLeaks), []);}
       async function ready(timeline: string, ordinary = true) {
         await page.getByLabel("Selected timeline", {exact: true}).waitFor();
-        await page.waitForFunction(expected => (document.querySelector('select[aria-label="Selected timeline"]') as HTMLSelectElement)?.value === expected && !document.querySelector('main [role="status"]')?.textContent?.includes("Loading the selected history"), timeline);
+        await page.waitForFunction(expected => (document.querySelector('section[aria-label="Selected historical timeline"] select') as HTMLSelectElement)?.value === expected && !document.querySelector('main [role="status"]')?.textContent?.includes("Loading the selected history"), timeline);
         await page.getByRole("button", {name: ordinary ? "Return to author history" : "Ordinary-knowledge history preview", exact: true}).waitFor();
         await page.getByRole("button", {name: timeline === f.primary ? "Primary public treaty" : "Alternate public treaty", exact: true}).waitFor();
         if (ordinary) assertSafe(await page.locator("main").innerHTML());
@@ -250,7 +250,7 @@ export async function historyContextBrowserChecks(browser: Browser, base: string
       await page.getByRole("navigation", {name: "World workspace"}).getByRole("button", {name: "History", exact: true}).click();
       await activate("Chronological list");
       await ready(f.primary);
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      assert.ok(await page.evaluate(expected => document.documentElement.scrollWidth <= expected + 1, page.viewportSize()!.width));
       assert.equal(responseErrors.length, 0, responseErrors.join("\n"));
       results.push({actor, device: phone ? "native-touch phone emulation" : "desktop", actualInterfaceTimelineSwitches: true, ordinaryBundleResponsesFiltered: true, delayedAuthorToOrdinarySafe: true, staleTimelineAndKnowledgeResponsesRejected: true, protectedEraAndRetainedSourcesSafe: true, backForwardAndReload: true, worldSwitchPreservesKnowledgeAndReview: true, requests});
     } catch (failure) {console.log(JSON.stringify({historyContextFailure:await page.evaluate(()=>{const dialog=document.querySelector<HTMLDialogElement>("dialog[open]");const button=[...document.querySelectorAll<HTMLButtonElement>("dialog[open] button")].find(el=>el.textContent?.trim()==="Discard draft");const rect=button?.getBoundingClientRect();return {viewport:{width:innerWidth,height:innerHeight,visualWidth:visualViewport?.width,visualHeight:visualViewport?.height,offsetTop:visualViewport?.offsetTop,scale:visualViewport?.scale},scrollTop:dialog?.scrollTop,button:rect?.toJSON(),hit:rect?document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2)?.outerHTML.slice(0,400):null};})}));await page.screenshot({path:`${directory}/history-context-failure.png`}).catch(()=>{});throw failure;} finally {for (const delayed of delays) delayed.release(); await context.close();}
