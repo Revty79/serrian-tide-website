@@ -76,10 +76,10 @@ export async function historyContextBrowserChecks(browser: Browser, base: string
     const requests: {timeline: string; ordinary: boolean; review: boolean; entries: number; eras: number}[] = [];
     const responseErrors: string[] = [];
     let failNextTimeline: string | null = null;
+    const page = await context.newPage(); page.on("pageerror", e => errors.push(e.message));
     try {
       const auth = await context.request.post(`${base}/api/auth/sign-in/email`, {headers: {Origin: base}, data: {email: `${actor}@example.invalid`, password: "Worlds-Test-Only-Password!"}});
       assert.equal(auth.status(), 200);
-      const page = await context.newPage(); page.on("pageerror", e => errors.push(e.message));
       await page.addInitScript(({worldId, hidden}) => {
         const state = window as unknown as Window & {contextPrivacyLeaks: string[]}; state.contextPrivacyLeaks = [];
         new MutationObserver(() => {
@@ -253,7 +253,7 @@ export async function historyContextBrowserChecks(browser: Browser, base: string
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       assert.equal(responseErrors.length, 0, responseErrors.join("\n"));
       results.push({actor, device: phone ? "native-touch phone emulation" : "desktop", actualInterfaceTimelineSwitches: true, ordinaryBundleResponsesFiltered: true, delayedAuthorToOrdinarySafe: true, staleTimelineAndKnowledgeResponsesRejected: true, protectedEraAndRetainedSourcesSafe: true, backForwardAndReload: true, worldSwitchPreservesKnowledgeAndReview: true, requests});
-    } finally {for (const delayed of delays) delayed.release(); await context.close();}
+    } catch (failure) {console.log(JSON.stringify({historyContextFailure:await page.evaluate(()=>{const dialog=document.querySelector<HTMLDialogElement>("dialog[open]");const button=[...document.querySelectorAll<HTMLButtonElement>("dialog[open] button")].find(el=>el.textContent?.trim()==="Discard draft");const rect=button?.getBoundingClientRect();return {viewport:{width:innerWidth,height:innerHeight,visualWidth:visualViewport?.width,visualHeight:visualViewport?.height,offsetTop:visualViewport?.offsetTop,scale:visualViewport?.scale},scrollTop:dialog?.scrollTop,button:rect?.toJSON(),hit:rect?document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2)?.outerHTML.slice(0,400):null};})}));await page.screenshot({path:`${directory}/history-context-failure.png`}).catch(()=>{});throw failure;} finally {for (const delayed of delays) delayed.release(); await context.close();}
   }
   assert.deepEqual(await snapshot(pool, f.worldId), f.original);
   assert.deepEqual(errors, []);

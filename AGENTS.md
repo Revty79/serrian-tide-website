@@ -20,7 +20,7 @@ New or modified fields should explain their meaning and use in plain language. R
 
 ## Worlds creator workshops
 
-Follow the provisional [creator experience standard and acceptance checklist](docs/architecture/worlds-creator-experience.md) and [Phase 4–5 field coverage inventory](docs/architecture/worlds-creator-coverage.md). Repair A pilots are Individual and Cosmic Principle. Preserve every saved field and historical/privacy invariant; do not expand this design to other creators, begin Repair B or Phase 6 before user review and separate authorization.
+Follow the provisional [creator experience standard and acceptance checklist](docs/architecture/worlds-creator-experience.md) and [Phase 4–5 field coverage inventory](docs/architecture/worlds-creator-coverage.md). Repair A / A2 pilots are Individual and Cosmic Principle. A2 refines the approved direction throughout; passing checks do not replace the user's hands-on acceptance. The existing inventory carries the agreed A2, B, C, D, E, F and G roadmap and separate interaction, copy, reuse, reading, data/security and human-review statuses. Preserve every saved field and historical/privacy invariant; do not expand this design to other creators, begin Repair B or Phase 6 before user review and separate authorization.
 
 ## Independently deployable passes
 

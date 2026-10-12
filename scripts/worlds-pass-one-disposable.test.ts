@@ -381,12 +381,13 @@ const integrity=path.join(temporaryRoot,"integrity");await mkdir(path.join(integ
     const god=await browser.newContext({viewport:{width:1440,height:900},extraHTTPHeaders:{"X-Forwarded-For":"203.0.113.40"}});await signIn(god,baseUrl,"world-god");
     const page=await god.newPage();activePage=page;page.on("pageerror",(error)=>errors.push(error.message));
     if(process.argv.includes("--calendar-privacy-reproduction")){await reproduceCalendarPrivacy(browser,baseUrl,calendarPrivacy);assert.deepEqual(await runtimeSnapshot(),before);return;}
+    if(process.argv.includes("--creator-a2-only")){await creatorRepairBrowserChecks(browser,baseUrl,individualsFixture,cosmologyFixture,pool,evidenceDirectory);assert.deepEqual(await runtimeSnapshot(),before);return;}
     assert.ok(historyContext);await historyContextBrowserChecks(browser,baseUrl,historyContext,pool,evidenceDirectory);
     if(process.argv.includes("--history-context-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await calendarPrivacyBrowserChecks(browser,baseUrl,calendarPrivacy,pool);
     if(process.argv.includes("--calendar-privacy-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await creatorRepairBrowserChecks(browser,baseUrl,individualsFixture,cosmologyFixture,pool,evidenceDirectory);
-    if(process.argv.includes("--repair-a-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
+    if((process.argv.includes("--repair-a-only")||process.argv.includes("--creator-a2-only"))){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await astronomyBrowserChecks(browser,baseUrl,astronomyFixture,pool,`${evidenceDirectory}/regressions/5b`);
     if(process.argv.includes("--astronomy-only")){assert.deepEqual(await runtimeSnapshot(),before);return;}
     await peoplesBrowserChecks(browser,baseUrl,peoplesFixture,service,pool,`${evidenceDirectory}/regressions/4a-1-regression`);

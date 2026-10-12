@@ -12,7 +12,7 @@ export const historicalTimeSchema = z.discriminatedUnion("kind", [
   z.object({ ...base, kind: z.literal("window"), startYear: yearSchema, endYear: yearSchema }).strict(),
   z.object({ ...base, kind: z.literal("duration"), startYear: yearSchema, endYear: yearSchema }).strict(),
   z.object({ ...base, kind: z.literal("undated") }).strict(),
-]).refine((time) => !("startYear" in time) || time.startYear <= time.endYear, "The ending year must be at or after the starting year.");
+]).refine((time) => !("startYear" in time) || time.startYear <= time.endYear, {message:"The ending year must be at or after the starting year.",path:["endYear"]});
 export type HistoricalTime = z.infer<typeof historicalTimeSchema>;
 export const accuracyLabels = { established: "Established", disputed: "Disputed", unverified: "Unverified", disproven: "Disproven" } as const;
 export const narrativeLabels = { recorded: "Recorded history", planned: "Planned development" } as const;

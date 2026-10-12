@@ -28,5 +28,10 @@
 .window button { min-height:44px; }
 .window [hidden] { display:none !important; }
 .previewTab { display:none; }
+.profile p,.profile dd { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.6; margin-block:.4rem .8rem; }
+.profile section { margin-block:1rem; }
+.profile h4,.profile dt { font-weight:600; color:var(--st-text-strong); }
+.profile h5 { font-weight:600; color:var(--st-text); }
+.profile dd { margin-left:0; }
 @media(max-width:850px) { .body { display:block; overflow:hidden; } .content { height:100%; } .preview { display:none; } .previewTab { display:block; } .header { padding:.7rem; } .header h2 { font-size:1.3rem; } .header p { font-size:.8rem; } .content { padding:.8rem; } .footer { padding:.5rem .7rem; } }
 @media(max-height:500px) { .header p { display:none; } .header { padding:.4rem .7rem; } .footer { padding:.35rem .7rem; } }
