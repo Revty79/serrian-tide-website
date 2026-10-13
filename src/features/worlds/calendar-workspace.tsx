@@ -1,4 +1,5 @@
 "use client";
+import { ordinaryKnowledge } from "./knowledge-preview";
 import { useSearchParams } from "next/navigation";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -15,11 +16,11 @@ import styles from "./calendar.module.css";
 import shared from "./worlds.module.css";
 
 export function CalendarWorkspace({worldId,timelineId,refresh,review,onWorldChange,entries,onReadEntry,primaryHistory=true,active=true,initialBundle}:{worldId:string;timelineId:string;refresh:string;review:boolean;onWorldChange:()=>Promise<unknown>;entries:EntryRecord[];onReadEntry:(id:string)=>void;primaryHistory?:boolean;active?:boolean;initialBundle?:CalendarBundle}){
-  const search=useSearchParams(),ordinary=search.get("knowledge")==="ordinary",requestedVersion=search.get("calendarVersion"),requestedCalendar=search.get("calendar"),query=`?timeline=${timelineId}&review=${review?"1":"0"}&ordinary=${ordinary?"1":"0"}`;
+  const search=useSearchParams(),ordinary=ordinaryKnowledge(search),requestedVersion=search.get("calendarVersion"),requestedCalendar=search.get("calendar"),query=`?timeline=${timelineId}&review=${review?"1":"0"}&ordinary=${ordinary?"1":"0"}`;
   const api=`/api/worlds/${worldId}/calendars`,[result,setBundle]=useState<CalendarBundle|null>(initialBundle??null),[loadedQuery,setLoadedQuery]=useState(initialBundle?`${api}${query}`:""),[selectedId,setSelectedId]=useState<string|null>(initialBundle?.defaultVersionId??initialBundle?.versions.find(v=>!v.archived)?.id??null),[editor,setEditor]=useState<CalendarEditorTarget|null>(null),[showArchived,setShowArchived]=useState(false),[pending,setPending]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const bundle=loadedQuery===`${api}${query}`?result:null;
   const hasBundle=useRef(!!initialBundle),requestGeneration=useRef(0),requestController=useRef<AbortController|null>(null),previousActive=useRef(active),[loading,setLoading]=useState(false);
-  const currentContext=useCallback(()=>{const url=new URL(window.location.href);return url.pathname===`/worlds/${worldId}`&&(url.searchParams.get("timeline")??timelineId)===timelineId&&(url.searchParams.get("review")==="1")===review&&(url.searchParams.get("knowledge")==="ordinary")===ordinary;},[worldId,timelineId,review,ordinary]);
+  const currentContext=useCallback(()=>{const url=new URL(window.location.href);return url.pathname===`/worlds/${worldId}`&&(url.searchParams.get("timeline")??timelineId)===timelineId&&(url.searchParams.get("review")==="1")===review&&(ordinaryKnowledge(url.searchParams))===ordinary;},[worldId,timelineId,review,ordinary]);
   const loadBundle=useCallback(()=>{
     requestController.current?.abort();const controller=new AbortController(),generation=++requestGeneration.current;requestController.current=controller;let alive=true;setLoading(true);setError("");
     const accepts=()=>alive&&generation===requestGeneration.current&&currentContext();

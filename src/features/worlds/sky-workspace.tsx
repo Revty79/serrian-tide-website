@@ -1,4 +1,5 @@
 "use client";
+import { ordinaryKnowledge } from "./knowledge-preview";
 import { formatTime } from "./chronology";
 
 import { useEffect, useState } from "react";
@@ -14,7 +15,7 @@ import type { CalendarEntryDraft } from "./calendar-dates";
 import styles from "./peoples.module.css";
 
 export function SkyWorkspace({worldId,timelineId,review}:{worldId:string;timelineId:string;review:boolean}) {
-  const params=useSearchParams(),ordinary=params.get("knowledge")==="ordinary",[open,setOpen]=useState(params.get("sky")==="1");
+  const params=useSearchParams(),ordinary=ordinaryKnowledge(params),[open,setOpen]=useState(params.get("sky")==="1");
   const [bundle,setBundle]=useState<CalendarBundle|null>(null),[refs,setRefs]=useState<LoreReferences|null>(null),[data,setData]=useState<SkyChronicle|null>(null),[error,setError]=useState(""),[pending,setPending]=useState(false);
   const [query,setQuery]=useState<Partial<SkyQuery>>({scale:"elapsed-day",start:"0",end:"140",q:"",classification:"",accuracy:"",kind:"all",offset:0,observationOffset:0,resultOffset:0});
   const [calendarVersion,setCalendarVersion]=useState(""),[from,setFrom]=useState<CalendarEntryDraft["start"]|null>(null),[through,setThrough]=useState<CalendarEntryDraft["start"]|null>(null),[calendarSearch,setCalendarSearch]=useState("");

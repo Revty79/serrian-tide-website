@@ -1,4 +1,5 @@
 "use client";
+import { ordinaryKnowledge } from "./knowledge-preview";
 import { LinkDirtyContext } from "./linking-panel";
 import { SkyWorkspace } from "./sky-workspace";
 
@@ -64,7 +65,7 @@ export function WorldWorkspace({ initialBundle, worlds, tags, review:initialRevi
   const primaryTimeline=initialBundle.timelines.find(item=>item.primary)!.id;
   const requestedTimeline=searchParams.get("timeline")??primaryTimeline;
   const requestedEntry=searchParams.get("entry");
-  const ordinaryHistory=searchParams.get("knowledge")==="ordinary";
+  const ordinaryHistory=ordinaryKnowledge(searchParams);
   const requestedApi=bundleUrl(initialBundle.world.id,requestedTimeline,review,ordinaryHistory);
   const bundleReady=loadedBundle.api===requestedApi;
   const [ordinaryOverview,setOrdinaryOverview]=useState<{timelineId:string;entries:EntryRecord[]}|null>(null);
@@ -82,7 +83,7 @@ export function WorldWorkspace({ initialBundle, worlds, tags, review:initialRevi
   const world = bundle.world;
   const canEdit = bundleReady && bundle.canEdit && !review && !ordinaryHistory;
   const apiUrl = `/api/worlds/${world.id}`;
-  const currentBundleUrl=useCallback(()=>{const params=new URL(window.location.href).searchParams;return bundleUrl(initialBundle.world.id,params.get("timeline")??primaryTimeline,params.get("review")==="1",params.get("knowledge")==="ordinary");},[initialBundle.world.id,primaryTimeline]);
+  const currentBundleUrl=useCallback(()=>{const params=new URL(window.location.href).searchParams;return bundleUrl(initialBundle.world.id,params.get("timeline")??primaryTimeline,params.get("review")==="1",ordinaryKnowledge(params));},[initialBundle.world.id,primaryTimeline]);
   const requestBundle=useCallback(async(api:string)=>{
     const tracker=bundleRequests.current;
     tracker.controller?.abort();

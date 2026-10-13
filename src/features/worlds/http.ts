@@ -1,4 +1,5 @@
 import "server-only";
+import { readOnlyPreview } from "./knowledge-preview";
 import { ZodError } from "zod";
 import { requireSession } from "@/lib/server-access";
 import { WorldError } from "./world-service";
@@ -14,6 +15,7 @@ export async function worldRequest(request: Request, mutation: boolean, run: (us
       if (!originHost || originHost !== request.headers.get("host")) throw new WorldError("This request must come from this site.", 403);
     }
     const session = await requireSession().catch(() => { throw new WorldError("Sign in to access Worlds.", 401); });
+    if(mutation&&readOnlyPreview(new URL(request.url).searchParams))throw new WorldError("This preview is read-only.",403);
     return privateJson(await run(session.user.id));
   } catch (error) {
     if (error instanceof WorldError) return privateJson({ error: error.message }, error.status);

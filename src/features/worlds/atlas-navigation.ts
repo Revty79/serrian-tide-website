@@ -21,12 +21,14 @@ export function representedPlaces(map:AtlasMap,bundle:AtlasBundle) {
 }
 export function historicalDestinations(bundle:AtlasBundle,mapId:string,placeId:string){
   const index=navigationIndex(bundle),policy=index.historicalPolicies.get(placeId);
+  if(index.places.get(placeId)?.archived)return [];
+  const available=(m:AtlasMap)=>!m.archived&&!m.unavailable&&m.id!==mapId&&(!m.geographyId||index.places.get(m.geographyId)?.archived!==true);
   if(policy&&policy.basis!=="baseline-reference"){
     const destination=policy.connection?index.maps.get(policy.connection.destinationMapId):null;
-    return destination&&!destination.archived&&!destination.unavailable&&destination.id!==mapId?[destination]:[];
+    return destination&&available(destination)&&(!policy.connection?.destinationGeographyId||index.places.get(policy.connection.destinationGeographyId)?.archived!==true)?[destination]:[];
   }
   const associated=index.destinations.get(placeId)??[],preferred=index.maps.get(index.preferred.get(`${mapId}:${placeId}`)??"");
-  return [...associated,...preferred&&!preferred.archived&&!preferred.unavailable&&!associated.some(m=>m.id===preferred.id)?[preferred]:[]].filter(m=>m.id!==mapId);
+  return [...associated,...preferred&&!associated.some(m=>m.id===preferred.id)?[preferred]:[]].filter(available);
 }
 // Visiting a previous map truncates the trail. Geography ancestry is a separate relationship.
 export function visitMap(trail:string[],id:string){const old=trail.indexOf(id);return old>=0?trail.slice(0,old+1):[...trail,id].slice(-40);}

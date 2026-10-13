@@ -1,9 +1,10 @@
+import { ordinaryKnowledge } from "@/features/worlds/knowledge-preview";
 import { z } from "zod";
 import { worldRequest } from "@/features/worlds/http";
 import { changePeople, getPeople, listPeoples, peoplesReferences, pinnedHistoricalSource, peoplesAtPlace, pinnedStorySource } from "@/features/worlds/peoples-service";
 export const dynamic="force-dynamic";
 export async function GET(request:Request,context:{params:Promise<{worldId:string}>}) {
-  return worldRequest(request,false,async userId=>{const {worldId}=await context.params,q=new URL(request.url).searchParams,timelineId=z.string().uuid().parse(q.get("timeline")),review=q.get("review")==="1",ordinary=q.get("ordinary")==="1";
+  return worldRequest(request,false,async userId=>{const {worldId}=await context.params,q=new URL(request.url).searchParams,timelineId=z.string().uuid().parse(q.get("timeline")),review=q.get("review")==="1",ordinary=ordinaryKnowledge(q);
     if(q.has("storySource"))return pinnedStorySource(userId,worldId,timelineId,z.string().uuid().parse(q.get("record")),z.string().uuid().parse(q.get("storySource")),review,ordinary);
     if(q.has("source"))return pinnedHistoricalSource(userId,worldId,timelineId,z.string().uuid().parse(q.get("record")),z.string().uuid().parse(q.get("source")),review,ordinary);
     if(q.has("place"))return peoplesAtPlace(userId,worldId,timelineId,z.string().uuid().parse(q.get("place")),review,ordinary,z.coerce.number().int().min(0).max(2000).parse(q.get("offset")??0),z.string().max(160).parse(q.get("q")??""),z.enum(["species","people","origin","relationship","culture","civilization","language","population","belief","tradition","individual","polity","government","institution","office","appointment","claim","agreement","conflict","organization","organizationRole","membership","assignment","network","cosmicFramework","realm","celestial","cosmicPrinciple","cosmicConnection","skyCycle","skyObservation","skyCalendarLink","story"]).optional().parse(q.get("family")??undefined),z.string().max(160).parse(q.get("category")??""),z.enum(["","active","archived"]).parse(q.get("lifecycle")??""),z.enum(["","politics","organizations","cosmology","stories"]).parse(q.get("group")??""));

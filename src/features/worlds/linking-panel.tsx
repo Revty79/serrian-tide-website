@@ -50,6 +50,7 @@ function LinkEditor({initial,record,bundle,save,reload,close,fixed,title}:{initi
   </form></dialog>;
 }
 export function LinkingPanel({worldId,timelineId,context,review=false,ordinary=false}:{worldId:string;timelineId:string;context:Context;review?:boolean;ordinary?:boolean}){
+  const search=useSearchParams();
   const [open,setOpen]=useState(false),[result,setResult]=useState<{key:string;bundle:LinkBundle}|null>(null),[error,setError]=useState(""),[pending,setPending]=useState(false),[editor,setEditor]=useState<{id:string;initial:LinkDraft;record?:WorldLink}|null>(null),[notice,setNotice]=useState(""),[archived,setArchived]=useState(false);
   const key=`${worldId}:${timelineId}:${review}:${ordinary}`,api=`/api/worlds/${worldId}/links`,q=new URLSearchParams({timeline:timelineId,review:review?"1":"0",ordinary:ordinary?"1":"0"}),requestKey=`${api}?${q}`,generation=useRef(0),bundle=result?.key===key?result.bundle:null;
   const load=useCallback(async(signal?:AbortSignal)=>{const n=++generation.current,fresh=await worldApi<LinkBundle>(requestKey,"GET",undefined,signal);if(n!==generation.current||signal?.aborted)throw new SaveError("The connection view changed; the draft is retained.",0);setResult({key,bundle:fresh});return fresh;},[key,requestKey]);
@@ -62,6 +63,7 @@ export function LinkingPanel({worldId,timelineId,context,review=false,ordinary=f
   async function action(body:unknown){setPending(true);setError("");try{await worldApi(api,"POST",body);setNotice("Connection saved. Original source records remain retained.");await load();}catch(failure){setError((failure as Error).message);}finally{setPending(false);}}
   function href(link:WorldLink,target:"lore"|"system"){
     const q=new URLSearchParams({timeline:timelineId});if(review)q.set("review","1");if(ordinary){q.set("knowledge","ordinary");q.set("ordinary","1");}
+    const year=search.get("mapYear");if(year!==null)q.set("mapYear",year);
     if(target==="lore"){q.set("tab",loreWorkspaceTab(link.source.lore.family));q.set("entity",link.draft.loreId);}
     else if(link.draft.kind==="realm-map"){q.set("tab","atlas");q.set("atlas",link.draft.mapId);}
     else if(link.draft.calendarId){q.set("tab","calendars");q.set("calendar",link.draft.calendarId);if(link.draft.calendarVersionId)q.set("calendarVersion",link.draft.calendarVersionId);}

@@ -98,7 +98,9 @@ export async function pinnedStorySource(userId:string,worldId:string,timelineId:
     const owner=await detail(tx,worldId,timelineId,ownerId,ordinary);
     const link=owner.draft.storySources?.find(s=>s.versionId===sourceVersionId);
     if(!link)throw unavailable();
-    if(ordinary){const [safe]=await tx.select({id:version.id}).from(version).where(and(eq(version.id,sourceVersionId),ordinaryLorePinnedSource(worldId,timelineId,sql`${version.id}`)));if(!safe)throw unavailable();}
+    // Bind the exact pin: the privacy graph has its own lore-version scope,
+    // which would shadow this table name in a correlated column expression.
+    if(ordinary){const [safe]=await tx.select({id:version.id}).from(version).where(and(eq(version.id,sourceVersionId),ordinaryLorePinnedSource(worldId,timelineId,sql`${sourceVersionId}`)));if(!safe)throw unavailable();}
     return detail(tx,worldId,timelineId,link.entityId,ordinary,{versionId:sourceVersionId,revision:link.revision});
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }

@@ -1,4 +1,5 @@
 "use client";
+import { ordinaryKnowledge } from "./knowledge-preview";
 import { useSearchParams } from "next/navigation";
 import { LinkingPanel } from "./linking-panel";
 import { useEffect, useRef, useState } from "react";
@@ -66,7 +67,7 @@ export function ChronologyWorkspace({bundle,canEdit,reload,onDefaultChanged}:{bu
         {system.description && <p>{system.description}</p>}<p className={styles.origin}>{system.origin}</p><p className={styles.epoch}>Canonical {yearLabel(system.epochYear)} <ArrowRight size={15}/>{formatYear(system.epochYear,system)}</p><NumberingPreview system={system}/>
         {system.referenced && <p className={shared.muted}>Epoch and numbering protected by historical use.</p>}{system.notes && <details className={shared.optional}><summary>Contextual notes</summary><p className={shared.prose}>{system.notes}</p></details>}
         {canEdit && <div className={styles.cardActions}>{system.archived ? <button className="st-button is-secondary" disabled={pending} onClick={()=>action({action:"restore",id:system.id,revision:system.revision},"Dating system restored.")}>Restore {system.name}</button> : <><button className="st-button is-secondary" disabled={pending} onClick={()=>setEditor({record:system})}>Edit {system.name}</button>{bundle.defaultDatingSystemId!==system.id && <button className="st-button" disabled={pending} onClick={()=>action({action:"default",systemId:system.id,revision:bundle.world.revision},`${system.name} is now the default display.`,system.id)}>Use {system.name} as default</button>}<button className="st-button is-ghost" disabled={pending || bundle.defaultDatingSystemId===system.id} title={bundle.defaultDatingSystemId===system.id ? "Choose another default before archiving." : "History and source context will be preserved."} onClick={()=>action({action:"archive",id:system.id,revision:system.revision},"Dating system archived. Historical context is preserved.")}>Archive {system.name}</button></>}</div>}
-        <LinkingPanel key={`${bundle.selectedTimeline.id}:${system.id}`} worldId={bundle.world.id} timelineId={bundle.selectedTimeline.id} context={{kind:"society-time",datingSystemId:system.id}} review={linkSearch.get("review")==="1"} ordinary={linkSearch.get("knowledge")==="ordinary"}/>
+        <LinkingPanel key={`${bundle.selectedTimeline.id}:${system.id}`} worldId={bundle.world.id} timelineId={bundle.selectedTimeline.id} context={{kind:"society-time",datingSystemId:system.id}} review={linkSearch.get("review")==="1"} ordinary={ordinaryKnowledge(linkSearch)}/>
       </article>)}
     </div>
     <section className={styles.converter} aria-label="Year conversion"><div><p className={shared.eyebrow}>Try a historical year</p><h3>One position, different reckonings</h3><p className={shared.muted}>Compare how two dating systems name the same historical year. Negative inputs mean Before the origin. Calendar days are compared separately in Calendars.</p></div>

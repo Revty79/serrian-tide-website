@@ -1,4 +1,5 @@
 "use client";
+import { ordinaryKnowledge } from "./knowledge-preview";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { worldApi } from "./client-api";
@@ -12,12 +13,12 @@ import styles from "./worlds.module.css";
 const keys=["q","category","eventType","era","from","to","dateKind","accuracy","narrative","archived"] as const;
 export function HistoryBrowser({worldId,timelineId,eras,displaySystem,review,refresh,onEntry,onEra}:{worldId:string;timelineId:string;eras:EraRecord[];displaySystem:DatingSystem|null;review:boolean;refresh:string;onEntry:(e:EntryRecord)=>void;onEra:(e:EraRecord)=>void}) {
   const params=useSearchParams(),[result,setData]=useState<HistoryIndex|null>(null),[loadedApi,setLoadedApi]=useState(""),[error,setError]=useState(""),[loading,setLoading]=useState(true),[limit,setLimit]=useState(40);
-  const query=new URLSearchParams({timeline:timelineId});for(const key of keys){const value=params.get(key);if(value!==null)query.set(key,value);}params.getAll("hide").forEach(c=>query.append("hide",c));if(review)query.set("review","1");if(params.get("knowledge")==="ordinary")query.set("ordinary","1");
+  const query=new URLSearchParams({timeline:timelineId});for(const key of keys){const value=params.get(key);if(value!==null)query.set(key,value);}params.getAll("hide").forEach(c=>query.append("hide",c));if(review)query.set("review","1");if(ordinaryKnowledge(params))query.set("ordinary","1");
   const api=`/api/worlds/${worldId}/history?${query}`;
   const data=loadedApi===api?result:null,waiting=loading||loadedApi!==api;
   useEffect(()=>{let alive=true;const timer=setTimeout(()=>{try{historyFiltersFromParams(new URLSearchParams(api.split("?")[1]));}catch(failure){setData(null);setLoadedApi(api);setError((failure as Error).message);setLoading(false);return;}setLoading(true);worldApi<HistoryIndex>(api).then(value=>{if(alive){setData(value);setLoadedApi(api);setError("");setLoading(false);setLimit(40);}}).catch(failure=>{if(alive){setData(null);setLoadedApi(api);setError(failure.message);setLoading(false);}});},120);return()=>{alive=false;clearTimeout(timer);};},[api,refresh]);
   function change(key:string,value:string,replace=false){const url=new URL(window.location.href);if(value)url.searchParams.set(key,value);else url.searchParams.delete(key);url.searchParams.delete("entry");window.history[replace?"replaceState":"pushState"](null,"",url.pathname+url.search);}
-  const ordinary=params.get("knowledge")==="ordinary",archived=params.get("archived")==="1",list=params.get("historyView")==="list",showIndex=params.get("showIndexOnly")==="1";
+  const ordinary=ordinaryKnowledge(params),archived=params.get("archived")==="1",list=params.get("historyView")==="list",showIndex=params.get("showIndexOnly")==="1";
   const entries=data?.entries??[],visual=entries.filter(e=>showIndex||e.prominence!=="index-only");
   return <section aria-label="History index">
     <div className={styles.historyFilters}>
