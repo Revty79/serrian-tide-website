@@ -20,6 +20,7 @@ export default defineConfig({
     "./src/db/world-calendar-history-schema.ts",
     "./src/db/world-linking-schema.ts",
     "./src/db/world-story-schema.ts",
+    "./src/db/world-map-state-schema.ts",
     "./src/db/world-atlas-schema.ts",
     "./src/db/catalog-preferences-schema.ts",
     "./src/db/appearance-schema.ts",

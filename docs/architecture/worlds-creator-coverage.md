@@ -711,4 +711,9 @@ The owner separately authorized Phase 6A from `3550f8bd765e9e3f0531ee56e14107a5b
 | Stable custom sections | Passages & details | Original titled passages, without an obligatory structure |
 | Visibility, protected fields/connections/context/periods/passages and private notes | Private knowledge and relevant sections | Server-filtered ordinary preview; no publication/access grant |
 
-Interaction, field guidance, reuse, saved reading and server data/security are technically verified in the [6A report](../reports/worlds-stories-phase-6a-2026-10-12.md). Independent technical review and human look-and-feel acceptance remain pending. Phase 9 integrated assessment is deferred; no Phase 6B is begun.
+Interaction, field guidance, reuse, saved reading and server data/security are technically verified in the [6A report](../reports/worlds-stories-phase-6a-2026-10-12.md). This preserves the 6A handoff status. The 6B-A brief subsequently approved `92281e00005bb8fb8cbbd78ef2eaea613dd7e5ed` technically and authorized historical map appearances; human acceptance remains independent. Phase 9 integrated assessment stays deferred.
+
+
+## Phase 6B-A generic historical maps
+
+Appearance name, beginning/ending canonical World years, historical source account and whole-appearance protection supplement the existing Map Maker fields. Saved-period/year selection, source mode, captured baseline revision, author attribution, retained revisions and explicit viewing/editing expose the persistent model. Geometry, drawings, presentation and local place names/descriptions retain their existing source structures. Place ancestry/kind and new place creation remain shared Atlas operations. Calendar conversion, specialized historical maps and historical destinations are not claimed. See the [model and limits](worlds-map-states.md) and [focused validation report](../reports/worlds-map-states-phase-6ba-2026-10-12.md).

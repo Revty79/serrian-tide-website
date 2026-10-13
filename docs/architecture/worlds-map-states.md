@@ -1,0 +1,47 @@
+# Historical map appearances: Phase 6B-A
+
+The technically approved starting point is Phase 6A `92281e00005bb8fb8cbbd78ef2eaea613dd7e5ed`. This pass implements historical artwork for generic Atlas maps. Existing settlement, interior and dungeon workshops remain available for their shared maps; they do not yet author historical appearances.
+
+## Identities and sources
+
+`world_atlas_map` remains the shared chart identity and established presentation. `world_geography` remains the stable identity of a place, with shared ancestry, kind and metadata. Features and drawings remain representations of those places. A historical appearance is a separate World/map identity, selected independently by timeline; it does not duplicate a World, map, place, destination, Realm link or History account.
+
+Migration 0124 adds five tables. `world_map_state` identifies an appearance and its original authoring timeline. `world_map_state_version` contains immutable, bounded Map Maker source JSON, map/geography labels for that appearance, explicit beginning/ending World years, source account, protection, archive status, actor attribution, timestamp and captured baseline revision. It retains generation provenance as historical source information. `source_version_id` pins the source appearance; `previous_version_id` separately preserves revision history. Changing current visibility does not publish a private older revision. Retaining an explicitly private original source continues to withhold derived appearances.
+
+`world_map_state_head` selects one version per timeline/appearance, with an independent optimistic revision and authored, retained or interpretation mode. `world_map_state_object` reserves stable feature/drawing identities, including artwork first added in a historical appearance, without inserting it into the shared drawing tables. `world_map_state_geography` retains same-World references for every represented place and geographic parent, including the map's own associated place. Composite foreign keys bind versions, previous revisions, sources, maps, timelines and places. Immutable triggers preserve identities, source JSON, attribution and references; selection guards enforce revisions and non-overlapping active periods. Shared and historical object writers cannot reuse an identity for another map, kind or place.
+
+Each appearance stores one bounded map snapshot, with the existing source point/drawing representation rather than derived terrain marks or a raster export. Earlier states, prior revisions and branches share source references. Only the selected source payload is returned; period choices and up to 100 retained revision choices contain metadata. A timeline supports 128 retained appearances per map, including archives. Existing generic-map geometry, drawing and twelve-megabyte Atlas request bounds apply. Rendering uses the existing browser SVG/cartography engine and browser terrain cache; the server needs no GPU or image-generation service.
+
+## Resolution and uncertainty
+
+Beginning and ending years are inclusive canonical World years, between -1,000,000,000,000 and +1,000,000,000,000. Equal endpoints describe one year. A selected active appearance covers only its explicitly authored range. Overlap is refused under the World lock and by the database selection guard.
+
+At a requested year, the resolver chooses the sole non-archived appearance whose range contains that year. Before the first range, in gaps and after the last range, coverage is unknown. The UI shows the established shared map as a clearly labeled reference, without claiming it represents that historical year. There is no carry-forward, interpolation, retroactive replacement, Calendar conversion or automatically created History event. Choosing an archived appearance explicitly reads its retained source; it does not establish date coverage.
+
+The original shared map is always a separate selection. Creating an appearance from it captures the exact map revision and checks shared place revisions under the owned-World lock. Later shared edits cannot change that captured source. Geometry, drawing content, local place names/descriptions and presentation edited inside an appearance remain local. New geographic identities are created first in the shared Atlas geography library, then deliberately reused; historical authoring does not silently publish new private place identities through that shared library. This pass retains geographic kind and ancestry, while permitting different local names and visual representations.
+
+## Branches and privacy
+
+New alternate timelines start with unknown map coverage and the explicit shared-baseline reference. No map appearance is silently inherited. An author may retain a direct parent's exact selected version and authored period, with confirmation even when the period follows divergence. Both parent revision and version are checked. Subsequent parent edits, archives or changes of source selection cannot rewrite that pin.
+
+Editing a retained appearance appends a branch interpretation against the same appearance identity. Earlier parent/branch versions stay immutable. Branch-born appearances have their own identities and heads; Primary History and siblings never select them automatically. Source retention is not a claim that an uncertain historical event is true.
+
+World ownership and G.O.D./Administrator roles are checked server-side. Writes use the existing owned-World transaction; archived Worlds, maps and timelines cannot be edited. Administrator review and ordinary preview are explicitly read-only, including POST rejection for preview URLs. Ordinary knowledge filters choices and counts before serialization. An appearance is withheld in full when it, its retained source, the effective source's current protection, any represented geography or geographic ancestor reveals protected dungeon information. Archived objects also retain their privacy references. The same checks apply to earlier revision readers and parent choices; unavailable source IDs return an unavailable response. Ordinary previews remain private author/reviewer tools, with no new Player, Campaign or publication access.
+
+## Authoring, navigation and recovery
+
+Open a generic map and select an appearance or enter a World year. Create an appearance from the displayed map, name its period and source account, then use the existing Map Maker to reshape coastlines, edit rivers, paint terrain, change labels and manage drawings. Viewing saved history is read-only until the author chooses Edit this historical appearance. The baseline is labeled as shared editing.
+
+Saving appends a source and advances only the selected timeline's revision. Switching dates, appearances or timelines requires deliberate discard when artwork or information is unsaved. Failed saves retain the draft. Concurrent conflicts reuse the saved-map comparison, draft download and explicit Use saved map recovery. Earlier sources can be read or copied into another free period; archive/restore retains all revisions.
+
+`editMap` and `mapYear` preserve the opened generic chart and historical viewing context on reload. Explore follows existing destinations with the same timeline and requested year. A destination without authored coverage shows an unknown-coverage baseline reference. Connections remain shared stable destinations; historical destination changes are reserved for later passes. Realm relationships still refer to the map identity, not to duplicated charts. Conversion to a settlement is refused while a generic map retains historical appearances, keeping the current historical editor reachable; a separate settlement chart can be created instead.
+
+## Boundaries and release
+
+Later Phase 6B passes may add historical settlement/interior/dungeon surfaces, growth/destruction, location availability and relocation, political territories, historical destinations, rich branch source review/comparison, multi-map coordination, uncertain coverage and scalable revision pagination. No inactive future controls, simulation, AI generation, Advanced Map Studio or VTT coupling are introduced here.
+
+Apply additive `0124_worlds_map_states.sql` after `0123_worlds_stories.sql`, with every required predecessor in committed journal order. There is no data backfill, dependency or configuration change. Fresh installation, populated Phase 6A upgrade, direct SQL reapplication and preserved-source recovery are tested only in disposable databases.
+
+After separate deployment authorization, verify the exact commit, target identity, ledger and backup; pause writers, apply pending committed migrations with the established migrator, stage the production build, then perform authenticated owner/reviewer and ordinary-preview checks. Keep the five new tables, stable identities, prior sources and ledger during recovery. Reverting code does not reverse database changes. Older Atlas writers omit historical identity guards and older readers cannot expose these appearances; keep Atlas authoring paused during fallback and prefer a reviewed forward fix. A backup restore requires stopped writers, preservation/reconciliation of subsequent changes and matching application/schema versions.
+
+The pass stops at a clean local commit for Ember's independent technical review. Automated desktop/native-touch evidence does not replace owner visual acceptance. Push, deployment, shared database/service changes and the next Phase 6B pass remain separately authorized.

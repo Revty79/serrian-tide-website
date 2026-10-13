@@ -1,0 +1,6 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { mapStateDetailsSchema, mapStatePeriod, resolveMapState } from "./map-states";
+test("map coverage is explicit, inclusive, and never extrapolated",()=>{const states=[{startYear:-100,endYear:-1,archived:false},{startYear:10,endYear:20,archived:false}];for(const year of [-100,-50,-1])assert.equal(resolveMapState(states,year),states[0]);for(const year of [10,15,20])assert.equal(resolveMapState(states,year),states[1]);for(const year of [-101,0,9,21])assert.equal(resolveMapState(states,year),null);});
+test("archived coverage is unknown, and overlapping sources are refused",()=>{assert.equal(resolveMapState([{startYear:0,endYear:1,archived:true}],0),null);assert.throws(()=>resolveMapState([{startYear:0,endYear:2,archived:false},{startYear:2,endYear:3,archived:false}],2),/overlaps/);});
+test("historical ranges use validated canonical signed years",()=>{const d={name:"Coast",startYear:-10,endYear:10,account:"Survey",protected:false};assert.equal(mapStateDetailsSchema.parse(d).startYear,-10);for(const patch of [{endYear:-11},{startYear:1.2},{endYear:1e12+1},{startYear:NaN},{name:" "}])assert.equal(mapStateDetailsSchema.safeParse({...d,...patch}).success,false);assert.equal(mapStatePeriod({startYear:0,endYear:0}),"Year 0");});

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { world } from "@/db/world-schema";
 import { worldAtlasMap, worldAtlasFeature, worldAtlasDrawing, worldGeography, worldAtlasConnection, worldSettlementEntity,worldInteriorFloor,worldInteriorEntity,worldDungeonSite,worldDungeonLevel,worldDungeonEntity } from "@/db/world-atlas-schema";
+import { worldMapState, worldMapStateObject } from "@/db/world-map-state-schema";
 import { WorldError, worldReadAccess, worldWriteTransaction } from "./world-service";
 import { atlasId, geographyDraftSchema, mapDraftSchema, validateMapDraft, validateParents, type AtlasBundle, type GeographyDraft, type MapDraft } from "./atlas";
 import { settlementSource, saveSettlement } from "./settlement-service";
@@ -103,6 +104,9 @@ async function saveGeographies(tx:Tx,worldId:string,drafts:GeographyDraft[]) {
 async function saveMapContent(tx:Tx,worldId:string,map:typeof worldAtlasMap.$inferSelect,draft:MapDraft){
   await activeMapFloor(tx,worldId,map.geographyId);await activeMapDungeon(tx,worldId,map.geographyId);
   validate(()=>{mapDraftSchema.parse(draft);validateMapDraft(draft);});
+  const historicalObjects=[...draft.features.map(f=>({id:f.id,kind:"feature",geographyId:f.geographyId})),...(draft.drawings??[]).map(d=>({id:d.id,kind:d.type,geographyId:d.geographyId}))];
+  const retainedObjects=historicalObjects.length?await tx.select().from(worldMapStateObject).where(inArray(worldMapStateObject.id,historicalObjects.map(o=>o.id))):[];
+  if(retainedObjects.some(old=>{const incoming=historicalObjects.find(o=>o.id===old.id)!;return old.worldId!==worldId||old.mapId!==map.id||old.kind!==incoming.kind||old.geographyId!==incoming.geographyId;}))throw new WorldError("This drawing identity is retained by a historical appearance. Create a distinct drawing for another map or place.",400);
         const previous=await tx.select().from(worldAtlasFeature).where(eq(worldAtlasFeature.mapId,map.id));
         if(previous.some(f=>!draft.features.some(n=>n.id===f.id)))throw new WorldError("Keep saved features in the map and archive unwanted shapes. Reload if your draft is incomplete.",400);
         const ids=draft.features.map(f=>f.id);
@@ -199,7 +203,7 @@ export async function changeAtlas(userId:string,worldId:string,input:unknown) {
       await tx.update(worldGeography).set({archivedAt:c.action==="archive-geography"?new Date():null,revision:g.revision+1,updatedAt:new Date()}).where(eq(worldGeography.id,g.id));result=g.id;
     } else {
       const [map]=await tx.select().from(worldAtlasMap).where(and(eq(worldAtlasMap.id,c.id),eq(worldAtlasMap.worldId,worldId)));if(!map)throw unavailable();if(map.revision!==c.revision)throw conflict();
-      if(c.action==="adopt-settlement"){const [g]=await tx.select().from(worldGeography).where(and(eq(worldGeography.id,c.geographyId),eq(worldGeography.worldId,worldId)));if(map.archivedAt||map.mapKind!=="generic"||!g||g.archivedAt||g.kind!=="location"||g.context!=="settlement")throw new WorldError("Choose an active settlement for a generic map. Its original source will be retained.",400);await tx.update(worldAtlasMap).set({mapKind:"settlement",geographyId:g.id,revision:map.revision+1,updatedAt:new Date()}).where(eq(worldAtlasMap.id,map.id));}
+      if(c.action==="adopt-settlement"){if((await tx.select({id:worldMapState.id}).from(worldMapState).where(eq(worldMapState.mapId,map.id)).limit(1)).length)throw new WorldError("This map retains historical appearances. Keep it generic; create a separate settlement map until historical settlement authoring is supported.",400);const [g]=await tx.select().from(worldGeography).where(and(eq(worldGeography.id,c.geographyId),eq(worldGeography.worldId,worldId)));if(map.archivedAt||map.mapKind!=="generic"||!g||g.archivedAt||g.kind!=="location"||g.context!=="settlement")throw new WorldError("Choose an active settlement for a generic map. Its original source will be retained.",400);await tx.update(worldAtlasMap).set({mapKind:"settlement",geographyId:g.id,revision:map.revision+1,updatedAt:new Date()}).where(eq(worldAtlasMap.id,map.id));}
       else if(c.action==="associate"||c.action==="connect"){
         if(map.archivedAt)throw new WorldError("Restore this map before changing connections.",400);await activeMapFloor(tx,worldId,map.geographyId);
         const [g]=c.geographyId?await tx.select().from(worldGeography).where(and(eq(worldGeography.id,c.geographyId),eq(worldGeography.worldId,worldId))):[];
