@@ -12,8 +12,10 @@ import { chromium } from "playwright-core";
 import { sourceSnapshot, type LinkingFixtures } from "./worlds-linking-checks";
 import type { MapFixtures } from "./worlds-map-state-checks";
 import { privacyBrowser, privacyServices } from "./worlds-map-state-privacy-checks";
+import { explorerFailureChecks } from "./worlds-explorer-failure-checks";
 
-const directory = "artifacts/guidance/worlds-map-state-privacy", receipt = `${directory}/environment.json`;
+const explorerFailure = process.argv.includes("--explorer-failure");
+const directory = explorerFailure ? "artifacts/guidance/worlds-explorer-failure" : "artifacts/guidance/worlds-map-state-privacy", receipt = `${directory}/environment.json`;
 type Environment = { data: string; temporaryRoot: string; dbPort: number; databaseUrl: string; appPort: number;
   baseUrl: string; distName: string; fixtures: MapFixtures; bridge: LinkingFixtures };
 async function freePort() {
@@ -50,13 +52,13 @@ async function main() {
         await admin.query(`create database "${database}" template "${templateName}"`);
         template = new pg.Pool({ connectionString: completed.databaseUrl });
         e = { ...completed, appPort, databaseUrl: `postgresql://postgres@127.0.0.1:${completed.dbPort}/${database}`,
-          baseUrl: `http://127.0.0.1:${appPort}`, distName: `artifacts/guidance/worlds-map-state-privacy-next-${appPort}` };
+          baseUrl: `http://127.0.0.1:${appPort}`, distName: `${directory}-next-${appPort}` };
         await writeFile(receipt, JSON.stringify(e, null, 2));
       }
     } finally { await admin.end(); }
     assert.equal(e.data, completed.data); assert.equal(e.dbPort, completed.dbPort);
     assert.match(e.databaseUrl, new RegExp(`^postgresql://postgres@127\\.0\\.0\\.1:${completed.dbPort}/serrian_mapprivacy_[0-9]+$`));
-    assert.equal(e.baseUrl, `http://127.0.0.1:${e.appPort}`); assert.equal(e.distName, `artifacts/guidance/worlds-map-state-privacy-next-${e.appPort}`);
+    assert.equal(e.baseUrl, `http://127.0.0.1:${e.appPort}`); assert.equal(e.distName, `${directory}-next-${e.appPort}`);
     pool = new pg.Pool({ connectionString: e.databaseUrl }); process.env.DATABASE_URL = e.databaseUrl;
     const before = await sourceSnapshot(pool, true);
     const committed = execFileSync("git", ["show", "278686d4000eb42794d61bad06543c2213c12cb4:drizzle/0124_worlds_map_states.sql"], { windowsHide: true });
@@ -65,7 +67,7 @@ async function main() {
     // Windows checkout line endings do not change the committed migration bytes.
     assert.equal((await readFile("drizzle/0124_worlds_map_states.sql", "utf8")).replaceAll("\r\n", "\n"), committed.toString("utf8"));
     application = await import("../src/db");
-    if (!process.argv.includes("--browser-only")) await privacyServices(e.fixtures, e.bridge, directory);
+    if (!explorerFailure && !process.argv.includes("--browser-only")) await privacyServices(e.fixtures, e.bridge, directory);
     if (!process.argv.includes("--services-only")) {
       const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: "production", DATABASE_URL: e.databaseUrl, BETTER_AUTH_URL: e.baseUrl,
         BETTER_AUTH_SECRET: "worlds-mapprivacy-task-disposable-secret-only", SERRIAN_TEST_NEXT_DIST_DIR: e.distName, NEXT_TELEMETRY_DISABLED: "1" };
@@ -85,7 +87,10 @@ async function main() {
         await new Promise(resolve => setTimeout(resolve, 300));
       } assert.ok(ready);
       const browser = await chromium.launch({ executablePath: process.env.SERRIAN_TEST_CHROME ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
-      try { await privacyBrowser(browser, e.baseUrl, e.fixtures, e.bridge, directory); } finally { await browser.close(); }
+      try {
+        if (explorerFailure) await explorerFailureChecks(browser, e.baseUrl, e.fixtures, directory);
+        else await privacyBrowser(browser, e.baseUrl, e.fixtures, e.bridge, directory);
+      } finally { await browser.close(); }
     }
     assert.deepEqual(await sourceSnapshot(pool, true), before);
     assert.deepEqual(await sourceSnapshot(template!, true), templateBefore);
