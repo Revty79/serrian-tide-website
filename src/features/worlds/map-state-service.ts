@@ -27,13 +27,13 @@ function project(bundle:AtlasBundle,map:AtlasMap,v:Version,ordinary=false):Atlas
   const projected:AtlasBundle={...bundle,maps:bundle.maps.map(m=>m.id===map.id?{...m,...mapPayload,revision:1,generation:ordinary?undefined:v.generation}:m),geographies:bundle.geographies.map(g=>({...g,...represented.get(g.id),revision:represented.get(g.id)?.revision??g.revision}))};
   return ordinary&&map.mapKind==="settlement"?projectOrdinarySettlement(projected,map.id):projected;
 }
-export async function getMapStates(userId:string,worldId:string,mapId:string,timelineId:string,options:{review?:boolean;ordinary?:boolean;stateId?:string;versionId?:string;year?:number}={}):Promise<MapStateBundle> {
+export async function getMapStates(userId:string,worldId:string,mapId:string,timelineId:string,options:{review?:boolean;ordinary?:boolean;stateId?:string;versionId?:string;year?:number;uncoordinated?:boolean}={}):Promise<MapStateBundle> {
   if(![mapId,timelineId,...[options.stateId,options.versionId].filter(Boolean)].every(id=>atlasId.safeParse(id).success))throw missing();
   const access=await worldReadAccess(userId,worldId,!!options.review);
   // getAtlas supplies the established server-side geography projection and existing destinations.
   const baseline=await getAtlas(userId,worldId,!!options.review,mapId,!!options.ordinary);
   const map=baseline.maps.find(m=>m.id===mapId);if(!map)throw missing();
-  return db.transaction(async tx=>{
+  const result:MapStateBundle=await db.transaction(async tx=>{
     const timeline=await selectedTimeline(tx,worldId,timelineId);
     const parent=timeline.parentId?await selectedTimeline(tx,worldId,timeline.parentId):null;
     const states=await choices(tx,worldId,mapId,timelineId,!!options.ordinary);
@@ -54,6 +54,8 @@ export async function getMapStates(userId:string,worldId:string,mapId:string,tim
     }else if(options.versionId)throw missing();
     return {bundle,states,parentStates,revisions,selected,coverage:selected?"established":options.year!==undefined?"unknown":"baseline",canEdit:baseline.canEdit&&access.ownerId===userId&&!timeline.archivedAt&&["generic","settlement"].includes(map.mapKind??"generic")&&!options.ordinary,timelineId,timelineName:timeline.name,parentTimelineName:parent?.name??null};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
+  if(options.year!==undefined&&!options.uncoordinated){const {coordinateHistoricalMap}=await import("./historical-connection-service");return coordinateHistoricalMap(userId,worldId,mapId,timelineId,options.year,result,options);}
+  return result;
 }
 async function saveSource(tx:Tx,userId:string,worldId:string,map:typeof worldAtlasMap.$inferSelect,timelineId:string,stateId:string|null,draft:MapDraft,details:MapStateDetails|null,source:Version|null,archived=false){
   if(map.mapKind==="settlement"&&!source)draft={...draft,historicalPlaces:[...new Set([map.geographyId!,...(draft.settlementEntities??[]).map(e=>e.geographyId)])].map(geographyId=>({geographyId,condition:"present" as const}))};

@@ -1,0 +1,14 @@
+.dialog { width:min(94vw,1200px); max-height:92dvh; padding:clamp(1rem,3vw,2rem); overflow:auto; border:1px solid var(--st-border); border-radius:var(--st-radius,12px); color:var(--st-text); background:var(--st-surface); }
+.dialog::backdrop { background:color-mix(in srgb,var(--st-page) 75%,transparent); }
+.heading,.actions { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; }
+.actions { justify-content:flex-start; margin:.75rem 0; }
+.columns { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.25rem; }
+.source,.finding { border:1px solid var(--st-border); padding:1rem; border-radius:var(--st-radius,12px); }
+.source svg { width:100%; height:auto; background:var(--st-surface); }
+.fields { display:grid; gap:.85rem; border:0; padding:0; min-width:0; }
+.feedback { padding:1rem; border:1px solid var(--st-border); background:var(--st-surface-soft); overflow-wrap:anywhere; }
+.table { width:100%; border-collapse:collapse; }
+.table th,.table td { text-align:left; vertical-align:top; padding:.6rem; border-bottom:1px solid var(--st-border); }
+.source pre,.table pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.8rem; max-height:18rem; overflow:auto; }
+.source p { white-space:pre-wrap; overflow-wrap:anywhere; }
+@media(max-width:700px) { .columns { grid-template-columns:1fr; } .dialog { width:96vw; } .table tr { display:grid; grid-template-columns:1fr; } }

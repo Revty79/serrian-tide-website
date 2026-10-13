@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { atlasId, mapDraftSchema, type AtlasBundle, type MapDraft } from "./atlas";
 import { yearSchema } from "./world-year";
+import type { CoordinationFinding } from "./historical-connections";
 
 export const mapStateDetailsSchema = z.object({
   name: z.string().trim().min(1, "Name this historical appearance.").max(160),
@@ -16,7 +17,7 @@ export const mapStateCommandSchema = z.discriminatedUnion("action", [
   z.object({action:z.literal("retain"),mapId:atlasId,timelineId:atlasId,id:atlasId,sourceVersionId:atlasId,sourceRevision:revision}).strict(),
 ]);
 export type MapStateChoice = MapStateDetails & {id:string;versionId:string;revision:number;archived:boolean;mode:"authored"|"retained"|"interpretation";authorId:string;authoredAt:string;sourceVersionId:string|null;baselineRevision:number};
-export type MapStateBundle = {bundle:AtlasBundle;states:MapStateChoice[];parentStates:MapStateChoice[];revisions:MapStateChoice[];selected:MapStateChoice|null;coverage:"baseline"|"established"|"unknown";canEdit:boolean;timelineId:string;timelineName:string;parentTimelineName:string|null};
+export type MapStateBundle = {bundle:AtlasBundle;states:MapStateChoice[];parentStates:MapStateChoice[];revisions:MapStateChoice[];selected:MapStateChoice|null;coverage:"baseline"|"established"|"unknown";canEdit:boolean;timelineId:string;timelineName:string;parentTimelineName:string|null;coordinationFindings?:CoordinationFinding[]};
 export function resolveMapState<T extends Pick<MapStateChoice,"startYear"|"endYear"|"archived">>(states:T[],year:number):T|null {
   yearSchema.parse(year);
   const matching=states.filter(state=>!state.archived&&state.startYear<=year&&state.endYear>=year);

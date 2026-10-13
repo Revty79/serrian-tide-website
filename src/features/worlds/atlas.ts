@@ -1,4 +1,5 @@
 import { historicalPlaceSchema, type HistoricalPlace } from "./historical-places";
+import type { HistoricalConnectionPolicy } from "./historical-connections";
 import { territoriesSchema, validateTerritories, type HistoricalTerritory } from "./historical-territories";
 import { dungeonEntitySchema, dungeonShapeSchema, dungeonStateSchema, validateDungeon, type DungeonEntity, type DungeonShape, type DungeonState, type DungeonSite, type DungeonLevel } from "./dungeon";
 import { interiorEntitySchema, interiorShapeSchema, interiorStateSchema, interiorLinkSchema, validateInterior, type InteriorEntity, type InteriorShape, type InteriorState, type InteriorLink, type InteriorFloor } from "./interior";
@@ -34,7 +35,7 @@ export type MapDraft = z.infer<typeof mapDraftSchema>;
 export type GeographyRecord = Omit<GeographyDraft, "revision"> & {revision: number; archived: boolean};
 export type AtlasMap = {id: string; name: string; description: string; scope: MapDraft["scope"]; mapKind?:"generic"|"settlement"|"interior"|"dungeon"; territories?:HistoricalTerritory[]; historicalPlaces?:HistoricalPlace[];dungeonShapes?:DungeonShape[];dungeonEntities?:DungeonEntity[];dungeonState?:DungeonState;dungeonLinks?:InteriorLink[]; unavailable?:boolean;interiorShapes?:InteriorShape[];interiorEntities?:InteriorEntity[];interiorState?:InteriorState;interiorLinks?:InteriorLink[]; settlementShapes?:SettlementShape[]; settlementEntities?:SettlementEntity[]; settlementState?:SettlementState; geographyId?: string|null; width: number; height: number; revision: number; archived: boolean; features: AtlasFeature[]; drawings?: MapDrawing[]; presentation?: MapPresentation; generation?: GenerationProvenance|null};
 export type AtlasConnection = {id: string; sourceMapId: string; geographyId: string; destinationMapId: string; destinationGeographyId?:string|null; revision: number};
-export type AtlasBundle = {maps: AtlasMap[]; geographies: GeographyRecord[]; connections?: AtlasConnection[]; floors?:InteriorFloor[];dungeonSites?:DungeonSite[];dungeonLevels?:DungeonLevel[];ordinaryProjection?:boolean; buildingIds?:string[]; canEdit: boolean};
+export type AtlasBundle = {maps: AtlasMap[]; geographies: GeographyRecord[]; connections?: AtlasConnection[]; historicalConnectionPolicies?:HistoricalConnectionPolicy[]; floors?:InteriorFloor[];dungeonSites?:DungeonSite[];dungeonLevels?:DungeonLevel[];ordinaryProjection?:boolean; buildingIds?:string[]; canEdit: boolean};
 export type Viewport = {x: number; y: number; width: number; height: number};
 export const fitViewport = (): Viewport => ({x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT});
 export function validateMapDraft(draft: MapDraft) {
