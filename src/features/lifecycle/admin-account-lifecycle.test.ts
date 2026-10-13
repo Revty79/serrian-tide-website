@@ -69,7 +69,7 @@ function byConstraint<T extends { constraintName: string }>(
   return left.constraintName.localeCompare(right.constraintName);
 }
 
-test("the account plan classifies the current 111-FK User closure", () => {
+test("the account plan classifies the current 114-FK User closure", () => {
   const actual = Object.values(snapshot.tables).flatMap((table) => (
     Object.values(table.foreignKeys ?? {})
       .filter(({ tableTo }) => tableTo === "user")
@@ -88,7 +88,7 @@ test("the account plan classifies the current 111-FK User closure", () => {
   })).sort(byConstraint);
 
   assert.equal(USER_ACCOUNT_FOREIGN_KEY_PLAN.length, USER_ACCOUNT_FOREIGN_KEY_COUNT);
-  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 111);
+  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 114);
   assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, USER_ACCOUNT_FOREIGN_KEY_COUNT);
   assert.deepEqual(planned, actual);
   assert.equal(Number(currentMigrationPrefix), currentMigration.idx, "inspect the latest journal snapshot, including type-only migrations");
@@ -112,7 +112,7 @@ test("only authentication, personal preferences, and membership associations are
   );
   assert.equal(
     USER_ACCOUNT_FOREIGN_KEY_PLAN.filter(({ disposition }) => disposition === "block").length,
-    104,
+    107,
   );
   assert.ok(
     USER_ACCOUNT_FOREIGN_KEY_PLAN
@@ -139,6 +139,17 @@ test("only authentication, personal preferences, and membership associations are
       disposition: "block",
       label: "Site appearance update attribution",
     },
+  );
+});
+
+test("geographic import, surface and immutable source attribution block account deletion", () => {
+  assert.deepEqual(
+    USER_ACCOUNT_FOREIGN_KEY_PLAN.filter(({ tableName }) => tableName.startsWith("world_geo_")),
+    [
+      { tableName: "world_geo_dataset", columnName: "importer_id", constraintName: "world_geo_dataset_importer_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "World geographic import attribution" },
+      { tableName: "world_geo_surface", columnName: "creator_id", constraintName: "world_geo_surface_creator_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "World geographic surface creation attribution" },
+      { tableName: "world_geo_version", columnName: "author_id", constraintName: "world_geo_version_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable World geographic source authorship" },
+    ],
   );
 });
 

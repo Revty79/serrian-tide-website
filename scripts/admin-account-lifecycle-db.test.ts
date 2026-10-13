@@ -13,6 +13,15 @@ import { campaign, campaignPlayer } from "@/db/campaign-schema";
 import { chatRoom, chatRoomMember } from "@/db/chat-schema";
 import { lifecycleAuditEvent } from "@/db/lifecycle-schema";
 import { campaignCharacter } from "@/db/realm-schema";
+import { world } from "@/db/world-schema";
+import { worldGeography } from "@/db/world-atlas-schema";
+import {
+  worldGeoDataset,
+  worldGeoFeature,
+  worldGeoHead,
+  worldGeoSurface,
+  worldGeoVersion,
+} from "@/db/world-geographic-schema";
 import { DEFAULT_APPEARANCE } from "@/features/appearance/appearance";
 import { setUserRoleInTransaction } from "@/features/authorization/user-role-service";
 import {
@@ -28,11 +37,10 @@ function assertSafeDevelopmentDatabase(): void {
     ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname),
     "Admin account lifecycle DB tests refuse non-loopback databases.",
   );
-  assert.match(
-    parsed.pathname.slice(1),
-    /_dev$/,
-    "Admin account lifecycle DB tests require a database name ending in _dev.",
-  );
+  assert.equal(parsed.pathname, "/serrian_account_lifecycle_dev");
+  assert.equal(process.env.SERRIAN_ACCOUNT_LIFECYCLE_DISPOSABLE, "true",
+    "Run through the disposable harness; configured DEV databases are excluded.");
+  assert.equal(parsed.port, process.env.SERRIAN_ACCOUNT_LIFECYCLE_TEST_PORT);
 }
 
 assertSafeDevelopmentDatabase();
@@ -846,4 +854,86 @@ test("Admin account deletion is authorized, fail-closed, scoped, audited, and at
     "the surviving administrator must retain Admin authority",
   );
   assert.equal((await snapshotUserGraph(administratorSentinel.id)).users, 0);
+});
+
+test("geographic attribution previews block deletion and preserve immutable sources", async (t) => {
+  // These retained fixtures live only in the harness-owned disposable cluster.
+  // Do not bypass immutable-source guards to remove them in ordinary cleanup.
+  const prefix = `geo-account-db-${randomUUID()}`;
+  const fixture = (suffix: string): FixtureIdentity => ({
+    id: `${prefix}-${suffix}`,
+    email: `${prefix}-${suffix}@example.invalid`,
+    suffix,
+  });
+  const actor = fixture("administrator");
+  const importer = fixture("importer");
+  const creator = fixture("creator");
+  const author = fixture("author");
+  await createUserFixture(actor, "admin");
+  for (const target of [importer, creator, author]) await createUserFixture(target, "player");
+
+  const worldId = randomUUID(), surfaceId = randomUUID(), datasetId = randomUUID();
+  const geographyId = randomUUID(), featureId = randomUUID(), versionId = randomUUID();
+  await db.insert(world).values({ id: worldId, ownerId: actor.id, name: `${prefix} World` });
+  await db.insert(worldGeoSurface).values({
+    id: surfaceId, worldId, creatorId: creator.id, requestId: randomUUID(),
+    name: "Retained original coordinate surface", realmId: null, protected: true,
+    reference: { version: 1, kind: "plane", crs: "AUTHORED:account-fixture", units: "local units", bounds: [0, 0, 10, 10] },
+  });
+  await db.insert(worldGeoDataset).values({
+    id: datasetId, worldId, surfaceId, importerId: importer.id,
+    contentSha256: "a".repeat(64), namespace: "b".repeat(64),
+    provenance: {
+      provider: "Disposable lifecycle fixture", dataset: "Original authored source", edition: "1",
+      sourceUrl: "https://example.invalid/source", license: "Original test fixture",
+      licenseUrl: "https://example.invalid/license", attribution: "Original test fixture",
+      attributionRequired: false, fileSha256: "c".repeat(64),
+      originalCrs: "AUTHORED:account-fixture", parameters: "Independent retained attribution checks",
+    },
+  });
+  await db.insert(worldGeography).values({ id: geographyId, worldId, name: "Original attributed place", kind: "location" });
+  await db.insert(worldGeoFeature).values({
+    id: featureId, worldId, surfaceId, geographyId, namespace: "b".repeat(64),
+    externalId: "original-place", semantic: "authored-geography",
+  });
+  await db.insert(worldGeoVersion).values({
+    id: versionId, worldId, surfaceId, featureId, datasetId, previousId: null,
+    authorId: author.id, requestId: randomUUID(), revision: 1,
+    geometry: { type: "Point", coordinates: [1.234567891, 2.345678912] },
+    properties: { originalAccount: "Retain the original source and attribution" },
+    note: "Archived source authorship remains retained", protected: true, archived: true,
+  });
+  await db.insert(worldGeoHead).values({ worldId, featureId, versionId, revision: 1 });
+
+  async function sourceSnapshot() {
+    const records: Record<string, unknown[]> = {};
+    for (const table of ["world", "world_geography", "world_geo_surface", "world_geo_dataset", "world_geo_feature", "world_geo_version", "world_geo_head", "world_geo_part", "world_geo_view"]) {
+      records[table] = (await pool.query(`select to_jsonb(r) source from "${table}" r where ${table === "world" ? "id" : "world_id"}=$1 order by to_jsonb(r)::text collate "C"`, [worldId])).rows;
+    }
+    return records;
+  }
+  const originalSources = await sourceSnapshot();
+  const cases = [
+    { target: importer, key: "world_geo_dataset_importer_id_user_id_fk", table: "world_geo_dataset", column: "importer_id", label: "World geographic import attribution" },
+    { target: creator, key: "world_geo_surface_creator_id_user_id_fk", table: "world_geo_surface", column: "creator_id", label: "World geographic surface creation attribution" },
+    { target: author, key: "world_geo_version_author_id_user_id_fk", table: "world_geo_version", column: "author_id", label: "Immutable World geographic source authorship" },
+  ];
+  for (const { target, key, table, column, label } of cases) {
+    await t.test(label, async () => {
+      const originalAccount = await snapshotUserGraph(target.id);
+      const preview = await previewAdminAccountDeletion(actor.id, target.id);
+      assert.equal(preview.canDelete, false);
+      assert.deepEqual(preview.blockers, [{ key, tableName: table, columnName: column, label, count: 1, blocking: true }],
+        "each attribution must block independently, without an ownership or unrelated blocker");
+      assert.ok(preview.cleanup.some(({ key, count }) => key === "user_role_user_id_user_id_fk" && count === 1));
+      let reachedDelete = false;
+      await assert.rejects(permanentlyDeleteAdminAccount(actor.id, {
+        targetUserId: target.id, confirmationText: `DELETE ${target.email}`, reason: "Retained geographic attribution",
+      }, { afterDelete: () => { reachedDelete = true; } }),
+      (error: unknown) => error instanceof Error && error.message.includes(`Account deletion is blocked by retained content or history: ${label} (1)`));
+      assert.equal(reachedDelete, false, "the dependency check must stop deletion before cleanup, audit or the database FK failure");
+      assert.deepEqual(await snapshotUserGraph(target.id), originalAccount);
+      assert.deepEqual(await sourceSnapshot(), originalSources, "coordinates, manifests, revisions, heads and identities must remain unchanged");
+    });
+  }
 });

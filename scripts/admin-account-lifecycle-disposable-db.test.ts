@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -33,6 +34,8 @@ async function findLoopbackPort(): Promise<number> {
 async function main(): Promise<void> {
   const temporaryCluster = await mkdtemp(path.join(tmpdir(), "serrian-account-lifecycle-postgres-"));
   const dataDirectory = path.join(temporaryCluster, "data");
+  assert.equal(path.dirname(path.resolve(temporaryCluster)), path.resolve(tmpdir()));
+  assert.ok(path.basename(temporaryCluster).startsWith("serrian-account-lifecycle-postgres-"));
   const logPath = path.join(temporaryCluster, "postgres.log");
   const port = await findLoopbackPort();
   const maintenanceConnectionString = `postgresql://postgres@127.0.0.1:${port}/postgres`;
@@ -69,6 +72,23 @@ async function main(): Promise<void> {
     await pool.end();
     pool = null;
 
+    if (process.argv.includes("--build-only")) {
+      execFileSync(process.execPath, ["node_modules/next/dist/bin/next", "build"], {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          DATABASE_URL: connectionString,
+          NODE_ENV: "production",
+          BETTER_AUTH_URL: "http://127.0.0.1:3000",
+          BETTER_AUTH_SECRET: "account-ci-build-disposable-secret-only",
+          NEXT_TELEMETRY_DISABLED: "1",
+        },
+        stdio: "inherit",
+        windowsHide: true,
+      });
+      return;
+    }
+
     execFileSync(process.execPath, [
       "--conditions=react-server",
       "--import",
@@ -82,6 +102,8 @@ async function main(): Promise<void> {
         DATABASE_URL: connectionString,
         NODE_ENV: "test",
         SERRIAN_TIDE_ENABLE_PERMANENT_DELETION: "true",
+        SERRIAN_ACCOUNT_LIFECYCLE_DISPOSABLE: "true",
+        SERRIAN_ACCOUNT_LIFECYCLE_TEST_PORT: String(port),
       },
       stdio: "inherit",
       windowsHide: true,
@@ -98,6 +120,8 @@ async function main(): Promise<void> {
         "stop",
       ], { stdio: "ignore", windowsHide: true });
     }
+    assert.equal(path.dirname(path.resolve(temporaryCluster)), path.resolve(tmpdir()));
+    assert.ok(path.basename(temporaryCluster).startsWith("serrian-account-lifecycle-postgres-"));
     await rm(temporaryCluster, { recursive: true, force: true });
   }
 }
