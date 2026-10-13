@@ -24,11 +24,15 @@ The original shared map is always a separate selection. Creating an appearance f
 
 New alternate timelines start with unknown map coverage and the explicit shared-baseline reference. No map appearance is silently inherited. An author may retain a direct parent's exact selected version and authored period, with confirmation even when the period follows divergence. Both parent revision and version are checked. Subsequent parent edits, archives or changes of source selection cannot rewrite that pin.
 
+Parent appearance choices are returned only in author or explicit Administrator review contexts. Ordinary alternate responses return no parent choices or unadopted appearance metadata. Deliberately retained versions remain readable through the selected timeline, subject to current source and geography protection.
+
 Editing a retained appearance appends a branch interpretation against the same appearance identity. Earlier parent/branch versions stay immutable. Branch-born appearances have their own identities and heads; Primary History and siblings never select them automatically. Source retention is not a claim that an uncertain historical event is true.
 
 World ownership and G.O.D./Administrator roles are checked server-side. Writes use the existing owned-World transaction; archived Worlds, maps and timelines cannot be edited. Administrator review and ordinary preview are explicitly read-only, including POST rejection for preview URLs. Ordinary knowledge filters choices and counts before serialization. An appearance is withheld in full when it, its retained source, the effective source's current protection, any represented geography or geographic ancestor reveals protected dungeon information. Archived objects also retain their privacy references. The same checks apply to earlier revision readers and parent choices; unavailable source IDs return an unavailable response. Ordinary previews remain private author/reviewer tools, with no new Player, Campaign or publication access.
 
 ## Authoring, navigation and recovery
+
+Atlas recognizes both `knowledge=ordinary` and `ordinary=1` across the library, Explorer, historical appearances, Realm connections and place milestone requests. Either alias requires server filtering and a read-only `canEdit` result. Preview-qualified mutation URLs reject both aliases and `review=1`; unqualified owner authorization is unchanged. Returning to the map library preserves preview mode. Returning to author view clears both ordinary aliases while preserving timeline, historical year and explicit review. Context changes suppress stale Atlas data and author controls until the matching projection arrives.
 
 Open a generic map and select an appearance or enter a World year. Create an appearance from the displayed map, name its period and source account, then use the existing Map Maker to reshape coastlines, edit rivers, paint terrain, change labels and manage drawings. Viewing saved history is read-only until the author chooses Edit this historical appearance. The baseline is labeled as shared editing.
 

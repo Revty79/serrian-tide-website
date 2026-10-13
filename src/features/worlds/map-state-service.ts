@@ -32,7 +32,8 @@ export async function getMapStates(userId:string,worldId:string,mapId:string,tim
     const timeline=await selectedTimeline(tx,worldId,timelineId);
     const parent=timeline.parentId?await selectedTimeline(tx,worldId,timeline.parentId):null;
     const states=await choices(tx,worldId,mapId,timelineId,!!options.ordinary);
-    const parentStates=parent?await choices(tx,worldId,mapId,parent.id,!!options.ordinary):[];
+    // Parent sources are author choices, not knowledge retained by this timeline.
+    const parentStates=parent&&!options.ordinary?await choices(tx,worldId,mapId,parent.id,false):[];
     let selected=options.stateId?states.find(s=>s.id===options.stateId)??null:options.year!==undefined?resolveMapState(states,options.year):null;
     if(options.stateId&&!selected)throw missing();
     let bundle=baseline;const revisions:MapStateChoice[]=[];
