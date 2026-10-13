@@ -43,8 +43,8 @@ async function mountedExplorerFixture(f: MapFixtures, directory: string) {
 }
 
 /** Exercise the same mounted Explorer through delayed failure, retry and author recovery. */
-export async function explorerFailureChecks(browser: Browser, base: string, f: MapFixtures, directory: string) {
-  const receipt = `${directory}/browser-results.json`, errors: string[] = [], writes: string[] = [];
+export async function explorerFailureChecks(browser: Browser, base: string, f: MapFixtures, directory: string, options:{failureOnly?:boolean;navigationOnly?:boolean;receiptName?:string}={}) {
+  const receipt = `${directory}/${options.receiptName??"browser-results.json"}`, errors: string[] = [], writes: string[] = [];
   const results: string[] = process.argv.includes("--continue") ? JSON.parse(await readFile(receipt, "utf8")).results : [];
   const fixture = await mountedExplorerFixture(f, directory);
   async function check(name: string, run: () => Promise<void>) {
@@ -92,7 +92,7 @@ export async function explorerFailureChecks(browser: Browser, base: string, f: M
         assert.ok(!text.includes("SECRET_"), text);
         assert.equal(await explorer.getByRole("button", { name: /^(Edit map|Edit connections)$/ }).count(), 0);
       }
-      for (const alias of ["knowledge", "ordinary"] as const) {
+      for (const alias of options.navigationOnly?[]:["knowledge", "ordinary"] as const) {
         await check(`${name} ${alias}: delayed ordinary failure withholds protected appearance, retry filters correctly, author return restores the source`, async () => {
           await page.goto(mountedAuthorUrl);
           await explorer.getByRole("status").filter({ hasText: secret.name }).waitFor();
@@ -146,6 +146,7 @@ export async function explorerFailureChecks(browser: Browser, base: string, f: M
           assert.deepEqual(routeErrors, []);
         });
       }
+      if(options.failureOnly)continue;
       await check(`${name}: historical year navigation, linked-map return, immutable source reading and Atlas draft editing remain functional`, async () => {
         await page.goto(authorUrl); await explorer.getByRole("status").filter({ hasText: secret.name }).waitFor();
         await page.evaluate(() => { const url = new URL(location.href); url.searchParams.set("mapYear", "50"); window.history.pushState(null, "", url.pathname + url.search); });

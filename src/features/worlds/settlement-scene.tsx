@@ -1,3 +1,4 @@
+import { placeIsPresent } from "./historical-places";
 import { memo, useMemo } from "react";
 import type { MapDraft } from "./atlas";
 import { curvedPath } from "./cartography";
@@ -13,7 +14,9 @@ export const SettlementScene=memo(function SettlementScene({draft,selectedId,uni
  const entities=useMemo(()=>new Map((draft.settlementEntities??[]).map(e=>[e.geographyId,e])),[draft.settlementEntities]);
  const names=useMemo(()=>new Map(draft.geographies.map(g=>[g.id,g.name])),[draft.geographies]);
  const state=draft.settlementState??defaultSettlementState();
- const ordered=useMemo(()=>[...(draft.settlementShapes??[])].filter(s=>!s.archived).sort((a,b)=>{const order={district:0,space:1,waterway:2,street:3,wall:4,building:5,landmark:6};return order[entities.get(a.geographyId)!.kind]-order[entities.get(b.geographyId)!.kind];}),[draft.settlementShapes,entities]);
+ const unavailable=useMemo(()=>new Set((draft.historicalPlaces??[]).filter(p=>!placeIsPresent([p],p.geographyId)).map(p=>p.geographyId)),[draft.historicalPlaces]);
+ const settlementId=draft.historicalPlaces?.find(p=>!entities.has(p.geographyId))?.geographyId;
+ const ordered=useMemo(()=>[...(draft.settlementShapes??[])].filter(s=>!s.archived&&!unavailable.has(s.geographyId)&&(!settlementId||!unavailable.has(settlementId))).sort((a,b)=>{const order={district:0,space:1,waterway:2,street:3,wall:4,building:5,landmark:6};return order[entities.get(a.geographyId)!.kind]-order[entities.get(b.geographyId)!.kind];}),[draft.settlementShapes,unavailable,settlementId,entities]);
  return <g className={styles.scene} data-style={draft.presentation?.style??"parchment"}>{ordered.map(s=>{const e=entities.get(s.geographyId);if(!e)return null;const layer=state.layers[settlementLayer(e.kind)];if(!layer.visible)return null;return <ShapeArt key={s.id} shape={s} kind={e.kind} selected={s.id===selectedId} units={units}/>;}).map((art,i)=>art&&<g key={ordered[i].id} pointerEvents={explorable||editable&&!state.layers[settlementLayer(entities.get(ordered[i].geographyId)!.kind)].locked?undefined:"none"}>{art}</g>)}
  {state.layers.labels.visible&&ordered.map(s=>{const e=entities.get(s.geographyId);if(!e||!state.layers[settlementLayer(e.kind)].visible)return null;const p=shapePoints(s),x=p.reduce((n,q)=>n+q.x,0)/p.length,y=p.reduce((n,q)=>n+q.y,0)/p.length;const width=Math.max(...p.map(q=>q.x))-Math.min(...p.map(q=>q.x));if(e.kind==="building"&&width<70*units&&selectedId!==s.id)return null;return <text key={s.id} className={styles.label} x={x} y={y+(e.kind==="landmark"?30*units:0)} fontSize={Math.max(11,11*units)} textAnchor="middle" data-settlement-label>{names.get(s.geographyId)}</text>;})}</g>;
 });

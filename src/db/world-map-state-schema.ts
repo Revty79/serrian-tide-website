@@ -36,7 +36,7 @@ export const worldMapStateHead = pgTable("world_map_state_head", {
 export const worldMapStateObject = pgTable("world_map_state_object", {
   id:text("id").primaryKey(),worldId:text("world_id").notNull(),mapId:text("map_id").notNull(),kind:text("kind").notNull(),geographyId:text("geography_id"),
 },t=>[foreignKey({name:"map_state_object_map_fk",columns:[t.mapId,t.worldId],foreignColumns:[worldAtlasMap.id,worldAtlasMap.worldId]}).onDelete("restrict"),
-  foreignKey({name:"map_state_object_geography_fk",columns:[t.geographyId,t.worldId],foreignColumns:[worldGeography.id,worldGeography.worldId]}).onDelete("restrict"),check("map_state_object_valid",sql`${t.kind} IN ('feature','terrain','path','symbol','label') AND (${t.kind}<>'feature' OR ${t.geographyId} IS NOT NULL)`)]);
+  foreignKey({name:"map_state_object_geography_fk",columns:[t.geographyId,t.worldId],foreignColumns:[worldGeography.id,worldGeography.worldId]}).onDelete("restrict"),check("map_state_object_valid",sql`${t.kind} IN ('feature','terrain','path','symbol','label','settlement-area','settlement-line','settlement-marker') AND (${t.kind} NOT IN ('feature','settlement-area','settlement-line','settlement-marker') OR ${t.geographyId} IS NOT NULL)`)]);
 export const worldMapStateGeography = pgTable("world_map_state_geography", {
   versionId:text("version_id").notNull(),worldId:text("world_id").notNull(),mapId:text("map_id").notNull(),geographyId:text("geography_id").notNull(),
 },t=>[primaryKey({columns:[t.versionId,t.geographyId]}),

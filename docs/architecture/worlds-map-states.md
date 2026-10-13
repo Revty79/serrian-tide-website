@@ -1,6 +1,6 @@
 # Historical map appearances: Phase 6B-A
 
-The technically approved starting point is Phase 6A `92281e00005bb8fb8cbbd78ef2eaea613dd7e5ed`. This pass implements historical artwork for generic Atlas maps. Existing settlement, interior and dungeon workshops remain available for their shared maps; they do not yet author historical appearances.
+The technically approved starting point is Phase 6A `92281e00005bb8fb8cbbd78ef2eaea613dd7e5ed`. This pass implements historical artwork for generic Atlas maps. At the 6B-A checkpoint, settlement, interior and dungeon workshops authored shared maps. [Phase 6B-B](worlds-historical-settlements.md) now extends this foundation to real settlement appearances; historical interior and dungeon editing remain later work.
 
 ## Identities and sources
 

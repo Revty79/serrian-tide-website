@@ -1,3 +1,4 @@
+import { placeIsPresent } from "./historical-places";
 import type { AtlasBundle, AtlasMap, GeographyRecord } from "./atlas";
 
 export function geographyPath(id: string|null|undefined, geographies: GeographyRecord[]) {
@@ -15,7 +16,7 @@ export function navigationIndex(bundle:AtlasBundle) {
   return {places,maps,destinations,preferred};
 }
 export function representedPlaces(map:AtlasMap,bundle:AtlasBundle) {
-  return new Set([...(map.dungeonShapes??[]).filter(s=>!s.archived).map(s=>s.entityId),...(map.interiorShapes??[]).filter(s=>!s.archived).map(s=>s.entityId),...(map.settlementShapes??[]).filter(s=>!s.archived).map(s=>s.geographyId),...map.features.filter(f=>!f.archived).map(f=>f.geographyId),...(map.drawings??[]).filter(d=>!d.archived&&d.geographyId).map(d=>d.geographyId!),...(bundle.connections??[]).filter(c=>c.sourceMapId===map.id).map(c=>c.geographyId)]);
+  return new Set([...(map.dungeonShapes??[]).filter(s=>!s.archived).map(s=>s.entityId),...(map.interiorShapes??[]).filter(s=>!s.archived).map(s=>s.entityId),...(map.settlementShapes??[]).filter(s=>!s.archived).map(s=>s.geographyId),...map.features.filter(f=>!f.archived).map(f=>f.geographyId),...(map.drawings??[]).filter(d=>!d.archived&&d.geographyId).map(d=>d.geographyId!),...(bundle.connections??[]).filter(c=>c.sourceMapId===map.id).map(c=>c.geographyId)].filter(id=>placeIsPresent(map.historicalPlaces,id)&&placeIsPresent(map.historicalPlaces,map.geographyId)));
 }
 // Visiting a previous map truncates the trail. Geography ancestry is a separate relationship.
 export function visitMap(trail:string[],id:string){const old=trail.indexOf(id);return old>=0?trail.slice(0,old+1):[...trail,id].slice(-40);}

@@ -876,6 +876,13 @@
       "when": 1791846701344,
       "tag": "0124_worlds_map_states",
       "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1791856296563,
+      "tag": "0125_worlds_historical_settlements",
+      "breakpoints": true
     }
   ]
 }
