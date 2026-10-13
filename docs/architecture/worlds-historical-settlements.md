@@ -1,5 +1,7 @@
 # Historical settlements: Phase 6B-B design
 
+Separately authorized Phase 6B-C adds [historical political overlays](worlds-historical-territories.md) to these same saved settlement appearances. It preserves place conditions, stable settlement/geographic identities, physical layouts and the original renderer. Political source periods and accounts remain independent of settlement existence and actual History event dates. Phase 6B-D coordinated historical connections and historical interior/dungeon editing remain separate scope.
+
 Approved starting point: `9267fc465e717d9503f4e5546e87b6243a69741b`. Extend the existing appearance identity, immutable version, timeline head, source pin and optimistic revision model. No second map identity, editor or renderer is introduced.
 
 Settlement versions capture the real Settlement Editor's shapes, semantic entity categories, local classifications and district memberships, layer state, cartographic background, local names/descriptions and explicit place conditions. The existing editor and SettlementScene read that captured source. Archived drawings remain source records; archiving is independent of historical destruction. Conditions are present, absent, not yet established, abandoned, ruined, destroyed, rebuilt and unknown. Abandoned, ruined and rebuilt remain visible; absent, not yet established, destroyed and unknown do not draw a present place. The author can still select their retained source in the workshop. A condition on the settlement itself controls its entire representation.

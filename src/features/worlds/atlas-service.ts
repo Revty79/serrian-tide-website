@@ -146,7 +146,7 @@ async function saveMapContent(tx:Tx,worldId:string,map:typeof worldAtlasMap.$inf
 export async function changeAtlas(userId:string,worldId:string,input:unknown) {
   return worldWriteTransaction(userId,worldId,async tx=>{
     const dungeonCommand=dungeonCommandSchema.safeParse(input);if(dungeonCommand.success){const result=await changeDungeon(tx,worldId,dungeonCommand.data);await tx.update(world).set({updatedAt:new Date()}).where(eq(world.id,worldId));return result;}
-    const c=command.parse(input);let result:string;
+    const c=command.parse(input);if("draft" in c&&"territories" in c.draft)throw new WorldError("Political overlays belong to a dated historical appearance, not the shared physical map.",400);let result:string;
     if(c.action==="create-floor")result=await createInteriorFloor(tx,worldId,c.buildingId,c.draft,c.mapName);
     else if(c.action==="floor-map"){await activeFloor(tx,worldId,c.floorId);result=randomUUID();await tx.insert(worldAtlasMap).values({id:result,worldId,name:c.name,scope:"local",mapKind:"interior",geographyId:c.floorId});}
     else if(c.action==="edit-floor"||c.action==="archive-floor"||c.action==="restore-floor"){

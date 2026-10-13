@@ -883,6 +883,13 @@
       "when": 1791856296563,
       "tag": "0125_worlds_historical_settlements",
       "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1791861296170,
+      "tag": "0126_worlds_historical_territories",
+      "breakpoints": true
     }
   ]
 }

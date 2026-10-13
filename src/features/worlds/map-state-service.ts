@@ -10,17 +10,19 @@ import { selectedTimeline } from "./history-version-service";
 import { WorldError, worldReadAccess, worldWriteTransaction } from "./world-service";
 import { mapStateCommandSchema, resolveMapState, type MapStateBundle, type MapStateChoice, type MapStateDetails } from "./map-states";
 import { projectOrdinarySettlement } from "./historical-settlement-projection";
+import { ordinaryTerritorySource, validateTerritorySources, appendTerritoryReferences } from "./territory-service";
 type Tx=Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Version=typeof versions.$inferSelect;
 const missing=()=>new WorldError("This historical map source is unavailable.",404);
 const conflict=()=>new WorldError("A newer historical appearance was saved. Your draft is retained. Load the saved map to compare or download your draft.",409);
 const metadata={id:heads.stateId,versionId:heads.versionId,revision:heads.revision,mode:heads.mode,name:versions.name,startYear:versions.startYear,endYear:versions.endYear,account:versions.account,protected:versions.protected,archived:versions.archived,authorId:versions.authorId,authoredAt:versions.createdAt,sourceVersionId:versions.sourceVersionId,baselineRevision:versions.baselineRevision};
 function choice(row:Omit<MapStateChoice,"startYear"|"endYear"|"authoredAt">&{startYear:number|null;endYear:number|null;authoredAt:Date}):MapStateChoice{return {...row,startYear:row.startYear!,endYear:row.endYear!,authoredAt:row.authoredAt.toISOString()};}
-async function choices(tx:Tx,worldId:string,mapId:string,timelineId:string,ordinary:boolean){return (await tx.select(metadata).from(heads).innerJoin(versions,eq(versions.id,heads.versionId)).where(and(eq(heads.worldId,worldId),eq(heads.mapId,mapId),eq(heads.timelineId,timelineId),ordinary?sql`world_map_state_is_ordinary(${versions.id},${worldId})`:undefined)).orderBy(versions.startYear,versions.createdAt).limit(129)).map(row=>({...choice(row),...(ordinary?{account:""}:{})}));}
+async function choices(tx:Tx,worldId:string,mapId:string,timelineId:string,ordinary:boolean){return (await tx.select(metadata).from(heads).innerJoin(versions,eq(versions.id,heads.versionId)).where(and(eq(heads.worldId,worldId),eq(heads.mapId,mapId),eq(heads.timelineId,timelineId),ordinary?sql`world_map_state_is_ordinary(${versions.id},${worldId}) AND ${ordinaryTerritorySource(worldId,timelineId,sql`${versions.id}`)}`:undefined)).orderBy(versions.startYear,versions.createdAt).limit(129)).map(row=>({...choice(row),...(ordinary?{account:""}:{})}));}
 async function getVersion(tx:Tx,worldId:string,mapId:string,id:string){const [v]=await tx.select().from(versions).where(and(eq(versions.id,id),eq(versions.worldId,worldId),eq(versions.mapId,mapId)));if(!v)throw missing();return v;}
 async function belongs(tx:Tx,worldId:string,timelineId:string,mapId:string,versionId:string){const rows=await tx.execute(sql`WITH RECURSIVE sources(id) AS (SELECT version_id FROM world_map_state_head WHERE world_id=${worldId} AND timeline_id=${timelineId} AND map_id=${mapId} UNION SELECT n.id FROM sources s JOIN world_map_state_version v ON v.id=s.id CROSS JOIN LATERAL (SELECT v.source_version_id AS id UNION SELECT v.previous_version_id) n WHERE v.world_id=${worldId} AND n.id IS NOT NULL) SELECT id FROM sources WHERE id=${versionId}`);return rows.rows.length>0;}
 function project(bundle:AtlasBundle,map:AtlasMap,v:Version,ordinary=false):AtlasBundle {
   const {geographies:localPlaces,...mapPayload}=v.payload;
+  if(ordinary&&mapPayload.territories)mapPayload.territories=mapPayload.territories.map(t=>({...t,account:"",accountYear:null,originalNotation:"",relationships:t.relationships.map(r=>({...r,account:""}))}));
   const represented=new Map(localPlaces.map(g=>[g.id,g]));
   const projected:AtlasBundle={...bundle,maps:bundle.maps.map(m=>m.id===map.id?{...m,...mapPayload,revision:1,generation:ordinary?undefined:v.generation}:m),geographies:bundle.geographies.map(g=>({...g,...represented.get(g.id),revision:represented.get(g.id)?.revision??g.revision}))};
   return ordinary&&map.mapKind==="settlement"?projectOrdinarySettlement(projected,map.id):projected;
@@ -42,7 +44,7 @@ export async function getMapStates(userId:string,worldId:string,mapId:string,tim
     let bundle=baseline;const revisions:MapStateChoice[]=[];
     if(selected){
       const current=selected;
-      const rows=await tx.execute(sql`WITH RECURSIVE sources(id) AS (SELECT ${current.versionId}::text UNION SELECT n.id FROM sources s JOIN world_map_state_version v ON v.id=s.id CROSS JOIN LATERAL (SELECT v.source_version_id AS id UNION SELECT v.previous_version_id) n WHERE n.id IS NOT NULL AND v.world_id=${worldId}) SELECT v.id FROM sources s JOIN world_map_state_version v ON v.id=s.id WHERE v.state_id=${current.id} AND v.world_id=${worldId} ${options.ordinary?sql`AND world_map_state_is_ordinary(v.id,${worldId})`:sql``} ORDER BY (v.id=${current.versionId}) DESC,v.created_at DESC,v.id LIMIT 100`);
+      const rows=await tx.execute(sql`WITH RECURSIVE sources(id) AS (SELECT ${current.versionId}::text UNION SELECT n.id FROM sources s JOIN world_map_state_version v ON v.id=s.id CROSS JOIN LATERAL (SELECT v.source_version_id AS id UNION SELECT v.previous_version_id) n WHERE n.id IS NOT NULL AND v.world_id=${worldId}) SELECT v.id FROM sources s JOIN world_map_state_version v ON v.id=s.id WHERE v.state_id=${current.id} AND v.world_id=${worldId} ${options.ordinary?sql`AND world_map_state_is_ordinary(v.id,${worldId}) AND ${ordinaryTerritorySource(worldId,timelineId,sql`v.id`)}`:sql``} ORDER BY (v.id=${current.versionId}) DESC,v.created_at DESC,v.id LIMIT 100`);
       if(rows.rows.length){const historical=await tx.select({id:versions.id,name:versions.name,startYear:versions.startYear,endYear:versions.endYear,account:versions.account,protected:versions.protected,archived:versions.archived,authorId:versions.authorId,createdAt:versions.createdAt,sourceVersionId:versions.sourceVersionId,baselineRevision:versions.baselineRevision}).from(versions).where(inArray(versions.id,rows.rows.map(row=>String(row.id)))).orderBy(sql`(${versions.id}=${current.versionId}) DESC`,sql`${versions.createdAt} DESC`,versions.id);for(const v of historical)revisions.push({...current,versionId:v.id,name:v.name,startYear:v.startYear!,endYear:v.endYear!,account:options.ordinary?"":v.account,protected:v.protected,archived:v.archived,authorId:v.authorId,authoredAt:v.createdAt.toISOString(),sourceVersionId:v.sourceVersionId,baselineRevision:v.baselineRevision});}
       if(options.versionId){selected=revisions.find(r=>r.versionId===options.versionId)??null;if(!selected)throw missing();}
       const v=await getVersion(tx,worldId,mapId,selected.versionId);
@@ -72,6 +74,8 @@ async function saveSource(tx:Tx,userId:string,worldId:string,map:typeof worldAtl
     const ids=new Set([map.geographyId!,...draft.settlementEntities.map(e=>e.geographyId)]);
     if(draft.historicalPlaces.length!==ids.size||draft.historicalPlaces.some(p=>!ids.has(p.geographyId))||!draft.geographies.some(g=>g.id===map.geographyId))throw new WorldError("Author one condition for the settlement and every retained place.",400);
   }
+  await validateTerritorySources(tx,worldId,map.id,timelineId,draft.territories??[],source?.payload.territories??[],details??undefined);
+  for(const t of draft.territories??[])if(t.geographyIds.some(id=>!draft.geographies.some(g=>g.id===id)))throw new WorldError("Retain local information for each territory\'s saved geographic subject.",400);
   const geographies=await tx.select().from(worldGeography).where(eq(worldGeography.worldId,worldId));
   const incoming=[...(draft.settlementShapes??[]).map(s=>({id:s.id,kind:`settlement-${s.type}`,geographyId:s.geographyId})),...draft.features.map(f=>({id:f.id,kind:"feature",geographyId:f.geographyId})),...(draft.drawings??[]).map(d=>({id:d.id,kind:d.type,geographyId:d.geographyId}))];
   if(new Set(incoming.map(o=>o.id)).size!==incoming.length)throw new WorldError("Each historical drawing has a distinct identity.",400);
@@ -84,6 +88,7 @@ async function saveSource(tx:Tx,userId:string,worldId:string,map:typeof worldAtl
   for(const d of draft.drawings??[]){const g=geographies.find(g=>g.id===d.geographyId);if(d.type==="terrain"&&d.geographyId||d.type==="symbol"&&["village","city","castle","tower","ruin","port"].includes(d.kind)&&g?.kind!=="location")throw new WorldError("Choose a suitable World place for linked artwork.",400);}
   const payload={...draft,drawings:draft.drawings??[],geographies:draft.geographies.map(g=>({...g,revision:geographies.find(n=>n.id===g.id)!.revision}))};
   const id=randomUUID();await tx.insert(versions).values({id,worldId,mapId:map.id,stateId,timelineId,sourceVersionId:source?(source.stateId===stateId&&source.timelineId===timelineId?source.sourceVersionId:source.id):null,previousVersionId:source?.stateId===stateId&&stateId?source.id:null,baselineRevision:source?.baselineRevision??map.revision,name:details?.name??map.name,startYear:details?.startYear??null,endYear:details?.endYear??null,account:details?.account??"Retained shared map source; historical coverage is not asserted.",protected:details?.protected??false,archived,payload,generation:source?.generation??map.generation,authorId:userId});
+  await appendTerritoryReferences(tx,worldId,map.id,id,draft.territories??[]);
   const referenced=new Set([...draft.geographies.map(g=>g.id),...draft.geographies.flatMap(g=>g.parentId?[g.parentId]:[]),...incoming.flatMap(o=>o.geographyId?[o.geographyId]:[]),...(map.geographyId?[map.geographyId]:[])]);
   if(referenced.size)await tx.insert(places).values([...referenced].map(geographyId=>({versionId:id,worldId,mapId:map.id,geographyId})));
   return id;
@@ -112,7 +117,7 @@ export async function changeMapState(userId:string,worldId:string,input:unknown)
         const id=await saveSource(tx,userId,worldId,map,timeline.id,null,draftOf(b,baseline!.geographies),null,null);source=await getVersion(tx,worldId,map.id,id);
       }
       const id=randomUUID();await tx.insert(worldMapState).values({id,worldId,mapId:map.id,originTimelineId:timeline.id});
-      const versionId=await saveSource(tx,userId,worldId,map,timeline.id,id,source.payload,c.details,source);
+      const versionId=await saveSource(tx,userId,worldId,map,timeline.id,id,{...source.payload,...source.payload.territories?{territories:source.payload.territories.map(t=>({...t,relationships:t.relationships.map(r=>({...r,startYear:c.details.startYear,endYear:c.details.endYear}))}))}:{}},c.details,source);
       await tx.insert(heads).values({timelineId:timeline.id,worldId,mapId:map.id,stateId:id,versionId,revision:1,mode:"authored"});return {id};
     }
     const head=current.find(s=>s.id===c.id);if(!head)throw missing();if(head.revision!==c.revision)throw conflict();

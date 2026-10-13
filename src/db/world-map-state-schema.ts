@@ -4,6 +4,8 @@ import { worldTimeline } from "./world-schema";
 import { worldAtlasMap, worldGeography } from "./world-atlas-schema";
 import type { MapDraft } from "@/features/worlds/atlas";
 import type { GenerationProvenance } from "@/features/worlds/generation-spec";
+import { worldLoreVersion } from "./world-peoples-schema";
+import { worldHistoryVersion } from "./world-timeline-schema";
 
 export const worldMapState = pgTable("world_map_state", {
   id:text("id").primaryKey(),worldId:text("world_id").notNull(),mapId:text("map_id").notNull(),originTimelineId:text("origin_timeline_id").notNull(),
@@ -42,3 +44,25 @@ export const worldMapStateGeography = pgTable("world_map_state_geography", {
 },t=>[primaryKey({columns:[t.versionId,t.geographyId]}),
   foreignKey({name:"map_state_geography_version_fk",columns:[t.versionId,t.worldId,t.mapId],foreignColumns:[worldMapStateVersion.id,worldMapStateVersion.worldId,worldMapStateVersion.mapId]}).onDelete("restrict"),
   foreignKey({name:"map_state_geography_place_fk",columns:[t.geographyId,t.worldId],foreignColumns:[worldGeography.id,worldGeography.worldId]}).onDelete("restrict")]);
+
+// Political geometry is never a replacement for World geography or a political identity.
+export const worldMapTerritory = pgTable("world_map_territory", {
+  id:text("id").primaryKey(),worldId:text("world_id").notNull(),mapId:text("map_id").notNull(),originTimelineId:text("origin_timeline_id").notNull(),
+},t=>[unique("map_territory_map_uq").on(t.id,t.worldId,t.mapId),
+  foreignKey({name:"map_territory_map_fk",columns:[t.mapId,t.worldId],foreignColumns:[worldAtlasMap.id,worldAtlasMap.worldId]}).onDelete("restrict"),
+  foreignKey({name:"map_territory_origin_fk",columns:[t.originTimelineId,t.worldId],foreignColumns:[worldTimeline.id,worldTimeline.worldId]}).onDelete("restrict")]);
+export const worldMapTerritoryBoundary = pgTable("world_map_territory_boundary", {
+  id:text("id").primaryKey(),worldId:text("world_id").notNull(),mapId:text("map_id").notNull(),territoryId:text("territory_id").notNull(),parentId:text("parent_id"),
+},t=>[foreignKey({name:"territory_boundary_subject_fk",columns:[t.territoryId,t.worldId,t.mapId],foreignColumns:[worldMapTerritory.id,worldMapTerritory.worldId,worldMapTerritory.mapId]}).onDelete("restrict")]);
+export const worldMapTerritoryLore = pgTable("world_map_territory_lore", {
+  versionId:text("version_id").notNull(),territoryId:text("territory_id").notNull(),id:text("id").notNull(),worldId:text("world_id").notNull(),mapId:text("map_id").notNull(),entityId:text("entity_id").notNull(),loreVersionId:text("lore_version_id").notNull(),
+},t=>[primaryKey({columns:[t.versionId,t.id]}),
+  foreignKey({name:"territory_lore_appearance_fk",columns:[t.versionId,t.worldId,t.mapId],foreignColumns:[worldMapStateVersion.id,worldMapStateVersion.worldId,worldMapStateVersion.mapId]}).onDelete("restrict"),
+  foreignKey({name:"territory_lore_subject_fk",columns:[t.territoryId,t.worldId,t.mapId],foreignColumns:[worldMapTerritory.id,worldMapTerritory.worldId,worldMapTerritory.mapId]}).onDelete("restrict"),
+  foreignKey({name:"territory_lore_pin_fk",columns:[t.loreVersionId,t.worldId,t.entityId],foreignColumns:[worldLoreVersion.id,worldLoreVersion.worldId,worldLoreVersion.entityId]}).onDelete("restrict"),index("territory_lore_entity_idx").on(t.worldId,t.entityId,t.versionId)]);
+export const worldMapTerritoryHistory = pgTable("world_map_territory_history", {
+  versionId:text("version_id").notNull(),territoryId:text("territory_id").notNull(),worldId:text("world_id").notNull(),mapId:text("map_id").notNull(),entityId:text("entity_id").notNull(),historyVersionId:text("history_version_id").notNull(),
+},t=>[primaryKey({columns:[t.versionId,t.territoryId,t.entityId]}),
+  foreignKey({name:"territory_history_appearance_fk",columns:[t.versionId,t.worldId,t.mapId],foreignColumns:[worldMapStateVersion.id,worldMapStateVersion.worldId,worldMapStateVersion.mapId]}).onDelete("restrict"),
+  foreignKey({name:"territory_history_subject_fk",columns:[t.territoryId,t.worldId,t.mapId],foreignColumns:[worldMapTerritory.id,worldMapTerritory.worldId,worldMapTerritory.mapId]}).onDelete("restrict"),
+  foreignKey({name:"territory_history_pin_fk",columns:[t.historyVersionId,t.worldId,t.entityId],foreignColumns:[worldHistoryVersion.id,worldHistoryVersion.worldId,worldHistoryVersion.entityId]}).onDelete("restrict")]);

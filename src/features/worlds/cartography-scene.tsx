@@ -1,3 +1,4 @@
+import { TerritoryScene } from "./territory-scene";
 import { DungeonScene } from "./dungeon-scene";
 import { InteriorScene } from "./interior-scene";
 import { SettlementScene } from "./settlement-scene";
@@ -73,6 +74,7 @@ export const CartographyScene=memo(function CartographyScene({draft,id,selectedI
       </g>)}</g>)}
       {presentation.layers.symbols.visible&&draft.features.filter(f=>!f.archived&&f.geometry.type==="point").map(f=><g key={f.id} data-feature={f.id} data-selected={selectedId===f.id} className={styles.place} pointerEvents={(presentation.layers.symbols.locked||!editable)&&!explorable?"none":undefined}><circle cx={place(f).x} cy={place(f).y} r={22*unitsPerPixel} data-export-omit className={styles.hit}/><g data-place-art transform={`translate(${place(f).x} ${place(f).y}) scale(${Math.max(.65,unitsPerPixel*.7)})`}><CartographicSymbol kind="village"/></g><title>{draft.geographies.find(g=>g.id===f.geographyId)?.name}</title></g>)}
       {presentation.layers.labels.visible&&draft.features.filter(f=>!f.archived).map(f=>{if((draft.drawings??[]).some(d=>d.type==="label"&&!d.archived&&d.geographyId===f.geographyId))return null;const label=labels.get(f.id)!;return <text key={f.id} x={label.x} y={label.y} textAnchor="middle" data-geography-label className={styles.placeLabel} fontSize={Math.max(20,13*unitsPerPixel)}>{label.text}</text>;})}
+      {draft.territories&&<TerritoryScene territories={draft.territories} selectedId={selectedId} units={unitsPerPixel}/>}
       <rect x="12" y="12" width={MAP_WIDTH-24} height={MAP_HEIGHT-24} className={styles.frame}/><rect x="22" y="22" width={MAP_WIDTH-44} height={MAP_HEIGHT-44} className={styles.innerFrame}/>
       {presentation.grid&&<rect width={MAP_WIDTH} height={MAP_HEIGHT} fill={`url(#${id}-grid)`} pointerEvents="none"/>}
       <g transform={`translate(${MAP_WIDTH-105} 105)`} className={styles.compass}><circle r="47"/><circle r="38"/><path d="M 0 -61 L 11 -9 L 61 0 L 11 9 L 0 61 L -11 9 L -61 0 L -11 -9 Z"/><path d="M 0 -61 L 0 0 L 11 -9 Z M 61 0 L 0 0 L 11 9 Z M 0 61 L 0 0 L -11 9 Z M -61 0 L 0 0 L -11 -9 Z" className={styles.compassShade}/><text y="-72" textAnchor="middle">N</text></g>

@@ -1,0 +1,8 @@
+.territory { --territory-ink:var(--st-primary); }
+.territory path { stroke:var(--territory-ink); fill:color-mix(in srgb,var(--territory-ink) 18%,transparent); }
+.territory[data-coverage="contested"] path { stroke:var(--st-warning); fill:color-mix(in srgb,var(--st-warning) 15%,transparent); stroke-dasharray:10 5; }
+.territory[data-coverage="unknown"] path { stroke:var(--st-muted); fill:color-mix(in srgb,var(--st-muted) 10%,transparent); stroke-dasharray:3 8; }
+.territory[data-coverage="unclaimed"] path { stroke-dasharray:15 5 3 5; }
+.territory[data-selected="true"] path { stroke:var(--st-focus); stroke-width:6; }
+.territory text { fill:var(--st-text-strong); stroke:var(--st-surface); stroke-width:5; paint-order:stroke; pointer-events:none; }
+.fields { display:grid; gap:1rem; margin-block:1rem; }
