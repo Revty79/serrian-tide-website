@@ -1,3 +1,4 @@
+import { geographicPrivatePlaces } from "./geographic-privacy";
 import "server-only";
 import { sql, type SQL } from "drizzle-orm";
 import { ordinaryWorldSources } from "./ordinary-source-graph";
@@ -25,6 +26,7 @@ export function ordinaryLorePinnedSource(worldId: string, timelineId: string, ve
     and not exists(
       with recursive hidden(id) as (
         select coalesce(d.geography_id,d.id) from world_dungeon_entity d where d.world_id=${worldId} and d.visibility<>'ordinary'
+    union select id from (${geographicPrivatePlaces(worldId)}) geo_private(id)
         union select g.id from world_geography g join hidden h on g.parent_id=h.id where g.world_id=${worldId}
       ) select 1 from world_lore_geography g
       where (g.version_id=${versionId} or g.version_id in (select h.version_id from world_lore_head h join world_lore_version p on p.entity_id=h.entity_id and p.world_id=h.world_id where p.id=${versionId} and h.timeline_id=${timelineId}))

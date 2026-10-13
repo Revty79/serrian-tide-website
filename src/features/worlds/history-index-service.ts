@@ -1,3 +1,4 @@
+import { geographicPrivatePlaces } from "./geographic-privacy";
 import "server-only";
 import { sql, and, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -21,7 +22,7 @@ function visibleLinks(worldId:string,timelineId:string,ordinary:boolean) {
     left join world_lore_version v on v.id=coalesce(ch.version_id,oh.version_id)
     left join world_lore_display ld on ld.version_id=v.id
     where l.world_id=${worldId} and exists(select 1 from world_history_head selected where selected.world_id=l.world_id and selected.timeline_id=${timelineId} and selected.version_id=l.version_id and selected.mode in ('authored','inherited','partial','interpretation')) and ${ordinary?sql`(
-      (l.geography_id is not null and not exists(select 1 from world_dungeon_entity d where d.world_id=l.world_id and d.visibility<>'ordinary' and (d.id=g.id or d.geography_id=g.id)))
+      (l.geography_id is not null and g.id not in (${geographicPrivatePlaces(worldId)}))
       or (l.lore_id is not null and ${ordinaryLoreSource(worldId,timelineId,sql`ch.version_id`)}))`:sql`true`}`;
 }
 export async function historyEntryInTransaction(tx:HistoryTx,worldId:string,timelineId:string,id:string,ordinary=false) {

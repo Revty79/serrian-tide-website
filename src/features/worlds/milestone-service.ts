@@ -1,3 +1,4 @@
+import { geographicPrivatePlaces } from "./geographic-privacy";
 import "server-only";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -16,11 +17,11 @@ export type MilestoneLinks={links:{id:string;name:string;kind:"lore"|"geography"
 export async function milestoneLinks(userId:string,worldId:string,timelineId:string,entryId:string,review=false,ordinary=false):Promise<MilestoneLinks> {
   await worldReadAccess(userId,worldId,review);
   return db.transaction(async tx=>{const refs=await peoplesReferencesInTransaction(tx,worldId,timelineId,ordinary);const [h]=await tx.select({h:worldHistoryHead,v:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,entryId),ordinary?ordinaryHistorySource(worldId,timelineId,sql`${worldHistoryVersion.id}`):undefined));if(!h?.v.entryId||["pending","excluded"].includes(h.h.mode)||(ordinary&&(h.v.payload as EntryRecord).visibility==="protected"))throw new WorldError("This event is unavailable.",404);
-    const places=await tx.select({id:worldGeography.id,name:worldGeography.name,archivedAt:worldGeography.archivedAt}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),ordinary?sql`not exists (select 1 from world_dungeon_entity d where d.world_id=${worldId} and d.visibility<>'ordinary' and (d.id=${worldGeography.id} or d.geography_id=${worldGeography.id}))`:undefined)).limit(2000);
+    const places=await tx.select({id:worldGeography.id,name:worldGeography.name,archivedAt:worldGeography.archivedAt}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),ordinary?sql`${worldGeography.id} not in (${geographicPrivatePlaces(worldId)})`:undefined)).limit(2000);
     const choices=[...refs.entities.filter(e=>!e.archived).map(e=>({id:e.id,name:e.name,kind:"lore" as const})),...places.filter(p=>!p.archivedAt).map(p=>({id:p.id,name:p.name,kind:"geography" as const}))];const names=new Map([...refs.entities,...places].map(e=>[e.id,e.name]));
     const current=await tx.select().from(links).where(eq(links.versionId,h.h.versionId)).limit(101);if(current.length>100)throw new WorldError("This event exceeds its supported 100 participating entities.",400);
     const missingPlaces=current.filter(l=>l.geographyId&&!names.has(l.targetId)).map(l=>l.targetId);
-    if(missingPlaces.length){const retainedPlaces=await tx.select({id:worldGeography.id,name:worldGeography.name}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),inArray(worldGeography.id,missingPlaces),ordinary?sql`not exists (select 1 from world_dungeon_entity d where d.world_id=${worldId} and d.visibility<>'ordinary' and (d.id=${worldGeography.id} or d.geography_id=${worldGeography.id}))`:undefined));for(const p of retainedPlaces)names.set(p.id,p.name);}
+    if(missingPlaces.length){const retainedPlaces=await tx.select({id:worldGeography.id,name:worldGeography.name}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),inArray(worldGeography.id,missingPlaces),ordinary?sql`${worldGeography.id} not in (${geographicPrivatePlaces(worldId)})`:undefined));for(const p of retainedPlaces)names.set(p.id,p.name);}
     const missing=current.filter(l=>l.loreId&&!names.has(l.targetId)).map(l=>l.targetId);
     const retained=!ordinary&&missing.length?(await tx.execute<{id:string;name:string;timeline_id:string}>(sql`
       select i.id,ld.name name,coalesce(ch.timeline_id,oh.timeline_id) timeline_id

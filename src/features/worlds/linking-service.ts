@@ -1,3 +1,4 @@
+import { geographicPrivatePlaces } from "./geographic-privacy";
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -22,6 +23,7 @@ const usableModes = ["authored", "inherited", "interpretation"] as const;
 function ordinaryMap(worldId: string) {
   return sql`not exists(with recursive hidden(id) as (
     select d.geography_id from world_dungeon_entity d where d.world_id=${worldId} and d.visibility<>'ordinary' and d.geography_id is not null
+    union select id from (${geographicPrivatePlaces(worldId)}) geo_private(id)
     union select g.id from world_geography g join hidden h on g.parent_id=h.id where g.world_id=${worldId}
   ) select 1 from hidden where id=${worldAtlasMap.geographyId})`;
 }
