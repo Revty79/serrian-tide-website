@@ -8,7 +8,8 @@ import { selectedTimeline } from "./history-version-service";
 import { geographicPrivateMaps,geographicPrivatePlaces } from "./geographic-privacy";
 import { geographicCommandSchema,geographicDisplaySchema,geographicSemanticSchema,geographicThemeSchema,geoId,geometryParts,sourceImportSchema,splitExtent,surfaceBounds,validateReference,validateViewport,type GeographicBounds,type GeographicCatalog,type GeographicLayer,type GeographicProvenance,type GeographicReading,type GeographicViewport,type SourceGeometry,type SpatialReference,type Surface } from "./geographic";
 import { geometryBounds,partBounds,simplifySource,validateSourceGeometry } from "./geographic-geometry";
-import { projectedSourcePath,projectedSourceLabel,type ProjectionKind } from "./geographic-projection";
+import { projectedSourceLabel,type ProjectionKind } from "./geographic-projection";
+import { boundedSourceDisplay } from "./geographic-display";
 import { sourceBoundaryParts } from "./geographic-boundaries";
 import { WorldError,worldReadAccess,worldWriteTransaction } from "./world-service";
 
@@ -55,21 +56,23 @@ export async function geographicViewport(userId:string,worldId:string,timelineId
     const band=sql`(not (gd.provenance ? 'display') or (gd.provenance->'display'->'lods') ? ${lod})`;
     // Representations share a place deliberately; a readable finer source wins
     // only in its declared band. Exact readers retain every original/head.
-    const rows=(await tx.execute<{id:string;version_id:string;geography_id:string;name:string;semantic:string;revision:number;part:number;style:string|null;theme:string;labels:boolean;label_rank:number;credit:{label:string;license:string;url:string};geometry:SourceGeometry;west:number;south:number;east:number;north:number}>(sql`with eligible as materialized (
+    const rows=(await tx.execute<{context:string;id:string;version_id:string;geography_id:string;name:string;semantic:string;revision:number;part:number;style:string|null;theme:string;labels:boolean;label_rank:number;credit:{label:string;license:string;url:string};geometry:SourceGeometry;west:number;south:number;east:number;north:number}>(sql`with eligible as materialized (
       select gf.id,gf.world_id,gf.geography_id,g.name,gf.semantic,gv.id version_id,gh.revision,gd.provenance->'display'->>'style' style,${themeSql} theme,coalesce((gd.provenance->'display'->>'labels')::boolean,false) labels,coalesce((gd.provenance->'display'->>'labelRank')::int,100) label_rank,coalesce((gd.provenance->'display'->>'priority')::int,0) priority,jsonb_build_object('label',gd.provenance->>'attribution','license',gd.provenance->>'license','url',gd.provenance->>'licenseUrl') credit
       from world_geo_feature gf join world_geo_head gh on gh.feature_id=gf.id and gh.world_id=gf.world_id join world_geo_version gv on gv.id=gh.version_id join world_geo_dataset gd on gd.id=gv.dataset_id and gd.world_id=gv.world_id join world_geography g on g.id=gf.geography_id and g.world_id=gf.world_id
       where gf.world_id=${worldId} and gf.surface_id=${layer.surface.id} and not gv.archived and g.archived_at is null and ${band}
       ${kinds===undefined?sql``:kinds.length?sql`and gf.semantic in (${sql.join(kinds.map(kind=>sql`${kind}`),sql`,`)})`:sql`and false`}
       ${selectedThemes===undefined?sql``:selectedThemes.length?sql`and ${themeSql} in (${sql.join(selectedThemes.map(theme=>sql`${theme}`),sql`,`)})`:sql`and false`}
       ${options.ordinary?sql`and not gv.protected and g.id not in (${geographicPrivatePlaces(worldId)})`:sql``}
-    ), preferred as (select *,dense_rank() over(partition by geography_id,semantic order by priority desc) preference from eligible)
-    select distinct on(gf.id,gp.part) gf.id,gf.version_id,gf.geography_id,gf.name,gf.semantic,gf.revision,gp.part,gf.style,gf.theme,gf.labels,gf.label_rank,gp.${sql.raw(lod)} geometry,gf.credit,gp.west,gp.south,gp.east,gp.north
-    from world_geo_part gp join preferred gf on gf.version_id=gp.version_id and gf.world_id=gp.world_id
+    ), preferred as (select *,dense_rank() over(partition by geography_id,semantic order by priority desc) preference from eligible), stamp as materialized (
+      select md5(coalesce(string_agg(id::text||version_id::text||name,'|' order by id),'empty')) context from eligible
+    )
+    select distinct on(gf.id,gp.part) stamp.context,gf.id,gf.version_id,gf.geography_id,gf.name,gf.semantic,gf.revision,gp.part,gf.style,gf.theme,gf.labels,gf.label_rank,gp.${sql.raw(lod)} geometry,gf.credit,gp.west,gp.south,gp.east,gp.north
+    from world_geo_part gp join preferred gf on gf.version_id=gp.version_id and gf.world_id=gp.world_id cross join stamp
     where gp.world_id=${worldId} and gp.algorithm_version in (1,2,3) and gf.preference=1 and (${overlaps}) and ${after}
     order by gf.id,gp.part,gp.algorithm_version desc,gp.box limit 65`)).rows;
     const shapes:GeographicViewport["shapes"]=[];const credits=new Map<string,GeographicViewport["attributions"][number]>();let bytes=0,last="",more=rows.length>64;
-    for(const row of rows.slice(0,64)){const path=checked(()=>projectedSourcePath(row.geometry,layer.surface.reference,extent,kind,row.style==="city"?2.4:row.style==="peak"?3:4));if(path.length>500_000)throw new WorldError("This part needs a smaller viewport or overview detail.",413);if(bytes+path.length>500_000&&shapes.length){more=true;break;}bytes+=path.length;credits.set(JSON.stringify(row.credit),row.credit);last=`${row.id}:${row.part}`;const style=geographicDisplaySchema.shape.style.safeParse(row.style),theme=geographicThemeSchema.parse(row.theme),label=row.labels?projectedSourceLabel(row.geometry,layer.surface.reference,extent,kind):undefined;shapes.push({id:row.id,versionId:row.version_id,geographyId:row.geography_id,name:row.name,semantic:row.semantic,revision:row.revision,part:row.part,geometryType:row.geometry.type,path,theme,...label?{label:{...label,rank:row.label_rank}}:{},sourceBounds:[row.west,row.south,row.east,row.north],...style.success?{style:style.data}:{}});}
-    return {layer,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.ordinary&&!options.review,bounds:extent,projection:kind,lod,shapes,attributions:[...credits.values()],nextCursor:more?last:null};
+    for(const row of rows.slice(0,64)){const display=checked(()=>boundedSourceDisplay(row.geometry,layer.surface.reference,extent,kind,row.style==="city"?2.4:row.style==="peak"?3:4)),path=display.path;if(bytes+path.length>500_000&&shapes.length){more=true;break;}bytes+=path.length;credits.set(JSON.stringify(row.credit),row.credit);last=`${row.id}:${row.part}`;const style=geographicDisplaySchema.shape.style.safeParse(row.style),theme=geographicThemeSchema.parse(row.theme),label=row.labels?projectedSourceLabel(row.geometry,layer.surface.reference,extent,kind):undefined;shapes.push({id:row.id,versionId:row.version_id,geographyId:row.geography_id,name:row.name,semantic:row.semantic,revision:row.revision,part:row.part,geometryType:row.geometry.type,path,displayTolerance:display.tolerance,theme,...label?{label:{...label,rank:row.label_rank}}:{},sourceBounds:[row.west,row.south,row.east,row.north],...style.success?{style:style.data}:{}});}
+    return {layer,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.ordinary&&!options.review,context:rows[0]?.context??"empty",bounds:extent,projection:kind,lod,shapes,attributions:[...credits.values()],nextCursor:more?last:null};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function geographicReading(userId:string,worldId:string,timelineId:string,mapId:string,featureId:string,versionId?:string,options:Options={}):Promise<GeographicReading>{
