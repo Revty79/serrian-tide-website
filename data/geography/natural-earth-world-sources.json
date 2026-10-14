@@ -1,0 +1,81 @@
+﻿{
+    "version":  1,
+    "provider":  "Natural Earth",
+    "license":  "Public domain",
+    "licenseUrl":  "https://www.naturalearthdata.com/about/terms-of-use/",
+    "attribution":  "Made with Natural Earth",
+    "sources":  [
+                    {
+                        "stem":  "ne_110m_land",
+                        "url":  "https://naciscdn.org/naturalearth/110m/physical/ne_110m_land.zip",
+                        "edition":  "4.1.0",
+                        "zipSha256":  "1926c621afd6ac67c3f36639bb1236134a48d82226dc675d3e3df53d02d2a3de",
+                        "zipBytes":  69700,
+                        "expectedFeatures":  127,
+                        "expectedCoordinates":  5143
+                    },
+                    {
+                        "stem":  "ne_50m_land",
+                        "url":  "https://naciscdn.org/naturalearth/50m/physical/ne_50m_land.zip",
+                        "edition":  "4.1.0",
+                        "zipSha256":  "0b8e670cf80dce9cbebe2a193bc44ba5602758c22e1fa603980553646d7ff162",
+                        "zipBytes":  457183,
+                        "expectedFeatures":  1420,
+                        "expectedCoordinates":  60669
+                    },
+                    {
+                        "stem":  "ne_10m_land",
+                        "url":  "https://naciscdn.org/naturalearth/10m/physical/ne_10m_land.zip",
+                        "edition":  "5.1.1",
+                        "zipSha256":  "e547d749445eaa0964aba76738090ec88f5e63c4585122170f98c67a7ea922dc",
+                        "zipBytes":  3269070,
+                        "expectedFeatures":  11,
+                        "expectedCoordinates":  446175
+                    },
+                    {
+                        "stem":  "ne_110m_admin_0_countries",
+                        "url":  "https://naciscdn.org/naturalearth/110m/cultural/ne_110m_admin_0_countries.zip",
+                        "edition":  "5.1.1",
+                        "zipSha256":  "0f243aeac8ac6cf26f0417285b0bd33ac47f1b5bdb719fd3e0df37d03ea37110",
+                        "zipBytes":  214976,
+                        "expectedFeatures":  177,
+                        "expectedCoordinates":  10654
+                    },
+                    {
+                        "stem":  "ne_50m_admin_0_countries",
+                        "url":  "https://naciscdn.org/naturalearth/50m/cultural/ne_50m_admin_0_countries.zip",
+                        "edition":  "5.1.1",
+                        "zipSha256":  "5fed433373581fa648920435f937d95f2d3c0200e067409c6478dcdf1b853139",
+                        "zipBytes":  799734,
+                        "expectedFeatures":  242,
+                        "expectedCoordinates":  99613
+                    },
+                    {
+                        "stem":  "ne_10m_admin_0_countries",
+                        "url":  "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_countries.zip",
+                        "edition":  "5.1.1",
+                        "zipSha256":  "ce1ac7036499a0edd641fbc093cd209a98f96a49d2eca8480aaacad35138a7f6",
+                        "zipBytes":  4930492,
+                        "expectedFeatures":  258,
+                        "expectedCoordinates":  548471
+                    },
+                    {
+                        "stem":  "ne_10m_admin_0_boundary_lines_land",
+                        "url":  "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_boundary_lines_land.zip",
+                        "edition":  "5.1.0",
+                        "zipSha256":  "16ead035f539c8b6c23650c5845d86ad3556553e7456bdf9b4730210f26aacbe",
+                        "zipBytes":  1036202,
+                        "expectedFeatures":  515,
+                        "expectedCoordinates":  77295
+                    },
+                    {
+                        "stem":  "ne_10m_admin_0_disputed_areas",
+                        "url":  "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_disputed_areas.zip",
+                        "edition":  "5.1.1",
+                        "zipSha256":  "a250c1cf8ab68898399928a1fa1d5c242eb4de6335cb51a7f7a7f12a9f3c8438",
+                        "zipBytes":  215221,
+                        "expectedFeatures":  99,
+                        "expectedCoordinates":  14795
+                    }
+                ]
+}

@@ -1,13 +1,17 @@
-import { geoEquirectangular, geoIdentity, geoMercator, geoPath } from "d3-geo";
+import { geoArea, geoEquirectangular, geoIdentity, geoMercator, geoPath } from "d3-geo";
 import { surfaceBounds, wrapLongitude, type Coordinate, type GeographicBounds, type SourceGeometry, type SpatialReference } from "./geographic";
 
 export const GEOGRAPHIC_VIEW_WIDTH=1000,GEOGRAPHIC_VIEW_HEIGHT=600;
 export type ProjectionKind="equirectangular"|"mercator"|"planar";
-function clockwise(ring:Coordinate[]){let area=0,last=ring[0][0];const points=ring.map((p,i)=>{let x=p[0];if(i){while(x-last>180)x-=360;while(x-last< -180)x+=360;}last=x;return [x,p[1]];});for(let i=0;i<points.length-1;i++)area+=points[i][0]*points[i+1][1]-points[i+1][0]*points[i][1];return area<0;}
+export const SPHERICAL_SOURCE_EPSILON=1e-9;
+export function sphericalDisplayPoint([x,y]:Coordinate):Coordinate{return [Math.max(-180,Math.min(180,x)),Math.max(-90,Math.min(90,y))];}
 export function sphericalCopy(geometry:SourceGeometry):SourceGeometry{
   const result=structuredClone(geometry);
+  // Shapefile seam noise is retained in the source, never wrapped to the other
+  // side of the planet. Winding uses spherical area, including polar caps.
+  const walk=(value:unknown):void=>{if(Array.isArray(value)){if(typeof value[0]==="number"){const [x,y]=sphericalDisplayPoint(value as Coordinate);value[0]=x;value[1]=y;}else value.forEach(walk);}};walk(result.coordinates);
   const polygons=result.type==="Polygon"?[result.coordinates]:result.type==="MultiPolygon"?result.coordinates:[];
-  for(const polygon of polygons)polygon.forEach((ring,i)=>{if(clockwise(ring)!==(i===0))ring.reverse();});
+  for(const polygon of polygons)polygon.forEach((ring,i)=>{const small=geoArea({type:"Polygon",coordinates:[ring]})<=2*Math.PI;if(small!==(i===0))ring.reverse();});
   return result;
 }
 export function geographicProjection(reference:SpatialReference,bounds:GeographicBounds,kind:ProjectionKind){

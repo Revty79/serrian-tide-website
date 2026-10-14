@@ -1,4 +1,4 @@
-import { geographicPrivatePlaces } from "./geographic-privacy";
+import { geographicPrivateMaps,geographicPrivatePlaces } from "./geographic-privacy";
 import { activeMapDungeon, changeDungeon, dungeonCommandSchema, dungeonSource, guardDungeonGeographies, saveDungeon } from "./dungeon-service";
 import { duplicatePlanSource } from "./dungeon";
 import { redactDungeonBundle } from "./dungeon-projection";
@@ -44,7 +44,7 @@ export async function getAtlas(userId:string,worldId:string,review=false,mapId?:
   const parent=await worldReadAccess(userId,worldId,review);
   if(mapId&&!atlasId.safeParse(mapId).success)throw unavailable();
   return db.transaction(async tx=>{
-    const maps=await tx.select().from(worldAtlasMap).where(eq(worldAtlasMap.worldId,worldId)).orderBy(asc(worldAtlasMap.createdAt),asc(worldAtlasMap.id));
+    const maps=await tx.select().from(worldAtlasMap).where(and(eq(worldAtlasMap.worldId,worldId),ordinary?sql`${worldAtlasMap.id} not in (${geographicPrivateMaps(worldId)})`:undefined)).orderBy(asc(worldAtlasMap.createdAt),asc(worldAtlasMap.id));
     const buildingRows=await tx.select({id:worldSettlementEntity.geographyId}).from(worldSettlementEntity).where(and(eq(worldSettlementEntity.worldId,worldId),eq(worldSettlementEntity.kind,"building")));
     const siteRows=await tx.select().from(worldDungeonSite).where(eq(worldDungeonSite.worldId,worldId));
     const levelRows=await tx.select().from(worldDungeonLevel).where(eq(worldDungeonLevel.worldId,worldId));

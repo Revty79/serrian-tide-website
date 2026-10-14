@@ -43,3 +43,7 @@ Dedicated future Atlas passes will cover city, building-interior and dungeon aut
 ## Worlds and future VTT boundary
 
 Worlds is a standalone world-building application. Settlement, interior and dungeon passes must not create or couple to Heavens Towns, Shops, NPCs, Campaign membership or gameplay runtime. Preserve durable World identities for future integration through a separate Virtual Tabletop application accessible from the main dashboard. Do not place the future VTT inside Paths or Worlds or add inactive integration placeholders.
+
+## Geo B authorization and handoff
+
+Geo A is technically approved at `2d2226b742bf045232dd9dbefd0b2429dada4e8c`. The owner separately authorized [Geo B worldwide modern Earth geography](docs/architecture/worlds-modern-earth.md), including expansion of the existing DEV Earth after verified backup and complete disposable import rehearsal. Preserve original samples, Glass Sea, source manifests/revisions, stable identities, existing Atlas artwork and ordinary privacy. Geo B stops at a clean local commit with committed application screenshots for Ember's technical review and owner visual acceptance. No remote push, deployment, Production change, shared service restart or Geo C work is authorized by this pass.
