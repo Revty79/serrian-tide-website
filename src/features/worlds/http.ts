@@ -16,7 +16,9 @@ export async function worldRequest(request: Request, mutation: boolean, run: (us
     }
     const session = await requireSession().catch(() => { throw new WorldError("Sign in to access Worlds.", 401); });
     if(mutation&&readOnlyPreview(new URL(request.url).searchParams))throw new WorldError("This preview is read-only.",403);
-    return privateJson(await run(session.user.id));
+    const result=await run(session.user.id);
+    if(result instanceof Response){result.headers.set("Cache-Control","private, no-store");result.headers.set("Vary","Cookie");result.headers.set("X-Content-Type-Options","nosniff");return result;}
+    return privateJson(result);
   } catch (error) {
     if (error instanceof WorldError) return privateJson({ error: error.message }, error.status);
     if (error instanceof ZodError) return privateJson({ error: error.issues.map((issue) => issue.message).join(" ") }, 400);

@@ -911,6 +911,13 @@
       "when": 1791913110780,
       "tag": "0129_worlds_atlas_restore_context",
       "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1791953007992,
+      "tag": "0130_worlds_numerical_rasters",
+      "breakpoints": true
     }
   ]
 }

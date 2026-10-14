@@ -1,0 +1,25 @@
+/** New regression clone only; never mutate the original Geo A/History evidence. */
+import assert from "node:assert/strict";
+import {execFileSync,spawn} from "node:child_process";
+import {createWriteStream,existsSync} from "node:fs";
+import {mkdir,readFile,writeFile} from "node:fs/promises";
+import path from "node:path";
+import {tmpdir} from "node:os";
+import pg from "pg";
+import {drizzle} from "drizzle-orm/node-postgres";
+import {migrate} from "drizzle-orm/node-postgres/migrator";
+import {chromium} from "playwright-core";
+import {databaseSnapshot,preservedRows,freePort,stopServer} from "./worlds-geo-c.test";
+import {geoFixture,geoServices,geoBrowser,geoBrowserSupplement,type GeoFixture} from "./worlds-geo-a-checks";
+import {c2Environment,C2_DIRECTORY,PG_BIN} from "./worlds-geo-c2-harness";
+async function main(){const directory=`${C2_DIRECTORY}/legacy`;await mkdir(directory,{recursive:true});const old=JSON.parse(await readFile("artifacts/guidance/geo-a/environment.json","utf8")),e=await c2Environment();assert.equal(path.dirname(path.resolve(old.temporaryRoot)),path.resolve(tmpdir()));assert.ok(path.basename(old.temporaryRoot).startsWith("serrian-worlds-linking-"));assert.equal(path.resolve(old.data),path.join(path.resolve(old.temporaryRoot),"data"));assert.equal(old.databaseUrl,`postgresql://postgres@127.0.0.1:${old.dbPort}/${new URL(old.databaseUrl).pathname.slice(1)}`);assert.match(new URL(old.databaseUrl).pathname,/^\/serrian_geo_a_\d+$/);let started=false;
+  if(!existsSync(path.join(old.data,"postmaster.pid"))){execFileSync(path.join(PG_BIN,"pg_ctl.exe"),["-D",old.data,"-l",path.join(old.temporaryRoot,"c2-legacy.log"),"-o",`-h 127.0.0.1 -p ${old.dbPort}`,"-w","start"],{windowsHide:true,stdio:"ignore"});started=true;}
+  let original:pg.Pool|undefined=new pg.Pool({connectionString:old.databaseUrl}),p:pg.Pool|undefined,app:typeof import("../src/db")|undefined;
+  try{const before=await databaseSnapshot(original);await original.end();original=undefined;const admin=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${old.dbPort}/postgres`});let record:{database:string;url:string;geo:GeoFixture|null};try{if(process.argv.includes("--resume"))record=JSON.parse(await readFile(`${directory}/environment.json`,"utf8"));else{const database=`serrian_geo_c2_legacy_${Date.now()}`;await admin.query(`create database "${database}" template "${new URL(old.databaseUrl).pathname.slice(1)}"`);record={database,url:`postgresql://postgres@127.0.0.1:${old.dbPort}/${database}`,geo:null};await writeFile(`${directory}/environment.json`,JSON.stringify(record));}}finally{await admin.end();}
+    assert.match(record!.database,/^serrian_geo_c2_legacy_\d+$/);assert.equal(record!.url,`postgresql://postgres@127.0.0.1:${old.dbPort}/${record!.database}`);p=new pg.Pool({connectionString:record!.url});await migrate(drizzle(p),{migrationsFolder:"drizzle"});process.env.DATABASE_URL=record!.url;process.env.SERRIAN_RASTER_ROOT=e.assetRoot;app=await import("../src/db");if(!record!.geo){record!.geo=await geoFixture(p,directory);await writeFile(`${directory}/environment.json`,JSON.stringify(record));}
+    if(!process.argv.includes("--browser-only"))await geoServices(p,record!.geo!,old.journey,directory);
+    if(!process.argv.includes("--services-only")){const port=await freePort(),base=`http://127.0.0.1:${port}`,log=createWriteStream(`${directory}/server.log`),server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--hostname","127.0.0.1","--port",String(port)],{cwd:e.checkout,windowsHide:true,env:{...process.env,NODE_ENV:"production",DATABASE_URL:record!.url,SERRIAN_RASTER_ROOT:e.assetRoot,BETTER_AUTH_URL:base,BETTER_AUTH_SECRET:"geo-c2-disposable-auth-secret-only",SERRIAN_TEST_NEXT_DIST_DIR:".next-geo-c2",NEXT_TELEMETRY_DISABLED:"1"},stdio:["ignore","pipe","pipe"]});server.stdout!.pipe(log,{end:false});server.stderr!.pipe(log,{end:false});try{let ready=false;for(let i=0;i<100;i++){try{ready=(await fetch(`${base}/login`,{signal:AbortSignal.timeout(1000)})).ok;}catch{}if(ready)break;await new Promise(r=>setTimeout(r,200));}assert.ok(ready);const browser=await chromium.launch({executablePath:"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true});try{await geoBrowser(browser,base,record!.geo!,directory);await geoBrowserSupplement(browser,base,record!.geo!,directory);}finally{await browser.close();}}finally{stopServer(server);log.end();}}
+    preservedRows(before,await databaseSnapshot(p));original=new pg.Pool({connectionString:old.databaseUrl});assert.deepEqual(await databaseSnapshot(original),before);await writeFile(`${directory}/preservation.json`,JSON.stringify({originalEvidenceDatabaseExact:true,historicalFixtureRowsPreserved:true},null,2));console.log("PASS original Geo A/History evidence and every pre-existing cloned row preserved");
+  }finally{if(app)await app.pool.end();if(p)await p.end();if(original)await original.end();if(started)execFileSync(path.join(PG_BIN,"pg_ctl.exe"),["-D",old.data,"-m","fast","-w","stop"],{windowsHide:true,stdio:"ignore"});}
+}
+main().catch(e=>{console.error(e);process.exitCode=1;});

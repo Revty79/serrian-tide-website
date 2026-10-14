@@ -1,0 +1,469 @@
+{
+  "approvedCheckpoint": "b5fe27842dcdb6cd9077fa74cc0797e91e9769c4",
+  "source": {
+    "provider": "NOAA National Centers for Environmental Information",
+    "dataset": "ETOPO 2022 60-arc-second global ice-surface relief model",
+    "edition": "2022 v1",
+    "url": "https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO2022/data/60s/60s_surface_elev_gtif/ETOPO_2022_v1_60s_N90W180_surface.tif",
+    "license": "Freely available for private, academic and commercial use",
+    "licenseUrl": "https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO2022/docs/1.2%20ETOPO%202022%20User%20Guide.pdf",
+    "attribution": "NOAA NCEI ETOPO 2022. DOI 10.25921/fd45-gt74.",
+    "sha256": "9d27d4b8ea8e76977e2988bca667d7c8fa68b927355feffcddd6b4875a7fd08e",
+    "interpretation": "60-arc-second cell-area grid. Heights are original Float32 metres relative to EGM2008. Greenland and Antarctica show ice surface, not subglacial bedrock. Modern undated reference; no dated historical terrain reconstruction.",
+    "grid": {
+      "width": 21600,
+      "height": 10800,
+      "bounds": [
+        -180,
+        -90,
+        180,
+        90
+      ],
+      "registration": "area",
+      "horizontalReference": "EPSG:4326",
+      "units": "metres",
+      "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+      "noData": -99999,
+      "encoding": "geotiff",
+      "horizontalScale": {
+        "x": 111319.49079327358,
+        "y": 111319.49079327358,
+        "latitudeAdjusted": true
+      }
+    },
+    "statistics": {
+      "validCells": 233280000,
+      "noDataCells": 0,
+      "minimum": -10752.08203125,
+      "maximum": 8157.3564453125,
+      "nativeValuesSha256": "522c6329ed7a8c08c14718e164b04ba203d23c51212371146b789baa419c9895"
+    }
+  },
+  "storage": {
+    "assetsBytes": 1028106708,
+    "bundleManifestBytes": 1969890,
+    "rasterDatabaseBytes": 4210688,
+    "files": 11142,
+    "byKind": {
+      "source": 465969062,
+      "numerical": 243646000,
+      "shaded": 220656570,
+      "tint": 97835076
+    }
+  },
+  "preprocessing": {
+    "initial": {
+      "bytes": 1022984260,
+      "files": 11142,
+      "ms": 492757.65380000003,
+      "peakRssBytes": 398237696,
+      "statistics": {
+        "validCells": 233280000,
+        "noDataCells": 0,
+        "minimum": -10752.08203125,
+        "maximum": 8157.3564453125,
+        "nativeValuesSha256": "522c6329ed7a8c08c14718e164b04ba203d23c51212371146b789baa419c9895"
+      }
+    },
+    "finalDisplay": {
+      "bytes": 1028106708,
+      "ms": 444088.18820000003,
+      "peakRssBytes": 446963712,
+      "northwestIllumination": true,
+      "periodicLongitudeHalo": true
+    }
+  },
+  "checks": {
+    "unitPassed": 63,
+    "typecheck": true,
+    "changedFileLint": true,
+    "productionBuild": {
+      "passed": true
+    },
+    "services": {
+      "passed": 9,
+      "results": [
+        "complete original Float32 source, frozen asset inventory and bounded storage",
+        "atomic original raster import and exact no-op retry preserve source identities",
+        "native values and cell registration match Himalayas, Andes, Rockies, Alps, ice surfaces, trench and low coast",
+        "owner and ordinary tiles authorize every URL; Administrator review is read-only; foreign/Player denied",
+        "immutable sources, versions and assets reject database overwrites and cross-context references",
+        "fictional planar and authored-angular native cells, numerical LOD means and NoData remain explicit",
+        "real protection revisions revoke stale URLs, retain immutable originals and reject exact private versions after restore",
+        "archive/restore and changed preferences invalidate old delivery without changing numerical source",
+        "every pre-existing copied record and all native C1 source coordinates/attributes remain exact"
+      ]
+    },
+    "browser": {
+      "passed": 9,
+      "results": [
+        "worldwide ETOPO relief aligns with Automatic vectors and private bounded delivery",
+        "Himalayas and Ganges regional relief reveals finer cells beneath rivers and cities",
+        "projection, zoom, styles and show/hide retain independent vectors",
+        "a failed tile preserves available relief and the vector map, with successful retry",
+        "ordinary aliases discard prior protected imagery through delayed failures and recovery",
+        "Administrator review excludes source/presentation writes and denies guessed foreign tile URLs",
+        "390-pixel native touch at 6x CPU keeps bounded imagery, zoom and pan usable without overflow",
+        "dateline, Antarctica and whole-world Mercator retain actual image/vector alignment",
+        "actual timeline failure/retry and World switching discard stale decoded imagery"
+      ],
+      "errors": []
+    },
+    "legacyServices": {
+      "passed": 12,
+      "results": [
+        "real multipart Earth and authored planar holes reuse stable Atlas/place identities",
+        "concurrent deterministic import retries retain identities and current authored heads",
+        "failed imports, duplicate IDs, bad CRS, forged World/map/parent references roll back atomically",
+        "owner/ordinary/Administrator/foreign/Player restrictions filter source and legacy Atlas paths",
+        "source revision retains original, explicit request retry and stale-save conflict",
+        "source/database same-World constraints and immutable originals; replaceable display cache",
+        "bounded wrapped queries and display projections leave every authoritative record unchanged",
+        "existing four-period settlements, territories, connections, ordinary states and exact sources remain readable",
+        "protected geographic source removes previously public historical appearance selections",
+        "ordinary lore, History, milestone links and place readers omit protected geographic identities",
+        "new imports fail after earlier records were staged without partial source rows",
+        "existing Atlas/source validators retain valid and invalid decisions with an empty restore search path"
+      ]
+    },
+    "legacyBrowser": {
+      "passed": 9,
+      "results": [
+        "desktop real geometry, original provenance, keyboard source focus and non-destructive projection",
+        "ordinary delayed/failed transitions suppress previous protected names and coordinates; retry and author recovery",
+        "both ordinary API aliases filter identically and reject preview-qualified mutations",
+        "fictional source revision failure retains draft, acknowledged-save read failure retries without duplicate",
+        "real Natural Earth authored revision retains immutable original geometry",
+        "field guidance is keyboard readable and shared navigation preserves unsaved source drafts",
+        "return to existing Atlas editing and draft-protected context navigation",
+        "authenticated explicit Administrator review is read-only; foreign and Player API access denied",
+        "phone native-touch bounded geography and weaker-device CPU emulation"
+      ],
+      "errors": []
+    },
+    "legacySupplement": {
+      "passed": 6,
+      "results": [
+        "ordinary detailed real-data views show New Zealand coast/islands and South Africa's enclosed hole",
+        "owner creates an original coordinate surface and imports prepared fictional source through the workshop",
+        "existing Atlas still saves an authored change while keeping geographic source geometry and artwork",
+        "explicit Administrator workshop and source reader retain read-only controls",
+        "desktop source-view transfer, heap and initial-render metrics recorded",
+        "progressive viewport pages retain every required dataset credit"
+      ],
+      "errors": []
+    },
+    "legacyPreservation": {
+      "originalEvidenceDatabaseExact": true,
+      "historicalFixtureRowsPreserved": true
+    }
+  },
+  "delivery": {
+    "global": {
+      "tiles": 15,
+      "bytes": 523580,
+      "maxConcurrent": 4
+    },
+    "viewportCases": {
+      "passed": 4,
+      "results": [
+        {
+          "name": "Fiji and antimeridian",
+          "factor": 2,
+          "tiles": 15,
+          "bytes": 796352
+        },
+        {
+          "name": "Antarctica",
+          "factor": 20,
+          "tiles": 15,
+          "bytes": 523580
+        },
+        {
+          "name": "Mercator polar limit",
+          "factor": 20,
+          "tiles": 15,
+          "bytes": 523580
+        },
+        {
+          "name": "narrow extent fit padding",
+          "factor": 2,
+          "tiles": 12,
+          "bytes": 752570
+        }
+      ]
+    },
+    "desktop": {
+      "workflowMs": 7521,
+      "parts": 2661,
+      "heapBytes": 23832490,
+      "meaning": "Complete view plus screenshot workflow; not pure initial-load latency."
+    },
+    "phone": {
+      "width": 390,
+      "hasTouch": true,
+      "cpuRate": 6,
+      "ms": 14730,
+      "noHorizontalOverflow": true,
+      "meaning": "Load, zoom and pan workflow under 6x CPU emulation; not physical-device proof."
+    },
+    "detailedVectors": {
+      "pages": 533,
+      "parts": 34090,
+      "bytes": 18777406,
+      "maxChars": 47379,
+      "ms": 127136,
+      "duplicateComponents": 0
+    }
+  },
+  "nativeValues": {
+    "values": [
+      {
+        "name": "Everest region",
+        "x": 86.925,
+        "y": 27.9881,
+        "min": 6000,
+        "max": 9000,
+        "column": 16015,
+        "row": 3720,
+        "value": 8157.3564453125,
+        "units": "metres",
+        "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+        "versionId": "d45f86d5-aea2-4f3d-b54c-55d92ea22a49",
+        "cellCenter": [
+          86.92500000000001,
+          27.99166666666666
+        ]
+      },
+      {
+        "name": "Andes Aconcagua",
+        "x": -70.011,
+        "y": -32.653,
+        "min": 4000,
+        "max": 7500,
+        "column": 6599,
+        "row": 7359,
+        "value": 6188.22265625,
+        "units": "metres",
+        "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+        "versionId": "d45f86d5-aea2-4f3d-b54c-55d92ea22a49",
+        "cellCenter": [
+          -70.00833333333334,
+          -32.65833333333333
+        ]
+      },
+      {
+        "name": "Rocky Mountains",
+        "x": -106.445,
+        "y": 39.117,
+        "min": 2500,
+        "max": 5000,
+        "column": 4413,
+        "row": 3052,
+        "value": 4015.923828125,
+        "units": "metres",
+        "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+        "versionId": "d45f86d5-aea2-4f3d-b54c-55d92ea22a49",
+        "cellCenter": [
+          -106.44166666666666,
+          39.125
+        ]
+      },
+      {
+        "name": "European Alps",
+        "x": 6.865,
+        "y": 45.832,
+        "min": 2000,
+        "max": 5500,
+        "column": 11211,
+        "row": 2650,
+        "value": 4008.572998046875,
+        "units": "metres",
+        "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+        "versionId": "d45f86d5-aea2-4f3d-b54c-55d92ea22a49",
+        "cellCenter": [
+          6.8583333333333485,
+          45.824999999999996
+        ]
+      },
+      {
+        "name": "Greenland ice surface",
+        "x": -40.5,
+        "y": 72.58,
+        "min": 2000,
+        "max": 4000,
+        "column": 8370,
+        "row": 1045,
+        "value": 3099.23388671875,
+        "units": "metres",
+        "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+        "versionId": "d45f86d5-aea2-4f3d-b54c-55d92ea22a49",
+        "cellCenter": [
+          -40.491666666666674,
+          72.575
+        ]
+      },
+      {
+        "name": "Antarctic ice surface",
+        "x": 0,
+        "y": -80,
+        "min": 1000,
+        "max": 4500,
+        "column": 10800,
+        "row": 10200,
+        "value": 2331.6103515625,
+        "units": "metres",
+        "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+        "versionId": "d45f86d5-aea2-4f3d-b54c-55d92ea22a49",
+        "cellCenter": [
+          0.008333333333354176,
+          -80.00833333333333
+        ]
+      },
+      {
+        "name": "Mariana Trench",
+        "x": 142.2,
+        "y": 11.35,
+        "min": -11500,
+        "max": -5000,
+        "column": 19332,
+        "row": 4719,
+        "value": -10426.4462890625,
+        "units": "metres",
+        "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+        "versionId": "d45f86d5-aea2-4f3d-b54c-55d92ea22a49",
+        "cellCenter": [
+          142.20833333333331,
+          11.341666666666669
+        ]
+      },
+      {
+        "name": "Pacific basin",
+        "x": -150,
+        "y": 0,
+        "min": -7000,
+        "max": -2000,
+        "column": 1800,
+        "row": 5400,
+        "value": -4460.8125,
+        "units": "metres",
+        "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+        "versionId": "d45f86d5-aea2-4f3d-b54c-55d92ea22a49",
+        "cellCenter": [
+          -149.99166666666667,
+          -0.008333333333325754
+        ]
+      },
+      {
+        "name": "Low Dutch coast",
+        "x": 4.89,
+        "y": 52.37,
+        "min": -30,
+        "max": 100,
+        "column": 11093,
+        "row": 2257,
+        "value": 4.676477909088135,
+        "units": "metres",
+        "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+        "versionId": "d45f86d5-aea2-4f3d-b54c-55d92ea22a49",
+        "cellCenter": [
+          4.8916666666666515,
+          52.375
+        ]
+      }
+    ],
+    "sourceSha256": "9d27d4b8ea8e76977e2988bca667d7c8fa68b927355feffcddd6b4875a7fd08e",
+    "nativeCellValuesPreserved": true
+  },
+  "recovery": {
+    "restore": {
+      "databaseAndAllRowsExact": true,
+      "assetsChecked": 11188,
+      "restoredAssetBytes": 1029489088,
+      "fullBackupSha256": "7e3c03e3b6d377f38d6bfeb5641810d1d90f74446d51aecb7f92f5d0a8aa22aa",
+      "nativeFilesVerified": true
+    },
+    "interruption": {
+      "partialOriginalStageResumedExactly": true,
+      "assets": 23,
+      "originalSourcePreserved": true
+    },
+    "freshDevBackup": {
+      "backup": "D:\\serrian-tide-website\\artifacts\\guidance\\geo-c2\\dev-before-c2-final-1791957973070.dump",
+      "sha256": "4074328d800d19a9cf77a6b172da9f14e8cde92abde6300a0269b09bd57707ba",
+      "bytes": 81714624,
+      "ledgerEntries": 131,
+      "assetMetadataRows": 0
+    }
+  },
+  "dev": {
+    "target": "serrian_tide_dev",
+    "result": {
+      "sourceId": "3a32ea03-f3a5-48d3-bd12-30ef2900cec9",
+      "versionId": "d802c570-8591-42ee-9b91-cf22387b76f5",
+      "created": true
+    },
+    "retry": {
+      "sourceId": "3a32ea03-f3a5-48d3-bd12-30ef2900cec9",
+      "versionId": "d802c570-8591-42ee-9b91-cf22387b76f5",
+      "created": false
+    },
+    "originalTablesAndRowsPreserved": true,
+    "c1NativeSourcesExact": true,
+    "ledgerUnchanged": true,
+    "ordinaryTiles": 15,
+    "nativeSample": {
+      "column": 16015,
+      "row": 3720,
+      "value": 8157.3564453125,
+      "units": "metres",
+      "verticalReference": "EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",
+      "versionId": "d802c570-8591-42ee-9b91-cf22387b76f5",
+      "cellCenter": [
+        86.92500000000001,
+        27.99166666666666
+      ]
+    },
+    "rasterTables": [
+      {
+        "tablename": "world_raster_asset",
+        "bytes": "3964928"
+      },
+      {
+        "tablename": "world_raster_head",
+        "bytes": "32768"
+      },
+      {
+        "tablename": "world_raster_source",
+        "bytes": "65536"
+      },
+      {
+        "tablename": "world_raster_version",
+        "bytes": "98304"
+      },
+      {
+        "tablename": "world_raster_view",
+        "bytes": "49152"
+      }
+    ],
+    "assetRoot": "D:\\serrian-tide-website\\storage\\world-raster",
+    "bundleSha256": "5d1afdf76e65bd44466dba0dc35fd5f9060857ce752442a35b21276bcabbcbef",
+    "sourceSha256": "9d27d4b8ea8e76977e2988bca667d7c8fa68b927355feffcddd6b4875a7fd08e"
+  },
+  "migration": {
+    "tag": "0130_worlds_numerical_rasters",
+    "sha256": "8bc91829319433f520bc540196a64d80fa80a0450bae533f256688d93fe785d2",
+    "ownerApplied": true,
+    "frozenAfterOwnerNotice": true,
+    "ledgerEntries": 131
+  },
+  "release": {
+    "localReviewOnly": true,
+    "pushed": false,
+    "deployed": false,
+    "productionChanged": false,
+    "sharedServiceRestarted": false,
+    "independentReviewPending": true,
+    "ownerVisualAcceptancePending": true
+  }
+}

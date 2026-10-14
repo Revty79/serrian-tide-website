@@ -89,6 +89,7 @@ next-env.d.ts
 /.next-companion-management-browser/
 /.next-companion-management-build/
 /.next-spell-damage-types/
+/storage/world-raster/
 /artifacts/campaign-skills-ui/
 /artifacts/campaign-skill-*-tests.log
 /artifacts/worlds-atlas-refinement/

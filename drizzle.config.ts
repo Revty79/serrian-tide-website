@@ -23,6 +23,7 @@ export default defineConfig({
     "./src/db/world-map-state-schema.ts",
     "./src/db/world-map-connection-schema.ts",
     "./src/db/world-geographic-schema.ts",
+    "./src/db/world-raster-schema.ts",
     "./src/db/world-atlas-schema.ts",
     "./src/db/catalog-preferences-schema.ts",
     "./src/db/appearance-schema.ts",

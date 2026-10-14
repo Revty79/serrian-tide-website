@@ -5,7 +5,7 @@ export async function worldApi<T>(url: string, method = "GET", body?: unknown, s
   try { response = await fetch(url, { method, credentials: "same-origin", cache: "no-store", signal, ...(body ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) }); }
   catch { throw new SaveError("The connection failed. Your draft is still here; try again when connected.", 0); }
   const data = await response.json().catch(() => ({ error: "The server response could not be read. Your draft is still here." }));
-  if (!response.ok || data.error) throw new SaveError(data.error ?? "The request failed. Your draft is still here.", response.status);
+  if (!response.ok || data?.error) throw new SaveError(data?.error ?? "The request failed. Your draft is still here.", response.status);
   return data as T;
 }
 export function worldDraftOf(world?: WorldRecord): WorldDraft { return { name: world?.name ?? "", description: world?.description ?? "", introduction: world?.introduction ?? "", historicalOverview: world?.historicalOverview ?? "", tone: world?.tone ?? "primary", tagIds: world?.tagIds ?? [] }; }

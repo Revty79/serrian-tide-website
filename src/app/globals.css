@@ -92,6 +92,11 @@
  */
 :root,
 [data-appearance-theme-scope] {
+  /* Scientific elevation legend; shared with numerical relief imagery. */
+  --st-terrain-deep: #0f2549;
+  --st-terrain-zero: #97c2c4;
+  --st-terrain-low: #719471;
+  --st-terrain-high: #f6f5ee;
   --st-page-top: color-mix(in srgb, var(--st-surface) 72%, var(--st-primary) 28%);
   --st-surface-raised: color-mix(in srgb, var(--st-surface) 88%, var(--st-text) 12%);
   --st-surface-soft: color-mix(in srgb, var(--st-surface) 82%, transparent);

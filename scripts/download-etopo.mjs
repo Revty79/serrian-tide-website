@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
+import {createWriteStream} from "node:fs";
+import {mkdir,stat,writeFile} from "node:fs/promises";
+import {Readable} from "node:stream";
+import {pipeline} from "node:stream/promises";
+const directory="artifacts/guidance/geo-c2",url="https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO2022/data/60s/60s_surface_elev_gtif/ETOPO_2022_v1_60s_N90W180_surface.tif",file=`${directory}/ETOPO_2022_v1_60s_N90W180_surface.tif`;
+await mkdir(directory,{recursive:true});const response=await fetch(url);assert.equal(response.status,200);assert.equal(Number(response.headers.get("content-length")),465969062);const hash=createHash("sha256");let bytes=0,last=0;
+const stream=Readable.fromWeb(response.body);stream.on("data",chunk=>{hash.update(chunk);bytes+=chunk.length;if(bytes-last>50_000_000){console.log(`Downloaded ${Math.round(bytes/1048576)} MiB`);last=bytes;}});await pipeline(stream,createWriteStream(file,{flags:"wx"}));assert.equal((await stat(file)).size,465969062);
+const sha256=hash.digest("hex"),metadata={name:"ETOPO 2022 ice-surface elevation and bathymetry",externalId:"NOAA:ETOPO_2022_v1_60s_surface",grid:{width:21600,height:10800,bounds:[-180,-90,180,90],registration:"area",horizontalReference:"EPSG:4326",units:"metres",verticalReference:"EGM2008 geoid (EPSG:3855); approximates mean sea level, not a local tidal datum",noData:-99999,encoding:"geotiff",horizontalScale:{x:111319.49079327358,y:111319.49079327358,latitudeAdjusted:true}},source:{provider:"NOAA National Centers for Environmental Information",dataset:"ETOPO 2022 60-arc-second global ice-surface relief model",edition:"2022 v1",url,license:"Freely available for private, academic and commercial use",licenseUrl:"https://www.ngdc.noaa.gov/mgg/global/relief/ETOPO2022/docs/1.2%20ETOPO%202022%20User%20Guide.pdf",attribution:"NOAA NCEI ETOPO 2022. DOI 10.25921/fd45-gt74.",sha256,interpretation:"60-arc-second cell-area grid. Heights are original Float32 metres relative to EGM2008. Greenland and Antarctica show ice surface, not subglacial bedrock. Modern undated reference; no dated historical terrain reconstruction."}};
+await writeFile(`${directory}/etopo-metadata.json`,JSON.stringify(metadata,null,2)+"\n");console.log(JSON.stringify({file,bytes,sha256}));

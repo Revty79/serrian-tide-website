@@ -22,7 +22,7 @@ const digest=(value:unknown)=>createHash("sha256").update(canonicalSource(value)
 function sourceFileIdentity(provenance:GeographicProvenance){return canonicalSource(Object.fromEntries(Object.entries(provenance).filter(([key])=>key!=="parameters"&&key!=="display")));}
 const dto=(row:typeof surface.$inferSelect):Surface=>({id:row.id,name:row.name,reference:row.reference,realmId:row.realmId,protected:row.protected});
 function checked<T>(run:()=>T){try{return run();}catch(error){if(error instanceof WorldError)throw error;throw new WorldError((error as Error).message,400);}}
-async function layerAccess(tx:Tx,worldId:string,mapId:string,timelineId:string,options:Options,userId:string):Promise<GeographicLayer>{
+export async function layerAccess(tx:Tx,worldId:string,mapId:string,timelineId:string,options:Options,userId:string):Promise<GeographicLayer>{
   const [row]=await tx.select({map:worldAtlasMap,surface}).from(view).innerJoin(surface,and(eq(surface.id,view.surfaceId),eq(surface.worldId,view.worldId))).innerJoin(worldAtlasMap,and(eq(worldAtlasMap.id,view.mapId),eq(worldAtlasMap.worldId,view.worldId))).where(and(eq(view.mapId,mapId),eq(view.worldId,worldId)));if(!row||row.map.archivedAt||options.ordinary&&(row.surface.protected||row.surface.realmId))throw unavailable();
   if(options.ordinary&&row.map.geographyId){const hidden=(await tx.execute(sql`select id from (${geographicPrivatePlaces(worldId)}) private_place(id) where id=${row.map.geographyId}`)).rows;if(hidden.length)throw unavailable();}
   if(row.surface.realmId){const {getPeople}=await import("./peoples-service");if((await getPeople(userId,worldId,timelineId,row.surface.realmId,!!options.review,false)).family!=="realm")throw unavailable();}

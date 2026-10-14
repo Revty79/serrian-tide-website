@@ -51,3 +51,7 @@ Geo A is technically approved at `2d2226b742bf045232dd9dbefd0b2429dada4e8c`. The
 ## Geo C1 authorization and handoff
 
 Geo B is technically approved at `1a3793877094eed31d0fdf53004ad5fdbc608b3a`. The owner approved the [C1/C2/C3 division](docs/architecture/worlds-geo-c-scope-proposal.md) and authorized C1 first: worldwide physical vectors, source locations and major populated places in the existing DEV Earth, after full backup and disposable rehearsal. Preserve original coordinates, identities, manifests, revisions, historical records, Glass Sea and server-side ordinary/review filtering. C1 stops at a local review commit with actual application screenshots. C2 elevation/relief, C3 classified land cover and Geo D remain later work; no push, deployment, Production write or shared-service restart is authorized.
+
+## Geo C2 authorization
+
+Geo C1 and its rendering repair are independently technically approved at `b5fe27842dcdb6cd9077fa74cc0797e91e9769c4`. The owner separately authorized [Geo C2 numerical elevation and terrain relief](docs/architecture/worlds-geo-c2.md), including the guarded DEV import after verified backup and complete disposable rehearsal. Preserve all existing vector sources, World/map/place/surface identities, Glass Sea, immutable versions and ordinary/review privacy. Stop at a clean local review commit with actual application screenshots. No push, deployment, Production change, shared-service restart, Geo C3 or Geo D is authorized.

@@ -2,3 +2,4 @@
 data/geography/*.json text eol=lf
 drizzle/0128_worlds_geographic_sources.sql text eol=lf
 drizzle/0129_worlds_atlas_restore_context.sql text eol=lf
+drizzle/0130_worlds_numerical_rasters.sql text eol=lf
