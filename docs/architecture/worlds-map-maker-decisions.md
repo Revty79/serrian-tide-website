@@ -12,6 +12,12 @@ The source engine must select inexpensive coarse representations worldwide, fine
 
 Future source descriptors must distinguish immutable originals from derived display imagery and record spatial coverage, native cell size/units and registration, coordinate reference/topology, observation period, provenance, license, dataset/version identity and derivation method. Region and zoom selection must be generalizable across Worlds and surface references, rather than keyed to Earth names or one test location. Define deterministic overlap/precedence and NoData behavior, preserve exact version pins and privacy, and expose the actual source resolution separately from a generalized display level. New finer regional sources extend retained identities; they do not silently replace original samples or historical accounts.
 
+## Initial Earth presentation
+
+The initial unified Map Maker must open worldwide Earth in a normal **flat rectangular map presentation by default**, while retaining the existing alternate geographic projections as selectable options. Earth's spherical coordinate reference remains authoritative: choosing a flat display does not turn Earth into a planar World or change its source coordinates.
+
+During D1, visually verify the intended full-world presentation in the actual application; do not assume today's projection label produces the desired appearance. Advanced interrupted, unfolded-globe and other sophisticated global projections belong to the later Advanced Map Studio, outside this initial integration.
+
 ## Geo D increments
 
 | Pass | Required usable result |
@@ -20,9 +26,11 @@ Future source descriptors must distinguish immutable originals from derived disp
 | D2 — Visual editing | Direct visual creation and reshaping of fictional geography, with proper saving, undo/redo and retained history. |
 | D3 — Procedural geography | Believable generated fictional geography whose saved source remains editable, rather than a locked image. |
 | D4 — Connected scales | World → Continent/Region → Settlement/City → Building → Interior → Dungeon. Select a city on a larger map and open its associated detailed map. Preserve existing place/map identities, relationships and navigation. |
-| D5 — Good-quality cartography | Attractive, readable 2D maps across these scales, without expensive artwork or dedicated server GPU infrastructure. |
+| D5 — Good-quality cartography | Attractive, readable 2D maps across these scales, including visual asset improvements for settlements, interiors and dungeons, without expensive artwork or dedicated server GPU infrastructure. |
 
 Each increment must independently meet the [deployment standard](../operations/pass-deployment-standard.md); a later increment cannot be a prerequisite for its functionality. Existing Atlas editing, immutable histories, sources, shared baseline artwork and server-side ordinary/review filtering remain protected.
+
+D4 and Geo E must explicitly review historical interior/dungeon layout changes across connected scales. Preserve the [Living History foundation](worlds-living-history-acceptance.md): shared baseline artwork and requested time context do not establish dated room/layout coverage. Review the requirements and separately approve any dated-layout authoring scope before implementation; this CI correction adds no such authoring.
 
 ## Geo E acceptance
 

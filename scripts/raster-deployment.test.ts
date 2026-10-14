@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {mkdtemp,mkdir,writeFile,readFile,rm,unlink,stat} from "node:fs/promises";
+import {mkdtemp,mkdir,chmod,writeFile,readFile,rm,unlink,stat} from "node:fs/promises";
 import path from "node:path";
 import {gzipSync} from "node:zlib";
 import {tmpdir} from "node:os";
@@ -13,7 +13,7 @@ import {readRasterAsset,verifiedRasterOriginal} from "../src/features/worlds/ras
 test("canonical C2 runtime manifest reconstructs exact frozen identity",async()=>{const c=await canonicalElevation();assert.equal(c.bundle,"5d1afdf76e65bd44466dba0dc35fd5f9060857ce752442a35b21276bcabbcbef");assert.equal(c.manifest.assets.length,11142);assert.equal(c.manifest.source.sha256,"9d27d4b8ea8e76977e2988bca667d7c8fa68b927355feffcddd6b4875a7fd08e");});
 test("portable provisioning, interruption, checksums, hardlinks, backup and recovery",async()=>{
  const root=await mkdtemp(path.join(tmpdir(),"serrian-raster-unit-")),old=process.env.SERRIAN_RASTER_ROOT;try{
-  const c2=path.join(root,"c2"),c3=path.join(root,"c3"),volume=path.join(root,"volume"),backup=path.join(root,"backup"),source=path.join(root,"source.f32");await mkdir(c3);await mkdir(volume);const bytes=Buffer.alloc(64);for(let i=0;i<16;i++)bytes.writeFloatLE(i-8,i*4);await writeFile(source,bytes);
+  const c2=path.join(root,"c2"),c3=path.join(root,"c3"),volume=path.join(root,"volume"),backup=path.join(root,"backup"),source=path.join(root,"source.f32");await mkdir(c3);await mkdir(volume,{mode:0o700});const bytes=Buffer.alloc(64);for(let i=0;i<16;i++)bytes.writeFloatLE(i-8,i*4);await writeFile(source,bytes);
   const numerical=await prepareElevation(source,{name:"Fixture heights",externalId:"TEST:height",grid:{width:4,height:4,bounds:[0,0,4,4],registration:"area",horizontalReference:"TEST:plane",units:"metres",verticalReference:"authored zero",noData:null,encoding:"float32-le",horizontalScale:{x:1,y:1,latitudeAdjusted:false}},source:{provider:"Author",dataset:"Original",edition:"1",url:"https://example.com/source",license:"CC0",licenseUrl:"https://example.com/license",attribution:"Author",sha256:sha(bytes),interpretation:"Authored numerical fixture"}},c2);
   await mkdir(path.join(c3,"source/tiles"),{recursive:true});const values=Buffer.alloc(16,10),payload=gzipSync(values),tile={x:0,y:0,width:4,height:4,key:"source/tiles/a.u8.gz",valuesSha256:sha(values)},grid={width:4,height:4,bounds:[0,0,4,4] as [number,number,number,number],registration:"area" as const,horizontalReference:"TEST:plane",noData:0,encoding:"categorical-u8-tiles" as const,sourceTileSize:4},index=JSON.stringify({grid,tiles:[tile]});await writeFile(path.join(c3,tile.key),payload);await writeFile(path.join(c3,"source/index.json"),index);
   const categorical=await prepareCategorical(c3,grid,[tile],[{code:10,name:"Fictional cover",definition:"Authored class",color:[0,100,0],status:"classified"}],{name:"Fixture cover",externalId:"TEST:cover",source:{provider:"Author",dataset:"Original",edition:"1",url:"https://example.com/source",license:"CC0",licenseUrl:"https://example.com/license",attribution:"Author",sha256:sha(index),observationPeriod:"Authored",resolution:"One unit",interpretation:"Authored categorical fixture"}},{kind:"plane"});
@@ -26,4 +26,24 @@ test("portable provisioning, interruption, checksums, hardlinks, backup and reco
   await writeFile(path.join(c3,tile.key),gzipSync(Buffer.alloc(16,20)));await assert.rejects(verifyBundle(c3),/Corrupt|Wrong asset size/);
   const manifestFile=path.join(c3,"manifest.json"),manifestBytes=await readFile(manifestFile),badEncoding=Buffer.from(manifestBytes);badEncoding[badEncoding.indexOf("Fixture cover")]=255;await writeFile(manifestFile,badEncoding);await assert.rejects(loadBundle(c3),/UTF-8/);
  }finally{if(old===undefined)delete process.env.SERRIAN_RASTER_ROOT;else process.env.SERRIAN_RASTER_ROOT=old;assert.equal(path.dirname(path.resolve(root)),path.resolve(tmpdir()));assert.ok(path.basename(root).startsWith("serrian-raster-unit-"));await rm(root,{recursive:true,force:true});}
+});
+
+test("POSIX private storage rejects world-accessible directories",{
+ skip:process.platform==="win32"?"POSIX permission bits are not enforced on Windows":false,
+},async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),"serrian-raster-permissions-"));
+ try{
+  const volume=path.join(root,"volume");
+  await mkdir(volume,{mode:0o700});
+  // Set an explicit permissive mode so even a restrictive umask exercises rejection.
+  await chmod(volume,0o755);
+  assert.equal((await stat(volume)).mode&0o007,0o005);
+  await assert.rejects(checkFilesystem(volume,root,0),/Private storage must not grant access to other users/);
+  await chmod(volume,0o700);
+  assert.equal((await checkFilesystem(volume,root,0)).permissions,true);
+ }finally{
+  assert.equal(path.dirname(path.resolve(root)),path.resolve(tmpdir()));
+  assert.ok(path.basename(root).startsWith("serrian-raster-permissions-"));
+  await rm(root,{recursive:true,force:true});
+ }
 });
