@@ -5,6 +5,7 @@ import {SaveError,worldApi} from "./client-api";
 import type {GeographicViewport} from "./geographic";
 import {DEFAULT_RASTER_PREFERENCES,type RasterPreferences,type RasterView} from "./raster";
 import {rasterScreenIndices} from "./raster-screen";
+import {parseRasterResponse,elevationResponseSchema} from "./raster-response";
 import styles from "./geographic.module.css";
 
 type Props={worldId:string;timelineId:string;mapId:string;ordinary:boolean;review:boolean;viewport:GeographicViewport|null};
@@ -26,7 +27,7 @@ export function useElevation({worldId,timelineId,mapId,ordinary,review,viewport}
           for(let y=0;y<600;y++){const row=indices.rows[y];if(row<0)continue;for(let x=0;x<1000;x++){const col=indices.columns[x];if(col<0)continue;const tile=tiles.get(`${Math.floor(col/256)}-${Math.floor(row/256)}`);if(!tile)continue;const from=((row%256)*tile.width+col%256)*4,to=(y*1000+x)*4;for(let channel=0;channel<4;channel++)pixels.data[to+channel]=tile.data[from+channel];}}ctx.putImageData(pixels,0,0);image=canvas.toDataURL("image/png");}
         setResult({key,view,image,loaded,complete,error});
       };
-      try{const q=new URLSearchParams({timeline:timelineId,map:mapId,bounds,projection,...ordinary?{ordinary:"1"}:{},...review?{review:"1"}:{},...prefs?{style:prefs.style}:{},...version?{version}:{}});view=await worldApi<RasterView|null>(`${api}?${q}`,"GET",undefined,controller.signal);if(controller.signal.aborted||live.current!==key)return;
+      try{const q=new URLSearchParams({timeline:timelineId,map:mapId,bounds,projection,...ordinary?{ordinary:"1"}:{},...review?{review:"1"}:{},...prefs?{style:prefs.style}:{},...version?{version}:{}});view=parseRasterResponse(elevationResponseSchema,await worldApi<unknown>(`${api}?${q}`,"GET",undefined,controller.signal));if(controller.signal.aborted||live.current!==key)return;
         // Authorization polls keep an unchanged image; a changed stamp always
         // discards its decoded pixels before any new requests are accepted.
         if(poll&&current?.complete&&current.image&&settings.visible&&current.view?.stamp===view?.stamp&&current.view?.level.factor===view?.level.factor)return;

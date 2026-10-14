@@ -33,3 +33,6 @@ jobs:
 
       - name: Unit tests
         run: npm run validate:unit
+
+      - name: Portable raster provisioning regressions
+        run: npm run validate:raster-deployment

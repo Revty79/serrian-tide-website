@@ -1,5 +1,7 @@
 # Geo A: universal geographic sources
 
+The owner subsequently established the permanent [initial Map Maker D1-D5/E decisions](worlds-map-maker-decisions.md): deep zoom and progressive source resolution, regional native 10-metre classification acceptance, connected scales, shared foundations and a separate later Advanced Map Studio. These requirements extend the roadmap without authorizing implementation during C2/C3 deployment repair.
+
 Approved starting commit: `8bfb381b97b84d9fa85f8563a4cabf673bf73991`, inspected with a clean checkout. Geo A is separately authorized; Geo B, push/sync, Production, deployment and extraction are not. The revised roadmap is Geo A-E before Phases 7-9, then independent Worlds development for Advanced Map Studio and Comprehensive Historical Earth.
 
 ## Inspection and compatible extension

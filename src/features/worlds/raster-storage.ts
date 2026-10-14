@@ -1,7 +1,7 @@
 import "server-only";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdir, readFile, realpath, stat, copyFile, link } from "node:fs/promises";
+import { mkdir, readFile, realpath, stat, lstat, copyFile, link, unlink } from "node:fs/promises";
 import path from "node:path";
 import { rasterManifestSchema, type RasterAsset, type RasterManifest } from "./raster";
 type StoredAsset=Pick<RasterAsset,"key"|"sha256"|"bytes">;
@@ -11,22 +11,41 @@ export async function fileDigest(file:string){const hash=createHash("sha256");fo
 export function bundlePath(bundle:string,key:string){if(!/^[a-f0-9]{64}$/.test(bundle)||!/^((source|numerical|shaded|tint|classification)\/[a-zA-Z0-9_.\/-]+|manifest.json)$/.test(key)||key.split("/").some(p=>p===".."||p==="."))throw new Error("Invalid raster asset identity.");const root=rasterRoot(),file=path.resolve(root,bundle,key);if(!file.startsWith(root+path.sep))throw new Error("Invalid raster asset path.");return file;}
 export async function rasterAssetFile(bundle:string,asset:StoredAsset){const file=bundlePath(bundle,asset.key),resolved=await realpath(/* turbopackIgnore: true */ file),root=await realpath(rasterRoot());if(!resolved.startsWith(root+path.sep)||!(await stat(resolved)).isFile()||(await stat(resolved)).size!==asset.bytes)throw new Error("The retained raster asset is unavailable. Restore the verified asset backup.");return resolved;}
 export async function readRasterAsset(bundle:string,asset:StoredAsset){const file=await rasterAssetFile(bundle,asset),bytes=await readFile(file);if(createHash("sha256").update(bytes).digest("hex")!==asset.sha256)throw new Error("The retained raster asset failed its integrity check.");return bytes;}
+/** A native TIFF is too large to hash on every sample. Recheck once per process
+ * and whenever the filesystem identity changes; never cache failed checks. */
+const verifiedOriginals=new Map<string,string>();
+export async function verifiedRasterOriginal(bundle:string,asset:StoredAsset){
+  const file=await rasterAssetFile(bundle,asset),s=await stat(file,{bigint:true}),identity=`${asset.sha256}:${s.dev}:${s.ino}:${s.size}:${s.mtimeNs}:${s.ctimeNs}`;
+  if(verifiedOriginals.get(file)!==identity){if(await fileDigest(file)!==asset.sha256)throw new Error("The retained numerical original failed its integrity check. Restore its verified backup.");const after=await stat(file,{bigint:true});if(`${after.dev}:${after.ino}:${after.size}:${after.mtimeNs}:${after.ctimeNs}`!==`${s.dev}:${s.ino}:${s.size}:${s.mtimeNs}:${s.ctimeNs}`)throw new Error("The numerical original changed during verification.");if(verifiedOriginals.size>=64)verifiedOriginals.clear();verifiedOriginals.set(file,identity);}
+  return file;
+}
+/** Publish a complete file without exposing partial copies or replacing an
+ * existing immutable key. A killed copy leaves an ignored .partial sibling. */
+export async function publishRasterFile(source:string,target:string,sha256:string,bytes:number,anchor?:string,digest:(file:string)=>Promise<string>=fileDigest){
+  await mkdir(path.dirname(target),{recursive:true});
+  try{const s=await lstat(target);if(!s.isFile()||s.isSymbolicLink()||s.size!==bytes||await digest(target)!==sha256)throw new Error("A retained asset differs from the frozen source. Quarantine the damaged bundle before restoration.");return;}catch(e){if((e as NodeJS.ErrnoException).code!=="ENOENT")throw e;}
+  if(anchor){try{await link(anchor,target);}catch(e){if((e as NodeJS.ErrnoException).code!=="EEXIST")throw e;}}
+  else{const temporary=`${target}.${randomUUID()}.partial`;try{await copyFile(source,temporary,1);if((await stat(temporary)).size!==bytes||await digest(temporary)!==sha256)throw new Error("The staged copy failed integrity verification.");try{await link(temporary,target);}catch(e){if((e as NodeJS.ErrnoException).code!=="EEXIST")throw e;}}finally{await unlink(temporary).catch(e=>{if(e.code!=="ENOENT")throw e;});}}
+  const s=await lstat(target);if(!s.isFile()||s.isSymbolicLink()||s.size!==bytes||await digest(target)!==sha256)throw new Error("A retained asset differs from the frozen source.");
+}
 /** Stage immutable files before the metadata transaction. Retry verifies every
  * existing object; failed transactions leave only an unreferenced safe bundle. */
 export function stageRasterBundle(directory:string):Promise<{bundle:string;manifest:RasterManifest}>;
 export function stageRasterBundle<M extends {assets:StoredAsset[]}>(directory:string,parse:(value:unknown)=>M):Promise<{bundle:string;manifest:M}>;
 export async function stageRasterBundle(directory:string,parse:(value:unknown)=>{assets:StoredAsset[]}=value=>rasterManifestSchema.parse(value)){
   const text=await readFile(path.join(directory,"manifest.json"),"utf8"),manifest=parse(JSON.parse(text)),bundle=createHash("sha256").update(text).digest("hex"),categorical="semantics" in manifest&&manifest.semantics==="categorical",anchors=new Map<string,string>();
+  // Within this controlled staging run, identical hardlink identities share a
+  // digest; every logical path still receives its own identity/size check.
+  const hashes=new Map<string,string>(),digest=async(file:string)=>{const s=await stat(file,{bigint:true}),identity=`${s.dev}:${s.ino}:${s.size}:${s.mtimeNs}`;let value=hashes.get(identity);if(!value){value=await fileDigest(file);hashes.set(identity,value);}return value;};
   for(const asset of manifest.assets){
-    const source=path.resolve(directory,asset.key);if(!source.startsWith(path.resolve(directory)+path.sep)||await fileDigest(source)!==asset.sha256||(await stat(source)).size!==asset.bytes)throw new Error("A prepared raster asset does not match the frozen manifest.");
-    const target=bundlePath(bundle,asset.key);await mkdir(path.dirname(target),{recursive:true});let anchor=categorical?anchors.get(asset.sha256):undefined;
+    const source=path.resolve(directory,asset.key);if(!source.startsWith(path.resolve(directory)+path.sep)||await digest(source)!==asset.sha256||(await stat(source)).size!==asset.bytes)throw new Error("A prepared raster asset does not match the frozen manifest.");
+    const target=bundlePath(bundle,asset.key);await mkdir(path.dirname(target),{recursive:true});const resolved=await realpath(path.dirname(target)),root=await realpath(rasterRoot());if(!resolved.startsWith(root+path.sep))throw new Error("Raster staging cannot traverse a link outside private storage.");let anchor=categorical?anchors.get(asset.sha256):undefined;
     // Links stay inside this private bundle, never to the preparation directory.
     // A conservative 512-link group also supports Windows' per-file link limit.
     if(anchor&&(await stat(anchor)).nlink>=512)anchor=undefined;
-    try{if(anchor)await link(anchor,target);else await copyFile(source,target,1);}catch(e){if((e as NodeJS.ErrnoException).code!=="EEXIST")throw e;}
-    if((await stat(target)).size!==asset.bytes||await fileDigest(target)!==asset.sha256)throw new Error("A retained asset differs from the frozen source.");
+    await publishRasterFile(source,target,asset.sha256,asset.bytes,anchor,digest);
     if(categorical&&!anchor)anchors.set(asset.sha256,target);
   }
-  const target=bundlePath(bundle,"manifest.json");await mkdir(path.dirname(target),{recursive:true});try{await copyFile(path.join(directory,"manifest.json"),target,1);}catch(e){if((e as NodeJS.ErrnoException).code!=="EEXIST")throw e;}if(await fileDigest(target)!==bundle)throw new Error("The retained raster manifest differs.");return {bundle,manifest};
+  const target=bundlePath(bundle,"manifest.json");await publishRasterFile(path.join(directory,"manifest.json"),target,bundle,Buffer.byteLength(text));return {bundle,manifest};
 }
 export function originalAsset(manifest:RasterManifest){return manifest.assets.find(a=>a.kind==="source")!;}

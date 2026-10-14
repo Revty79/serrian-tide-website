@@ -24,6 +24,8 @@ Follow the owner-approved [creator experience standard and acceptance checklist]
 
 ## Independently deployable passes
 
+The owner authorized the C2/C3 deployment repair from pushed `14f9e2c24a17de16a37527a5f7e6de8aa2c2b58c`: portable asset provisioning, verification/recovery, failure handling and attribution, plus recording [permanent Map Maker decisions](docs/architecture/worlds-map-maker-decisions.md). Preserve applied 0130/0131, frozen source bytes and all identities. Stop at a clean local review commit. This authorization permits no push, Production contact/change, shared-service restart or Geo D/E implementation. Follow the [raster deployment runbook](docs/operations/worlds-raster-deployment.md).
+
 Every completed development pass must leave the entire application functional and ready for controlled production deployment without a later pass. Deliver complete working increments; omit unfinished routes, controls and dependencies. Preserve existing systems and user data. Version all required migrations, rehearse upgrades with existing data in disposable databases, and document migration order and recovery: reverting code does not reverse database changes.
 
 Before completion, verify the production build, TypeScript, lint, relevant regressions, authorization and actual desktop/phone behavior. Preserve unrelated changes and create a clean local commit or explicitly identified commit-ready checkpoint. Provide a short deployment-readiness report with the commit, features, checks, ordered migrations, configuration, deployment steps, rollback/recovery, blockers and readiness for push/deployment. Divide oversized work into smaller complete increments. See [Pass deployment standard](docs/operations/pass-deployment-standard.md).

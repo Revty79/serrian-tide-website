@@ -1,0 +1,9 @@
+import assert from "node:assert/strict";
+import {test} from "node:test";
+import {elevationResponseSchema,landCoverResponseSchema,parseRasterResponse,classificationAttribution} from "./raster-response";
+import {worldApi,SaveError} from "./client-api";
+import type {z} from "zod";
+
+test("both raster metadata domains accept JSON null and reject malformed successful responses",()=>{for(const schema of [elevationResponseSchema,landCoverResponseSchema] as z.ZodType<unknown>[]){assert.equal(parseRasterResponse(schema,null),null);for(const value of [undefined,[],false,"null",{}, {tiles:[]},{grid:{},level:{},tiles:[]}])assert.throws(()=>parseRasterResponse(schema,value),/draft is retained/);}});
+test("World API preserves valid null, rejects invalid JSON and handles failure objects",async()=>{const old=global.fetch;try{global.fetch=async()=>new Response("null",{status:200});assert.equal(await worldApi("/fixture"),null);global.fetch=async()=>new Response("{broken",{status:200});await assert.rejects(worldApi("/fixture"),SaveError);global.fetch=async()=>new Response(JSON.stringify({error:"Private source unavailable"}),{status:404});await assert.rejects(worldApi("/fixture"),e=>e instanceof SaveError&&e.status===404);global.fetch=async()=>{throw new Error("offline");};await assert.rejects(worldApi("/fixture"),/draft is still here/);}finally{global.fetch=old;}});
+test("ESA visible copyright correction preserves retained credit",()=>{const credit={provider:"ESA WorldCover consortium",edition:"2021 v200; selected GeoTIFF image 6",attribution:"ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium"};assert.equal(classificationAttribution(credit),`© ${credit.attribution}`);assert.ok(!credit.attribution.startsWith("©"));assert.equal(classificationAttribution({...credit,provider:"Author"}),credit.attribution);});

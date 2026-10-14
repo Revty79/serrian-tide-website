@@ -1,5 +1,7 @@
 # Geo C2 numerical elevation and terrain relief
 
+Portable provisioning, canonical manifest reconstruction, complete integrity checks and paired database/private-volume recovery are now specified by the [C2/C3 deployment runbook](../operations/worlds-raster-deployment.md). Committed receipts do not contain the actual asset files. The C2 and C3 hosting costs must be accounted for together; C3's separate 256-MiB budget does not include C2 terrain assets.
+
 The owner authorized implementation and the guarded DEV import after a verified backup and complete disposable rehearsal. The approved starting commit is `b5fe27842dcdb6cd9077fa74cc0797e91e9769c4`. Stop at a clean local review commit; no push, deployment, Production changes, shared service restart, C3 or Geo D.
 
 ## Preparation decision

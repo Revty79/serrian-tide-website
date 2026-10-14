@@ -1,5 +1,7 @@
 # Dedicated future Atlas tools
 
+The permanent [Geo D1-D5/E Map Maker decisions](worlds-map-maker-decisions.md) now govern the initial visual Map Maker, deep zoom, progressive geographic source resolution and later Advanced Map Studio boundary. Preserve existing connected-scale implementations and identities as those requirements are fulfilled; the C2/C3 repair records them only.
+
 The user's permanent requirement is connected geographic scales: World → Continent → Region → City → Building → Dungeon Floor. Pass 3B implements continent cartography only. Scope labels do not establish these links, geographic distances or nested navigation.
 
 Each future increment must independently deliver usable tools, complete migrations, preserved data, authorized server behavior and verified desktop/phone workflows. Stable World geography/location identities remain separate from map drawings and from the visual representation's scale.
