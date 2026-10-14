@@ -1,0 +1,188 @@
+{
+  "planSha256": "31bd77d3c901ab3848dd5914c262018c669dcc1ebe73db80cfb3a4786add3764",
+  "layers": [
+    {
+      "layer": "ne_10m_rivers_lake_centerlines",
+      "dataset": "Rivers and lake centerlines 1:10m",
+      "sourceRows": 1473,
+      "importRecords": 1473,
+      "sourceCoordinates": 257645,
+      "sourceComponents": 2269,
+      "zipSha256": "ded71b01870855ccfe19b51f2ec14c9bb48fae23c0e9f3c11974d426433b5c38",
+      "edition": "5.0.0",
+      "omissions": [],
+      "importedCoordinates": 257645,
+      "importedComponents": 2269,
+      "importedSourceRows": 1473,
+      "missingIdentities": [],
+      "duplicateIdentities": []
+    },
+    {
+      "layer": "ne_10m_lakes",
+      "dataset": "Lakes and reservoirs 1:10m",
+      "sourceRows": 1355,
+      "importRecords": 1355,
+      "sourceCoordinates": 162852,
+      "sourceComponents": 1366,
+      "zipSha256": "0803a06f9c3cb4671d89b68c48b142aad9366ba40f665245e12a913fbc61722a",
+      "edition": "5.0.0",
+      "omissions": [],
+      "importedCoordinates": 162852,
+      "importedComponents": 1366,
+      "importedSourceRows": 1355,
+      "missingIdentities": [],
+      "duplicateIdentities": []
+    },
+    {
+      "layer": "ne_10m_geography_regions_polys",
+      "dataset": "Physical landscape regions 1:10m",
+      "sourceRows": 1047,
+      "importRecords": 1046,
+      "sourceCoordinates": 192265,
+      "sourceComponents": 2435,
+      "zipSha256": "cb7b9db200284ed1551f20eacc7f3333e9b5f311c19f7cb2670694529f688682",
+      "edition": "5.0.0",
+      "omissions": [
+        {
+          "sourceRow": 1041,
+          "sourceIdentity": "1159104605",
+          "name": "Null Island",
+          "reason": "Provider's fictional Dragons-be-here sentinel is not real Earth geography.",
+          "geometrySha256": "a29b4d39e5601a9251313fcbe3e4f673ada0e8fae532a58c544119ad7a1df875"
+        }
+      ],
+      "importedCoordinates": 192265,
+      "importedComponents": 2435,
+      "importedSourceRows": 1046,
+      "missingIdentities": [],
+      "duplicateIdentities": []
+    },
+    {
+      "layer": "ne_10m_geography_regions_points",
+      "dataset": "Physical named locations 1:10m",
+      "sourceRows": 235,
+      "importRecords": 235,
+      "sourceCoordinates": 235,
+      "sourceComponents": 235,
+      "zipSha256": "2cf54b21fc684f0f7023886379c7ae9c5c716d8bd4c3ead19050f3a7f53e4f7d",
+      "edition": "5.0.0",
+      "omissions": [],
+      "importedCoordinates": 235,
+      "importedComponents": 235,
+      "importedSourceRows": 235,
+      "missingIdentities": [],
+      "duplicateIdentities": []
+    },
+    {
+      "layer": "ne_10m_geography_regions_elevation_points",
+      "dataset": "Peaks and elevation points 1:10m",
+      "sourceRows": 711,
+      "importRecords": 711,
+      "sourceCoordinates": 711,
+      "sourceComponents": 711,
+      "zipSha256": "c7465b5df43045c3b639ab26ce61128273c2391b597074077a55f06fe63e1c99",
+      "edition": "5.0.0",
+      "omissions": [],
+      "importedCoordinates": 711,
+      "importedComponents": 711,
+      "importedSourceRows": 711,
+      "missingIdentities": [],
+      "duplicateIdentities": []
+    },
+    {
+      "layer": "ne_10m_geography_marine_polys",
+      "dataset": "Marine regions 1:10m",
+      "sourceRows": 306,
+      "importRecords": 306,
+      "sourceCoordinates": 58666,
+      "sourceComponents": 346,
+      "zipSha256": "a2d3395904c41e718e02c3ec5bc988712164c524c236fad32d95d282ca303b2a",
+      "edition": "5.1.0",
+      "omissions": [],
+      "importedCoordinates": 58666,
+      "importedComponents": 346,
+      "importedSourceRows": 306,
+      "missingIdentities": [],
+      "duplicateIdentities": []
+    },
+    {
+      "layer": "ne_10m_populated_places",
+      "dataset": "Populated places 1:10m",
+      "sourceRows": 7342,
+      "importRecords": 7342,
+      "sourceCoordinates": 7342,
+      "sourceComponents": 7342,
+      "zipSha256": "cd149186f03d2603e0410da399b980a4357d0ac32d3a2305a49ed3dffcc41d7b",
+      "edition": "5.1.2",
+      "omissions": [],
+      "importedCoordinates": 7342,
+      "importedComponents": 7342,
+      "importedSourceRows": 7342,
+      "missingIdentities": [],
+      "duplicateIdentities": []
+    }
+  ],
+  "exactSourceCoordinates": true,
+  "exactSourceAttributes": true,
+  "verifiedRiverIdentitiesShared": true,
+  "originalEarthAndGlassSeaPreserved": true,
+  "featureCount": 12468,
+  "newStableWorldPlaces": 12217,
+  "previousGeoBCoverageExact": true,
+  "noNewDevWorlds": true,
+  "all316PreExistingTableRowsPreserved": true,
+  "fullImportRetryNoOp": true,
+  "sourceArchiveBytes": 10546989,
+  "geographicRuntimeBytes": 232349696,
+  "additionalRuntimeBytes": 103415808,
+  "global": {
+    "pages": 42,
+    "components": 2661,
+    "sourceIdentities": 1000,
+    "payloadBytes": 3313943,
+    "durationMs": 4472.4992
+  },
+  "existingAtlas": {
+    "durationMs": 234.78380000000107,
+    "geographies": 14661,
+    "payloadBytes": 4117308,
+    "canEdit": true
+  },
+  "sourceLimitations": [
+    "Natural Earth is generalized geography; physical-region extents are roughly 1:50m although feature density is 1:10m.",
+    "Marine naming extents draw on older source accounts and do not establish ownership.",
+    "Populated places retain provider locations, aliases and estimates; no current census, founding date or country parent is invented.",
+    "ETOPO numerical elevation/relief and classified land cover are deferred to separately approved C2/C3.",
+    "One fictional Null Island Dragons-be-here source row is explicitly omitted."
+  ],
+  "browser": {
+    "desktop": {
+      "initialViewMs": 5678.827299999999,
+      "jsHeapUsedBytes": 22719072,
+      "requests": 44,
+      "transferBytes": 3327278,
+      "encodedBytes": 3314378
+    },
+    "touchPhone6xCPU": {
+      "initialViewMs": 6829.578999999998,
+      "jsHeapUsedBytes": 17719900,
+      "requests": 44,
+      "transferBytes": 3327278,
+      "encodedBytes": 3314378
+    }
+  },
+  "actualUserForeignKeyInventory": {
+    "actualDevUserForeignKeys": 114,
+    "allClassifiedExactly": true,
+    "blocking": 107,
+    "cleanup": 7,
+    "noSchemaChanges": true
+  },
+  "postPreservation": {
+    "allContentAndUsersExact": true,
+    "allPriorSessionsPreserved": true,
+    "additionalConcurrentSessions": 1,
+    "readOnly": true,
+    "guardRejectsContentChangesAndSessionLoss": true
+  }
+}

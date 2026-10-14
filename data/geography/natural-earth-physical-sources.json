@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "provider": "Natural Earth",
+  "license": "Public domain",
+  "licenseUrl": "https://www.naturalearthdata.com/about/terms-of-use/",
+  "attribution": "Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.",
+  "coordinateReference": "EPSG:4326",
+  "sources": [
+    {
+      "stem": "ne_10m_rivers_lake_centerlines",
+      "dataset": "Rivers and lake centerlines 1:10m",
+      "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_rivers_lake_centerlines.zip",
+      "edition": "5.0.0",
+      "zipBytes": 2079507,
+      "zipSha256": "ded71b01870855ccfe19b51f2ec14c9bb48fae23c0e9f3c11974d426433b5c38",
+      "expectedFeatures": 1473,
+      "expectedCoordinates": 257645,
+      "expectedComponents": 2269
+    },
+    {
+      "stem": "ne_10m_lakes",
+      "dataset": "Lakes and reservoirs 1:10m",
+      "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_lakes.zip",
+      "edition": "5.0.0",
+      "zipBytes": 2349685,
+      "zipSha256": "0803a06f9c3cb4671d89b68c48b142aad9366ba40f665245e12a913fbc61722a",
+      "expectedFeatures": 1355,
+      "expectedCoordinates": 162852,
+      "expectedComponents": 1366
+    },
+    {
+      "stem": "ne_10m_geography_regions_polys",
+      "dataset": "Physical landscape regions 1:10m",
+      "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_geography_regions_polys.zip",
+      "edition": "5.0.0",
+      "zipBytes": 2038519,
+      "zipSha256": "cb7b9db200284ed1551f20eacc7f3333e9b5f311c19f7cb2670694529f688682",
+      "expectedFeatures": 1047,
+      "expectedCoordinates": 192270,
+      "expectedComponents": 2436
+    },
+    {
+      "stem": "ne_10m_geography_regions_points",
+      "dataset": "Physical named locations 1:10m",
+      "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_geography_regions_points.zip",
+      "edition": "5.0.0",
+      "zipBytes": 87372,
+      "zipSha256": "2cf54b21fc684f0f7023886379c7ae9c5c716d8bd4c3ead19050f3a7f53e4f7d",
+      "expectedFeatures": 235,
+      "expectedCoordinates": 235,
+      "expectedComponents": 235
+    },
+    {
+      "stem": "ne_10m_geography_regions_elevation_points",
+      "dataset": "Peaks and elevation points 1:10m",
+      "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_geography_regions_elevation_points.zip",
+      "edition": "5.0.0",
+      "zipBytes": 240144,
+      "zipSha256": "c7465b5df43045c3b639ab26ce61128273c2391b597074077a55f06fe63e1c99",
+      "expectedFeatures": 711,
+      "expectedCoordinates": 711,
+      "expectedComponents": 711
+    },
+    {
+      "stem": "ne_10m_geography_marine_polys",
+      "dataset": "Marine regions 1:10m",
+      "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_geography_marine_polys.zip",
+      "edition": "5.1.0",
+      "zipBytes": 940563,
+      "zipSha256": "a2d3395904c41e718e02c3ec5bc988712164c524c236fad32d95d282ca303b2a",
+      "expectedFeatures": 306,
+      "expectedCoordinates": 58666,
+      "expectedComponents": 346
+    },
+    {
+      "stem": "ne_10m_populated_places",
+      "dataset": "Populated places 1:10m",
+      "url": "https://naciscdn.org/naturalearth/10m/cultural/ne_10m_populated_places.zip",
+      "edition": "5.1.2",
+      "zipBytes": 2811199,
+      "zipSha256": "cd149186f03d2603e0410da399b980a4357d0ac32d3a2305a49ed3dffcc41d7b",
+      "expectedFeatures": 7342,
+      "expectedCoordinates": 7342,
+      "expectedComponents": 7342
+    }
+  ]
+}

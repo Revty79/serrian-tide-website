@@ -7,3 +7,11 @@
 .shape[data-source-style=disputed]{fill:none;stroke:var(--st-warning);stroke-width:1.4;stroke-dasharray:4 3}
 .shape[data-source-style=land][data-geometry-type=LineString]{fill:none;stroke:var(--st-primary)}
 .legend{color:var(--st-text-secondary);font-size:.85rem}.classifications{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.6rem}.classifications dt{font-weight:600}.classifications dd{margin:0;overflow-wrap:anywhere}
+.shape[data-source-style=river]{fill:none;stroke:var(--st-info);stroke-width:1.2}
+.shape[data-source-style=water]{fill:var(--st-info);fill-opacity:.45;stroke:none}
+.shape[data-source-style=region]{fill:var(--st-warning);fill-opacity:.06;stroke:var(--st-warning);stroke-width:.5;stroke-opacity:.45}
+.shape[data-source-style=peak]{fill:var(--st-text-secondary);stroke:var(--st-surface);stroke-width:.6}
+.shape[data-source-style=city]{fill:var(--st-secondary);stroke:var(--st-surface);stroke-width:.6}
+.shape[data-source-style=marine]{fill:none;stroke:var(--st-info);stroke-width:.5;stroke-opacity:.35}
+.mapLabel{fill:var(--st-text-strong);stroke:var(--st-surface-deep);stroke-width:3px;stroke-linejoin:round;paint-order:stroke;cursor:pointer}
+.canvas g:focus .mapLabel{fill:var(--st-primary-text)}

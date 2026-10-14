@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { worldRequest } from "@/features/worlds/http";
 import { ordinaryKnowledge } from "@/features/worlds/knowledge-preview";
-import { boundsSchema,geographicSemanticSchema,geoId } from "@/features/worlds/geographic";
+import { boundsSchema,geographicSemanticSchema,geographicThemeSchema,geoId } from "@/features/worlds/geographic";
 import { changeGeography,geographicCatalog,geographicReading,geographicViewport } from "@/features/worlds/geographic-service";
 import { WorldError,worldReadAccess } from "@/features/worlds/world-service";
 import { geographicSample } from "@/features/worlds/geographic-samples";
@@ -16,7 +16,8 @@ export async function GET(request:Request,context:Context){return worldRequest(r
   if(q.has("feature"))return geographicReading(userId,worldId,timelineId,mapId,geoId.parse(q.get("feature")),q.has("version")?geoId.parse(q.get("version")):undefined,options);
   const bounds=q.has("bounds")?boundsSchema.parse(JSON.parse(q.get("bounds")!)):undefined,projection=q.has("projection")?z.enum(["equirectangular","mercator","planar"]).parse(q.get("projection")):undefined,lod=z.enum(["overview","regional","detail"]).parse(q.get("lod")??"overview");
   const semantics=q.has("semantics")?z.array(geographicSemanticSchema).max(3).parse(q.get("semantics")?q.get("semantics")!.split(","):[]):undefined;
-  return geographicViewport(userId,worldId,timelineId,mapId,bounds,projection,lod,options,q.get("cursor")??"",semantics);
+  const themes=q.has("themes")?z.array(geographicThemeSchema).max(9).parse(q.get("themes")?q.get("themes")!.split(","):[]):undefined;
+  return geographicViewport(userId,worldId,timelineId,mapId,bounds,projection,lod,options,q.get("cursor")??"",semantics,themes);
 });}
 export async function POST(request:Request,context:Context){return worldRequest(request,true,async userId=>{
   if(Number(request.headers.get("content-length"))>8_000_000)throw new WorldError("Geographic imports are limited to eight megabytes per atomic batch.",413);

@@ -47,3 +47,7 @@ Worlds is a standalone world-building application. Settlement, interior and dung
 ## Geo B authorization and handoff
 
 Geo A is technically approved at `2d2226b742bf045232dd9dbefd0b2429dada4e8c`. The owner separately authorized [Geo B worldwide modern Earth geography](docs/architecture/worlds-modern-earth.md), including expansion of the existing DEV Earth after verified backup and complete disposable import rehearsal. Preserve original samples, Glass Sea, source manifests/revisions, stable identities, existing Atlas artwork and ordinary privacy. Geo B stops at a clean local commit with committed application screenshots for Ember's technical review and owner visual acceptance. No remote push, deployment, Production change, shared service restart or Geo C work is authorized by this pass.
+
+## Geo C1 authorization and handoff
+
+Geo B is technically approved at `1a3793877094eed31d0fdf53004ad5fdbc608b3a`. The owner approved the [C1/C2/C3 division](docs/architecture/worlds-geo-c-scope-proposal.md) and authorized C1 first: worldwide physical vectors, source locations and major populated places in the existing DEV Earth, after full backup and disposable rehearsal. Preserve original coordinates, identities, manifests, revisions, historical records, Glass Sea and server-side ordinary/review filtering. C1 stops at a local review commit with actual application screenshots. C2 elevation/relief, C3 classified land cover and Geo D remain later work; no push, deployment, Production write or shared-service restart is authorized.

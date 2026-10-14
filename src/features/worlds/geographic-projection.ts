@@ -1,4 +1,4 @@
-import { geoArea, geoEquirectangular, geoIdentity, geoMercator, geoPath } from "d3-geo";
+import { geoArea, geoCentroid,geoEquirectangular, geoIdentity, geoMercator, geoPath } from "d3-geo";
 import { surfaceBounds, wrapLongitude, type Coordinate, type GeographicBounds, type SourceGeometry, type SpatialReference } from "./geographic";
 
 export const GEOGRAPHIC_VIEW_WIDTH=1000,GEOGRAPHIC_VIEW_HEIGHT=600;
@@ -29,6 +29,7 @@ export function geographicProjection(reference:SpatialReference,bounds:Geographi
   const scale=Math.min(width/(span*Math.PI/180),height/(north-south));
   return geoMercator().rotate([-center,0]).scale(scale).translate([width/2,height/2+scale*(south+north)/2]).clipExtent([[0,0],[width,height]]).precision(.5);
 }
-export function projectedSourcePath(geometry:SourceGeometry,reference:SpatialReference,bounds=surfaceBounds(reference),kind:ProjectionKind=reference.kind==="plane"?"planar":"equirectangular"){
-  return geoPath(geographicProjection(reference,bounds,kind)).pointRadius(4)(reference.kind==="sphere"?sphericalCopy(geometry):geometry)??"";
+export function projectedSourceLabel(geometry:SourceGeometry,reference:SpatialReference,bounds:GeographicBounds,kind:ProjectionKind){const source=reference.kind==="sphere"?sphericalCopy(geometry):geometry,center=source.type==="Point"?source.coordinates:reference.kind==="sphere"?geoCentroid(source):geoPath(geoIdentity()).centroid(source),projection=geographicProjection(reference,bounds,kind),position=reference.kind==="plane"?projection(center as [number,number]):(projection as ReturnType<typeof geoEquirectangular>)(center as [number,number]);return position&&position.every(Number.isFinite)&&position[0]>=0&&position[0]<=1000&&position[1]>=0&&position[1]<=600?{x:position[0],y:position[1],weight:source.type==="Point"?1:source.type==="LineString"||source.type==="MultiLineString"?geoPath(projection).measure(source):geoPath(projection).area(source)}:undefined;}
+export function projectedSourcePath(geometry:SourceGeometry,reference:SpatialReference,bounds=surfaceBounds(reference),kind:ProjectionKind=reference.kind==="plane"?"planar":"equirectangular",radius=4){
+  return geoPath(geographicProjection(reference,bounds,kind)).pointRadius(radius)(reference.kind==="sphere"?sphericalCopy(geometry):geometry)??"";
 }

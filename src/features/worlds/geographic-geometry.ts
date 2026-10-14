@@ -1,6 +1,6 @@
 import { geoBounds } from "d3-geo";
 import { SPHERICAL_SOURCE_EPSILON,sphericalCopy,sphericalDisplayPoint } from "./geographic-projection";
-import { coordinateCount, geometryParts, surfaceBounds, visitCoordinates, type Coordinate, type GeographicBounds, type SourceGeometry, type SpatialReference } from "./geographic";
+import { coordinateCount, geometryParts, surfaceBounds, visitCoordinates, type Coordinate, type GeographicBounds, type SourceGeometry, type SpatialReference,type SourceValidation } from "./geographic";
 
 const same=(a:Coordinate,b:Coordinate)=>a[0]===b[0]&&a[1]===b[1];
 function unwrap(points:Coordinate[],sphere:boolean){if(!sphere)return points;const result:Coordinate[]=[];for(const p of points){let x=p[0];const last=result.at(-1)?.[0];if(last!==undefined){while(x-last>180)x-=360;while(x-last< -180)x+=360;}result.push([x,p[1]]);}return result;}
@@ -22,7 +22,7 @@ function ringsIntersect(a:Coordinate[],b:Coordinate[],self=false,proper=false){
 }
 function polarPole(coordinates:Coordinate[][]){const outer=unwrap(coordinates[0].map(sphericalDisplayPoint),true);return Math.abs(outer[0][0]-outer.at(-1)![0])>180||coordinates[0].some(p=>Math.abs(p[1])>=90-SPHERICAL_SOURCE_EPSILON)?coordinates[0].reduce((sum,p)=>sum+p[1],0)>=0?1:-1:undefined;}
 function topologyRings(coordinates:Coordinate[][],sphere:boolean,commonPole?:number){
-  if(!sphere)return coordinates;
+  if(!sphere)return coordinates.map(r=>r.filter((p,i)=>i===0||!same(p,r[i-1])));
   const normalized=coordinates.map(r=>r.map(sphericalDisplayPoint));
   const pole=commonPole??polarPole(coordinates),polar=pole!==undefined;
   if(polar&&normalized.flat().some(p=>p[1]*pole!<=0))throw new Error("A supported polar cap must stay in one hemisphere.");
@@ -34,7 +34,8 @@ function topologyRings(coordinates:Coordinate[][],sphere:boolean,commonPole?:num
   });
 }
 function inside(point:Coordinate,ring:Coordinate[]){let result=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if(onSegment(a,b,point))return false;if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])result=!result;}return result;}
-export function validateSourceGeometry(geometry:SourceGeometry,reference:SpatialReference){
+function hasArea(ring:Coordinate[]){const origin=ring[0];let area=0,magnitude=0;for(let i=1;i<ring.length;i++){const p=ring[i-1],q=ring[i],a=(p[0]-origin[0])*(q[1]-origin[1]),b=(q[0]-origin[0])*(p[1]-origin[1]);area+=a-b;magnitude+=Math.abs(a)+Math.abs(b);}return Math.abs(area)>Number.EPSILON*16*magnitude;}
+export function validateSourceGeometry(geometry:SourceGeometry,reference:SpatialReference,policy:SourceValidation={}){
   const count=coordinateCount(geometry);if(count>131_072)throw new Error("One source feature supports at most 131,072 coordinates. Partition a larger dataset between complete source components.");
   if(Buffer.byteLength(JSON.stringify(geometry))+2*count+20*geometryParts(geometry).length>4_000_000)throw new Error("Partition the source between complete components to fit the four-megabyte stored geometry limit.");
   const bounds=surfaceBounds(reference),epsilon=reference.kind==="sphere"?SPHERICAL_SOURCE_EPSILON:0;visitCoordinates(geometry,p=>{if(!p.every(Number.isFinite)||p[0]<bounds[0]-epsilon||p[0]>bounds[2]+epsilon||p[1]<bounds[1]-epsilon||p[1]>bounds[3]+epsilon)throw new Error("Source coordinates must be finite and inside the declared surface domain.");});
@@ -42,17 +43,17 @@ export function validateSourceGeometry(geometry:SourceGeometry,reference:Spatial
   for(const part of parts){
     if(part.type==="LineString"&&part.coordinates.every(p=>same(p,part.coordinates[0])))throw new Error("A line needs two distinct coordinates.");
     if(part.type!=="Polygon")continue;
-    for(const raw of part.coordinates){if(!same(raw[0],raw.at(-1)!))throw new Error("Close every polygon ring with its original first coordinate.");if(new Set(raw.slice(0,-1).map(p=>p.join(','))).size<3||raw.slice(1).some((p,i)=>same(p,raw[i])))throw new Error("A polygon needs distinct vertices without repeated consecutive coordinates.");}
+    for(const raw of part.coordinates){if(!same(raw[0],raw.at(-1)!))throw new Error("Close every polygon ring with its original first coordinate.");if(new Set(raw.slice(0,-1).map(p=>p.join(','))).size<3||!policy.retainCoincidentVertices&&raw.slice(1).some((p,i)=>same(p,raw[i])))throw new Error("A polygon needs distinct vertices without repeated consecutive coordinates.");}
     const rings=topologyRings(part.coordinates,reference.kind==="sphere",commonPole);
-    for(const r of rings){if(r.length<4||!same(r[0],r.at(-1)!))throw new Error("Close every polygon ring with its original first coordinate.");if(Math.abs(r.slice(0,-1).reduce((sum,p,i)=>sum+p[0]*r[i+1][1]-r[i+1][0]*p[1],0))<1e-12||ringsIntersect(r,r,true,true))throw new Error("Polygon rings must have area and must not cross themselves or retrace edges.");}
-    for(let i=1;i<rings.length;i++){const hole=rings[i];const shift=reference.kind==="sphere"?360*Math.round((rings[0][0][0]-hole[0][0])/360):0;const aligned=hole.map(p=>[p[0]+shift,p[1]] as Coordinate);if(!inside(aligned[0],rings[0])||ringsIntersect(aligned,rings[0]))throw new Error("Each hole must stay wholly inside its outer polygon.");for(let j=1;j<i;j++)if(ringsIntersect(aligned,rings[j])||inside(aligned[0],rings[j])||inside(rings[j][0],aligned))throw new Error("Polygon holes must be separate and must not overlap.");rings[i]=aligned;}
+    for(const r of rings){if(r.length<4||!same(r[0],r.at(-1)!))throw new Error("Close every polygon ring with its original first coordinate.");const retraces=r.slice(0,-1).some((p,i)=>{const before=r[(i+r.length-2)%(r.length-1)],after=r[(i+1)%(r.length-1)];return cross(before,p,after)===0&&(p[0]-before[0])*(after[0]-p[0])+(p[1]-before[1])*(after[1]-p[1])<0;});if(retraces||!hasArea(r)||ringsIntersect(r,r,true,true))throw new Error("Polygon rings must have area and must not cross themselves or retrace edges.");}
+    for(let i=1;i<rings.length;i++){const hole=rings[i],shift=reference.kind==="sphere"?360*Math.round((rings[0][0][0]-hole[0][0])/360):0,candidates=reference.kind==="sphere"?[shift,shift-360,shift+360]:[0],aligned=candidates.map(offset=>hole.map(p=>[p[0]+offset,p[1]] as Coordinate)).find(r=>inside(r[0],rings[0])&&!ringsIntersect(r,rings[0]));if(!aligned)throw new Error("Each hole must stay wholly inside its outer polygon.");for(let j=1;j<i;j++)if(ringsIntersect(aligned,rings[j])||inside(aligned[0],rings[j])||inside(rings[j][0],aligned))throw new Error("Polygon holes must be separate and must not overlap.");rings[i]=aligned;}
   }
   const polygons=parts.filter(p=>p.type==="Polygon").map(p=>topologyRings(p.coordinates,reference.kind==="sphere",commonPole));
   for(let i=0;i<polygons.length;i++)for(let j=0;j<i;j++){
     const a=polygons[i],raw=polygons[j],shift=reference.kind==="sphere"?360*Math.round((a[0][0][0]-raw[0][0][0])/360):0,b=raw.map(r=>r.map(p=>[p[0]+shift,p[1]] as Coordinate));
     const range=(r:Coordinate[])=>[Math.min(...r.map(p=>p[0])),Math.min(...r.map(p=>p[1])),Math.max(...r.map(p=>p[0])),Math.max(...r.map(p=>p[1]))],ab=range(a[0]),bb=range(b[0]);
     if(ab[2]<=bb[0]||bb[2]<=ab[0]||ab[3]<=bb[1]||bb[3]<=ab[1])continue;
-    const contains=(p:Coordinate,rings:Coordinate[][])=>inside(p,rings[0])&&!rings.slice(1).some(r=>inside(p,r));
+    const contains=(p:Coordinate,rings:Coordinate[][])=>inside(p,rings[0])&&!rings.slice(1).some(r=>inside(p,r)||r.slice(1).some((q,k)=>onSegment(r[k],q,p)));
     const signature=(r:Coordinate[])=>r.slice(0,-1).map(p=>p.join(',')).sort().join(';');
     if(signature(a[0])===signature(b[0])||a[0].some(p=>contains(p,b))||b[0].some(p=>contains(p,a)))throw new Error("Multipolygon components must not overlap; preserve disconnected islands as separate components.");
     if(ringsIntersect(a[0],b[0],false,true))throw new Error("Multipolygon component boundaries must not cross.");
