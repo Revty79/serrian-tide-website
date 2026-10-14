@@ -20,3 +20,5 @@
 
 /* Source-backed scientific colours; surrounding interfaces use semantic theme tokens. */
 .classLegend{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.7rem}.classLegend li{display:flex;gap:.5rem;align-items:flex-start;color:var(--st-text)}.classLegend i{display:block;flex:none;width:1.25rem;height:1.25rem;border:1px solid var(--st-border-strong);background:var(--st-classification-swatch)}.classLegend small{display:block;color:var(--st-text-secondary);line-height:1.45}.classLegend .unknownSwatch{background:var(--st-surface);border-style:dashed}
+.sourceScene{isolation:isolate}.sourceScene[data-relief=true] .shape[data-source-style=land]{fill-opacity:.06}.sourceScene[data-relief=true] .shape[data-source-style=marine]{stroke-opacity:.12}.sourceScene g:focus .shape{stroke:var(--st-focus);stroke-width:3}.sourceScene g:focus .mapLabel{fill:var(--st-primary-text)}
+.imageCredits{padding:.6rem .8rem;color:var(--st-text-secondary);font-size:.75rem;line-height:1.5;overflow-wrap:anywhere;background:var(--st-surface)}.imageCredits a{color:var(--st-primary-text)}

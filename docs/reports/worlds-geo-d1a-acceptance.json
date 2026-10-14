@@ -1,0 +1,235 @@
+{
+  "startingCheckpoint": "fcf911d24641436424c7acf766baba7cebe5b10c",
+  "scope": "Geo D1-A only",
+  "runtime": {
+    "node": "v22.23.3",
+    "platform": "win32",
+    "postgresql": "18.0",
+    "linuxExecuted": false
+  },
+  "productionBuild": {
+    "passed": true,
+    "node": "v22.23.3",
+    "fingerprint": "a626f7a450ae4934c65add0ec598124f1e018772c4e37de4e821a2c5b317c430"
+  },
+  "typescript": {
+    "passed": true
+  },
+  "lint": {
+    "passed": true,
+    "existingWarnings": [
+      "scripts/worlds-stories-checks.ts:6 unused LoreFamily"
+    ]
+  },
+  "unit": {
+    "passed": 2163,
+    "failed": 0,
+    "files": 257
+  },
+  "portableProvisioning": {
+    "passed": 2,
+    "failed": 0,
+    "skipped": 1,
+    "skip": "POSIX permissions test on Windows; production guard unchanged"
+  },
+  "services": {
+    "livingHistory": {
+      "passed": 18,
+      "results": [
+        "one saved World contains two regions, settlements, political/History/dating/story sources, Realm, floor and dungeon",
+        "four substantially different periods resolve exact geography, settlements, control and competing claims",
+        "regional connections select the destination's own exact appearance and preserve shared preferences",
+        "coverage gaps remain unknown without older-source carry-forward, inferred artwork or generated events",
+        "canonical coverage, event date, source reckoning/calendar, relationship/account dates and save timestamp remain independent",
+        "display Chronology/Calendar conversions and default changes never rewrite original sources or map periods",
+        "geographic milestones and exact event/era territorial sources remain meaningful independent accounts",
+        "original story and alleged-event dates are separate; retelling reads the exact original after later edits",
+        "ordinary exact original story reading handles multiple versions and enforces current/pinned protection",
+        "branch pins are exact, navigation differs deliberately and unadopted sibling retains no parent appearances",
+        "an alternate map interpretation preserves original Primary geography, political sources and sibling isolation",
+        "read-only comparisons cover physical/political/connection differences and unknown branch coverage",
+        "shared floor/dungeon maps retain identities, World ownership, links and honest unknown dated coverage",
+        "archived geographic destinations/arrivals are suppressed by the server while retaining connection source",
+        "archive/restore and conflicts retain exact original versions and independent branch heads",
+        "ordinary whole-World sources withhold protected events, stories, calendars and all private notes",
+        "explicit Administrator review is read-only; foreign users and Players cannot traverse the integrated World",
+        "same-World references and year-zero coverage remain enforced without changing original source identities"
+      ]
+    },
+    "geography": {
+      "passed": 12,
+      "results": [
+        "real multipart Earth and authored planar holes reuse stable Atlas/place identities",
+        "concurrent deterministic import retries retain identities and current authored heads",
+        "failed imports, duplicate IDs, bad CRS, forged World/map/parent references roll back atomically",
+        "owner/ordinary/Administrator/foreign/Player restrictions filter source and legacy Atlas paths",
+        "source revision retains original, explicit request retry and stale-save conflict",
+        "source/database same-World constraints and immutable originals; replaceable display cache",
+        "bounded wrapped queries and display projections leave every authoritative record unchanged",
+        "existing four-period settlements, territories, connections, ordinary states and exact sources remain readable",
+        "protected geographic source removes previously public historical appearance selections",
+        "ordinary lore, History, milestone links and place readers omit protected geographic identities",
+        "new imports fail after earlier records were staged without partial source rows",
+        "existing Atlas/source validators retain valid and invalid decisions with an empty restore search path"
+      ]
+    }
+  },
+  "browser": {
+    "passed": 14,
+    "results": [
+      "normal Atlas editor opens rectangular worldwide Earth with both rasters and bounded source layers",
+      "authored label creation, undo/redo, save and reload preserve original map objects",
+      "source coordinates and authored artwork remain aligned through projection, zoom and pan",
+      "polygon authoring and point edits retain canonical coordinates under Mercator",
+      "worldwide, alternate and focused regional production screenshots",
+      "keyboard source selection and tool switches retain page scroll position",
+      "geographic themes and both raster layers have independent visibility",
+      "failed raster responses preserve geographic vectors and editable artwork",
+      "owner ordinary aliases and explicit Administrator review use authorized combined rendering",
+      "Atlas explorer reuses the combined canvas and preserves the editable return journey",
+      "native-touch phone pan and two-finger zoom retain geography, artwork and page position",
+      "historical year keeps its authored appearance and timeline without modern source imagery",
+      "existing protected raster fixtures redact cached images and exact tile requests in both ordinary modes",
+      "Glass Sea direct planar artwork, protected vectors, Realm privacy and legacy map scales remain usable"
+    ],
+    "errors": [],
+    "maxGeographicPageBytes": 62687,
+    "liveCurrentProtectionAndRecovery": true,
+    "nativeTouch": "Chrome mobile emulation with native CDP touch/pointer events; physical device not tested"
+  },
+  "migration": {
+    "freshAndExistingUpgrade": true,
+    "ledgerEntries": 132,
+    "newMigrations": 0,
+    "backupSha256": "fdad5711de5375bceeda8b798f34a378a823dbe5717e358a8f2a72c63e053460"
+  },
+  "preservation": {
+    "allOriginalRowsRetainedExceptExplicitEarthArtworkSave": true,
+    "originalVectorAndRasterTablesExact": true,
+    "knownEditedTables": {
+      "world": 1,
+      "world_atlas_map": 1
+    },
+    "sourceDatabaseNeverContacted": true,
+    "assetsNotWritten": true
+  },
+  "retainedAssetBundles": [
+    "236142946a5ecb368023147330d680c83617b58f967d0663eedba8fe515f77f6",
+    "2c48bcdf1f431b8f794f0838ad5bda833fcf7d0798c3c22bb0eca64044153380",
+    "2e197cfbf4136eda77f91bec578fbc69139927b878560fbb9b580125b097f9f2",
+    "432a4d3c89c3aad7f9381cb20a50ada0160e575a84eb65f3cb37df71baf47ccf",
+    "5136b690d44f0b049b0832995d610e0ebdc3ec4db7259ada605abbe4e3ba83ea",
+    "5d1afdf76e65bd44466dba0dc35fd5f9060857ce752442a35b21276bcabbcbef"
+  ],
+  "measurements": {
+    "maxGeographicPageBytes": 62687,
+    "browserHeapBytes": 34077190,
+    "scriptBytes": 536999,
+    "screenshots": "docs/screenshots/worlds-geo-d1a",
+    "buildFingerprint": "a626f7a450ae4934c65add0ec598124f1e018772c4e37de4e821a2c5b317c430",
+    "databaseBytes": 293205695,
+    "fixtureQueryRenderMs": [
+      28.584900000016205,
+      14.937099999981001,
+      13.338800000026822,
+      17.528599999961443,
+      13.206000000005588,
+      14.536499999987427,
+      15.028300000005402,
+      11.03239999996731,
+      10.990099999995437,
+      11.02980000001844,
+      12.482199999969453,
+      10.513599999947473,
+      10.92160000000149,
+      17.366399999998976,
+      14.047100000025239,
+      12.644800000009127,
+      12.15460000000894,
+      11.811299999943003,
+      10.651199999963865,
+      10.091799999994691
+    ],
+    "additionalDurableRasterBytes": 0,
+    "screenshotBytes": 3068045
+  },
+  "screenshots": [
+    {
+      "file": "docs/screenshots/worlds-geo-d1a/earth-editor-desktop.png",
+      "bytes": 902855,
+      "sha256": "47d0b6ed54b71b92eaff94eff1906081f0ef62188a6abc3a47f2ab7552de0961"
+    },
+    {
+      "file": "docs/screenshots/worlds-geo-d1a/earth-editor-phone.png",
+      "bytes": 200048,
+      "sha256": "2b649bfa77872035cfe8031577ac7402a66f64cf26445f75b87102ca2cd4ea56"
+    },
+    {
+      "file": "docs/screenshots/worlds-geo-d1a/earth-mercator-desktop.png",
+      "bytes": 743755,
+      "sha256": "621efb96398e6b4bbfc44b48bb2332f4a6c32c95cb2373e78de0b0039db03727"
+    },
+    {
+      "file": "docs/screenshots/worlds-geo-d1a/earth-regional-desktop.png",
+      "bytes": 395480,
+      "sha256": "82b98b8ba43217936b73efd08c06b32fabee977f80774b27a0bc4f09af45ee1e"
+    },
+    {
+      "file": "docs/screenshots/worlds-geo-d1a/earth-worldwide-phone.png",
+      "bytes": 189605,
+      "sha256": "5ff3a2ebee907c81bc97daab2d53d37e9515f372a2beaec9361a47b92a17f836"
+    },
+    {
+      "file": "docs/screenshots/worlds-geo-d1a/glass-sea-editor-desktop.png",
+      "bytes": 391661,
+      "sha256": "21acdee00b196ba0ca3a0e3ce0a1b9fbd0bfdffe7f9b714c77830afd0cb3b4d3"
+    },
+    {
+      "file": "docs/screenshots/worlds-geo-d1a/historical-editor-desktop.png",
+      "bytes": 244641,
+      "sha256": "b24149034f6e7a8233e474898c553d333c7d71af466612f11588b99df1e76466"
+    }
+  ],
+  "modifiedFiles": [
+    "AGENTS.md",
+    "docs/architecture/worlds-geo-d1a.md",
+    "docs/architecture/worlds-map-maker-decisions.md",
+    "docs/reports/worlds-geo-d1a-2026-10-14.md",
+    "docs/reports/worlds-geo-d1a-acceptance.json",
+    "docs/screenshots/worlds-geo-d1a/earth-editor-desktop.png",
+    "docs/screenshots/worlds-geo-d1a/earth-editor-phone.png",
+    "docs/screenshots/worlds-geo-d1a/earth-mercator-desktop.png",
+    "docs/screenshots/worlds-geo-d1a/earth-regional-desktop.png",
+    "docs/screenshots/worlds-geo-d1a/earth-worldwide-phone.png",
+    "docs/screenshots/worlds-geo-d1a/glass-sea-editor-desktop.png",
+    "docs/screenshots/worlds-geo-d1a/historical-editor-desktop.png",
+    "scripts/worlds-geo-d1a-browser.ts",
+    "scripts/worlds-geo-d1a-checks.ts",
+    "scripts/worlds-geo-d1a-harness.ts",
+    "src/features/worlds/atlas-explorer.tsx",
+    "src/features/worlds/atlas-geographic-frame.test.ts",
+    "src/features/worlds/atlas-geographic-frame.ts",
+    "src/features/worlds/atlas-geographic-gestures.ts",
+    "src/features/worlds/atlas-geographic-workspace.tsx",
+    "src/features/worlds/atlas-map-editor.tsx",
+    "src/features/worlds/atlas-workspace.tsx",
+    "src/features/worlds/atlas.module.css",
+    "src/features/worlds/cartography-controls.tsx",
+    "src/features/worlds/cartography-scene.tsx",
+    "src/features/worlds/elevation-workspace.tsx",
+    "src/features/worlds/geographic-credits.tsx",
+    "src/features/worlds/geographic-scene.tsx",
+    "src/features/worlds/geographic-workspace.tsx",
+    "src/features/worlds/geographic.module.css",
+    "src/features/worlds/historical-map-workspace.tsx",
+    "src/features/worlds/land-cover-workspace.tsx"
+  ],
+  "review": {
+    "independentTechnicalInspection": "pending Ember",
+    "ownerVisualAcceptance": "pending",
+    "remotePush": false,
+    "productionContact": false,
+    "sharedServiceRestart": false,
+    "nextPhaseImplemented": false
+  }
+}

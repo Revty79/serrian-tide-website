@@ -20,6 +20,8 @@ During D1, visually verify the intended full-world presentation in the actual ap
 
 ## Geo D increments
 
+The owner separately authorized [D1-A unified Geographic Atlas foundation](worlds-geo-d1a.md) from approved `fcf911d24641436424c7acf766baba7cebe5b10c`. Its local implementation does not authorize D1-B or later increments, push or deployment.
+
 | Pass | Required usable result |
 | --- | --- |
 | D1 — Unified Map Maker | Combine imported geographic vectors, C2 relief, C3 classifications and creator-authored Atlas content in the actual working Map Maker. Remove the confusing blank-Atlas separation. Deliver stable pan, deep zoom and navigation using available geographic detail. Resolve automatic screen jumping, including source-reader and workspace scrolling. |

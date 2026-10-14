@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Geo D1-A authorization
+
+The owner independently approved the C2/C3 correction at `fcf911d24641436424c7acf766baba7cebe5b10c` and authorized [Geo D1-A unified Geographic Atlas foundation](docs/architecture/worlds-geo-d1a.md). Reuse existing geographic/raster services inside the normal Atlas Map Maker, preserve editable source artwork, exact identities, history, privacy, fictional surfaces and connected maps, and verify rectangular Earth, alignment, desktop/keyboard/native touch and production rendering. Stop at a clean local review commit for Ember and owner visual review. No remote push, Production contact/change, deployment, shared-service restart, D1-B or subsequent phase is authorized. Earlier pass sync permissions do not apply.
+
 ## Shared appearance
 
 All new or modified interfaces must use the shared semantic theme variables for appearance colors. Extend the shared system when necessary instead of introducing independent page palettes.

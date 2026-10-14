@@ -25,16 +25,7 @@ import { AtlasMapEditor } from "./atlas-map-editor";
 import { HistoricalMapWorkspace } from "./historical-map-workspace";
 import styles from "./atlas.module.css";
 
-function AtlasWorkshopView({context,children}:{context:string;children:ReactNode}){
-  const ref=useRef<HTMLDivElement>(null);
-  useEffect(()=>{
-    const root=ref.current;if(!root)return;
-    const ready=()=>{if(!root.querySelector('[aria-label="Explorable geographic map"],[aria-label="Map editor"],[aria-label="Settlement editor"],[aria-label="Interior floor-plan editor"],[aria-label="Dungeon Workshop"],[data-geographic-ready="true"]'))return false;root.scrollIntoView({block:"start"});return true;};
-    if(ready())return;
-    const observer=new MutationObserver(()=>{if(ready())observer.disconnect();});observer.observe(root,{childList:true,subtree:true});return()=>observer.disconnect();
-  },[context]);
-  return <div ref={ref} style={{scrollMarginTop:"calc(var(--st-navigation-height, 5rem) + 1rem)"}}>{children}</div>;
-}
+function AtlasWorkshopView({children}:{context:string;children:ReactNode}){return <div>{children}</div>;}
 
 export function AtlasWorkspace({worldId,worldName,review,onDirtyChange,timelineId,timelineName,timelineArchived,eras,onHistoryChanged,timelines}:{worldId:string;worldName:string;review:boolean;onDirtyChange:(dirty:boolean)=>void;timelineId:string;timelineName:string;timelineArchived:boolean;eras:EraRecord[];onHistoryChanged:()=>Promise<unknown>;timelines:WorldTimeline[]}) {
   const params=useSearchParams(),exploring=params.get("atlas"),ordinary=ordinaryKnowledge(params),geographyOpen=params.get("geography")==="1";
@@ -52,10 +43,10 @@ export function AtlasWorkspace({worldId,worldName,review,onDirtyChange,timelineI
   const api=`/api/worlds/${worldId}/atlas`,[loaded,setLoaded]=useState<{context:string;bundle:AtlasBundle}|null>(null),[selectedMap,setSelected]=useState<AtlasMap|null>(null),[recordEditor,setRecordEditor]=useState<AtlasRecordTarget|null>(null),[archived,setArchived]=useState(false),[error,setError]=useState(""),[pending,setPending]=useState(false),[generator,setGenerator]=useState<{source:AtlasMap|null}|null>(null);
   const context=`${api}:${review}:${ordinary}`,bundle=loaded?.context===context?loaded.bundle:null,selected=bundle?.maps.find(m=>m.id===selectedMap?.id)??null;
   const setBundle=useCallback((value:AtlasBundle)=>{setLoaded({context,bundle:value});},[context]);
-  const requestedPlace=params.get("place"),requestedEditor=params.get("editMap");
+  const requestedPlace=params.get("place"),requestedEditor=params.get("editMap"),visitedPlace=useRef("");
   function editorUrl(id:string|null){const url=new URL(window.location.href);if(id)url.searchParams.set("editMap",id);else url.searchParams.delete("editMap");window.history.replaceState({atlasTrail:window.history.state?.atlasTrail??[]},"",url.pathname+url.search);}
   useEffect(()=>{if(exploring||!requestedEditor||selected?.id===requestedEditor)return;let alive=true;worldApi<AtlasBundle>(`${api}?map=${requestedEditor}${review?"&review=1":""}${ordinary?"&ordinary=1":""}`).then(fresh=>{if(alive){const target=fresh.maps.find(m=>m.id===requestedEditor);if(target&&["generic","settlement"].includes(target.mapKind??"generic")){setBundle(fresh);setSelected(target);}}}).catch(e=>{if(alive)setError(e.message);});return()=>{alive=false;};},[requestedEditor,api,review,ordinary,exploring,selected?.id,setBundle]);
-  useEffect(()=>{if(bundle&&requestedPlace&&!exploring)document.getElementById(`world-place-${requestedPlace}`)?.scrollIntoView({block:"center"});},[bundle,requestedPlace,exploring]);
+  useEffect(()=>{const key=`${worldId}:${requestedPlace}`;if(bundle&&requestedPlace&&!exploring&&!selected&&!geographyOpen&&visitedPlace.current!==key){const element=document.getElementById(`world-place-${requestedPlace}`);if(element){visitedPlace.current=key;element.scrollIntoView({block:"center"});}}},[bundle,requestedPlace,exploring,selected,geographyOpen,worldId]);
   useEffect(()=>{if(exploring||geographyOpen)return;let alive=true;worldApi<AtlasBundle>(`${api}${review?"?review=1":""}${ordinary?`${review?"&":"?"}ordinary=1`:""}`).then(b=>{if(alive)setBundle(b);}).catch(e=>{if(alive)setError(e.message);});return()=>{alive=false;};},[api,review,ordinary,exploring,geographyOpen,setBundle]);
   async function loadMap(id:string){const fresh=await worldApi<AtlasBundle>(`${api}?map=${id}${review?"&review=1":""}${ordinary?"&ordinary=1":""}`);setBundle(fresh);return fresh;}
   async function openMap(m:AtlasMap){setError("");try{const fresh=await loadMap(m.id);setBackground(false);setSelected(fresh?.maps.find(n=>n.id===m.id)??null);if(["generic","settlement"].includes(m.mapKind??"generic"))editorUrl(m.id);}catch(e){setError((e as Error).message);}}
