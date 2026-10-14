@@ -1,0 +1,41 @@
+# Geo C3: dated categorical land cover
+
+Owner-authorized from independently approved Geo C2 `6224fb6beaf71b552d504f7bd49373e8c27d529e`. This pass adds a complete classification reference and integrated viewer, without climate simulation, historical vegetation inference or Geo D authoring controls.
+
+## Selected source and limits
+
+ESA WorldCover 2021 v200 supplies eleven categorical codes under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The [provider access page](https://esa-worldcover.org/en/data-access) and [product manual](https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/docs/WorldCover_PUM_V2.0.pdf) define the taxonomy, observation period, registration and exclusions. The frozen deployment source is the **publisher's UInt8 categorical overview, TIFF image 6**, from all 2,651 published COGs. It is not satellite RGB, numerical relief or generated vegetation.
+
+Each selected tile has 562 × 562 area cells over its original 3-degree EPSG:4326 extent. The shared grid has 67,440 × 33,720 cells, approximately 594 metres north–south spacing; longitude spacing varies with latitude. This is an approximately 600-metre reference, **not a locally retained 10-metre product**. The overview algorithm is not specified in publisher metadata; bounded native-window comparisons are consistent with majority classification, including cells differing from the native centre pixel. That evidence does not establish the publisher algorithm everywhere. Native source accuracy figures must not be represented as measured overview accuracy.
+
+Observations cover January–December 2021. The provider excludes Antarctica and areas north of 82.75°N. Unpublished areas and original code 0 remain NoData, including open ocean without a published classification. Neither ocean nor snow is invented to fill gaps. Mixed overview cells can suppress small settlements, narrow wetlands and other minority classes. No per-cell confidence layer was supplied by the selected overview. A retained class identity is a source account, not verified species, biome, climate, sovereignty or historical land cover.
+
+Original selected values are losslessly retained as checksummed UInt8 gzip tiles. `source/index.json` freezes original bounds, provider URLs, edition, image index, object bytes, validators and every selected payload/value checksum. Multipart ETags are conditional download validators, **not full-native-file SHA-256 hashes**. No claim is made to have downloaded or checksummed the approximately 117-GB native archive. The index and row-major selected values have independent SHA-256 receipts; all transformed assets have individual SHA-256 hashes.
+
+The frozen small source receipt and original taxonomy are in `data/geography/worldcover-land-cover.json`. Required attribution accompanies the legend and source reader. Copernicus 100-metre products were considered, but their native global payloads and access requirements do not provide a comparably bounded unauthenticated overview. The NASA MCD12C1 alternative has a much coarser majority grid and an authenticated original container exceeding this storage budget.
+
+## Categorical processing and universal coordinates
+
+Codes are never interpolated or averaged. Presentation levels 2, 4, 8, 16, 32 and 64 use direct majority area of **original selected overview cells**, not mode of previously generalized modes. Planar cells have equal area; explicitly angular surfaces use latitude-band sine-area weights, without assuming an Earth radius or terrestrial datum. NoData participates in area selection. Exact ties choose NoData, then the smallest class code. This deterministic tie policy does not create confidence estimates. Partial edge cells retain their original registration.
+
+Original planar and authored-angular disposable fixtures supply their own coordinate references, bounds, class names, uncertain-class status and NoData code. Source-derived classifications and creator-authored classifications share the model, with distinct provenance. There is no unfinished public importer or biome generator.
+
+## Storage, privacy and projection
+
+Migration **0131** adds `world_categorical_raster_view` with composite same-World/map/surface/source constraints and admits `classification` assets in the existing immutable raster asset registry. Sources, versions, current heads, author attribution, immutable triggers and private bundles reuse C2 infrastructure. Numerical manifests remain version 1; categorical manifests are version 2 with explicit semantics. Services reject a manifest from the other domain. No applied migration, ETOPO asset, numerical value or existing head is rewritten. All 115 User foreign keys retain their established account-deletion policy.
+
+The same `SERRIAN_RASTER_ROOT` private volume stores both domains. Nothing is served from `public`. Every metadata, native class and tile request rechecks ownership/review, World, timeline, map, surface, Realm, current head, selected version, protection, archive and context stamp. Both ordinary aliases use server filtering. A restricted old version remains restricted after the current source becomes ordinary. Administrator review and ordinary viewing offer local presentation controls but no saved-source/presentation mutations.
+
+Categorical staging shares byte-identical immutable files through hardlinks inside each private bundle, with at most 512 links per physical file. Every logical source/display key and checksum remains retained; links never point into the preparation directory or C2 bundles. Numerical staging remains unchanged. The deployed volume must support hardlinks and suitable allocation units; copying all aliases into separate files wastes the storage budget. Hardlink-aware backup/restore or verified restaging from the frozen manifest preserves the layout. Integrity checks verify every logical asset after staging and recovery. Hosting allocation must be rechecked if filesystem geometry differs from the tested 4-KiB/NTFS volumes.
+
+Delivery selects at most 16 lossless 256-pixel classification tiles, with at most four concurrent requests per layer and a 1-MB per-tile bound. C2 remains independent. Both use the vector viewer's inverse projection, fit-to-panel extent, dateline wrapping, planar coordinates and Mercator polar limits. Bounded 1,000 × 600 mosaics close decoded bitmaps and discard old context data. Independent failed tiles retain authorized successful tiles; access errors clear the affected layer. A failed categorical request does not clear relief or vectors. Retry and periodic current-authorization checks remain available.
+
+## Presentation and release boundary
+
+The stack is relief, translucent categorical imagery, preserved geographic vectors and labels. Show/hide and strength are independent for relief and land cover; saved owner preferences participate in unsaved-draft protection. The accessible class legend preserves source names/codes and distinguishes unknown and explicitly uncertain classes. Source readers expose retained class values and dated provenance separately from numerical height readers. The modern source remains explicitly dated regardless of selected Living History year.
+
+Saved revision accounts are readable for authors and explicit Administrator review. Ordinary responses omit those accounts on the server before serialization.
+
+Surrounding interfaces use shared semantic theme variables. Scientific source class RGB values populate the shared `--st-classification-swatch` role; they are categorical data encodings, not a page palette. Unknown swatches use semantic surface/border tokens and visible text. Colour is never the sole class identifier.
+
+Deployment requires the whole private categorical bundle, migration 0131 after 0130 and the existing application configuration; no provider credentials or runtime remote-map service is required. See the completion receipt for exact budget, integrity, migration, restoration and browser measurements. Code rollback does not undo additive schema or imported source records. Restore the paired verified database/private-volume backup for exact recovery; never delete originals to make an older application run. This pass stops at local independent review, with push, deployment and Geo D requiring separate owner authorization.

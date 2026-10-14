@@ -1,0 +1,263 @@
+{
+  "version": 1,
+  "name": "ESA WorldCover 2021 categorical overview",
+  "externalId": "ESA:WorldCover:2021:v200:categorical-overview-64",
+  "source": {
+    "provider": "ESA WorldCover consortium",
+    "dataset": "WorldCover 2021 v200 publisher categorical overviews",
+    "edition": "2021 v200; selected GeoTIFF image 6",
+    "url": "https://esa-worldcover.org/en/data-access",
+    "license": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium",
+    "sha256": "5147450d7e8045d62b31b636cf798ceecddce53a1b3901ad60f286e62bb40416",
+    "observationPeriod": "1 January to 31 December 2021",
+    "resolution": "Provider categorical overview: 562 by 562 pixels per 3-degree tile; approximately 594 m north-south spacing",
+    "interpretation": "Selected original is the publisher's categorical overview, not the 10-m native grid. Antarctica and areas north of 82.75 degrees N are not classified by this provider. Provider object ETags are validators, not claimed full-file SHA-256 checksums. Extracted overview payloads and values have independently verified SHA-256 checksums. Publisher overview generation is not specified in TIFF metadata; representative mixed cells match native modes. Subsequent application aggregation uses explicit area-weighted mode, never averages class codes. Display aggregation uses categorical area mode with NoData; mixed overview cells suppress minority classes and are not a confidence estimate. Modern reference only: no historical vegetation, agriculture, climate or biome is inferred."
+  },
+  "grid": {
+    "width": 67440,
+    "height": 33720,
+    "bounds": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "registration": "area",
+    "horizontalReference": "EPSG:4326",
+    "noData": 0,
+    "encoding": "categorical-u8-tiles",
+    "sourceTileSize": 562
+  },
+  "classes": [
+    {
+      "code": 10,
+      "name": "Tree cover",
+      "definition": "Areas with at least 10% tree cover, including plantations and freshwater flooded tree cover; mangroves have their separate class.",
+      "color": [
+        0,
+        100,
+        0
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 20,
+      "name": "Shrubland",
+      "definition": "Natural woody shrubs under 5 metres with at least 10% cover; scattered trees have less than 10% cover.",
+      "color": [
+        255,
+        187,
+        34
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 30,
+      "name": "Grassland",
+      "definition": "Natural herbaceous cover of at least 10%, including pastures and grass-dominated savannas; woody cover is below 10%.",
+      "color": [
+        255,
+        255,
+        76
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 40,
+      "name": "Cropland",
+      "definition": "Annual herbaceous crops planted and harvestable within the reference year. Woody perennial crops use tree or shrub classes.",
+      "color": [
+        240,
+        150,
+        255
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 50,
+      "name": "Built-up",
+      "definition": "Buildings, roads and other constructed surfaces; urban green space is excluded.",
+      "color": [
+        250,
+        0,
+        0
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 60,
+      "name": "Bare / sparse vegetation",
+      "definition": "Exposed soil, sand or rock with vegetation cover no greater than 10% during the observation year. This does not identify a climate.",
+      "color": [
+        180,
+        180,
+        180
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 70,
+      "name": "Snow and ice",
+      "definition": "Persistent snow or glaciers, according to the observation-year source classification.",
+      "color": [
+        240,
+        240,
+        240
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 80,
+      "name": "Permanent water bodies",
+      "definition": "Water present for more than nine months of the year, including lakes, reservoirs, rivers and observed coastal water.",
+      "color": [
+        0,
+        100,
+        200
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 90,
+      "name": "Herbaceous wetland",
+      "definition": "Natural herbaceous vegetation regularly or permanently flooded by fresh, brackish or salt water; tree cover and mangroves have separate classes.",
+      "color": [
+        0,
+        150,
+        160
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 95,
+      "name": "Mangroves",
+      "definition": "Salt-tolerant woody vegetation in sheltered tropical intertidal shores and estuaries.",
+      "color": [
+        0,
+        207,
+        117
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 100,
+      "name": "Moss and lichen",
+      "definition": "Land classified as moss or lichen cover by the source; no climate or species is inferred.",
+      "color": [
+        250,
+        230,
+        160
+      ],
+      "status": "classified"
+    }
+  ],
+  "sourceTiles": 2651,
+  "originalValuesSha256": "dd1591a11a3ae29c76d1f9bdaf29f55b19739ea275bb513f83717ca4597ad169",
+  "bundleSha256": "5136b690d44f0b049b0832995d610e0ebdc3ec4db7259ada605abbe4e3ba83ea",
+  "levels": [
+    {
+      "factor": 1,
+      "width": 67440,
+      "height": 33720,
+      "method": "original-categorical"
+    },
+    {
+      "factor": 2,
+      "width": 33720,
+      "height": 16860,
+      "method": "area-mode-with-nodata"
+    },
+    {
+      "factor": 4,
+      "width": 16860,
+      "height": 8430,
+      "method": "area-mode-with-nodata"
+    },
+    {
+      "factor": 8,
+      "width": 8430,
+      "height": 4215,
+      "method": "area-mode-with-nodata"
+    },
+    {
+      "factor": 16,
+      "width": 4215,
+      "height": 2108,
+      "method": "area-mode-with-nodata"
+    },
+    {
+      "factor": 32,
+      "width": 2108,
+      "height": 1054,
+      "method": "area-mode-with-nodata"
+    },
+    {
+      "factor": 64,
+      "width": 1054,
+      "height": 527,
+      "method": "area-mode-with-nodata"
+    }
+  ],
+  "statistics": {
+    "validCells": 615322817,
+    "noDataCells": 1658753983,
+    "classCounts": [
+      {
+        "code": 10,
+        "cells": 180782347
+      },
+      {
+        "code": 20,
+        "cells": 30032350
+      },
+      {
+        "code": 30,
+        "cells": 123665658
+      },
+      {
+        "code": 40,
+        "cells": 47470433
+      },
+      {
+        "code": 50,
+        "cells": 2535664
+      },
+      {
+        "code": 60,
+        "cells": 78660258
+      },
+      {
+        "code": 70,
+        "cells": 24622610
+      },
+      {
+        "code": 80,
+        "cells": 90730800
+      },
+      {
+        "code": 90,
+        "cells": 12416337
+      },
+      {
+        "code": 95,
+        "cells": 499806
+      },
+      {
+        "code": 100,
+        "cells": 23906554
+      }
+    ],
+    "originalValuesSha256": "dd1591a11a3ae29c76d1f9bdaf29f55b19739ea275bb513f83717ca4597ad169"
+  },
+  "download": {
+    "sourceTiles": 2651,
+    "requests": 3489,
+    "fetchedBytes": 228655104,
+    "retainedBytes": 58954632,
+    "catalogSha256": "2a1f0e5e5d41563460a12d8ac35bae77ff7e6dcb7ccd105ac2ea9a966a1445a3",
+    "sourceIndexSha256": "5147450d7e8045d62b31b636cf798ceecddce53a1b3901ad60f286e62bb40416"
+  },
+  "nativeArchiveDownloaded": false
+}

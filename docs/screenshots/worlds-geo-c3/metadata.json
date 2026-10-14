@@ -1,0 +1,186 @@
+{
+  "startingCheckpoint": "6224fb6beaf71b552d504f7bd49373e8c27d529e",
+  "application": "Next.js optimized production build, authenticated disposable populated DEV restore",
+  "world": "981b883d-17a1-4603-b003-1053968e4f6c",
+  "map": "dd7cdb89-e5c1-4553-a8d1-0934f36f6c8c",
+  "timeline": "f364f134-8f75-423b-be5c-bdd9a5da3a41",
+  "source": {
+    "provider": "ESA WorldCover consortium",
+    "dataset": "WorldCover 2021 v200 publisher categorical overviews",
+    "edition": "2021 v200; selected GeoTIFF image 6",
+    "url": "https://esa-worldcover.org/en/data-access",
+    "license": "Creative Commons Attribution 4.0 International",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "ESA WorldCover project 2021 / Contains modified Copernicus Sentinel data (2021) processed by ESA WorldCover consortium",
+    "sha256": "5147450d7e8045d62b31b636cf798ceecddce53a1b3901ad60f286e62bb40416",
+    "observationPeriod": "1 January to 31 December 2021",
+    "resolution": "Provider categorical overview: 562 by 562 pixels per 3-degree tile; approximately 594 m north-south spacing",
+    "interpretation": "Selected original is the publisher's categorical overview, not the 10-m native grid. Antarctica and areas north of 82.75 degrees N are not classified by this provider. Provider object ETags are validators, not claimed full-file SHA-256 checksums. Extracted overview payloads and values have independently verified SHA-256 checksums. Publisher overview generation is not specified in TIFF metadata; representative mixed cells match native modes. Subsequent application aggregation uses explicit area-weighted mode, never averages class codes. Display aggregation uses categorical area mode with NoData; mixed overview cells suppress minority classes and are not a confidence estimate. Modern reference only: no historical vegetation, agriculture, climate or biome is inferred."
+  },
+  "originalGrid": {
+    "width": 67440,
+    "height": 33720,
+    "bounds": [
+      -180,
+      -90,
+      180,
+      90
+    ],
+    "registration": "area",
+    "horizontalReference": "EPSG:4326",
+    "noData": 0,
+    "encoding": "categorical-u8-tiles",
+    "sourceTileSize": 562
+  },
+  "legend": [
+    {
+      "code": 10,
+      "name": "Tree cover",
+      "definition": "Areas with at least 10% tree cover, including plantations and freshwater flooded tree cover; mangroves have their separate class.",
+      "color": [
+        0,
+        100,
+        0
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 20,
+      "name": "Shrubland",
+      "definition": "Natural woody shrubs under 5 metres with at least 10% cover; scattered trees have less than 10% cover.",
+      "color": [
+        255,
+        187,
+        34
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 30,
+      "name": "Grassland",
+      "definition": "Natural herbaceous cover of at least 10%, including pastures and grass-dominated savannas; woody cover is below 10%.",
+      "color": [
+        255,
+        255,
+        76
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 40,
+      "name": "Cropland",
+      "definition": "Annual herbaceous crops planted and harvestable within the reference year. Woody perennial crops use tree or shrub classes.",
+      "color": [
+        240,
+        150,
+        255
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 50,
+      "name": "Built-up",
+      "definition": "Buildings, roads and other constructed surfaces; urban green space is excluded.",
+      "color": [
+        250,
+        0,
+        0
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 60,
+      "name": "Bare / sparse vegetation",
+      "definition": "Exposed soil, sand or rock with vegetation cover no greater than 10% during the observation year. This does not identify a climate.",
+      "color": [
+        180,
+        180,
+        180
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 70,
+      "name": "Snow and ice",
+      "definition": "Persistent snow or glaciers, according to the observation-year source classification.",
+      "color": [
+        240,
+        240,
+        240
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 80,
+      "name": "Permanent water bodies",
+      "definition": "Water present for more than nine months of the year, including lakes, reservoirs, rivers and observed coastal water.",
+      "color": [
+        0,
+        100,
+        200
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 90,
+      "name": "Herbaceous wetland",
+      "definition": "Natural herbaceous vegetation regularly or permanently flooded by fresh, brackish or salt water; tree cover and mangroves have separate classes.",
+      "color": [
+        0,
+        150,
+        160
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 95,
+      "name": "Mangroves",
+      "definition": "Salt-tolerant woody vegetation in sheltered tropical intertidal shores and estuaries.",
+      "color": [
+        0,
+        207,
+        117
+      ],
+      "status": "classified"
+    },
+    {
+      "code": 100,
+      "name": "Moss and lichen",
+      "definition": "Land classified as moss or lichen cover by the source; no climate or species is inferred.",
+      "color": [
+        250,
+        230,
+        160
+      ],
+      "status": "classified"
+    }
+  ],
+  "projection": "equirectangular",
+  "ordinary": true,
+  "relief": "ETOPO 2022 v1 60s ice surface, northwest-light shaded relief, opacity 0.85",
+  "classificationOpacity": 0.45,
+  "screenshots": [
+    {
+      "file": "global-land-cover-relief.png",
+      "sha256": "5df18756807d6f4d9b6d5763198ed2403e979cb7db5a379811e5476817ed793c",
+      "extent": [
+        -180,
+        -90,
+        180,
+        90
+      ],
+      "classificationFactor": 64,
+      "reliefFactor": 20,
+      "limits": "2021 categorical reference; approximately 594 m original overview. Mixed majority display can suppress minority classes. Antarctica and north of 82.75 N are unknown in this provider. Modern reference does not establish selected-year historical land cover."
+    },
+    {
+      "file": "regional-land-cover-relief.png",
+      "sha256": "0fc3ed4513d0de41a97f25e4a4630200b8ad4c4815a89b5ff991686cf4ba2922",
+      "extent": "Longitude / latitude extent: 72.50074913828689, 23.838696600384694, 98.68372032969319, 36.93304474491593 · degrees · regional sources",
+      "classificationFactor": 8,
+      "reliefFactor": 2,
+      "limits": "2021 categorical reference; approximately 594 m original overview. Mixed majority display can suppress minority classes. Antarctica and north of 82.75 N are unknown in this provider. Modern reference does not establish selected-year historical land cover."
+    }
+  ],
+  "completeProgressiveVectorCoverage": true
+}

@@ -33,18 +33,18 @@ export const rasterCommandSchema=z.discriminatedUnion("action",[
   z.object({action:z.literal("preferences"),mapId:geoId,timelineId:geoId,sourceId:geoId,revision:z.number().int().positive(),preferences:rasterPreferencesSchema}).strict(),
   z.object({action:z.literal("revise"),mapId:geoId,timelineId:geoId,sourceId:geoId,revision:z.number().int().positive(),requestId:geoId,note:z.string().trim().min(1).max(4000),protected:z.boolean(),archived:z.boolean()}).strict(),
 ]);
-export function rasterTilePlan(grid:RasterGrid,levels:RasterLevel[],extent:GeographicBounds,style:z.infer<typeof rasterStyleSchema>):{level:RasterLevel;tiles:RasterTile[]}{
+export function rasterTilePlan<L extends Pick<RasterLevel,"factor"|"width"|"height">>(grid:Pick<RasterGrid,"bounds"|"width"|"height">,levels:L[],extent:GeographicBounds,style:z.infer<typeof rasterStyleSchema>|"classification"):{level:L;tiles:RasterTile[]}{
   for(const level of levels){const tiles=new Map<string,RasterTile>(),[west,south,east,north]=grid.bounds;
     for(const e of splitExtent(extent)){const a=Math.max(west,e[0]),b=Math.max(south,e[1]),c=Math.min(east,e[2]),d=Math.min(north,e[3]);if(a>=c||b>=d)continue;
       const firstX=Math.floor((a-west)/(east-west)*grid.width/level.factor/256),lastX=Math.min(Math.ceil(level.width/256)-1,Math.ceil((c-west)/(east-west)*grid.width/level.factor/256)-1),firstY=Math.floor((north-d)/(north-south)*grid.height/level.factor/256),lastY=Math.min(Math.ceil(level.height/256)-1,Math.ceil((north-b)/(north-south)*grid.height/level.factor/256)-1);
-      for(let y=firstY;y<=lastY;y++)for(let x=firstX;x<=lastX;x++){const key=`${style}/${level.factor}/${x}-${y}.webp`;tiles.set(key,{x,y,width:Math.min(256,level.width-x*256),height:Math.min(256,level.height-y*256),key});if(tiles.size>RASTER_VIEW_TILES)break;}
+      for(let y=firstY;y<=lastY;y++)for(let x=firstX;x<=lastX;x++){const key=`${style}/${level.factor}/${x}-${y}.${style==="classification"?"png":"webp"}`;tiles.set(key,{x,y,width:Math.min(256,level.width-x*256),height:Math.min(256,level.height-y*256),key});if(tiles.size>RASTER_VIEW_TILES)break;}
     }
     if(tiles.size<=RASTER_VIEW_TILES)return {level,tiles:[...tiles.values()]};
   }
   throw new Error("Zoom closer to read this raster within the bounded tile budget.");
 }
-export function rasterPixel(grid:RasterGrid,x:number,y:number){const [w,s,e,n]=grid.bounds;if(x<w||x>e||y<s||y>n)return null;return {column:Math.min(grid.width-1,Math.floor((x-w)/(e-w)*grid.width)),row:Math.min(grid.height-1,Math.floor((n-y)/(n-s)*grid.height))};}
-export function validateRasterReference(grid:RasterGrid,reference:SpatialReference){if(grid.horizontalReference!==reference.crs)throw new Error("The raster coordinate reference does not match this original surface.");const b=reference.kind==="plane"?reference.bounds:[-180,-90,180,90];if(grid.bounds[0]<b[0]||grid.bounds[1]<b[1]||grid.bounds[2]>b[2]||grid.bounds[3]>b[3])throw new Error("The raster lies outside this original coordinate surface.");if(grid.horizontalScale.latitudeAdjusted&&reference.kind!=="sphere")throw new Error("Latitude adjustment belongs to an explicitly angular surface.");}
+export function rasterPixel(grid:Pick<RasterGrid,"bounds"|"width"|"height">,x:number,y:number){const [w,s,e,n]=grid.bounds;if(x<w||x>e||y<s||y>n)return null;return {column:Math.min(grid.width-1,Math.floor((x-w)/(e-w)*grid.width)),row:Math.min(grid.height-1,Math.floor((n-y)/(n-s)*grid.height))};}
+export function validateRasterReference(grid:Pick<RasterGrid,"bounds"|"horizontalReference">&Partial<Pick<RasterGrid,"horizontalScale">>,reference:SpatialReference){if(grid.horizontalReference!==reference.crs)throw new Error("The raster coordinate reference does not match this original surface.");const b=reference.kind==="plane"?reference.bounds:[-180,-90,180,90];if(grid.bounds[0]<b[0]||grid.bounds[1]<b[1]||grid.bounds[2]>b[2]||grid.bounds[3]>b[3])throw new Error("The raster lies outside this original coordinate surface.");if(grid.horizontalScale?.latitudeAdjusted&&reference.kind!=="sphere")throw new Error("Latitude adjustment belongs to an explicitly angular surface.");}
 
 // Scientific elevation stops, shared with the semantic legend variables. They
 // describe numerical heights, rather than a page-specific appearance palette.

@@ -17,3 +17,6 @@
 .canvas g:focus .mapLabel{fill:var(--st-primary-text)}
 
 .relief{border-top:1px solid var(--st-border);padding-top:1rem;margin-top:1rem}.canvas[data-relief=true] .shape[data-source-style=land]{fill-opacity:.06}.canvas[data-relief=true] .shape[data-source-style=marine]{stroke-opacity:.12}.elevationLegend{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;color:var(--st-text-secondary);font-size:.85rem}.elevationLegend i{height:1rem;width:7rem;background:linear-gradient(to right,var(--st-terrain-deep),var(--st-terrain-zero));border:1px solid var(--st-border-strong)}.elevationLegend i:last-of-type{background:linear-gradient(to right,var(--st-terrain-low),var(--st-terrain-high))}
+
+/* Source-backed scientific colours; surrounding interfaces use semantic theme tokens. */
+.classLegend{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.7rem}.classLegend li{display:flex;gap:.5rem;align-items:flex-start;color:var(--st-text)}.classLegend i{display:block;flex:none;width:1.25rem;height:1.25rem;border:1px solid var(--st-border-strong);background:var(--st-classification-swatch)}.classLegend small{display:block;color:var(--st-text-secondary);line-height:1.45}.classLegend .unknownSwatch{background:var(--st-surface);border-style:dashed}
