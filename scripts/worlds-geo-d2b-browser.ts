@@ -10,7 +10,7 @@ import {environment,DIRECTORY as prior,SECRET,runtimeFingerprint} from "./worlds
 import {glassEnvironment,D2B_DIRECTORY} from "./worlds-geo-d2b-checks";
 import {atlasGeographicFrame} from "../src/features/worlds/atlas-geographic-frame";
 import type {Coordinate,GeographicBounds,GeographicReading,GeographicViewport} from "../src/features/worlds/geographic";
-const glassMode=process.argv.includes("--glass-sea"),directory=D2B_DIRECTORY,screens=`docs/screenshots/worlds-geo-d2b/${glassMode?"glass-sea":"authoring"}`;
+const glassMode=process.argv.includes("--glass-sea"),directory=D2B_DIRECTORY,screens=`${process.env.SERRIAN_TEST_D2B_EVIDENCE??"docs/screenshots/worlds-geo-d2b"}/${glassMode?"glass-sea":"authoring"}`;
 async function main(){
  const e=glassMode?await glassEnvironment():await environment(),glass=glassMode?(await glassEnvironment()).glass:null,f=glassMode?{planeWorld:glass.world,planeMap:glass.map,planeTimeline:glass.timeline}:JSON.parse(await readFile(`${directory}/fixture.json`,"utf8")),build=JSON.parse(await readFile(`${prior}/build-results.json`,"utf8"));assert.equal(await runtimeFingerprint(),build.fingerprint);await mkdir(screens,{recursive:true});
  const pool=new pg.Pool({connectionString:e.url}),browser=await chromium.launch({executablePath:"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true}),results:string[]=[],errors:string[]=[],measurements:Record<string,unknown>={},requests:{url:string;method:string;status:number;bytes:number;ms:number}[]=[];let server:ChildProcess|undefined,currentPage:Page|undefined;const log=createWriteStream(`${directory}/browser-server.log`),tag=String(Date.now());

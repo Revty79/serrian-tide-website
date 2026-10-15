@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Geo D3-A authorization
+
+The owner independently technically approved D2-A/B at `c4c4f67cead798b1ef72660049c4ee39d3ce594e` and authorized [D3-A seeded authoritative geographic generation](docs/architecture/worlds-geo-d3a.md). Reuse retained Atlas V1/V2 algorithms and existing geographic sources/versions/parts, with deterministic recipes, genuine D2 editing, bounded browser previews and atomic additive saves. Use only isolated copies for Glass Sea proposals; preserve all originals, identities, artwork, privacy and Living History. No persistent DEV/Glass Sea/Production changes, migration without separate approval, Docker, shared-service restart, deployment, later Geo increment or postponed interface/language overhaul. Stop at one clean local review commit without push.
+
 ## Geo D2-B authorization
 
 The owner independently technically approved D2-A at `fab810a295b342d5a11239aad21080c38630d2be` and authorized [D2-B multipart geography and interior boundaries](docs/architecture/worlds-geo-d2b.md). Extend the existing Atlas source editor for Polygon holes and MultiPolygon components, preserving complete originals, stable identities, provenance, separate saves, privacy and history. Use isolated copies of the existing Glass Sea as a primary acceptance case. The [permanent Glass Sea D–E commitment](docs/architecture/worlds-map-maker-decisions.md#glass-sea-completion-across-geo-de) is roadmap scope only; propose new canon before owner approval and do not replace the World. No persistent Glass Sea/DEV changes, migration without separate approval, Production, Docker, raster provisioning, D3–E, Advanced Map Studio or postponed interface/language overhaul is authorized. Keep controls inside Atlas and stop at a clean local review commit without push.

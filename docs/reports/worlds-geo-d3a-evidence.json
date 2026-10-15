@@ -1,0 +1,1062 @@
+{
+  "format": "serrian-geo-d3a-evidence-v1",
+  "date": "2026-10-15",
+  "approvedBase": "c4c4f67cead798b1ef72660049c4ee39d3ce594e",
+  "releaseCommit": "Single local commit containing this receipt; resolve with git log -1 --format=%H -- docs/reports/worlds-geo-d3a-evidence.json",
+  "reviewStatus": "Local technical evidence; independent Ember review and owner visual acceptance pending; no push or deployment",
+  "environment": {
+    "node": "v22.23.3",
+    "postgresql": 18,
+    "browser": "Chrome desktop mouse/keyboard and native mobile emulation/touch",
+    "build": {
+      "passed": true,
+      "node": "v22.23.3",
+      "fingerprint": "72ef610bc5ceb16339584a9f69740ad9485fea670a0a7a0da4c47454d3ac3219"
+    },
+    "ownedServicesStopped": true,
+    "persistentDevContact": false,
+    "productionContact": false,
+    "rasterAssets": "Existing private bundles borrowed read-only"
+  },
+  "checks": {
+    "typescript": true,
+    "eslint": {
+      "errors": 0,
+      "existingWarnings": [
+        "scripts/worlds-stories-checks.ts:6 unused LoreFamily"
+      ],
+      "changedSourceAndScriptsErrors": 0,
+      "changedSourceAndScriptsWarnings": 0
+    },
+    "featureTests": {
+      "passed": 2201,
+      "failed": 0,
+      "files": 265,
+      "newGenerationTests": 7,
+      "existingAuthoringTests": 20
+    },
+    "generationServices": {
+      "passed": 6,
+      "results": [
+        "atomic generation retains recipe, stable sources and idempotent retries after manual editing",
+        "protected generated heads and original recipes remain withheld from ordinary readers",
+        "changed contexts, modified previews and unsupported surface references are rejected without partial rows",
+        "a database failure on the second source rolls back the entire batch",
+        "foreign owners, Players and read-only Administrators cannot generate",
+        "seeded generation timing, payload and output remain bounded across presets"
+      ],
+      "node": "v22.23.3"
+    },
+    "compatibilityServices": {
+      "passed": 8,
+      "results": [
+        "coarse source preview is rectangular, bounded, unpaged and reuses the exact surface identity",
+        "preview status reauthorizes matching eligibility without returning geographic paths or original geometry",
+        "both raster preview plans use existing coarse assets with a sixteen-tile ceiling",
+        "trimmed artwork previews retain source artwork and omit unrelated imported-place catalogs",
+        "private raster heads remain withheld in ordinary preview mode",
+        "Player and foreign-owner preview reads are denied and Administrator review stays read-only",
+        "historical and unknown coverage still select original authorized artwork",
+        "existing migration SQL and ledger are immutable and a fresh schema migrates without imports"
+      ],
+      "node": "v22.23.3",
+      "newMigrations": 0,
+      "noImport": true
+    },
+    "browserJourneys": 48,
+    "migrations": {
+      "new": 0,
+      "retained": 132,
+      "freshSchema": true,
+      "populatedNoOpUpgrade": true
+    }
+  },
+  "browser": {
+    "generation": {
+      "passed": 10,
+      "results": [
+        "empty fictional map previews deterministic continents without saved writes, then explicitly accepts complete sources",
+        "generated coastline reopens, moves/inserts/removes vertices and saves immutable D2 revisions with its original recipe",
+        "archipelago generation and save preserve the manually edited original source",
+        "failed saves retain exact preview/recipe and retry; lost acknowledgements reuse the same complete batch",
+        "two-tab conflicts retain candidates and require explicit current-context review before additive acceptance",
+        "stale settings and worker cancellation never save or replace drafts; navigation remains protected",
+        "supported spherical sources retain angular registration and survive projection changes after generation",
+        "native-touch phone generates protected sources and opens the same coast in D2",
+        "ordinary/history/review and foreign HTTP access cannot generate; ordinary reads redact protected recipes",
+        "existing Atlas V1/V2 decorative recipes still preview and save their original algorithms"
+      ],
+      "errors": [],
+      "measurements": {
+        "firstPreview": {
+          "workerMs": 91,
+          "sources": 6,
+          "vertices": 552,
+          "outputBytes": 10395,
+          "recipe": {
+            "version": 1,
+            "algorithm": "serrian-geography-v1",
+            "seed": "different-d3a-acceptance-v1",
+            "reference": {
+              "version": 1,
+              "kind": "plane",
+              "crs": "AUTHORED:755baa4f-3177-43b9-ba9a-990fc6e0c66b",
+              "units": "map units",
+              "bounds": [
+                0,
+                0,
+                2000,
+                1200
+              ]
+            },
+            "extent": [
+              0,
+              0,
+              2000,
+              1200
+            ],
+            "settings": {
+              "continents": 1,
+              "islands": 5,
+              "landCoverage": 45,
+              "complexity": 72,
+              "size": "large",
+              "shape": "varied"
+            }
+          }
+        },
+        "firstBatch": {
+          "features": [
+            {
+              "id": "f3eb1957-1f30-4296-89bd-6ce8c964642f",
+              "geographyId": "5c18d3d4-165b-469f-97a7-b20c67ff643d",
+              "versionId": "deae83b7-481d-427d-b4b0-65e821b423cd",
+              "name": "Generated coast landmass 1"
+            },
+            {
+              "id": "9cb596ed-5b2d-4af4-8949-d7a68368290d",
+              "geographyId": "6cdaab04-f470-42da-a394-f79aa0b1a4b5",
+              "versionId": "fde23772-cb1b-4454-940c-e9e15ee43693",
+              "name": "Generated coast island 2"
+            },
+            {
+              "id": "fe3fbde9-22ad-4241-a8e4-e94218c8d66a",
+              "geographyId": "e4ac0d1c-b995-4546-9412-aac969f69a86",
+              "versionId": "d8f8abbe-a4b6-40fb-8d8f-b517a306db4f",
+              "name": "Generated coast island 3"
+            },
+            {
+              "id": "7f764c3b-8b02-4132-81e0-8d77fa59c629",
+              "geographyId": "118e527e-611c-455b-8e93-6e807150ad05",
+              "versionId": "94b05cbc-a978-40d0-a8dd-14db7d43da52",
+              "name": "Generated coast island 4"
+            },
+            {
+              "id": "b58eca5c-32fd-49aa-aa1e-929a0cb02291",
+              "geographyId": "1bb3860d-4b71-46fb-bea1-ae619d650e91",
+              "versionId": "e076c58a-c10c-489b-a6b7-82567f5e0dfc",
+              "name": "Generated coast island 5"
+            },
+            {
+              "id": "c9d9a0e8-01bc-4adb-88ae-69ea5729d92e",
+              "geographyId": "44e15630-eb3f-4b68-8391-a2dfbdad1240",
+              "versionId": "12bd4467-205a-4fe9-a5e5-e4f514d067ee",
+              "name": "Generated coast island 6"
+            }
+          ],
+          "reused": false
+        },
+        "archipelago": {
+          "workerMs": 118.29999999701977,
+          "sources": 16,
+          "vertices": 1152
+        }
+      }
+    },
+    "glassSea": {
+      "passed": 2,
+      "results": [
+        "three reproducible Glass Sea candidates preview in its exact planar reference without saved changes",
+        "a disposable Glass Sea candidate saves and opens in D2 while original geography/artwork/channel remain intact"
+      ],
+      "errors": [],
+      "measurements": {
+        "savedShadowCandidate": {
+          "features": [
+            {
+              "id": "2d5f103e-b777-4cd9-9011-108112dc0a15",
+              "geographyId": "f08ad0c7-b9e5-4dc7-b378-8c114355f63e",
+              "versionId": "d86fc4c2-1167-43a6-be77-eb50e827cec5",
+              "name": "Generated coast island 1"
+            }
+          ],
+          "reused": false
+        }
+      }
+    },
+    "multipart": {
+      "passed": 11,
+      "results": [
+        "five visually drawn islands create one saved MultiPolygon identity",
+        "interior lake creation preserves every island exterior and the original complete feature",
+        "direct boundary selection, mouse/keyboard edits and undo/redo affect only the chosen island",
+        "invalid outside holes and intersecting islands retain drafts and never reach saved geometry",
+        "component/hole removal and undo/redo preserve all remaining parts and old originals",
+        "competing multipart tabs compare complete features, retain failed drafts and reload/reapply without losing another island's edit",
+        "multipart lost acknowledgements and server failures retry idempotently without clearing geometry",
+        "native-touch hole creation and reshaping preserve all other components",
+        "artwork saves and multipart source saves retain separate drafts and revised previews/PNGs",
+        "supported spherical components/holes preserve exact drafts through projection, zoom and focus",
+        "connected components may meet at an exterior point and revise without changing the other component"
+      ],
+      "errors": [],
+      "measurements": {
+        "vertexDragGeographyRequests": [],
+        "connectedComponents": {
+          "sourceId": "b8e364df-05e0-4720-9f3a-1a136c40414b",
+          "originalVersion": "eb352c23-222c-4f3a-ad49-c6fb12173971",
+          "retainedComponents": 2
+        }
+      }
+    },
+    "simpleAndRiver": {
+      "passed": 13,
+      "results": [
+        "fictional surface setup and visual island creation save real authoritative geography",
+        "same island reopens, drags/adds/removes vertices, undoes/redoes and retains its original",
+        "geographic river editing persists an open line through mouse, keyboard and undo/redo",
+        "invalid drafts and combined navigation/mode guards preserve unfinished geographic work",
+        "independent artwork and geographic saves preserve the other draft",
+        "competing tabs detect conflicts, compare/rebase explicitly and retain every saved revision",
+        "lost save acknowledgement and server failure retain drafts and retry idempotently",
+        "spherical source drafts survive pan/zoom and projection changes without coordinate rewrites",
+        "ordinary and Administrator review retain read-only source boundaries",
+        "native-touch phone creates and reshapes a saved geographic line",
+        "saved source heads refresh library previews and both PNG exports preserve their separate scopes",
+        "the authoring HTTP boundary rejects read-only contexts, foreign roles, malformed and oversized writes",
+        "existing Glass Sea holes now load completely for bounded editing while original coordinates remain unchanged"
+      ],
+      "errors": [],
+      "measurements": {
+        "vertexDrag": {
+          "elapsedMs": 433.6911,
+          "applicationRequests": []
+        }
+      }
+    },
+    "mapAndExport": {
+      "passed": 12,
+      "results": [
+        "library previews stay lazy, bounded and combine real geography with authored artwork",
+        "worldwide visible PNG combines geography, both rasters, artwork and required credit",
+        "authored-only export stays separate from geographic reference imagery",
+        "regional Mercator PNG retains the exact selected view and source resolution",
+        "visible-layer choices export without saving preferences or clearing the draft guard",
+        "failed raster tiles block complete export while authored export and retry remain usable",
+        "fresh geographic and raster authorization failures prevent downloading stale pixels",
+        "changing viewing context during composition cancels the original download",
+        "historical and unknown previews and PNGs retain date context without modern imagery",
+        "ordinary aliases, protected raster previews and explicit Administrator review retain authorization",
+        "Glass Sea and local map types keep their existing preview and editing paths",
+        "native-touch phone and keyboard downloads retain the page and geographic viewport"
+      ],
+      "errors": []
+    }
+  },
+  "algorithm": {
+    "name": "serrian-geography-v1",
+    "baseAlgorithm": "serrian-atlas-v2",
+    "baseDefaultsFrozen": true,
+    "completeBaseSpecRetained": true,
+    "oldV1V2Change": "Export existing createLand only; old algorithms/defaults/recipes unchanged",
+    "goldenFeatureDigest": "cdc97bcd0512bdae4d474205286f1b6f80d6a8944aa3b3c8a879912e34c087c2",
+    "identityRule": "Random DB identities stay separate from deterministic geographic output"
+  },
+  "limits": {
+    "majorLandmasses": 4,
+    "islands": 20,
+    "totalSources": 24,
+    "totalVertices": 2208,
+    "majorSourceVertices": 192,
+    "islandSourceVertices": 72,
+    "requestBytes": 64000,
+    "surfaces": "Creator-declared AUTHORED planes and AUTHORED:angular spheres",
+    "sphereLongitudeSpanExclusive": 120,
+    "sphereMaxAbsoluteLatitude": 75,
+    "unsupportedOriginals": "Unchanged; generation excludes imported Earth references, seams/poles/wider spherical extents and other topologies"
+  },
+  "performance": {
+    "node": {
+      "measurements": [
+        {
+          "preset": "continent",
+          "samples": 10,
+          "minMs": 20.840100000000348,
+          "medianMs": 36.221900000000005,
+          "maxMs": 44.229499999999916,
+          "maxOutputBytes": 13548,
+          "counts": [
+            {
+              "sources": 6,
+              "vertices": 552,
+              "coverage": 20.26
+            },
+            {
+              "sources": 6,
+              "vertices": 552,
+              "coverage": 22.47
+            },
+            {
+              "sources": 6,
+              "vertices": 552,
+              "coverage": 29.13
+            },
+            {
+              "sources": 6,
+              "vertices": 552,
+              "coverage": 14.65
+            },
+            {
+              "sources": 6,
+              "vertices": 552,
+              "coverage": 12.86
+            },
+            {
+              "sources": 6,
+              "vertices": 552,
+              "coverage": 19.48
+            },
+            {
+              "sources": 6,
+              "vertices": 552,
+              "coverage": 23.08
+            },
+            {
+              "sources": 6,
+              "vertices": 552,
+              "coverage": 28.3
+            },
+            {
+              "sources": 6,
+              "vertices": 552,
+              "coverage": 12.92
+            },
+            {
+              "sources": 6,
+              "vertices": 552,
+              "coverage": 19.44
+            }
+          ]
+        },
+        {
+          "preset": "separated",
+          "samples": 10,
+          "minMs": 108.77959999999985,
+          "medianMs": 141.49710000000005,
+          "maxMs": 195.89629999999988,
+          "maxOutputBytes": 25585,
+          "counts": [
+            {
+              "sources": 10,
+              "vertices": 1080,
+              "coverage": 27.35
+            },
+            {
+              "sources": 10,
+              "vertices": 1080,
+              "coverage": 24.97
+            },
+            {
+              "sources": 10,
+              "vertices": 1080,
+              "coverage": 27.25
+            },
+            {
+              "sources": 10,
+              "vertices": 1080,
+              "coverage": 20.61
+            },
+            {
+              "sources": 10,
+              "vertices": 1080,
+              "coverage": 25.21
+            },
+            {
+              "sources": 10,
+              "vertices": 1080,
+              "coverage": 22.48
+            },
+            {
+              "sources": 10,
+              "vertices": 1080,
+              "coverage": 28.86
+            },
+            {
+              "sources": 10,
+              "vertices": 1080,
+              "coverage": 26.68
+            },
+            {
+              "sources": 10,
+              "vertices": 1080,
+              "coverage": 27.38
+            },
+            {
+              "sources": 10,
+              "vertices": 1080,
+              "coverage": 26.8
+            }
+          ]
+        },
+        {
+          "preset": "archipelago",
+          "samples": 10,
+          "minMs": 37.95589999999993,
+          "medianMs": 46.63040000000001,
+          "maxMs": 49.93049999999948,
+          "maxOutputBytes": 27594,
+          "counts": [
+            {
+              "sources": 16,
+              "vertices": 1152,
+              "coverage": 9.39
+            },
+            {
+              "sources": 16,
+              "vertices": 1152,
+              "coverage": 8.92
+            },
+            {
+              "sources": 16,
+              "vertices": 1152,
+              "coverage": 7.53
+            },
+            {
+              "sources": 16,
+              "vertices": 1152,
+              "coverage": 11.39
+            },
+            {
+              "sources": 16,
+              "vertices": 1152,
+              "coverage": 8.42
+            },
+            {
+              "sources": 16,
+              "vertices": 1152,
+              "coverage": 8.38
+            },
+            {
+              "sources": 16,
+              "vertices": 1152,
+              "coverage": 9.16
+            },
+            {
+              "sources": 16,
+              "vertices": 1152,
+              "coverage": 12.39
+            },
+            {
+              "sources": 16,
+              "vertices": 1152,
+              "coverage": 8.95
+            },
+            {
+              "sources": 16,
+              "vertices": 1152,
+              "coverage": 14.67
+            }
+          ]
+        },
+        {
+          "preset": "island",
+          "samples": 10,
+          "minMs": 1.826600000000326,
+          "medianMs": 1.905399999999645,
+          "maxMs": 2.7514000000001033,
+          "maxOutputBytes": 2545,
+          "counts": [
+            {
+              "sources": 1,
+              "vertices": 72,
+              "coverage": 0.9
+            },
+            {
+              "sources": 1,
+              "vertices": 72,
+              "coverage": 0.5
+            },
+            {
+              "sources": 1,
+              "vertices": 72,
+              "coverage": 6.08
+            },
+            {
+              "sources": 1,
+              "vertices": 72,
+              "coverage": 2.83
+            },
+            {
+              "sources": 1,
+              "vertices": 72,
+              "coverage": 12.76
+            },
+            {
+              "sources": 1,
+              "vertices": 72,
+              "coverage": 6.55
+            },
+            {
+              "sources": 1,
+              "vertices": 72,
+              "coverage": 6.94
+            },
+            {
+              "sources": 1,
+              "vertices": 72,
+              "coverage": 10.06
+            },
+            {
+              "sources": 1,
+              "vertices": 72,
+              "coverage": 0.27
+            },
+            {
+              "sources": 1,
+              "vertices": 72,
+              "coverage": 1.21
+            }
+          ]
+        },
+        {
+          "preset": "maximum",
+          "samples": 10,
+          "minMs": 184.26910000000044,
+          "medianMs": 344.83410000000003,
+          "maxMs": 560.3302000000003,
+          "maxOutputBytes": 52022,
+          "counts": [
+            {
+              "sources": 24,
+              "vertices": 2208,
+              "coverage": 33.13
+            },
+            {
+              "sources": 24,
+              "vertices": 2208,
+              "coverage": 23.01
+            },
+            {
+              "sources": 24,
+              "vertices": 2208,
+              "coverage": 29.97
+            },
+            {
+              "sources": 24,
+              "vertices": 2208,
+              "coverage": 30.23
+            },
+            {
+              "sources": 24,
+              "vertices": 2208,
+              "coverage": 30.93
+            },
+            {
+              "sources": 24,
+              "vertices": 2208,
+              "coverage": 30.65
+            },
+            {
+              "sources": 24,
+              "vertices": 2208,
+              "coverage": 26.54
+            },
+            {
+              "sources": 24,
+              "vertices": 2208,
+              "coverage": 31.28
+            },
+            {
+              "sources": 24,
+              "vertices": 2208,
+              "coverage": 29.13
+            },
+            {
+              "sources": 24,
+              "vertices": 2208,
+              "coverage": 32.67
+            }
+          ]
+        }
+      ],
+      "requestBytes": 790
+    },
+    "browserTraffic": {
+      "generationPosts": {
+        "responses": 8,
+        "bytes": 6541,
+        "minBytes": 769,
+        "maxBytes": 828,
+        "minMs": 13.712,
+        "medianMs": 27.311,
+        "maxMs": 159.85600000000002
+      },
+      "geographicGets": {
+        "responses": 43,
+        "bytes": 290376,
+        "minBytes": 147,
+        "maxBytes": 34176,
+        "minMs": 8.605,
+        "medianMs": 13.122,
+        "maxMs": 79.58200000000001
+      }
+    },
+    "glassSeaTraffic": {
+      "generationPosts": {
+        "responses": 1,
+        "bytes": 801,
+        "minBytes": 801,
+        "maxBytes": 801,
+        "minMs": 103.329,
+        "medianMs": 103.329,
+        "maxMs": 103.329
+      },
+      "geographicGets": {
+        "responses": 9,
+        "bytes": 19197,
+        "minBytes": 412,
+        "maxBytes": 5137,
+        "minMs": 11.22,
+        "medianMs": 16.490000000000002,
+        "maxMs": 88.20400000000001
+      }
+    },
+    "bytes": "POST request JSON; GET decoded successful browser response bytes. Whole journeys, not initial loads. Direct harness checks and aborted responses excluded.",
+    "timing": "Local samples, not physical-phone/concurrency/hosting guarantees"
+  },
+  "storage": {
+    "definition": "pg_column_size version plus derived part rows; excludes other identity rows, index/page allocation and WAL",
+    "representativeBatch": [
+      {
+        "revision": 1,
+        "versions": 6,
+        "version_bytes": 22196,
+        "geometry_bytes": 7761,
+        "part_bytes": 24408
+      },
+      {
+        "revision": 2,
+        "versions": 1,
+        "version_bytes": 4970,
+        "geometry_bytes": 2533,
+        "part_bytes": 7800
+      }
+    ],
+    "validationHistory": {
+      "versions": 233,
+      "version_bytes": 978194,
+      "geometry_bytes": 267228,
+      "part_bytes": 845028
+    },
+    "glassSeaCandidate": {
+      "rows": [
+        {
+          "revision": 1,
+          "version_bytes": 3009,
+          "geometry_bytes": 1186,
+          "part_bytes": 3744
+        },
+        {
+          "revision": 2,
+          "version_bytes": 3041,
+          "geometry_bytes": 1206,
+          "part_bytes": 3804
+        }
+      ],
+      "logicalAddedBytes": 13598
+    }
+  },
+  "preservation": {
+    "originalWorldRows": 160852,
+    "worldTables": 118,
+    "allOriginalWorldRowsExact": true,
+    "migrationLedgerExact": true,
+    "privateRasterVersions": 16,
+    "privateRasterBundles": [
+      "236142946a5ecb368023147330d680c83617b58f967d0663eedba8fe515f77f6",
+      "2c48bcdf1f431b8f794f0838ad5bda833fcf7d0798c3c22bb0eca64044153380",
+      "2e197cfbf4136eda77f91bec578fbc69139927b878560fbb9b580125b097f9f2",
+      "432a4d3c89c3aad7f9381cb20a50ada0160e575a84eb65f3cb37df71baf47ccf",
+      "5136b690d44f0b049b0832995d610e0ebdc3ec4db7259ada605abbe4e3ba83ea",
+      "5d1afdf76e65bd44466dba0dc35fd5f9060857ce752442a35b21276bcabbcbef"
+    ],
+    "rasterMetadataSha256": "40abfade33cd4296f31df53498915433c481cc1935537aa10e919fe4c9bbd088",
+    "snapshotSha256": {
+      "baseline.json": "b06943a8b0e05c3f9d250f036fd414dfc17367d96f9e028aadb7e06cfacdeba9",
+      "glass-baseline.json": "50d47ebd7e87d148fc35e869cf80a5b94a92aee895b421dc30c0dc3171251c32",
+      "ledger.json": "ef585bcb724b9beeec771a0bba8e8f2abe530115f0b940a36b5820909972ba76"
+    },
+    "glassSea": {
+      "everyOriginalGlassSeaRowExact": true,
+      "originalVersionsHeadsArtworkChannelSurfaceAndMapExact": true
+    },
+    "originalCommittedD2ScreenshotsRetained": true
+  },
+  "glassSeaProposals": {
+    "candidates": [
+      {
+        "preset": "archipelago",
+        "seed": "glass-east-chain",
+        "recipe": {
+          "version": 1,
+          "algorithm": "serrian-geography-v1",
+          "seed": "glass-east-chain",
+          "reference": {
+            "version": 1,
+            "kind": "plane",
+            "crs": "AUTHORED:glass-sea",
+            "units": "local units",
+            "bounds": [
+              0,
+              0,
+              2000,
+              1200
+            ]
+          },
+          "extent": [
+            1510,
+            20,
+            1980,
+            180
+          ],
+          "settings": {
+            "continents": 0,
+            "islands": 16,
+            "landCoverage": 25,
+            "complexity": 68,
+            "size": "varied",
+            "shape": "varied"
+          }
+        },
+        "digest": "671f3e9776164bfb0b3e742b3021b2612c22766f50b848565b98374179d2596f",
+        "sources": 16,
+        "vertices": 1152,
+        "coverage": 14.81,
+        "workerMs": 135.1000000089407,
+        "baseSpec": {
+          "version": 1,
+          "algorithm": "serrian-atlas-v2",
+          "seed": "glass-east-chain",
+          "settings": {
+            "mapType": "world",
+            "continents": 0,
+            "islands": 16,
+            "landCoverage": 25,
+            "ruggedness": 68,
+            "size": "varied",
+            "shape": "varied",
+            "mountains": 0,
+            "forest": 0,
+            "rivers": 0,
+            "lakes": 0,
+            "biome": "mixed",
+            "style": "illuminated"
+          },
+          "plan": {
+            "landPosition": "center",
+            "islandPosition": "scattered",
+            "ruggedCoast": "all",
+            "baySide": "all",
+            "additionalBaySide": "none",
+            "bays": 2,
+            "bayDepth": 2,
+            "mountainRegion": "center",
+            "mountainOrientation": "varied",
+            "mountainRanges": 1,
+            "forestRegion": "automatic",
+            "riverDirection": "automatic",
+            "lakeRegion": "automatic",
+            "desertRegion": "automatic",
+            "grasslandRegion": "automatic",
+            "wetlandRegion": "automatic",
+            "snowRegion": "automatic",
+            "extraTerrain": []
+          },
+          "description": null,
+          "interpretation": null
+        }
+      },
+      {
+        "preset": "continent",
+        "seed": "glass-low-y-shelf",
+        "recipe": {
+          "version": 1,
+          "algorithm": "serrian-geography-v1",
+          "seed": "glass-low-y-shelf",
+          "reference": {
+            "version": 1,
+            "kind": "plane",
+            "crs": "AUTHORED:glass-sea",
+            "units": "local units",
+            "bounds": [
+              0,
+              0,
+              2000,
+              1200
+            ]
+          },
+          "extent": [
+            50,
+            50,
+            1100,
+            180
+          ],
+          "settings": {
+            "continents": 1,
+            "islands": 5,
+            "landCoverage": 45,
+            "complexity": 72,
+            "size": "large",
+            "shape": "varied"
+          }
+        },
+        "digest": "b30def2c22e71521be8c69534b6d05a9adfb8fc83815b5b0b0b0e76bd6853dd5",
+        "sources": 6,
+        "vertices": 552,
+        "coverage": 14.48,
+        "workerMs": 90.90000000596046,
+        "baseSpec": {
+          "version": 1,
+          "algorithm": "serrian-atlas-v2",
+          "seed": "glass-low-y-shelf",
+          "settings": {
+            "mapType": "world",
+            "continents": 1,
+            "islands": 5,
+            "landCoverage": 45,
+            "ruggedness": 72,
+            "size": "large",
+            "shape": "varied",
+            "mountains": 0,
+            "forest": 0,
+            "rivers": 0,
+            "lakes": 0,
+            "biome": "mixed",
+            "style": "illuminated"
+          },
+          "plan": {
+            "landPosition": "center",
+            "islandPosition": "scattered",
+            "ruggedCoast": "all",
+            "baySide": "all",
+            "additionalBaySide": "none",
+            "bays": 2,
+            "bayDepth": 2,
+            "mountainRegion": "center",
+            "mountainOrientation": "varied",
+            "mountainRanges": 1,
+            "forestRegion": "automatic",
+            "riverDirection": "automatic",
+            "lakeRegion": "automatic",
+            "desertRegion": "automatic",
+            "grasslandRegion": "automatic",
+            "wetlandRegion": "automatic",
+            "snowRegion": "automatic",
+            "extraTerrain": []
+          },
+          "description": null,
+          "interpretation": null
+        }
+      },
+      {
+        "preset": "island",
+        "seed": "glass-high-y-island-7",
+        "recipe": {
+          "version": 1,
+          "algorithm": "serrian-geography-v1",
+          "seed": "glass-high-y-island-7",
+          "reference": {
+            "version": 1,
+            "kind": "plane",
+            "crs": "AUTHORED:glass-sea",
+            "units": "local units",
+            "bounds": [
+              0,
+              0,
+              2000,
+              1200
+            ]
+          },
+          "extent": [
+            1600,
+            950,
+            1950,
+            1150
+          ],
+          "settings": {
+            "continents": 0,
+            "islands": 1,
+            "landCoverage": 40,
+            "complexity": 85,
+            "size": "large",
+            "shape": "crescent"
+          }
+        },
+        "digest": "410c320526cb391b39a9d198544b47699a1f3da738f9054dec886ffb76bce7a1",
+        "sources": 1,
+        "vertices": 72,
+        "coverage": 11.46,
+        "workerMs": 64.29999999701977,
+        "baseSpec": {
+          "version": 1,
+          "algorithm": "serrian-atlas-v2",
+          "seed": "glass-high-y-island-7",
+          "settings": {
+            "mapType": "world",
+            "continents": 0,
+            "islands": 1,
+            "landCoverage": 40,
+            "ruggedness": 85,
+            "size": "large",
+            "shape": "crescent",
+            "mountains": 0,
+            "forest": 0,
+            "rivers": 0,
+            "lakes": 0,
+            "biome": "mixed",
+            "style": "illuminated"
+          },
+          "plan": {
+            "landPosition": "center",
+            "islandPosition": "scattered",
+            "ruggedCoast": "all",
+            "baySide": "all",
+            "additionalBaySide": "none",
+            "bays": 2,
+            "bayDepth": 2,
+            "mountainRegion": "center",
+            "mountainOrientation": "varied",
+            "mountainRanges": 1,
+            "forestRegion": "automatic",
+            "riverDirection": "automatic",
+            "lakeRegion": "automatic",
+            "desertRegion": "automatic",
+            "grasslandRegion": "automatic",
+            "wetlandRegion": "automatic",
+            "snowRegion": "automatic",
+            "extraTerrain": []
+          },
+          "description": null,
+          "interpretation": null
+        }
+      }
+    ],
+    "ownerApprovalRequired": true,
+    "persistentChanges": false
+  },
+  "screenshots": [
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/authoring/archipelago-preview.png",
+      "bytes": 6891,
+      "sha256": "cce0e13f71ce5d6b66718d18a5645801ee5f9f6db0e0bd367c19e2c180537112"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/authoring/continent-preview-context.png",
+      "bytes": 28027,
+      "sha256": "b2a628b6c9b84d4259988226354e19599fcee45cc4aa1b5745f92ee2621df07b"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/authoring/continent-preview.png",
+      "bytes": 3971,
+      "sha256": "6738cc0a744732be8212d892fc5ca6f9534466db6eb3e0061ebf34140db2d0a1"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/authoring/generated-coast-edited.png",
+      "bytes": 15128,
+      "sha256": "2daabe6e9379c836c015117e7b0e581d8dca666a0b467197f366a118387d2011"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/authoring/phone-generated-coast.png",
+      "bytes": 57253,
+      "sha256": "01d77c9f48182730a18cb858e4afb6a948db58f0547cbfed6cb6cd348a06d8de"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/authoring/phone-preview.png",
+      "bytes": 3465,
+      "sha256": "d9dd9724b9c884351c34150e9089ced5fd7dc35caaa5c3af8aa49bb38436dddc"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/authoring/serrian-atlas-v1.png",
+      "bytes": 141234,
+      "sha256": "a99aefe233db49d76b2ebea1b86ad75ed5df44c649224110bf9a5be3458c681c"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/authoring/serrian-atlas-v2.png",
+      "bytes": 121902,
+      "sha256": "7f2c0dbf7398cff87298526e91c58cf112aa39a4be98ada66ef9c3641b070853"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/authoring/spherical-generated-coast.png",
+      "bytes": 18078,
+      "sha256": "4047945de3aff260c09053d788d65f78a13e6e671b14bdec2f81dde3ab7a4662"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/glass-sea/glass-east-chain-context.png",
+      "bytes": 28447,
+      "sha256": "400fe9466f390b10efcd0e0a9f3632d26d5296afc8b67942504e0cc4947d6aa5"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/glass-sea/glass-east-chain.png",
+      "bytes": 5205,
+      "sha256": "c2556e07b30c513ac399f40ddc5b92dc6815ff16b978defef5b4e6c2df4fedc2"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/glass-sea/glass-generated-coast-edited.png",
+      "bytes": 12190,
+      "sha256": "8dee2621d8beed07694b65ed253c73d6444bfb604c9d630cd238fa9defb1da17"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/glass-sea/glass-high-y-island-7-context.png",
+      "bytes": 24530,
+      "sha256": "9136a457749e189a9eddc4866ee2445a6f346f88e1a7ff8eb3e130adc23d953b"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/glass-sea/glass-high-y-island-7.png",
+      "bytes": 2685,
+      "sha256": "cb73a936a6f00e062acc99dfad920d42d69406411edbc7c0aa0b212d2a908384"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/glass-sea/glass-low-y-shelf-context.png",
+      "bytes": 24883,
+      "sha256": "7bf6d8606ba09c5e584ff9872a8f0f2de985e7df8c88ae81d208851f1de8c0e6"
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-d3a/glass-sea/glass-low-y-shelf.png",
+      "bytes": 1875,
+      "sha256": "fcab9189ae2aaf0b11e112887e213eded49fecab9c12d32e1196ace4f4a69d62"
+    }
+  ],
+  "commands": [
+    "Node22 --conditions=react-server --import tsx scripts/worlds-geo-d1a-harness.ts build",
+    "Node22 scripts/run-feature-tests.mjs",
+    "Node22 node_modules/typescript/bin/tsc --noEmit",
+    "Node22 node_modules/eslint/bin/eslint.js . and final changed files",
+    "Node22 --conditions=react-server --import tsx scripts/worlds-geo-d3a-checks.ts --fresh-browser / --glass-copy",
+    "Node22 --conditions=react-server --import tsx scripts/worlds-geo-d3a-browser.ts [--glass-sea]",
+    "Fresh D2-A/B fixtures and browser compatibility with evidence redirected",
+    "D1-B browser compatibility with SERRIAN_TEST_D1B_EVIDENCE redirected",
+    "Node22 --conditions=react-server --import tsx scripts/worlds-geo-d1b-checks.ts",
+    "Node22 --conditions=react-server --import tsx scripts/worlds-geo-d3a-checks.ts",
+    "Node22 --conditions=react-server --import tsx scripts/worlds-geo-d3a-checks.ts --after / --glass-after / --glass-storage",
+    "Node22 --conditions=react-server --import tsx scripts/worlds-geo-d1a-harness.ts stop",
+    "git diff --check"
+  ],
+  "limitations": [
+    "Linux CI not run locally",
+    "Native browser touch emulation is not physical-phone owner acceptance",
+    "Coverage/size are approximate and fitting can shrink them; actual design coverage is separate from spherical area",
+    "Other topologies/global seam/polar and terrain/hydrology/climate/biomes remain future work",
+    "Download is a preview/recipe record, not automatic re-import",
+    "No persistent Glass Sea canon established; owner approval remains required"
+  ]
+}

@@ -2,3 +2,5 @@
 
 .comparison{fill:none;stroke:var(--st-focus);stroke-width:2;stroke-dasharray:7 5;vector-effect:non-scaling-stroke}
 .ringOutline{fill:none;stroke:var(--st-text-strong);stroke-opacity:.65;stroke-width:1;vector-effect:non-scaling-stroke}.ringOutline[data-selected=true]{stroke:var(--st-focus);stroke-width:3;stroke-opacity:1}.ringHit{fill:none;stroke:transparent;stroke-width:16;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:pointer}.ringHit:focus{stroke:var(--st-selection);outline:none}
+
+.generator{border:1px solid var(--st-border);border-radius:.6rem;padding:.8rem}.generator summary{cursor:pointer;min-height:44px}.generator section{display:grid;gap:.8rem}.generator svg{width:100%;background:var(--st-surface-deep);border:1px solid var(--st-border);border-radius:.5rem}

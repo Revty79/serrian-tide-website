@@ -37,7 +37,7 @@ function silhouette(center: Point, rx: number, ry: number, random: Random, id: I
   });
 }
 function landAt(points: Vertex[], name: string, major: boolean): Land {return {points,center:polygonCenter(points),name,major,area:Math.abs(signedArea(points))};}
-function createLand(spec: GenerationSpec, random: Random, id: Id): Land[] {
+export function createLand(spec: GenerationSpec, random: Random, id: Id): Land[] {
   const s=spec.settings,result:Land[]=[],names=["Asterfall","Velmora","Nareth","Thalen","Caerwyn","Orinth"];
   const clear=(points:Vertex[],gap:number)=>{const b=bounds(points);return result.every(l=>{const a=bounds(l.points);return a.x+a.width+gap<b.x||b.x+b.width+gap<a.x||a.y+a.height+gap<b.y||b.y+b.height+gap<a.y||separated(l.points,points,gap);});};
   const fits=(points:Vertex[])=>points.every(p=>p.x>38&&p.x<1962&&p.y>38&&p.y<1162);
