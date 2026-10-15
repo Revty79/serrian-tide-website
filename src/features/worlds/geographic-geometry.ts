@@ -37,7 +37,7 @@ function inside(point:Coordinate,ring:Coordinate[]){let result=false;for(let i=0
 function hasArea(ring:Coordinate[]){const origin=ring[0];let area=0,magnitude=0;for(let i=1;i<ring.length;i++){const p=ring[i-1],q=ring[i],a=(p[0]-origin[0])*(q[1]-origin[1]),b=(q[0]-origin[0])*(p[1]-origin[1]);area+=a-b;magnitude+=Math.abs(a)+Math.abs(b);}return Math.abs(area)>Number.EPSILON*16*magnitude;}
 export function validateSourceGeometry(geometry:SourceGeometry,reference:SpatialReference,policy:SourceValidation={}){
   const count=coordinateCount(geometry);if(count>131_072)throw new Error("One source feature supports at most 131,072 coordinates. Partition a larger dataset between complete source components.");
-  if(Buffer.byteLength(JSON.stringify(geometry))+2*count+20*geometryParts(geometry).length>4_000_000)throw new Error("Partition the source between complete components to fit the four-megabyte stored geometry limit.");
+  if(new TextEncoder().encode(JSON.stringify(geometry)).byteLength+2*count+20*geometryParts(geometry).length>4_000_000)throw new Error("Partition the source between complete components to fit the four-megabyte stored geometry limit.");
   const bounds=surfaceBounds(reference),epsilon=reference.kind==="sphere"?SPHERICAL_SOURCE_EPSILON:0;visitCoordinates(geometry,p=>{if(!p.every(Number.isFinite)||p[0]<bounds[0]-epsilon||p[0]>bounds[2]+epsilon||p[1]<bounds[1]-epsilon||p[1]>bounds[3]+epsilon)throw new Error("Source coordinates must be finite and inside the declared surface domain.");});
   const parts=geometryParts(geometry),commonPole=reference.kind==="sphere"?parts.filter(p=>p.type==="Polygon").map(p=>polarPole(p.coordinates)).find(p=>p!==undefined):undefined;
   for(const part of parts){

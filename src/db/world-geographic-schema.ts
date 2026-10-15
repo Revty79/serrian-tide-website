@@ -4,7 +4,7 @@ import { world } from "./world-schema";
 import { user } from "./auth-schema";
 import { worldAtlasMap,worldGeography } from "./world-atlas-schema";
 import { worldLoreIdentity } from "./world-peoples-schema";
-import type { GeographicProvenance,SourceGeometry,SpatialReference } from "@/features/worlds/geographic";
+import type { StoredGeographicProvenance,SourceGeometry,SpatialReference } from "@/features/worlds/geographic";
 
 export const worldGeoSurface=pgTable("world_geo_surface",{
   id:text("id").primaryKey(),worldId:text("world_id").notNull().references(()=>world.id,{onDelete:"restrict"}),requestId:text("request_id").notNull(),creatorId:text("creator_id").notNull().references(()=>user.id,{onDelete:"restrict"}),name:text("name").notNull(),reference:jsonb("reference").$type<SpatialReference>().notNull(),realmId:text("realm_id"),protected:boolean("protected").notNull(),createdAt:timestamp("created_at").notNull().defaultNow(),
@@ -13,7 +13,7 @@ export const worldGeoView=pgTable("world_geo_view",{
   mapId:text("map_id").primaryKey(),worldId:text("world_id").notNull(),surfaceId:text("surface_id").notNull(),
 },t=>[unique("geo_view_context_uq").on(t.mapId,t.worldId,t.surfaceId),foreignKey({name:"geo_view_surface_fk",columns:[t.surfaceId,t.worldId],foreignColumns:[worldGeoSurface.id,worldGeoSurface.worldId]}).onDelete("restrict"),foreignKey({name:"geo_view_map_fk",columns:[t.mapId,t.worldId],foreignColumns:[worldAtlasMap.id,worldAtlasMap.worldId]}).onDelete("restrict"),index("geo_view_surface_idx").on(t.worldId,t.surfaceId)]);
 export const worldGeoDataset=pgTable("world_geo_dataset",{
-  id:text("id").primaryKey(),worldId:text("world_id").notNull(),surfaceId:text("surface_id").notNull(),importerId:text("importer_id").notNull().references(()=>user.id,{onDelete:"restrict"}),contentSha256:text("content_sha256").notNull(),namespace:text("namespace").notNull(),provenance:jsonb("provenance").$type<GeographicProvenance>().notNull(),importedAt:timestamp("imported_at").notNull().defaultNow(),
+  id:text("id").primaryKey(),worldId:text("world_id").notNull(),surfaceId:text("surface_id").notNull(),importerId:text("importer_id").notNull().references(()=>user.id,{onDelete:"restrict"}),contentSha256:text("content_sha256").notNull(),namespace:text("namespace").notNull(),provenance:jsonb("provenance").$type<StoredGeographicProvenance>().notNull(),importedAt:timestamp("imported_at").notNull().defaultNow(),
 },t=>[unique("geo_dataset_world_uq").on(t.id,t.worldId,t.surfaceId),unique("geo_dataset_retry_uq").on(t.worldId,t.surfaceId,t.contentSha256),foreignKey({name:"geo_dataset_surface_fk",columns:[t.surfaceId,t.worldId],foreignColumns:[worldGeoSurface.id,worldGeoSurface.worldId]}).onDelete("restrict"),check("geo_dataset_digest_valid",sql`${t.contentSha256} ~ '^[a-f0-9]{64}$' and jsonb_typeof(${t.provenance})='object'`)]);
 export const worldGeoFeature=pgTable("world_geo_feature",{
   id:text("id").primaryKey(),worldId:text("world_id").notNull(),surfaceId:text("surface_id").notNull(),geographyId:text("geography_id").notNull(),namespace:text("namespace").notNull(),externalId:text("external_id").notNull(),semantic:text("semantic").notNull(),

@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Geo D2-A authorization
+
+The owner independently technically approved D1-A/D1-B at `19c22170288e1a7f533df57584db09c3acd9e6bf` and authorized [Geo D2-A direct visual geographic authoring](docs/architecture/worlds-geo-d2a.md): a complete simple polygon/open-line core in the existing unified Atlas, with original coordinates, honest authored provenance, separate source drafts/saves, immutable revisions, privacy, historical compatibility and isolated production acceptance. No new schema migration is authorized without separate approval. Stop at a clean local review commit; no push, Production/live database changes, shared-service restart, Docker/private asset deployment, D3–E or Advanced Map Studio.
+
 ## Geo D1-B authorization
 
 The owner separately authorized one focused D1-B thumbnail performance correction from `27318be409b599114f457a3ce587fbe3a8c81061`: retain timely authorization while eliminating unchanged timer/focus reconstruction and raster downloads. Measure real idle behavior in the established isolated environment and stop at one clean local correction commit. No push, Production access, migrations, provisioned assets, Docker change, deployment or later phase is authorized.

@@ -717,3 +717,16 @@ Interaction, field guidance, reuse, saved reading and server data/security are t
 ## Phase 6B-A generic historical maps
 
 Appearance name, beginning/ending canonical World years, historical source account and whole-appearance protection supplement the existing Map Maker fields. Saved-period/year selection, source mode, captured baseline revision, author attribution, retained revisions and explicit viewing/editing expose the persistent model. Geometry, drawings, presentation and local place names/descriptions retain their existing source structures. Place ancestry/kind and new place creation remain shared Atlas operations. Calendar conversion, specialized historical maps and historical destinations are not claimed. See the [model and limits](worlds-map-states.md) and [focused validation report](../reports/worlds-map-states-phase-6ba-2026-10-12.md).
+
+## Geo D2-A visual source authoring
+
+The [core geographic editor](worlds-geo-d2a.md) extends the existing Atlas with a separate, explicitly selected authoring mode. Decorative artwork and elevation/land-cover preferences retain their own saves. Dated appearances and ordinary/Administrator review remain read-only for shared geographic authoring.
+
+| Field or operation | Creator guidance and retained source |
+|---|---|
+| Surface association | Reuse an existing readable World surface or explicitly create a fictional plane/sphere. Name, reference model, planar units and four bounds explain coordinate authority; optional Realm and author-only status explain ordinary visibility. Blank bounds are refused; zero is valid. Existing artwork registration is retained. |
+| Source name and kind | Create an island, landmass or open river with a stable place/source identity. Revision keeps the existing shared name, ancestry and semantic classification. |
+| Original geometry | Direct source selection reads complete original coordinates. Tap/keyboard creation, drag, midpoint insertion, removal and separate undo/redo preview unsaved coordinates. Visible validation refuses unsupported or invalid geometry without dropping components. |
+| Revision account and imported acknowledgement | Explain the deliberate change; explicitly acknowledge imported-source revisions. Original provenance, properties, protection and immutable earlier versions stay retained. |
+| New-source author-only status | Withhold the new geographic feature and retained versions from ordinary readers. Surface/Realm restrictions also apply. |
+| Separate source save and recovery | Save geographic changes names its scope. Combined navigation/mode guards protect drafts; conflicts offer latest-source comparison, explicit reload/rebase and draft download. Failure retains the same draft/request identity for retry. |
