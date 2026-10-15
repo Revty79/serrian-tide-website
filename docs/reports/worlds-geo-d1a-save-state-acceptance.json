@@ -1,0 +1,236 @@
+{
+  "startingCheckpoint": "0e5f7164cf9d5579ecac894e29a12fd7613e0a55",
+  "scope": "Geo D1-A save-state correction only",
+  "runtime": {
+    "node": "v22.23.3",
+    "platform": "win32",
+    "linuxExecuted": false
+  },
+  "productionBuild": {
+    "passed": true,
+    "node": "v22.23.3",
+    "fingerprint": "917850c327c608d06b1abfa9c1ac13c69b5239c7d3dbe83d5cff61909b41b4be"
+  },
+  "typescript": true,
+  "lint": {
+    "passed": true,
+    "existingWarning": "scripts/worlds-stories-checks.ts unused LoreFamily"
+  },
+  "unit": {
+    "passed": 2163,
+    "files": 257,
+    "failed": 0
+  },
+  "saveBrowser": {
+    "passed": 9,
+    "results": [
+      "geographic-only opacity stays guarded, saves separately and creates no Atlas revision",
+      "Atlas-only map work enables its save and leaves both geographic preferences unchanged",
+      "artwork failures and retries retain simultaneous geographic drafts and the combined guard",
+      "geographic save failures and success preserve pending Atlas artwork",
+      "real Atlas revision conflicts retain drafts through comparison, deliberate recovery and retry",
+      "real preference conflicts reread current revision and retry without losing either draft",
+      "Historical Map Maker retains its own edit, save and immutable-baseline semantics",
+      "test cleanup restores original artwork and raster presentation in the disposable clone",
+      "all original World rows and migration identities survive except explicit disposable save targets"
+    ],
+    "errors": [],
+    "buildFingerprint": "917850c327c608d06b1abfa9c1ac13c69b5239c7d3dbe83d5cff61909b41b4be",
+    "atlasPosts": 8
+  },
+  "integrationBrowser": {
+    "passed": 14,
+    "results": [
+      "normal Atlas editor opens rectangular worldwide Earth with both rasters and bounded source layers",
+      "authored label creation, undo/redo, save and reload preserve original map objects",
+      "source coordinates and authored artwork remain aligned through projection, zoom and pan",
+      "polygon authoring and point edits retain canonical coordinates under Mercator",
+      "worldwide, alternate and focused regional production screenshots",
+      "keyboard source selection and tool switches retain page scroll position",
+      "geographic themes and both raster layers have independent visibility",
+      "failed raster responses preserve geographic vectors and editable artwork",
+      "owner ordinary aliases and explicit Administrator review use authorized combined rendering",
+      "Atlas explorer reuses the combined canvas and preserves the editable return journey",
+      "native-touch phone pan and two-finger zoom retain geography, artwork and page position",
+      "historical year keeps its authored appearance and timeline without modern source imagery",
+      "existing protected raster fixtures redact cached images and exact tile requests in both ordinary modes",
+      "Glass Sea direct planar artwork, protected vectors, Realm privacy and legacy map scales remain usable"
+    ],
+    "errors": [],
+    "maxGeographicPageBytes": 62687
+  },
+  "migration": {
+    "newMigrations": 0,
+    "unchangedLedgerEntries": 132
+  },
+  "preservedRasterMetadata": {
+    "identity": {
+      "database": "serrian_geo_d1a",
+      "host": "127.0.0.1/32",
+      "port": 64996,
+      "bytes": "293205695"
+    },
+    "migrations": 132,
+    "versions": 16,
+    "bundles": [
+      "236142946a5ecb368023147330d680c83617b58f967d0663eedba8fe515f77f6",
+      "2c48bcdf1f431b8f794f0838ad5bda833fcf7d0798c3c22bb0eca64044153380",
+      "2e197cfbf4136eda77f91bec578fbc69139927b878560fbb9b580125b097f9f2",
+      "432a4d3c89c3aad7f9381cb20a50ada0160e575a84eb65f3cb37df71baf47ccf",
+      "5136b690d44f0b049b0832995d610e0ebdc3ec4db7259ada605abbe4e3ba83ea",
+      "5d1afdf76e65bd44466dba0dc35fd5f9060857ce752442a35b21276bcabbcbef"
+    ],
+    "associations": [
+      {
+        "source_id": "2439fe7d-08f3-49f7-9bf3-5418498de067",
+        "world_id": "91aa4482-b54c-477d-95d6-e90bbd19bf73",
+        "surface_id": "c97b1716-90cf-4fbb-8702-1c0045de7cbe",
+        "external_id": "AUTHORED:C3:numerical-regression:plane",
+        "bundle": "236142946a5ecb368023147330d680c83617b58f967d0663eedba8fe515f77f6",
+        "domain": "1",
+        "version_id": "d2627fca-bc26-45e2-acd7-010bc730c4ca",
+        "revision": 2,
+        "numerical_map": "c7284cb4-dce0-4486-8ff2-fa56e42ed921",
+        "categorical_map": null
+      },
+      {
+        "source_id": "3a32ea03-f3a5-48d3-bd12-30ef2900cec9",
+        "world_id": "981b883d-17a1-4603-b003-1053968e4f6c",
+        "surface_id": "964f24cd-7a7b-45dd-9d0e-c37fce26149a",
+        "external_id": "NOAA:ETOPO_2022_v1_60s_surface",
+        "bundle": "5d1afdf76e65bd44466dba0dc35fd5f9060857ce752442a35b21276bcabbcbef",
+        "domain": "1",
+        "version_id": "d802c570-8591-42ee-9b91-cf22387b76f5",
+        "revision": 1,
+        "numerical_map": "dd7cdb89-e5c1-4553-a8d1-0934f36f6c8c",
+        "categorical_map": null
+      },
+      {
+        "source_id": "73cf8b3a-aef3-41c4-b882-231d4c9213d5",
+        "world_id": "259d36a0-93d2-498a-b329-063bb50206d0",
+        "surface_id": "ba76406d-7c29-49ba-aee3-55ba8020cab2",
+        "external_id": "AUTHORED:C3:sphere",
+        "bundle": "432a4d3c89c3aad7f9381cb20a50ada0160e575a84eb65f3cb37df71baf47ccf",
+        "domain": "2",
+        "version_id": "0df5a168-7e5b-4dfe-ae61-24be832516d4",
+        "revision": 5,
+        "numerical_map": null,
+        "categorical_map": "2214044e-a464-4a4b-aeab-f16d9e1c2681"
+      },
+      {
+        "source_id": "aa871ed3-2113-4e38-8e13-dc95575b0daa",
+        "world_id": "981b883d-17a1-4603-b003-1053968e4f6c",
+        "surface_id": "964f24cd-7a7b-45dd-9d0e-c37fce26149a",
+        "external_id": "ESA:WorldCover:2021:v200:categorical-overview-64",
+        "bundle": "5136b690d44f0b049b0832995d610e0ebdc3ec4db7259ada605abbe4e3ba83ea",
+        "domain": "2",
+        "version_id": "615f8b07-e235-450f-9d1e-ff19bf309444",
+        "revision": 1,
+        "numerical_map": null,
+        "categorical_map": "dd7cdb89-e5c1-4553-a8d1-0934f36f6c8c"
+      },
+      {
+        "source_id": "f2a19461-920c-4bc3-a3d8-9468c8246006",
+        "world_id": "91aa4482-b54c-477d-95d6-e90bbd19bf73",
+        "surface_id": "c97b1716-90cf-4fbb-8702-1c0045de7cbe",
+        "external_id": "AUTHORED:C3:plane",
+        "bundle": "2e197cfbf4136eda77f91bec578fbc69139927b878560fbb9b580125b097f9f2",
+        "domain": "2",
+        "version_id": "9e62a310-71f9-4371-9fe9-36f3c2a57f76",
+        "revision": 4,
+        "numerical_map": null,
+        "categorical_map": "c7284cb4-dce0-4486-8ff2-fa56e42ed921"
+      },
+      {
+        "source_id": "ff7534af-b0c2-4a62-8c09-5a41533f246c",
+        "world_id": "259d36a0-93d2-498a-b329-063bb50206d0",
+        "surface_id": "ba76406d-7c29-49ba-aee3-55ba8020cab2",
+        "external_id": "AUTHORED:C3:numerical-regression:sphere",
+        "bundle": "2c48bcdf1f431b8f794f0838ad5bda833fcf7d0798c3c22bb0eca64044153380",
+        "domain": "1",
+        "version_id": "d55ce44c-bd26-4c2a-8446-33f865921695",
+        "revision": 3,
+        "numerical_map": "2214044e-a464-4a4b-aeab-f16d9e1c2681",
+        "categorical_map": null
+      }
+    ],
+    "tables": [
+      {
+        "tablename": "world_categorical_raster_view",
+        "bytes": "49152"
+      },
+      {
+        "tablename": "world_geo_dataset",
+        "bytes": "1417216"
+      },
+      {
+        "tablename": "world_geo_feature",
+        "bytes": "10280960"
+      },
+      {
+        "tablename": "world_geo_head",
+        "bytes": "3252224"
+      },
+      {
+        "tablename": "world_geo_part",
+        "bytes": "131465216"
+      },
+      {
+        "tablename": "world_geo_surface",
+        "bytes": "65536"
+      },
+      {
+        "tablename": "world_geo_version",
+        "bytes": "73129984"
+      },
+      {
+        "tablename": "world_geo_view",
+        "bytes": "65536"
+      },
+      {
+        "tablename": "world_geography",
+        "bytes": "6864896"
+      },
+      {
+        "tablename": "world_raster_asset",
+        "bytes": "21356544"
+      },
+      {
+        "tablename": "world_raster_head",
+        "bytes": "32768"
+      },
+      {
+        "tablename": "world_raster_source",
+        "bytes": "65536"
+      },
+      {
+        "tablename": "world_raster_version",
+        "bytes": "540672"
+      },
+      {
+        "tablename": "world_raster_view",
+        "bytes": "49152"
+      }
+    ],
+    "metadataSha256": "40abfade33cd4296f31df53498915433c481cc1935537aa10e919fe4c9bbd088",
+    "geographicTableBytes": 248635392
+  },
+  "modifiedFiles": [
+    "docs/architecture/worlds-geo-d1a.md",
+    "docs/reports/worlds-geo-d1a-save-state-2026-10-14.md",
+    "docs/reports/worlds-geo-d1a-save-state-acceptance.json",
+    "scripts/worlds-geo-d1a-browser.ts",
+    "scripts/worlds-geo-d1a-save-browser.ts",
+    "src/features/worlds/atlas-map-editor.tsx",
+    "src/features/worlds/elevation-workspace.tsx",
+    "src/features/worlds/land-cover-workspace.tsx"
+  ],
+  "boundaries": {
+    "sharedDevContact": false,
+    "productionContact": false,
+    "sharedServiceRestart": false,
+    "push": false,
+    "deployment": false,
+    "nextPhase": false
+  }
+}
