@@ -1,0 +1,518 @@
+{
+  "baseCommit": "27318be409b599114f457a3ce587fbe3a8c81061",
+  "environment": {
+    "node": "v22.23.3",
+    "os": "Windows",
+    "postgres": "18.0",
+    "browser": "production headless Chrome",
+    "database": "owned loopback retained disposable environment; no restore/import/shared target"
+  },
+  "before": {
+    "build": {
+      "passed": true,
+      "node": "v22.23.3",
+      "fingerprint": "997e0230bd92142d37a5a1bf14f397f9f4adc3aa15f09f2d05e9f74fa0d362a2"
+    },
+    "measurements": {
+      "initial": {
+        "requests": 21,
+        "bytes": 148814,
+        "groups": {
+          "tiles": {
+            "requests": 17,
+            "bytes": 82810,
+            "maxElapsedMs": 253.869
+          },
+          "vectors": {
+            "requests": 1,
+            "bytes": 56395,
+            "maxElapsedMs": 180.31
+          },
+          "checks": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9609,
+            "maxElapsedMs": 263.399
+          }
+        }
+      },
+      "idle": {
+        "elapsedMs": 70080.83219999999,
+        "requests": 42,
+        "bytes": 297628,
+        "groups": {
+          "tiles": {
+            "requests": 34,
+            "bytes": 165620,
+            "maxElapsedMs": 211.634
+          },
+          "vectors": {
+            "requests": 2,
+            "bytes": 112790,
+            "maxElapsedMs": 110.09599999999999
+          },
+          "checks": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "metadata": {
+            "requests": 6,
+            "bytes": 19218,
+            "maxElapsedMs": 398.791
+          }
+        }
+      },
+      "sameScene": false
+    }
+  },
+  "after": {
+    "build": {
+      "passed": true,
+      "node": "v22.23.3",
+      "fingerprint": "7110dfc28fb8a4c7de147bbbadea3562de0ba5e7f345a22a03fc95c995667f09"
+    },
+    "measurements": {
+      "initial": {
+        "requests": 21,
+        "bytes": 149018,
+        "groups": {
+          "tiles": {
+            "requests": 17,
+            "bytes": 82810,
+            "maxElapsedMs": 207.77200000000002
+          },
+          "vectors": {
+            "requests": 1,
+            "bytes": 56446,
+            "maxElapsedMs": 163.998
+          },
+          "checks": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9762,
+            "maxElapsedMs": 284.59
+          }
+        }
+      },
+      "idle": {
+        "elapsedMs": 70145.0608,
+        "requests": 8,
+        "bytes": 20338,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 2,
+            "bytes": 814,
+            "maxElapsedMs": 349.09000000000003
+          },
+          "metadata": {
+            "requests": 6,
+            "bytes": 19524,
+            "maxElapsedMs": 504.024
+          }
+        }
+      },
+      "sameScene": true,
+      "focus": {
+        "requests": 4,
+        "bytes": 10169,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 407,
+            "maxElapsedMs": 123.959
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9762,
+            "maxElapsedMs": 348.988
+          }
+        }
+      },
+      "artworkRevision": {
+        "requests": 4,
+        "bytes": 10170,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 407,
+            "maxElapsedMs": 78.90599999999999
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9763,
+            "maxElapsedMs": 268.493
+          }
+        }
+      },
+      "vectorRevision": {
+        "requests": 5,
+        "bytes": 66591,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 1,
+            "bytes": 56434,
+            "maxElapsedMs": 158.277
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 395,
+            "maxElapsedMs": 62.486
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9762,
+            "maxElapsedMs": 275.192
+          }
+        }
+      },
+      "protectionRemoval": {
+        "requests": 4,
+        "bytes": 4088,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 407,
+            "maxElapsedMs": 137.375
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 3681,
+            "maxElapsedMs": 263.16
+          }
+        }
+      },
+      "protectionRecovery": {
+        "requests": 19,
+        "bytes": 52809,
+        "groups": {
+          "tiles": {
+            "requests": 15,
+            "bytes": 42640,
+            "maxElapsedMs": 355.573
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 407,
+            "maxElapsedMs": 58.766000000000005
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9762,
+            "maxElapsedMs": 296.164
+          }
+        }
+      },
+      "failedRasterRetry": {
+        "requests": 18,
+        "bytes": 51215,
+        "groups": {
+          "tiles": {
+            "requests": 15,
+            "bytes": 42640,
+            "maxElapsedMs": 153.307
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 407,
+            "maxElapsedMs": 60.725
+          },
+          "metadata": {
+            "requests": 2,
+            "bytes": 8168,
+            "maxElapsedMs": 26.202
+          }
+        }
+      },
+      "multipleLocal": {
+        "visiblePreviews": 7,
+        "elapsedMs": 35009.14550000001,
+        "requests": 10,
+        "bytes": 12087,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 3,
+            "bytes": 222,
+            "maxElapsedMs": 14.350999999999999
+          },
+          "metadata": {
+            "requests": 7,
+            "bytes": 11865,
+            "maxElapsedMs": 46.894
+          }
+        }
+      }
+    },
+    "results": [
+      "unchanged visible Earth survives 70 seconds without vector or tile reloads",
+      "focus refresh reauthorizes without downloading unchanged vectors or tiles",
+      "a fresh artwork revision redraws artwork without reloading geography or raster pixels",
+      "changed eligible source heads reload only vectors",
+      "a newly unreadable raster is removed; recovery loads only that raster",
+      "permission loss discards the entire unauthorized preview and manual retry recovers",
+      "failed preview retry recovers its raster without restarting healthy content",
+      "offscreen unmount cancels preview work and remount reauthorizes",
+      "multiple visible local-map previews stay bounded through an idle refresh"
+    ],
+    "pageErrors": []
+  },
+  "measurementNotes": [
+    "Decoded response-body bytes exclude headers, compression and application scripts.",
+    "Metadata group includes artwork and raster authorization responses; checks group includes geographic status and no-attached-source responses.",
+    "One initial thumbnail is compared with two subsequent 30-second cycles over at least 70 seconds.",
+    "Revision, source/protection and failure transitions are HTTP response injections after real authorization; original World tables remain untouched.",
+    "Multiple-local results include only that World, excluding the separate Earth page.",
+    "Direct status-service timing is local measurement, not a production guarantee."
+  ],
+  "statusService": {
+    "samplesMs": [
+      45.430599999999686,
+      46.478799999997136,
+      38.116799999999785,
+      38.56910000000062,
+      37.55760000000009,
+      37.41269999999713,
+      35.69920000000275,
+      35.784999999999854,
+      36.544200000000274,
+      37.06910000000062,
+      38.166699999997945,
+      36.90849999999773,
+      38.19510000000082,
+      37.7602999999981,
+      39.74669999999969,
+      39.630199999999604,
+      38.83679999999731,
+      42.66869999999835,
+      41.775799999999435,
+      39.45010000000184
+    ],
+    "minMs": 35.69920000000275,
+    "maxMs": 46.478799999997136,
+    "medianMs": 38.19510000000082,
+    "responseKeys": [
+      "layer",
+      "context",
+      "canEdit",
+      "previewReader"
+    ],
+    "sourceGeometryRead": false,
+    "partsRead": false
+  },
+  "checks": {
+    "unit": {
+      "passed": 2174,
+      "failed": 0,
+      "files": 262
+    },
+    "typescript": "pass",
+    "eslint": {
+      "errors": 0,
+      "existingWarnings": 1
+    },
+    "services": {
+      "passed": 8,
+      "results": [
+        "coarse source preview is rectangular, bounded, unpaged and reuses the exact surface identity",
+        "preview status reauthorizes matching eligibility without returning geographic paths or original geometry",
+        "both raster preview plans use existing coarse assets with a sixteen-tile ceiling",
+        "trimmed artwork previews retain source artwork and omit unrelated imported-place catalogs",
+        "private raster heads remain withheld in ordinary preview mode",
+        "Player and foreign-owner preview reads are denied and Administrator review stays read-only",
+        "historical and unknown coverage still select original authorized artwork",
+        "existing migration SQL and ledger are immutable and a fresh schema migrates without imports"
+      ],
+      "node": "v22.23.3",
+      "newMigrations": 0,
+      "noImport": true
+    },
+    "browser": {
+      "passed": 12,
+      "results": [
+        "library previews stay lazy, bounded and combine real geography with authored artwork",
+        "worldwide visible PNG combines geography, both rasters, artwork and required credit",
+        "authored-only export stays separate from geographic reference imagery",
+        "regional Mercator PNG retains the exact selected view and source resolution",
+        "visible-layer choices export without saving preferences or clearing the draft guard",
+        "failed raster tiles block complete export while authored export and retry remain usable",
+        "fresh geographic and raster authorization failures prevent downloading stale pixels",
+        "changing viewing context during composition cancels the original download",
+        "historical and unknown previews and PNGs retain date context without modern imagery",
+        "ordinary aliases, protected raster previews and explicit Administrator review retain authorization",
+        "Glass Sea and local map types keep their existing preview and editing paths",
+        "native-touch phone and keyboard downloads retain the page and geographic viewport"
+      ],
+      "pageErrors": [],
+      "buildFingerprint": "7110dfc28fb8a4c7de147bbbadea3562de0ba5e7f345a22a03fc95c995667f09"
+    },
+    "preservation": {
+      "allWorldTablesExact": true,
+      "worldTables": 118,
+      "matchesStartingReceiptWorldDigests": true,
+      "migrationLedgerExact": true,
+      "migrations": 132,
+      "rasterVersions": 16,
+      "frozenBundles": [
+        "236142946a5ecb368023147330d680c83617b58f967d0663eedba8fe515f77f6",
+        "2c48bcdf1f431b8f794f0838ad5bda833fcf7d0798c3c22bb0eca64044153380",
+        "2e197cfbf4136eda77f91bec578fbc69139927b878560fbb9b580125b097f9f2",
+        "432a4d3c89c3aad7f9381cb20a50ada0160e575a84eb65f3cb37df71baf47ccf",
+        "5136b690d44f0b049b0832995d610e0ebdc3ec4db7259ada605abbe4e3ba83ea",
+        "5d1afdf76e65bd44466dba0dc35fd5f9060857ce752442a35b21276bcabbcbef"
+      ],
+      "metadataSha256": "40abfade33cd4296f31df53498915433c481cc1935537aa10e919fe4c9bbd088",
+      "newMigrations": 0,
+      "newProvisionedAssetBytes": 0
+    },
+    "pngDerivatives": [
+      {
+        "path": "docs/exports/worlds-geo-d1b/earth-authored.png",
+        "sha256": "993702037cceb354ac6cd3e6d200b8481d7d858d8ad23ea0dd0dfce90f7256ab",
+        "bytes": 108767,
+        "regeneratedExactly": true
+      },
+      {
+        "path": "docs/exports/worlds-geo-d1b/earth-history-1900.png",
+        "sha256": "cc67be0d7080cf0b2acd0a25f1481b5fa940a1756f3f947d269974d6bd9a8686",
+        "bytes": 101128,
+        "regeneratedExactly": true
+      },
+      {
+        "path": "docs/exports/worlds-geo-d1b/earth-history-1901.png",
+        "sha256": "8776e42ffa9d0e75dc007b7e49b0aaf2ebdb6b1f2120d881fa07af76544b740c",
+        "bytes": 116771,
+        "regeneratedExactly": true
+      },
+      {
+        "path": "docs/exports/worlds-geo-d1b/earth-regional-mercator.png",
+        "sha256": "831ea8a5bb814a25812d303fedf67995f9ad7536b18f7fd53f4d745ec958135a",
+        "bytes": 252330,
+        "regeneratedExactly": true
+      },
+      {
+        "path": "docs/exports/worlds-geo-d1b/earth-worldwide.png",
+        "sha256": "0e7b735f63fa6804f34dc4e3a24f2caee15c2a8863eb4a99f16a3438a0a1a7af",
+        "bytes": 2383556,
+        "regeneratedExactly": true
+      },
+      {
+        "path": "docs/exports/worlds-geo-d1b/glass-sea.png",
+        "sha256": "ae64a3aa1c74f775c7f804ba74672cc763f3e30bb3f632f7257a35da73f5b52b",
+        "bytes": 123146,
+        "regeneratedExactly": true
+      }
+    ]
+  },
+  "boundaries": {
+    "pushed": false,
+    "productionAccess": false,
+    "sharedServiceRestart": false,
+    "databaseImport": false,
+    "dockerChange": false,
+    "laterPhase": false
+  },
+  "pending": [
+    "Independent technical review",
+    "Owner acceptance",
+    "Linux Node 22 CI after separately authorized push",
+    "Physical-device acceptance is not claimed"
+  ],
+  "changedFiles": [
+    "AGENTS.md",
+    "docs/architecture/worlds-geo-d1b.md",
+    "docs/reports/worlds-geo-d1b-performance-correction-2026-10-14.md",
+    "docs/reports/worlds-geo-d1b-performance-correction-acceptance.json",
+    "scripts/worlds-geo-d1b-browser.ts",
+    "scripts/worlds-geo-d1b-checks.ts",
+    "scripts/worlds-geo-d1b-preview-browser.ts",
+    "src/app/api/worlds/[worldId]/atlas/route.ts",
+    "src/app/api/worlds/[worldId]/atlas/states/route.ts",
+    "src/app/api/worlds/[worldId]/geography/route.ts",
+    "src/features/worlds/atlas-thumbnail.tsx",
+    "src/features/worlds/categorical-raster.ts",
+    "src/features/worlds/categorical-service.ts",
+    "src/features/worlds/elevation-workspace.tsx",
+    "src/features/worlds/geographic-service.ts",
+    "src/features/worlds/geographic-thumbnail.tsx",
+    "src/features/worlds/geographic.ts",
+    "src/features/worlds/land-cover-workspace.tsx",
+    "src/features/worlds/raster-response.ts",
+    "src/features/worlds/raster-service.ts",
+    "src/features/worlds/raster.ts",
+    "src/features/worlds/thumbnail-refresh.test.ts",
+    "src/features/worlds/thumbnail-refresh.ts"
+  ]
+}

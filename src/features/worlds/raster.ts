@@ -28,7 +28,7 @@ export const rasterManifestSchema=z.object({version:z.literal(1),algorithm:z.lit
 export type RasterManifest=z.infer<typeof rasterManifestSchema>;
 export type RasterLevel=RasterManifest["levels"][number];
 export type RasterTile={x:number;y:number;width:number;height:number;key:string};
-export type RasterView={sourceId:string;versionId:string;revision:number;viewRevision:number;stamp:string;name:string;grid:RasterGrid;level:RasterLevel;tiles:RasterTile[];preferences:RasterPreferences;canEdit:boolean;credit:RasterManifest["source"];versions:{id:string;revision:number;protected:boolean;archived:boolean}[];protected:boolean;archived:boolean;statistics:RasterManifest["statistics"]};
+export type RasterView={previewReader?:string;sourceId:string;versionId:string;revision:number;viewRevision:number;stamp:string;name:string;grid:RasterGrid;level:RasterLevel;tiles:RasterTile[];preferences:RasterPreferences;canEdit:boolean;credit:RasterManifest["source"];versions:{id:string;revision:number;protected:boolean;archived:boolean}[];protected:boolean;archived:boolean;statistics:RasterManifest["statistics"]};
 export const rasterCommandSchema=z.discriminatedUnion("action",[
   z.object({action:z.literal("preferences"),mapId:geoId,timelineId:geoId,sourceId:geoId,revision:z.number().int().positive(),preferences:rasterPreferencesSchema}).strict(),
   z.object({action:z.literal("revise"),mapId:geoId,timelineId:geoId,sourceId:geoId,revision:z.number().int().positive(),requestId:geoId,note:z.string().trim().min(1).max(4000),protected:z.boolean(),archived:z.boolean()}).strict(),

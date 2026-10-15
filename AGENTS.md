@@ -10,6 +10,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Geo D1-B authorization
 
+The owner separately authorized one focused D1-B thumbnail performance correction from `27318be409b599114f457a3ce587fbe3a8c81061`: retain timely authorization while eliminating unchanged timer/focus reconstruction and raster downloads. Measure real idle behavior in the established isolated environment and stop at one clean local correction commit. No push, Production access, migrations, provisioned assets, Docker change, deployment or later phase is authorized.
+
 The owner independently technically approved D1-A including its save-state correction at `2683a72d3c41d4c6fce0515d307f6a844536cfe1` and authorized [Geo D1-B unified Atlas previews and map export](docs/architecture/worlds-geo-d1b.md). Reuse existing scenes, source services, coordinate registration and privacy for lazy bounded previews and browser-side visible-map PNGs with licensing and current-access validation. Preserve authored-only export, historical sources, draft/save separation, local map types and all C1–C3 originals. Stop at a clean local review commit. No push, Production change, database import, Docker modification, shared-server restart, D1-C or D2 is authorized. Existing disposable validation infrastructure may be resumed; no source import is needed.
 
 ## Geo D1-A authorization

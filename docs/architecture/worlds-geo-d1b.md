@@ -4,7 +4,11 @@ Authorized from approved `2683a72d3c41d4c6fce0515d307f6a844536cfe1`. This is an 
 
 ## Previews
 
-Preserve the IntersectionObserver's 240-pixel lazy margin and unmount work outside it. Thumbnail work uses a two-job page queue with abortable waiting, rather than a cross-user or cross-context result cache. Viewing identities include World, map/revision, timeline, ordinary/review and selected historical year.
+Preserve the IntersectionObserver's 240-pixel lazy margin and unmount work outside it. Thumbnail work uses a two-job page queue with abortable waiting, rather than a cross-user or cross-context result cache. Viewing identities include the authenticated reader, World, map, timeline, ordinary/review mode and selected historical year; revisions are checked separately.
+
+The focused correction from `27318be409b599114f457a3ce587fbe3a8c81061` separates refresh counters from mounted preview identity. Thirty-second and focus checks reauthorize artwork, geographic eligibility and both raster metadata responses. Unchanged results retain their existing scenes and pixels. Artwork revisions update artwork independently; changed geographic eligibility clears old paths before fetching a replacement; denied/failed authorization clears affected content. A private geography `preview=1&check=1` response reuses the full viewer's eligibility SQL without loading source geometry, map parts or computing projected paths.
+
+Preview responses identify their authenticated reader. Complete raster images can survive a fresh authorization stamp only for the same reader/context, immutable source/version, grid, coarse level, tile plan and style. Fresh visibility/opacity preferences update independently. Manual retry checks healthy content without fetching its unchanged tiles, while incomplete sources reload. Changing reader, World, map, timeline, ordinary/review mode or historical selection discards the prior context. No export/editor persistence behavior changes.
 
 Generic geographic previews use the existing authenticated private geographic endpoint in explicit preview mode: full-domain rectangular Earth or retained planar projection, overview land/authored representations only, at most 96 parts and 64,000 total path characters, at most 8,000 per part. Larger footprint parts are preferred. This is deliberately a representative coarse preview, not the complete editable source. The existing clipping/projector and screen-space simplifier perform every transformation.
 
@@ -29,3 +33,5 @@ No new migration, persistent configuration or private asset provisioning is requ
 Acceptance uses the production build against the previously retained owned disposable cluster, without database/source import, plus fresh-schema migration rehearsal, read-only preservation comparisons, browser screenshots and genuine PNG examples. Independent technical inspection and owner visual acceptance remain separate from automated evidence. Follow the existing [deployment standard](../operations/pass-deployment-standard.md) and [paired raster recovery runbook](../operations/worlds-raster-deployment.md) after separate deployment authorization.
 
 Executed checks, actual resource measurements, screenshots, PNG examples and remaining acceptance are recorded in the [D1-B report](../reports/worlds-geo-d1b-2026-10-14.md).
+
+The [focused performance correction report](../reports/worlds-geo-d1b-performance-correction-2026-10-14.md) records baseline versus corrected idle transfers and refresh/privacy regressions.

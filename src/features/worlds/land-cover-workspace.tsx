@@ -6,15 +6,16 @@ import type {GeographicViewport} from "./geographic";
 import {DEFAULT_CATEGORICAL_PREFERENCES,type CategoricalPreferences,type CategoricalView} from "./categorical-raster";
 import {rasterScreenIndices} from "./raster-screen";
 import {parseRasterResponse,landCoverResponseSchema,classificationAttribution} from "./raster-response";
+import {sameRasterPreview} from "./thumbnail-refresh";
 import {scheduleThumbnail} from "./thumbnail-load";
 import styles from "./geographic.module.css";
 
 type Props={worldId:string;timelineId:string;mapId:string;ordinary:boolean;review:boolean;viewport:GeographicViewport|null;preview?:boolean};
 export function useLandCover({worldId,timelineId,mapId,ordinary,review,viewport,preview=false}:Props){
   const width=preview?320:1000,height=preview?192:600;
-  const base=`${worldId}:${timelineId}:${mapId}:${ordinary}:${review}:${preview}`,bounds=JSON.stringify(viewport?.bounds??null),projection=viewport?.projection??null,reference=JSON.stringify(viewport?.layer.surface.reference??null),api=`/api/worlds/${worldId}/land-cover`;
+  const base=`${worldId}:${timelineId}:${mapId}:${ordinary}:${review}:${preview}:${preview?viewport?.previewReader??"":""}`,bounds=JSON.stringify(viewport?.bounds??null),projection=viewport?.projection??null,reference=JSON.stringify(viewport?.layer.surface.reference??null),api=`/api/worlds/${worldId}/land-cover`;
   const [preference,setPreference]=useState<{key:string;value:CategoricalPreferences}|null>(null),[selected,setSelected]=useState<{key:string;version:string}>({key:"",version:""}),[refresh,setRefresh]=useState(0),[poll,setPoll]=useState(0),[result,setResult]=useState<{key:string;view:CategoricalView|null;image:string|null;loaded:number;complete:boolean;error:string}|null>(null);
-  const prefs=preference?.key===base?preference.value:null,version=selected.key===base?selected.version:"",key=`${base}:${bounds}:${projection}:${"classification"}:${version}:${refresh}`,current=result?.key===key?result:null,data=current?.view??null,settings=prefs??data?.preferences??DEFAULT_CATEGORICAL_PREFERENCES;
+  const prefs=preference?.key===base?preference.value:null,version=selected.key===base?selected.version:"",key=`${base}:${bounds}:${projection}:${"classification"}:${version}:${preview?0:refresh}`,current=result?.key===key?result:null,data=current?.view??null,settings=prefs??data?.preferences??DEFAULT_CATEGORICAL_PREFERENCES;
   const [noteDraft,setNoteDraft]=useState({key:base,text:""}),[knowledge,setKnowledge]=useState<{key:string;protected:boolean}|null>(null),[pending,setPending]=useState(false),[saveError,setSaveError]=useState(""),[saved,setSaved]=useState(""),[sampleCoordinates,setSampleCoordinates]=useState({x:"",y:""}),[sample,setSample]=useState<{key:string;text:string}|null>(null),live=useRef(key);
   const note=noteDraft.key===base?noteDraft.text:"",setNote=(value:string|((previous:string)=>string))=>setNoteDraft({key:base,text:typeof value==="function"?value(note):value});
   const revisionRequest=useRef(crypto.randomUUID());
@@ -30,9 +31,10 @@ export function useLandCover({worldId,timelineId,mapId,ordinary,review,viewport,
         setResult({key,view,image,loaded,complete,error});
       };
       try{const q=new URLSearchParams({timeline:timelineId,map:mapId,bounds,projection,...preview?{preview:"1"}:{},...ordinary?{ordinary:"1"}:{},...review?{review:"1"}:{},...version?{version}:{}});view=parseRasterResponse(landCoverResponseSchema,await worldApi<unknown>(`${api}?${q}`,"GET",undefined,controller.signal));if(controller.signal.aborted||live.current!==key)return;
-        // Authorization polls keep an unchanged image; a changed stamp always
-        // discards its decoded pixels before any new requests are accepted.
-        if(poll&&current?.complete&&current.image&&settings.visible&&current.view?.stamp===view?.stamp&&current.view?.level.factor===view?.level.factor)return;
+        // Preview refreshes retain only complete, freshly authorized same-reader originals.
+        if(preview&&current?.complete&&!current.error&&current.image&&sameRasterPreview(current.view,view)){setResult({...current,view});return;}
+        // Normal editor/explorer behavior remains unchanged.
+        if(!preview&&poll&&current?.complete&&current.image&&settings.visible&&current.view?.stamp===view?.stamp&&current.view?.level.factor===view?.level.factor)return;
         publish();if(!view||view.archived||!(prefs??view.preferences).visible){publish("",true);return;}
         q.set("version",view.versionId);q.set("stamp",view.stamp);let next=0;const errors:string[]=[];
         await Promise.all(Array.from({length:Math.min(4,view.tiles.length)},async()=>{while(next<view!.tiles.length){const tile=view!.tiles[next++],query=new URLSearchParams(q);query.set("tile",tile.key);try{const response=await fetch(`${api}?${query}`,{signal:controller.signal,cache:"no-store",credentials:"same-origin"});if(!response.ok)throw new SaveError("A land-cover tile could not be loaded.",response.status);const blob=await response.blob();if(blob.size>1_000_000)throw new Error("The land-cover tile exceeded its bounded size.");const bitmap=await createImageBitmap(blob);try{if(bitmap.width!==tile.width||bitmap.height!==tile.height)throw new Error("The land-cover tile dimensions changed.");const canvas=document.createElement("canvas");canvas.width=tile.width;canvas.height=tile.height;const ctx=canvas.getContext("2d")!;ctx.drawImage(bitmap,0,0);tiles.set(`${tile.x}-${tile.y}`,ctx.getImageData(0,0,tile.width,tile.height));loaded++;if(performance.now()-lastPaint>200){publish();lastPaint=performance.now();}}finally{bitmap.close();}}

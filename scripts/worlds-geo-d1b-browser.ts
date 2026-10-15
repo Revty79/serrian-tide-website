@@ -9,7 +9,7 @@ import {chromium,type BrowserContext,type Page} from "playwright-core";
 import {environment,DIRECTORY as prior,SECRET,runtimeFingerprint} from "./worlds-geo-d1a-harness";
 import {EARTH} from "./worlds-geo-b-import";
 import type {GeographicReading} from "../src/features/worlds/geographic";
-const directory="artifacts/guidance/geo-d1b",screens="docs/screenshots/worlds-geo-d1b",exports="docs/exports/worlds-geo-d1b";
+const directory="artifacts/guidance/geo-d1b",evidence=process.env.SERRIAN_TEST_D1B_EVIDENCE,screens=evidence?`${evidence}/screenshots`:"docs/screenshots/worlds-geo-d1b",exports=evidence?`${evidence}/exports`:"docs/exports/worlds-geo-d1b";
 type SvgProof={viewBox:string|null;geography:number;rasters:string[];sources:number;artwork:number;bytes:number};
 declare global{interface Window{__d1b:{svgs:SvgProof[];footer:string[];pngs:{width:number;height:number;bytes:number}[]}}}
 async function main(){

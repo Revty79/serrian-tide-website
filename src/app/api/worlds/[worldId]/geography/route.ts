@@ -2,7 +2,7 @@ import { z } from "zod";
 import { worldRequest } from "@/features/worlds/http";
 import { ordinaryKnowledge } from "@/features/worlds/knowledge-preview";
 import { boundsSchema,geographicSemanticSchema,geographicThemeSchema,geoId } from "@/features/worlds/geographic";
-import { changeGeography,geographicCatalog,geographicReading,geographicViewport } from "@/features/worlds/geographic-service";
+import { changeGeography,geographicCatalog,geographicReading,geographicPreviewStatus,geographicViewport } from "@/features/worlds/geographic-service";
 import { WorldError,worldReadAccess } from "@/features/worlds/world-service";
 import { geographicSample } from "@/features/worlds/geographic-samples";
 export const dynamic="force-dynamic";
@@ -18,6 +18,7 @@ export async function GET(request:Request,context:Context){return worldRequest(r
   const semantics=q.has("semantics")?z.array(geographicSemanticSchema).max(3).parse(q.get("semantics")?q.get("semantics")!.split(","):[]):undefined;
   const themes=q.has("themes")?z.array(geographicThemeSchema).max(9).parse(q.get("themes")?q.get("themes")!.split(","):[]):undefined;
   const preview=q.get("preview")==="1";
+  if(preview&&q.get("check")==="1")return geographicPreviewStatus(userId,worldId,timelineId,mapId,options);
   return geographicViewport(userId,worldId,timelineId,mapId,preview?undefined:bounds,preview?undefined:projection,preview?"overview":lod,options,preview?"":q.get("cursor")??"",semantics,themes,preview);
 });}
 export async function POST(request:Request,context:Context){return worldRequest(request,true,async userId=>{
