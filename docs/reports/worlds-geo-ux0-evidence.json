@@ -1,0 +1,1703 @@
+{
+  "pass": "Geo UX-0",
+  "approvedBase": "72150c1efc3524080a286890305f011697aea40c",
+  "reviewCommit": "Containing Git commit; see the adjacent report for the exact resolution command.",
+  "build": {
+    "passed": true,
+    "node": "v22.23.3",
+    "fingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+  },
+  "unit": {
+    "passed": 2201,
+    "failed": 0,
+    "files": 265
+  },
+  "typescript": {
+    "passed": true
+  },
+  "eslint": {
+    "errors": 0,
+    "warnings": 1,
+    "existingWarning": "scripts/worlds-stories-checks.ts:6 LoreFamily unused"
+  },
+  "buildWarnings": [
+    "Nested isolated checkout has a second package lockfile.",
+    "Existing raster-storage.ts dynamic filesystem tracing warning."
+  ],
+  "browserTotal": 102,
+  "browserSuites": {
+    "browser-results": {
+      "passed": 19,
+      "results": [
+        "complete creator journey 1440x900",
+        "complete creator journey 1024x768",
+        "complete creator journey 768x1024",
+        "complete creator journey 390x844",
+        "complete creator journey 360x740",
+        "settlement retained editor 1440",
+        "interior retained editor 1440",
+        "dungeon retained editor 1440",
+        "legacy generator focused workspace 1440",
+        "settlement retained editor 390",
+        "interior retained editor 390",
+        "dungeon retained editor 390",
+        "legacy generator focused workspace 390",
+        "historical political overlay 1440",
+        "unknown coverage stays visible 1440",
+        "Earth direct-link workspace 1440",
+        "historical political overlay 390",
+        "unknown coverage stays visible 390",
+        "Earth direct-link workspace 390"
+      ],
+      "pageErrors": 0,
+      "buildFingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    },
+    "special-results": {
+      "passed": 8,
+      "results": [
+        "settlement retained editor 1440",
+        "interior retained editor 1440",
+        "dungeon retained editor 1440",
+        "legacy generator focused workspace 1440",
+        "settlement retained editor 390",
+        "interior retained editor 390",
+        "dungeon retained editor 390",
+        "legacy generator focused workspace 390"
+      ],
+      "pageErrors": 0,
+      "buildFingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    },
+    "d1a-browser-results": {
+      "passed": 14,
+      "results": [
+        "normal Atlas editor opens rectangular worldwide Earth with both rasters and bounded source layers",
+        "authored label creation, undo/redo, save and reload preserve original map objects",
+        "source coordinates and authored artwork remain aligned through projection, zoom and pan",
+        "polygon authoring and point edits retain canonical coordinates under Mercator",
+        "worldwide, alternate and focused regional production screenshots",
+        "keyboard source selection and tool switches retain page scroll position",
+        "geographic themes and both raster layers have independent visibility",
+        "failed raster responses preserve geographic vectors and editable artwork",
+        "owner ordinary aliases and explicit Administrator review use authorized combined rendering",
+        "Atlas explorer reuses the combined canvas and preserves the editable return journey",
+        "native-touch phone pan and two-finger zoom retain geography, artwork and page position",
+        "historical year keeps its authored appearance and timeline without modern source imagery",
+        "existing protected raster fixtures redact cached images and exact tile requests in both ordinary modes",
+        "Glass Sea direct planar artwork, protected vectors, Realm privacy and legacy map scales remain usable"
+      ],
+      "pageErrors": 0,
+      "buildFingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    },
+    "d1b-browser-results": {
+      "passed": 12,
+      "results": [
+        "library previews stay lazy, bounded and combine real geography with authored artwork",
+        "worldwide visible PNG combines geography, both rasters, artwork and required credit",
+        "authored-only export stays separate from geographic reference imagery",
+        "regional Mercator PNG retains the exact selected view and source resolution",
+        "visible-layer choices export without saving preferences or clearing the draft guard",
+        "failed raster tiles block complete export while authored export and retry remain usable",
+        "fresh geographic and raster authorization failures prevent downloading stale pixels",
+        "changing viewing context during composition cancels the original download",
+        "historical and unknown previews and PNGs retain date context without modern imagery",
+        "ordinary aliases, protected raster previews and explicit Administrator review retain authorization",
+        "Glass Sea and local map types keep their existing preview and editing paths",
+        "native-touch phone and keyboard downloads retain the page and geographic viewport"
+      ],
+      "pageErrors": 0,
+      "buildFingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    },
+    "d2a-browser-results": {
+      "passed": 13,
+      "results": [
+        "fictional surface setup and visual island creation save real authoritative geography",
+        "same island reopens, drags/adds/removes vertices, undoes/redoes and retains its original",
+        "geographic river editing persists an open line through mouse, keyboard and undo/redo",
+        "invalid drafts and combined navigation/mode guards preserve unfinished geographic work",
+        "independent artwork and geographic saves preserve the other draft",
+        "competing tabs detect conflicts, compare/rebase explicitly and retain every saved revision",
+        "lost save acknowledgement and server failure retain drafts and retry idempotently",
+        "spherical source drafts survive pan/zoom and projection changes without coordinate rewrites",
+        "ordinary and Administrator review retain read-only source boundaries",
+        "native-touch phone creates and reshapes a saved geographic line",
+        "saved source heads refresh library previews and both PNG exports preserve their separate scopes",
+        "the authoring HTTP boundary rejects read-only contexts, foreign roles, malformed and oversized writes",
+        "existing Glass Sea holes now load completely for bounded editing while original coordinates remain unchanged"
+      ],
+      "pageErrors": 0,
+      "buildFingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    },
+    "d2b-browser-results": {
+      "passed": 11,
+      "results": [
+        "five visually drawn islands create one saved MultiPolygon identity",
+        "interior lake creation preserves every island exterior and the original complete feature",
+        "direct boundary selection, mouse/keyboard edits and undo/redo affect only the chosen island",
+        "invalid outside holes and intersecting islands retain drafts and never reach saved geometry",
+        "component/hole removal and undo/redo preserve all remaining parts and old originals",
+        "competing multipart tabs compare complete features, retain failed drafts and reload/reapply without losing another island's edit",
+        "multipart lost acknowledgements and server failures retry idempotently without clearing geometry",
+        "native-touch hole creation and reshaping preserve all other components",
+        "artwork saves and multipart source saves retain separate drafts and revised previews/PNGs",
+        "supported spherical components/holes preserve exact drafts through projection, zoom and focus",
+        "connected components may meet at an exterior point and revise without changing the other component"
+      ],
+      "pageErrors": 0,
+      "buildFingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    },
+    "d2b-glass-browser-results": {
+      "passed": 4,
+      "results": [
+        "canonical Glass Island exterior edits retain its complete opening, artwork and recoverable original",
+        "Glass Island interior boundary is independently editable with unchanged exterior and original versions",
+        "Copper Isles mouse and native-touch editing retains the other island and stable identities",
+        "Glass Sea previews/PNGs refresh revised parts while Glass Channel, surface, artwork and original sources remain exact"
+      ],
+      "pageErrors": 0,
+      "buildFingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    },
+    "d3a-browser-results": {
+      "passed": 10,
+      "results": [
+        "empty fictional map previews deterministic continents without saved writes, then explicitly accepts complete sources",
+        "generated coastline reopens, moves/inserts/removes vertices and saves immutable D2 revisions with its original recipe",
+        "archipelago generation and save preserve the manually edited original source",
+        "failed saves retain exact preview/recipe and retry; lost acknowledgements reuse the same complete batch",
+        "two-tab conflicts retain candidates and require explicit current-context review before additive acceptance",
+        "stale settings and worker cancellation never save or replace drafts; navigation remains protected",
+        "supported spherical sources retain angular registration and survive projection changes after generation",
+        "native-touch phone generates protected sources and opens the same coast in D2",
+        "ordinary/history/review and foreign HTTP access cannot generate; ordinary reads redact protected recipes",
+        "existing Atlas V1/V2 decorative recipes still preview and save their original algorithms"
+      ],
+      "pageErrors": 0,
+      "buildFingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    },
+    "d3a-glass-browser-results": {
+      "passed": 2,
+      "results": [
+        "three reproducible Glass Sea candidates preview in its exact planar reference without saved changes",
+        "a disposable Glass Sea candidate saves and opens in D2 while original geography/artwork/channel remain intact"
+      ],
+      "pageErrors": 0,
+      "buildFingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    },
+    "preview-results": {
+      "passed": 9,
+      "results": [
+        "unchanged visible Earth survives 70 seconds without vector or tile reloads",
+        "focus refresh reauthorizes without downloading unchanged vectors or tiles",
+        "a fresh artwork revision redraws artwork without reloading geography or raster pixels",
+        "changed eligible source heads reload only vectors",
+        "a newly unreadable raster is removed; recovery loads only that raster",
+        "permission loss discards the entire unauthorized preview and manual retry recovers",
+        "failed preview retry recovers its raster without restarting healthy content",
+        "offscreen unmount cancels preview work and remount reauthorizes",
+        "multiple visible local-map previews stay bounded through an idle refresh"
+      ],
+      "pageErrors": 0,
+      "buildFingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    }
+  },
+  "serviceSuites": {
+    "d3a-services": {
+      "passed": 6,
+      "results": [
+        "atomic generation retains recipe, stable sources and idempotent retries after manual editing",
+        "protected generated heads and original recipes remain withheld from ordinary readers",
+        "changed contexts, modified previews and unsupported surface references are rejected without partial rows",
+        "a database failure on the second source rolls back the entire batch",
+        "foreign owners, Players and read-only Administrators cannot generate",
+        "seeded generation timing, payload and output remain bounded across presets"
+      ],
+      "node": "v22.23.3"
+    },
+    "d1b-services": {
+      "passed": 8,
+      "results": [
+        "coarse source preview is rectangular, bounded, unpaged and reuses the exact surface identity",
+        "preview status reauthorizes matching eligibility without returning geographic paths or original geometry",
+        "both raster preview plans use existing coarse assets with a sixteen-tile ceiling",
+        "trimmed artwork previews retain source artwork and omit unrelated imported-place catalogs",
+        "private raster heads remain withheld in ordinary preview mode",
+        "Player and foreign-owner preview reads are denied and Administrator review stays read-only",
+        "historical and unknown coverage still select original authorized artwork",
+        "existing migration SQL and ledger are immutable and a fresh schema migrates without imports"
+      ],
+      "node": "v22.23.3",
+      "newMigrations": 0,
+      "noImport": true
+    }
+  },
+  "layout": {
+    "before": {
+      "buildFingerprint": "72ef610bc5ceb16339584a9f69740ad9485fea670a0a7a0da4c47454d3ac3219",
+      "measurements": [
+        {
+          "label": "before-1440",
+          "scrollY": 0,
+          "pageHeight": 3369,
+          "pageWidth": 1440,
+          "viewportWidth": 1440,
+          "viewportHeight": 900,
+          "canvas": {
+            "x": 101,
+            "y": 1909.171875,
+            "width": 932,
+            "height": 495
+          },
+          "visibleRatio": 0,
+          "unobscuredRatio": 1
+        },
+        {
+          "label": "before-390",
+          "scrollY": 0,
+          "pageHeight": 4064,
+          "pageWidth": 390,
+          "viewportWidth": 390,
+          "viewportHeight": 844,
+          "canvas": {
+            "x": 17,
+            "y": 3004.234375,
+            "width": 356,
+            "height": 220
+          },
+          "visibleRatio": 0,
+          "unobscuredRatio": 1
+        }
+      ]
+    },
+    "summary": [
+      {
+        "viewport": [
+          1440,
+          900
+        ],
+        "entryCanvas": {
+          "x": 109,
+          "y": 287.5625,
+          "width": 972,
+          "height": 523.140625
+        },
+        "minimumVisibleRatio": 1,
+        "minimumUnobscuredRatio": 1,
+        "workingPageScrollDelta": 0
+      },
+      {
+        "viewport": [
+          1024,
+          768
+        ],
+        "entryCanvas": {
+          "x": 5.796875,
+          "y": 336.765625,
+          "width": 1012.40625,
+          "height": 348.328125
+        },
+        "minimumVisibleRatio": 1,
+        "minimumUnobscuredRatio": 0.7007403597521338,
+        "workingPageScrollDelta": 0
+      },
+      {
+        "viewport": [
+          768,
+          1024
+        ],
+        "entryCanvas": {
+          "x": 5.796875,
+          "y": 336.765625,
+          "width": 756.40625,
+          "height": 604.328125
+        },
+        "minimumVisibleRatio": 1,
+        "minimumUnobscuredRatio": 0.6541860509317805,
+        "workingPageScrollDelta": 0
+      },
+      {
+        "viewport": [
+          390,
+          844
+        ],
+        "entryCanvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 383.21875,
+          "height": 426.859375
+        },
+        "minimumVisibleRatio": 1,
+        "minimumUnobscuredRatio": 0.5595007137889381,
+        "workingPageScrollDelta": 0
+      },
+      {
+        "viewport": [
+          360,
+          740
+        ],
+        "entryCanvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 353.21875,
+          "height": 322.859375
+        },
+        "minimumVisibleRatio": 1,
+        "minimumUnobscuredRatio": 0.5105260610753521,
+        "workingPageScrollDelta": 0
+      }
+    ],
+    "measurements": [
+      {
+        "label": "entry-1440",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 1060,
+        "pageWidth": 1440,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "canvas": {
+          "x": 109,
+          "y": 287.5625,
+          "width": 972,
+          "height": 523.140625
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "generation-1440",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 1060,
+        "pageWidth": 1440,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "canvas": {
+          "x": 109,
+          "y": 287.5625,
+          "width": 972,
+          "height": 523.140625
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "long-inspector-1440",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 1060,
+        "pageWidth": 1440,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "canvas": {
+          "x": 109,
+          "y": 287.5625,
+          "width": 972,
+          "height": 523.140625
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "drawer-dismissed-1440",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 1060,
+        "pageWidth": 1440,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "canvas": {
+          "x": 109,
+          "y": 287.5625,
+          "width": 1322,
+          "height": 523.140625
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "keyboard-1440",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 1060,
+        "pageWidth": 1440,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "canvas": {
+          "x": 109,
+          "y": 287.5625,
+          "width": 1322,
+          "height": 523.140625
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "entry-1024",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 928,
+        "pageWidth": 1024,
+        "viewportWidth": 1024,
+        "viewportHeight": 768,
+        "canvas": {
+          "x": 5.796875,
+          "y": 336.765625,
+          "width": 1012.40625,
+          "height": 348.328125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.7007403597521338
+      },
+      {
+        "label": "generation-1024",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 928,
+        "pageWidth": 1024,
+        "viewportWidth": 1024,
+        "viewportHeight": 768,
+        "canvas": {
+          "x": 5.796875,
+          "y": 336.765625,
+          "width": 1012.40625,
+          "height": 348.328125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.7007403597521338
+      },
+      {
+        "label": "long-inspector-1024",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 928,
+        "pageWidth": 1024,
+        "viewportWidth": 1024,
+        "viewportHeight": 768,
+        "canvas": {
+          "x": 5.796875,
+          "y": 336.765625,
+          "width": 1012.40625,
+          "height": 348.328125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.7007403597521338
+      },
+      {
+        "label": "drawer-dismissed-1024",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 928,
+        "pageWidth": 1024,
+        "viewportWidth": 1024,
+        "viewportHeight": 768,
+        "canvas": {
+          "x": 5.796875,
+          "y": 336.765625,
+          "width": 1012.40625,
+          "height": 348.328125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "keyboard-1024",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 928,
+        "pageWidth": 1024,
+        "viewportWidth": 1024,
+        "viewportHeight": 768,
+        "canvas": {
+          "x": 5.796875,
+          "y": 336.765625,
+          "width": 1012.40625,
+          "height": 348.328125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "touch-registration-1024",
+        "expected": [
+          163.67226305693987,
+          189.34896574335653
+        ],
+        "actual": [
+          163.67226305693987,
+          189.34896574335653
+        ]
+      },
+      {
+        "label": "entry-768",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 1184,
+        "pageWidth": 768,
+        "viewportWidth": 768,
+        "viewportHeight": 1024,
+        "canvas": {
+          "x": 5.796875,
+          "y": 336.765625,
+          "width": 756.40625,
+          "height": 604.328125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.662224077154402
+      },
+      {
+        "label": "generation-768",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 1184,
+        "pageWidth": 768,
+        "viewportWidth": 768,
+        "viewportHeight": 1024,
+        "canvas": {
+          "x": 5.796875,
+          "y": 350.8125,
+          "width": 756.40625,
+          "height": 590.28125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.6541860509317805
+      },
+      {
+        "label": "long-inspector-768",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 1184,
+        "pageWidth": 768,
+        "viewportWidth": 768,
+        "viewportHeight": 1024,
+        "canvas": {
+          "x": 5.796875,
+          "y": 350.8125,
+          "width": 756.40625,
+          "height": 590.28125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.6541860509317805
+      },
+      {
+        "label": "drawer-dismissed-768",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 1184,
+        "pageWidth": 768,
+        "viewportWidth": 768,
+        "viewportHeight": 1024,
+        "canvas": {
+          "x": 5.796875,
+          "y": 350.8125,
+          "width": 756.40625,
+          "height": 590.28125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "keyboard-768",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 1184,
+        "pageWidth": 768,
+        "viewportWidth": 768,
+        "viewportHeight": 1024,
+        "canvas": {
+          "x": 5.796875,
+          "y": 350.8125,
+          "width": 756.40625,
+          "height": 590.28125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "keyboard-resized-768",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 160,
+        "pageHeight": 904,
+        "pageWidth": 768,
+        "viewportWidth": 768,
+        "viewportHeight": 744,
+        "canvas": {
+          "x": 5.796875,
+          "y": 350.8125,
+          "width": 756.40625,
+          "height": 310.28125
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.5698581816873776
+      },
+      {
+        "label": "touch-registration-768",
+        "expected": [
+          159.662174273339,
+          186.63117062877424
+        ],
+        "actual": [
+          159.662174273339,
+          186.63117062877424
+        ]
+      },
+      {
+        "label": "entry-390",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 1007,
+        "pageWidth": 390,
+        "viewportWidth": 390,
+        "viewportHeight": 844,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 383.21875,
+          "height": 426.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.5595007137889381
+      },
+      {
+        "label": "generation-390",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 1007,
+        "pageWidth": 390,
+        "viewportWidth": 390,
+        "viewportHeight": 844,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 383.21875,
+          "height": 426.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.5595007137889381
+      },
+      {
+        "label": "long-inspector-390",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 1007,
+        "pageWidth": 390,
+        "viewportWidth": 390,
+        "viewportHeight": 844,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 383.21875,
+          "height": 426.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.5595007137889381
+      },
+      {
+        "label": "drawer-dismissed-390",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 1007,
+        "pageWidth": 390,
+        "viewportWidth": 390,
+        "viewportHeight": 844,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 383.21875,
+          "height": 426.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "keyboard-390",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 1007,
+        "pageWidth": 390,
+        "viewportWidth": 390,
+        "viewportHeight": 844,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 383.21875,
+          "height": 426.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "keyboard-resized-390",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 727,
+        "pageWidth": 390,
+        "viewportWidth": 390,
+        "viewportHeight": 564,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 383.21875,
+          "height": 146.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.1656559208426428
+      },
+      {
+        "label": "touch-registration-390",
+        "expected": [
+          168.21144875322585,
+          191.13451774576933
+        ],
+        "actual": [
+          168.21144875322585,
+          191.13451774576933
+        ]
+      },
+      {
+        "label": "entry-360",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 903,
+        "pageWidth": 360,
+        "viewportWidth": 360,
+        "viewportHeight": 740,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 353.21875,
+          "height": 322.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.5105260610753521
+      },
+      {
+        "label": "generation-360",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 903,
+        "pageWidth": 360,
+        "viewportWidth": 360,
+        "viewportHeight": 740,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 353.21875,
+          "height": 322.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.5105260610753521
+      },
+      {
+        "label": "long-inspector-360",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 903,
+        "pageWidth": 360,
+        "viewportWidth": 360,
+        "viewportHeight": 740,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 353.21875,
+          "height": 322.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.5105260610753521
+      },
+      {
+        "label": "drawer-dismissed-360",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 903,
+        "pageWidth": 360,
+        "viewportWidth": 360,
+        "viewportHeight": 740,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 353.21875,
+          "height": 322.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "keyboard-360",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 903,
+        "pageWidth": 360,
+        "viewportWidth": 360,
+        "viewportHeight": 740,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 353.21875,
+          "height": 322.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "keyboard-resized-360",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 163,
+        "pageHeight": 623,
+        "pageWidth": 360,
+        "viewportWidth": 360,
+        "viewportHeight": 460,
+        "canvas": {
+          "x": 3.390625,
+          "y": 337.171875,
+          "width": 353.21875,
+          "height": 42.859375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0
+      },
+      {
+        "label": "touch-registration-360",
+        "expected": [
+          171.75883666765006,
+          194.04314505022526
+        ],
+        "actual": [
+          171.75883666765006,
+          194.04314505022526
+        ]
+      },
+      {
+        "label": "earth-direct-1440",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 0,
+        "pageHeight": 1060,
+        "pageWidth": 1440,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "canvas": {
+          "x": 109,
+          "y": 342.15625,
+          "width": 972,
+          "height": 415.34375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "historical-political-1440",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 0,
+        "pageHeight": 1060,
+        "pageWidth": 1440,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "canvas": {
+          "x": 109,
+          "y": 358.34375,
+          "width": 972,
+          "height": 452.359375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "unknown-coverage-1440",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 0,
+        "pageHeight": 1060,
+        "pageWidth": 1440,
+        "viewportWidth": 1440,
+        "viewportHeight": 900,
+        "canvas": {
+          "x": 109,
+          "y": 358.34375,
+          "width": 1322,
+          "height": 452.359375
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "earth-return-library-1440",
+        "libraryTop": 117.4375
+      },
+      {
+        "label": "earth-direct-390",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 0,
+        "pageHeight": 1007,
+        "pageWidth": 390,
+        "viewportWidth": 390,
+        "viewportHeight": 844,
+        "canvas": {
+          "x": 3.390625,
+          "y": 391.765625,
+          "width": 383.21875,
+          "height": 314.671875
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.5854809076915437
+      },
+      {
+        "label": "historical-political-390",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 0,
+        "pageHeight": 1007,
+        "pageWidth": 390,
+        "viewportWidth": 390,
+        "viewportHeight": 844,
+        "canvas": {
+          "x": 3.390625,
+          "y": 405.8125,
+          "width": 383.21875,
+          "height": 358.21875
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 0.4750937799877868
+      },
+      {
+        "label": "unknown-coverage-390",
+        "titleFits": true,
+        "modeFits": true,
+        "scrollY": 0,
+        "pageHeight": 1007,
+        "pageWidth": 390,
+        "viewportWidth": 390,
+        "viewportHeight": 844,
+        "canvas": {
+          "x": 3.390625,
+          "y": 419.859375,
+          "width": 383.21875,
+          "height": 344.171875
+        },
+        "visibleRatio": 1,
+        "unobscuredRatio": 1
+      },
+      {
+        "label": "earth-return-library-390",
+        "libraryTop": 120.625
+      }
+    ],
+    "definition": "Visibility measures the canvas SVG box within the viewport. Unobscured area subtracts the open inspector overlap. Working scroll excludes deliberate navigation to the library."
+  },
+  "specializedRoundTrips": [
+    {
+      "label": "settlement-roundtrip-1440",
+      "oldShapes": 2,
+      "newShapes": 3,
+      "originalShapesExact": true,
+      "expected": [
+        {
+          "x": 1300.8982608141687,
+          "y": 850.9396700006372
+        },
+        {
+          "x": 1499.0507740332555,
+          "y": 1049.0921832197237
+        }
+      ],
+      "storedPoints": [
+        {
+          "x": 1300.9,
+          "y": 850.94
+        },
+        {
+          "x": 1499.05,
+          "y": 850.94
+        },
+        {
+          "x": 1499.05,
+          "y": 1049.09
+        },
+        {
+          "x": 1300.9,
+          "y": 1049.09
+        }
+      ]
+    },
+    {
+      "label": "interior-roundtrip-1440",
+      "oldShapes": 0,
+      "newShapes": 1,
+      "originalShapesExact": true,
+      "expected": [
+        {
+          "x": 1299.8164603058992,
+          "y": 849.3867443554261
+        },
+        {
+          "x": 1498.948288419519,
+          "y": 1050.7560087399854
+        }
+      ],
+      "storedPoints": [
+        {
+          "x": 1299.82,
+          "y": 849.39
+        },
+        {
+          "x": 1498.95,
+          "y": 849.39
+        },
+        {
+          "x": 1498.95,
+          "y": 1050.76
+        },
+        {
+          "x": 1299.82,
+          "y": 1050.76
+        }
+      ]
+    },
+    {
+      "label": "dungeon-roundtrip-1440",
+      "oldShapes": 0,
+      "newShapes": 1,
+      "originalShapesExact": true,
+      "expected": [
+        {
+          "x": 1299.82,
+          "y": 849.39
+        },
+        {
+          "x": 1498.95,
+          "y": 1050.76
+        }
+      ],
+      "storedPoints": [
+        {
+          "x": 1299.82,
+          "y": 849.39
+        },
+        {
+          "x": 1498.95,
+          "y": 849.39
+        },
+        {
+          "x": 1498.95,
+          "y": 1050.76
+        },
+        {
+          "x": 1299.82,
+          "y": 1050.76
+        }
+      ]
+    },
+    {
+      "label": "settlement-roundtrip-390",
+      "oldShapes": 3,
+      "newShapes": 4,
+      "originalShapesExact": true,
+      "expected": [
+        {
+          "x": 1297.4802250672753,
+          "y": 851.080486014841
+        },
+        {
+          "x": 1501.0193264290956,
+          "y": 1049.4006360596914
+        }
+      ],
+      "storedPoints": [
+        {
+          "x": 1297.48,
+          "y": 851.08
+        },
+        {
+          "x": 1501.02,
+          "y": 851.08
+        },
+        {
+          "x": 1501.02,
+          "y": 1049.4
+        },
+        {
+          "x": 1297.48,
+          "y": 1049.4
+        }
+      ]
+    },
+    {
+      "label": "interior-roundtrip-390",
+      "oldShapes": 1,
+      "newShapes": 2,
+      "originalShapesExact": true,
+      "expected": [
+        {
+          "x": 1299.0409049922125,
+          "y": 851.4140503319945
+        },
+        {
+          "x": 1498.4015083203542,
+          "y": 1050.7746536601362
+        }
+      ],
+      "storedPoints": [
+        {
+          "x": 1299.04,
+          "y": 851.41
+        },
+        {
+          "x": 1498.4,
+          "y": 851.41
+        },
+        {
+          "x": 1498.4,
+          "y": 1050.77
+        },
+        {
+          "x": 1299.04,
+          "y": 1050.77
+        }
+      ]
+    },
+    {
+      "label": "dungeon-roundtrip-390",
+      "oldShapes": 1,
+      "newShapes": 2,
+      "originalShapesExact": true,
+      "expected": [
+        {
+          "x": 1299.04,
+          "y": 851.41
+        },
+        {
+          "x": 1498.4,
+          "y": 1050.77
+        }
+      ],
+      "storedPoints": [
+        {
+          "x": 1299.04,
+          "y": 851.41
+        },
+        {
+          "x": 1498.4,
+          "y": 851.41
+        },
+        {
+          "x": 1498.4,
+          "y": 1050.77
+        },
+        {
+          "x": 1299.04,
+          "y": 1050.77
+        }
+      ]
+    }
+  ],
+  "preview": {
+    "measurements": {
+      "initial": {
+        "requests": 21,
+        "bytes": 149018,
+        "groups": {
+          "tiles": {
+            "requests": 17,
+            "bytes": 82810,
+            "maxElapsedMs": 220.792
+          },
+          "vectors": {
+            "requests": 1,
+            "bytes": 56446,
+            "maxElapsedMs": 150.295
+          },
+          "checks": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9762,
+            "maxElapsedMs": 206.855
+          }
+        }
+      },
+      "idle": {
+        "elapsedMs": 70115.13269999999,
+        "requests": 8,
+        "bytes": 20338,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 2,
+            "bytes": 814,
+            "maxElapsedMs": 198.912
+          },
+          "metadata": {
+            "requests": 6,
+            "bytes": 19524,
+            "maxElapsedMs": 356.01599999999996
+          }
+        }
+      },
+      "sameScene": true,
+      "focus": {
+        "requests": 4,
+        "bytes": 10169,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 407,
+            "maxElapsedMs": 98.722
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9762,
+            "maxElapsedMs": 255.85199999999998
+          }
+        }
+      },
+      "artworkRevision": {
+        "requests": 4,
+        "bytes": 10170,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 407,
+            "maxElapsedMs": 54.233
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9763,
+            "maxElapsedMs": 260.223
+          }
+        }
+      },
+      "vectorRevision": {
+        "requests": 5,
+        "bytes": 66591,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 1,
+            "bytes": 56434,
+            "maxElapsedMs": 120.508
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 395,
+            "maxElapsedMs": 42.517
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9762,
+            "maxElapsedMs": 207.136
+          }
+        }
+      },
+      "protectionRemoval": {
+        "requests": 4,
+        "bytes": 4088,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 407,
+            "maxElapsedMs": 39.824000000000005
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 3681,
+            "maxElapsedMs": 183.895
+          }
+        }
+      },
+      "protectionRecovery": {
+        "requests": 19,
+        "bytes": 52809,
+        "groups": {
+          "tiles": {
+            "requests": 15,
+            "bytes": 42640,
+            "maxElapsedMs": 317.587
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 407,
+            "maxElapsedMs": 30.548
+          },
+          "metadata": {
+            "requests": 3,
+            "bytes": 9762,
+            "maxElapsedMs": 330.086
+          }
+        }
+      },
+      "failedRasterRetry": {
+        "requests": 18,
+        "bytes": 51215,
+        "groups": {
+          "tiles": {
+            "requests": 15,
+            "bytes": 42640,
+            "maxElapsedMs": 107.727
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 1,
+            "bytes": 407,
+            "maxElapsedMs": 29.422
+          },
+          "metadata": {
+            "requests": 2,
+            "bytes": 8168,
+            "maxElapsedMs": 16.232999999999997
+          }
+        }
+      },
+      "multipleLocal": {
+        "visiblePreviews": 7,
+        "elapsedMs": 35015.202300000004,
+        "requests": 10,
+        "bytes": 12087,
+        "groups": {
+          "tiles": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "vectors": {
+            "requests": 0,
+            "bytes": 0,
+            "maxElapsedMs": 0
+          },
+          "checks": {
+            "requests": 3,
+            "bytes": 222,
+            "maxElapsedMs": 10.415000000000001
+          },
+          "metadata": {
+            "requests": 7,
+            "bytes": 11865,
+            "maxElapsedMs": 65.946
+          }
+        }
+      }
+    },
+    "byteDefinition": "Decoded response body bytes; excludes unrelated application resources."
+  },
+  "preservation": {
+    "originalWorldRows": 160852,
+    "worldTables": 118,
+    "everyOriginalWorldRowExact": true,
+    "allCurrentWorldTablesExactAcrossReadOnlyServiceChecks": true,
+    "migrationLedgerExact": true,
+    "migrationEntries": 132,
+    "rasterVersions": 16,
+    "rasterBundleSha256": [
+      "236142946a5ecb368023147330d680c83617b58f967d0663eedba8fe515f77f6",
+      "2c48bcdf1f431b8f794f0838ad5bda833fcf7d0798c3c22bb0eca64044153380",
+      "2e197cfbf4136eda77f91bec578fbc69139927b878560fbb9b580125b097f9f2",
+      "432a4d3c89c3aad7f9381cb20a50ada0160e575a84eb65f3cb37df71baf47ccf",
+      "5136b690d44f0b049b0832995d610e0ebdc3ec4db7259ada605abbe4e3ba83ea",
+      "5d1afdf76e65bd44466dba0dc35fd5f9060857ce752442a35b21276bcabbcbef"
+    ],
+    "d3aGlassCopy": {
+      "everyOriginalGlassSeaRowExact": true,
+      "originalVersionsHeadsArtworkChannelSurfaceAndMapExact": true
+    },
+    "d2bGlassCopy": {
+      "originalWorldIdentitiesAndRowsRetained": true,
+      "onlyTwoSourceHeadsAdvanced": true,
+      "originalVersionsArtworkSurfaceAndChannelExact": true
+    },
+    "unchangedCodePaths": [
+      "drizzle",
+      "src/db",
+      "src/features/worlds/geographic-service.ts",
+      "src/features/worlds/geographic-authoring-service.ts",
+      "src/features/worlds/geographic-generation-service.ts",
+      "src/features/worlds/geographic-generator.ts",
+      "src/features/worlds/geographic-coordinates.ts",
+      "src/features/worlds/geographic-scene.tsx",
+      "src/features/worlds/raster-service.ts",
+      "src/features/worlds/categorical-service.ts",
+      "src/features/worlds/atlas-thumbnail.tsx",
+      "src/features/worlds/atlas-export.ts",
+      "package.json",
+      "package-lock.json",
+      "next.config.ts",
+      "Dockerfile"
+    ],
+    "persistentDevAndProductionUntouched": true
+  },
+  "screenshots": [
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/before-1440.png",
+      "sha256": "e040888ab9236a15b6d317c6dbc3da5dd22d9f45726f8ed3c20922e40f0378f9",
+      "bytes": 532026
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/before-390.png",
+      "sha256": "0b245647c0d90e2bcafa4a80098db125e1919bf262d3dac65ff65ef34bf178d1",
+      "bytes": 131452
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/brush-1024.png",
+      "sha256": "87242cdae0e2bf5752c11a385bab8fb0d59d14655cd2118882618b602737af7e",
+      "bytes": 77545
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/brush-1440.png",
+      "sha256": "a31b41c82bf2fca35562e5f2a13779ca3ac29c96cacdf8fd149ed44e2122f403",
+      "bytes": 103116
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/brush-360.png",
+      "sha256": "c9428cfc286826c1655f3ffe203be3c40d64ef420eb3c47e36ce0ff1fd162870",
+      "bytes": 48523
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/brush-390.png",
+      "sha256": "5d418926e26eb3604bad7899bc118c11870670c3fb4292ce5bb462a499c6a82f",
+      "bytes": 54339
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/brush-768.png",
+      "sha256": "687d05c27d7c975c8f5e63427386d3f2ebbfe2dc00b9ad4226c3e3c00a87a845",
+      "bytes": 82248
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/connections-dialog.png",
+      "sha256": "ca15e649288901d56edd930a2d1e78402ae30a13a24f64d453eab51cec8fb2ea",
+      "bytes": 104151
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/dungeon-1440.png",
+      "sha256": "e0fa93507eb3bc0174897f2d0ee58c7c5ae0c1c3575205dbcb63f510861402ca",
+      "bytes": 129067
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/dungeon-390.png",
+      "sha256": "b8634129e6f16e8cb3e0f32c7b8a0d7eeb4114d338dba6d62baed4123aec4f8a",
+      "bytes": 55221
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/earth-1440.png",
+      "sha256": "ea31a81a4a905703792ed1ff1f18547098bbb6cb816c84a1504fb3433cf1bdd3",
+      "bytes": 498375
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/earth-390.png",
+      "sha256": "1991e73eff43c0793af87d954ec5335bc9ccaf54d1af1300118f06c7c3a1fe7b",
+      "bytes": 152155
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/earth-unobscured-1440.png",
+      "sha256": "041ab5248ce01b4d5e5d026822291d7a14d40c72c9f1121520d1cf6ef8e21b2f",
+      "bytes": 494210
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/earth-unobscured-390.png",
+      "sha256": "bf0ea5c31592a046626247aa7d28b64d02592e59adc2be7e903579085ea40500",
+      "bytes": 185872
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/entry-1024.png",
+      "sha256": "00390cea11e1da3ea2d38f30ee4b68e15ce6cbfa5a9e9027651e43d62ca3a3bf",
+      "bytes": 80195
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/entry-1440.png",
+      "sha256": "aa4fa0fbc58fe83692dfb6863e8a6c942719cb18c090fe78d75d9a6370ffa2f6",
+      "bytes": 109681
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/entry-360.png",
+      "sha256": "7c5053d18e8f6432bb7b42107ac08307ad13f7cd4113f16d8e3ab1bf40f86ee9",
+      "bytes": 45251
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/entry-390.png",
+      "sha256": "ead4eea76bfbe1a839be075dcbc0d64da9903f1b7ac68ddd12e86a3125b241ab",
+      "bytes": 50474
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/entry-768.png",
+      "sha256": "b2a7a872751fbefaa9d31b89633606aba057592902aa1f77b51518736b58515e",
+      "bytes": 90388
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/generation-1024.png",
+      "sha256": "27f9816fbb093437c3e33e0abfecc7667c2d8d945025916fca7dd565814c489c",
+      "bytes": 87592
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/generation-1440.png",
+      "sha256": "1dd7f8e85a0aa42a09f7e0b6650fbfad4f9962f1c297b78791235f4f9ccd8e56",
+      "bytes": 135667
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/generation-360.png",
+      "sha256": "fbf0bc81ead5272bb09655175e3190ec8ad2eb30751321adb791a5589a92da46",
+      "bytes": 55914
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/generation-390.png",
+      "sha256": "739582318b77100c4a58d08b3c92ce8670b0940faee5cd87b77ce9563017cfa5",
+      "bytes": 62237
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/generation-768.png",
+      "sha256": "89c693194c617d8a1c205da8a4966e671eb431111278cfbc279e368e069cc5ae",
+      "bytes": 99779
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/historical-political-1440.png",
+      "sha256": "56730c83f6de90cb1effeeed0a67b83775d22044a8185dfd0817b8a3397e96ee",
+      "bytes": 145309
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/historical-political-390.png",
+      "sha256": "c2fb5ad7df826f1cca496d7ab92f8bd7990972896383e82ae802939e4a54d798",
+      "bytes": 64964
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/historical-unknown-1440.png",
+      "sha256": "92bcb8f6ccd7fd6b46df427409635eb296fbb8107fc2346b98a15da77729e7c7",
+      "bytes": 123427
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/historical-unknown-390.png",
+      "sha256": "dbf735b8d6ea02e8219a833cc0fcc6371fdd91cb5e265b5b0d1b98627c796a92",
+      "bytes": 63075
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/interior-1440.png",
+      "sha256": "1b7f5569fa8e69ac91951bf5acb7f099f5ebe655cd6e58d20dead9a6124977da",
+      "bytes": 129969
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/interior-390.png",
+      "sha256": "242c1d4b29c8c494e19a89cfe344d2612c9e956396f9f0885e720ddc20daf2bc",
+      "bytes": 55586
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/keyboard-390.png",
+      "sha256": "a08a3377897073267bef2b93dc530c8ae105f9676005fde8b03c842798d0673f",
+      "bytes": 45958
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/legacy-generator-1440.png",
+      "sha256": "ca7c3560071dd1d8060dc75ccecda429ce10e7d8a4f6777f7f4449488ac4f37c",
+      "bytes": 140251
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/legacy-generator-390.png",
+      "sha256": "42babaecd5490d8b51bd251a78f29a8334e0444cef72f0237ddc09acc6cf4d87",
+      "bytes": 55994
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/settlement-1440.png",
+      "sha256": "f37bf52ab09b55b208505d56788ee1a413c78caef0814d5c7e91594101aef0ff",
+      "bytes": 148756
+    },
+    {
+      "path": "docs/screenshots/worlds-geo-ux0/settlement-390.png",
+      "sha256": "d1c36b6d5dffa952aec036401ceeb047b5959cf7d236b258f2149684c3bc2b39",
+      "bytes": 58183
+    }
+  ],
+  "limits": [
+    "At the emulated 360 x 460 keyboard viewport, the open sheet covers the remaining 42.9-pixel-high canvas. Closing settings restores canvas access; text, drafts and navigation are retained.",
+    "Chrome native/CDP touch and keyboard-related resizing were emulated; physical devices and Safari remain separate.",
+    "Node 22 build and local checks ran on Windows; Linux CI requires separately authorized push.",
+    "Long inspectors and narrow palette/action rails scroll inside their own areas.",
+    "Independent technical review and owner visual acceptance remain pending."
+  ],
+  "deployment": {
+    "newMigrations": 0,
+    "configurationChanges": false,
+    "dependenciesChanged": false,
+    "dataFormatChanged": false,
+    "codeRollbackCompatible": true,
+    "pushed": false,
+    "deployed": false,
+    "ownedTestServicesStopped": true
+  }
+}

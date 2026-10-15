@@ -65,3 +65,8 @@ Retain authoritative common geographic foundations once and reuse them when appr
 Advanced Map Studio remains a separate project after the complete initial 2D Map Maker and the approved intervening Worlds phases. It adds professional artistic rendering, advanced procedural generation, terrain sculpting, 2.5D/3D exploration and broader high-resolution coverage. It must support spherical, flat, hollow, cylindrical, polyhedral, ring-shaped and custom topologies, without assuming Earth-like creator Worlds. It cannot be a prerequisite for the visual Map Maker promised by Geo E. Comprehensive Historical Earth remains the final stage of the later standalone mapping effort.
 
 Worlds remains standalone. Future VTT integration is a separate dashboard application, outside Worlds and Paths. This repair implements none of these future controls, sources or commercial systems.
+
+
+## Focused Map Studio before D3-B
+
+The owner technically approved D3-A `72150c1efc3524080a286890305f011697aea40c` and directed Geo UX-0 next. The [focused workspace](worlds-map-studio.md) retains the existing editors and engines while replacing whole-World page scrolling with persistent tools, a viewport canvas and independently scrollable contextual settings. This scoped presentation pass does not begin the application-wide Worlds navigation/language overhaul, D3-B or later Geo phases. Existing Glass Sea D-E commitments, D4/E historical-layout review and D5 settlement/interior/dungeon visual assets remain retained.

@@ -744,3 +744,8 @@ Glass Sea is a primary isolated-copy acceptance case: original Glass Island exte
 ## Geo D3-A generated geographic sources
 
 The [generation foundation](worlds-geo-d3a.md) adds a disclosure inside authoritative Atlas editing. Preset, seed, continent/island counts, approximate coverage/size, coastline shape/complexity and four coordinate bounds explain their effect and limits. Source prefix, generation account and author-only status identify the new places and privacy. Preview does not save records; measured coverage/timing and full source count accompany the preview and map overlay. Cancel, stale-setting protection, recipe download, explicit acceptance, frozen failed-save retry and deliberate latest-context review retain draft boundaries. Each saved coastline opens in D2 for manual editing; an exact vertex selector and local neighboring-point focus make dense coastlines editable without changing coordinates or save state; the original generation recipe remains visible and immutable through source revisions. Old decorative V1/V2 generation and description interpretation retain their existing controls and recipes.
+
+
+## Geo UX-0 Map Studio
+
+The [Map Studio inventory](worlds-map-studio.md) records every retained Atlas, geographic, generator, raster, historical and specialized editor tool before reorganization. The grouped Artwork tool picker uses shared field guidance; independent save scopes and advanced source details remain available in contextual panels. Desktop and native browser touch acceptance measures canvas visibility, independent inspector scrolling, draft preservation, navigation and coordinate inversion. Owner visual acceptance remains separate from automated technical evidence.

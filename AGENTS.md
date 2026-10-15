@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Geo UX-0 authorization
+
+The owner independently technically approved D3-A at `72150c1efc3524080a286890305f011697aea40c` and authorized the [focused Map Studio workspace](docs/architecture/worlds-map-studio.md) before D3-B. Retain every existing tool, coordinate adapter, separate save boundary, draft/undo/conflict protection, map type, historical context and privacy rule while replacing whole-page scrolling with a viewport workspace and contextual inspector. Use only read-only/disposable Earth and Glass Sea fixtures. No schema migration, new engine/dataset/assets, persistent DEV/Production operations, Docker, shared-service restart, later Geo work or application-wide Worlds cleanup. Stop at a clean local review commit without push for Ember and owner acceptance.
+
 ## Geo D3-A authorization
 
 The owner independently technically approved D2-A/B at `c4c4f67cead798b1ef72660049c4ee39d3ce594e` and authorized [D3-A seeded authoritative geographic generation](docs/architecture/worlds-geo-d3a.md). Reuse retained Atlas V1/V2 algorithms and existing geographic sources/versions/parts, with deterministic recipes, genuine D2 editing, bounded browser previews and atomic additive saves. Use only isolated copies for Glass Sea proposals; preserve all originals, identities, artwork, privacy and Living History. No persistent DEV/Glass Sea/Production changes, migration without separate approval, Docker, shared-service restart, deployment, later Geo increment or postponed interface/language overhaul. Stop at one clean local review commit without push.

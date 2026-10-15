@@ -9,10 +9,12 @@ import {atlasGeographicFrame,moveGeographicExtent,projectionExtent} from "./atla
 import type {ProjectionKind} from "./geographic-projection";
 import {useElevation} from "./elevation-workspace";
 import {useLandCover} from "./land-cover-workspace";
+import {StudioPanel,useMapStudio} from "./map-studio";
 import styles from "./atlas.module.css";
 
 export type AtlasGeographicContext={worldId:string;timelineId:string;ordinary:boolean;review:boolean;historical:boolean};
 export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId:string){
+ const studio=useMapStudio();
  const {worldId="",timelineId="",ordinary=false,review=false,historical=false}=context??{},enabled=!!context&&!historical;
  const base=`${worldId}:${timelineId}:${mapId}:${ordinary}:${review}:${enabled}`,api=`/api/worlds/${worldId}/geography`;
  const query=useMemo(()=>new URLSearchParams({map:mapId,timeline:timelineId,...ordinary?{ordinary:"1"}:{},...review?{review:"1"}:{}}).toString(),[mapId,timelineId,ordinary,review]);
@@ -45,28 +47,28 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
  const rasterProps={worldId,timelineId,mapId:enabled?mapId:"",ordinary,review,viewport};
  const elevation=useElevation(rasterProps),landCover=useLandCover(rasterProps);
  function move(dx=0,dy=0,factor=1){if(reference&&extent)setBounds(moveGeographicExtent(reference,extent,dx,reference.kind==="plane"?-dy:dy,factor));}
- return {context,layer,frame,viewport,loading:enabled&&(!current||current.loading),error:current?.error??"",retry:()=>setRefresh(n=>n+1),themes,setThemes,labels,setLabels,kind,setProjection,move,setExtent:setBounds,fit:()=>setBounds(null),extent,choose:setSelected,reading,selected,focus:()=>{if(reference&&reading?.value)setBounds(focusedGeographicExtent(reading.value.bounds,reference));},closeSource:()=>setSelected(""),elevation,landCover,dirty:elevation.dirty||landCover.dirty};
+ return {context,layer,frame,viewport,loading:enabled&&(!current||current.loading),error:current?.error??"",retry:()=>setRefresh(n=>n+1),themes,setThemes,labels,setLabels,kind,setProjection,move,setExtent:setBounds,fit:()=>setBounds(null),extent,choose:(id:string)=>{setSelected(id);studio?.show("geography");},reading,selected,focus:()=>{if(reference&&reading?.value)setBounds(focusedGeographicExtent(reading.value.bounds,reference));},closeSource:()=>setSelected(""),elevation,landCover,dirty:elevation.dirty||landCover.dirty};
 }
 export type AtlasGeography=ReturnType<typeof useAtlasGeography>;
 
 export function AtlasGeographicControls({geo,disabled=false}:{geo:AtlasGeography;disabled?:boolean}){
  const [search,setSearch]=useState("");
- if(geo.context?.historical)return <p data-geographic-historical>Modern geographic references and dated land cover are hidden for this historical view. Its authored artwork and selected timeline remain authoritative.</p>;
+ if(geo.context?.historical)return <StudioPanel section="geography"><p data-geographic-historical>Modern geographic references and dated land cover are hidden for this historical view. Its authored artwork and selected timeline remain authoritative.</p></StudioPanel>;
  if(!geo.layer)return geo.error?<p role="alert">{geo.error} Editable artwork remains available. <button className="st-button is-secondary" onClick={geo.retry}>Retry geographic layers</button></p>:geo.loading?<p role="status">Checking this map&apos;s geographic layers…</p>:null;
  const choices=[...new Map(geo.viewport?.shapes.map(s=>[s.id,s])).values()].filter(s=>s.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())).sort((a,b)=>a.name.localeCompare(b.name));
- return <section aria-label="Geographic map layers" className={styles.geographicControls}>
+ return <><StudioPanel section="display"><section aria-label="Geographic map layers" className={styles.geographicControls}>
   <h3>Geographic reference layers</h3><p>{geo.layer.surface.name}. {geo.layer.surface.reference.kind==="sphere"?"Spherical longitude and latitude; this flat display keeps the original coordinates.":"Original planar surface coordinates."} Shared references do not establish conditions in a historical year.</p>
   <fieldset disabled={disabled} className={styles.inspectorFields}>
    <GuidedField label="Map display projection" help="Choose how this surface is drawn. Flat rectangular shows the entire spherical Earth, including the poles. Mercator enlarges high latitudes and omits the poles. Artwork stays anchored to the same source coordinates; its saved points do not change."><select className="st-control" value={geo.kind} onChange={e=>geo.setProjection(e.target.value as ProjectionKind)}>{geo.layer.surface.reference.kind==="sphere"?<><option value="equirectangular">Flat rectangular (equirectangular)</option><option value="mercator">Mercator</option></>:<option value="planar">Planar source coordinates</option>}</select></GuidedField>
-   <details><summary>Find and read a source</summary><GuidedField label="Find a geographic source" help="Search the sources loaded in the visible area by name. Choose a result to read its retained coordinates and provenance. Focus this source zooms the map to it without changing your artwork."><input className="st-control" value={search} onChange={e=>setSearch(e.target.value)}/></GuidedField><div className={styles.featureList}>{choices.slice(0,12).map(s=><button className="st-button is-secondary" key={s.id} onClick={()=>geo.choose(s.id)}>Read source: {s.name}</button>)}</div><p>{choices.length} matches in this view. Refine the search for other names.</p></details>
    <details><summary>Geographic visibility</summary>{GEOGRAPHIC_THEMES.map(t=><GuidedField key={t.id} label={t.label} help={t.help}><input type="checkbox" checked={geo.themes.includes(t.id)} onChange={e=>geo.setThemes(current=>e.target.checked?[...current,t.id]:current.filter(id=>id!==t.id))}/></GuidedField>)}<GuidedField label="Geographic labels" help="Show a bounded selection of readable source names. Hiding labels keeps their geometry and identities."><input type="checkbox" checked={geo.labels} onChange={e=>geo.setLabels(e.target.checked)}/></GuidedField></details>
    <details><summary>Elevation and bathymetry</summary>{geo.elevation.controls}</details>
    <details><summary>Dated classified land cover</summary>{geo.landCover.controls}</details>
   </fieldset>
   <p data-atlas-geographic-status>{geo.loading?"Loading bounded geographic detail…":`${geo.viewport?.shapes.length??0} source components · ${geo.viewport?.lod??"overview"} detail`}. Source resolution limits accuracy; zoom does not create finer data.</p>
   {geo.error&&<p role="alert">{geo.error} <button className="st-button is-secondary" onClick={geo.retry}>Retry geographic layers</button></p>}
-  <details><summary>Source credit and map coordinates</summary><p>Atlas positions remain on their original 2000 × 1200 canvas. Left/right follow the full source x domain; spherical top/bottom follow north/south, while planar maps retain their original x/y orientation. Pan and projection transform only the display. Geographic presentation saves separately from map artwork.</p>{geo.viewport?.attributions.map(c=><p key={JSON.stringify(c)}>{c.label} · {c.url?<a href={c.url} target="_blank" rel="noreferrer">{c.license}</a>:c.license}</p>)}</details><AtlasGeographicReading geo={geo}/>
- </section>;
+  <details><summary>Source credit and map coordinates</summary><p>Atlas positions remain on their original 2000 × 1200 canvas. Left/right follow the full source x domain; spherical top/bottom follow north/south, while planar maps retain their original x/y orientation. Pan and projection transform only the display. Geographic presentation saves separately from map artwork.</p>{geo.viewport?.attributions.map(c=><p key={JSON.stringify(c)}>{c.label} · {c.url?<a href={c.url} target="_blank" rel="noreferrer">{c.license}</a>:c.license}</p>)}</details>
+ </section></StudioPanel><StudioPanel section="geography"><fieldset disabled={disabled} className={styles.inspectorFields}>   <details><summary>Find and read a source</summary><GuidedField label="Find a geographic source" help="Search the sources loaded in the visible area by name. Choose a result to read its retained coordinates and provenance. Focus this source zooms the map to it without changing your artwork."><input className="st-control" value={search} onChange={e=>setSearch(e.target.value)}/></GuidedField><div className={styles.featureList}>{choices.slice(0,12).map(s=><button className="st-button is-secondary" key={s.id} onClick={()=>geo.choose(s.id)}>Read source: {s.name}</button>)}</div><p>{choices.length} matches in this view. Refine the search for other names.</p></details>
+<AtlasGeographicReading geo={geo}/></fieldset></StudioPanel></>;
 }
 export function AtlasGeographicReading({geo}:{geo:AtlasGeography}){
  if(!geo.layer||!geo.selected)return null;const value=geo.reading?.value;
