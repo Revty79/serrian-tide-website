@@ -7,7 +7,8 @@ import {WorldError,worldWriteTransaction} from "./world-service";
 import {selectedTimeline} from "./history-version-service";
 import {canonicalSource,layerAccess,saveGeographicParts} from "./geographic-service";
 import {authoredProvenanceSchema,isAuthoredProvenance,validateReference,type SourceGeometry} from "./geographic";
-import {geographicAuthoringCommand,simpleDraft,simpleGeometry,validateVisualGeometry} from "./geographic-authoring";
+import {geographicAuthoringCommand,validateVisualGeometry} from "./geographic-authoring";
+import {canonicalAuthoringGeometry} from "./geographic-authoring-geometry";
 const digest=(value:unknown)=>createHash("sha256").update(canonicalSource(value)).digest("hex");
 const conflict=()=>new WorldError("A newer geographic source or association exists. Your geographic draft is retained. Compare the latest source before retrying.",409);
 
@@ -32,11 +33,12 @@ export async function authorGeography(userId:string,worldId:string,input:unknown
    if(!existing)await tx.insert(view).values({mapId:map.id,worldId,surfaceId:selected.id});
    return {surfaceId:selected.id,reused:!!existing};
   }
-  const layer=await layerAccess(tx,worldId,map.id,body.timelineId,{},userId);let geometry:SourceGeometry;
-  try{validateVisualGeometry(body.geometry,layer.surface.reference);geometry=simpleGeometry(simpleDraft(body.geometry));}catch(error){throw new WorldError((error as Error).message,400);}
+  const layer=await layerAccess(tx,worldId,map.id,body.timelineId,{},userId);let geometry:SourceGeometry=body.geometry;
+  try{validateVisualGeometry(body.geometry,layer.surface.reference);}catch(error){throw new WorldError((error as Error).message,400);}
   const [retry]=await tx.select({v:version,f:feature}).from(version).innerJoin(feature,and(eq(feature.id,version.featureId),eq(feature.worldId,version.worldId))).where(and(eq(version.worldId,worldId),eq(version.requestId,body.requestId)));
-  if(retry){if(retry.f.surfaceId!==layer.surface.id||retry.v.authorId!==userId||canonicalSource(retry.v.geometry)!==canonicalSource(geometry)||retry.v.note!==body.note||body.action==="revise"&&retry.f.id!==body.featureId||body.action==="create"&&(retry.f.externalId!==body.requestId||retry.v.properties.authoringName!==body.name||retry.v.properties.authoringKind!==body.kind||retry.v.properties.authoringParent!==body.parentId||retry.v.protected!==body.protected))throw conflict();return {featureId:retry.f.id,versionId:retry.v.id,revision:retry.v.revision,reused:true};}
+  if(retry){const previous=retry.v.previousId?(await tx.select({geometry:version.geometry}).from(version).where(and(eq(version.id,retry.v.previousId),eq(version.worldId,worldId))))[0]:undefined;geometry=canonicalAuthoringGeometry(body.geometry,previous?.geometry);if(retry.f.surfaceId!==layer.surface.id||retry.v.authorId!==userId||canonicalSource(retry.v.geometry)!==canonicalSource(geometry)||retry.v.note!==body.note||body.action==="revise"&&retry.f.id!==body.featureId||body.action==="create"&&(retry.f.externalId!==body.requestId||retry.v.properties.authoringName!==body.name||retry.v.properties.authoringKind!==body.kind||retry.v.properties.authoringParent!==body.parentId||retry.v.protected!==body.protected))throw conflict();return {featureId:retry.f.id,versionId:retry.v.id,revision:retry.v.revision,reused:true};}
   if(body.action==="create"){
+   geometry=canonicalAuthoringGeometry(body.geometry);
    if((body.kind==="river")!==(geometry.type==="LineString"))throw new WorldError("Choose an open line for a river and a closed polygon for land.",400);
    if(body.parentId){const [parent]=await tx.select().from(worldGeography).where(and(eq(worldGeography.id,body.parentId),eq(worldGeography.worldId,worldId)));if(!parent||parent.archivedAt)throw new WorldError("Choose an active parent place in this World.",404);}
    const geographyId=randomUUID(),id=randomUUID(),versionId=randomUUID(),datasetId=randomUUID();
@@ -50,7 +52,8 @@ export async function authorGeography(userId:string,worldId:string,input:unknown
   const [current]=await tx.select({f:feature,v:version,h:head,d:dataset}).from(feature).innerJoin(head,and(eq(head.featureId,feature.id),eq(head.worldId,feature.worldId))).innerJoin(version,eq(version.id,head.versionId)).innerJoin(dataset,and(eq(dataset.id,version.datasetId),eq(dataset.worldId,worldId))).where(and(eq(feature.id,body.featureId),eq(feature.worldId,worldId),eq(feature.surfaceId,layer.surface.id)));
   if(!current)throw new WorldError("This geographic source is unavailable in this map.",404);if(current.h.revision!==body.revision)throw conflict();if(current.v.archived)throw new WorldError("Restore this geographic source before editing it.",400);
   try{validateVisualGeometry(current.v.geometry,layer.surface.reference);}catch(error){throw new WorldError((error as Error).message,400);}
-  if(current.v.geometry.type!==geometry.type)throw new WorldError("A revision retains the source geometry type.",400);
+  if(current.v.geometry.type!==geometry.type&&!(current.v.geometry.type==="Polygon"&&geometry.type==="MultiPolygon"))throw new WorldError("Keep the open-line or polygon source family. A Polygon may gain components as a MultiPolygon; an existing MultiPolygon retains its structure even with one remaining component.",400);
+  geometry=canonicalAuthoringGeometry(body.geometry,current.v.geometry);
   if(!isAuthoredProvenance(current.d.provenance)&&!body.acknowledgeImported)throw new WorldError("Explicitly acknowledge a deliberate revision of imported geography. Its original source remains retained.",400);
   const id=randomUUID(),revision=current.h.revision+1,row={...current.v,id,previousId:current.v.id,authorId:userId,requestId:body.requestId,revision,geometry,note:body.note,createdAt:new Date()};
   await tx.insert(version).values(row);await saveGeographicParts(tx,row,layer.surface.reference,current.d.provenance.display);await tx.update(head).set({versionId:id,revision}).where(and(eq(head.featureId,current.f.id),eq(head.worldId,worldId)));

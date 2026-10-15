@@ -40,6 +40,20 @@ D4 and Geo E must explicitly review historical interior/dungeon layout changes a
 
 Demonstrate an entire fictional map-building journey through the visual interface. Also demonstrate a real Earth journey from worldwide overview into a selected region, progressively selecting genuinely finer provisioned data, including **native 10-metre ESA land-cover classification in at least one manageable region**, and continued navigation into linked local maps. Retain accurate resolution, source identity and provenance throughout. Regional acquisition/provisioning must be reusable for another selected region, without a hardcoded demonstration location or downloading the native worldwide archive. Deep zoom and progressive detail belong in the initial D/E Map Maker, before Advanced Map Studio.
 
+## Glass Sea completion across Geo D–E
+
+Owner supplement recorded 2026-10-15: develop the existing Glass Sea into a substantial, coherent, usable and explorable fictional demonstration World. Earth demonstrates real geographic accuracy; Glass Sea demonstrates complete fictional world creation through the actual creator interface. Preserve Glass Island and its enclosed opening, multipart Copper Isles, Glass Channel, the original planar surface, every source identity/version/provenance, Atlas artwork and map association. Do not replace the World or silently establish new canon.
+
+| Phase | Glass Sea commitment |
+|---|---|
+| D2-B | Use isolated/disposable copies of the existing geometry as a primary acceptance case. Visually edit Glass Island's exterior/opening and individual Copper Isles, retain the other parts, save immutable revisions and recover originals. Preserve Glass Channel and its original surface relationship. No persistent Glass Sea or DEV edits are authorized. |
+| D3 | Use the completed procedural tools to develop believable geography, terrain, waterways, regions and other geographic features. |
+| D4 | Build representative connected regions, settlements, buildings, interiors and dungeons through the established hierarchy. Retain the D4/E review of historical interior/dungeon layout changes. |
+| D5 | Develop artistic map presentation with the completed cartographic tools and assets, including the planned settlement/interior/dungeon visual improvements. |
+| E | Complete and validate the substantial fictional World alongside the separate Earth geographic acceptance work. Demonstrate creator workflows rather than hidden developer shortcuts. |
+
+Propose new geography, settlements and lore for owner approval before treating them as established Glass Sea content. Each later phase and persistent data write still needs its own authorization. This supplement does not authorize D3–E implementation during D2-B. Complete planned Map Maker/Worlds development before the postponed interface cleanup, main Worlds navigation redesign and application-wide language overhaul; D2-B controls stay inside Atlas.
+
 ## Shared foundations and accounting
 
 Retain authoritative common geographic foundations once and reuse them when appropriate. Store creator modifications separately from immutable shared data. Campaign use must not automatically duplicate large datasets. Make shared platform bytes distinguishable from creator-owned bytes so future subscription/storage accounting can be added without redesigning the engine. This decision does not authorize subscriptions, quotas, payments, Campaign runtime integration or broader sharing permissions.

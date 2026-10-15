@@ -33,7 +33,8 @@ function topologyRings(coordinates:Coordinate[][],sphere:boolean,commonPole?:num
     return result;
   });
 }
-function inside(point:Coordinate,ring:Coordinate[]){let result=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if(onSegment(a,b,point))return false;if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])result=!result;}return result;}
+export function pointInsideGeographicRing(point:Coordinate,ring:Coordinate[]){let result=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if(onSegment(a,b,point))return false;if((a[1]>point[1])!==(b[1]>point[1])&&point[0]<(b[0]-a[0])*(point[1]-a[1])/(b[1]-a[1])+a[0])result=!result;}return result;}
+const inside=pointInsideGeographicRing;
 function hasArea(ring:Coordinate[]){const origin=ring[0];let area=0,magnitude=0;for(let i=1;i<ring.length;i++){const p=ring[i-1],q=ring[i],a=(p[0]-origin[0])*(q[1]-origin[1]),b=(q[0]-origin[0])*(p[1]-origin[1]);area+=a-b;magnitude+=Math.abs(a)+Math.abs(b);}return Math.abs(area)>Number.EPSILON*16*magnitude;}
 export function validateSourceGeometry(geometry:SourceGeometry,reference:SpatialReference,policy:SourceValidation={}){
   const count=coordinateCount(geometry);if(count>131_072)throw new Error("One source feature supports at most 131,072 coordinates. Partition a larger dataset between complete source components.");
