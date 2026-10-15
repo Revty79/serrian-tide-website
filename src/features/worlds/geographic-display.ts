@@ -23,7 +23,7 @@ function displayRing(points:Coordinate[],tolerance:number){
   if(result.length<3){let corner=1;for(let i=2;i<points.length;i++)if(distanceSquared(points[i],points[0],points[anchor])>distanceSquared(points[corner],points[0],points[anchor]))corner=i;return [0,anchor,corner].sort((x,y)=>x-y).map(i=>points[i]);}
   return result;
 }
-export function boundedSourceDisplay(geometry:SourceGeometry,reference:SpatialReference,bounds:GeographicBounds,kind:ProjectionKind,radius=4){
+export function boundedSourceDisplay(geometry:SourceGeometry,reference:SpatialReference,bounds:GeographicBounds,kind:ProjectionKind,radius=4,budget=DISPLAY_PATH_BUDGET,initialTolerance=DISPLAY_TOLERANCE){
   const projection=geographicProjection(reference,bounds,kind),source=reference.kind==="sphere"?sphericalCopy(geometry):geometry;
   // Points keep their exact projected location and existing source marker.
   if(source.type==="Point")return {path:geoPath(projection).pointRadius(radius)(source)??"",tolerance:0};
@@ -31,10 +31,10 @@ export function boundedSourceDisplay(geometry:SourceGeometry,reference:SpatialRe
   const sink:GeoStream={point(x,y){current?.push([x,y]);},lineStart(){current=[];},lineEnd(){if(current?.length)lines.push({points:current,closed});current=null;},polygonStart(){closed=true;},polygonEnd(){closed=false;},sphere(){}};
   geoStream(source,projection.stream(sink));
   const number=(v:number)=>String(Math.round(v*1000)/1000);
-  for(let tolerance=DISPLAY_TOLERANCE;tolerance<=1433.6;tolerance*=2){
+  for(let tolerance=initialTolerance;tolerance<=1433.6;tolerance*=2){
     let length=0;const paths:string[]=[];
     for(const line of lines){const points=line.closed?displayRing(line.points,tolerance):simplify(line.points,tolerance),path=points.map(([x,y],i)=>`${i?"L":"M"}${number(x)},${number(y)}`).join("")+(line.closed?"Z":"");length+=path.length;paths.push(path);}
-    if(length<=DISPLAY_PATH_BUDGET)return {path:paths.join(""),tolerance};
+    if(length<=budget)return {path:paths.join(""),tolerance};
   }
   // Valid stored parts are bounded. An unexpected pathological presentation is
   // reported explicitly; the viewer retains prior pages and offers recovery.

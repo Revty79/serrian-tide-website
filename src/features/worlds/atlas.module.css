@@ -12,3 +12,9 @@
 .breadcrumbs{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.65rem 1rem;border:1px solid var(--st-border);border-radius:.7rem;background:var(--st-surface-soft);color:var(--st-text-secondary)}.breadcrumbs button{color:var(--st-primary-text);min-height:44px;padding:.25rem .4rem;overflow-wrap:anywhere;text-align:left}.breadcrumbs button[aria-current]{color:var(--st-text-strong);font-weight:600}.dialog form{display:grid;gap:1rem}.dialog hr{border-color:var(--st-border);margin:.8rem 0}.dialog>p{margin-bottom:1rem;color:var(--st-text-secondary)}
 .geographicControls{display:grid;gap:.6rem;border-bottom:1px solid var(--st-border);padding-bottom:1rem;min-width:0}.geographicControls details>summary{min-height:44px;cursor:pointer;padding:.6rem 0;color:var(--st-text-strong)}.geographicControls details>section{margin-top:0}.geographicReading{padding:1rem;background:var(--st-surface);border:1px solid var(--st-border);border-radius:.8rem;min-width:0;overflow-wrap:anywhere}.sourceCoordinates{max-height:20rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem}.geographicControls a,.geographicReading a{color:var(--st-primary-text)}.navigation{flex-wrap:wrap}
 .canvas[data-geographic-atlas=true]{background:var(--st-surface-deep)}
+
+.thumbnailFrame{min-width:0}.thumbnailCaption{min-height:3.5rem;padding-top:.5rem;display:grid;align-content:start;gap:.35rem;font-size:.72rem;line-height:1.35;color:var(--st-text-secondary);overflow-wrap:anywhere}.thumbnailCaption p{font-size:.72rem}.thumbnailCaption summary{cursor:pointer}.thumbnailCaption button{font-size:.75rem;justify-self:start}
+
+.exportActions{display:grid;gap:.6rem}.exportActions p{font-size:.8rem;color:var(--st-text-secondary)}
+
+.exportFeedback{height:7rem;overflow:auto;display:block;scrollbar-gutter:stable}.exportFeedback button{margin-top:.4rem}

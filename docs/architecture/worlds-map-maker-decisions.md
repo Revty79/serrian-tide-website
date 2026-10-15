@@ -20,6 +20,8 @@ During D1, visually verify the intended full-world presentation in the actual ap
 
 ## Geo D increments
 
+The owner separately authorized [D1-B previews and complete visible-map export](worlds-geo-d1b.md) from approved `2683a72d3c41d4c6fce0515d307f6a844536cfe1`. It preserves original sources and stops at local review; no later increment, push or deployment is authorized.
+
 The owner separately authorized [D1-A unified Geographic Atlas foundation](worlds-geo-d1a.md) from approved `fcf911d24641436424c7acf766baba7cebe5b10c`. Its local implementation does not authorize D1-B or later increments, push or deployment.
 
 | Pass | Required usable result |

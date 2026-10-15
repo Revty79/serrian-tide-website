@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Geo D1-B authorization
+
+The owner independently technically approved D1-A including its save-state correction at `2683a72d3c41d4c6fce0515d307f6a844536cfe1` and authorized [Geo D1-B unified Atlas previews and map export](docs/architecture/worlds-geo-d1b.md). Reuse existing scenes, source services, coordinate registration and privacy for lazy bounded previews and browser-side visible-map PNGs with licensing and current-access validation. Preserve authored-only export, historical sources, draft/save separation, local map types and all C1–C3 originals. Stop at a clean local review commit. No push, Production change, database import, Docker modification, shared-server restart, D1-C or D2 is authorized. Existing disposable validation infrastructure may be resumed; no source import is needed.
+
 ## Geo D1-A authorization
 
 The owner independently approved the C2/C3 correction at `fcf911d24641436424c7acf766baba7cebe5b10c` and authorized [Geo D1-A unified Geographic Atlas foundation](docs/architecture/worlds-geo-d1a.md). Reuse existing geographic/raster services inside the normal Atlas Map Maker, preserve editable source artwork, exact identities, history, privacy, fictional surfaces and connected maps, and verify rectangular Earth, alignment, desktop/keyboard/native touch and production rendering. Stop at a clean local review commit for Ember and owner visual review. No remote push, Production contact/change, deployment, shared-service restart, D1-B or subsequent phase is authorized. Earlier pass sync permissions do not apply.

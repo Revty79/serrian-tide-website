@@ -10,9 +10,10 @@ import {surfaceBounds,validateViewport,geoId,type GeographicBounds} from "./geog
 import {DEFAULT_RASTER_PREFERENCES,rasterCommandSchema,rasterStyleSchema,rasterTilePlan,rasterPixel,validateRasterReference,type RasterAsset,type RasterView} from "./raster";
 import {verifiedRasterOriginal,readRasterAsset,stageRasterBundle} from "./raster-storage";
 import {numericalReader} from "./raster-numerical";
+import {rasterThumbnailPlan} from "./raster-preview";
 import {rasterDisplayBounds} from "./raster-screen";
 import type {ProjectionKind} from "./geographic-projection";
-type Options={ordinary?:boolean;review?:boolean};
+type Options={ordinary?:boolean;review?:boolean;preview?:boolean};
 type Tx=Parameters<Parameters<typeof db.transaction>[0]>[0];
 const unavailable=()=>new WorldError("This elevation source is unavailable in this viewing context.",404);
 
@@ -25,7 +26,7 @@ async function context(tx:Tx,userId:string,worldId:string,timelineId:string,mapI
 }
 export async function rasterViewport(userId:string,worldId:string,timelineId:string,mapId:string,bounds?:GeographicBounds,options:Options={},style?:string,versionId?:string,projection?:ProjectionKind):Promise<RasterView|null>{return db.transaction(async tx=>{
   const c=await context(tx,userId,worldId,timelineId,mapId,options,versionId);if(!c)return null;const m=c.reading.manifest,extent=bounds??surfaceBounds(c.layer.surface.reference);validateViewport(extent,c.layer.surface.reference);validateRasterReference(m.grid,c.layer.surface.reference);
-  const selected=style?rasterStyleSchema.parse(style):c.view.preferences.style,footprint=rasterDisplayBounds(c.layer.surface.reference,extent,projection??(c.layer.surface.reference.kind==="plane"?"planar":"equirectangular")),plan=rasterTilePlan(m.grid,m.levels,footprint,selected),versions=options.ordinary?[]:await tx.select({id:version.id,revision:version.revision,protected:version.protected,archived:version.archived}).from(version).where(and(eq(version.sourceId,c.source.id),eq(version.worldId,worldId))).orderBy(desc(version.revision)).limit(100);
+  const selected=style?rasterStyleSchema.parse(style):c.view.preferences.style,footprint=rasterDisplayBounds(c.layer.surface.reference,extent,projection??(c.layer.surface.reference.kind==="plane"?"planar":"equirectangular")),plan=(options.preview?rasterThumbnailPlan:rasterTilePlan)(m.grid,m.levels,footprint,selected),versions=options.ordinary||options.preview?[]:await tx.select({id:version.id,revision:version.revision,protected:version.protected,archived:version.archived}).from(version).where(and(eq(version.sourceId,c.source.id),eq(version.worldId,worldId))).orderBy(desc(version.revision)).limit(100);
   return {sourceId:c.source.id,versionId:c.reading.id,revision:c.head.revision,viewRevision:c.view.revision,stamp:c.stamp,name:c.source.name,grid:m.grid,level:plan.level,tiles:c.current.archived||c.reading.archived?[]:plan.tiles,preferences:c.view.preferences,canEdit:c.canEdit,credit:m.source,versions,protected:c.current.protected,archived:c.current.archived,statistics:m.statistics};
 },{isolationLevel:"repeatable read",accessMode:"read only"});}
 export async function rasterTile(userId:string,worldId:string,timelineId:string,mapId:string,versionId:string,key:string,stamp:string,options:Options={}){return db.transaction(async tx=>{

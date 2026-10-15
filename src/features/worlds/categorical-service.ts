@@ -11,9 +11,10 @@ import {rasterTilePlan,rasterPixel,validateRasterReference} from "./raster";
 import {readRasterAsset,stageRasterBundle} from "./raster-storage";
 import {categoricalOriginal} from "./categorical-original";
 import {DEFAULT_CATEGORICAL_PREFERENCES,categoricalManifestSchema,categoricalCommandSchema,type CategoricalView} from "./categorical-raster";
+import {rasterThumbnailPlan} from "./raster-preview";
 import {rasterDisplayBounds} from "./raster-screen";
 import type {ProjectionKind} from "./geographic-projection";
-type Options={ordinary?:boolean;review?:boolean};
+type Options={ordinary?:boolean;review?:boolean;preview?:boolean};
 type Tx=Parameters<Parameters<typeof db.transaction>[0]>[0];
 const unavailable=()=>new WorldError("This land-cover source is unavailable in this viewing context.",404);
 
@@ -26,7 +27,7 @@ async function context(tx:Tx,userId:string,worldId:string,timelineId:string,mapI
 }
 export async function categoricalViewport(userId:string,worldId:string,timelineId:string,mapId:string,bounds?:GeographicBounds,options:Options={},versionId?:string,projection?:ProjectionKind):Promise<CategoricalView|null>{return db.transaction(async tx=>{
   const c=await context(tx,userId,worldId,timelineId,mapId,options,versionId);if(!c)return null;const m=c.reading.manifest,extent=bounds??surfaceBounds(c.layer.surface.reference);validateViewport(extent,c.layer.surface.reference);validateRasterReference(m.grid,c.layer.surface.reference);
-  const footprint=rasterDisplayBounds(c.layer.surface.reference,extent,projection??(c.layer.surface.reference.kind==="plane"?"planar":"equirectangular")),plan=rasterTilePlan(m.grid,m.levels,footprint,"classification"),versions=options.ordinary?[]:await tx.select({id:version.id,revision:version.revision,protected:version.protected,archived:version.archived}).from(version).where(and(eq(version.sourceId,c.source.id),eq(version.worldId,worldId))).orderBy(desc(version.revision)).limit(100);
+  const footprint=rasterDisplayBounds(c.layer.surface.reference,extent,projection??(c.layer.surface.reference.kind==="plane"?"planar":"equirectangular")),plan=(options.preview?rasterThumbnailPlan:rasterTilePlan)(m.grid,m.levels,footprint,"classification"),versions=options.ordinary||options.preview?[]:await tx.select({id:version.id,revision:version.revision,protected:version.protected,archived:version.archived}).from(version).where(and(eq(version.sourceId,c.source.id),eq(version.worldId,worldId))).orderBy(desc(version.revision)).limit(100);
   return {sourceId:c.source.id,versionId:c.reading.id,revision:c.head.revision,viewRevision:c.view.revision,stamp:c.stamp,name:c.source.name,account:options.ordinary?null:c.reading.note,grid:m.grid,classes:m.classes,level:plan.level,tiles:c.current.archived||c.reading.archived?[]:plan.tiles,preferences:c.view.preferences,canEdit:c.canEdit,credit:m.source,versions,protected:c.current.protected,archived:c.current.archived,statistics:m.statistics};
 },{isolationLevel:"repeatable read",accessMode:"read only"});}
 export async function categoricalTile(userId:string,worldId:string,timelineId:string,mapId:string,versionId:string,key:string,stamp:string,options:Options={}){return db.transaction(async tx=>{
