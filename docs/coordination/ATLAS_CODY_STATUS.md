@@ -5,12 +5,22 @@
 ## Current status
 
 - Implementation remains in progress; no owner-testing or deployment readiness.
-- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `56744ccc677333e8dcbd58746a22bff741b42710`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
+- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `d858c208d051c532dbdbb0900c0659b1f4bfeec8`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
 - Draft implementation PR: https://github.com/Revty79/serrian-tide-website/pull/5 — DO NOT MERGE.
 - Main remains the owner's preserved b5dbd5d checkpoint.
 - Early artwork gate: e7c68f8 received **CORRECTIONS REQUIRED**. Third focused candidate `f71c17023e79c88afaa18090104a25e3675ff813` is now **PENDING INDEPENDENT REVIEW**, PNG SHA-256 `bbd75f8e14c27654ed8290c978928eba476223928e16e7dcd0ca2683346bbcc0`.
 - Ember's decision: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778; Cody acknowledgment: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207992373.
 - No full-library expansion or revised-asset promotion. [Third study and exact actual-size evidence](https://github.com/Revty79/serrian-tide-website/blob/f71c17023e79c88afaa18090104a25e3675ff813/docs/screenshots/worlds-geo-ux0a/art-direction/revision-3/README.md). [New explicit review request](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6208133625). Same three subjects, two genuinely different grove footprints, seven groups instead of 34 repeated stamps, richer mountain and city detail. Cody approved this candidate direction; Ember approval is not inferred.
+
+## Latest verified exact-artwork loading checkpoint
+
+[Report and indexed actual browser/resource evidence](https://github.com/Revty79/serrian-tide-website/blob/d858c208d051c532dbdbb0900c0659b1f4bfeec8/docs/operations/worlds-atlas-ux0a-lazy-artwork.md). Exact checkpoint `d858c208d051c532dbdbb0900c0659b1f4bfeec8`. Generated metadata has no inline SVG bodies. Only exact used/selected files load from the versioned same-origin library, with checksum/size/content validation, deduplication and explicit retry. Missing or mismatched files preserve refs/drafts and block export. Actual browser proof passes empty-map zero body fetches, one source/definition for two visible mountains, live pixels, absent vector bodies in page JavaScript, corrupt revision rejection, no idle retry, retained unapplied title and byte-identical exports after explicit retry. Terrain image URLs stay unchanged while an unrelated city source is deliberately delayed.
+
+All **2,243 feature tests**, TypeScript, lint (zero errors; existing stories warning), diff check and isolated Node 22 production build pass. Final runtime fingerprint `9417ced6e595aa54e28ae7fa89f8052d58f4fe76d45db98b34ae5b8e6b361e84`. The final six-case matrix passes every unchanged budget: 50.4–55.6 FPS, 34.6–35.0-ms desktop brush p95 / 125.7–140.0-ms touch at 6x CPU; all operations within limits, five real edit/undo/reopen cycles per case, no external requests and 4.48–5.16-MiB JS heap growth. Catalog-containing JS/artwork transfer is conservatively 666–671 KiB gzip; metadata module 851 bytes gzip. All original SVG/catalog pins remain unchanged. The first loading matrix's failed 150.6-ms landscape measurement is retained separately; preview subscription/definition boundaries and per-drawing cache readiness were corrected before the final passing matrix. Terminated worker transfer capture uses the matching emitted full-file bound; unrelated capture errors remain fatal.
+
+Cody inspected all final images/exports. Task-owned application/browser processes and PostgreSQL cluster are stopped; ports 49519/49520 verified closed. Receipts/test targets remain retained. Working tree clean and feature head/main were verified remotely. No new migration/configuration; 0132 unchanged. This is the current three-subject technical library, not final artwork or owner readiness.
+
+Next depends on Ember's explicit f71c170 art decision and hill/wetland representation response. After those gates: approved full library, complete-library resource matrix, separate art-approved generated/manual zero-World website journeys and same-SHA joint readiness. No owner invitation or main merge/deployment.
 
 ## Latest verified performance and compatibility checkpoint
 
@@ -56,7 +66,7 @@ All 2,218 feature tests pass, 23 focused composition/source/frame/assets tests p
 
 ## Required remaining work
 
-Independent art decision before full-library expansion; full generated/manual first-island journeys, further fault-injection/resource/performance and final independent readiness review. Existing compatibility/mask proofs do not establish those gates.
+Independent art decision and hill/wetland representation response before promotion/expansion; complete the approved 12–16-asset library, repeat its full resource matrix and separate art-approved generated/manual zero-World website journeys, then obtain same-SHA independent readiness. Current small-library technical proofs do not establish those final gates.
 
 Only owned disposable database/application/private-storage targets are used. No shared DEV/Production write, deleted-Earth restoration, retained backup/private-asset changes, Docker, shared restart, D3-B, automatic main merge or deployment.
 
