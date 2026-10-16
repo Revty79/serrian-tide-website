@@ -1,6 +1,6 @@
 # UX-0A full-library implementation and review index
 
-2026-10-16 candidate on `codex/atlas-ux0a`, from `d858c208d051c532dbdbb0900c0659b1f4bfeec8`. The exact pushed review SHA is supplied in coordination PR #4 and the follow-up draft implementation PR. **Independent final artwork and joint testing-readiness decisions remain pending.** This document does not invite owner testing or authorize merging/deployment.
+2026-10-16 candidate on `codex/atlas-ux0a`, from `d858c208d051c532dbdbb0900c0659b1f4bfeec8`. The exact pushed review SHA is supplied in [coordination v2 PR #6](https://github.com/Revty79/serrian-tide-website/pull/6) and [draft implementation PR #7](https://github.com/Revty79/serrian-tide-website/pull/7). **Independent final artwork and joint testing-readiness decisions remain pending.** This document does not invite owner testing or authorize merging/deployment.
 
 ## Implemented result
 
@@ -97,4 +97,4 @@ Older code/catalogs are not assumed to understand the new saved references. Pref
 
 The owner-viewed DEV island and its running task-owned 3002 app use their retained separate checkout. This candidate's build and test apps use `runtime-checkout-library` and the verified disposable PostgreSQL cluster. Cody made no shared DEV/Production mutation, shared restart, Docker change, main merge, deployment or heightmap implementation in this finishing checkpoint. The separate [2D-first audit/proposal](../architecture/worlds-professional-2d-studio-proposal.md) is planning for a later approved roadmap amendment.
 
-The former coordination/implementation PRs #4/#5 were merged externally while this work was underway; the old coordination branch no longer exists. Read-only verification found main at `2d563101e5de3a500c5af3f97a5f4fa0cc9e646d`, differing from the implementation parent only by coordination documents. Cody preserves that main and publishes the finishing work for a follow-up draft review, continuing the existing PR #4 comment channel. The stale status file on main is not updated by implication.
+The former coordination/implementation PRs #4/#5 were merged externally while this work was underway; the old coordination branch no longer exists. Read-only verification found main at `2d563101e5de3a500c5af3f97a5f4fa0cc9e646d`, differing from the implementation parent only by coordination documents. Cody preserves that main. Ember then created the discussion-only draft coordination v2 PR #6 at `5e26bff9083d2c3678754086344e93082bd604d2`; Cody acknowledged it and linked draft implementation PR #7. New review requests go to #6; #4/#5/#3 retain background history. Neither draft is to be merged by implication. The stale status file on main is not updated.
