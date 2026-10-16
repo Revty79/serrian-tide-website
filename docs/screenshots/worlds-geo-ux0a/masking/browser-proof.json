@@ -1,0 +1,245 @@
+{
+  "mapId": "e5b9e4ac-25f2-4db3-90f8-667f6207bd29",
+  "retainedStroke": {
+    "id": "be37242e-8f19-472d-9726-6148211e8b0e",
+    "kind": "forest",
+    "name": "forest stroke",
+    "seed": 1498569282,
+    "type": "terrain",
+    "points": [
+      {
+        "x": 60,
+        "y": 620,
+        "id": "e807d3d9-46ba-426b-9f1c-f30e54376361"
+      },
+      {
+        "x": 107,
+        "y": 620,
+        "id": "6021acaf-5f43-49ec-b1eb-a547abcf0e89"
+      },
+      {
+        "x": 154,
+        "y": 620,
+        "id": "345b4b89-6846-47bd-9445-c4166872cba2"
+      },
+      {
+        "x": 201,
+        "y": 620,
+        "id": "471f33d7-7573-4213-ad12-9d4cf3d5c7c6"
+      },
+      {
+        "x": 248,
+        "y": 620,
+        "id": "19ae6fb7-0290-4485-91f8-e9162898496c"
+      },
+      {
+        "x": 295,
+        "y": 620,
+        "id": "0743e939-5f3f-4e21-bdca-f30932ba5d9f"
+      },
+      {
+        "x": 342,
+        "y": 620,
+        "id": "49b63785-353d-460e-94d2-19a117caee59"
+      },
+      {
+        "x": 389,
+        "y": 620,
+        "id": "51239ba3-637e-4c15-b339-da8ebe7c5ac6"
+      },
+      {
+        "x": 436,
+        "y": 620,
+        "id": "368a0075-c135-4b4d-a847-fb8535cac5e9"
+      },
+      {
+        "x": 483,
+        "y": 620,
+        "id": "6131a75e-af74-4fdb-8ce7-342b11989877"
+      },
+      {
+        "x": 530,
+        "y": 620,
+        "id": "69e4292d-ddab-4eb1-a880-f5a67f93d5e3"
+      },
+      {
+        "x": 577,
+        "y": 620,
+        "id": "cde547ef-7f55-4992-9776-fd4a77819cde"
+      },
+      {
+        "x": 624,
+        "y": 620,
+        "id": "323d45be-b43c-4bba-8d3c-828137f08f90"
+      },
+      {
+        "x": 671,
+        "y": 620,
+        "id": "96982e1a-8bc6-41f7-b86b-9184667c654d"
+      },
+      {
+        "x": 718,
+        "y": 620,
+        "id": "e1e7e473-ee17-4262-b806-62cf0be7d6b2"
+      },
+      {
+        "x": 765,
+        "y": 620,
+        "id": "55566a6b-e67f-4b6a-a6d6-dc552678e0be"
+      },
+      {
+        "x": 812,
+        "y": 620,
+        "id": "115a2c2e-b214-4aee-ab46-dac8be22a798"
+      },
+      {
+        "x": 859,
+        "y": 620,
+        "id": "ee7b3cf2-85eb-4b4b-84c6-3cb95126ad45"
+      },
+      {
+        "x": 906,
+        "y": 620,
+        "id": "dd7f9282-2a5e-457d-b305-675b400ec93c"
+      },
+      {
+        "x": 953,
+        "y": 620,
+        "id": "4bafe979-9894-4bf9-9982-685ab5bb11f7"
+      },
+      {
+        "x": 1000,
+        "y": 620,
+        "id": "b510047f-c369-43f3-baaf-11db32aeecdf"
+      },
+      {
+        "x": 1047,
+        "y": 620,
+        "id": "2f28f06a-ee38-4573-86a9-476ff0d2e986"
+      },
+      {
+        "x": 1094,
+        "y": 620,
+        "id": "cb6d0f81-8c4e-42a1-b2e5-710c84b8a51c"
+      },
+      {
+        "x": 1141,
+        "y": 620,
+        "id": "45d086f4-74ed-4b55-8860-f010ae59d0a0"
+      },
+      {
+        "x": 1188,
+        "y": 620,
+        "id": "9c318557-c2de-47e4-9bdf-e000970105b8"
+      },
+      {
+        "x": 1235,
+        "y": 620,
+        "id": "df0b0cb6-c135-4291-8e61-120ea48fd155"
+      },
+      {
+        "x": 1282,
+        "y": 620,
+        "id": "71f673ea-c4b1-4e30-9f4a-b7058f77a585"
+      },
+      {
+        "x": 1329,
+        "y": 620,
+        "id": "21924c90-e7db-4337-9142-f32082e4badd"
+      },
+      {
+        "x": 1376,
+        "y": 620,
+        "id": "261e3084-1ee1-4b7b-91f6-f90727833dc7"
+      },
+      {
+        "x": 1423,
+        "y": 620,
+        "id": "8faef99a-9a60-4fcd-b2c4-c8b77686dd83"
+      },
+      {
+        "x": 1470,
+        "y": 620,
+        "id": "2626a8df-87c5-4bbc-a4dc-e55a21f7f5cc"
+      },
+      {
+        "x": 1517,
+        "y": 620,
+        "id": "2b5d760f-f5bd-4243-866c-7e7a45f5598d"
+      },
+      {
+        "x": 1564,
+        "y": 620,
+        "id": "747b176b-cd93-4e0b-8b2a-8b525a29d486"
+      },
+      {
+        "x": 1611,
+        "y": 620,
+        "id": "3f044cbc-68da-4abb-9cb3-f97d1b569f53"
+      },
+      {
+        "x": 1658,
+        "y": 620,
+        "id": "b0406802-95e8-4428-ae8a-56c7b4ecd6eb"
+      },
+      {
+        "x": 1705,
+        "y": 620,
+        "id": "663fb4d8-9912-48de-a501-a5f8874a8293"
+      },
+      {
+        "x": 1752,
+        "y": 620,
+        "id": "346236fc-c421-4fea-839e-ea3b3f8c4100"
+      },
+      {
+        "x": 1799,
+        "y": 620,
+        "id": "7d2318dc-f0a9-46b8-95ae-8d75654cd4b0"
+      },
+      {
+        "x": 1846,
+        "y": 620,
+        "id": "71595a44-d4be-425d-9032-1ad7d17ef47d"
+      },
+      {
+        "x": 1893,
+        "y": 620,
+        "id": "bf53ae77-28e1-4b39-8180-b9feae4828bb"
+      },
+      {
+        "x": 1940,
+        "y": 620,
+        "id": "25a216ad-ebb1-4753-9984-12760fc36176"
+      }
+    ],
+    "radius": 60,
+    "density": 1,
+    "spacing": 70,
+    "version": 1,
+    "archived": false,
+    "geographyId": null
+  },
+  "oldEditorUrlWithoutAtlasTabOpensCanvas": false,
+  "directOpenNeededAtlasTab": false,
+  "passed": true,
+  "forestColor": {
+    "css": "color(srgb 0.584017 0.771412 0.603815)",
+    "rgb": [
+      149,
+      197,
+      154
+    ]
+  },
+  "terrainPixelsOnLand": 14632,
+  "terrainPixelsOutsideLand": 0,
+  "touchBrowser": {
+    "width": 390,
+    "height": 844,
+    "nativeTouchUpdates": 16,
+    "physicalDevice": false
+  },
+  "errors": [],
+  "browser": "134.0.6998.166",
+  "scope": "Website-created mask proof with retained v1 brush; not finished art or full UX-0A acceptance"
+}

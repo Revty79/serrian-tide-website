@@ -32,6 +32,7 @@ const presentationSchemaV2 = presentationSchemaV1.extend({ version: z.literal(2)
 export type MapPresentation = z.infer<typeof presentationSchemaV1> | z.infer<typeof presentationSchemaV2>;
 export const presentationSchema: z.ZodType<MapPresentation> = z.union([presentationSchemaV1, presentationSchemaV2]);
 export const defaultPresentation = (): MapPresentation => ({ version: 1, style: "parchment", grid: false, layers: Object.fromEntries(layers.map(l => [l, {visible: true, locked: false}])) as MapPresentation["layers"] });
+export const islandPresentation = (): MapPresentation => ({ ...defaultPresentation(), version: 2, styleRef: { id: "island-ink-wash", revision: 1 } });
 export const drawingsSchema = z.array(drawingSchema).max(512);
 export function validatePresentation(presentation: MapPresentation) {
   presentationSchema.parse(presentation);

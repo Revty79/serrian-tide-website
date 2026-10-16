@@ -23,7 +23,7 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
  const setBounds=(value:GeographicBounds|null)=>setViewDraft({key:base,bounds:value?projectionExtent(value,projection??"equirectangular"):null,projection});
  const setProjection=(value:ProjectionKind)=>setViewDraft({key:base,bounds:bounds?projectionExtent(bounds,value):null,projection:value});
  const layer=enabled&&layerResult?.key===base?layerResult.value:null,reference=layer?.surface.reference;
- const key=`${base}:${JSON.stringify(bounds)}:${projection}:${themes.join(",")}:${refresh}`;
+ const key=`${base}:${JSON.stringify(bounds)}:${projection}:${refresh}`;
  const [result,setResult]=useState<{key:string;value:GeographicViewport|null;loading:boolean;error:string}|null>(null),current=result?.key===key?result:null;
  const [selection,setSelection]=useState({key:base,id:""}),[readingResult,setReading]=useState<{key:string;value:GeographicReading|null;error:string}|null>(null),selected=selection.key===base?selection.id:"",readKey=`${base}:${selected}:${refresh}`,reading=readingResult?.key===readKey?readingResult:null;
  const setSelected=(id:string)=>setSelection({key:base,id});
@@ -31,7 +31,7 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
  useEffect(()=>{
   if(!enabled)return;const controller=new AbortController(),pages=geographicPages(mapId);
   const timer=setTimeout(()=>{void(async()=>{
-   setResult({key,value:null,loading:true,error:""});const q=new URLSearchParams(query);if(bounds)q.set("bounds",JSON.stringify(bounds));if(projection)q.set("projection",projection);q.set("themes",themes.join(","));q.set("lod",reference&&bounds?automaticGeographicDetail(bounds,reference):"overview");
+   setResult({key,value:null,loading:true,error:""});const q=new URLSearchParams(query);if(bounds)q.set("bounds",JSON.stringify(bounds));if(projection)q.set("projection",projection);q.set("themes",GEOGRAPHIC_THEMES.map(t=>t.id).join(","));q.set("lod",reference&&bounds?automaticGeographicDetail(bounds,reference):"overview");
    let after="",lastPaint=0;
    do{if(after)q.set("cursor",after);else q.delete("cursor");const value=await worldApi<GeographicViewport>(`${api}?${q}`,"GET",undefined,controller.signal);if(controller.signal.aborted||live.current!==key)return;pages.append(value,after);setLayer({key:base,value:value.layer});if(!value.nextCursor||performance.now()-lastPaint>250){setResult({key,value:pages.value(),loading:!!value.nextCursor,error:""});lastPaint=performance.now();}after=value.nextCursor??"";}while(after);
   })().catch(e=>{if(controller.signal.aborted||live.current!==key)return;const denied=e instanceof SaveError&&[401,403,404].includes(e.status)||e instanceof GeographicPageError&&e.clear;if(denied)setLayer(null);setResult({key,value:denied?null:pages.value(),loading:false,error:e instanceof SaveError&&e.status===404?"":e.message});});},100);

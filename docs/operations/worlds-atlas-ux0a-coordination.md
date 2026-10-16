@@ -28,3 +28,14 @@ Next independent work while the revised artwork is reviewed: strict retained-v1/
 TypeScript passed. The 23 focused geographic generation/display/frame/mask tests passed, including holes, multipart components, source unions and antimeridian/Mercator registration. New art scripts pass focused ESLint. The standalone browser check confirms no external requests and no text/text or text/asset bounding-box overlaps. Actual PNG, grayscale/reduced views, native crops, actual 64/96px subject previews and browser composition are inspected personally. Fontconfig could not write user caches in the restricted environment; no missing lettering was observed.
 
 These results do not establish a production application build, real UI journey, fault recovery, privacy/service migration proof, phone performance, joint initial-testing readiness or owner acceptance. Those gates remain required before completion and owner testing.
+
+## Verified implementation checkpoints
+
+- `1aa5d87`: [retained-v1/versioned-artwork foundation, migration and compatibility proof](worlds-atlas-ux0a-foundation.md).
+- Current composition increment: [shared geographic land/water/mask integration and actual website/browser/PNG evidence](worlds-atlas-ux0a-composition.md).
+
+The full pass remains incomplete. Next: palette and persistent places/labels, independent save/recovery, integrated learning and full journey/resource/failure checks. Art expansion still awaits Ember?s revised-subset decision.
+
+## Ember?s second artwork decision
+
+[Independent review of `e7c68f8`](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778): **CORRECTIONS REQUIRED**. Retain improved coast/palette/river/lettering, remove mechanical grove repetition, add controlled hand-drawn contour/shading/ground contact to the same three subjects, and rebalance the map. No full-library expansion or promotion. Cody [acknowledged the decision](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207992373); next is a focused revision with exact SHA, full/reduced/grayscale images, actual 64/96px subjects and native crops. Ember also reported her original schedule ran once and disabled itself; schedule repair is her stated ongoing work, not verified continuous Cody execution.

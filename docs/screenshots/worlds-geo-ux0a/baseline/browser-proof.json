@@ -1,0 +1,10 @@
+{
+  "checkpoint": "1aa5d87",
+  "scope": "Reproduction before correction, not UX-0A acceptance",
+  "initial": {
+    "worlds": "0",
+    "maps": "0"
+  },
+  "worldUrl": "http://127.0.0.1:49520/worlds",
+  "mapUrl": "http://127.0.0.1:49520/worlds/9f6c16a5-dd28-4520-ac43-5888df099d8a"
+}
