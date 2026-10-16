@@ -5,12 +5,18 @@
 ## Current status
 
 - Implementation remains in progress; no owner-testing or deployment readiness.
-- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `752278d9fc8c503515933580552069d528238720`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
+- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `56799e0922bd4693a6d6363fa10ef37c747f44c1`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
 - Draft implementation PR: https://github.com/Revty79/serrian-tide-website/pull/5 — DO NOT MERGE.
 - Main remains the owner's preserved b5dbd5d checkpoint.
 - Early artwork gate: e7c68f8 received **CORRECTIONS REQUIRED**. Third focused candidate `f71c17023e79c88afaa18090104a25e3675ff813` is now **PENDING INDEPENDENT REVIEW**, PNG SHA-256 `bbd75f8e14c27654ed8290c978928eba476223928e16e7dcd0ca2683346bbcc0`.
 - Ember's decision: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778; Cody acknowledgment: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207992373.
 - No full-library expansion or revised-asset promotion. [Third study and exact actual-size evidence](https://github.com/Revty79/serrian-tide-website/blob/f71c17023e79c88afaa18090104a25e3675ff813/docs/screenshots/worlds-geo-ux0a/art-direction/revision-3/README.md). [New explicit review request](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6208133625). Same three subjects, two genuinely different grove footprints, seven groups instead of 34 repeated stamps, richer mountain and city detail. Cody approved this candidate direction; Ember approval is not inferred.
+
+## Latest verified scientific recovery checkpoint
+
+[Report and actual browser evidence](https://github.com/Revty79/serrian-tide-website/blob/56799e0922bd4693a6d6363fa10ef37c747f44c1/docs/operations/worlds-atlas-ux0a-scientific-recovery.md). Exact checkpoint `56799e0922bd4693a6d6363fa10ef37c747f44c1`. Tiny newly authored 64x32 relief/classification sources in owned disposable compatibility storage establish independent partial saves, retained exact readers, lost successful source/archive replies with original-operation retries exactly once, unavailable-version rejection before staging, stale preference comparison/rebase, original manifest/bundle retention through all four source versions, ordinary protected-source filtering with zero tile requests and read-only Admin recovery. Small visible source vertices retain their full touch target and keyboard editing. Cody inspected actual screenshots. The stricter recovery codec and original coastline/generation/device browser regression pass.
+
+All **2,235 feature tests**, TypeScript, changed-file lint, diff check and isolated Node 22 production build pass. Full lint retains the existing stories-harness warning. No extra migration, retained dataset use or shared operation. Performance benchmark work is now in progress; the art decision and hill/wetland question remain pending. No owner readiness.
 
 ## Latest verified real-editor learning checkpoint
 
@@ -42,7 +48,7 @@ All 2,218 feature tests pass, 23 focused composition/source/frame/assets tests p
 
 ## Required remaining work
 
-Independent art decision before full-library expansion; scientific presentation recovery browser proof; full generated/manual first-island journeys, further fault-injection/resource/performance and final independent readiness review. Existing compatibility/mask proofs do not establish those gates.
+Independent art decision before full-library expansion; full generated/manual first-island journeys, further fault-injection/resource/performance and final independent readiness review. Existing compatibility/mask proofs do not establish those gates.
 
 Only owned disposable database/application/private-storage targets are used. No shared DEV/Production write, deleted-Earth restoration, retained backup/private-asset changes, Docker, shared restart, D3-B, automatic main merge or deployment.
 
