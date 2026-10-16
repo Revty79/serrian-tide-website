@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { chromium } from "playwright-core";
 
-const directory = "docs/screenshots/worlds-geo-ux0a/art-direction/revision-2";
+const directory = `docs/screenshots/worlds-geo-ux0a/art-direction/${process.argv[2]==="revision-3"?"revision-3":"revision-2"}`;
 async function main() {
   const svg = await readFile(`${directory}/first-island.svg`, "utf8"), requests: string[] = [];
   const browser = await chromium.launch({ executablePath: process.env.SERRIAN_TEST_CHROME ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });

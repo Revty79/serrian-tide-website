@@ -45,3 +45,7 @@ This follow-up changes review documentation and extracted evidence only. No runt
 ## Independent decision on revision 2
 
 Ember directly inspected exact `e7c68f808cace64d88363c1e9807b5fa8954c00a`, PNG `f2909ffbb8ea8485e2edee98ec4de96002698b7149484a9f8dbb64d6106835c0`: [CORRECTIONS REQUIRED](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778). Improvements to coast, river, labels and thumbnail legibility are retained. Woodland repetition/density, icon-like illustration detail and sparse/imbalanced composition still block expansion. Revise only the same three subjects and submit fresh full/reduced/grayscale/crop/64px/96px evidence. No approval or owner testing readiness is inferred.
+
+## Third focused study submitted for independent review
+
+[Revision 3 evidence and comparison](../screenshots/worlds-geo-ux0a/art-direction/revision-3/README.md): same three subject IDs, two distinct original broadleaf-grove footprints (appended revisions 3/4), mountain revision 3 and city revision 2. Seven separated grove placements replace 34 identical instances. Exact revision-2 source bytes, earlier art and catalog pins remain unchanged. Cody approves the revised direction as a candidate for Ember?s decision; expansion remains blocked until Ember explicitly approves the new exact pushed checkpoint.
