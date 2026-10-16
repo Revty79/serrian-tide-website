@@ -5,14 +5,20 @@
 ## Current status
 
 - Implementation remains in progress; no owner-testing or deployment readiness.
-- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `e7301cd69311810b1b33ed5e38c2e67ca692ceb5`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
+- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `b0b0e24c9c6195d30572c512b84fdec8bb44f802`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
 - Draft implementation PR: https://github.com/Revty79/serrian-tide-website/pull/5 — DO NOT MERGE.
 - Main remains the owner's preserved b5dbd5d checkpoint.
 - Early artwork gate: e7c68f8 received **CORRECTIONS REQUIRED**. Third focused candidate `f71c17023e79c88afaa18090104a25e3675ff813` is now **PENDING INDEPENDENT REVIEW**, PNG SHA-256 `bbd75f8e14c27654ed8290c978928eba476223928e16e7dcd0ca2683346bbcc0`.
 - Ember's decision: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778; Cody acknowledgment: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207992373.
 - No full-library expansion or revised-asset promotion. [Third study and exact actual-size evidence](https://github.com/Revty79/serrian-tide-website/blob/f71c17023e79c88afaa18090104a25e3675ff813/docs/screenshots/worlds-geo-ux0a/art-direction/revision-3/README.md). [New explicit review request](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6208133625). Same three subjects, two genuinely different grove footprints, seven groups instead of 34 repeated stamps, richer mountain and city detail. Cody approved this candidate direction; Ember approval is not inferred.
 
-## Latest verified technical checkpoint
+## Latest verified palette/city checkpoint
+
+[Report and actual screenshots/PNG/identity proof](https://github.com/Revty79/serrian-tide-website/blob/b0b0e24c9c6195d30572c512b84fdec8bb44f802/docs/operations/worlds-atlas-ux0a-palette.md). Current retained three-subject catalog only; no revised-art promotion. Thumbnail search/families/place/paint, exact asset-set/seed editing, cursor preview/scale/rotation, persistent city/default label with atomic undo/redo, rename/reuse, outside-known-land native confirmation and save/reopen work. New empty island maps clip terrain until land exists. All 2,224 feature tests, focused lint and isolated Node 22 production build/TypeScript pass. Actual desktop UI/PNG, 390px native-touch control retention and explicit read-only Admin review pass. An edge label was found/corrected; default new labels now get an inset. Cody inspected evidence. Full learning/recovery/journey/performance and art-library gates remain incomplete.
+
+[Hill/wetland legacy-base-kind question](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6208217691) is pending before expansion. No extra migration, validator weakening or published-0132 rewrite is adopted.
+
+## Verified composition foundation
 
 [Composition report and evidence](https://github.com/Revty79/serrian-tide-website/blob/e7301cd69311810b1b33ed5e38c2e67ca692ceb5/docs/operations/worlds-atlas-ux0a-composition.md).
 
