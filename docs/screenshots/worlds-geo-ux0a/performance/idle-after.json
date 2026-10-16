@@ -1,0 +1,40 @@
+{
+  "browser": "134.0.6998.166",
+  "requests": [
+    {
+      "url": "/api/worlds/7d12199b-1d0f-4380-a7df-f03c54892815/geography?map=9a06db46-9d88-4634-9f59-7924f98797f6&timeline=d5dfa7cf-df51-4c9c-9584-0e31b3517be5&check=1&lod=overview&themes=land%2Crivers%2Cinland-water%2Cmountains%2Clandscapes%2Cmarine%2Ccities%2Cadministrative%2Cauthored",
+      "bytes": 463
+    },
+    {
+      "url": "/api/worlds/7d12199b-1d0f-4380-a7df-f03c54892815/geography?map=9a06db46-9d88-4634-9f59-7924f98797f6&timeline=d5dfa7cf-df51-4c9c-9584-0e31b3517be5&check=1&lod=overview&themes=land%2Crivers%2Cinland-water%2Cmountains%2Clandscapes%2Cmarine%2Ccities%2Cadministrative%2Cauthored",
+      "bytes": 463
+    }
+  ],
+  "retainedElements": {
+    "scene": true,
+    "landPath": true
+  },
+  "sceneMarkupBytes": 77186,
+  "emptyHeap": {
+    "usedSize": 13353080,
+    "totalSize": 15286272,
+    "embedderHeapUsedSize": 3151336,
+    "backingStorageSize": 3806827
+  },
+  "loadedHeap": {
+    "usedSize": 15101652,
+    "totalSize": 17440768,
+    "embedderHeapUsedSize": 7431704,
+    "backingStorageSize": 3822752
+  },
+  "serverBefore": {
+    "Id": 22028,
+    "WorkingSet64": 126320640,
+    "CPU": 1.59375
+  },
+  "serverAfter": {
+    "Id": 22028,
+    "WorkingSet64": 180092928,
+    "CPU": 3.859375
+  }
+}

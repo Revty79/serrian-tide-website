@@ -1,0 +1,22 @@
+/** Normal save-service maximums in a separate new technical World, never trim originals. */
+import assert from "node:assert/strict";
+import {randomUUID} from "node:crypto";
+import {readFile,writeFile} from "node:fs/promises";
+import path from "node:path";
+import {ownedPool,UX0A_DIRECTORY} from "./worlds-geo-ux0a-harness";
+import {draftOf} from "../src/features/worlds/atlas";
+import {assetReference,islandAssets} from "../src/features/worlds/island-assets";
+import type {MapDrawing} from "../src/features/worlds/cartography";
+async function main(){const f=JSON.parse(await readFile(path.join(UX0A_DIRECTORY,"performance-current.json"),"utf8")),verified=await ownedPool(f.environment,"empty");await verified.end();process.env.DATABASE_URL=f.environment.empty;process.env.SERRIAN_RASTER_ROOT=f.environment.assetRoot;
+ const [a,w,app]=await Promise.all([import("../src/features/worlds/atlas-service"),import("../src/features/worlds/world-service"),import("../src/db")]);try{
+ const owner=f.environment.users.owner,world=await w.createWorld(owner,{name:"Disposable maximum validator checks"}),mountain=assetReference(islandAssets.find(a=>a.id==="mountain-rounded")!),grove=assetReference(islandAssets.find(a=>a.id==="woodland-broadleaf-grove")!),results=[];
+ const cases:{name:string;valid:MapDrawing[];extra:MapDrawing;error:RegExp}[]=[];
+ const symbols:MapDrawing[]=Array.from({length:512},(_,i)=>({version:2,type:"symbol",id:randomUUID(),name:`Maximum drawing ${i}`,archived:false,geographyId:null,kind:"mountain",role:"decoration",point:{x:300,y:300},scale:.5,rotation:0,style:"colored",assetRef:mountain}));cases.push({name:"512 drawings",valid:symbols,extra:{...symbols[0],id:randomUUID()},error:/512/});
+ const strokes:MapDrawing[]=Array.from({length:80},(_,i)=>({version:2,type:"terrain",id:randomUUID(),name:`Maximum terrain ${i}`,archived:false,geographyId:null,kind:"forest",points:[{id:randomUUID(),x:240,y:500},{id:randomUUID(),x:1424,y:500}],radius:12,spacing:16,density:1,seed:i+1,assetRefs:[grove]}));cases.push({name:"6000 derived marks",valid:strokes,extra:{...strokes[0],id:randomUUID()},error:/6,000/});
+ const paths:MapDrawing[]=Array.from({length:128},(_,i)=>({version:1,type:"path",id:randomUUID(),name:`Maximum path ${i}`,archived:false,geographyId:null,kind:"road",points:Array.from({length:128},(_,j)=>({id:randomUUID(),x:100+j*10,y:100+i*5})),width:3,curve:0}));cases.push({name:"16384 drawing points",valid:paths,extra:{version:1,type:"path",id:randomUUID(),name:"Overflow points",archived:false,geographyId:null,kind:"road",points:[{id:randomUUID(),x:100,y:100},{id:randomUUID(),x:110,y:100}],width:3,curve:0},error:/16,384/});
+ for(const c of cases){const id=await a.changeAtlas(owner,world,{action:"create",name:c.name,description:"Separate maximum completion/rejection fixture",scope:"regional",style:"island-ink-wash"}) as string,bundle=await a.getAtlas(owner,world),stored=bundle.maps.find(m=>m.id===id)!,draft={...draftOf(stored,bundle.geographies),drawings:c.valid};await a.changeAtlas(owner,world,{action:"save",id,revision:stored.revision,draft});const pool=await ownedPool(f.environment,"empty");try{
+ const snapshot=async()=>({map:(await pool.query("select revision from world_atlas_map where id=$1",[id])).rows,drawings:(await pool.query("select id,md5(content::text) digest from world_atlas_drawing where map_id=$1 order by sort_order",[id])).rows});const before=await snapshot();assert.equal(before.drawings.length,c.valid.length);await assert.rejects(()=>a.changeAtlas(owner,world,{action:"save",id,revision:stored.revision+1,draft:{...draft,drawings:[...c.valid,c.extra]}}),c.error);assert.deepEqual(await snapshot(),before);results.push({name:c.name,map:id,drawings:before.drawings.length,requestBytes:Buffer.byteLength(JSON.stringify(draft)),savedRevision:before.map[0].revision,overflowRejectedAtomically:true});console.log(`PASS ${c.name} normal save and atomic overflow rejection`);
+ }finally{await pool.end();}}
+ await writeFile(path.join(UX0A_DIRECTORY,"maximum-limits-results.json"),JSON.stringify({passed:true,world,separateFromRepresentativeWorld:world!==f.world,results},null,2));
+ }finally{await app.pool.end();}}
+main().catch(e=>{console.error(e);process.exitCode=1;});

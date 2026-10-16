@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "before": {
+    "bitmaps": 20,
+    "liveMarks": 0,
+    "sourceMarks": 1500
+  },
+  "comparison": {
+    "width": 972,
+    "height": 451,
+    "meanChannelDifference": 0.7934440764160728,
+    "changedFraction": 0.002427162318761235,
+    "method": "Existing high-resolution vector fallback forced via test-only devicePixelRatio getter; identical source/camera/native screenshot scale. No saved change."
+  },
+  "canceledStrokePreviewRetainedOriginal100Drawings": true,
+  "errors": []
+}

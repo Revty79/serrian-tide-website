@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "groups": [
+    "actual visible PNG after city/label rename",
+    "390px native-touch palette search/family/placement settings survive panel switch",
+    "Admin explicit review can read but cannot place artwork",
+    "reopened city keeps exact place and asset identities"
+  ],
+  "browser": "134.0.6998.166",
+  "physicalDevice": false,
+  "errors": []
+}

@@ -1,13 +1,14 @@
-import {geographicDrawOrder,layoutGeographicLabels} from "./geographic-themes";
+import {geographicDrawOrder,layoutGeographicLabels,shapeTheme} from "./geographic-themes";
 import type {GeographicViewport} from "./geographic";
 import styles from "./geographic.module.css";
 
 export type GeographicImage={url:string;opacity:number}|null;
 /** Shared bounded source rendering. The caller owns its canvas and interaction coordinates. */
-export function GeographicScene({viewport,elevation,landCover,labelsVisible=true,canvasWidth=1000,onChoose,flipY=false,boundedKeyboard=false}:{viewport:GeographicViewport;elevation:GeographicImage;landCover:GeographicImage;labelsVisible?:boolean;canvasWidth?:number;onChoose?:(id:string)=>void;flipY?:boolean;boundedKeyboard?:boolean}){
+export function GeographicScene({viewport,elevation,landCover,labelsVisible=true,canvasWidth=1000,onChoose,flipY=false,boundedKeyboard=false,themes}:{viewport:GeographicViewport;elevation:GeographicImage;landCover:GeographicImage;labelsVisible?:boolean;canvasWidth?:number;onChoose?:(id:string)=>void;flipY?:boolean;boundedKeyboard?:boolean;themes?:string[]}){
  const groups=new Map<string,GeographicViewport["shapes"]>();
- for(const shape of [...viewport.shapes].filter(s=>s.path).sort((a,b)=>geographicDrawOrder(a)-geographicDrawOrder(b))){const group=groups.get(shape.id)??[];group.push(shape);groups.set(shape.id,group);}
- const labels=labelsVisible?layoutGeographicLabels(viewport.shapes,canvasWidth):[];
+ const visible=viewport.shapes.filter(s=>!themes||themes.includes(shapeTheme(s)));
+ for(const shape of [...visible].filter(s=>s.path).sort((a,b)=>geographicDrawOrder(a)-geographicDrawOrder(b))){const group=groups.get(shape.id)??[];group.push(shape);groups.set(shape.id,group);}
+ const labels=labelsVisible?layoutGeographicLabels(visible,canvasWidth):[];
  const first=groups.keys().next().value;
  const keyboard=(id:string,label=false)=>onChoose?{role:"button",tabIndex:boundedKeyboard?(id===first&&!label?0:-1):0,onKeyDown:(e:React.KeyboardEvent)=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();onChoose(id);}}}:{};
  return <g className={styles.sourceScene} data-geographic-scene data-relief={elevation||landCover?"true":undefined}>

@@ -2,7 +2,7 @@
 
 .shape[data-geometry-type=LineString]{fill:none}
 .shape[data-semantic=administrative-boundary]{fill:none}
-.shape[data-source-style=land]{fill:var(--st-primary-soft);stroke:none}
+.shape[data-source-style=land]{fill:var(--map-land,var(--st-primary-soft));stroke:var(--map-ink,none);stroke-width:.7}
 .shape[data-source-style=outline]{fill:none;stroke:var(--st-text-secondary);stroke-width:.7}
 .shape[data-source-style=disputed]{fill:none;stroke:var(--st-warning);stroke-width:1.4;stroke-dasharray:4 3}
 .shape[data-source-style=land][data-geometry-type=LineString]{fill:none;stroke:var(--st-primary)}
@@ -13,7 +13,7 @@
 .shape[data-source-style=peak]{fill:var(--st-text-secondary);stroke:var(--st-surface);stroke-width:.6}
 .shape[data-source-style=city]{fill:var(--st-secondary);stroke:var(--st-surface);stroke-width:.6}
 .shape[data-source-style=marine]{fill:none;stroke:var(--st-info);stroke-width:.5;stroke-opacity:.35}
-.mapLabel{fill:var(--st-text-strong);stroke:var(--st-surface-deep);stroke-width:3px;stroke-linejoin:round;paint-order:stroke;cursor:pointer}
+.mapLabel{fill:var(--map-ink,var(--st-text-strong));stroke:var(--map-paper,var(--st-surface-deep));stroke-width:3px;stroke-linejoin:round;paint-order:stroke;cursor:pointer}
 .canvas g:focus .mapLabel{fill:var(--st-primary-text)}
 
 .relief{border-top:1px solid var(--st-border);padding-top:1rem;margin-top:1rem}.canvas[data-relief=true] .shape[data-source-style=land]{fill-opacity:.06}.canvas[data-relief=true] .shape[data-source-style=marine]{stroke-opacity:.12}.elevationLegend{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;color:var(--st-text-secondary);font-size:.85rem}.elevationLegend i{height:1rem;width:7rem;background:linear-gradient(to right,var(--st-terrain-deep),var(--st-terrain-zero));border:1px solid var(--st-border-strong)}.elevationLegend i:last-of-type{background:linear-gradient(to right,var(--st-terrain-low),var(--st-terrain-high))}
@@ -22,3 +22,7 @@
 .classLegend{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,15rem),1fr));gap:.7rem}.classLegend li{display:flex;gap:.5rem;align-items:flex-start;color:var(--st-text)}.classLegend i{display:block;flex:none;width:1.25rem;height:1.25rem;border:1px solid var(--st-border-strong);background:var(--st-classification-swatch)}.classLegend small{display:block;color:var(--st-text-secondary);line-height:1.45}.classLegend .unknownSwatch{background:var(--st-surface);border-style:dashed}
 .sourceScene{isolation:isolate}.sourceScene[data-relief=true] .shape[data-source-style=land]{fill-opacity:.06}.sourceScene[data-relief=true] .shape[data-source-style=marine]{stroke-opacity:.12}.sourceScene g:focus .shape{stroke:var(--st-focus);stroke-width:3}.sourceScene g:focus .mapLabel{fill:var(--st-primary-text)}
 .imageCredits{padding:.6rem .8rem;color:var(--st-text-secondary);font-size:.75rem;line-height:1.5;overflow-wrap:anywhere;background:var(--st-surface)}.imageCredits a{color:var(--st-primary-text)}
+
+/* Legacy physical polygons without display metadata remain source-backed land. */
+.sourceScene .shape[data-semantic=physical-geography]:not([data-source-style])[data-geometry-type=Polygon],.sourceScene .shape[data-semantic=physical-geography]:not([data-source-style])[data-geometry-type=MultiPolygon]{fill:var(--map-land,var(--st-primary-soft));stroke:var(--map-ink,var(--st-primary));stroke-width:.7}
+.sourceScene[data-relief=true] .shape[data-semantic=physical-geography]:not([data-source-style]){fill-opacity:.06}

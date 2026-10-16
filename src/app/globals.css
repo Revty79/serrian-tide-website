@@ -141,6 +141,12 @@
   --st-map-road: color-mix(in srgb, var(--st-secondary-deep) 50%, var(--st-map-ink) 50%);
   --st-map-roof: color-mix(in srgb, var(--st-secondary-deep) 62%, var(--st-map-ink) 38%);
   --st-map-selection: var(--st-info);
+  /* Immutable island-ink-wash revision 1, shared by Atlas scenes and PNG output. */
+  --st-map-island-v1-paper: #f4efdd;
+  --st-map-island-v1-land: #e5ddbc;
+  --st-map-island-v1-water: #c7d9d6;
+  --st-map-island-v1-ink: #4c544b;
+  --st-map-island-v1-river: #789ca1;
 
 
   /* Compatibility aliases retained for existing screens. */

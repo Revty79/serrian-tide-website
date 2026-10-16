@@ -1,0 +1,135 @@
+{
+  "format": "serrian-ux0a-art-study-v3",
+  "purpose": "Focused same-three-subject independent art review; no application readiness",
+  "reviewedBase": "e7c68f808cace64d88363c1e9807b5fa8954c00a",
+  "artworkMethod": "Codex-assisted original code-authored SVG contours, translucent washes and hatching; no external/downloaded/traced art",
+  "approval": "Pending independent review",
+  "libraryExpansionApproved": false,
+  "sourceRevision": {
+    "method": "Explicit fitted authoring revision: 20/80 corner cutting followed by bounded normal-displaced edge midpoints; actual source ring, not a decorative duplicate",
+    "vertices": 256,
+    "canonicalGeometrySha256": "5367a4f0b2edd831587ff90aa99899ba92a85756c08cfc43d677032717b6628f",
+    "sharedCoastAndMask": true,
+    "unchangedFromRevision2": true,
+    "geojsonSha256": "88e9eef0f081fa9cf0ced6bb2fe3408d3513b9c9731a3bc38574e94ac62f2290"
+  },
+  "recipe": {
+    "version": 1,
+    "algorithm": "serrian-geography-v1",
+    "seed": "island-art-direction-20261015",
+    "reference": {
+      "version": 1,
+      "kind": "plane",
+      "crs": "AUTHORED:island-art-direction",
+      "units": "map units",
+      "bounds": [
+        0,
+        0,
+        2000,
+        1400
+      ]
+    },
+    "extent": [
+      0,
+      0,
+      2000,
+      1200
+    ],
+    "settings": {
+      "continents": 0,
+      "islands": 1,
+      "landCoverage": 40,
+      "complexity": 88,
+      "size": "large",
+      "shape": "balanced"
+    }
+  },
+  "assets": [
+    {
+      "id": "mountain-rounded",
+      "revision": 3,
+      "file": "public/cartography/serrian-atlas-island/1/mountain-rounded-3.svg",
+      "sha256": "b35bf4b55d23314a4a608a0186a6e5c1f236d7c8944c8332c080cf567930552c",
+      "viewBox": "-250 -225 535 280"
+    },
+    {
+      "id": "woodland-broadleaf-grove",
+      "revision": 3,
+      "file": "public/cartography/serrian-atlas-island/1/woodland-broadleaf-grove-3.svg",
+      "sha256": "4c59aced78c5ad6d441a3315bed649cf7fdacdafce49bb1702e9cc46ac7e2c9e",
+      "viewBox": "-150 -185 305 230"
+    },
+    {
+      "id": "woodland-broadleaf-grove",
+      "revision": 4,
+      "file": "public/cartography/serrian-atlas-island/1/woodland-broadleaf-grove-4.svg",
+      "sha256": "31b54d8848ee23ac843cad4a7c1d1798a3a54130fceb556dee562c3d6d6fad36",
+      "viewBox": "-150 -185 305 230"
+    },
+    {
+      "id": "settlement-city",
+      "revision": 2,
+      "file": "public/cartography/serrian-atlas-island/1/settlement-city-2.svg",
+      "sha256": "411a30eccc21769836d115cf997427bdfafe3e58c3d8bc21b3e43f04a8af0a62",
+      "viewBox": "-140 -160 285 230"
+    }
+  ],
+  "png": {
+    "file": "first-island.png",
+    "width": 2000,
+    "height": 1400,
+    "sha256": "bbd75f8e14c27654ed8290c978928eba476223928e16e7dcd0ca2683346bbcc0"
+  },
+  "groves": {
+    "previousInstances": 34,
+    "currentInstances": 7,
+    "distinctGroveFootprints": 2,
+    "placements": [
+      [
+        650,
+        610,
+        0.38,
+        -6
+      ],
+      [
+        645,
+        794,
+        0.62,
+        4
+      ],
+      [
+        791,
+        872,
+        0.49,
+        -5
+      ],
+      [
+        955,
+        1000,
+        0.49,
+        7
+      ],
+      [
+        1200,
+        620,
+        0.35,
+        -6
+      ],
+      [
+        986,
+        795,
+        0.35,
+        6
+      ],
+      [
+        740,
+        970,
+        0.32,
+        -9
+      ]
+    ],
+    "method": "Fewer uneven groupings, distinct clearings and separated woodland regions. Deterministic fixed study placements; not a new scatter algorithm or runtime readiness claim."
+  },
+  "riverHeadwater": "Moved clear of the enlarged mountain silhouette; illustrated path only, no hydrology simulation",
+  "preserved": "All previous source/art revisions and current catalog pins unchanged"
+}

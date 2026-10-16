@@ -15,7 +15,7 @@ test("repeated, empty, duplicate and nonadvancing pages cannot complete or loop 
   }
 });
 test("changed source protection, access, map, bounds or projection invalidates retained pages",()=>{
-  for(const changed of [{...page(2),context:"changed-current-sources"},{...page(2),canEdit:false},{...page(2),layer:{...page(2).layer,mapId:id(3)}},{...page(2),bounds:[0,0,10,10] as GeographicViewport["bounds"]},{...page(2),projection:"mercator" as const}]){
+  for(const changed of [{...page(2),readerId:"changed-reader"},{...page(2),context:"changed-current-sources"},{...page(2),canEdit:false},{...page(2),layer:{...page(2).layer,mapId:id(3)}},{...page(2),bounds:[0,0,10,10] as GeographicViewport["bounds"]},{...page(2),projection:"mercator" as const}]){
     const pages=geographicPages(id(0));pages.append(page(1),"");assert.throws(()=>pages.append(changed,`${id(1)}:0`),(e:unknown)=>e instanceof GeographicPageError&&e.clear);
   }
   assert.equal(geographicPages(id(0)).value(),null,"retry starts without earlier authorized data");

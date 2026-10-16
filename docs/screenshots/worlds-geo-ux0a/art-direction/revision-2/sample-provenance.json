@@ -1,0 +1,80 @@
+{
+  "format": "serrian-ux0a-art-study-v2",
+  "purpose": "Independent small-subset re-review; no application readiness claim",
+  "reviewedBase": "e6f521a35bc94a27e33af422742d86619b5f1d8c",
+  "artworkMethod": "Codex-assisted original code-authored SVG; no downloaded/traced external artwork",
+  "approval": "Pending independent review of this exact revision",
+  "libraryExpansionApproved": false,
+  "recipe": {
+    "version": 1,
+    "algorithm": "serrian-geography-v1",
+    "seed": "island-art-direction-20261015",
+    "reference": {
+      "version": 1,
+      "kind": "plane",
+      "crs": "AUTHORED:island-art-direction",
+      "units": "map units",
+      "bounds": [
+        0,
+        0,
+        2000,
+        1400
+      ]
+    },
+    "extent": [
+      0,
+      0,
+      2000,
+      1200
+    ],
+    "settings": {
+      "continents": 0,
+      "islands": 1,
+      "landCoverage": 40,
+      "complexity": 88,
+      "size": "large",
+      "shape": "balanced"
+    }
+  },
+  "sourceRevision": {
+    "method": "Explicit fitted authoring revision: 20/80 corner cutting followed by bounded normal-displaced edge midpoints; actual source ring, not a decorative duplicate",
+    "vertices": 256,
+    "canonicalGeometrySha256": "5367a4f0b2edd831587ff90aa99899ba92a85756c08cfc43d677032717b6628f",
+    "sharedCoastAndMask": true
+  },
+  "assets": [
+    {
+      "id": "mountain-rounded",
+      "revision": 2,
+      "file": "public/cartography/serrian-atlas-island/1/mountain-rounded-2.svg",
+      "sha256": "9c3c2173f20ab253f014c5eea2b5147531c10f107d6a1c2fa6c2dee6aff335d3",
+      "viewBox": "-175 -170 365 215"
+    },
+    {
+      "id": "woodland-broadleaf-grove",
+      "revision": 2,
+      "file": "public/cartography/serrian-atlas-island/1/woodland-broadleaf-grove-2.svg",
+      "sha256": "153bdb2a7f77baba8bcc72fec43e26c3f9bd09dc3fb1a4db467fb39a6532ff9d",
+      "viewBox": "-130 -140 275 190"
+    },
+    {
+      "id": "settlement-city",
+      "revision": 1,
+      "file": "public/cartography/serrian-atlas-island/1/settlement-city-1.svg",
+      "sha256": "ff9d52bbf121c9ba3c124979347637b81b9fe3e78f8c41169a62c64b25ce7701",
+      "viewBox": "-115 -145 230 180"
+    }
+  ],
+  "png": {
+    "file": "first-island.png",
+    "width": 2000,
+    "height": 1400,
+    "sha256": "f2909ffbb8ea8485e2edee98ec4de96002698b7149484a9f8dbb64d6106835c0"
+  },
+  "city": [
+    1139.8871427750646,
+    950
+  ],
+  "river": "M1127 665C1161 692 1168 714 1158 745S1172 784 1213 790S1260 818 1320.722 835",
+  "groves": 34
+}

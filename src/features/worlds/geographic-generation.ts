@@ -2,7 +2,7 @@ import {z} from "zod";
 import {seededRandom} from "./generation-geometry";
 import type {GenerationSpec} from "./generation-spec";
 import {createLand} from "./map-generator-v2";
-import {spatialReferenceSchema,type Coordinate,type SourceGeometry} from "./geographic";
+import {geoId,spatialReferenceSchema,type Coordinate,type SourceGeometry} from "./geographic";
 import {canonicalAuthoringGeometry,validateAuthoringGeometry} from "./geographic-authoring-geometry";
 
 export const geographicRecipeSchema=z.object({
@@ -15,6 +15,8 @@ export const geographicRecipeSchema=z.object({
  if(!r.settings.continents&&!r.settings.islands)ctx.addIssue({code:"custom",message:"Choose at least one landmass or island.",path:["settings"]});
 });
 export type GeographicRecipe=z.infer<typeof geographicRecipeSchema>;
+/** Portable request contract shared by the server, pending retries and local recovery. */
+export const generationSaveSchema=z.object({mapId:geoId,timelineId:geoId,requestId:geoId,surfaceId:geoId,expectedContext:z.string().regex(/^[a-f0-9]{64}$/),outputDigest:z.string().regex(/^[a-f0-9]{64}$/),recipe:geographicRecipeSchema,name:z.string().trim().min(1).max(120),note:z.string().trim().min(1).max(2000),protected:z.boolean()}).strict();
 export const geographicPresets={
  continent:{label:"Continent and offshore islands",settings:{continents:1,islands:5,landCoverage:45,complexity:72,size:"large",shape:"varied"}},
  separated:{label:"Separated landmasses",settings:{continents:3,islands:7,landCoverage:45,complexity:75,size:"varied",shape:"varied"}},

@@ -1,6 +1,7 @@
 import {MAP_WIDTH,MAP_HEIGHT,type MapDraft,type Point} from "./atlas";
 import {surfaceBounds,wrapLongitude,type Coordinate,type GeographicBounds,type SpatialReference} from "./geographic";
 import {geographicProjection,type ProjectionKind} from "./geographic-projection";
+import type {MapDrawing} from "./cartography";
 
 /** Version 1 display adapter. Stored Atlas positions and geographic originals never change. */
 export function atlasGeographicFrame(reference:SpatialReference,bounds:GeographicBounds,kind:ProjectionKind){
@@ -45,11 +46,17 @@ export function projectionExtent(bounds:GeographicBounds,kind:ProjectionKind):Ge
 
 /** Only an ephemeral render draft; never validate/save this as authoring data. */
 export function projectedAtlasDraft(draft:MapDraft,frame:AtlasGeographicFrame):MapDraft{
+ return createAtlasDraftProjector(frame)(draft);
+}
+/** A single authorized display frame reuses unchanged immutable drawing derivatives. */
+export function createAtlasDraftProjector(frame:AtlasGeographicFrame){
  const point=<T extends Point>(p:T):T=>({...p,...frame.project(p)});
- return {...draft,features:draft.features.map(f=>({...f,geometry:f.geometry.type==="point"?{...f.geometry,point:point(f.geometry.point)}:{...f.geometry,points:f.geometry.points.map(point)}})),drawings:draft.drawings?.map(d=>{
+ const features=new WeakMap<MapDraft["features"][number],MapDraft["features"][number]>(),drawings=new WeakMap<MapDrawing,MapDrawing>();
+ return (draft:MapDraft):MapDraft=>({...draft,features:draft.features.map(f=>{const cached=features.get(f);if(cached)return cached;const result={...f,geometry:f.geometry.type==="point"?{...f.geometry,point:point(f.geometry.point)}:{...f.geometry,points:f.geometry.points.map(point)}};features.set(f,result);return result;}),drawings:draft.drawings?.map(d=>{
+  const cached=drawings.get(d);if(cached)return cached;
   const anchor=d.type==="path"||d.type==="terrain"?d.points[0]:d.point,scale=frame.scaleAt(anchor);
-  return d.type==="terrain"?{...d,points:d.points.map(point),radius:d.radius*scale,spacing:d.spacing*scale}:d.type==="path"?{...d,points:d.points.map(point)}:{...d,point:point(d.point)};
- })};
+  const result=d.type==="terrain"?{...d,points:d.points.map(point),radius:d.radius*scale,spacing:d.spacing*scale}:d.type==="path"?{...d,points:d.points.map(point)}:{...d,point:point(d.point)};drawings.set(d,result);return result;
+ })});
 }
 
 export function moveGeographicExtent(reference:SpatialReference,b:GeographicBounds,dx=0,dy=0,factor=1):GeographicBounds{

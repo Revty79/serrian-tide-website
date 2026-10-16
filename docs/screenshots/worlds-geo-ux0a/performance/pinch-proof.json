@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "scope": "Native touch emulation, no physical phone claim; original 100 drawings/1500 derived marks; no server writes",
+  "results": [
+    {
+      "width": 390,
+      "height": 844,
+      "cpuThrottle": 6,
+      "inputUpdates": 100,
+      "nativePointerMoves": 182,
+      "nativePointers": 2,
+      "windowMs": 5000,
+      "elapsedMs": 5074.381700000002,
+      "fps": 43.4,
+      "passed": true
+    },
+    {
+      "width": 360,
+      "height": 800,
+      "cpuThrottle": 6,
+      "inputUpdates": 100,
+      "nativePointerMoves": 188,
+      "nativePointers": 2,
+      "windowMs": 5000,
+      "elapsedMs": 5014.5683999999965,
+      "fps": 44.4,
+      "passed": true
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "cpuThrottle": 6,
+      "inputUpdates": 100,
+      "nativePointerMoves": 186,
+      "nativePointers": 2,
+      "windowMs": 5000,
+      "elapsedMs": 5001.1726999999955,
+      "fps": 51.6,
+      "passed": true
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "cpuThrottle": 6,
+      "inputUpdates": 100,
+      "nativePointerMoves": 196,
+      "nativePointers": 2,
+      "windowMs": 5000,
+      "elapsedMs": 5014.385999999999,
+      "fps": 51.8,
+      "passed": true
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,153 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "scope": "Current three-subject catalog; no art promotion/full-library or full UX-0A readiness",
+  "groups": [
+    "search/lazy thumbnail/palette paint",
+    "exact v2 source/seed editing",
+    "city preview and atomic undo/redo with label",
+    "same persistent place rename and default label",
+    "outside-land cancellation/explicit placement",
+    "save/close/reload/reopen"
+  ],
+  "persisted": {
+    "cityId": "86e8f02e-4234-456c-b7a4-854be873d588",
+    "placeId": "5d0d52f5-0a8e-4671-a064-09e9f74f6a3e",
+    "labelId": "6d564336-977c-4b77-82ba-19923b140d2d",
+    "assetRef": {
+      "assetId": "settlement-city",
+      "libraryId": "serrian-atlas-island",
+      "assetRevision": 1,
+      "libraryRevision": 1
+    },
+    "grove": {
+      "id": "0b635a11-d892-4bc2-b72a-7007e7f03ca8",
+      "kind": "forest",
+      "name": "Illustrated grove 57554",
+      "seed": 117,
+      "type": "terrain",
+      "points": [
+        {
+          "x": 1050,
+          "y": 420,
+          "id": "cf86e459-a785-4c23-9a15-8bf3ba4526ec"
+        },
+        {
+          "x": 1064.5,
+          "y": 426.5,
+          "id": "ac307243-2a53-4203-a5bc-31cd437d4da7"
+        },
+        {
+          "x": 1079,
+          "y": 433,
+          "id": "59825caa-461e-4b88-8af9-f256cee70213"
+        },
+        {
+          "x": 1093.5,
+          "y": 439.5,
+          "id": "ce277eb2-b262-4874-8c54-ec935c5262a6"
+        },
+        {
+          "x": 1108,
+          "y": 446,
+          "id": "49fed087-452e-4fd0-9aa8-5bcb4610fc06"
+        },
+        {
+          "x": 1122.5,
+          "y": 452.5,
+          "id": "9bff9fe3-0be9-43fa-a14d-24818f42cbe4"
+        },
+        {
+          "x": 1137,
+          "y": 459,
+          "id": "dc45da83-7336-4c7f-b54f-ce132da575bd"
+        },
+        {
+          "x": 1151.5,
+          "y": 465.5,
+          "id": "79422985-fcd4-415e-b5f9-5a546b6797d4"
+        },
+        {
+          "x": 1166,
+          "y": 472,
+          "id": "a414bfdc-abea-46e4-b1f5-587ffc61c225"
+        },
+        {
+          "x": 1180.5,
+          "y": 478.5,
+          "id": "59d540cb-431a-4e87-ad11-2f29605d3f04"
+        },
+        {
+          "x": 1195,
+          "y": 485,
+          "id": "2729c580-0654-41e6-abcb-bce6d372f474"
+        },
+        {
+          "x": 1209.5,
+          "y": 491.5,
+          "id": "59f303e7-018f-4bec-9f9a-0a96459bd151"
+        },
+        {
+          "x": 1224,
+          "y": 498,
+          "id": "3f02674c-c2fd-4f06-b3f4-231c5d0558d3"
+        },
+        {
+          "x": 1238.5,
+          "y": 504.5,
+          "id": "16145557-af64-43db-9eb5-ac5853a17333"
+        },
+        {
+          "x": 1253,
+          "y": 511,
+          "id": "81585cd8-5147-4ea9-9728-22757a38bb9c"
+        },
+        {
+          "x": 1267.5,
+          "y": 517.5,
+          "id": "c09c4c3f-843e-471b-aa08-3143e08b1315"
+        },
+        {
+          "x": 1282,
+          "y": 524,
+          "id": "5d3eee59-ffb2-486c-a0b7-1f0992443e69"
+        },
+        {
+          "x": 1296.5,
+          "y": 530.5,
+          "id": "e3289dc3-e78f-4c48-8cde-6fba885d2157"
+        },
+        {
+          "x": 1311,
+          "y": 537,
+          "id": "c8dd491d-bc75-4896-b199-87c636cf3f6d"
+        },
+        {
+          "x": 1325.5,
+          "y": 543.5,
+          "id": "081d76e6-3234-4e91-8a62-a0cc575b1d72"
+        },
+        {
+          "x": 1340,
+          "y": 550,
+          "id": "017c0d36-1bc6-4498-b1b9-fa5622dfae6d"
+        }
+      ],
+      "radius": 65,
+      "density": 1,
+      "spacing": 90,
+      "version": 2,
+      "archived": false,
+      "assetRefs": [
+        {
+          "assetId": "woodland-broadleaf-grove",
+          "libraryId": "serrian-atlas-island",
+          "assetRevision": 1,
+          "libraryRevision": 1
+        }
+      ],
+      "geographyId": null
+    }
+  },
+  "errors": []
+}

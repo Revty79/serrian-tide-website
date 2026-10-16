@@ -55,7 +55,12 @@ export type GeographicCommand=z.infer<typeof geographicCommandSchema>;
 export type GeographicLayer={mapId:string;mapName:string;surface:Surface};
 export type GeographicCatalog={canEdit:boolean;layers:GeographicLayer[];surfaces:Surface[];maps:{id:string;name:string}[];realms:{id:string;name:string}[];nextOffset:number|null};
 export type GeographicShape={id:string;versionId:string;geographyId:string;name:string;semantic:string;revision:number;part:number;geometryType:SourceGeometry["type"];path:string;displayTolerance?:number;sourceBounds:GeographicBounds;style?:z.infer<typeof geographicStyleSchema>;theme?:GeographicTheme;label?:{x:number;y:number;rank:number;weight?:number}};
-export type GeographicViewport={previewReader?:string;layer:GeographicLayer;canEdit:boolean;context:string;bounds:GeographicBounds;projection:"equirectangular"|"mercator"|"planar";lod:"overview"|"regional"|"detail";shapes:GeographicShape[];attributions:{label:string;license:string;url:string}[];nextCursor:string|null};
+export type GeographicViewport={readerId?:string;previewReader?:string;layer:GeographicLayer;canEdit:boolean;context:string;bounds:GeographicBounds;projection:"equirectangular"|"mercator"|"planar";lod:"overview"|"regional"|"detail";shapes:GeographicShape[];attributions:{label:string;license:string;url:string}[];nextCursor:string|null};
+export type GeographicViewportStatus=Pick<GeographicViewport,"readerId"|"layer"|"canEdit"|"context">;
+/** Reuse paths only after fresh authorization of this reader and all eligible heads. */
+export function sameGeographicViewport(view:GeographicViewport,status:GeographicViewportStatus){
+ return !!view.readerId&&view.readerId===status.readerId&&view.context===status.context&&view.canEdit===status.canEdit&&view.layer.mapId===status.layer.mapId&&JSON.stringify(view.layer.surface)===JSON.stringify(status.layer.surface);
+}
 export type GeographicReading={id:string;geographyId:string;name:string;semantic:string;revision:number;versionId:string;geometry:SourceGeometry;bounds:GeographicBounds;protected:boolean;archived:boolean;note:string;createdAt:string;source:StoredGeographicProvenance|null;importedAt:string;contentSha256:string;versions:{id:string;revision:number;createdAt:string;archived:boolean}[];properties:Record<string,string|number|boolean|null>;canEdit:boolean};
 export function surfaceBounds(reference:SpatialReference):GeographicBounds{return reference.kind==="sphere"?[-180,-90,180,90]:reference.bounds;}
 export function automaticGeographicDetail(bounds:GeographicBounds,reference:SpatialReference):GeographicViewport["lod"]{const domain=surfaceBounds(reference),width=bounds[0]>bounds[2]?360-bounds[0]+bounds[2]:bounds[2]-bounds[0],ratio=width/(domain[2]-domain[0]);return ratio>=.3?"overview":ratio>=.04?"regional":"detail";}
@@ -68,3 +73,6 @@ export function visitCoordinates(geometry:SourceGeometry,visit:(p:Coordinate)=>v
 export function geometryParts(geometry:SourceGeometry):SourceGeometry[]{if(geometry.type==="MultiPolygon")return geometry.coordinates.map(coordinates=>({type:"Polygon",coordinates}));if(geometry.type==="MultiLineString")return geometry.coordinates.map(coordinates=>({type:"LineString",coordinates}));return [geometry];}
 export function coordinateCount(geometry:SourceGeometry){let count=0;visitCoordinates(geometry,()=>count++);return count;}
 export function atlasPolygonToSource(points:{x:number;y:number}[]):SourceGeometry {if(points.length<3)throw new Error("Choose a saved polygon with at least three points.");const coordinates=points.map(p=>[p.x,p.y] as Coordinate);return {type:"Polygon",coordinates:[[...coordinates,coordinates[0]]]};}
+
+/** Compare validated coordinate references independent of JSONB property order. */
+export function sameSpatialReference(a:SpatialReference,b:SpatialReference){return JSON.stringify(spatialReferenceSchema.parse(a))===JSON.stringify(spatialReferenceSchema.parse(b));}

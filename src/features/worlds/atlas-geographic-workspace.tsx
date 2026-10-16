@@ -3,7 +3,7 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {GuidedField} from "@/components/field-guidance";
 import {SaveError,worldApi} from "./client-api";
 import {geographicPages,GeographicPageError} from "./geographic-pages";
-import {geographicProvenanceLabel,isAuthoredProvenance,automaticGeographicDetail,focusedGeographicExtent,surfaceBounds,type GeographicBounds,type GeographicLayer,type GeographicReading,type GeographicViewport} from "./geographic";
+import {geographicProvenanceLabel,isAuthoredProvenance,automaticGeographicDetail,focusedGeographicExtent,surfaceBounds,sameGeographicViewport,type GeographicViewportStatus,type GeographicBounds,type GeographicLayer,type GeographicReading,type GeographicViewport} from "./geographic";
 import {GEOGRAPHIC_THEMES} from "./geographic-themes";
 import {atlasGeographicFrame,moveGeographicExtent,projectionExtent} from "./atlas-geographic-frame";
 import type {ProjectionKind} from "./geographic-projection";
@@ -23,7 +23,7 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
  const setBounds=(value:GeographicBounds|null)=>setViewDraft({key:base,bounds:value?projectionExtent(value,projection??"equirectangular"):null,projection});
  const setProjection=(value:ProjectionKind)=>setViewDraft({key:base,bounds:bounds?projectionExtent(bounds,value):null,projection:value});
  const layer=enabled&&layerResult?.key===base?layerResult.value:null,reference=layer?.surface.reference;
- const key=`${base}:${JSON.stringify(bounds)}:${projection}:${themes.join(",")}:${refresh}`;
+ const key=`${base}:${JSON.stringify(bounds)}:${projection}:${refresh}`;
  const [result,setResult]=useState<{key:string;value:GeographicViewport|null;loading:boolean;error:string}|null>(null),current=result?.key===key?result:null;
  const [selection,setSelection]=useState({key:base,id:""}),[readingResult,setReading]=useState<{key:string;value:GeographicReading|null;error:string}|null>(null),selected=selection.key===base?selection.id:"",readKey=`${base}:${selected}:${refresh}`,reading=readingResult?.key===readKey?readingResult:null;
  const setSelected=(id:string)=>setSelection({key:base,id});
@@ -31,7 +31,7 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
  useEffect(()=>{
   if(!enabled)return;const controller=new AbortController(),pages=geographicPages(mapId);
   const timer=setTimeout(()=>{void(async()=>{
-   setResult({key,value:null,loading:true,error:""});const q=new URLSearchParams(query);if(bounds)q.set("bounds",JSON.stringify(bounds));if(projection)q.set("projection",projection);q.set("themes",themes.join(","));q.set("lod",reference&&bounds?automaticGeographicDetail(bounds,reference):"overview");
+   setResult({key,value:null,loading:true,error:""});const q=new URLSearchParams(query);if(bounds)q.set("bounds",JSON.stringify(bounds));if(projection)q.set("projection",projection);q.set("themes",GEOGRAPHIC_THEMES.map(t=>t.id).join(","));q.set("lod",reference&&bounds?automaticGeographicDetail(bounds,reference):"overview");
    let after="",lastPaint=0;
    do{if(after)q.set("cursor",after);else q.delete("cursor");const value=await worldApi<GeographicViewport>(`${api}?${q}`,"GET",undefined,controller.signal);if(controller.signal.aborted||live.current!==key)return;pages.append(value,after);setLayer({key:base,value:value.layer});if(!value.nextCursor||performance.now()-lastPaint>250){setResult({key,value:pages.value(),loading:!!value.nextCursor,error:""});lastPaint=performance.now();}after=value.nextCursor??"";}while(after);
   })().catch(e=>{if(controller.signal.aborted||live.current!==key)return;const denied=e instanceof SaveError&&[401,403,404].includes(e.status)||e instanceof GeographicPageError&&e.clear;if(denied)setLayer(null);setResult({key,value:denied?null:pages.value(),loading:false,error:e instanceof SaveError&&e.status===404?"":e.message});});},100);
@@ -39,7 +39,18 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
   // Reference comes from this very request; adding it would cancel its initial pages.
   // eslint-disable-next-line react-hooks/exhaustive-deps
  },[enabled,api,query,base,key,refresh]);
- useEffect(()=>{if(!enabled||!layer||current?.loading!==false)return;const timer=setTimeout(()=>setRefresh(n=>n+1),30000);return()=>clearTimeout(timer);},[enabled,layer,current?.loading,key]);
+ useEffect(()=>{
+  if(!enabled||current?.loading!==false||!current.value)return;
+  const view=current.value,controller=new AbortController();let timer:ReturnType<typeof setTimeout>;
+  const check=async()=>{try{
+   const q=new URLSearchParams(query);q.set("check","1");q.set("lod",view.lod);q.set("themes",GEOGRAPHIC_THEMES.map(t=>t.id).join(","));
+   const status=await worldApi<GeographicViewportStatus>(`${api}?${q}`,"GET",undefined,controller.signal);
+   if(controller.signal.aborted||live.current!==key)return;
+   if(!sameGeographicViewport(view,status)){setRefresh(n=>n+1);return;}
+   timer=setTimeout(()=>void check(),30000);
+  }catch{if(!controller.signal.aborted&&live.current===key)setRefresh(n=>n+1);}};
+  timer=setTimeout(()=>void check(),30000);return()=>{clearTimeout(timer);controller.abort();};
+ },[enabled,api,query,key,current]);
  useEffect(()=>{if(!enabled||!selected)return;const controller=new AbortController();worldApi<GeographicReading>(`${api}?${query}&feature=${selected}`,"GET",undefined,controller.signal).then(value=>{if(!controller.signal.aborted)setReading({key:readKey,value,error:""});}).catch(e=>{if(!controller.signal.aborted)setReading({key:readKey,value:null,error:e.message});});return()=>controller.abort();},[enabled,api,query,selected,readKey]);
  const extent=bounds??(reference?surfaceBounds(reference):null),kind=projection??(reference?.kind==="plane"?"planar":"equirectangular");
  const frame=useMemo(()=>reference&&extent?atlasGeographicFrame(reference,extent,kind):null,[reference,extent,kind]);
@@ -47,7 +58,7 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
  const rasterProps={worldId,timelineId,mapId:enabled?mapId:"",ordinary,review,viewport};
  const elevation=useElevation(rasterProps),landCover=useLandCover(rasterProps);
  function move(dx=0,dy=0,factor=1){if(reference&&extent)setBounds(moveGeographicExtent(reference,extent,dx,reference.kind==="plane"?-dy:dy,factor));}
- return {context,layer,frame,viewport,loading:enabled&&(!current||current.loading),error:current?.error??"",retry:()=>setRefresh(n=>n+1),themes,setThemes,labels,setLabels,kind,setProjection,move,setExtent:setBounds,fit:()=>setBounds(null),extent,choose:(id:string)=>{setSelected(id);studio?.show("geography");},reading,selected,focus:()=>{if(reference&&reading?.value)setBounds(focusedGeographicExtent(reading.value.bounds,reference));},closeSource:()=>setSelected(""),elevation,landCover,dirty:elevation.dirty||landCover.dirty};
+ return {context,layer,frame,viewport,loading:enabled&&(!current||current.loading),error:current?.error??"",retry:()=>setRefresh(n=>n+1),themes,setThemes,labels,setLabels,kind,setProjection,move,setExtent:setBounds,restoreView:(value:GeographicBounds|null,kind:ProjectionKind)=>setViewDraft({key:base,bounds:value?projectionExtent(value,kind):null,projection:kind}),fit:()=>setBounds(null),extent,choose:(id:string)=>{setSelected(id);studio?.show("geography");},reading,selected,focus:()=>{if(reference&&reading?.value)setBounds(focusedGeographicExtent(reading.value.bounds,reference));},closeSource:()=>setSelected(""),elevation,landCover,dirty:elevation.dirty||landCover.dirty};
 }
 export type AtlasGeography=ReturnType<typeof useAtlasGeography>;
 

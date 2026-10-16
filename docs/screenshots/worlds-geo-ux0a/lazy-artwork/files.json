@@ -1,0 +1,87 @@
+[
+  {
+    "path": "before-source-boundaries-proof.json",
+    "bytes": 80023,
+    "sha256": "ce06599fd626327d56b4969d97ed6bd5847b846050ce9a2e65d80c96cb0474f8"
+  },
+  {
+    "path": "browser-proof.json",
+    "bytes": 1125,
+    "sha256": "70a4ab044a935dcb2ab222deda2414682caf989afe6a006e04625f5af7d61611"
+  },
+  {
+    "path": "checksum-failure-retained-source.png",
+    "bytes": 49876,
+    "sha256": "11f680dfd28c9220331c8d6f1f9c1e83694943a6052add3b9d8bdf2fd41025ba"
+  },
+  {
+    "path": "composed-stress-export.png",
+    "bytes": 1028252,
+    "sha256": "222c20f0e3be7e131f7d3f9b2528a62e89fcc38211ce103eec9dd0bde5889728"
+  },
+  {
+    "path": "exact-source-export.png",
+    "bytes": 112176,
+    "sha256": "fb68707ffc08481a82c3331478742976a4215542b8cda19e79abae898a407778"
+  },
+  {
+    "path": "landscape-gesture-proof.json",
+    "bytes": 13341,
+    "sha256": "b20d9120604b5cd228a92a9802bc39f5b98e65a0dc981730ffbd774d4f86d1e0"
+  },
+  {
+    "path": "performance/1024x768-desktop.png",
+    "bytes": 189432,
+    "sha256": "a26fc4b5e8cf076dad57135823a46cb0731efd3f19be82bcce5168ff2c92a9dd"
+  },
+  {
+    "path": "performance/1024x768-touch.png",
+    "bytes": 189745,
+    "sha256": "a5a6c1d47eee1e6e1360569b1db4505397bf0c11880d2b72efbc687cbb267c67"
+  },
+  {
+    "path": "performance/1440x900-desktop.png",
+    "bytes": 413470,
+    "sha256": "9e1ad205b3eb14d347d0c31e2bf8d77e7111ad99ba04170fc91549c6cf3c626c"
+  },
+  {
+    "path": "performance/360x800-touch.png",
+    "bytes": 90838,
+    "sha256": "7b12ffbe5640cc8bcd24b8f770478468f3e89a540df15b9e10ebbbef7e5dddb0"
+  },
+  {
+    "path": "performance/390x844-touch.png",
+    "bytes": 95747,
+    "sha256": "a4a41448f958430a7a4d2b68699b55d534efa1dce945a95bfcc6e96ce8602423"
+  },
+  {
+    "path": "performance/844x390-touch.png",
+    "bytes": 55207,
+    "sha256": "cd90dbb5eee757f82751486ad97c800ab90abc7624a9fce9c4b369daa102c7de"
+  },
+  {
+    "path": "performance-proof.json",
+    "bytes": 80847,
+    "sha256": "185a95fa223ad86e92a6f9dd46f717551c9ad69ddc080dcd3d41434ed64d86a6"
+  },
+  {
+    "path": "README.md",
+    "bytes": 3646,
+    "sha256": "15d7a0a9d0f13152cbbe4efa8b254528779ae92dcf79ab0ab5cdad9b21acd6f2"
+  },
+  {
+    "path": "resource-proof.json",
+    "bytes": 20553,
+    "sha256": "bf2f5c7f2f100c82ff38c7aadfa30ab12425a24899d4435f45a3ba718e6e71be"
+  },
+  {
+    "path": "retried-exact-export.png",
+    "bytes": 112176,
+    "sha256": "fb68707ffc08481a82c3331478742976a4215542b8cda19e79abae898a407778"
+  },
+  {
+    "path": "two-exact-mountains.png",
+    "bytes": 15349,
+    "sha256": "065bf50bfd11b4fe4dfe0322c07c3f637121847b9dc09f860feb8dd6cefa719b"
+  }
+]

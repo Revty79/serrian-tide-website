@@ -19,6 +19,7 @@ import { defaultSettlementState } from "./settlement";
 import { generationSpecSchema, generationProvenanceSchema } from "./generation-spec";
 import { generateMap } from "./map-generator";
 import { validateDescriptionSpec } from "./description-interpreter";
+import { islandPresentation } from "./cartography";
 const revision=z.number().int().positive();
 const command=z.discriminatedUnion("action",[
   z.object({action:z.literal("create-floor"),buildingId:atlasId,draft:floorDraftSchema,mapName:z.string().trim().min(1).max(160)}).strict(),
@@ -27,7 +28,7 @@ const command=z.discriminatedUnion("action",[
   z.object({action:z.enum(["archive-floor","restore-floor"]),id:atlasId,revision}).strict(),
   z.object({action:z.literal("generate"),id:atlasId,name:z.string().trim().min(1).max(160),description:z.string().max(12000),spec:generationSpecSchema,sourceMapId:atlasId.nullable(),sourceRevision:revision.nullable(),descriptionWarningsAccepted:z.literal(true).optional()}).strict(),
   z.object({action:z.literal("duplicate"),id:atlasId,revision,newId:atlasId,name:z.string().trim().min(1).max(160)}).strict(),
-  z.object({action:z.literal("create"),name:z.string().trim().min(1).max(160),description:z.string().max(12000),scope:z.enum(["world","continent","regional","local"]),geographyId:atlasId.nullable().optional(),mapKind:z.enum(["generic","settlement"]).optional(),settlement:geographyDraftSchema.optional()}).strict(),
+  z.object({action:z.literal("create"),name:z.string().trim().min(1).max(160),description:z.string().max(12000),scope:z.enum(["world","continent","regional","local"]),geographyId:atlasId.nullable().optional(),mapKind:z.enum(["generic","settlement"]).optional(),settlement:geographyDraftSchema.optional(),style:z.literal("island-ink-wash").optional()}).strict(),
   z.object({action:z.literal("adopt-settlement"),id:atlasId,revision,geographyId:atlasId}).strict(),
   z.object({action:z.literal("associate"),id:atlasId,revision,geographyId:atlasId.nullable()}).strict(),
   z.object({action:z.literal("connect"),id:atlasId,revision,geographyId:atlasId,destinationMapId:atlasId.nullable()}).strict(),
@@ -199,7 +200,7 @@ export async function changeAtlas(userId:string,worldId:string,input:unknown) {
       if(c.settlement){if(c.mapKind!=="settlement"||c.settlement.context!=="settlement"||c.settlement.kind!=="location"||c.settlement.revision!==null||c.settlement.id!==c.geographyId)throw new WorldError("Create a new settlement location for this chart.",400);await saveGeographies(tx,worldId,[c.settlement]);}
       if(c.geographyId){const [g]=await tx.select().from(worldGeography).where(and(eq(worldGeography.id,c.geographyId),eq(worldGeography.worldId,worldId)));if(!g||g.archivedAt)throw unavailable();await activeMapFloor(tx,worldId,g.id);await activeMapDungeon(tx,worldId,g.id);if(c.mapKind==="settlement"&&(g.kind!=="location"||g.context!=="settlement"))throw new WorldError("Choose a settlement location for this chart.",400);}
       if(c.mapKind==="settlement"&&!c.geographyId)throw new WorldError("A settlement map needs its settlement place.",400);
-      result=randomUUID();await tx.insert(worldAtlasMap).values({id:result,worldId,name:c.name,description:c.description,scope:c.scope,mapKind:c.mapKind??"generic",geographyId:c.geographyId??null});
+      result=randomUUID();await tx.insert(worldAtlasMap).values({id:result,worldId,name:c.name,description:c.description,scope:c.scope,mapKind:c.mapKind??"generic",geographyId:c.geographyId??null,...(c.style?{presentation:islandPresentation()}:{})});
     }
     else if(c.action==="geography") {await saveGeographies(tx,worldId,[c.draft]);result=c.draft.id;}
     else if(c.action==="archive-geography"||c.action==="restore-geography") {

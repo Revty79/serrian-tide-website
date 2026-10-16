@@ -4,9 +4,11 @@ export type MapExportOptions={visible?:boolean;credits?:string[];background?:str
 export async function exportMapPng(svg:SVGSVGElement,name:string,options:MapExportOptions={}) {
   const scene=svg.querySelector<SVGGElement>(options.visible?"[data-visible-export]":"[data-cartography-scene]");
   if(!scene)throw new Error("The map artwork is unavailable for export.");
+  if(scene.matches('[data-artwork-ready="false"]')||scene.querySelector('[data-artwork-ready="false"]'))throw new Error("The exact map illustrations are not ready. Retry illustrations before exporting; your editable source is retained.");
+  if(scene.querySelector("[data-missing-artwork]"))throw new Error("An exact saved illustration revision is unavailable. Restore its matching artwork release before exporting; the editable source is retained.");
   const clone=scene.cloneNode(true) as SVGGElement;
   const sourceNodes=[scene,...scene.querySelectorAll<SVGElement>("*")],cloneNodes=[clone,...clone.querySelectorAll<SVGElement>("*")];
-  const properties=["fill","stroke","stroke-width","stroke-linecap","stroke-linejoin","stroke-dasharray","opacity","fill-opacity","stroke-opacity","font-family","font-size","font-weight","font-style","font-variant","letter-spacing","paint-order","vector-effect","fill-rule","text-anchor"];
+  const properties=["fill","stroke","stroke-width","stroke-linecap","stroke-linejoin","stroke-dasharray","opacity","fill-opacity","stroke-opacity","font-family","font-size","font-weight","font-style","font-variant","letter-spacing","paint-order","vector-effect","fill-rule","clip-rule","text-anchor"];
   sourceNodes.forEach((node,i)=>{const computed=getComputedStyle(node);properties.forEach(property=>cloneNodes[i].style.setProperty(property,computed.getPropertyValue(property)));});
   clone.querySelectorAll("[data-export-omit]").forEach(node=>node.remove());
   for(const image of clone.querySelectorAll("image"))if(!/^data:image\/(png|webp);base64,/.test(image.getAttribute("href")??""))throw new Error("An export image is unavailable or is not embedded. Retry its map layer before exporting.");

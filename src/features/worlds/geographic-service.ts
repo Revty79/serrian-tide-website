@@ -60,6 +60,14 @@ export async function geographicPreviewStatus(userId:string,worldId:string,timel
   return {layer,previewReader:userId,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.ordinary&&!options.review,context:await previewContext(tx,eligibleSources(worldId,layer.surface.id,"overview",options,undefined,["land","authored"]))};
  },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
+export async function geographicViewportStatus(userId:string,worldId:string,timelineId:string,mapId:string,lod:"overview"|"regional"|"detail"="overview",options:Options={},semantics?:string[],themes?:string[]):Promise<import("./geographic").GeographicViewportStatus>{
+ geoId.parse(mapId);const parent=await worldReadAccess(userId,worldId,!!options.review);
+ if(!["overview","regional","detail"].includes(lod))throw new WorldError("Choose a supported detail level.",400);
+ const kinds=semantics===undefined?undefined:checked(()=>semantics.map(kind=>geographicSemanticSchema.parse(kind))),selectedThemes=themes===undefined?undefined:checked(()=>themes.map(theme=>geographicThemeSchema.parse(theme)));
+ return db.transaction(async tx=>{await selectedTimeline(tx,worldId,timelineId);const layer=await layerAccess(tx,worldId,mapId,timelineId,options,userId);
+  return {layer,readerId:userId,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.ordinary&&!options.review,context:await previewContext(tx,eligibleSources(worldId,layer.surface.id,lod,options,kinds,selectedThemes))};
+ },{isolationLevel:"repeatable read",accessMode:"read only"});
+}
 export async function geographicViewport(userId:string,worldId:string,timelineId:string,mapId:string,bounds?:GeographicBounds,projection?:ProjectionKind,lod:"overview"|"regional"|"detail"="overview",options:Options={},cursor="",semantics?:string[],themes?:string[],preview=false):Promise<GeographicViewport>{
   geoId.parse(mapId);const parent=await worldReadAccess(userId,worldId,!!options.review);
   return db.transaction(async tx=>{await selectedTimeline(tx,worldId,timelineId);const layer=await layerAccess(tx,worldId,mapId,timelineId,options,userId),extent=bounds??surfaceBounds(layer.surface.reference),kind=projection??(layer.surface.reference.kind==="plane"?"planar":"equirectangular");checked(()=>validateViewport(extent,layer.surface.reference));
@@ -78,7 +86,7 @@ export async function geographicViewport(userId:string,worldId:string,timelineId
     const rows=(await tx.execute<{context:string;id:string;version_id:string;geography_id:string;name:string;semantic:string;revision:number;part:number;style:string|null;theme:string;labels:boolean;label_rank:number;credit:{label:string;license:string;url:string};geometry:SourceGeometry;west:number;south:number;east:number;north:number}>(sql`with eligible as materialized (
       ${eligibleSources(worldId,layer.surface.id,lod,options,kinds,selectedThemes)}
     ), preferred as (select *,dense_rank() over(partition by geography_id,semantic order by priority desc) preference from eligible), stamp as materialized (
-      select md5(coalesce(string_agg(id::text||version_id::text||name,'|' order by id),'empty')) context from eligible
+      select case when count(*)=0 then 'empty' else md5(string_agg(id::text||version_id::text||name,'|' order by id)) end context from eligible
     )
     ${preview?sql`select * from (`:sql``}select distinct on(gf.id,gp.part) stamp.context,gf.id,gf.version_id,gf.geography_id,gf.name,gf.semantic,gf.revision,gp.part,gf.style,gf.theme,gf.labels,gf.label_rank,gp.${sql.raw(lod)} geometry,gf.credit,gp.west,gp.south,gp.east,gp.north
     from world_geo_part gp join preferred gf on gf.version_id=gp.version_id and gf.world_id=gp.world_id cross join stamp
@@ -86,7 +94,7 @@ export async function geographicViewport(userId:string,worldId:string,timelineId
     order by gf.id,gp.part,gp.algorithm_version desc,gp.box ${preview?sql`) display order by (east-west)*(north-south) desc,id,part limit 97`:sql`limit 65`}`)).rows;
     const shapes:GeographicViewport["shapes"]=[];const credits=new Map<string,GeographicViewport["attributions"][number]>();let bytes=0,last="",more=rows.length>64;
     for(const row of rows.slice(0,preview?96:64)){const display=checked(()=>boundedSourceDisplay(row.geometry,layer.surface.reference,extent,kind,row.style==="city"?2.4:row.style==="peak"?3:4,preview?8000:undefined,preview?2.8:undefined)),path=display.path;if(bytes+path.length>(preview?64_000:500_000)&&shapes.length){more=true;break;}bytes+=path.length;credits.set(JSON.stringify(row.credit),row.credit);last=`${row.id}:${row.part}`;const style=geographicDisplaySchema.shape.style.safeParse(row.style),theme=geographicThemeSchema.parse(row.theme),label=!preview&&row.labels?projectedSourceLabel(row.geometry,layer.surface.reference,extent,kind):undefined;shapes.push({id:row.id,versionId:row.version_id,geographyId:row.geography_id,name:row.name,semantic:row.semantic,revision:row.revision,part:row.part,geometryType:row.geometry.type,path,displayTolerance:display.tolerance,theme,...label?{label:{...label,rank:row.label_rank}}:{},sourceBounds:[row.west,row.south,row.east,row.north],...style.success?{style:style.data}:{}});}
-    return {layer,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.ordinary&&!options.review,context:rows[0]?.context??(preview?await previewContext(tx,eligibleSources(worldId,layer.surface.id,lod,options,kinds,selectedThemes)):"empty"),...preview?{previewReader:userId}:{},bounds:extent,projection:kind,lod,shapes,attributions:[...credits.values()],nextCursor:!preview&&more?last:null};
+    return {layer,readerId:userId,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.ordinary&&!options.review,context:rows[0]?.context??await previewContext(tx,eligibleSources(worldId,layer.surface.id,lod,options,kinds,selectedThemes)),...preview?{previewReader:userId}:{},bounds:extent,projection:kind,lod,shapes,attributions:[...credits.values()],nextCursor:!preview&&more?last:null};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function geographicReading(userId:string,worldId:string,timelineId:string,mapId:string,featureId:string,versionId?:string,options:Options={}):Promise<GeographicReading>{

@@ -8,11 +8,11 @@ import {WorldError,worldReadAccess,worldWriteTransaction} from "./world-service"
 import {selectedTimeline} from "./history-version-service";
 import {canonicalSource,layerAccess,saveGeographicParts} from "./geographic-service";
 import {authoredProvenanceSchema,geoId} from "./geographic";
-import {generateGeography,geographicRecipeSchema} from "./geographic-generation";
+import {generateGeography,generationSaveSchema} from "./geographic-generation";
 
 const digest=(v:unknown)=>createHash("sha256").update(canonicalSource(v)).digest("hex");
 const contextSchema=z.object({mapId:geoId,timelineId:geoId}).strict();
-export const generationSaveSchema=contextSchema.extend({requestId:geoId,surfaceId:geoId,expectedContext:z.string().regex(/^[a-f0-9]{64}$/),outputDigest:z.string().regex(/^[a-f0-9]{64}$/),recipe:geographicRecipeSchema,name:z.string().trim().min(1).max(120),note:z.string().trim().min(1).max(2000),protected:z.boolean()}).strict();
+export {generationSaveSchema};
 type Tx=Parameters<Parameters<typeof worldWriteTransaction>[2]>[0];
 export type GenerationSaved={features:{id:string;geographyId:string;versionId:string;name:string}[];reused:boolean};
 async function context(tx:Tx,userId:string,worldId:string,body:z.infer<typeof contextSchema>){

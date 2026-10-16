@@ -1,26 +1,29 @@
 "use client";
-import {useEffect,useRef,useState} from "react";
+import {useEffect,useImperativeHandle,useRef,useState,type RefObject} from "react";
 import {GuidedField as Field} from "@/components/field-guidance";
 import {SaveError,worldApi} from "./client-api";
 import {geographicPresets,geographicRecipeSchema,generationOutputDigest,type GeographicGeneration,type GeographicRecipe} from "./geographic-generation";
 import {projectedSourcePath} from "./geographic-projection";
 import type {AtlasGeography} from "./atlas-geographic-workspace";
 import type {GenerationSaved} from "./geographic-generation-service";
-import type {SourceGeometry} from "./geographic";
+import {sameSpatialReference,type SourceGeometry} from "./geographic";
+import type {GenerationRecovery} from "./island-recovery";
 import styles from "./geographic-authoring.module.css";
 
+export type GeographicGenerationRecoveryController={restore:(value:GenerationRecovery)=>Promise<void>;accept:()=>Promise<void>};
 type Preview={recipe:GeographicRecipe;result:GeographicGeneration;context:string;digest:string;id:string;ms:number};
-export function GeographicGenerator({geo,mapId,blocked,onDirty,onSelect,onPreview}:{geo:AtlasGeography;mapId:string;blocked:boolean;onDirty:(value:boolean)=>void;onSelect:(id:string)=>void;onPreview:(geometry:SourceGeometry|null)=>void}){
+export function GeographicGenerator({geo,mapId,blocked,onDirty,onSelect,onPreview,recoveryRef,onRecovery}:{recoveryRef:RefObject<GeographicGenerationRecoveryController|null>;onRecovery:(value:GenerationRecovery|null)=>void;geo:AtlasGeography;mapId:string;blocked:boolean;onDirty:(value:boolean)=>void;onSelect:(id:string)=>void;onPreview:(geometry:SourceGeometry|null)=>void}){
  const layer=geo.layer!,context=geo.context!,reference=layer.surface.reference,key=JSON.stringify([context,mapId,layer.surface]),endpoint=`/api/worlds/${context.worldId}/geography/generation`,query=new URLSearchParams({map:mapId,timeline:context.timelineId}).toString();
- const [seed,setSeed]=useState("new-horizon"),[settings,setSettings]=useState<GeographicRecipe["settings"]>({...geographicPresets.continent.settings}),[extent,setExtent]=useState(()=> (reference.kind==="plane"?reference.bounds:[-50,-35,50,35]).map(String)),[name,setName]=useState("Generated coast"),[note,setNote]=useState("Creator-generated fictional geography"),[privateSource,setPrivate]=useState(false);
+ const [seed,setSeed]=useState("new-horizon"),[settings,setSettings]=useState<GeographicRecipe["settings"]>({...geographicPresets.island.settings}),[extent,setExtent]=useState(()=> (reference.kind==="plane"?reference.bounds:[-50,-35,50,35]).map(String)),[name,setName]=useState("Generated coast"),[note,setNote]=useState("Creator-generated fictional geography"),[privateSource,setPrivate]=useState(false);
  const [preview,setPreview]=useState<Preview|null>(null),[dirty,setDirty]=useState(false),[busy,setBusy]=useState(false),[pending,setPending]=useState(false),[error,setError]=useState(""),[conflict,setConflict]=useState(false),[saved,setSaved]=useState<GenerationSaved|null>(null),[attempt,setAttempt]=useState<unknown>(null);
+ const restoreReject=useRef<((error:Error)=>void)|null>(null);
  const worker=useRef<Worker|null>(null),controller=useRef<AbortController|null>(null),serial=useRef(0),alive=useRef(true);
  useEffect(()=>{onDirty(dirty||busy||pending);},[dirty,busy,pending,onDirty]);
- useEffect(()=>{alive.current=true;return()=>{alive.current=false;worker.current?.terminate();controller.current?.abort();onDirty(false);};},[key,onDirty]);
+ useEffect(()=>{alive.current=true;return()=>{alive.current=false;restoreReject.current?.(new Error("Generation recovery was interrupted. Its bundle is retained."));restoreReject.current=null;worker.current?.terminate();controller.current?.abort();onDirty(false);};},[key,onDirty]);
  const recipe:GeographicRecipe={version:1,algorithm:"serrian-geography-v1",seed,reference,extent:extent.map(Number) as GeographicRecipe["extent"],settings};
  const stale=!!preview&&(extent.some(value=>!value.trim())||JSON.stringify(geographicRecipeSchema.safeParse(recipe).data)!==JSON.stringify(preview.recipe));
  useEffect(()=>{onPreview(preview&&!stale?{type:"MultiPolygon",coordinates:preview.result.features.map(f=>(f.geometry as Extract<SourceGeometry,{type:"Polygon"}>).coordinates)}:null);return()=>onPreview(null);},[preview,stale,onPreview]);
- function cancel(){serial.current++;worker.current?.terminate();worker.current=null;controller.current?.abort();controller.current=null;setBusy(false);}
+ function cancel(){restoreReject.current?.(new Error("Generation recovery was cancelled. Its bundle is retained."));restoreReject.current=null;serial.current++;worker.current?.terminate();worker.current=null;controller.current?.abort();controller.current=null;setBusy(false);}
  function changed(){cancel();setDirty(true);setError("");setSaved(null);}
  function discard(){if(pending)return;if(!window.confirm("Discard this generated preview and recipe changes? If a save response was lost, retry first: the new sources may already be saved."))return;cancel();setPreview(null);setAttempt(null);setSaved(null);setDirty(false);setError("");setConflict(false);}
  async function build(){
@@ -43,12 +46,33 @@ export function GeographicGenerator({geo,mapId,blocked,onDirty,onSelect,onPrevie
   try{const result=await worldApi<GenerationSaved>(endpoint,"POST",body);if(!alive.current)return;setSaved(result);setPreview(null);setAttempt(null);setDirty(false);geo.retry();}catch(failure){if(alive.current){setError((failure as Error).message);setConflict(failure instanceof SaveError&&failure.status===409);}}finally{if(alive.current)setPending(false);}
  }
  async function review(){if(!preview||!conflict)return;setPending(true);setError("");try{const latest=await worldApi<{context:string}>(`${endpoint}?${query}`);if(!alive.current)return;geo.retry();setPreview({...preview,context:latest.context,id:crypto.randomUUID()});setAttempt(null);setConflict(false);setError("");}catch(failure){if(alive.current)setError((failure as Error).message);}finally{if(alive.current)setPending(false);}}
+ const recoverySnapshot:GenerationRecovery|null=dirty||busy||pending?{surfaceId:layer.surface.id,fields:{seed,settings:{...settings,continents:Number.isFinite(settings.continents)?settings.continents:"",islands:Number.isFinite(settings.islands)?settings.islands:"",landCoverage:Number.isFinite(settings.landCoverage)?settings.landCoverage:"",complexity:Number.isFinite(settings.complexity)?settings.complexity:""},extent,name,note,protected:privateSource},preview:preview?{recipe:preview.recipe,context:preview.context,digest:preview.digest,requestId:preview.id}:null,attempt:attempt as GenerationRecovery["attempt"]}:null;
+ const recoveryFingerprint=JSON.stringify(recoverySnapshot);
+ useEffect(()=>{onRecovery(JSON.parse(recoveryFingerprint));},[recoveryFingerprint,onRecovery]);
+ async function restoreRecovery(value:GenerationRecovery){
+  if(pending||busy)throw new Error("Finish or cancel the active generation operation before restoring another recipe.");
+  if(value.surfaceId!==layer.surface.id)throw new Error("This generation draft belongs to another geographic surface.");
+  const meta=value.preview??(value.attempt?{recipe:value.attempt.recipe,context:value.attempt.expectedContext,digest:value.attempt.outputDigest,requestId:value.attempt.requestId}:null);
+  if(meta&&!sameSpatialReference(meta.recipe.reference,reference))throw new Error("The retained generation reference differs from this surface. No coordinates were reinterpreted.");
+  cancel();setSeed(value.fields.seed);setSettings({...value.fields.settings,continents:value.fields.settings.continents===""?NaN:value.fields.settings.continents,islands:value.fields.settings.islands===""?NaN:value.fields.settings.islands,landCoverage:value.fields.settings.landCoverage===""?NaN:value.fields.settings.landCoverage,complexity:value.fields.settings.complexity===""?NaN:value.fields.settings.complexity});setExtent([...value.fields.extent]);setName(value.fields.name);setNote(value.fields.note);setPrivate(value.fields.protected);setAttempt(value.attempt);setPreview(null);setSaved(null);setError("");setDirty(true);setConflict(false);
+  if(!meta)return;
+  const parsed=geographicRecipeSchema.parse(meta.recipe),jobId=++serial.current;setBusy(true);
+  try{const result=await new Promise<GeographicGeneration>((resolve,reject)=>{const job=new Worker(new URL("./geographic-generation.worker.ts",import.meta.url),{type:"module"});worker.current=job;restoreReject.current=reject;
+   job.onmessage=(event:MessageEvent<{result?:GeographicGeneration;error?:string}>)=>{job.terminate();if(worker.current===job)worker.current=null;if(!alive.current||jobId!==serial.current)return reject(new Error("The generation recovery context changed."));if(event.data.error||!event.data.result)reject(new Error(event.data.error??"The retained generation could not be rebuilt."));else resolve(event.data.result);};
+   job.onerror=event=>{event.preventDefault();job.terminate();if(worker.current===job)worker.current=null;reject(new Error("The retained recipe could not be rebuilt. Its recovery file remains available."));};job.postMessage(parsed);
+  });
+   if(await generationOutputDigest(result)!==meta.digest)throw new Error("The retained generation digest does not match this algorithm output. Keep the matching release and recovery file; nothing was accepted.");
+   if(!alive.current||jobId!==serial.current)return;
+   setPreview({recipe:parsed,result,context:meta.context,digest:meta.digest,id:meta.requestId,ms:0});setError("Generation draft restored for review. The original request ID and base context remain; retry or explicitly review newer geography before acceptance.");
+  }finally{restoreReject.current=null;if(alive.current&&jobId===serial.current)setBusy(false);}
+ }
+ useImperativeHandle(recoveryRef,()=>({restore:restoreRecovery,accept}));
  const path=preview?{type:"MultiPolygon" as const,coordinates:preview.result.features.map(f=>(f.geometry as Extract<typeof f.geometry,{type:"Polygon"}>).coordinates)}:null;
- return <details className={styles.generator} data-geographic-generator><summary>Generate editable geography</summary><section aria-label="Generate authoritative geography"><h4>Propose new coastlines</h4><p>Preview fictional land on this surface, then explicitly add new geographic sources. Existing geography, artwork and manual edits remain saved. Candidates also appear on the main map for comparison; existing land is not automatically moved or replaced. Each complete coastline can be reshaped with the geographic editor.</p>
+ return <details open className={styles.generator} data-geographic-generator><summary>Generate editable geography</summary><section aria-label="Generate authoritative geography"><h4>Propose new coastlines</h4><p>Preview fictional land on this surface, then explicitly add new geographic sources. Existing geography, artwork and manual edits remain saved. Candidates also appear on the main map for comparison; existing land is not automatically moved or replaced. Each complete coastline can be reshaped with the geographic editor.</p>
  {!reference.crs.startsWith("AUTHORED:")?<p>Choose a creator-declared fictional surface to generate geography. Imported Earth references remain unchanged.</p>:<>
  {blocked&&<p>Save or discard the current geographic edit before configuring a generated preview.</p>}
  <fieldset disabled={blocked||busy||pending||!!attempt}>
- <Field label="Geographic generation preset" help="Choose a starting arrangement of continents or coherent island chains. Adjust its settings and preview before accepting any new geography."><select defaultValue="continent" onChange={e=>{changed();setSettings({...geographicPresets[e.target.value as keyof typeof geographicPresets].settings});}}>{Object.entries(geographicPresets).map(([id,p])=><option key={id} value={id}>{p.label}</option>)}</select></Field>
+ <Field label="Geographic generation preset" help="Choose a starting arrangement of continents or coherent island chains. Adjust its settings and preview before accepting any new geography."><select defaultValue="island" onChange={e=>{changed();setSettings({...geographicPresets[e.target.value as keyof typeof geographicPresets].settings});}}>{Object.entries(geographicPresets).map(([id,p])=><option key={id} value={id}>{p.label}</option>)}</select></Field>
  <Field label="Geographic generation seed" help="The same seed, algorithm version, surface and complete settings reproduce the same coordinates. Different saves receive new identities; regeneration never replaces edited sources."><input value={seed} maxLength={64} onChange={e=>{changed();setSeed(e.target.value);}}/></Field>
  <button className="st-button is-secondary" onClick={()=>{changed();setSeed(crypto.randomUUID());}}>Use a different geographic seed</button>
  {([['continents','Major landmasses',0,4,'Number of separate continental sources. Zero produces an island-only world.'],['islands','Offshore islands',0,20,'Additional editable islands, arranged in irregular chains or scattered offshore. At most 24 complete sources per acceptance.'],['landCoverage','Approximate land coverage',10,55,'Requested percentage is a broad tendency; size, ocean separation and coastal variation determine the measured result.'],['complexity','Coastline complexity',0,100,'Higher values add fine coastal variation to bays, peninsulas and asymmetric coastlines. Each source remains within D2 editing limits.']] as const).map(([id,label,min,max,help])=><Field key={id} label={label} help={help}><input type="number" min={min} max={max} step={1} value={Number.isNaN(settings[id])?"":settings[id]} onChange={e=>{changed();setSettings({...settings,[id]:e.target.value===""?NaN:Number(e.target.value)});}}/></Field>)}

@@ -1,0 +1,155 @@
+{
+  "scope": "Standalone SVG art study only; not an application journey",
+  "browser": "134.0.6998.166",
+  "viewport": {
+    "width": 2040,
+    "height": 1440
+  },
+  "deviceScaleFactor": 1,
+  "externalRequests": [],
+  "texts": [
+    {
+      "text": "THE FIRST ISLAND",
+      "x": 719.0703125,
+      "y": 60,
+      "width": 561.859375,
+      "height": 56
+    },
+    {
+      "text": "AN ORIGINAL INK-AND-WASH CARTOGRAPHIC STUDY",
+      "x": 696.578125,
+      "y": 134,
+      "width": 605.84375,
+      "height": 21
+    },
+    {
+      "text": "THE HIGH COUNTRY",
+      "x": 874.1437377929688,
+      "y": 366.85260009765625,
+      "width": 273.07135009765625,
+      "height": 67.32302856445312
+    },
+    {
+      "text": "Harbor city",
+      "x": 1081.6605224609375,
+      "y": 999,
+      "width": 117.12841796875,
+      "height": 26
+    },
+    {
+      "text": "Greenward woods",
+      "x": 874.8359375,
+      "y": 843,
+      "width": 170.328125,
+      "height": 21
+    },
+    {
+      "text": "Silverwater",
+      "x": 1229,
+      "y": 717,
+      "width": 96.9150390625,
+      "height": 21
+    },
+    {
+      "text": "The open sea",
+      "x": 1503.8671875,
+      "y": 1028,
+      "width": 192.265625,
+      "height": 31
+    },
+    {
+      "text": "N",
+      "x": 1741.171875,
+      "y": 235,
+      "width": 18,
+      "height": 26
+    },
+    {
+      "text": "One source coastline · Original illustrated subjects · Clear places and labels",
+      "x": 638.4609375,
+      "y": 1240,
+      "width": 723.078125,
+      "height": 25
+    },
+    {
+      "text": "Third three-subject study · Open woodland edges, varied slopes and grounded town architecture.",
+      "x": 636.6640625,
+      "y": 1284,
+      "width": 725.671875,
+      "height": 20
+    },
+    {
+      "text": "INTERNAL ART DIRECTION / NOT CANON / NOT APPLICATION ACCEPTANCE EVIDENCE",
+      "x": 645.3984375,
+      "y": 1326,
+      "width": 709.203125,
+      "height": 17
+    }
+  ],
+  "artwork": [
+    {
+      "asset": "#mountain-rounded-3",
+      "x": 676.2799682617188,
+      "y": 471.65997314453125,
+      "width": 480.34002685546875,
+      "height": 243.9300537109375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove-3",
+      "x": 585.8744506835938,
+      "y": 535.77734375,
+      "width": 123.965087890625,
+      "height": 97.9720458984375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove-4",
+      "x": 542.622314453125,
+      "y": 704.2925415039062,
+      "width": 194.2283935546875,
+      "height": 122.93951416015625
+    },
+    {
+      "asset": "#woodland-broadleaf-grove-3",
+      "x": 709.722900390625,
+      "y": 777.449951171875,
+      "width": 158.16424560546875,
+      "height": 123.9296875
+    },
+    {
+      "asset": "#woodland-broadleaf-grove-4",
+      "x": 873.364501953125,
+      "y": 925.2825927734375,
+      "width": 157.2987060546875,
+      "height": 104.4267578125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove-3",
+      "x": 1140.93701171875,
+      "y": 551.6370239257812,
+      "width": 114.1783447265625,
+      "height": 90.2374267578125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove-4",
+      "x": 927.8436279296875,
+      "y": 742.5239868164062,
+      "width": 111.486328125,
+      "height": 72.8828125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove-3",
+      "x": 683.3348388671875,
+      "y": 905.3429565429688,
+      "width": 107.5015869140625,
+      "height": 87.05743408203125
+    },
+    {
+      "asset": "#settlement-city-2",
+      "x": 1073.3271484375,
+      "y": 869.4000244140625,
+      "width": 132.0799560546875,
+      "height": 114.91998291015625
+    }
+  ],
+  "collisions": []
+}
