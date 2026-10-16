@@ -5,12 +5,18 @@
 ## Current status
 
 - Implementation remains in progress; no owner-testing or deployment readiness.
-- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `b0b0e24c9c6195d30572c512b84fdec8bb44f802`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
+- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `130955b44cab66f4ff6675b8e3d69116ed479c96`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
 - Draft implementation PR: https://github.com/Revty79/serrian-tide-website/pull/5 — DO NOT MERGE.
 - Main remains the owner's preserved b5dbd5d checkpoint.
 - Early artwork gate: e7c68f8 received **CORRECTIONS REQUIRED**. Third focused candidate `f71c17023e79c88afaa18090104a25e3675ff813` is now **PENDING INDEPENDENT REVIEW**, PNG SHA-256 `bbd75f8e14c27654ed8290c978928eba476223928e16e7dcd0ca2683346bbcc0`.
 - Ember's decision: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778; Cody acknowledgment: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207992373.
 - No full-library expansion or revised-asset promotion. [Third study and exact actual-size evidence](https://github.com/Revty79/serrian-tide-website/blob/f71c17023e79c88afaa18090104a25e3675ff813/docs/screenshots/worlds-geo-ux0a/art-direction/revision-3/README.md). [New explicit review request](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6208133625). Same three subjects, two genuinely different grove footprints, seven groups instead of 34 repeated stamps, richer mountain and city detail. Cody approved this candidate direction; Ember approval is not inferred.
+
+## Latest verified save/recovery checkpoint
+
+[Report and indexed browser evidence](https://github.com/Revty79/serrian-tide-website/blob/130955b44cab66f4ff6675b8e3d69116ed479c96/docs/operations/worlds-atlas-ux0a-recovery.md). Exact checkpoint `130955b44cab66f4ff6675b8e3d69116ed479c96`. Independent status/actions, strict 4-MiB owner/context-scoped bundle download/restore, opt-in held device checkpoints, partial-save retention, original source/generation retries and deliberate old-base comparison/rebase are implemented. Actual production browser proof passes page interruption/website restore, partial artwork save retaining source, lost successful source creation and generation acceptance replies with exactly one retained operation, recipe/digest rebuilding, foreign owner/version/oversize rejection, quota-fault/download fallback and 390px native-touch review/cancel. Cody inspected all images; page errors empty.
+
+All 2,228 feature tests passed before final comparison/rebase additions; all six focused recovery tests pass afterward. TypeScript, isolated Node 22 production build (fingerprint `4acbd996279d64895a54a396cfe55201dddee6ef1cac9c93f692e13e0241d586`), changed-file lint and diff check pass; full lint has only the existing stories-harness warning. No new migration; 0132 checksum unchanged. Scientific presentation recovery still needs dedicated actual-browser synthetic-source fault proof. No full UX-0A readiness claim. Next: integrated real lesson/searchable help, final zero-start journeys, compatibility/fault/resource/performance work. Full art library remains gated on Ember's explicit f71c170 decision.
 
 ## Latest verified palette/city checkpoint
 
@@ -30,7 +36,7 @@ All 2,218 feature tests pass, 23 focused composition/source/frame/assets tests p
 
 ## Required remaining work
 
-Focused art correction and independent approval before full-library expansion; visual palette and persistent city/label workflow; independent status/save/recovery; integrated lesson/searchable reference; full generated/manual first-island journeys, fault-injection/resource/performance and final independent readiness review. Existing compatibility/mask proofs do not establish those gates.
+Independent art decision before full-library expansion; integrated lesson/searchable reference; scientific presentation recovery browser proof; full generated/manual first-island journeys, further fault-injection/resource/performance and final independent readiness review. Existing compatibility/mask proofs do not establish those gates.
 
 Only owned disposable database/application/private-storage targets are used. No shared DEV/Production write, deleted-Earth restoration, retained backup/private-asset changes, Docker, shared restart, D3-B, automatic main merge or deployment.
 
