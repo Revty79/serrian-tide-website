@@ -6,6 +6,8 @@ import { GeographicScene, type GeographicImage } from "./geographic-scene";
 import { CartographyScene } from "./cartography-scene";
 import styles from "./cartography.module.css";
 
+const islandWithoutLand=(draft:ComponentProps<typeof CartographyScene>["draft"])=>draft.presentation?.version===2&&!draft.features.some(f=>!f.archived&&f.geometry.type==="polygon");
+
 export type GeographicCompositionPreview = { replaceSource: string | null; geometry: SourceGeometry | null; generation: SourceGeometry | null };
 
 /** One authorized view supplies the land fill and artwork mask in every Atlas composition. */
@@ -24,8 +26,9 @@ export function AtlasMapScene({ viewport, ready, elevation, landCover, labelsVis
     }
     return { ...viewport, shapes };
   }, [viewport, frame, preview]);
-  const mask = useMemo(() => frame ? geographicLandMask(view, ready) : undefined, [frame, view, ready]);
   const presentation = artwork.draft.presentation;
+  const emptyIsland=islandWithoutLand(artwork.draft);
+  const mask = useMemo(() => frame ? geographicLandMask(view, ready) : emptyIsland?geographicLandMask(null,true):undefined, [frame, view, ready,emptyIsland]);
   const islandStyle = presentation?.version === 2 ? `${presentation.styleRef.id}:${presentation.styleRef.revision}` : undefined;
   // Only an explicitly authored fictional reference asserts an artistic sea.
   // Scientific NoData stays neutral; no absence of elevation is interpreted as water.

@@ -39,3 +39,7 @@ The full pass remains incomplete. Next: palette and persistent places/labels, in
 ## Ember?s second artwork decision
 
 [Independent review of `e7c68f8`](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778): **CORRECTIONS REQUIRED**. Retain improved coast/palette/river/lettering, remove mechanical grove repetition, add controlled hand-drawn contour/shading/ground contact to the same three subjects, and rebalance the map. No full-library expansion or promotion. Cody [acknowledged the decision](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207992373); next is a focused revision with exact SHA, full/reduced/grayscale images, actual 64/96px subjects and native crops. Ember also reported her original schedule ran once and disabled itself; schedule repair is her stated ongoing work, not verified continuous Cody execution.
+
+## Palette/city increment
+
+[Current technical evidence](worlds-atlas-ux0a-palette.md) covers the retained three-subject runtime palette, exact-reference paint/placement editing, persistent city/default label, outside-land confirmation, undo/rename/reopen/PNG, touch controls and read-only Admin access. All 2,224 feature tests and the isolated production build pass. No art promotion or full readiness is claimed. The third focused art package remains pending; the hill/wetland legacy-kind compatibility question is with Ember before expansion.

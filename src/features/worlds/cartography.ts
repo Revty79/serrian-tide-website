@@ -38,7 +38,7 @@ export function validatePresentation(presentation: MapPresentation) {
   presentationSchema.parse(presentation);
   if (presentation.version === 2) validateIslandStyle(presentation.styleRef);
 }
-export function drawingLayer(d: MapDrawing): MapLayer { return d.type === "path" ? (d.kind === "river" || d.kind === "stream" ? "waterways" : "paths") : d.type === "symbol" ? "symbols" : d.type === "label" ? "labels" : "terrain"; }
+export function drawingLayer(d: MapDrawing): MapLayer { if(d.type==="symbol"&&d.version===2&&d.role==="decoration")return "terrain"; return d.type === "path" ? (d.kind === "river" || d.kind === "stream" ? "waterways" : "paths") : d.type === "symbol" ? "symbols" : d.type === "label" ? "labels" : "terrain"; }
 export function drawingPoints(d: MapDrawing) { return d.type === "terrain" || d.type === "path" ? d.points : [d.point]; }
 
 // Versioned source strokes, not a bitmap or thousands of database rows.
