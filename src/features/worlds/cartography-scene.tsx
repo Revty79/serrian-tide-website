@@ -2,11 +2,12 @@ import { TerritoryScene } from "./territory-scene";
 import { DungeonScene } from "./dungeon-scene";
 import { InteriorScene } from "./interior-scene";
 import { SettlementScene } from "./settlement-scene";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useImperativeHandle, useMemo, useRef, useState, type RefObject } from "react";
+import {createPortal} from "react-dom";
 import { MAP_HEIGHT, MAP_WIDTH, mapLabels, polygonCenter, type AtlasFeature, type MapDraft } from "./atlas";
-import { curvedPath, defaultPresentation, drawingLayer, terrainMarks, type MapDrawing, type TerrainDrawing } from "./cartography";
+import { curvedPath, defaultPresentation, drawingLayer, strokeSamples, terrainMarks, type MapDrawing, type TerrainDrawing } from "./cartography";
 import { terrainBitmap } from "./cartography-raster";
-import {projectedAtlasDraft,type AtlasGeographicFrame} from "./atlas-geographic-frame";
+import {createAtlasDraftProjector,projectedAtlasDraft,type AtlasGeographicFrame} from "./atlas-geographic-frame";
 import styles from "./cartography.module.css";
 import { IslandAssetDefinitions, IslandAssetUse, IslandTerrainArt } from "./island-asset-scene";
 import { isIslandStyle } from "./island-assets";
@@ -42,31 +43,45 @@ const TerrainArt=memo(function TerrainArt({drawing,prefix,original,frame}:{drawi
     {marks.filter(m=>!frame||m.x>=0&&m.x<=MAP_WIDTH&&m.y>=0&&m.y<=MAP_HEIGHT).map(mark=>{const p=frame?.project(mark)??mark,scale=mark.scale*(frame?.scaleAt(mark)??1);return <use key={mark.key} data-terrain-mark href={`#${prefix}-${drawing.kind}-${mark.variant}`} transform={`translate(${p.x} ${p.y}) scale(${scale})`}/>;})}
   </g>;
 });
-const CachedTerrain=memo(function CachedTerrain({drawing,prefix,motion,palette,unitsPerPixel,allowRaster}:{drawing:TerrainDrawing;prefix:string;motion:boolean;palette:string;unitsPerPixel:number;allowRaster:boolean}) {
-  const root=useRef<SVGGElement>(null),[cached,setCached]=useState<{drawing:TerrainDrawing;prefix:string;palette:string;image:Awaited<ReturnType<typeof terrainBitmap>>}|null>(null);
-  const image=cached?.drawing===drawing&&cached.prefix===prefix&&cached.palette===palette?cached.image:null;
+const CachedTerrain=memo(function CachedTerrain({drawing,original,frame,prefix,motion,palette,unitsPerPixel,allowRaster}:{drawing:TerrainDrawing;original?:TerrainDrawing;frame?:AtlasGeographicFrame;prefix:string;motion:boolean;palette:string;unitsPerPixel:number;allowRaster:boolean}) {
+  const sourceDrawing=original??drawing;
+  const sourceMarks=useMemo(()=>strokeSamples(sourceDrawing.points,sourceDrawing.spacing).length*sourceDrawing.density,[sourceDrawing]);
+  const root=useRef<SVGGElement>(null),[cached,setCached]=useState<{drawing:TerrainDrawing;frame?:AtlasGeographicFrame;prefix:string;palette:string;image:Awaited<ReturnType<typeof terrainBitmap>>}|null>(null);
+  const image=cached?.drawing===sourceDrawing&&cached.frame===frame&&cached.prefix===prefix&&cached.palette===palette?cached.image:null;
   useEffect(()=>{
-    let alive=true,url:string|undefined;
+    if(motion||cached?.drawing===sourceDrawing&&cached.frame===frame&&cached.prefix===prefix&&cached.palette===palette)return;
+    let alive=true;
     const source=root.current?.querySelector<SVGGElement>("[data-terrain-source]");
-    if(source)void terrainBitmap(source,prefix,drawing).then(image=>{url=image.url;if(alive)setCached({drawing,prefix,palette,image});else URL.revokeObjectURL(url);}).catch(()=>{});
-    return()=>{alive=false;if(url)URL.revokeObjectURL(url);};
-  },[drawing,prefix,palette]);
+    if(source)void terrainBitmap(source,prefix,drawing).then(image=>{if(alive)setCached({drawing:sourceDrawing,frame,prefix,palette,image});else URL.revokeObjectURL(image.url);}).catch(()=>{});
+    return()=>{alive=false;};
+  },[drawing,sourceDrawing,frame,prefix,palette,motion,cached]);
+  useEffect(()=>()=>{if(cached)URL.revokeObjectURL(cached.image.url);},[cached]);
   // At rest, use the cache only when it exceeds the actual display resolution.
   // Deep zoom and the selected drawing keep live vectors. Motion can reuse the cache temporarily.
   const fast=allowRaster&&image!==null&&(motion||image.scale*unitsPerPixel>=1.2*(typeof window==="undefined"?1:window.devicePixelRatio||1));
-  return <g ref={root} data-terrain-cache-ready={image!==null}><g style={{display:fast?"none":undefined}}><TerrainArt drawing={drawing} prefix={prefix}/></g>{fast&&<image data-terrain-raster href={image.url} x={image.x} y={image.y} width={image.width} height={image.height} pointerEvents="none"/>}</g>;
+  return <g ref={root} data-terrain-cache-ready={image!==null} data-terrain-source-marks={sourceMarks}>{!fast&&(drawing.version===2?<IslandTerrainArt drawing={drawing} original={original} frame={frame} prefix={prefix}/>:<TerrainArt drawing={drawing} original={original} frame={frame} prefix={prefix}/>)}{fast&&<image data-terrain-raster href={image.url} x={image.x} y={image.y} width={image.width} height={image.height} pointerEvents="none"/>}</g>;
 });
 const DrawingArt=memo(function DrawingArt({drawing,unitsPerPixel,prefix,motion,cacheTerrain,palette,allowRaster,original,frame}:{drawing:MapDrawing;unitsPerPixel:number;prefix:string;motion:boolean;cacheTerrain:boolean;palette:string;allowRaster:boolean;original?:MapDrawing;frame?:AtlasGeographicFrame}) {
+  if(drawing.type==="terrain"&&cacheTerrain)return <CachedTerrain drawing={drawing} original={original?.type==="terrain"?original:undefined} frame={frame} prefix={prefix} motion={motion} palette={palette} unitsPerPixel={unitsPerPixel} allowRaster={allowRaster}/>;
   if(drawing.type==="terrain"&&drawing.version===2)return <IslandTerrainArt drawing={drawing} original={original?.type==="terrain"?original:undefined} frame={frame} prefix={prefix}/>;
   if(drawing.type==="symbol"&&drawing.version===2)return <g transform={`translate(${drawing.point.x} ${drawing.point.y}) rotate(${drawing.rotation}) scale(${drawing.scale*(frame&&original?.type==="symbol"?frame.scaleAt(original.point):1)})`}><IslandAssetUse reference={drawing.assetRef} prefix={prefix}/></g>;
-  if(drawing.type==="terrain")return cacheTerrain&&!frame?<CachedTerrain drawing={drawing} prefix={prefix} motion={motion} palette={palette} unitsPerPixel={unitsPerPixel} allowRaster={allowRaster}/>:<TerrainArt drawing={drawing} original={original?.type==="terrain"?original:undefined} frame={frame} prefix={prefix}/>;
+  if(drawing.type==="terrain")return <TerrainArt drawing={drawing} original={original?.type==="terrain"?original:undefined} frame={frame} prefix={prefix}/>;
   if(drawing.type==="path"){const d=frame&&original?.type==="path"?frame.path(original.points,false,original.curve):curvedPath(drawing.points,drawing.curve);return <g className={styles.route} data-kind={drawing.kind}><path d={d} className={styles.routeUnder} strokeWidth={drawing.width+3}/><path d={d} strokeWidth={drawing.width}/></g>;}
   if(drawing.type==="symbol")return <g transform={`translate(${drawing.point.x} ${drawing.point.y}) rotate(${drawing.rotation}) scale(${drawing.scale})`} data-ink={drawing.style==="ink"}><CartographicSymbol kind={drawing.kind}/></g>;
   return <text transform={`translate(${drawing.point.x} ${drawing.point.y}) rotate(${drawing.rotation})`} className={styles.label} data-style={drawing.style} fontSize={Math.max(drawing.size,11*unitsPerPixel)} textAnchor="middle">{drawing.text}</text>;
 });
 function LandOutline({feature,path,className,fill,pointerEvents}:{feature:AtlasFeature;path?:string;className?:string;fill?:string;pointerEvents?:"none"}){return path!==undefined?<path d={path} className={className} fill={fill} pointerEvents={pointerEvents}/>:feature.geometry.type==="polygon"?<polygon points={feature.geometry.points.map(p=>`${p.x},${p.y}`).join(" ")} className={className} fill={fill} pointerEvents={pointerEvents}/>:null;}
-export const CartographyScene=memo(function CartographyScene({draft:sourceDraft,id,selectedId,unitsPerPixel=1,editable=true,motion=false,cacheTerrain=false,settlement=true,explorable=false,geographicFrame,landMask,background=true}:{draft:MapDraft;id:string;selectedId?:string|null;unitsPerPixel?:number;editable?:boolean;motion?:boolean;cacheTerrain?:boolean;settlement?:boolean;explorable?:boolean;geographicFrame?:AtlasGeographicFrame;landMask?:GeographicLandMask;background?:boolean}) {
-  const draft=useMemo(()=>geographicFrame?projectedAtlasDraft(sourceDraft,geographicFrame):sourceDraft,[sourceDraft,geographicFrame]);
+export type PaintPreviewHandle={show:(drawing:TerrainDrawing|null)=>void};
+/** Only this unfinished stroke renders while the retained map and inspector stay still. */
+export function CartographyPaintPreview({handle,target,frame,prefix,unitsPerPixel}:{handle:RefObject<PaintPreviewHandle|null>;target:SVGGElement|null;frame?:AtlasGeographicFrame;prefix:string;unitsPerPixel:number}){
+ const [drawing,setDrawing]=useState<TerrainDrawing|null>(null);useImperativeHandle(handle,()=>({show:setDrawing}),[]);
+ const projected=useMemo(()=>drawing&&frame?projectedAtlasDraft({name:"Live terrain preview",description:"",scope:"regional",features:[],geographies:[],drawings:[drawing]},frame).drawings![0]:drawing,[drawing,frame]);
+ if(!target||!drawing||!projected)return null;
+ return createPortal(<><defs>{drawing.version===2?<IslandAssetDefinitions drawings={[drawing]} prefix={prefix}/>: [0,1,2].map(variant=><g key={variant} id={`${prefix}-${drawing.kind}-${variant}`}><CartographicSymbol kind={drawing.kind} variant={variant}/></g>)}</defs><DrawingArt drawing={projected} original={drawing} frame={frame} unitsPerPixel={unitsPerPixel} prefix={prefix} motion cacheTerrain={false} palette="preview" allowRaster={false}/></>,target);
+}
+export const CartographyScene=memo(function CartographyScene({draft:sourceDraft,id,selectedId,unitsPerPixel=1,editable=true,motion=false,cacheTerrain=false,settlement=true,explorable=false,geographicFrame,landMask,background=true,previewTarget}:{draft:MapDraft;id:string;selectedId?:string|null;unitsPerPixel?:number;editable?:boolean;motion?:boolean;cacheTerrain?:boolean;settlement?:boolean;explorable?:boolean;geographicFrame?:AtlasGeographicFrame;landMask?:GeographicLandMask;background?:boolean;previewTarget?:(target:SVGGElement|null)=>void}) {
+  const projector=useMemo(()=>geographicFrame?createAtlasDraftProjector(geographicFrame):null,[geographicFrame]);
+  const draft=useMemo(()=>projector?projector(sourceDraft):sourceDraft,[sourceDraft,projector]);
   const paths=useMemo(()=>new Map(sourceDraft.features.flatMap(f=>f.geometry.type==="polygon"&&geographicFrame?[[f.id,geographicFrame.path(f.geometry.points,true)] as const]:[])),[sourceDraft.features,geographicFrame]);
   const originalDrawings=new Map(sourceDraft.drawings?.map(d=>[d.id,d]));
   const drawingPath=(d:MapDrawing)=>{const original=originalDrawings.get(d.id);return geographicFrame&&original&&(original.type==="terrain"||original.type==="path")?geographicFrame.path(original.points,false,original.type==="path"?original.curve:.75):(d.type==="terrain"||d.type==="path")?curvedPath(d.points,d.type==="path"?d.curve:.75):"";};
@@ -84,10 +99,10 @@ export const CartographyScene=memo(function CartographyScene({draft:sourceDraft,
       {background&&<><rect width={MAP_WIDTH} height={MAP_HEIGHT} className={draft.settlementState&&!land.length?styles.settlementPaper:styles.sea}/><rect width={MAP_WIDTH} height={MAP_HEIGHT} fill={`url(#${id}-sea)`} pointerEvents="none"/></>}
       {presentation.layers.land.visible&&land.map(f=>f.geometry.type==="polygon"&&<g key={f.id} data-feature={f.id} data-selected={selectedId===f.id} className={styles.landFeature} pointerEvents={(presentation.layers.land.locked||!editable)&&!explorable?"none":undefined}><LandOutline feature={f} path={paths.get(f.id)} className={styles.coastalHalo}/><LandOutline feature={f} path={paths.get(f.id)} className={styles.land}/><LandOutline feature={f} path={paths.get(f.id)} fill={`url(#${id}-grain)`} pointerEvents="none"/><title>{draft.geographies.find(g=>g.id===f.geographyId)?.name}</title></g>)}
       {(["terrain","waterways","paths","symbols","labels"] as const).map(layer=>presentation.layers[layer].visible&&<g key={layer} data-layer={layer} pointerEvents={(presentation.layers[layer].locked||!editable)&&!explorable?"none":undefined}>{(draft.drawings??[]).filter(d=>!d.archived&&drawingLayer(d)===layer).map(d=><g key={d.id} data-drawing={d.id} pointerEvents={explorable&&!d.geographyId?"none":undefined} data-selected={selectedId===d.id} className={styles.drawing} clipPath={layer==="terrain"&&!landMask?`url(#${id}-land)`:undefined} mask={layer==="terrain"&&landMask?`url(#${id}-source-land)`:undefined}>
-        <DrawingArt drawing={d} original={originalDrawings.get(d.id)} frame={geographicFrame} unitsPerPixel={unitsPerPixel} prefix={id} motion={motion} allowRaster={selectedId!==d.id} cacheTerrain={cacheTerrain} palette={`${presentation.style}:${themeRevision}`}/>
+        <DrawingArt drawing={d} original={originalDrawings.get(d.id)} frame={geographicFrame} unitsPerPixel={unitsPerPixel} prefix={id} motion={motion} allowRaster={selectedId!==d.id} cacheTerrain={cacheTerrain} palette={JSON.stringify([presentation.version,presentation.style,presentation.version===2?presentation.styleRef:null,themeRevision])}/>
         {(editable||(explorable&&!!d.geographyId))&&(d.type==="terrain"||d.type==="path"?<path d={drawingPath(d)} data-export-omit className={styles.hitPath} strokeWidth={Math.max(44*unitsPerPixel,d.type==="terrain"?d.radius*1.5:d.width+12)}/>:<rect x={d.point.x-22*unitsPerPixel} y={d.point.y-22*unitsPerPixel} width={44*unitsPerPixel} height={44*unitsPerPixel} data-export-omit className={styles.hit}/>)}
         {selectedId===d.id&&(d.type==="terrain"||d.type==="path")&&<path d={drawingPath(d)} data-export-omit className={styles.selectedStroke} strokeWidth={2*unitsPerPixel}/>}<title>{d.name}</title>
-      </g>)}</g>)}
+      </g>)}{layer==="terrain"&&previewTarget&&<g ref={previewTarget} data-export-omit pointerEvents="none" clipPath={!landMask?`url(#${id}-land)`:undefined} mask={landMask?`url(#${id}-source-land)`:undefined}/>}</g>)}
       {presentation.layers.symbols.visible&&draft.features.filter(f=>!f.archived&&f.geometry.type==="point").map(f=><g key={f.id} data-feature={f.id} data-selected={selectedId===f.id} className={styles.place} pointerEvents={(presentation.layers.symbols.locked||!editable)&&!explorable?"none":undefined}><circle cx={place(f).x} cy={place(f).y} r={22*unitsPerPixel} data-export-omit className={styles.hit}/><g data-place-art transform={`translate(${place(f).x} ${place(f).y}) scale(${Math.max(.65,unitsPerPixel*.7)})`}><CartographicSymbol kind="village"/></g><title>{draft.geographies.find(g=>g.id===f.geographyId)?.name}</title></g>)}
       {presentation.layers.labels.visible&&draft.features.filter(f=>!f.archived).map(f=>{if((draft.drawings??[]).some(d=>d.type==="label"&&!d.archived&&d.geographyId===f.geographyId))return null;const label=labels.get(f.id);if(!label)return null;return <text key={f.id} x={label.x} y={label.y} textAnchor="middle" data-geography-label className={styles.placeLabel} fontSize={Math.max(20,13*unitsPerPixel)}>{label.text}</text>;})}
       {draft.territories&&<TerritoryScene territories={draft.territories} selectedId={selectedId} units={unitsPerPixel}/>}

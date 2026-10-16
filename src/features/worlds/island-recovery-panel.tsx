@@ -52,7 +52,7 @@ export function IslandRecoveryPanel({identity,allowed,blocked,token,statuses,cap
   const timer=setTimeout(()=>{
    try{const bundle=build(context),text=encodeIslandRecovery(bundle);localStorage.setItem(key,text);setLocal(bundle);setCheckpointError("");setStatus(`Device checkpoint saved ${new Date(bundle.createdAt).toLocaleTimeString()} · ${new TextEncoder().encode(text).byteLength.toLocaleString()} bytes. Includes ${Object.keys(bundle.domains).length} unsaved domains and view settings; no server save.`);}
    catch(e){setCheckpointError(`Device checkpoint failed: ${(e as Error).message} Your live draft is retained. Download a recovery bundle for a separate copy.`);}
-  },200);return()=>clearTimeout(timer);
+  },50);return()=>clearTimeout(timer);
   // Snapshot callbacks stay current without restarting the completed-operation timer.
  },[allowed,context,enabled,held,blocked,key,token]);
  async function verify(){if(!context)throw new Error("Recovery access has not been verified.");const current=await authorizeIslandRecovery(JSON.parse(identityKey) as Identity,context.userId);if(live.current!==identityKey)throw new Error("The active map changed. Nothing was restored.");return current;}

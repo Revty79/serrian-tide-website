@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {atlasGeographicFrame,moveGeographicExtent,projectedAtlasDraft,projectionExtent} from "./atlas-geographic-frame";
+import {atlasGeographicFrame,createAtlasDraftProjector,moveGeographicExtent,projectedAtlasDraft,projectionExtent} from "./atlas-geographic-frame";
 import {geographicProjection} from "./geographic-projection";
 import {surfaceBounds,type GeographicBounds,type SpatialReference} from "./geographic";
 import {type MapDraft} from "./atlas";
@@ -37,4 +37,9 @@ test("planar Atlas imports retain direct x/y orientation and wide spherical artw
 });
 test("Mercator changes and polar navigation keep a nonempty compatible viewing region",()=>{
  for(const b of [[-50,86,-40,89],[-50,-89,-40,-86]] as GeographicBounds[]){const extent=projectionExtent(b,"mercator");assert.ok(extent[1]<extent[3]);assert.ok(extent[1]>=-85.05112878&&extent[3]<=85.05112878);const f=atlasGeographicFrame(sphere,extent,"mercator");assert.ok(Number.isFinite(f.project(f.atlas([-45,(extent[1]+extent[3])/2])).y));}
+});
+test("editing one drawing retains other derivatives only within the same display frame, without changing originals",()=>{
+ const frame=atlasGeographicFrame(plane,plane.bounds,"planar"),project=createAtlasDraftProjector(frame),draft:MapDraft={name:"Projected source",description:"",scope:"regional",features:[],geographies:[],drawings:[{version:1,type:"label",id:"label",name:"Label",text:"Original",point:{x:800,y:400},geographyId:null,archived:false,size:20,rotation:0,style:"place"}]},before=structuredClone(draft),first=project(draft),changed={...draft,drawings:[...draft.drawings!,{...draft.drawings![0],id:"second"}]},next=project(changed);
+ assert.equal(first.drawings![0],next.drawings![0]);assert.notEqual(next.drawings![0],next.drawings![1]);
+ const zoomed=createAtlasDraftProjector(atlasGeographicFrame(plane,[0,0,1000,600],"planar"))(draft);assert.notEqual(zoomed.drawings![0],first.drawings![0]);assert.notDeepEqual(zoomed.drawings,first.drawings);assert.deepEqual(draft,before);
 });

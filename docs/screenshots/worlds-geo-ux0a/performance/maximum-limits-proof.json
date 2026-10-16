@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "world": "bbf04443-0895-4c2c-8721-5a8748a750d6",
+  "separateFromRepresentativeWorld": true,
+  "results": [
+    {
+      "name": "512 drawings",
+      "map": "51390ff2-cc05-4cf4-80aa-a6dd8731bc15",
+      "drawings": 512,
+      "requestBytes": 185240,
+      "savedRevision": 2,
+      "overflowRejectedAtomically": true
+    },
+    {
+      "name": "6000 derived marks",
+      "map": "9206dd66-ba59-4fb6-a301-5ff8b66fd8f4",
+      "drawings": 80,
+      "requestBytes": 37625,
+      "savedRevision": 2,
+      "overflowRejectedAtomically": true
+    },
+    {
+      "name": "16384 drawing points",
+      "map": "5191f85d-2e58-473a-a435-bc3d39e2b97b",
+      "drawings": 128,
+      "requestBytes": 1044000,
+      "savedRevision": 2,
+      "overflowRejectedAtomically": true
+    }
+  ]
+}

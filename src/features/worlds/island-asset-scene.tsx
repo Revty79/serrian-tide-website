@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { MapDrawing, TerrainDrawing } from "./cartography";
 import { strokeSamples } from "./cartography";
 import { islandAsset, type AssetReference } from "./island-assets";
@@ -7,11 +7,14 @@ import { MAP_WIDTH, MAP_HEIGHT } from "./atlas-coordinates";
 
 export const assetDefinitionId = (prefix: string, ref: AssetReference) => `${prefix}-asset-${ref.libraryId}-${ref.libraryRevision}-${ref.assetId}-${ref.assetRevision}`;
 function availableAsset(reference: AssetReference) { try { return islandAsset(reference); } catch { return null; } }
+const AssetDefinition=memo(function AssetDefinition({id,revision,svg}:{id:string;revision:string;svg:string}){
+  return <g id={id} data-asset-revision={revision} dangerouslySetInnerHTML={{__html:svg}}/>;
+});
 export function IslandAssetDefinitions({ drawings, prefix }: { drawings: MapDrawing[]; prefix: string }) {
   const refs = new Map(drawings.filter(d => d.version === 2 && !d.archived).flatMap(d => d.version === 2 ? (d.type === "symbol" ? [d.assetRef] : d.assetRefs).map(ref => [assetDefinitionId(prefix, ref), ref] as const) : []));
   return <>{[...refs].map(([id, ref]) => {
     const asset = availableAsset(ref);
-    return asset ? <g key={id} id={id} data-asset-revision={`${asset.id}:${asset.revision}`} dangerouslySetInnerHTML={{ __html: asset.svg }} /> : null;
+    return asset ? <AssetDefinition key={id} id={id} revision={`${asset.id}:${asset.revision}`} svg={asset.svg}/> : null;
   })}</>;
 }
 export function MissingIslandArtwork({ x, y }: { x: number; y: number }) {

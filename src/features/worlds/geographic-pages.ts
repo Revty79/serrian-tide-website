@@ -9,7 +9,7 @@ export function geographicPages(mapId:string){
   let first:GeographicViewport|undefined,last:GeographicViewport|undefined;
   return {
     append(value:GeographicViewport,after:string){
-      if(value.layer.mapId!==mapId||first&&(value.context!==first.context||value.canEdit!==first.canEdit||JSON.stringify(value.layer)!==JSON.stringify(first.layer)||JSON.stringify(value.bounds)!==JSON.stringify(first.bounds)||value.projection!==first.projection||value.lod!==first.lod))throw new GeographicPageError("The geographic sources or access changed while loading. Retry to read the current view.",true);
+      if(value.layer.mapId!==mapId||first&&(value.readerId!==first.readerId||value.context!==first.context||value.canEdit!==first.canEdit||JSON.stringify(value.layer)!==JSON.stringify(first.layer)||JSON.stringify(value.bounds)!==JSON.stringify(first.bounds)||value.projection!==first.projection||value.lod!==first.lod))throw new GeographicPageError("The geographic sources or access changed while loading. Retry to read the current view.",true);
       const final=value.shapes.at(-1),next=value.nextCursor;
       if(pages.has(after)||pages.size>=4096||next&&(!final||next!==cursorOf(final.id,final.part)||after&&!cursorAfter(next,after)))throw new GeographicPageError("The geographic view could not finish. Retry this extent or zoom closer.",false);
       const keys=new Set<string>();let previous=after;

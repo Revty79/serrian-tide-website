@@ -13,13 +13,17 @@ function paintedClone(node:SVGElement){
 export async function terrainBitmap(source:SVGGElement,prefix:string,drawing:TerrainDrawing){
   const scene=source.closest("[data-cartography-scene]");if(!scene)throw new Error("Terrain scene unavailable.");
   const defs=document.createElementNS(namespace,"defs");
-  for(let variant=0;variant<3;variant++){const symbol=scene.querySelector<SVGGElement>(`[id="${prefix}-${drawing.kind}-${variant}"]`);if(!symbol)throw new Error("Terrain definition unavailable.");defs.append(paintedClone(symbol));}
+  if(drawing.version===2){
+    // Exact already-rendered definitions only; no catalog/network or alternate art.
+    const ids=new Set([...source.querySelectorAll("use")].map(node=>node.getAttribute("href")));
+    for(const href of ids){const symbol=href?.startsWith("#")?scene.querySelector<SVGGElement>(`[id="${href.slice(1)}"]`):null;if(!symbol)throw new Error("Illustration definition unavailable.");defs.append(paintedClone(symbol));}
+  }else for(let variant=0;variant<3;variant++){const symbol=scene.querySelector<SVGGElement>(`[id="${prefix}-${drawing.kind}-${variant}"]`);if(!symbol)throw new Error("Terrain definition unavailable.");defs.append(paintedClone(symbol));}
   const art=source.cloneNode(true) as SVGGElement;
   // Symbol paint lives in the small definition tree; never compute styles for every mark.
   [...source.children].forEach((node,i)=>{if(node.tagName.toLowerCase()!=="use")art.children[i].replaceWith(paintedClone(node as SVGElement));});
-  const margin=drawing.radius*1.8,x=Math.floor(Math.min(...drawing.points.map(p=>p.x))-margin),y=Math.floor(Math.min(...drawing.points.map(p=>p.y))-margin);
-  const width=Math.ceil(Math.max(...drawing.points.map(p=>p.x))+margin-x),height=Math.ceil(Math.max(...drawing.points.map(p=>p.y))+margin-y);
-  const scale=Math.min(2,Math.sqrt(1200000/(width*height)));
+  const box=source.getBBox(),margin=drawing.version===1?Math.max(4,drawing.radius*1.8):4,x=Math.floor(box.x-margin),y=Math.floor(box.y-margin);
+  const width=Math.max(1,Math.ceil(box.x+box.width+margin-x)),height=Math.max(1,Math.ceil(box.y+box.height+margin-y));
+  const scale=Math.min(2,4096/Math.max(width,height),Math.sqrt(1200000/(width*height)));
   const root=document.createElementNS(namespace,"svg");root.setAttribute("xmlns",namespace);root.setAttribute("width",String(Math.ceil(width*scale)));root.setAttribute("height",String(Math.ceil(height*scale)));root.setAttribute("viewBox",`${x} ${y} ${width} ${height}`);root.append(defs,art);
   const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(root)],{type:"image/svg+xml;charset=utf-8"}));
   try{

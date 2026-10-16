@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "request": "dc366d62-7d48-4932-9979-7cf09d8fbf66",
+  "groups": [
+    "scoped opt-in checkpoint and manual bundle download",
+    "partial artwork save retains source draft in local checkpoint",
+    "page interruption and website restore preserve geometry/request identity",
+    "lost successful create response retries to one exact geographic version",
+    "generation preview rebuild/digest and original acceptance retry after lost response",
+    "old artwork base stages comparison without automatic save",
+    "foreign owner, unsupported version and oversized files rejected",
+    "390px native-touch recovery review/cancel",
+    "storage quota error keeps live draft and manual download"
+  ],
+  "errors": []
+}

@@ -21,3 +21,7 @@
 
 .inspector>header .expand{display:none}.inspector>header h2{flex:1}
 @media(max-width:1050px){.inspector>header .expand{display:inline-flex}.studio[data-inspector-expanded=true] .inspector{height:min(72%,470px)}}
+:global(body):has(.studio[data-compact-height=true]) :global(.authenticated-navigation){visibility:hidden}
+.studio[data-compact-height=true] .context p{white-space:nowrap;max-height:1.4rem}
+.studio[data-compact-height=true] .inspector{height:min(58%,250px)}
+.studio[data-compact-height=true][data-inspector-expanded=true] .inspector{height:calc(100% - 60px)}

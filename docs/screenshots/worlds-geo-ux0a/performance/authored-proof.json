@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "authoredTerrainPixels": 162861,
+  "datedDrawings": 100,
+  "datedCurrentGeographyRequests": 0,
+  "proof": "Actual authored-only PNG and dated baseline fallback preserve original artwork. Current source/raster geometry is excluded; no historical canon was authored.",
+  "errors": []
+}

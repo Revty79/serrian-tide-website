@@ -33,6 +33,6 @@ export async function islandRuntime(target: "empty" | "compat", label: string, e
       const response = await context.request.post(`${base}/api/auth/sign-in/email`, { headers: { Origin: base }, data: { email: `${id}@example.invalid`, password: "UX0A-Disposable-Only-Password!" } });
       assert.equal(response.status(), 200, await response.text());
     };
-    return { e, base, browser, login, close };
+    return { e, base, browser, login, close, serverPid: server.pid! };
   } catch (error) { await close(); throw error; }
 }

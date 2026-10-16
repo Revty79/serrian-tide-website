@@ -3,7 +3,7 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {GuidedField} from "@/components/field-guidance";
 import {SaveError,worldApi} from "./client-api";
 import {geographicPages,GeographicPageError} from "./geographic-pages";
-import {geographicProvenanceLabel,isAuthoredProvenance,automaticGeographicDetail,focusedGeographicExtent,surfaceBounds,type GeographicBounds,type GeographicLayer,type GeographicReading,type GeographicViewport} from "./geographic";
+import {geographicProvenanceLabel,isAuthoredProvenance,automaticGeographicDetail,focusedGeographicExtent,surfaceBounds,sameGeographicViewport,type GeographicViewportStatus,type GeographicBounds,type GeographicLayer,type GeographicReading,type GeographicViewport} from "./geographic";
 import {GEOGRAPHIC_THEMES} from "./geographic-themes";
 import {atlasGeographicFrame,moveGeographicExtent,projectionExtent} from "./atlas-geographic-frame";
 import type {ProjectionKind} from "./geographic-projection";
@@ -39,7 +39,18 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
   // Reference comes from this very request; adding it would cancel its initial pages.
   // eslint-disable-next-line react-hooks/exhaustive-deps
  },[enabled,api,query,base,key,refresh]);
- useEffect(()=>{if(!enabled||!layer||current?.loading!==false)return;const timer=setTimeout(()=>setRefresh(n=>n+1),30000);return()=>clearTimeout(timer);},[enabled,layer,current?.loading,key]);
+ useEffect(()=>{
+  if(!enabled||current?.loading!==false||!current.value)return;
+  const view=current.value,controller=new AbortController();let timer:ReturnType<typeof setTimeout>;
+  const check=async()=>{try{
+   const q=new URLSearchParams(query);q.set("check","1");q.set("lod",view.lod);q.set("themes",GEOGRAPHIC_THEMES.map(t=>t.id).join(","));
+   const status=await worldApi<GeographicViewportStatus>(`${api}?${q}`,"GET",undefined,controller.signal);
+   if(controller.signal.aborted||live.current!==key)return;
+   if(!sameGeographicViewport(view,status)){setRefresh(n=>n+1);return;}
+   timer=setTimeout(()=>void check(),30000);
+  }catch{if(!controller.signal.aborted&&live.current===key)setRefresh(n=>n+1);}};
+  timer=setTimeout(()=>void check(),30000);return()=>{clearTimeout(timer);controller.abort();};
+ },[enabled,api,query,key,current]);
  useEffect(()=>{if(!enabled||!selected)return;const controller=new AbortController();worldApi<GeographicReading>(`${api}?${query}&feature=${selected}`,"GET",undefined,controller.signal).then(value=>{if(!controller.signal.aborted)setReading({key:readKey,value,error:""});}).catch(e=>{if(!controller.signal.aborted)setReading({key:readKey,value:null,error:e.message});});return()=>controller.abort();},[enabled,api,query,selected,readKey]);
  const extent=bounds??(reference?surfaceBounds(reference):null),kind=projection??(reference?.kind==="plane"?"planar":"equirectangular");
  const frame=useMemo(()=>reference&&extent?atlasGeographicFrame(reference,extent,kind):null,[reference,extent,kind]);

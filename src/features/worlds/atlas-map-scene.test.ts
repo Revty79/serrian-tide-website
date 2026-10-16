@@ -48,3 +48,15 @@ test("incomplete access views use an empty mask, scientific unknowns remain neut
   assert.match(render(null),/data-geographic-land-mask="unavailable"/,"New empty island maps do not paint terrain across unknown water");
   const legacy = render(null,true,undefined,undefined,{...draft,presentation:defaultPresentation()}); assert.ok(!legacy.includes("data-geographic-land-mask")); assert.match(legacy, /clip-path="url\(#proof-land\)"/);
 });
+
+test("retained v1 coast/terrain keep their original clip when an empty or loading geographic reference is attached",()=>{
+ const feature:MapDraft["features"][number]={id:"retained-coast",geographyId:"retained-island",geometry:{version:1,type:"polygon",points:[{id:"a",x:100,y:100},{id:"b",x:1500,y:100},{id:"c",x:1500,y:1000},{id:"d",x:100,y:1000}]},archived:false};
+ const legacy={...draft,presentation:defaultPresentation(),features:[feature]},before=structuredClone(legacy);
+ const cases:[GeographicViewport,boolean][]=[[{...view,shapes:[]},true],[view,false],[view,true]];
+ for(const [viewport,ready] of cases){const markup=render(viewport,ready,undefined,undefined,legacy);assert.match(markup,/clip-path="url\(#proof-land\)"/);assert.ok(!markup.includes('mask="url(#proof-source-land)"'));assert.match(markup,/data-terrain-mark/);}
+ assert.deepEqual(legacy,before);
+});
+test("explicit authored-only and dated artwork retain complete strokes without borrowing current geographic data",()=>{
+ const before=structuredClone(draft),markup=renderToStaticMarkup(createElement("svg",null,createElement(AtlasMapScene,{draft,id:"authored",viewport:view,ready:true,geographicFrame:atlasGeographicFrame(plane,plane.bounds,"planar"),elevation:null,landCover:null,editable:false,authoredOnly:true})));
+ assert.match(markup,/data-terrain-mark/);assert.match(markup,/clip-path="url\(#authored-land\)"/);assert.ok(!markup.includes("data-geographic-land-mask"));assert.ok(!markup.includes('data-source="mainland"'));assert.deepEqual(draft,before);
+});
