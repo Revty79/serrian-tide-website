@@ -4,10 +4,10 @@ import { execFileSync, spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import path from "node:path";
 import { chromium, type BrowserContext } from "playwright-core";
-import { ownedPool, ux0aEnvironment, UX0A_DIRECTORY } from "./worlds-geo-ux0a-harness";
+import { ownedPool, ux0aEnvironment, UX0A_DIRECTORY,type Environment } from "./worlds-geo-ux0a-harness";
 
-export async function islandRuntime(target: "empty" | "compat", label: string) {
-  const e = await ux0aEnvironment(), pool = await ownedPool(e, target); await pool.end();
+export async function islandRuntime(target: "empty" | "compat", label: string, environment?:Environment) {
+  const e = environment??await ux0aEnvironment(), pool = await ownedPool(e, target); await pool.end();
   const base = `http://127.0.0.1:${e.appPort}`, log = createWriteStream(path.join(UX0A_DIRECTORY, `${label}-server.log`));
   const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(e.appPort)], {
     cwd: path.join(UX0A_DIRECTORY, "runtime-checkout"), windowsHide: true,

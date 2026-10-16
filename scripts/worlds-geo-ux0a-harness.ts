@@ -15,7 +15,7 @@ import pg from "pg";
 export const UX0A_DIRECTORY = path.resolve(fileURLToPath(new URL("../artifacts/guidance/geo-ux0a", import.meta.url)));
 const bin = process.env.SERRIAN_TEST_PG_BIN ?? "C:/Program Files/PostgreSQL/18/bin";
 const tool = (name: string) => path.join(bin, name + (process.platform === "win32" ? ".exe" : ""));
-type Environment = { root: string; cluster: string; data: string; port: number; appPort: number; stamp: string; empty: string; compat: string; legacy: string; assetRoot: string; users: { owner: string; foreign: string; admin: string; player: string } };
+export type Environment = { root: string; cluster: string; data: string; port: number; appPort: number; stamp: string; empty: string; compat: string; legacy: string; assetRoot: string; users: { owner: string; foreign: string; admin: string; player: string } };
 async function freePort() { const server = createServer(); await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); }); const address = server.address(); assert.ok(address && typeof address === "object"); await new Promise<void>(resolve => server.close(() => resolve())); return address.port; }
 export async function ux0aEnvironment(): Promise<Environment> {
   const e: Environment = JSON.parse(await readFile(path.join(UX0A_DIRECTORY, "environment.json"), "utf8"));
@@ -24,9 +24,19 @@ export async function ux0aEnvironment(): Promise<Environment> {
   assert.equal(e.legacy, path.join(UX0A_DIRECTORY, "legacy-checkout")); assert.equal(e.assetRoot, path.join(UX0A_DIRECTORY, "private-assets")); return e;
 }
 export async function ownedPool(e: Environment, target: "empty" | "compat") {
+  const url=new URL(e[target]);assert.equal(e.root,UX0A_DIRECTORY);assert.equal(url.hostname,"127.0.0.1");assert.equal(url.port,String(e.port));assert.notEqual(e.port,5432);assert.match(url.pathname,/^\/serrian_ux0a_(empty|compat|learning|acceptance)_\d+$/);
   const pool = new pg.Pool({ connectionString: e[target] });
   try { const result = (await pool.query("select current_database() name,inet_server_addr()::text host,inet_server_port() port,current_setting('data_directory') data")).rows[0]; assert.equal(result.name, new URL(e[target]).pathname.slice(1)); assert.equal(result.host, "127.0.0.1/32"); assert.equal(result.port, e.port); assert.equal(path.resolve(result.data), path.resolve(e.data)); return pool; }
   catch (error) { await pool.end(); throw error; }
+}
+/** A new zero-World journey database, on the already verified task-owned cluster only. */
+export async function freshIslandEnvironment(purpose:"learning"|"acceptance") {
+  assert.ok(purpose==="learning"||purpose==="acceptance");const original=await ux0aEnvironment(),verified=await ownedPool(original,"empty");await verified.end();
+  const database=`serrian_ux0a_${purpose}_${Date.now()}`;assert.match(database,/^serrian_ux0a_(learning|acceptance)_\d+$/);
+  const admin=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${original.port}/postgres`});
+  try{const row=(await admin.query("select inet_server_port() port,current_setting('data_directory') data")).rows[0];assert.equal(row.port,original.port);assert.equal(path.resolve(row.data),path.resolve(original.data));await admin.query(`create database "${database}"`);}finally{await admin.end();}
+  const e={...original,empty:`postgresql://postgres@127.0.0.1:${original.port}/${database}`},pool=await ownedPool(e,"empty");
+  try{await migrate(drizzle(pool),{migrationsFolder:"drizzle"});await accounts(pool,e);const initial=(await pool.query("select (select count(*) from world)::int worlds,(select count(*) from world_atlas_map)::int maps")).rows[0];assert.deepEqual(initial,{worlds:0,maps:0});assert.equal(Number((await pool.query("select count(*) n from drizzle.__drizzle_migrations")).rows[0].n),133);await writeFile(path.join(UX0A_DIRECTORY,`${database}-environment.json`),JSON.stringify({environment:e,initial,purpose,source:"Fresh schema and access accounts only; all World/map/content creation belongs to the website."},null,2));return e;}finally{await pool.end();}
 }
 export async function ux0aSnapshot(pool: pg.Pool) {
   const tables = (await pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows.map(row => String(row.tablename));

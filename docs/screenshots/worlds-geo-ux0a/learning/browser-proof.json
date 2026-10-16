@@ -1,0 +1,75 @@
+{
+  "passed": true,
+  "initial": {
+    "worlds": 0,
+    "maps": 0
+  },
+  "database": "serrian_ux0a_learning_1792132332499",
+  "browser": "134.0.6998.166",
+  "worldUrl": "http://127.0.0.1:49520/worlds/20a16e06-8e40-4745-820e-100743391ab3",
+  "results": [
+    {
+      "branch": "manual",
+      "initialAtMapCreation": {
+        "worlds": 1,
+        "maps": 0
+      },
+      "mapId": "ddb0436b-f5db-471f-89d1-cc022fd56f78",
+      "sources": [
+        {
+          "feature_id": "7168cb66-505d-4109-a139-8d34529293b3",
+          "revision": 2
+        }
+      ],
+      "cityId": "54b6c2b4-ec00-4032-ad00-c9d04c1d905c",
+      "placeId": "f4c74994-9982-46ae-99a6-aa112afddac6",
+      "drawingIds": [
+        "7b4122ce-c3f8-47e3-bfff-c08393bcf5d2",
+        "302e39b1-745a-4cdd-aa6c-81a212c73d12",
+        "54b6c2b4-ec00-4032-ad00-c9d04c1d905c",
+        "bf8bb38b-86e8-4d3b-b39a-f225e0721aa9"
+      ],
+      "editorUrl": "http://127.0.0.1:49520/worlds/20a16e06-8e40-4745-820e-100743391ab3?tab=atlas&editMap=ddb0436b-f5db-471f-89d1-cc022fd56f78",
+      "provenance": "Fresh root target; both routes share the UI-created World. Separate final art-approved zero-start journeys remain required."
+    },
+    {
+      "branch": "generate",
+      "initialAtMapCreation": {
+        "worlds": 1,
+        "maps": 1
+      },
+      "mapId": "279c964b-b90a-40c4-9c97-ae65e54088cd",
+      "sources": [
+        {
+          "feature_id": "f475023d-a1c2-4b38-9f59-f27ccb2c33cc",
+          "revision": 2
+        }
+      ],
+      "cityId": "2bcb7941-2212-4386-ab89-09a27aebe858",
+      "placeId": "5f682688-ebdf-44e6-b8b0-0665d36bd906",
+      "drawingIds": [
+        "992c28a1-834a-4211-a674-338596c9249d",
+        "9cd18d9c-60d7-45ae-aa12-ca094f63c92d",
+        "2bcb7941-2212-4386-ab89-09a27aebe858",
+        "1d4b3aec-1745-4eef-83c0-f513ed4b541a"
+      ],
+      "editorUrl": "http://127.0.0.1:49520/worlds/20a16e06-8e40-4745-820e-100743391ab3?tab=atlas&editMap=279c964b-b90a-40c4-9c97-ae65e54088cd",
+      "provenance": "Fresh root target; both routes share the UI-created World. Separate final art-approved zero-start journeys remain required."
+    }
+  ],
+  "groups": [
+    "normal website creation from zero Worlds/maps",
+    "manual and generated real lesson routes",
+    "saved coastline revision check",
+    "help close/resume/search retain pending fields and undo",
+    "real terrain/river/persistent city+label",
+    "independent saves, library/reload/reopen identity checks",
+    "successful actual visible PNG after reopen",
+    "390px native-touch reference and keyboard focus return"
+  ],
+  "errors": [],
+  "artGate": "Current retained three-subject catalog only; final art/library/readiness remain gated.",
+  "runtimeFingerprint": "f3348c6e3c13b3908170c3102bc721368a483e51d0f5a6ca9f80fa74fa0bab96",
+  "node": "v22.23.3",
+  "codyInspected": true
+}
