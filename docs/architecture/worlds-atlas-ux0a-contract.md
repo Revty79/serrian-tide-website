@@ -1,6 +1,6 @@
 # Atlas UX-0A implementation contract: Create Your First Island
 
-Agreement recorded 2026-10-15 following the owner's direction and Cody/Ember architectural agreement. **Final bounded brief awaiting owner implementation authorization.** Documentation and read-only preparation are authorized; implementation, asset production, migrations and owner testing have not begun. The [unified roadmap](worlds-map-maker-decisions.md#revised-completion-roadmap--adopted-2026-10-15) is authoritative. This contract supersedes the smaller [initial usability proposal](worlds-map-studio-usability-correction.md).
+Agreement recorded 2026-10-15 following the owner's direction and Cody/Ember architectural agreement. **Implementation authorized by the owner on 2026-10-15 following Ember approval of `2d656267137972644b75d0f492211f069150bfeb`.** The bounded asset/style migration is authorized only in newly owned isolated disposable targets. The early independent artwork gate and joint readiness-before-owner-testing gate remain mandatory. No push/deployment, shared DEV/Production writes, deleted-Earth recovery or D3-B is authorized. The [unified roadmap](worlds-map-maker-decisions.md#revised-completion-roadmap--adopted-2026-10-15) is authoritative. This contract supersedes the smaller [initial usability proposal](worlds-map-studio-usability-correction.md).
 
 ## 1. Outcome and scope
 
@@ -171,7 +171,7 @@ Create the acceptance World through the normal website in an initially zero-Worl
 
 ## 10. Joint readiness, owner acceptance and stop conditions
 
-1. **Authorization gate, now:** finish this documentation/preparation pass at a clean local review commit. Obtain explicit owner authorization for this bounded brief, including its planned validator migration, before implementation or asset production.
+1. **Authorization gate, satisfied 2026-10-15:** documentation/preparation completed at `2d656267137972644b75d0f492211f069150bfeb`; Ember independently approved it and the owner explicitly authorized this bounded implementation and planned validator migration in owned disposable targets only.
 2. **Internal art gate:** Cody and Ember approve the early finished-island visual sample before artwork expansion. Record exact revisions and corrections; this is not owner testing or final artistic acceptance.
 3. **Cody completion gate:** implement the authorized scope; run technical and real browser journeys; personally inspect actual screenshots/exports; resolve known blockers; provide local review commit, migration/recovery report and indexed evidence. A prepared fixture cannot stand in for the empty-World journey.
 4. **Ember independent gate:** review that exact commit, source/architecture, checks, screenshots, preservation, costs and demonstrated workflow. Record explicit approval for initial testing readiness or concrete corrections. Material subsequent changes require renewed review; prior approval cannot be carried silently to another commit.
