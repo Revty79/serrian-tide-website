@@ -5,12 +5,20 @@
 ## Current status
 
 - Implementation remains in progress; no owner-testing or deployment readiness.
-- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `56799e0922bd4693a6d6363fa10ef37c747f44c1`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
+- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `56744ccc677333e8dcbd58746a22bff741b42710`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
 - Draft implementation PR: https://github.com/Revty79/serrian-tide-website/pull/5 — DO NOT MERGE.
 - Main remains the owner's preserved b5dbd5d checkpoint.
 - Early artwork gate: e7c68f8 received **CORRECTIONS REQUIRED**. Third focused candidate `f71c17023e79c88afaa18090104a25e3675ff813` is now **PENDING INDEPENDENT REVIEW**, PNG SHA-256 `bbd75f8e14c27654ed8290c978928eba476223928e16e7dcd0ca2683346bbcc0`.
 - Ember's decision: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778; Cody acknowledgment: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207992373.
 - No full-library expansion or revised-asset promotion. [Third study and exact actual-size evidence](https://github.com/Revty79/serrian-tide-website/blob/f71c17023e79c88afaa18090104a25e3675ff813/docs/screenshots/worlds-geo-ux0a/art-direction/revision-3/README.md). [New explicit review request](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6208133625). Same three subjects, two genuinely different grove footprints, seven groups instead of 34 repeated stamps, richer mountain and city detail. Cody approved this candidate direction; Ember approval is not inferred.
+
+## Latest verified performance and compatibility checkpoint
+
+[Report and indexed measurements/images](https://github.com/Revty79/serrian-tide-website/blob/56744ccc677333e8dcbd58746a22bff741b42710/docs/operations/worlds-atlas-ux0a-performance.md). Exact checkpoint `56744ccc677333e8dcbd58746a22bff741b42710`. Current three-subject technical benchmark: 100 drawings/1,500 retained derived marks. All six desktop/touch performance cases pass unchanged budgets (53.8–55.2 FPS, brush p95 35.4 ms desktop / 124–146.3 ms touch at 6x CPU; all timed operations within their limits). Native two-finger pinch passes four viewports. Temporary bounded display images retain original vectors/strokes and full-vector PNGs; isolated cursor/unfinished masked preview avoids full-editor pointer rerenders. Escape cancels without adding a stroke. Cache/vector and wide-v1-paint comparisons pass. Current authorization uses metadata every 30 seconds without unchanged geometry/DOM reconstruction; actual protected-source removal/foreign denial/Admin review pass.
+
+Final runtime also passes retained-v1 reference/reload/PNG, authored-only PNG and dated fallback without current geography, compact landscape/reduced-keyboard-space reachability and original recovery regression. Cody inspected all evidence. All **2,240 feature tests**, TypeScript, full lint (zero errors; existing stories warning), diff check and isolated Node 22 production build pass. Core matrix runtime and subsequent final-runtime corrections are distinguished in the report. No physical-phone/actual-OS-keyboard/hosted-latency claim.
+
+No new migration/configuration; 0132 unchanged. Three-subject sizes do not satisfy the final 12–16-asset gate. Next: lazy unused artwork loading independent of the pending art gate; full library promotion/expansion, final art-approved separate zero-start journeys and full-library matrix remain gated. No owner readiness.
 
 ## Latest verified scientific recovery checkpoint
 
