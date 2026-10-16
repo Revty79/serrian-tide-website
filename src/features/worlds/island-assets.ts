@@ -10,6 +10,12 @@ export const ISLAND_STYLE_REFERENCE={id:"island-ink-wash",revision:1} as const;
 export type IslandAsset=typeof ISLAND_ASSETS[number];
 export const islandAssets:readonly IslandAsset[]=ISLAND_ASSETS;
 export const assetReference=(asset:IslandAsset):AssetReference=>({libraryId:asset.libraryId,libraryRevision:asset.libraryRevision,assetId:asset.id,assetRevision:asset.revision});
+export const latestIslandAssets=islandAssets.filter(a=>!islandAssets.some(b=>a.id===b.id&&a.libraryId===b.libraryId&&(b.libraryRevision>a.libraryRevision||b.libraryRevision===a.libraryRevision&&b.revision>a.revision)));
+/** The approved grove footprints form an explicit exact-version paint set, never an automatic source upgrade. */
+export function defaultPaintReferences(asset:IslandAsset):AssetReference[]{
+ const group=asset.paintGroup?[asset,...islandAssets.filter(a=>a!==asset&&a.paint&&a.paintGroup===asset.paintGroup&&a.terrain===asset.terrain)]:[asset];
+ return group.slice(0,4).map(assetReference);
+}
 export function islandAsset(reference:AssetReference):IslandAsset{
  const found=islandAssets.find(a=>a.libraryId===reference.libraryId&&a.libraryRevision===reference.libraryRevision&&a.id===reference.assetId&&a.revision===reference.assetRevision);
  if(!found)throw new Error("This exact artwork revision is unavailable. Its reference is retained; restore the matching release library.");

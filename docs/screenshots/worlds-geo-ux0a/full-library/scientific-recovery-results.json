@@ -1,0 +1,81 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "world": "202863d8-ffe9-47cc-be4c-6b85b72b4a4a",
+  "map": "69d638c2-d5e3-472e-967b-b6c761618c8c",
+  "groups": [
+    "small visible vertex with retained full touch target and keyboard edit/undo",
+    "independent relief/cover preference saves retain source accounts",
+    "website restore preserves source request and exact reader version",
+    "lost source reply and both archive replies retry original operations once",
+    "unavailable version rejected before staging",
+    "stale preferences compare and deliberately rebase",
+    "original numerical/classification manifests and bundles retained across all versions",
+    "ordinary protected sources request no tiles",
+    "Admin explicit review exposes no recovery/write actions"
+  ],
+  "versions": [
+    {
+      "sourceId": "d4ce3df2-d986-4bc0-968d-92235be16c2c",
+      "revision": 1,
+      "archived": false,
+      "protected": false,
+      "bundle": "740230ef5f1a7b2a97cd3174ee560b7d01f73fc36de9a2c0f606b11f932c8390"
+    },
+    {
+      "sourceId": "d4ce3df2-d986-4bc0-968d-92235be16c2c",
+      "revision": 2,
+      "archived": false,
+      "protected": true,
+      "bundle": "740230ef5f1a7b2a97cd3174ee560b7d01f73fc36de9a2c0f606b11f932c8390"
+    },
+    {
+      "sourceId": "d4ce3df2-d986-4bc0-968d-92235be16c2c",
+      "revision": 3,
+      "archived": true,
+      "protected": true,
+      "bundle": "740230ef5f1a7b2a97cd3174ee560b7d01f73fc36de9a2c0f606b11f932c8390"
+    },
+    {
+      "sourceId": "d4ce3df2-d986-4bc0-968d-92235be16c2c",
+      "revision": 4,
+      "archived": false,
+      "protected": true,
+      "bundle": "740230ef5f1a7b2a97cd3174ee560b7d01f73fc36de9a2c0f606b11f932c8390"
+    },
+    {
+      "sourceId": "e7991578-1aa2-4a86-82d9-a499dff9a3d4",
+      "revision": 1,
+      "archived": false,
+      "protected": false,
+      "bundle": "acd19fa0479bc910bf709220fe04b7a8008da82805593acaaebe3afb65c8a0ae"
+    },
+    {
+      "sourceId": "e7991578-1aa2-4a86-82d9-a499dff9a3d4",
+      "revision": 2,
+      "archived": false,
+      "protected": true,
+      "bundle": "acd19fa0479bc910bf709220fe04b7a8008da82805593acaaebe3afb65c8a0ae"
+    },
+    {
+      "sourceId": "e7991578-1aa2-4a86-82d9-a499dff9a3d4",
+      "revision": 3,
+      "archived": true,
+      "protected": true,
+      "bundle": "acd19fa0479bc910bf709220fe04b7a8008da82805593acaaebe3afb65c8a0ae"
+    },
+    {
+      "sourceId": "e7991578-1aa2-4a86-82d9-a499dff9a3d4",
+      "revision": 4,
+      "archived": false,
+      "protected": true,
+      "bundle": "acd19fa0479bc910bf709220fe04b7a8008da82805593acaaebe3afb65c8a0ae"
+    }
+  ],
+  "archiveRequests": {
+    "elevation": "01ff2e73-d672-489f-8558-2d306c81ec64",
+    "landCover": "991be10c-b569-4588-b8cf-2b71ab2170f8"
+  },
+  "errors": [],
+  "source": "New 64x32 original synthetic values/classes only; isolated compatibility target, no backups or retained private assets."
+}

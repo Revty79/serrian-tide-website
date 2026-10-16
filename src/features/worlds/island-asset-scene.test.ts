@@ -18,14 +18,15 @@ function render(drawings: MapDrawing[]) {
   const draft: MapDraft = { name: "Retained artwork", description: "", scope: "regional", features: [], geographies: [], drawings, presentation: defaultPresentation() };
   return renderToStaticMarkup(createElement("svg", { xmlns: "http://www.w3.org/2000/svg" }, createElement(CartographyScene, { draft, id: "proof", editable: false })));
 }
-test("v2 rendering embeds one exact vector definition per reference and uses it for every retained drawing", async t => {
+test("v2 rendering shares one exact original SVG image definition per reference across retained drawings", async t => {
   t.mock.method(globalThis,"fetch",async(input:RequestInfo|URL)=>new Response(await readFile(`public${String(input)}`,"utf8")));
   for(const asset of [mountain,city])await islandArtwork.ensure(asset);
   const first = symbol(), second = { ...first, id: randomUUID() }, markup = render([first, second, terrain()]);
   assert.equal((markup.match(/id="proof-asset-serrian-atlas-island-1-settlement-city-1"/g) ?? []).length, 1);
   assert.equal((markup.match(/href="#proof-asset-serrian-atlas-island-1-settlement-city-1"/g) ?? []).length, 2);
   assert.ok(markup.includes('data-asset-revision="mountain-rounded:1"'));
-  assert.ok(markup.includes(islandArtwork.read(mountain).svg!));
+  const images=[...markup.matchAll(/href="(data:image\/svg\+xml[^\"]+)"/g)].map(match=>decodeURIComponent(match[1].slice(match[1].indexOf(",")+1).replaceAll("&amp;","&").replaceAll("&#x27;","'")));
+  assert.equal(images.length,2);assert.ok(images.some(svg=>svg.includes(islandArtwork.read(mountain).svg!)));assert.ok(images.some(svg=>svg.includes(islandArtwork.read(city).svg!)));
   assert.ok(markup.includes('data-illustrated-terrain="true"'));
   assert.ok(!/href="#proof-mountains-\d/.test(markup));
 });

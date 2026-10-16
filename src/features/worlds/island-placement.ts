@@ -5,11 +5,11 @@ import { islandAsset } from "./island-assets";
 /** Stage one drawing, its optional persistent place and default label as one undoable map action. */
 export function draftWithDrawing(draft:MapDraft,source:MapDrawing,places:GeographyRecord[],options:{historical:boolean;placeName:string;autoLabel:boolean},id=()=>crypto.randomUUID()) {
   let next=draft;
-  const realPlace=source.type==="symbol"&&!["mountain","pine"].includes(source.kind);
+  const realPlace=source.type==="symbol"&&(source.version===2?islandAsset(source.assetRef).role==="place":!["mountain","pine"].includes(source.kind));
   if(options.historical&&realPlace&&!source.geographyId)throw new Error("Choose a saved location for this historical landmark.");
   if(realPlace&&!source.geographyId){
     const name=source.version===2?options.placeName.trim():`New ${source.type==="symbol"?source.kind:"place"}`;
-    if(!name)throw new Error("Give this city a name before placing it.");
+    if(!name)throw new Error("Give this place a name before placing it.");
     const place={id:id(),revision:null,name,description:"",kind:"location" as const,context:source.version===2?"settlement" as const:"place" as const,parentId:null};
     source={...source,geographyId:place.id};next={...next,geographies:[...next.geographies,place]};
   }else if(source.geographyId&&!next.geographies.some(g=>g.id===source.geographyId)){

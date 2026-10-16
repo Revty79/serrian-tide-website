@@ -1,0 +1,793 @@
+{
+  "passed": true,
+  "runtimeFingerprint": "df58a4c6cd65e4cec5a4fe116e1e1e8a18eddf634af65b2e4fe5aed7a2e86a24",
+  "node": "v22.23.3",
+  "browser": "134.0.6998.166",
+  "hardware": {
+    "cpu": "AMD Ryzen 5 5600G with Radeon Graphics         ",
+    "logicalCpus": 12,
+    "totalMemory": 33687609344,
+    "os": "win32 10.0.26300"
+  },
+  "fixture": {
+    "map": "8ddf1381-b233-46a9-96ec-8fb0f2c46eeb",
+    "drawings": 100,
+    "marks": 1500,
+    "mapDraftBytes": 40527,
+    "storage": {
+      "drawing_bytes": 51234,
+      "history_bytes": null
+    },
+    "limits": {
+      "drawings512And513Rejection": true,
+      "marks6000And6075Rejection": true,
+      "points16384And16386Rejection": true
+    }
+  },
+  "scope": "Technical service-authored full 14-subject benchmark with latest exact references and mixed grove revisions. Not beginner acceptance or artwork acceptance.",
+  "matrix": [
+    {
+      "device": {
+        "width": 1440,
+        "height": 900,
+        "touch": false,
+        "rate": 1
+      },
+      "coldSceneReadyMs": 5605.550900000001,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 5011.677100000001,
+        "frames": 300,
+        "windowMs": 5000,
+        "fps": 60
+      },
+      "brush": {
+        "received": 100,
+        "unmatched": 0,
+        "p95": 32.900000005960464,
+        "definitionsRetained": true
+      },
+      "exportMs": 1871.8585999999996,
+      "operations": {
+        "checkpointMs": 87,
+        "recoveryBytes": 42415,
+        "saveMs": 741.0882999999994,
+        "editUndoReopenCycles": 5,
+        "generationMs": 435.63409999999567,
+        "cancelMs": 113.6898000000001
+      },
+      "heapGrowth": 5372380,
+      "emptyHeap": {
+        "usedSize": 13584160,
+        "totalSize": 15548416,
+        "embedderHeapUsedSize": 2889576,
+        "backingStorageSize": 3839100
+      },
+      "loadedHeap": {
+        "usedSize": 15979880,
+        "totalSize": 18489344,
+        "embedderHeapUsedSize": 8260920,
+        "backingStorageSize": 5384881
+      },
+      "afterHeap": {
+        "usedSize": 18956540,
+        "totalSize": 21790720,
+        "embedderHeapUsedSize": 16204056,
+        "backingStorageSize": 5711456
+      },
+      "assetDisplays": [
+        {
+          "reference": "mountain-rounded:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:4",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-craggy:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-snow-capped:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-low:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-rocky:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-grove:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "wetland-reeds:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-city:2",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-village:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-port:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-castle:1",
+          "bitmap": "true"
+        }
+      ],
+      "browserWorkingSetBytes": 1171267584,
+      "compressedLibraryAndCatalogChunkUpperBound": 836289,
+      "external": [],
+      "transferErrors": [],
+      "canceledWorkerBounds": [],
+      "budgets": {
+        "fps": true,
+        "brush": true,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 1024,
+        "height": 768,
+        "touch": false,
+        "rate": 1
+      },
+      "coldSceneReadyMs": 5085.531999999999,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.242599999998,
+        "frames": 299,
+        "windowMs": 5000,
+        "fps": 59.8
+      },
+      "brush": {
+        "received": 100,
+        "unmatched": 0,
+        "p95": 33.400000005960464,
+        "definitionsRetained": true
+      },
+      "exportMs": 1752.4079999999958,
+      "operations": {
+        "checkpointMs": 72.5,
+        "recoveryBytes": 42415,
+        "saveMs": 667.1527999999962,
+        "editUndoReopenCycles": 5,
+        "generationMs": 351.87660000000324,
+        "cancelMs": 119.90060000000813
+      },
+      "heapGrowth": 5590500,
+      "emptyHeap": {
+        "usedSize": 13233776,
+        "totalSize": 15286272,
+        "embedderHeapUsedSize": 3117680,
+        "backingStorageSize": 3837492
+      },
+      "loadedHeap": {
+        "usedSize": 16000480,
+        "totalSize": 17702912,
+        "embedderHeapUsedSize": 7968096,
+        "backingStorageSize": 5383281
+      },
+      "afterHeap": {
+        "usedSize": 18824276,
+        "totalSize": 21266432,
+        "embedderHeapUsedSize": 18194712,
+        "backingStorageSize": 5711105
+      },
+      "assetDisplays": [
+        {
+          "reference": "mountain-rounded:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:4",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-craggy:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-snow-capped:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-low:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-rocky:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-grove:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "wetland-reeds:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-city:2",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-village:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-port:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-castle:1",
+          "bitmap": "true"
+        }
+      ],
+      "browserWorkingSetBytes": 1224314880,
+      "compressedLibraryAndCatalogChunkUpperBound": 836289,
+      "external": [],
+      "transferErrors": [],
+      "canceledWorkerBounds": [],
+      "budgets": {
+        "fps": true,
+        "brush": true,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 390,
+        "height": 844,
+        "touch": true,
+        "rate": 6
+      },
+      "coldSceneReadyMs": 28029.941900000005,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 5002.009300000005,
+        "frames": 290,
+        "windowMs": 5000,
+        "fps": 58
+      },
+      "brush": {
+        "received": 100,
+        "unmatched": 0,
+        "p95": 96.10000002384186,
+        "definitionsRetained": true
+      },
+      "exportMs": 6756.09599999999,
+      "operations": {
+        "checkpointMs": 234.59999999403954,
+        "recoveryBytes": 42448,
+        "saveMs": 4229.444299999974,
+        "editUndoReopenCycles": 5,
+        "generationMs": 1964.045000000042,
+        "cancelMs": 305.64689999999246
+      },
+      "heapGrowth": 5068344,
+      "emptyHeap": {
+        "usedSize": 13229740,
+        "totalSize": 15024128,
+        "embedderHeapUsedSize": 3536912,
+        "backingStorageSize": 3838429
+      },
+      "loadedHeap": {
+        "usedSize": 15194316,
+        "totalSize": 17440768,
+        "embedderHeapUsedSize": 7714176,
+        "backingStorageSize": 5388440
+      },
+      "afterHeap": {
+        "usedSize": 18298084,
+        "totalSize": 20742144,
+        "embedderHeapUsedSize": 10796360,
+        "backingStorageSize": 5717415
+      },
+      "assetDisplays": [
+        {
+          "reference": "mountain-rounded:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:4",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-craggy:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-snow-capped:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-low:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-rocky:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-grove:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "wetland-reeds:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-city:2",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-village:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-port:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-castle:1",
+          "bitmap": "true"
+        }
+      ],
+      "browserWorkingSetBytes": 971747328,
+      "compressedLibraryAndCatalogChunkUpperBound": 895761,
+      "external": [],
+      "transferErrors": [],
+      "canceledWorkerBounds": [],
+      "budgets": {
+        "fps": true,
+        "brush": true,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 360,
+        "height": 800,
+        "touch": true,
+        "rate": 6
+      },
+      "coldSceneReadyMs": 23520.832000000053,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.208299999998,
+        "frames": 295,
+        "windowMs": 5000,
+        "fps": 59
+      },
+      "brush": {
+        "received": 100,
+        "unmatched": 0,
+        "p95": 107.5,
+        "definitionsRetained": true
+      },
+      "exportMs": 6710.924200000009,
+      "operations": {
+        "checkpointMs": 250.30000001192093,
+        "recoveryBytes": 42448,
+        "saveMs": 4432.250300000014,
+        "editUndoReopenCycles": 5,
+        "generationMs": 2014.982900000061,
+        "cancelMs": 606.8547000000253
+      },
+      "heapGrowth": 5733452,
+      "emptyHeap": {
+        "usedSize": 13175188,
+        "totalSize": 15286272,
+        "embedderHeapUsedSize": 3467584,
+        "backingStorageSize": 3839450
+      },
+      "loadedHeap": {
+        "usedSize": 15148884,
+        "totalSize": 17440768,
+        "embedderHeapUsedSize": 8245896,
+        "backingStorageSize": 5381781
+      },
+      "afterHeap": {
+        "usedSize": 18908640,
+        "totalSize": 21528576,
+        "embedderHeapUsedSize": 25618032,
+        "backingStorageSize": 5746862
+      },
+      "assetDisplays": [
+        {
+          "reference": "mountain-rounded:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:4",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-craggy:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-snow-capped:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-low:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-rocky:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-grove:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "wetland-reeds:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-city:2",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-village:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-port:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-castle:1",
+          "bitmap": "true"
+        }
+      ],
+      "browserWorkingSetBytes": 982798336,
+      "compressedLibraryAndCatalogChunkUpperBound": 836289,
+      "external": [],
+      "transferErrors": [],
+      "canceledWorkerBounds": [],
+      "budgets": {
+        "fps": true,
+        "brush": true,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 844,
+        "height": 390,
+        "touch": true,
+        "rate": 6
+      },
+      "coldSceneReadyMs": 23298.461599999922,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 5013.0324000000255,
+        "frames": 300,
+        "windowMs": 5000,
+        "fps": 60
+      },
+      "brush": {
+        "received": 100,
+        "unmatched": 0,
+        "p95": 105.7000000178814,
+        "definitionsRetained": true
+      },
+      "exportMs": 6494.48179999995,
+      "operations": {
+        "checkpointMs": 255.90000000596046,
+        "recoveryBytes": 42448,
+        "saveMs": 4410.989599999972,
+        "editUndoReopenCycles": 5,
+        "generationMs": 2188.027999999933,
+        "cancelMs": 350.4429999999702
+      },
+      "heapGrowth": 5270964,
+      "emptyHeap": {
+        "usedSize": 13215348,
+        "totalSize": 15024128,
+        "embedderHeapUsedSize": 3761144,
+        "backingStorageSize": 3840076
+      },
+      "loadedHeap": {
+        "usedSize": 15180448,
+        "totalSize": 17440768,
+        "embedderHeapUsedSize": 7963392,
+        "backingStorageSize": 5382015
+      },
+      "afterHeap": {
+        "usedSize": 18486312,
+        "totalSize": 20742144,
+        "embedderHeapUsedSize": 9633736,
+        "backingStorageSize": 5714882
+      },
+      "assetDisplays": [
+        {
+          "reference": "mountain-rounded:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:4",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-craggy:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-snow-capped:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-low:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-rocky:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-grove:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "wetland-reeds:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-city:2",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-village:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-port:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-castle:1",
+          "bitmap": "true"
+        }
+      ],
+      "browserWorkingSetBytes": 984907776,
+      "compressedLibraryAndCatalogChunkUpperBound": 955233,
+      "external": [],
+      "transferErrors": [],
+      "canceledWorkerBounds": [],
+      "budgets": {
+        "fps": true,
+        "brush": true,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 1024,
+        "height": 768,
+        "touch": true,
+        "rate": 6
+      },
+      "coldSceneReadyMs": 24417.35580000002,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 5007.963400000008,
+        "frames": 298,
+        "windowMs": 5000,
+        "fps": 59.6
+      },
+      "brush": {
+        "received": 100,
+        "unmatched": 0,
+        "p95": 100.40000000596046,
+        "definitionsRetained": true
+      },
+      "exportMs": 6620.354800000088,
+      "operations": {
+        "checkpointMs": 302,
+        "recoveryBytes": 42449,
+        "saveMs": 4594.885699999984,
+        "editUndoReopenCycles": 5,
+        "generationMs": 2163.5823999999557,
+        "cancelMs": 631.7525000000605
+      },
+      "heapGrowth": 6357940,
+      "emptyHeap": {
+        "usedSize": 13317120,
+        "totalSize": 15548416,
+        "embedderHeapUsedSize": 3515344,
+        "backingStorageSize": 3838972
+      },
+      "loadedHeap": {
+        "usedSize": 15300468,
+        "totalSize": 17178624,
+        "embedderHeapUsedSize": 7980664,
+        "backingStorageSize": 5382100
+      },
+      "afterHeap": {
+        "usedSize": 19675060,
+        "totalSize": 22315008,
+        "embedderHeapUsedSize": 30657000,
+        "backingStorageSize": 5729585
+      },
+      "assetDisplays": [
+        {
+          "reference": "mountain-rounded:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:4",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-craggy:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-snow-capped:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-low:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-rocky:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-grove:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "wetland-reeds:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-city:2",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-village:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-port:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-castle:1",
+          "bitmap": "true"
+        }
+      ],
+      "browserWorkingSetBytes": 1112993792,
+      "compressedLibraryAndCatalogChunkUpperBound": 895761,
+      "external": [],
+      "transferErrors": [],
+      "canceledWorkerBounds": [],
+      "budgets": {
+        "fps": true,
+        "brush": true,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    }
+  ],
+  "serverBefore": {
+    "Id": 6872,
+    "WorkingSet64": 132374528,
+    "CPU": 1.53125
+  },
+  "serverAfter": {
+    "Id": 6872,
+    "WorkingSet64": 213901312,
+    "CPU": 15.515625
+  },
+  "errors": [],
+  "measurement": "Six-case final production-mode run after other CPU-heavy checks finished. Warm limits unchanged. Cold loading is separate, localhost timing is not hosted latency, touch is emulated, JS heap is not total process memory.",
+  "earlierDiagnostics": "Retained privately: initial full-library deep vector trees failed phone brush/export; brush-only and original-SVG-image-only attempts did not meet every pan/brush limit. Final bounded display cache retains original SVG export/deep zoom."
+}

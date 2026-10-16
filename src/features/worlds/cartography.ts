@@ -54,9 +54,10 @@ export function validateDrawings(drawings: MapDrawing[]) {
         if (new Set(keys).size !== keys.length) throw new Error("Choose each artwork revision only once in a painted asset set.");
         for (const ref of d.assetRefs) { const asset = islandAsset(ref); if (!asset.paint || asset.role !== "decoration" || asset.terrain !== d.kind) throw new Error("Choose paintable illustrations of this terrain kind."); }
       } else {
-        const asset = islandAsset(d.assetRef), kind = asset.kind === "tree" ? "pine" : asset.kind;
-        if (d.role !== asset.role || d.kind !== kind) throw new Error("The illustration's kind and place role come from its exact catalog revision.");
+        const asset = islandAsset(d.assetRef);
+        if (d.role !== asset.role || d.kind !== asset.legacySymbolKind) throw new Error("The illustration's kind and place role come from its exact catalog revision.");
         if (asset.role === "place" && d.geographyId === null) throw new Error("Link this settlement illustration to a persistent location.");
+        if (asset.role === "decoration" && d.geographyId !== null) throw new Error("Decorative illustrations cannot create or link a persistent place.");
       }
     }
     const points = drawingPoints(d); total += points.length;

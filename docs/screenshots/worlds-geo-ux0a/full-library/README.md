@@ -1,0 +1,19 @@
+# UX-0A fourteen-subject artwork review
+
+**Candidate, independent final review pending.** The exact feature SHA is supplied in Cody's GitHub review request. The [implementation/report index](../../../operations/worlds-atlas-ux0a-full-library.md) records technical evidence and preservation; the [14-subject catalog](../../../../public/cartography/serrian-atlas-island/1/catalog.json) and [provenance](../../../../public/cartography/serrian-atlas-island/1/PROVENANCE.md) identify every original revision.
+
+This expands the [approved third-study direction](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6217538817): muted original ink-and-wash, light paper/land, restrained blue water, natural stone/woodland colors and legible architectural silhouettes. It promotes rounded mountain r3, the genuinely different broadleaf grove r3/r4 footprints and city r2 without replacing initial saved pins. New subjects complete three mountains, two hills, four woodland subjects, four settlement markers and one wetland. Each subject supports its intended place/paint behavior; settlement markers retain persistent places and labels.
+
+Start with the actual website results:
+
+- **Manually drawn:** [original downloaded PNG](journeys/manual-visible.png), [600px composition](journeys/manual-600.png), [grayscale](journeys/manual-grayscale.png), [desktop](journeys/manual-desktop.png), [phone](journeys/manual-phone.png).
+- **Generated and revised:** [original downloaded PNG](journeys/generated-visible.png), [600px composition](journeys/generated-600.png), [grayscale](journeys/generated-grayscale.png), [desktop](journeys/generated-desktop.png), [phone](journeys/generated-phone.png).
+- **Native-pixel details:** [mountains](journeys/details/mountains.png), [hills/woodland](journeys/details/hills-and-woodland.png), [settlements/labels](journeys/details/settlements-and-labels.png), [castle/river](journeys/details/castle-and-river.png), [shore](journeys/details/coast.png).
+- **Unobscured phone canvas:** [manual](journeys/manual-phone-map.png), [manual zoom](journeys/manual-phone-detail.png), [generated](journeys/generated-phone-map.png), [generated zoom](journeys/generated-phone-detail.png).
+- **Subjects:** [board](asset-board.png), [grayscale board](asset-board-grayscale.png), [64/96px thumbnails](thumbnails), [original/shared rendering comparison](rendering/original-image-comparison.json).
+
+Both studies were created through Atlas, starting in separate zero-World databases. All fourteen subjects are placed and all ten decorative subjects are painted. The compositions separate the river, castle, settlement lettering and larger woodland groups; lighter seeded strokes show each brush subject. Geographic land supplies the shoreline and terrain clip. Original source/strokes remain editable after saves, reopening and a failed-save recovery. The generated export uses the source reader's Focus this source action; source labels are deliberately hidden for these downloads. The board is a study and does not substitute for these application journeys.
+
+Assess coherence at intended size, recognizable 64/96px silhouettes, print/grayscale readability, linework/shading, brush variation/clearings, coastline clipping and collisions between terrain, water, buildings and labels. A green technical suite or early direction approval does not establish the final artwork gate. Please identify concrete corrections if any subject or complete composition remains below the agreed UX-0A starter-library standard.
+
+These examples establish no permanent canon. Fourteen assets are the bounded first-island scope, not the definition of a complete professional 2D Studio. Detailed cities, era/ruin variants, materials and local-map libraries remain subject to the separately reviewed [2D-first proposal](../../../architecture/worlds-professional-2d-studio-proposal.md).

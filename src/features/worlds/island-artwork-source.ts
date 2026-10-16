@@ -1,4 +1,4 @@
-import {islandAsset,type AssetReference,type IslandAsset} from "./island-assets";
+import {islandAsset,assetReferenceSchema,type AssetReference,type IslandAsset} from "./island-assets";
 import type {MapDrawing} from "./cartography";
 
 export const artworkKey=(asset:IslandAsset)=>`${asset.libraryId}:${asset.libraryRevision}:${asset.id}:${asset.revision}:${asset.sourceSha256}`;
@@ -38,7 +38,24 @@ export function createIslandArtworkStore(load:(asset:IslandAsset)=>Promise<strin
  return {read,ensure,subscribe:(listener:()=>void)=>{listeners.add(listener);return()=>{listeners.delete(listener);};},version:()=>version};
 }
 export const islandArtwork=createIslandArtworkStore();
+const previewImages=new Map<string,string>();
+/** The former inline definitions have no viewport clip. Keep their fine edge strokes visible. */
+export function islandArtworkImageBounds(asset:IslandAsset){const [x,y,width,height]=asset.viewBox.split(" ").map(Number);return [x-32,y-32,width+64,height+64];}
+/** Rendering uses the same verified original as a shared isolated SVG image.
+ * Reusing its decoded image avoids a deep SVG use-tree for every terrain mark or symbol.
+ * Source pins and original vector artwork remain authoritative, including embedded exports. */
+export function islandArtworkImage(asset:IslandAsset):string|null{
+ const source=islandArtwork.read(asset);if(source.state!=="ready")return null;
+ const key=artworkKey(asset);let url=previewImages.get(key);
+ if(!url){url=`data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${islandArtworkImageBounds(asset).join(" ")}">${source.svg}</svg>`)}`;previewImages.set(key,url);}
+ return url;
+}
 export function islandDrawingReferences(drawings:readonly MapDrawing[]):AssetReference[]{
  const refs=new Map<string,AssetReference>();for(const drawing of drawings)if(drawing.version===2&&!drawing.archived){for(const reference of drawing.type==="symbol"?[drawing.assetRef]:drawing.assetRefs)refs.set(JSON.stringify(reference),reference);}return [...refs.values()];
 }
 export async function prepareIslandArtwork(references:readonly AssetReference[],retry=false){await Promise.all(references.map(ref=>islandArtwork.ensure(islandAsset(ref),retry)));}
+
+/** Only exact, already-verified original SVG images may cross the export image boundary. */
+export function verifiedIslandArtworkImage(reference:string|null,url:string){
+ try{const ref=assetReferenceSchema.parse(JSON.parse(reference??"null")),asset=islandAsset(ref);return islandArtwork.read(asset).state==="ready"&&islandArtworkImage(asset)===url;}catch{return false;}
+}

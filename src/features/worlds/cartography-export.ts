@@ -1,6 +1,7 @@
+import {verifiedIslandArtworkImage} from "./island-artwork-source";
 import {EXPORT_SVG_BYTES,mapExportLayout} from "./map-export-layout";
 export type MapExportOptions={visible?:boolean;credits?:string[];background?:string;beforeDownload?:()=>Promise<void>};
-// Browser-only derivative; only embedded raster pixels, no external asset URLs.
+// Browser-only derivative; embedded pixels or exact verified original artwork, never external image URLs.
 export async function exportMapPng(svg:SVGSVGElement,name:string,options:MapExportOptions={}) {
   const scene=svg.querySelector<SVGGElement>(options.visible?"[data-visible-export]":"[data-cartography-scene]");
   if(!scene)throw new Error("The map artwork is unavailable for export.");
@@ -11,7 +12,7 @@ export async function exportMapPng(svg:SVGSVGElement,name:string,options:MapExpo
   const properties=["fill","stroke","stroke-width","stroke-linecap","stroke-linejoin","stroke-dasharray","opacity","fill-opacity","stroke-opacity","font-family","font-size","font-weight","font-style","font-variant","letter-spacing","paint-order","vector-effect","fill-rule","clip-rule","text-anchor"];
   sourceNodes.forEach((node,i)=>{const computed=getComputedStyle(node);properties.forEach(property=>cloneNodes[i].style.setProperty(property,computed.getPropertyValue(property)));});
   clone.querySelectorAll("[data-export-omit]").forEach(node=>node.remove());
-  for(const image of clone.querySelectorAll("image"))if(!/^data:image\/(png|webp);base64,/.test(image.getAttribute("href")??""))throw new Error("An export image is unavailable or is not embedded. Retry its map layer before exporting.");
+  for(const image of clone.querySelectorAll("image"))if(!/^data:image\/(png|webp);base64,/.test(image.getAttribute("href")??"")&&!verifiedIslandArtworkImage(image.getAttribute("data-island-source"),image.getAttribute("href")??""))throw new Error("An export image is unavailable or is not embedded. Retry its map layer before exporting.");
   const layout=mapExportLayout(options.credits??[]),root=document.createElementNS("http://www.w3.org/2000/svg","svg");root.setAttribute("xmlns","http://www.w3.org/2000/svg");root.setAttribute("width","2000");root.setAttribute("height","1200");root.setAttribute("viewBox",options.visible?svg.getAttribute("viewBox")??"0 0 2000 1200":"0 0 2000 1200");root.append(clone);
   const source=new Blob([new XMLSerializer().serializeToString(root)],{type:"image/svg+xml;charset=utf-8"});if(source.size>EXPORT_SVG_BYTES)throw new Error("This map exceeds the bounded image-export size. Zoom closer or reduce visible layers; your editable draft is retained.");
   const url=URL.createObjectURL(source);let releaseImage=()=>{},releaseCanvas=()=>{};

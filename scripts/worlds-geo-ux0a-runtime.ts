@@ -8,16 +8,22 @@ import { ownedPool, ux0aEnvironment, UX0A_DIRECTORY,type Environment } from "./w
 
 export async function islandRuntime(target: "empty" | "compat", label: string, environment?:Environment) {
   const e = environment??await ux0aEnvironment(), pool = await ownedPool(e, target); await pool.end();
+  const checkoutName=process.env.SERRIAN_UX0A_CHECKOUT??"runtime-checkout";
+  assert.ok(["runtime-checkout","runtime-checkout-library"].includes(checkoutName));
   const base = `http://127.0.0.1:${e.appPort}`, log = createWriteStream(path.join(UX0A_DIRECTORY, `${label}-server.log`));
   const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(e.appPort)], {
-    cwd: path.join(UX0A_DIRECTORY, "runtime-checkout"), windowsHide: true,
+    cwd: path.join(UX0A_DIRECTORY, checkoutName), windowsHide: true,
     env: { ...process.env, NODE_ENV: "production", DATABASE_URL: e[target], SERRIAN_RASTER_ROOT: e.assetRoot, BETTER_AUTH_URL: base, BETTER_AUTH_SECRET: "UX0A-owned-disposable-auth-secret-only", SERRIAN_TEST_NEXT_DIST_DIR: ".next-geo-ux0a", NEXT_TELEMETRY_DISABLED: "1" }, stdio: ["ignore", "pipe", "pipe"],
   });
   server.stdout.pipe(log, { end: false }); server.stderr.pipe(log, { end: false });
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
   const close = async () => {
     if (browser) await browser.close();
-    if (server.pid && server.exitCode === null) execFileSync("taskkill", ["/pid", String(server.pid), "/t", "/f"], { windowsHide: true, stdio: "ignore" });
+    if (server.pid && server.exitCode === null) {
+      try { execFileSync("taskkill", ["/pid", String(server.pid), "/t", "/f"], { windowsHide: true, stdio: "ignore" }); }
+      catch { if(server.exitCode===null)server.kill(); } // Restricted Windows runners may deny taskkill's process-tree query.
+    }
+    if(server.exitCode===null)await new Promise<void>(resolve=>{const timer=setTimeout(resolve,3000);server.once("exit",()=>{clearTimeout(timer);resolve();});});
     log.end();
   };
   try {
