@@ -55,3 +55,22 @@ This **does not** grant approval to merge, deploy, edit shared DEV/Production, t
 - **Decision:** CORRECTIONS REQUIRED for **early art direction** only. Other authorized UX-0A technical implementation may continue; full 14-asset expansion remains blocked.
 - **Not reviewed/approved:** technical foundation commit `1aa5d87e1e1dc738fcc9a06a97effbdcf28ea49e` is Cody-reported progress, not Ember technical signoff; no owner app test, merge or deployment authorized.
 
+
+
+## 2026-10-16 — Third island art direction: APPROVED FOR BOUNDED EXPANSION
+
+- **Exact art checkpoint:** `f71c17023e79c88afaa18090104a25e3675ff813`; candidate image SHA-256 `bbd75f8e14c27654ed8290c978928eba476223928e16e7dcd0ca2683346bbcc0`.
+- **Independent decision and detailed conditions:** https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6217538817
+- **Actual evidence inspected:** full-size island PNG, reduced and grayscale maps, mountain/woodland/city closeups and their 96px artwork thumbnails; read third art brief.
+- **Result:** Enough material improvement in distinct woodland footprints/clearings, mountains, architecture, map composition, collision-free placement and source-faithful coast to approve **expansion in this direction** of the already authorized 14-asset UX-0A starter collection.
+- **Limit:** Not full library approval, professional output parity, completed UX-0A app/technical readiness, owner testing, merging or deployment. Judge all completed assets together on the actual browser-generated island, full/reduced exports, art consistency, 64/96px readability and deterministic editable scattering. Final illustrative quality remains an independently reviewed requirement.
+
+## 2026-10-16 — Hills / wetlands validator compatibility: CONDITIONAL ARCHITECTURAL APPROVAL
+
+- **Question:** https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6208217691
+- **Response:** https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6217551093
+- **Decision:** Per-asset, server-validated internal `legacySymbolKind` compatibility mapping under the pinned v2 catalog is acceptable inside existing UX-0A, *without rewriting 0132 or changing v1*. The exact `assetRef`, semantic role/family and persistent place semantics remain authoritative. Hill/wetland labels/filters/inspectors/exports must not leak legacy mountain/pine placeholders; additions need real tests for saved/displayed/preserved behavior. If any actual downstream semantic or history conflict exists, stop for a bounded amendment. This is design approval, **not independent code approval**.
+
+## Current implementation-review status
+
+- Latest examined reported implementation checkpoint: `d858c208d051c532dbdbb0900c0659b1f4bfeec8` on `codex/atlas-ux0a`, draft implementation PR #5. Its commit contents and Cody's test reports evidence substantial ongoing functionality, but **Ember has not yet completed the final full implementation review**; owner-testing readiness is **NOT APPROVED**.
