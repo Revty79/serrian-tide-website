@@ -1,0 +1,663 @@
+{
+  "fixture": "9a06db46-9d88-4634-9f59-7924f98797f6",
+  "scope": "Technical service-authored benchmark only. Retained three-subject catalog; not final art-approved library or beginner acceptance evidence.",
+  "map": {
+    "id": "9a06db46-9d88-4634-9f59-7924f98797f6",
+    "revision": 29,
+    "map_row_bytes": 1714,
+    "presentation_bytes": 460
+  },
+  "drawings": {
+    "count": 100,
+    "contentBytes": 50170,
+    "identitiesAndDigests": [
+      {
+        "id": "b1603a96-21f7-48db-8187-8abdd082d6c6",
+        "bytes": 628,
+        "digest": "ef7925290457799d6f4bdfedabf060cf"
+      },
+      {
+        "id": "03f86e80-c4f2-460a-991d-2cf5618d433c",
+        "bytes": 628,
+        "digest": "97c4b9ee8681a0102b4322650f5cdc96"
+      },
+      {
+        "id": "677acf88-765a-4071-aad6-56925c70bfdb",
+        "bytes": 628,
+        "digest": "824ffae8638e0d37d8f630407ef44876"
+      },
+      {
+        "id": "16439ff6-962f-456a-8357-2ae50c15fae4",
+        "bytes": 628,
+        "digest": "339b03475344724d8765531c4c2cc5b2"
+      },
+      {
+        "id": "71b50386-c274-4e71-a063-253c65f64729",
+        "bytes": 628,
+        "digest": "377537b0b674eca12b67111ed743822d"
+      },
+      {
+        "id": "d34803aa-f8e7-46a0-8cdb-d658993ffd9f",
+        "bytes": 628,
+        "digest": "2f95315277bceafd90076fff9276d9e3"
+      },
+      {
+        "id": "1e8877e3-8b7e-4fb9-9155-b3de28094608",
+        "bytes": 628,
+        "digest": "fa1e5a517e742c1029614b78e751aa2a"
+      },
+      {
+        "id": "2ae752af-e7c2-4f5b-8e35-4ae1f79009f3",
+        "bytes": 628,
+        "digest": "e252a4ae608fc2b77b38079762288037"
+      },
+      {
+        "id": "e421d868-0e69-4d45-901a-b44a2c5418f7",
+        "bytes": 628,
+        "digest": "82d87abd26dce5485461d126514dbf89"
+      },
+      {
+        "id": "51a58fb8-424d-4ecd-9692-21650182c611",
+        "bytes": 628,
+        "digest": "2d42f81fdd6fba57f0120b58393a56f0"
+      },
+      {
+        "id": "858f3135-2cf1-47be-ac3c-b45532951562",
+        "bytes": 628,
+        "digest": "110449a44b07af95a9f12df8333bd231"
+      },
+      {
+        "id": "dd7798b2-ea57-4146-a24c-f92ed84a9cd1",
+        "bytes": 628,
+        "digest": "e64b7469aa734602b620b64f77c96eda"
+      },
+      {
+        "id": "8d3f36f0-4fd2-491e-bd5e-85891ed25b18",
+        "bytes": 628,
+        "digest": "a88610e69443b227df961dd133215ad3"
+      },
+      {
+        "id": "46e3785d-da93-4318-b867-f19be0b5b597",
+        "bytes": 628,
+        "digest": "8ccf2d4f18b6affb2786f79cb964d556"
+      },
+      {
+        "id": "d7550ffa-173c-4f6a-8095-a229e0b9f26d",
+        "bytes": 628,
+        "digest": "f468dddde8965a6d68b1161fb0dbeaa4"
+      },
+      {
+        "id": "35dba5e1-20d2-4420-96d8-4537adcf7208",
+        "bytes": 628,
+        "digest": "ae24b45b26138284fcf09b1cdbfd3684"
+      },
+      {
+        "id": "1407859b-d5e7-456c-8c0e-afa32114034c",
+        "bytes": 628,
+        "digest": "923e2b5f297ac8bad48b57b845893598"
+      },
+      {
+        "id": "f4674fc6-a754-4595-9286-94ffe425e0fc",
+        "bytes": 628,
+        "digest": "e2f0a19659035130b2abbf29d267bdf4"
+      },
+      {
+        "id": "7fb0d516-f050-4774-9603-3bee08906929",
+        "bytes": 628,
+        "digest": "84361871fada74862d46087b4d3b0d4f"
+      },
+      {
+        "id": "c599e677-cde8-4831-b0f4-365e056e1ece",
+        "bytes": 628,
+        "digest": "08030a718b21dc51a095bc5d0afe83d3"
+      },
+      {
+        "id": "f714487c-9112-4292-838e-360485ac2b9e",
+        "bytes": 470,
+        "digest": "caa5de345470c76f2d7640b3add2e031"
+      },
+      {
+        "id": "3e158575-c169-4d4f-85a0-aa48a6b73765",
+        "bytes": 470,
+        "digest": "21784f7ded624669c51d28c58bb1019c"
+      },
+      {
+        "id": "22c6f50f-5bf8-4a4e-bce3-46dc4cd1e074",
+        "bytes": 470,
+        "digest": "0050148f541ac406c09f311b2e0c3b80"
+      },
+      {
+        "id": "bd79daf1-ee30-4c27-9de0-6af0511dfa56",
+        "bytes": 470,
+        "digest": "36333ca83b0be504f900bfa94596df64"
+      },
+      {
+        "id": "3c491980-21bd-479b-84ce-29ff43c6e3f0",
+        "bytes": 470,
+        "digest": "9380cd83fb858ecaa8383b07efb49de9"
+      },
+      {
+        "id": "b753fb0d-75cb-4739-a3dd-d4811cde746b",
+        "bytes": 470,
+        "digest": "c3b2ba5bda2a1458749481fb358fa3a9"
+      },
+      {
+        "id": "7b95b483-1b38-448e-b4c0-5562fbe43fb9",
+        "bytes": 470,
+        "digest": "0e50ef625eab49667d78aa32fe73fe37"
+      },
+      {
+        "id": "c1f6e9c4-49d0-48d8-9ade-695c8140a5ac",
+        "bytes": 470,
+        "digest": "a9a3eab3bcd641f767e20ae7477cd3d4"
+      },
+      {
+        "id": "9a06b9ff-3ea0-4c72-b18d-f40408400352",
+        "bytes": 470,
+        "digest": "1702e60ee1577e00d447b96d812e69ba"
+      },
+      {
+        "id": "52d146e6-5fb0-4bb0-b0af-102cac5bb50e",
+        "bytes": 470,
+        "digest": "5e587e51463d6745ea5ecd00df7e6ed0"
+      },
+      {
+        "id": "04cf498b-5e44-43ab-bb31-7293ac7b047a",
+        "bytes": 470,
+        "digest": "70ee385f4750074004a71d8e35564069"
+      },
+      {
+        "id": "16450f08-1561-444c-bef2-56386a3adafd",
+        "bytes": 470,
+        "digest": "c62767c87a728abf21e0cecb89335950"
+      },
+      {
+        "id": "2baf183f-304e-4605-8ef9-b413fc39cbe7",
+        "bytes": 470,
+        "digest": "90953df1dfd29bed0801c371af4cb1a0"
+      },
+      {
+        "id": "5c9abb91-6909-4d68-965c-6dedd3895635",
+        "bytes": 470,
+        "digest": "0832baade723adc311065b5a1c834b4c"
+      },
+      {
+        "id": "82f705be-e9c2-409e-81cb-24ee487f9675",
+        "bytes": 470,
+        "digest": "26ca070e251c1f823449ad85d12062cf"
+      },
+      {
+        "id": "e1bea9ca-3aa1-41c1-986c-cedc059c7d28",
+        "bytes": 470,
+        "digest": "6cddc4cfb33367f81ab159a04391b03f"
+      },
+      {
+        "id": "bd1fce04-c9f5-4a1d-9794-c82d70caebb3",
+        "bytes": 470,
+        "digest": "52e93cc1944770cdc85b2592e0c1413d"
+      },
+      {
+        "id": "7c69b625-fdd4-4465-92bb-7194ed567957",
+        "bytes": 470,
+        "digest": "fc1ba8fefa5e7bf1715c917c2203316f"
+      },
+      {
+        "id": "82b7fb0a-e763-4b6d-9a8c-5c8de834442d",
+        "bytes": 470,
+        "digest": "03a94fc034cb10400b521ff544fe6cbe"
+      },
+      {
+        "id": "1b495aed-38fa-41af-a30e-92616a30e028",
+        "bytes": 470,
+        "digest": "4785f6c45d2065611c3d752f3981ced4"
+      },
+      {
+        "id": "91cf9b7a-c252-43e8-b4ee-96f81fc4f52a",
+        "bytes": 470,
+        "digest": "56e4d736726de6c308e9bc9b08f5b98d"
+      },
+      {
+        "id": "da29a43a-781f-4050-abf7-5f5aeea87b94",
+        "bytes": 470,
+        "digest": "9ff7365e13267dd94a39fd51efbd0cab"
+      },
+      {
+        "id": "758a7bb3-17a0-4215-bdd2-f5192892ad0c",
+        "bytes": 470,
+        "digest": "69bac68e6dba52c88ac773d39aa04326"
+      },
+      {
+        "id": "77546dd2-5c93-4819-94ad-b3cb9690d302",
+        "bytes": 470,
+        "digest": "bd83446173f26e5625b3cf8990e582d9"
+      },
+      {
+        "id": "1693350d-4c14-491c-8f8f-565c0d9009e9",
+        "bytes": 470,
+        "digest": "357c3fbbe73b68048ec9d7120c78fb0a"
+      },
+      {
+        "id": "655e1006-c505-4926-9a63-902aa1c746a7",
+        "bytes": 470,
+        "digest": "2287c5c11689f7aebff021020090e749"
+      },
+      {
+        "id": "d68dba0a-f405-46e5-b27a-944730b80f6c",
+        "bytes": 470,
+        "digest": "fdc2a5d2c66fd5522eed51d74ff2954c"
+      },
+      {
+        "id": "ce6bf0db-a034-4110-9cae-d70b68c2e76b",
+        "bytes": 470,
+        "digest": "71991e06b577b854bd089e727614acf1"
+      },
+      {
+        "id": "7f4691e8-c365-4de4-943c-2711e0afc1e7",
+        "bytes": 470,
+        "digest": "cbd403274bf0b5b590f7bbf87ade6e83"
+      },
+      {
+        "id": "c42dbaf0-c337-453e-8c26-99669ab421b8",
+        "bytes": 470,
+        "digest": "846a52ca8608d41f6d73136a906c7ab1"
+      },
+      {
+        "id": "f2d7ba44-5e60-4238-b6c3-f108de49108e",
+        "bytes": 470,
+        "digest": "424f1c898356e824190b82a9f9a57e07"
+      },
+      {
+        "id": "ba468f47-3afd-4ed6-8f3f-9ac8a5bf541d",
+        "bytes": 470,
+        "digest": "aa3cb0f8a3a82130fde83996014411b5"
+      },
+      {
+        "id": "3b361758-b16d-4dd3-86ca-c2373515e544",
+        "bytes": 470,
+        "digest": "bb5b9203ea154b7acb5cc57219bc8ba5"
+      },
+      {
+        "id": "13154d5b-e148-4d96-983b-cd3f81532356",
+        "bytes": 470,
+        "digest": "49d436e888b4f3cb65c40b41b847ce17"
+      },
+      {
+        "id": "00bb4ac7-2065-4a94-9c6b-71d2c5c0cba8",
+        "bytes": 470,
+        "digest": "01e0c81a8847f35d737d3234228ff0be"
+      },
+      {
+        "id": "be7a64a8-1572-449c-8c21-9ad6b0fb6b97",
+        "bytes": 470,
+        "digest": "dc3283a29f82ac514314c4fe928b5a65"
+      },
+      {
+        "id": "60e8f06a-7c36-4f9e-9145-bc213c3699a0",
+        "bytes": 470,
+        "digest": "040a93941a4f55f0ece52802ebc5e4d8"
+      },
+      {
+        "id": "c618c05e-9ae7-4199-9157-a029502d43e3",
+        "bytes": 470,
+        "digest": "e718cc710b6ebecbe31d57f21b21e4e1"
+      },
+      {
+        "id": "33a3535d-a393-4214-86cb-d7453d1f8091",
+        "bytes": 470,
+        "digest": "bfd88b649246dcfb099d4be2a6075719"
+      },
+      {
+        "id": "54542c54-a870-4214-853c-136930d06cc6",
+        "bytes": 470,
+        "digest": "b6fdbb13d7e6dbc2d786a46e0310f6aa"
+      },
+      {
+        "id": "92d9a154-24c6-4221-b1e0-b78a8fb8a412",
+        "bytes": 470,
+        "digest": "3e968bf64b49e4ec7737ce57e3b1c676"
+      },
+      {
+        "id": "040cff88-a54a-4c74-8cae-deb028a25db9",
+        "bytes": 470,
+        "digest": "fad00cec3b5fbbaf8b3bd6ff031d76c0"
+      },
+      {
+        "id": "e7e5f393-4eb2-4f78-9e8b-2e0fc0f2801f",
+        "bytes": 470,
+        "digest": "ad0dc6d0f2ab94493019cf9caab82730"
+      },
+      {
+        "id": "f13efbe4-5001-4e75-8e9b-de3c2d256e13",
+        "bytes": 470,
+        "digest": "35db1b66aae22b75e7a8d77335baac00"
+      },
+      {
+        "id": "10f85d85-b9b9-4bf6-ba87-7f968430fa47",
+        "bytes": 470,
+        "digest": "347161fff7b511f1e7aeefb313a2583c"
+      },
+      {
+        "id": "c2c8dd02-0574-4bf3-b022-9f6b3f0f1d72",
+        "bytes": 470,
+        "digest": "6562dba85408bdf529352f2c444a6dc2"
+      },
+      {
+        "id": "3246c5d9-ebdc-4a4b-a8df-18b126f539ff",
+        "bytes": 470,
+        "digest": "291021eb3279dcf7ad5626300030697b"
+      },
+      {
+        "id": "33acabad-369d-453f-8017-d24c9bc84c83",
+        "bytes": 470,
+        "digest": "b331c4e6c7bdd9402e93ff3750875a4c"
+      },
+      {
+        "id": "f46f5636-1706-4678-b0ad-f10c8496b784",
+        "bytes": 470,
+        "digest": "0b8b8b4cb43e03adda0bea0922da11d9"
+      },
+      {
+        "id": "b87751a0-a913-44c8-ad61-b1e0ebe5e188",
+        "bytes": 470,
+        "digest": "2be9ad6cd52dc0591a275b8e81b45d95"
+      },
+      {
+        "id": "1722763c-fb7f-4bab-9e1c-2df4a9d7d10f",
+        "bytes": 470,
+        "digest": "11ea1c1bd22bce80dd6f87a70db9ae93"
+      },
+      {
+        "id": "2271f41b-4046-410b-9b46-5351c7c4e98d",
+        "bytes": 470,
+        "digest": "6bfa5096d76a63f3ede3be6cd556d2f1"
+      },
+      {
+        "id": "bac5ff96-55a5-4ca9-b5fa-3f4ec801566a",
+        "bytes": 470,
+        "digest": "50230a2c3464af09687f3099508ad9c3"
+      },
+      {
+        "id": "a07a61c9-7741-45bb-8a4b-9058263b479b",
+        "bytes": 470,
+        "digest": "c53b240c39e13c64674812d2af9081e1"
+      },
+      {
+        "id": "3feb3670-52d0-438c-aae5-79ed3d4e9af0",
+        "bytes": 470,
+        "digest": "6608fd99171e067a375b10034dc68bdc"
+      },
+      {
+        "id": "3737562e-0039-45ab-b5f4-86b8073b5cd2",
+        "bytes": 470,
+        "digest": "dcc37a3488277b129485bb7ebf85a2f9"
+      },
+      {
+        "id": "ec328fa0-b11f-49d0-8380-4561b09ad327",
+        "bytes": 470,
+        "digest": "c346b35c346bde3d421e1da5d2b9830a"
+      },
+      {
+        "id": "b7fcada7-cde7-4cad-848a-fb674bd54a73",
+        "bytes": 470,
+        "digest": "b25b9a849156eef8ca84904047003026"
+      },
+      {
+        "id": "2c5464f3-7d6b-4980-ad09-0958252765fe",
+        "bytes": 470,
+        "digest": "2727c70fd278a8544ab5723fbd7a93b3"
+      },
+      {
+        "id": "a265f97a-2c4a-42c2-8cd4-1c019b0a19b5",
+        "bytes": 470,
+        "digest": "20f7c0e1d9b9768bb03db7ba4b019505"
+      },
+      {
+        "id": "3385043a-afaa-4b0a-846b-1706903f8f37",
+        "bytes": 470,
+        "digest": "8da99edae4f91b2f958fb4566adfb56c"
+      },
+      {
+        "id": "c4cd1cb8-d74d-42b5-b3e5-d4655be66664",
+        "bytes": 470,
+        "digest": "8d94cb31d7c4762cb6b691b05cc299d4"
+      },
+      {
+        "id": "ffd361d3-6ca1-4b65-bf56-11925e207204",
+        "bytes": 470,
+        "digest": "95c78d16a7ef9fa4e8ec2c82ca203e38"
+      },
+      {
+        "id": "ac6a3bc5-626b-4088-a95a-830fa7fd3e0d",
+        "bytes": 470,
+        "digest": "32b24372fb1ed1f5c6a51b35062d6118"
+      },
+      {
+        "id": "f832098f-cc80-4bbc-a01e-4679efca0cf0",
+        "bytes": 470,
+        "digest": "f521f60ba439db1e7eba4aaf1b812716"
+      },
+      {
+        "id": "4eb0beac-9134-408c-9c08-824f9fb38d1c",
+        "bytes": 470,
+        "digest": "945116d042dca444ca4f2ca292c6e4bc"
+      },
+      {
+        "id": "c4ca2fc9-4dfd-4bb9-af59-0d561344670f",
+        "bytes": 470,
+        "digest": "b0e0c73b23ca9dcd16e4e620e5af83fa"
+      },
+      {
+        "id": "f64e1db3-1788-4279-94e1-6decc8331551",
+        "bytes": 470,
+        "digest": "e62d4ec09ce1f78fe4aa2a3b48efa767"
+      },
+      {
+        "id": "b66e15db-468a-450d-a567-350edb61028e",
+        "bytes": 470,
+        "digest": "568e2974975bb75e7e4face80de38419"
+      },
+      {
+        "id": "b42ebb24-640f-42a5-bc1d-845579028ac0",
+        "bytes": 470,
+        "digest": "12188644254cea825e247e0c76bf9da5"
+      },
+      {
+        "id": "d6ce99cf-1fb4-41a2-b4e0-213381fe4964",
+        "bytes": 470,
+        "digest": "f8b3382db3f3e0e94583039d5c96a678"
+      },
+      {
+        "id": "16d088a9-23be-4012-8c70-8c10d46c5d7d",
+        "bytes": 470,
+        "digest": "4e536c7c090c07bfcffedb8011108445"
+      },
+      {
+        "id": "bf670cc2-3db7-4168-9c8b-fd7ccd61aeec",
+        "bytes": 470,
+        "digest": "35cd09b9a975ef024c4ec3de813bdc53"
+      },
+      {
+        "id": "b5e1a963-c276-40b5-ba30-14e7aed7e601",
+        "bytes": 470,
+        "digest": "4175c4dd2b60fe9d109e4c0c25e3d93d"
+      },
+      {
+        "id": "66aa8860-9d1c-44eb-a401-4aeeeb4e3c8e",
+        "bytes": 470,
+        "digest": "dbabb59e58ac6b824eededafa8fec332"
+      },
+      {
+        "id": "21840c47-4e18-4893-903d-3790033ec46e",
+        "bytes": 470,
+        "digest": "b314a6500d710e153f920447e50c9e3e"
+      },
+      {
+        "id": "091542a6-ec7e-48e5-a9a8-ca09dea4ce0e",
+        "bytes": 470,
+        "digest": "2d81f6fb5ca44a67a0ff4ecbefd90056"
+      },
+      {
+        "id": "18e0dc99-2ec4-4cb8-b8c8-f21070d18f04",
+        "bytes": 584,
+        "digest": "a2e13fedfcb9e4749803797d72d1688a"
+      },
+      {
+        "id": "46cbfd06-4982-418d-8b33-c314b7834867",
+        "bytes": 494,
+        "digest": "487af5079a58b81f35ac99c9bf36ea71"
+      },
+      {
+        "id": "319f69ff-3b26-4bb7-862e-1435c4dfef02",
+        "bytes": 342,
+        "digest": "3559ab38ab94f253c6fda4fa909514f9"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "feature_id": "029f516b-412c-467a-bd03-93717bde3882",
+      "id": "5777afc1-0787-445b-8cc0-2c2fa0b56757",
+      "revision": 1,
+      "geometry_bytes": 220,
+      "geometry_digest": "dc7090d10dc8bada89dd171cb36d7f84"
+    },
+    {
+      "feature_id": "1e136fc4-97df-46bb-b615-4b2a5c0b0cfe",
+      "id": "2d4b26e0-6875-4b0f-989b-3b3bda425861",
+      "revision": 1,
+      "geometry_bytes": 220,
+      "geometry_digest": "024c3ceae30223df0b3a94653bd74826"
+    },
+    {
+      "feature_id": "1e136fc4-97df-46bb-b615-4b2a5c0b0cfe",
+      "id": "0e25209c-d471-4bea-8e24-b06e3f4c460c",
+      "revision": 2,
+      "geometry_bytes": 220,
+      "geometry_digest": "024c3ceae30223df0b3a94653bd74826"
+    },
+    {
+      "feature_id": "1e136fc4-97df-46bb-b615-4b2a5c0b0cfe",
+      "id": "4a493f43-6d5b-443c-b58d-4b55ec786472",
+      "revision": 3,
+      "geometry_bytes": 220,
+      "geometry_digest": "024c3ceae30223df0b3a94653bd74826"
+    },
+    {
+      "feature_id": "1e136fc4-97df-46bb-b615-4b2a5c0b0cfe",
+      "id": "83476031-f696-4257-9393-370367983465",
+      "revision": 4,
+      "geometry_bytes": 220,
+      "geometry_digest": "024c3ceae30223df0b3a94653bd74826"
+    },
+    {
+      "feature_id": "1e136fc4-97df-46bb-b615-4b2a5c0b0cfe",
+      "id": "d82558c3-e41f-4915-b86b-4f38acb77e31",
+      "revision": 5,
+      "geometry_bytes": 220,
+      "geometry_digest": "024c3ceae30223df0b3a94653bd74826"
+    },
+    {
+      "feature_id": "6dee3139-f3b1-48ac-b21a-87f2fd2a4725",
+      "id": "f2b9ef9e-5af0-410d-b5db-e19f4d70ee46",
+      "revision": 1,
+      "geometry_bytes": 388,
+      "geometry_digest": "16f0d89efba14cff9a8e545c5dd001c7"
+    },
+    {
+      "feature_id": "a20febad-b1e3-4dcf-9193-864b0db6a9fd",
+      "id": "948841e2-d93d-407d-b8f3-70cda4165c01",
+      "revision": 1,
+      "geometry_bytes": 220,
+      "geometry_digest": "1c7b673135228f1b48af6c7fb8ca86bf"
+    }
+  ],
+  "history": {
+    "versions": 0,
+    "payload_bytes": 0
+  },
+  "library": {
+    "runtimeAssets": [
+      {
+        "id": "mountain-rounded",
+        "revision": 1,
+        "file": "mountain-rounded-1.svg",
+        "bytes": 1390,
+        "gzipBytes": 692,
+        "sha256": "b35dc7f986aeae7370aa73bcdfd5c3103cb24332602ca537acc07a5002825d2f"
+      },
+      {
+        "id": "woodland-broadleaf-grove",
+        "revision": 1,
+        "file": "woodland-broadleaf-grove-1.svg",
+        "bytes": 1775,
+        "gzipBytes": 806,
+        "sha256": "b77079ded0f016187637172d5091237f0c30d5339c00e52a77d057a927d6ea4f"
+      },
+      {
+        "id": "settlement-city",
+        "revision": 1,
+        "file": "settlement-city-1.svg",
+        "bytes": 2223,
+        "gzipBytes": 939,
+        "sha256": "ff9d52bbf121c9ba3c124979347637b81b9fe3e78f8c41169a62c64b25ce7701"
+      }
+    ],
+    "pinnedSvgGzipBytes": 2437,
+    "catalogJsonBytes": 3137,
+    "generatedCatalogModuleBytes": 2884,
+    "generatedCatalogModuleGzipBytes": 851,
+    "retainedOriginals": [
+      {
+        "file": "mountain-rounded-1.svg",
+        "bytes": 1390,
+        "sha256": "b35dc7f986aeae7370aa73bcdfd5c3103cb24332602ca537acc07a5002825d2f"
+      },
+      {
+        "file": "mountain-rounded-2.svg",
+        "bytes": 19075,
+        "sha256": "9c3c2173f20ab253f014c5eea2b5147531c10f107d6a1c2fa6c2dee6aff335d3"
+      },
+      {
+        "file": "mountain-rounded-3.svg",
+        "bytes": 19541,
+        "sha256": "b35bf4b55d23314a4a608a0186a6e5c1f236d7c8944c8332c080cf567930552c"
+      },
+      {
+        "file": "settlement-city-1.svg",
+        "bytes": 2223,
+        "sha256": "ff9d52bbf121c9ba3c124979347637b81b9fe3e78f8c41169a62c64b25ce7701"
+      },
+      {
+        "file": "settlement-city-2.svg",
+        "bytes": 10431,
+        "sha256": "411a30eccc21769836d115cf997427bdfafe3e58c3d8bc21b3e43f04a8af0a62"
+      },
+      {
+        "file": "woodland-broadleaf-grove-1.svg",
+        "bytes": 1775,
+        "sha256": "b77079ded0f016187637172d5091237f0c30d5339c00e52a77d057a927d6ea4f"
+      },
+      {
+        "file": "woodland-broadleaf-grove-2.svg",
+        "bytes": 26246,
+        "sha256": "153bdb2a7f77baba8bcc72fec43e26c3f9bd09dc3fb1a4db467fb39a6532ff9d"
+      },
+      {
+        "file": "woodland-broadleaf-grove-3.svg",
+        "bytes": 82251,
+        "sha256": "4c59aced78c5ad6d441a3315bed649cf7fdacdafce49bb1702e9cc46ac7e2c9e"
+      },
+      {
+        "file": "woodland-broadleaf-grove-4.svg",
+        "bytes": 62283,
+        "sha256": "31b54d8848ee23ac843cad4a7c1d1798a3a54130fceb556dee562c3d6d6fad36"
+      }
+    ],
+    "limitation": "Three retained revision-1 runtime assets only. Revised studies are retained files, not promoted. Final 12-16-asset/lazy-material transfer gate remains pending art approval and expansion."
+  },
+  "limits": {
+    "drawings512And513Rejection": true,
+    "marks6000And6075Rejection": true,
+    "points16384And16386Rejection": true
+  }
+}

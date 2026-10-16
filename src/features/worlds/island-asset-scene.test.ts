@@ -8,6 +8,8 @@ import { assetReference, islandAssets } from "./island-assets";
 import { CartographyScene } from "./cartography-scene";
 import { defaultPresentation, type MapDrawing, type TerrainDrawing } from "./cartography";
 import type { MapDraft } from "./atlas";
+import {readFile} from "node:fs/promises";
+import {islandArtwork} from "./island-artwork-source";
 
 const mountain = islandAssets.find(a => a.id === "mountain-rounded")!, city = islandAssets.find(a => a.id === "settlement-city")!;
 const terrain = (): Extract<TerrainDrawing, { version: 2 }> => ({ version: 2, type: "terrain", id: randomUUID(), name: "Illustrated mountains", kind: "mountains", archived: false, geographyId: null, points: [{ id: randomUUID(), x: 400, y: 300 }, { id: randomUUID(), x: 700, y: 450 }], radius: 60, spacing: 70, density: 2, seed: 425, assetRefs: [assetReference(mountain)] });
@@ -16,12 +18,14 @@ function render(drawings: MapDrawing[]) {
   const draft: MapDraft = { name: "Retained artwork", description: "", scope: "regional", features: [], geographies: [], drawings, presentation: defaultPresentation() };
   return renderToStaticMarkup(createElement("svg", { xmlns: "http://www.w3.org/2000/svg" }, createElement(CartographyScene, { draft, id: "proof", editable: false })));
 }
-test("v2 rendering embeds one exact vector definition per reference and uses it for every retained drawing", () => {
+test("v2 rendering embeds one exact vector definition per reference and uses it for every retained drawing", async t => {
+  t.mock.method(globalThis,"fetch",async(input:RequestInfo|URL)=>new Response(await readFile(`public${String(input)}`,"utf8")));
+  for(const asset of [mountain,city])await islandArtwork.ensure(asset);
   const first = symbol(), second = { ...first, id: randomUUID() }, markup = render([first, second, terrain()]);
   assert.equal((markup.match(/id="proof-asset-serrian-atlas-island-1-settlement-city-1"/g) ?? []).length, 1);
   assert.equal((markup.match(/href="#proof-asset-serrian-atlas-island-1-settlement-city-1"/g) ?? []).length, 2);
   assert.ok(markup.includes('data-asset-revision="mountain-rounded:1"'));
-  assert.ok(markup.includes(mountain.svg));
+  assert.ok(markup.includes(islandArtwork.read(mountain).svg!));
   assert.ok(markup.includes('data-illustrated-terrain="true"'));
   assert.ok(!/href="#proof-mountains-\d/.test(markup));
 });

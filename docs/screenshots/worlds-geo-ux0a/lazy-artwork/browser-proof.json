@@ -1,0 +1,32 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "scope": "Current three-subject exact-source loading only. No art promotion/expansion or final full-library acceptance.",
+  "emptyMapSourceFetches": 0,
+  "usedMapSourceFetches": [
+    "/cartography/serrian-atlas-island/1/mountain-rounded-1.svg"
+  ],
+  "unusedSubjectsFetched": 0,
+  "oneDefinitionForTwoDrawings": true,
+  "liveCanvasStonePixels": 3147,
+  "inlineOriginalVectorBodiesInPageJavaScript": false,
+  "requestedScriptGzipBytes": 1225530,
+  "corruptRevision": {
+    "firstAttemptRejected": true,
+    "noAutomaticRetry": true,
+    "exportBlockedWithoutDownload": true,
+    "explicitRetryAttempts": 2,
+    "unappliedTitleRetained": true,
+    "worldWrites": []
+  },
+  "retainedMapSha256": "3282ef76aafa7157f5b246247078fd2e34e0f725a67a7a4668c7336168861ce1",
+  "stress": {
+    "bitmaps": 20,
+    "retainedMarks": 1500,
+    "visiblePng": true,
+    "terrainCachesRetainedAcrossDelayedCityLoad": true
+  },
+  "errors": [],
+  "exportsByteIdentical": true,
+  "exportSha256": "fb68707ffc08481a82c3331478742976a4215542b8cda19e79abae898a407778"
+}

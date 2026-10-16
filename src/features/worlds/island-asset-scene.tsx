@@ -4,24 +4,32 @@ import { strokeSamples } from "./cartography";
 import { islandAsset, type AssetReference } from "./island-assets";
 import type { AtlasGeographicFrame } from "./atlas-geographic-frame";
 import { MAP_WIDTH, MAP_HEIGHT } from "./atlas-coordinates";
+import {islandArtwork,islandDrawingReferences} from "./island-artwork-source";
+import {useIslandArtwork} from "./island-artwork-loading";
 
 export const assetDefinitionId = (prefix: string, ref: AssetReference) => `${prefix}-asset-${ref.libraryId}-${ref.libraryRevision}-${ref.assetId}-${ref.assetRevision}`;
 function availableAsset(reference: AssetReference) { try { return islandAsset(reference); } catch { return null; } }
 const AssetDefinition=memo(function AssetDefinition({id,revision,svg}:{id:string;revision:string;svg:string}){
   return <g id={id} data-asset-revision={revision} dangerouslySetInnerHTML={{__html:svg}}/>;
 });
-export function IslandAssetDefinitions({ drawings, prefix }: { drawings: MapDrawing[]; prefix: string }) {
-  const refs = new Map(drawings.filter(d => d.version === 2 && !d.archived).flatMap(d => d.version === 2 ? (d.type === "symbol" ? [d.assetRef] : d.assetRefs).map(ref => [assetDefinitionId(prefix, ref), ref] as const) : []));
+const AssetDefinitions=memo(function AssetDefinitions({references,prefix}:{references:AssetReference[];prefix:string}){
+  useIslandArtwork(references);
+  const refs = new Map(references.map(ref=>[assetDefinitionId(prefix,ref),ref]));
   return <>{[...refs].map(([id, ref]) => {
     const asset = availableAsset(ref);
-    return asset ? <AssetDefinition key={id} id={id} revision={`${asset.id}:${asset.revision}`} svg={asset.svg}/> : null;
+    const source=asset?islandArtwork.read(asset):null;
+    return asset&&source?.state==="ready" ? <AssetDefinition key={id} id={id} revision={`${asset.id}:${asset.revision}`} svg={source.svg!}/> : null;
   })}</>;
+},(previous,next)=>previous.prefix===next.prefix&&JSON.stringify(previous.references)===JSON.stringify(next.references));
+export function IslandAssetDefinitions({ drawings, prefix }: { drawings: MapDrawing[]; prefix: string }) {
+  return <AssetDefinitions references={islandDrawingReferences(drawings)} prefix={prefix}/>;
 }
 export function MissingIslandArtwork({ x, y }: { x: number; y: number }) {
   return <g data-missing-artwork><text x={x} y={y} fontSize={18} fill="var(--st-warning)" stroke="var(--st-surface)" strokeWidth={1} paintOrder="stroke">Illustration unavailable</text><title>The exact saved illustration revision is missing. Its reference and editable source are retained; restore the matching artwork release.</title></g>;
 }
 export function IslandAssetUse({ reference, prefix }: { reference: AssetReference; prefix: string }) {
-  return availableAsset(reference) ? <use href={`#${assetDefinitionId(prefix, reference)}`} /> : <MissingIslandArtwork x={0} y={0} />;
+  const asset=availableAsset(reference);
+  return !asset?<MissingIslandArtwork x={0} y={0}/>:islandArtwork.read(asset).state==="ready"?<use href={`#${assetDefinitionId(prefix, reference)}`}/>:null;
 }
 export function assetTerrainMarks(drawing: Extract<TerrainDrawing, { version: 2 }>) {
   let state = drawing.seed >>> 0;
@@ -37,6 +45,7 @@ export function IslandTerrainArt({ drawing, original, frame, prefix }: { drawing
   const source = original?.version === 2 ? original : drawing;
   const result = useMemo(() => { try { return { marks: assetTerrainMarks(source), missing: false }; } catch { return { marks: [], missing: true }; } }, [source]);
   if (result.missing) return <MissingIslandArtwork x={drawing.points[0].x} y={drawing.points[0].y} />;
+  if(!source.assetRefs.every(reference=>islandArtwork.read(islandAsset(reference)).state==="ready"))return null;
   return <g data-terrain-source data-illustrated-terrain pointerEvents="none">{result.marks.filter(mark => !frame || mark.x >= 0 && mark.x <= MAP_WIDTH && mark.y >= 0 && mark.y <= MAP_HEIGHT).map(mark => {
     const point = frame?.project(mark) ?? mark, scale = mark.scale * (frame?.scaleAt(mark) ?? 1);
     return <use key={mark.key} data-terrain-mark href={`#${assetDefinitionId(prefix, mark.reference)}`} transform={`translate(${point.x} ${point.y}) rotate(${mark.rotation}) scale(${scale})`} />;

@@ -10,7 +10,9 @@ import { terrainBitmap } from "./cartography-raster";
 import {createAtlasDraftProjector,projectedAtlasDraft,type AtlasGeographicFrame} from "./atlas-geographic-frame";
 import styles from "./cartography.module.css";
 import { IslandAssetDefinitions, IslandAssetUse, IslandTerrainArt } from "./island-asset-scene";
-import { isIslandStyle } from "./island-assets";
+import { isIslandStyle,islandAsset } from "./island-assets";
+import {islandDrawingReferences,islandArtwork} from "./island-artwork-source";
+import {IslandArtworkLoading,useIslandArtwork} from "./island-artwork-loading";
 import type { GeographicLandMask } from "./geographic-land-mask";
 import { GeographicLandMaskScene } from "./geographic-land-mask-scene";
 
@@ -43,6 +45,10 @@ const TerrainArt=memo(function TerrainArt({drawing,prefix,original,frame}:{drawi
     {marks.filter(m=>!frame||m.x>=0&&m.x<=MAP_WIDTH&&m.y>=0&&m.y<=MAP_HEIGHT).map(mark=>{const p=frame?.project(mark)??mark,scale=mark.scale*(frame?.scaleAt(mark)??1);return <use key={mark.key} data-terrain-mark href={`#${prefix}-${drawing.kind}-${mark.variant}`} transform={`translate(${p.x} ${p.y}) scale(${scale})`}/>;})}
   </g>;
 });
+function drawingArtworkReady(drawing:MapDrawing){
+  if(drawing.version!==2)return true;
+  try{return (drawing.type==="symbol"?[drawing.assetRef]:drawing.assetRefs).every(reference=>islandArtwork.read(islandAsset(reference)).state==="ready");}catch{return false;}
+}
 const CachedTerrain=memo(function CachedTerrain({drawing,original,frame,prefix,motion,palette,unitsPerPixel,allowRaster}:{drawing:TerrainDrawing;original?:TerrainDrawing;frame?:AtlasGeographicFrame;prefix:string;motion:boolean;palette:string;unitsPerPixel:number;allowRaster:boolean}) {
   const sourceDrawing=original??drawing;
   const sourceMarks=useMemo(()=>strokeSamples(sourceDrawing.points,sourceDrawing.spacing).length*sourceDrawing.density,[sourceDrawing]);
@@ -51,7 +57,7 @@ const CachedTerrain=memo(function CachedTerrain({drawing,original,frame,prefix,m
   useEffect(()=>{
     if(motion||cached?.drawing===sourceDrawing&&cached.frame===frame&&cached.prefix===prefix&&cached.palette===palette)return;
     let alive=true;
-    const source=root.current?.querySelector<SVGGElement>("[data-terrain-source]");
+    const source=drawingArtworkReady(sourceDrawing)?root.current?.querySelector<SVGGElement>("[data-terrain-source]"):null;
     if(source)void terrainBitmap(source,prefix,drawing).then(image=>{if(alive)setCached({drawing:sourceDrawing,frame,prefix,palette,image});else URL.revokeObjectURL(image.url);}).catch(()=>{});
     return()=>{alive=false;};
   },[drawing,sourceDrawing,frame,prefix,palette,motion,cached]);
@@ -75,6 +81,7 @@ export type PaintPreviewHandle={show:(drawing:TerrainDrawing|null)=>void};
 /** Only this unfinished stroke renders while the retained map and inspector stay still. */
 export function CartographyPaintPreview({handle,target,frame,prefix,unitsPerPixel}:{handle:RefObject<PaintPreviewHandle|null>;target:SVGGElement|null;frame?:AtlasGeographicFrame;prefix:string;unitsPerPixel:number}){
  const [drawing,setDrawing]=useState<TerrainDrawing|null>(null);useImperativeHandle(handle,()=>({show:setDrawing}),[]);
+ useIslandArtwork(drawing?.version===2?drawing.assetRefs:[]);
  const projected=useMemo(()=>drawing&&frame?projectedAtlasDraft({name:"Live terrain preview",description:"",scope:"regional",features:[],geographies:[],drawings:[drawing]},frame).drawings![0]:drawing,[drawing,frame]);
  if(!target||!drawing||!projected)return null;
  return createPortal(<><defs>{drawing.version===2?<IslandAssetDefinitions drawings={[drawing]} prefix={prefix}/>: [0,1,2].map(variant=><g key={variant} id={`${prefix}-${drawing.kind}-${variant}`}><CartographicSymbol kind={drawing.kind} variant={variant}/></g>)}</defs><DrawingArt drawing={projected} original={drawing} frame={frame} unitsPerPixel={unitsPerPixel} prefix={prefix} motion cacheTerrain={false} palette="preview" allowRaster={false}/></>,target);
@@ -88,18 +95,20 @@ export const CartographyScene=memo(function CartographyScene({draft:sourceDraft,
   const [themeRevision,setThemeRevision]=useState(0);
   useEffect(()=>{if(!cacheTerrain)return;const observer=new MutationObserver(()=>setThemeRevision(n=>n+1));observer.observe(document.documentElement,{attributes:true,attributeFilter:["style","data-appearance-preset"]});return()=>observer.disconnect();},[cacheTerrain]);
   const presentation=draft.presentation??defaultPresentation(),land=draft.features.filter(f=>!f.archived&&f.geometry.type==="polygon");
+  const visibleDrawings=useMemo(()=>(sourceDraft.drawings??[]).filter(d=>!d.archived&&presentation.layers[drawingLayer(d)].visible),[sourceDraft.drawings,presentation.layers]);
+  const artworkReferences=islandDrawingReferences(visibleDrawings),artwork=useIslandArtwork(artworkReferences);
   const labelAnchors=geographicFrame?new Map(sourceDraft.features.map(f=>[f.id,geographicFrame.project(f.geometry.type==="point"?f.geometry.point:polygonCenter(f.geometry.points))])):null;
   const labels=mapLabels(draft.features.filter(f=>{if(f.archived)return false;const p=labelAnchors?.get(f.id);return !p||p.x>=0&&p.x<=MAP_WIDTH&&p.y>=0&&p.y<=MAP_HEIGHT;}),new Map(draft.geographies.map(g=>[g.id,g.name])),unitsPerPixel);
   const terrainKinds=useMemo(()=>[...new Set((draft.drawings??[]).filter((d):d is TerrainDrawing=>d.type==="terrain"&&!d.archived).map(d=>d.kind))],[draft.drawings]);
   const place=(f:AtlasFeature)=>f.geometry.type==="point"?f.geometry.point:{x:0,y:0};
-  return <g data-cartography-scene className={styles.scene} data-style={presentation.style} data-cartographic-style={presentation.version===2?`${presentation.styleRef.id}:${presentation.styleRef.revision}`:undefined}>
-    <defs>{landMask&&<GeographicLandMaskScene id={`${id}-source-land`} mask={landMask}/>}<IslandAssetDefinitions drawings={sourceDraft.drawings??[]} prefix={id}/>{terrainKinds.map(kind=>[0,1,2].map(variant=><g key={`${kind}-${variant}`} id={`${id}-${kind}-${variant}`}><CartographicSymbol kind={kind} variant={variant}/></g>))}<pattern id={`${id}-grain`} width="53" height="47" patternUnits="userSpaceOnUse"><path d="M 4 7 l 3 0 M 34 12 l 2 1 M 19 29 l 4 -1 M 43 38 l 2 0 M 8 44 l 2 0" className={styles.paperGrain}/></pattern><pattern id={`${id}-sea`} width="130" height="105" patternUnits="userSpaceOnUse"><path d="M 14 50 q 12 -7 24 0 t 24 0 M 76 90 q 12 -7 24 0" className={styles.seaHatch}/></pattern><pattern id={`${id}-grid`} width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" className={styles.grid}/></pattern><clipPath id={`${id}-extent`}><rect width={MAP_WIDTH} height={MAP_HEIGHT}/></clipPath><clipPath id={`${id}-land`}>{land.length?land.map(f=>f.geometry.type==="polygon"&&<LandOutline key={f.id} feature={f} path={paths.get(f.id)}/>):<rect width={MAP_WIDTH} height={MAP_HEIGHT}/>}</clipPath></defs>
+  return <g data-cartography-scene data-artwork-ready={artwork.ready} className={styles.scene} data-style={presentation.style} data-cartographic-style={presentation.version===2?`${presentation.styleRef.id}:${presentation.styleRef.revision}`:undefined}>
+    <defs>{landMask&&<GeographicLandMaskScene id={`${id}-source-land`} mask={landMask}/>}<IslandAssetDefinitions drawings={visibleDrawings} prefix={id}/>{terrainKinds.map(kind=>[0,1,2].map(variant=><g key={`${kind}-${variant}`} id={`${id}-${kind}-${variant}`}><CartographicSymbol kind={kind} variant={variant}/></g>))}<pattern id={`${id}-grain`} width="53" height="47" patternUnits="userSpaceOnUse"><path d="M 4 7 l 3 0 M 34 12 l 2 1 M 19 29 l 4 -1 M 43 38 l 2 0 M 8 44 l 2 0" className={styles.paperGrain}/></pattern><pattern id={`${id}-sea`} width="130" height="105" patternUnits="userSpaceOnUse"><path d="M 14 50 q 12 -7 24 0 t 24 0 M 76 90 q 12 -7 24 0" className={styles.seaHatch}/></pattern><pattern id={`${id}-grid`} width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" className={styles.grid}/></pattern><clipPath id={`${id}-extent`}><rect width={MAP_WIDTH} height={MAP_HEIGHT}/></clipPath><clipPath id={`${id}-land`}>{land.length?land.map(f=>f.geometry.type==="polygon"&&<LandOutline key={f.id} feature={f} path={paths.get(f.id)}/>):<rect width={MAP_WIDTH} height={MAP_HEIGHT}/>}</clipPath></defs>
     <g clipPath={`url(#${id}-extent)`}>
       {presentation.version===2&&!isIslandStyle(presentation)&&<text data-missing-artwork="style" x={1000} y={80} textAnchor="middle" className={styles.label} fontSize={28}>Map style unavailable. Restore the matching artwork release.</text>}
       {background&&<><rect width={MAP_WIDTH} height={MAP_HEIGHT} className={draft.settlementState&&!land.length?styles.settlementPaper:styles.sea}/><rect width={MAP_WIDTH} height={MAP_HEIGHT} fill={`url(#${id}-sea)`} pointerEvents="none"/></>}
       {presentation.layers.land.visible&&land.map(f=>f.geometry.type==="polygon"&&<g key={f.id} data-feature={f.id} data-selected={selectedId===f.id} className={styles.landFeature} pointerEvents={(presentation.layers.land.locked||!editable)&&!explorable?"none":undefined}><LandOutline feature={f} path={paths.get(f.id)} className={styles.coastalHalo}/><LandOutline feature={f} path={paths.get(f.id)} className={styles.land}/><LandOutline feature={f} path={paths.get(f.id)} fill={`url(#${id}-grain)`} pointerEvents="none"/><title>{draft.geographies.find(g=>g.id===f.geographyId)?.name}</title></g>)}
       {(["terrain","waterways","paths","symbols","labels"] as const).map(layer=>presentation.layers[layer].visible&&<g key={layer} data-layer={layer} pointerEvents={(presentation.layers[layer].locked||!editable)&&!explorable?"none":undefined}>{(draft.drawings??[]).filter(d=>!d.archived&&drawingLayer(d)===layer).map(d=><g key={d.id} data-drawing={d.id} pointerEvents={explorable&&!d.geographyId?"none":undefined} data-selected={selectedId===d.id} className={styles.drawing} clipPath={layer==="terrain"&&!landMask?`url(#${id}-land)`:undefined} mask={layer==="terrain"&&landMask?`url(#${id}-source-land)`:undefined}>
-        <DrawingArt drawing={d} original={originalDrawings.get(d.id)} frame={geographicFrame} unitsPerPixel={unitsPerPixel} prefix={id} motion={motion} allowRaster={selectedId!==d.id} cacheTerrain={cacheTerrain} palette={JSON.stringify([presentation.version,presentation.style,presentation.version===2?presentation.styleRef:null,themeRevision])}/>
+        <DrawingArt drawing={d} original={originalDrawings.get(d.id)} frame={geographicFrame} unitsPerPixel={unitsPerPixel} prefix={id} motion={motion} allowRaster={selectedId!==d.id} cacheTerrain={cacheTerrain} palette={JSON.stringify([presentation.version,presentation.style,presentation.version===2?presentation.styleRef:null,themeRevision,drawingArtworkReady(d)])}/>
         {(editable||(explorable&&!!d.geographyId))&&(d.type==="terrain"||d.type==="path"?<path d={drawingPath(d)} data-export-omit className={styles.hitPath} strokeWidth={Math.max(44*unitsPerPixel,d.type==="terrain"?d.radius*1.5:d.width+12)}/>:<rect x={d.point.x-22*unitsPerPixel} y={d.point.y-22*unitsPerPixel} width={44*unitsPerPixel} height={44*unitsPerPixel} data-export-omit className={styles.hit}/>)}
         {selectedId===d.id&&(d.type==="terrain"||d.type==="path")&&<path d={drawingPath(d)} data-export-omit className={styles.selectedStroke} strokeWidth={2*unitsPerPixel}/>}<title>{d.name}</title>
       </g>)}{layer==="terrain"&&previewTarget&&<g ref={previewTarget} data-export-omit pointerEvents="none" clipPath={!landMask?`url(#${id}-land)`:undefined} mask={landMask?`url(#${id}-source-land)`:undefined}/>}</g>)}
@@ -113,5 +122,6 @@ export const CartographyScene=memo(function CartographyScene({draft:sourceDraft,
       {draft.interiorState&&<InteriorScene draft={draft} selectedId={selectedId} unitsPerPixel={unitsPerPixel}/>}
       {settlement&&draft.settlementShapes&&<SettlementScene draft={draft} selectedId={selectedId} units={unitsPerPixel} explorable={explorable}/>}
     </g>
+    <IslandArtworkLoading references={artworkReferences} unitsPerPixel={unitsPerPixel}/>
   </g>;
 });
