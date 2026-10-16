@@ -9,7 +9,7 @@ import { ownedPool, ux0aEnvironment, UX0A_DIRECTORY,type Environment } from "./w
 export async function islandRuntime(target: "empty" | "compat", label: string, environment?:Environment) {
   const e = environment??await ux0aEnvironment(), pool = await ownedPool(e, target); await pool.end();
   const checkoutName=process.env.SERRIAN_UX0A_CHECKOUT??"runtime-checkout";
-  assert.ok(["runtime-checkout","runtime-checkout-library"].includes(checkoutName));
+  assert.ok(["runtime-checkout","runtime-checkout-library","runtime-checkout-overview"].includes(checkoutName));
   const base = `http://127.0.0.1:${e.appPort}`, log = createWriteStream(path.join(UX0A_DIRECTORY, `${label}-server.log`));
   const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(e.appPort)], {
     cwd: path.join(UX0A_DIRECTORY, checkoutName), windowsHide: true,

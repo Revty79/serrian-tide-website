@@ -110,14 +110,14 @@ async function setup() {
 async function build() {
   const e = await ux0aEnvironment(), pool = await ownedPool(e, "empty"); await pool.end();
   const checkoutName=process.env.SERRIAN_UX0A_CHECKOUT??"runtime-checkout";
-  assert.ok(["runtime-checkout","runtime-checkout-library"].includes(checkoutName));
+  assert.ok(["runtime-checkout","runtime-checkout-library","runtime-checkout-overview"].includes(checkoutName));
   const checkout = path.join(UX0A_DIRECTORY, checkoutName); await mkdir(checkout, { recursive: true });
   const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], { encoding: "utf8", windowsHide: true }).split("\0").filter(file => file && !file.startsWith("artifacts/"));
   const runtimeFiles = files.filter(file => file.startsWith("src/") && !/\.test\.tsx?$/.test(file) || /^(package(-lock)?\.json|tsconfig\.json|next\.config\.ts)$/.test(file)).sort();
   const fingerprint = async () => { const hash = createHash("sha256"); for (const file of runtimeFiles) { hash.update(file); hash.update(await readFile(file)); } return hash.digest("hex"); };
   const before = await fingerprint();
   for (const file of files) { const target = path.resolve(checkout, file); assert.ok(target.startsWith(checkout + path.sep)); await mkdir(path.dirname(target), { recursive: true }); await copyFile(file, target); }
-  const receiptPrefix=checkoutName==="runtime-checkout-library"?"library-":"";
+  const receiptPrefix=checkoutName==="runtime-checkout-library"?"library-":checkoutName==="runtime-checkout-overview"?"overview-":"";
   const log = openSync(path.join(UX0A_DIRECTORY, `${receiptPrefix}production-build.log`), "w");
   try {
     const env: NodeJS.ProcessEnv = { ...process.env, PATH: path.dirname(process.execPath) + path.delimiter + process.env.PATH, NODE_ENV: "production", DATABASE_URL: e.empty, SERRIAN_RASTER_ROOT: e.assetRoot, BETTER_AUTH_URL: `http://127.0.0.1:${e.appPort}`, BETTER_AUTH_SECRET: "UX0A-owned-disposable-auth-secret-only", SERRIAN_TEST_NEXT_DIST_DIR: ".next-geo-ux0a", NEXT_TELEMETRY_DISABLED: "1" };
@@ -125,7 +125,7 @@ async function build() {
     execFileSync(process.execPath, ["node_modules/next/dist/bin/next", "build"], { cwd: checkout, windowsHide: true, env, stdio: ["ignore", log, log] });
   } finally { closeSync(log); }
   assert.equal(await fingerprint(), before);
-  await writeFile(path.join(UX0A_DIRECTORY, `${receiptPrefix}build-results.json`), JSON.stringify({ passed: true, node: process.version, fingerprint: before, checkout, target: "new owned empty-World acceptance database", migrated: 133 }, null, 2));
+  await writeFile(path.join(UX0A_DIRECTORY, `${receiptPrefix}build-results.json`), JSON.stringify({ passed: true, node: process.version, fingerprint: before, checkout, target: "verified task-owned disposable database", migrated: 133 }, null, 2));
   console.log("PASS isolated production build with Node 22 and verified owned empty-World database");
 }
 const command = process.argv[2];
