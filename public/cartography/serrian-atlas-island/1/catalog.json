@@ -1,0 +1,103 @@
+{
+  "libraryId": "serrian-atlas-island",
+  "revision": 1,
+  "status": "candidate; Ember artwork review pending",
+  "style": {
+    "id": "island-ink-wash",
+    "revision": 1
+  },
+  "assets": [
+    {
+      "id": "mountain-rounded",
+      "name": "Rounded mountain",
+      "family": "Mountains",
+      "kind": "mountain",
+      "terrain": "mountains",
+      "role": "decoration",
+      "paint": true,
+      "tags": [
+        "peak",
+        "mountain",
+        "relief"
+      ],
+      "viewBox": "-100 -145 200 175",
+      "revision": 1,
+      "rendererVersion": 1,
+      "libraryId": "serrian-atlas-island",
+      "libraryRevision": 1,
+      "file": "mountain-rounded-1.svg",
+      "anchor": [
+        0,
+        0
+      ],
+      "defaultScale": 0.7,
+      "sourceSha256": "b35dc7f986aeae7370aa73bcdfd5c3103cb24332602ca537acc07a5002825d2f",
+      "checksumEncoding": "UTF-8 with LF newlines",
+      "author": "Serrian Tide / Codex-assisted original SVG",
+      "creationMethod": "Original code-authored illustration; no external art traced or embedded",
+      "rights": "Project-produced artwork for the application and creator map exports; see PROVENANCE.md"
+    },
+    {
+      "id": "woodland-broadleaf-grove",
+      "name": "Broadleaf grove",
+      "family": "Woodland",
+      "kind": "tree",
+      "terrain": "forest",
+      "role": "decoration",
+      "paint": true,
+      "tags": [
+        "forest",
+        "tree",
+        "woodland",
+        "broadleaf"
+      ],
+      "viewBox": "-105 -145 210 175",
+      "revision": 1,
+      "rendererVersion": 1,
+      "libraryId": "serrian-atlas-island",
+      "libraryRevision": 1,
+      "file": "woodland-broadleaf-grove-1.svg",
+      "anchor": [
+        0,
+        0
+      ],
+      "defaultScale": 0.7,
+      "sourceSha256": "b77079ded0f016187637172d5091237f0c30d5339c00e52a77d057a927d6ea4f",
+      "checksumEncoding": "UTF-8 with LF newlines",
+      "author": "Serrian Tide / Codex-assisted original SVG",
+      "creationMethod": "Original code-authored illustration; no external art traced or embedded",
+      "rights": "Project-produced artwork for the application and creator map exports; see PROVENANCE.md"
+    },
+    {
+      "id": "settlement-city",
+      "name": "City",
+      "family": "Settlements",
+      "kind": "city",
+      "terrain": null,
+      "role": "place",
+      "paint": false,
+      "tags": [
+        "city",
+        "settlement",
+        "town",
+        "location"
+      ],
+      "viewBox": "-115 -145 230 180",
+      "revision": 1,
+      "rendererVersion": 1,
+      "libraryId": "serrian-atlas-island",
+      "libraryRevision": 1,
+      "file": "settlement-city-1.svg",
+      "anchor": [
+        0,
+        0
+      ],
+      "defaultScale": 0.7,
+      "sourceSha256": "ff9d52bbf121c9ba3c124979347637b81b9fe3e78f8c41169a62c64b25ce7701",
+      "checksumEncoding": "UTF-8 with LF newlines",
+      "author": "Serrian Tide / Codex-assisted original SVG",
+      "creationMethod": "Original code-authored illustration; no external art traced or embedded",
+      "rights": "Project-produced artwork for the application and creator map exports; see PROVENANCE.md"
+    }
+  ]
+}
