@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAP_HEIGHT, MAP_WIDTH, boundedPoint, rounded, type MapPoint } from "./atlas-coordinates";
+import { assetReferenceSchema, islandAsset, styleReferenceSchema, validateIslandStyle } from "./island-assets";
 
 export const layers = ["land", "terrain", "waterways", "paths", "symbols", "labels"] as const;
 export type MapLayer = typeof layers[number];
@@ -10,20 +11,32 @@ const scalar = z.number().finite();
 const point = z.object({ x: scalar.min(0).max(MAP_WIDTH), y: scalar.min(0).max(MAP_HEIGHT) }).strict();
 const vertex = point.extend({ id });
 const common = { version: z.literal(1), id, name: z.string().trim().min(1).max(160), archived: z.boolean(), geographyId: id.nullable() };
-export const drawingSchema = z.discriminatedUnion("type", [
+export const drawingSchemaV1 = z.discriminatedUnion("type", [
   z.object({ ...common, type: z.literal("terrain"), kind: z.enum(terrainKinds), points: z.array(vertex).min(1).max(128), radius: scalar.min(12).max(160), spacing: scalar.min(12).max(100), density: z.number().int().min(1).max(3), seed: z.number().int().min(1).max(2147483647) }).strict(),
   z.object({ ...common, type: z.literal("path"), kind: z.enum(["river", "stream", "road", "trail"]), points: z.array(vertex).min(2).max(128), width: scalar.min(1).max(24), curve: scalar.min(0).max(1) }).strict(),
   z.object({ ...common, type: z.literal("symbol"), kind: z.enum(symbolKinds), point, scale: scalar.min(.4).max(4), rotation: scalar.min(-180).max(180), style: z.enum(["colored", "ink"]) }).strict(),
   z.object({ ...common, type: z.literal("label"), text: z.string().trim().min(1).max(160), point, size: scalar.min(12).max(80), rotation: scalar.min(-180).max(180), style: z.enum(["place", "region", "water"]) }).strict(),
 ]);
-export type MapDrawing = z.infer<typeof drawingSchema>;
+const commonV2 = { ...common, version: z.literal(2) };
+export const assetDrawingSchema = z.discriminatedUnion("type", [
+  z.object({ ...commonV2, type: z.literal("terrain"), kind: z.enum(terrainKinds), points: z.array(vertex).min(1).max(128), radius: scalar.min(12).max(160), spacing: scalar.min(12).max(100), density: z.number().int().min(1).max(3), seed: z.number().int().min(1).max(2147483647), assetRefs: z.array(assetReferenceSchema).min(1).max(4) }).strict(),
+  z.object({ ...commonV2, type: z.literal("symbol"), kind: z.enum(symbolKinds), point, scale: scalar.min(.4).max(4), rotation: scalar.min(-180).max(180), style: z.literal("colored"), role: z.enum(["decoration", "place"]), assetRef: assetReferenceSchema }).strict(),
+]);
+export type MapDrawing = z.infer<typeof drawingSchemaV1> | z.infer<typeof assetDrawingSchema>;
+export const drawingSchema: z.ZodType<MapDrawing> = z.union([drawingSchemaV1, assetDrawingSchema]);
 export type TerrainDrawing = Extract<MapDrawing, {type: "terrain"}>;
 export type PathDrawing = Extract<MapDrawing, {type: "path"}>;
 const layerState = z.object({ visible: z.boolean(), locked: z.boolean() }).strict();
-export const presentationSchema = z.object({ version: z.literal(1), style: z.enum(["parchment", "illuminated", "night"]), grid: z.boolean(), layers: z.object({ land: layerState, terrain: layerState, waterways: layerState, paths: layerState, symbols: layerState, labels: layerState }).strict() }).strict();
-export type MapPresentation = z.infer<typeof presentationSchema>;
+export const presentationSchemaV1 = z.object({ version: z.literal(1), style: z.enum(["parchment", "illuminated", "night"]), grid: z.boolean(), layers: z.object({ land: layerState, terrain: layerState, waterways: layerState, paths: layerState, symbols: layerState, labels: layerState }).strict() }).strict();
+const presentationSchemaV2 = presentationSchemaV1.extend({ version: z.literal(2), styleRef: styleReferenceSchema }).strict();
+export type MapPresentation = z.infer<typeof presentationSchemaV1> | z.infer<typeof presentationSchemaV2>;
+export const presentationSchema: z.ZodType<MapPresentation> = z.union([presentationSchemaV1, presentationSchemaV2]);
 export const defaultPresentation = (): MapPresentation => ({ version: 1, style: "parchment", grid: false, layers: Object.fromEntries(layers.map(l => [l, {visible: true, locked: false}])) as MapPresentation["layers"] });
 export const drawingsSchema = z.array(drawingSchema).max(512);
+export function validatePresentation(presentation: MapPresentation) {
+  presentationSchema.parse(presentation);
+  if (presentation.version === 2) validateIslandStyle(presentation.styleRef);
+}
 export function drawingLayer(d: MapDrawing): MapLayer { return d.type === "path" ? (d.kind === "river" || d.kind === "stream" ? "waterways" : "paths") : d.type === "symbol" ? "symbols" : d.type === "label" ? "labels" : "terrain"; }
 export function drawingPoints(d: MapDrawing) { return d.type === "terrain" || d.type === "path" ? d.points : [d.point]; }
 
@@ -33,6 +46,18 @@ export function validateDrawings(drawings: MapDrawing[]) {
   let total = 0, stamps = 0;
   drawingsSchema.parse(drawings);
   for (const d of drawings) {
+    if (d.version === 2) {
+      if (d.type === "terrain") {
+        if (d.geographyId !== null) throw new Error("Illustrated terrain strokes remain decorations without a place identity.");
+        const keys = d.assetRefs.map(ref => JSON.stringify(ref));
+        if (new Set(keys).size !== keys.length) throw new Error("Choose each artwork revision only once in a painted asset set.");
+        for (const ref of d.assetRefs) { const asset = islandAsset(ref); if (!asset.paint || asset.role !== "decoration" || asset.terrain !== d.kind) throw new Error("Choose paintable illustrations of this terrain kind."); }
+      } else {
+        const asset = islandAsset(d.assetRef), kind = asset.kind === "tree" ? "pine" : asset.kind;
+        if (d.role !== asset.role || d.kind !== kind) throw new Error("The illustration's kind and place role come from its exact catalog revision.");
+        if (asset.role === "place" && d.geographyId === null) throw new Error("Link this settlement illustration to a persistent location.");
+      }
+    }
     const points = drawingPoints(d); total += points.length;
     if (points.some(p => !Number.isFinite(p.x) || !Number.isFinite(p.y) || p.x < 0 || p.x > MAP_WIDTH || p.y < 0 || p.y > MAP_HEIGHT || Math.abs(p.x - rounded(p.x)) > 1e-8 || Math.abs(p.y - rounded(p.y)) > 1e-8)) throw new Error("Drawing points must be inside the map with at most two decimal places.");
     if (d.type === "terrain" || d.type === "path") {

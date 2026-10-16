@@ -10,7 +10,7 @@ import { z } from "zod";
 import type { GenerationProvenance } from "./generation-spec";
 
 import { MAP_WIDTH, MAP_HEIGHT, rounded } from "./atlas-coordinates";
-import { defaultPresentation, drawingsSchema, presentationSchema, validateDrawings, type MapDrawing, type MapPresentation } from "./cartography";
+import { defaultPresentation, drawingsSchema, presentationSchema, validateDrawings, validatePresentation, type MapDrawing, type MapPresentation } from "./cartography";
 export { MAP_WIDTH, MAP_HEIGHT, boundedPoint, rounded } from "./atlas-coordinates";
 export const atlasId = z.string().uuid();
 const revision = z.number().int().positive();
@@ -48,6 +48,7 @@ export function validateMapDraft(draft: MapDraft) {
   if(draft.historicalPlaces&&new Set(draft.historicalPlaces.map(p=>p.geographyId)).size!==draft.historicalPlaces.length)throw new Error("Each historical place has one authored condition.");
   draft.features.forEach(f=>validateGeometry(f.geometry));
   validateDrawings(draft.drawings??[]);
+  if (draft.presentation) validatePresentation(draft.presentation);
 }
 export function validateParents(records: {id: string; parentId: string|null}[]) {
   const parents = new Map(records.map(g=>[g.id,g.parentId]));

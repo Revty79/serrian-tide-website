@@ -4,6 +4,7 @@ export type MapExportOptions={visible?:boolean;credits?:string[];background?:str
 export async function exportMapPng(svg:SVGSVGElement,name:string,options:MapExportOptions={}) {
   const scene=svg.querySelector<SVGGElement>(options.visible?"[data-visible-export]":"[data-cartography-scene]");
   if(!scene)throw new Error("The map artwork is unavailable for export.");
+  if(scene.querySelector("[data-missing-artwork]"))throw new Error("An exact saved illustration revision is unavailable. Restore its matching artwork release before exporting; the editable source is retained.");
   const clone=scene.cloneNode(true) as SVGGElement;
   const sourceNodes=[scene,...scene.querySelectorAll<SVGElement>("*")],cloneNodes=[clone,...clone.querySelectorAll<SVGElement>("*")];
   const properties=["fill","stroke","stroke-width","stroke-linecap","stroke-linejoin","stroke-dasharray","opacity","fill-opacity","stroke-opacity","font-family","font-size","font-weight","font-style","font-variant","letter-spacing","paint-order","vector-effect","fill-rule","text-anchor"];
