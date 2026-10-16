@@ -37,6 +37,8 @@ Confirmation overlays should use the native `dialog` element and `showModal()` s
 
 ## Intentional exceptions
 
+The agreed [Atlas UX-0A contract](worlds-atlas-ux0a-contract.md) requires versioned illustrated styles through shared scoped semantic map-paper, water, land, ink and material roles. A persisted style preserves its coordinated artistic palette across application-brand changes and export; do not derive paper/water blindly from arbitrary brand text/accent colors. Extend the shared system instead of introducing an independent page palette. Studio chrome, fields, feedback, focus and selection retain shared interface semantics. Preserve explicit legacy map styles and scientific color encodings. This records the design requirement, not implementation authorization.
+
 Numerical elevation relief uses a fixed scientific colour scale, shared by the renderer's `ELEVATION_STOPS` and the semantic `--st-terrain-deep`, `--st-terrain-zero`, `--st-terrain-low` and `--st-terrain-high` legend variables. These colours encode numerical heights and remain independent of brand presets. Elevation controls, panels, feedback and text continue to use the shared appearance system. Shading and opacity are presentation preferences; they never change source values.
 
 Categorical land-cover imagery and its `--st-classification-swatch` legend role use the retained source's class RGB values. These are scientific class encodings, independent of brand presets. Class codes, names and definitions accompany colours; unknown cells use semantic surface/border tokens and explicit text. Classification controls, panels and feedback use the shared interface theme. Opacity never changes a class or its certainty. See [Geo C3](worlds-geo-c3.md).

@@ -1,8 +1,14 @@
 # Map Maker development readiness and owner acceptance
 
-Owner-approved 2026-10-15 under the [revised Map Maker roadmap](../architecture/worlds-map-maker-decisions.md#revised-completion-roadmap--adopted-2026-10-15). This is preparation for continued development, not Production release authorization. D3-B still needs its precise terrain/elevation scope, acceptance requirements and separately authorized bounded brief.
+The [unified Atlas roadmap](../architecture/worlds-map-maker-decisions.md#revised-completion-roadmap--adopted-2026-10-15) and [final UX-0A contract](../architecture/worlds-atlas-ux0a-contract.md) record owner/Cody/Ember agreement on 2026-10-15. Current permission is documentation and read-only preparation. Implementation, migrations, shared-data writes, push and deployment remain unauthorized. D3-B requires UX-0A acceptance and a separately authorized bounded brief.
 
-## Verified current recovery point
+## Reset DEV and joint readiness: current status
+
+The owner reset DEV. The [2026-10-15 preparation report](worlds-atlas-ux0a-preparation.md) verifies the actual read-only target and all 132 migration hashes/timestamps through 0131, with zero Worlds/maps/geographic features/raster versions. Prior paired backups and private assets remain retained; they are historical recovery points, not snapshots of the reset database. No recovery or import was performed. Do not run the old preassembled owner fixture as proof of the new empty-World journey.
+
+**Do not invite the owner to test until Cody and Ember both explicitly approve initial testing readiness against a completed implementation commit and evidence.** Cody runs the actual journey, technical/browser checks and screenshot/export inspection, fixes blockers and supplies the reviewable commit. Ember independently reviews it. Only then can the owner evaluate final usability/visual quality. This gate supersedes earlier direct owner-invitation wording below; the checklist remains a later human acceptance template, not a current invitation.
+
+## Matched recovery-point procedure
 
 1. Select the intended DEV URL explicitly from local configuration without logging credentials. Verify database name, actual server address/port, schema search path, expected application tables and the complete committed migration ledger. Do not infer the correct application from the database name alone. No Production connection, schema push or shared-database repair is implied.
 2. Record release commit, tool versions, target identity, timestamp, database inventory and private geographic/raster storage roots. Vector originals and geographic identities reside in PostgreSQL; include every private file root and all retained bundles, including currently unassociated originals and historical/fictional bundles. Record missing or unexpectedly empty content honestly. Do not recover lost Earth or import a replacement demonstration.

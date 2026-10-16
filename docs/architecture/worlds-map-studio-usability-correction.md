@@ -1,5 +1,7 @@
 # Proposed Geo UX-0A: first-map workflow and presentation
 
+**Superseded proposal, retained for history.** On 2026-10-15 the owner, Cody and Ember agreed the expanded [final UX-0A implementation contract](worlds-atlas-ux0a-contract.md), including original versioned artwork, a real thumbnail palette, integrated learning/recovery and a documented additive validator migration. Its scope and joint readiness gate supersede the narrower exclusions and owner-invitation procedure below. Implementation still requires explicit owner authorization. Use the [unified roadmap](worlds-map-maker-decisions.md#revised-completion-roadmap--adopted-2026-10-15).
+
 Status: **proposal only; implementation is not authorized by this document**. Proposed from UX-0 `b40bccc2cced333832b55239c77bcb21d165bb95` and readiness checkpoint `98fe23858dec708faa57231163a3eb3f01c7e346`, following the owner's 2026-10-15 usability rejection. D3-B is blocked until the correction receives explicit owner usability acceptance; D3-B still requires its own bounded authorization afterward.
 
 ## Owner outcome
