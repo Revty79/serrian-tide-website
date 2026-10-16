@@ -18,3 +18,15 @@
 .exportActions{display:grid;gap:.6rem}.exportActions p{font-size:.8rem;color:var(--st-text-secondary)}
 
 .exportFeedback{height:7rem;overflow:auto;display:block;scrollbar-gutter:stable}.exportFeedback button{margin-top:.4rem}
+
+.canvasContext{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem .7rem;padding:.35rem .6rem;border-top:1px solid var(--st-border);background:var(--st-surface);font-size:.75rem;flex-shrink:0;overflow-wrap:anywhere}.canvasContext small{color:var(--st-text-secondary);flex-basis:100%}.canvasContext strong{color:var(--st-text-strong)}.canvasContext button{min-height:44px}.navigation button[aria-pressed=true]{border-color:var(--st-primary);background:var(--st-primary-soft);color:var(--st-primary-text)}
+
+.quickTransform,.starter{display:flex;align-items:center;flex-wrap:wrap;gap:.45rem;padding:.4rem .6rem;background:var(--st-surface);border-top:1px solid var(--st-border);flex-shrink:0;font-size:.75rem}.quickTransform label{display:grid;gap:.2rem;max-width:9rem}.quickTransform button,.starter button{min-height:44px}.starter span{color:var(--st-text-secondary)}
+
+@media(max-width:600px){.navigation{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.25rem}.navigation button{min-width:0;padding:.25rem .15rem!important;font-size:.65rem!important;line-height:1.15}.navigation button svg,.navigation>span{display:none}.canvasContext{font-size:.68rem;gap:.3rem}.quickTransform label{max-width:6.5rem}.starter{font-size:.68rem}}
+
+.itemsPanel{display:grid;gap:.4rem;padding:.5rem;background:var(--st-surface);border-top:1px solid var(--st-border);flex-shrink:0;font-size:.75rem;max-height:200px;overflow:auto}.itemsPanel>div{display:flex;gap:.3rem;flex-wrap:wrap}.itemsPanel button{min-height:44px;white-space:normal;text-align:left}.quickTransform{max-height:200px;overflow:auto}.quickTransform p,.quickTransform fieldset{flex-basis:100%;font-size:.75rem}.quickTransform fieldset label{display:flex;align-items:center;gap:.4rem;max-width:none}.quickTransform fieldset{display:flex;gap:.5rem;flex-wrap:wrap}
+
+.quickTransform .selectionFields{display:flex;align-items:end;gap:.5rem;flex-wrap:wrap;border:0;margin:0;padding:0;min-width:0;flex-basis:100%}
+
+@media(max-width:600px){.canvasContext{max-height:110px;overflow:auto;align-content:start}.canvasContext>span:first-child{display:none}.canvasContext>strong{flex-basis:100%;font-size:.7rem}.canvasContext button{font-size:.65rem;padding:.25rem .4rem;min-height:44px}.canvasContext small{font-size:.65rem;line-height:1.3}.canvasContext strong{overflow-wrap:anywhere}}

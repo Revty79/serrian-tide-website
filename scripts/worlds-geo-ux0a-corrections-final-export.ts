@@ -1,3 +1,4 @@
+import {openStudioSection} from "./worlds-studio-test-tools";
 /** Reopen saved studies, clear the generated harbor label from a tree, and re-export through Atlas. */
 import assert from "node:assert/strict";
 import {readFile,writeFile} from "node:fs/promises";
@@ -7,7 +8,7 @@ import {islandRuntime} from "./worlds-geo-ux0a-runtime";
 import {CORRECTIONS_DIRECTORY} from "./worlds-geo-ux0a-composition-corrections";
 async function main(){const results=[];
  for(const branch of ["manual","generated"]){const f=JSON.parse(await readFile(path.join(UX0A_DIRECTORY,`library-${branch}-journey.json`),"utf8")),r=await islandRuntime("empty",`${branch}-final-export`,f.environment),pool=await ownedPool(f.environment,"empty");
-  try{const c=await r.browser.newContext({viewport:{width:1600,height:1000},acceptDownloads:true});await r.login(c);const page=await c.newPage(),errors:string[]=[];page.setDefaultTimeout(30000);page.on("pageerror",e=>errors.push(e.message));await page.goto(f.editorUrl);const canvas=page.getByRole("application",{name:"Editable map canvas"}),tools=async(name:string)=>page.getByRole("navigation",{name:"Studio tools"}).getByRole("button",{name,exact:true}).click();await canvas.locator('mask[data-geographic-land-mask="ready"]').waitFor({state:"attached"});
+  try{const c=await r.browser.newContext({viewport:{width:1600,height:1000},acceptDownloads:true});await r.login(c);const page=await c.newPage(),errors:string[]=[];page.setDefaultTimeout(30000);page.on("pageerror",e=>errors.push(e.message));await page.goto(f.editorUrl);const canvas=page.getByRole("application",{name:"Editable map canvas"}),tools=async(name:string)=>openStudioSection(page,name);await canvas.locator('mask[data-geographic-land-mask="ready"]').waitFor({state:"attached"});
    const rows=async()=>(await pool.query("select id,geography_id,content from world_atlas_drawing where map_id=$1 order by id",[f.mapId])).rows,versions=async()=>(await pool.query("select id,to_jsonb(v)::text body from world_map_state_version v where map_id=$1 order by id",[f.mapId])).rows,before=await rows(),history=await versions();let finalLabel=null;
    if(branch==="generated"){
     const point=await canvas.evaluate(svg=>{const paths=[...svg.querySelectorAll('mask[data-geographic-land-mask="ready"] path')].map(p=>new Path2D(p.getAttribute("d")??"")),ctx=document.createElement("canvas").getContext("2d")!,points:{x:number;y:number}[]=[];for(let y=80;y<1120;y+=10)for(let x=100;x<1900;x+=10)if(paths.some(p=>ctx.isPointInPath(p,x/2,600-y/2,"evenodd")))points.push({x,y});const x=Math.min(...points.map(p=>p.x)),y=Math.min(...points.map(p=>p.y)),w=Math.max(...points.map(p=>p.x))-x,h=Math.max(...points.map(p=>p.y))-y;return {x:x+(1470-300)/1400*w,y:y+(815-200)/830*h};});

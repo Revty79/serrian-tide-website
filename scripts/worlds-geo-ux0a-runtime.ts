@@ -10,10 +10,12 @@ export async function islandRuntime(target: "empty" | "compat", label: string, e
   const e = environment??await ux0aEnvironment(), pool = await ownedPool(e, target); await pool.end();
   const checkoutName=process.env.SERRIAN_UX0A_CHECKOUT??"runtime-checkout";
   assert.ok(["runtime-checkout","runtime-checkout-library","runtime-checkout-overview"].includes(checkoutName));
-  const base = `http://127.0.0.1:${e.appPort}`, log = createWriteStream(path.join(UX0A_DIRECTORY, `${label}-server.log`));
-  const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(e.appPort)], {
+  const development=process.env.SERRIAN_UX0A_DEV==="1";
+  const appPort=Number(process.env.SERRIAN_UX0A_APP_PORT??e.appPort);assert.ok(Number.isInteger(appPort)&&appPort>=1024&&appPort<=65535);
+  const base = `http://127.0.0.1:${appPort}`, log = createWriteStream(path.join(UX0A_DIRECTORY, `${label}-server.log`));
+  const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", development?"dev":"start", "--hostname", "127.0.0.1", "--port", String(appPort)], {
     cwd: path.join(UX0A_DIRECTORY, checkoutName), windowsHide: true,
-    env: { ...process.env, NODE_ENV: "production", DATABASE_URL: e[target], SERRIAN_RASTER_ROOT: e.assetRoot, BETTER_AUTH_URL: base, BETTER_AUTH_SECRET: "UX0A-owned-disposable-auth-secret-only", SERRIAN_TEST_NEXT_DIST_DIR: ".next-geo-ux0a", NEXT_TELEMETRY_DISABLED: "1" }, stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, NODE_ENV: development?"development":"production", DATABASE_URL: e[target], SERRIAN_RASTER_ROOT: e.assetRoot, BETTER_AUTH_URL: base, BETTER_AUTH_SECRET: "UX0A-owned-disposable-auth-secret-only", SERRIAN_TEST_NEXT_DIST_DIR: development?".next-n0-dev":".next-geo-ux0a", NEXT_TELEMETRY_DISABLED: "1" }, stdio: ["ignore", "pipe", "pipe"],
   });
   server.stdout.pipe(log, { end: false }); server.stderr.pipe(log, { end: false });
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;

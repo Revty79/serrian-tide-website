@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "runtime": "production",
+  "results": [
+    {
+      "touchEmulated": false,
+      "newlyPlacedOverlappingTopmostStamp": true,
+      "legacyArtworkClipRespected": true,
+      "ordinaryDraftFeatureRemoveUndo": true,
+      "underlyingLandSelectableWithItems": true,
+      "lockedAndHiddenExplained": true,
+      "readOnlyNoWrites": true,
+      "textNativeShortcutsRetained": true
+    },
+    {
+      "touchEmulated": true,
+      "newlyPlacedOverlappingTopmostStamp": true,
+      "legacyArtworkClipRespected": true,
+      "ordinaryDraftFeatureRemoveUndo": true,
+      "underlyingLandSelectableWithItems": true,
+      "lockedAndHiddenExplained": true,
+      "readOnlyNoWrites": true,
+      "textNativeShortcutsRetained": true
+    }
+  ],
+  "missingExactAsset404": true,
+  "allSavedDrawingsAndPinsExact": true,
+  "noContentWrites": true,
+  "physicalDevice": false,
+  "uncoachedHuman": false
+}

@@ -1,3 +1,4 @@
+import {openStudioSection} from "./worlds-studio-test-tools";
 /** Normal website historical-source rehearsal and HTTP role checks on the corrected maps. */
 import assert from "node:assert/strict";
 import {readFile,writeFile} from "node:fs/promises";
@@ -11,7 +12,7 @@ async function main(){const results=[];
   const f=JSON.parse(await readFile(path.join(UX0A_DIRECTORY,`library-${branch}-journey.json`),"utf8")),r=await islandRuntime("empty",`${branch}-correction-history`,f.environment),pool=await ownedPool(f.environment,"empty");
   try{
    const owner=await r.browser.newContext({viewport:{width:1600,height:1000}});await r.login(owner);const page=await owner.newPage(),errors:string[]=[];page.setDefaultTimeout(12000);page.on("pageerror",e=>errors.push(e.message));page.on("dialog",d=>void d.accept());await page.goto(f.editorUrl);
-   const tool=async(name:string)=>page.getByRole("navigation",{name:"Studio tools"}).getByRole("button",{name,exact:true}).click();
+   const tool=async(name:string)=>openStudioSection(page,name);
    await tool("History");await page.getByRole("button",{name:"Create appearance from displayed map",exact:true}).click();
    const protectedName=`${branch} protected correction-source rehearsal`;
    await page.getByLabel("Appearance name",{exact:true}).fill(protectedName);await page.getByLabel("Beginning World year",{exact:true}).fill("10");await page.getByLabel("Ending World year",{exact:true}).fill("20");await page.getByLabel("Historical source account",{exact:true}).fill("Disposable technical preservation check; not a claim of historical-map professional acceptance.");await page.getByLabel("Protect this entire historical appearance",{exact:true}).check();await page.getByRole("button",{name:"Save new appearance",exact:true}).click();await page.getByRole("button",{name:"Save appearance information",exact:true}).waitFor();
