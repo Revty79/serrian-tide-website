@@ -1,5 +1,7 @@
 # Dedicated future Atlas tools
 
+The owner-adopted [revised remaining Map Maker roadmap](worlds-map-maker-decisions.md#revised-completion-roadmap--adopted-2026-10-15) is the current D3–E sequence and five-standard completion contract. Settlement, interior, dungeon and connection systems described below already exist; preserve their historical pass descriptions and extend their usability, integration and output rather than recreating them. Development readiness and UX-0 owner acceptance come first; D3-B requires its own precise scope and separate authorization. The later Worlds cleanup, Phases 7–9, Advanced Map Studio and Comprehensive Historical Earth remain in their approved order.
+
 The permanent [Geo D1-D5/E Map Maker decisions](worlds-map-maker-decisions.md) now govern the initial visual Map Maker, deep zoom, progressive geographic source resolution and later Advanced Map Studio boundary. Preserve existing connected-scale implementations and identities as those requirements are fulfilled; the C2/C3 repair records them only.
 
 The user's permanent requirement is connected geographic scales: World → Continent → Region → City → Building → Dungeon Floor. Pass 3B implements continent cartography only. Scope labels do not establish these links, geographic distances or nested navigation.

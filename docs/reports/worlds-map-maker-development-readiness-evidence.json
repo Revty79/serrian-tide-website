@@ -1,0 +1,166 @@
+{
+  "pass": "Map Maker development readiness",
+  "date": "2026-10-15",
+  "applicationBase": "b40bccc2cced333832b55239c77bcb21d165bb95",
+  "reviewCommit": "Containing Git commit; see adjacent report.",
+  "documentationOnly": true,
+  "database": {
+    "databaseBackupSha256": "0c4f9b21a52f8b77728fb14af67941d1bec38be677744c7b5d7f33e42897c755",
+    "databaseBackupBytes": 2675697,
+    "publicTables": 322,
+    "allTables": 323,
+    "migrationRows": 132,
+    "worlds": 1,
+    "maps": 1,
+    "rasterVersions": 0,
+    "databaseAndAllRowsExact": true,
+    "sequencesExact": true,
+    "schemaObjectsExact": true,
+    "isolatedOwnerAndAclOmitted": true,
+    "sourceUnchanged": true,
+    "sourceDatabaseWritten": false
+  },
+  "consistentExportedSnapshot": true,
+  "allCommittedMigrationHashesAndTimestampsVerified": 132,
+  "assets": {
+    "bundles": [
+      "5136b690d44f0b049b0832995d610e0ebdc3ec4db7259ada605abbe4e3ba83ea",
+      "5d1afdf76e65bd44466dba0dc35fd5f9060857ce752442a35b21276bcabbcbef"
+    ],
+    "declaredAssets": 60306,
+    "manifests": 2,
+    "allAssetsBitIdentical": true,
+    "sourceAssetsRehashedUnchanged": true,
+    "fullValuesChecked": true,
+    "sources": [
+      {
+        "version": 2,
+        "assets": 49164,
+        "sourceSha256": "5147450d7e8045d62b31b636cf798ceecddce53a1b3901ad60f286e62bb40416",
+        "valuesSha256": "dd1591a11a3ae29c76d1f9bdaf29f55b19739ea275bb513f83717ca4597ad169"
+      },
+      {
+        "version": 1,
+        "assets": 11142,
+        "sourceSha256": "9d27d4b8ea8e76977e2988bca667d7c8fa68b927355feffcddd6b4875a7fd08e",
+        "valuesSha256": "522c6329ed7a8c08c14718e164b04ba203d23c51212371146b789baa419c9895"
+      }
+    ]
+  },
+  "retention": {
+    "archiveSha256": "52ca1b1f9ca95f15bf859823a12eb0e2aa1ddafee8ffb1450580819f17eba09c",
+    "archiveBytes": 2699837440,
+    "filesExact": 120750,
+    "physicalMembers": 58866,
+    "hardlinkMembers": 61884,
+    "outsideCheckout": true,
+    "separateFailureDomainVerified": false,
+    "supplementalFixtureDatabaseSha256": "fdad5711de5375bceeda8b798f34a378a823dbe5717e358a8f2a72c63e053460",
+    "supplementalFixtureBundles": [
+      "236142946a5ecb368023147330d680c83617b58f967d0663eedba8fe515f77f6",
+      "2c48bcdf1f431b8f794f0838ad5bda833fcf7d0798c3c22bb0eca64044153380",
+      "2e197cfbf4136eda77f91bec578fbc69139927b878560fbb9b580125b097f9f2",
+      "432a4d3c89c3aad7f9381cb20a50ada0160e575a84eb65f3cb37df71baf47ccf",
+      "5136b690d44f0b049b0832995d610e0ebdc3ec4db7259ada605abbe4e3ba83ea",
+      "5d1afdf76e65bd44466dba0dc35fd5f9060857ce752442a35b21276bcabbcbef"
+    ]
+  },
+  "ownerReview": {
+    "prepared": true,
+    "worlds": 5,
+    "maps": 5,
+    "rasterVersions": 16,
+    "fixtureBundles": 6,
+    "freshSmoke": {
+      "passed": true,
+      "checkedAt": "2026-10-16T00:20:59.849Z",
+      "results": [
+        {
+          "viewport": {
+            "width": 1440,
+            "height": 900
+          },
+          "canvas": {
+            "x": 109,
+            "y": 342.15625,
+            "width": 972,
+            "height": 415.34375
+          },
+          "studio": true,
+          "relief": true,
+          "classification": true
+        },
+        {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "canvas": {
+            "x": 3.390625,
+            "y": 391.765625,
+            "width": 383.21875,
+            "height": 314.671875
+          },
+          "studio": true,
+          "relief": true,
+          "classification": true
+        }
+      ],
+      "pageErrors": [],
+      "ownerAcceptance": "pending",
+      "fingerprint": "e96bc14cb1f4b194976686623c68a005b58750446b108dbeac172b8bf858210a"
+    },
+    "screenshotsSha256": {
+      "1440": "e68b5a7d1e0fdf6e2b525fc7c4f2df3e3c657ffa7cf027e3e2be17c6a69e62be",
+      "390": "6b6f76ef26836cf55ff24e69b1db349fb00af2933e81c8b5a3d28a959aac0e06"
+    },
+    "screenshotsVisuallyInspected": true,
+    "physicalPhoneAcceptance": "pending",
+    "ownerAcceptance": "pending"
+  },
+  "schemaHealth": {
+    "freshMigrationsPassed": true,
+    "migrationEntries": 132,
+    "publicTables": 322,
+    "nonCheckDdlDefinitionsExact": true,
+    "checkDefinitionTextDifferences": 22,
+    "reviewedAndGroupingOnly": 21,
+    "reviewedLiteralVarcharTextArrayCastOnly": 1,
+    "allColumnTypesAndNullabilityPassed": true,
+    "jsonbDefaultsSemanticallyEqual": true,
+    "migration0114GuardPresentButAbsentFromSnapshot": true,
+    "historySearchIndexDefinitionEqualsFreshMigration": true,
+    "standardSchemaVerifierPassed": false,
+    "strictDdlTextParityPassed": false,
+    "remainingToolingWork": "The standard checker still fails on JSONB textual formatting, the snapshot-omitted 0114 privacy guard, and history_search_text_idx expression formatting. Its code and snapshots were not changed."
+  },
+  "typescript": {
+    "passed": true
+  },
+  "eslint": {
+    "errors": 0,
+    "warnings": 1,
+    "existingWarning": "scripts/worlds-stories-checks.ts LoreFamily unused"
+  },
+  "approvedBuildAndFullRegressionEvidenceReused": true,
+  "newProductionBuildExecuted": false,
+  "cleanup": {
+    "passed": true,
+    "ownedClustersStopped": 3,
+    "sharedServicesRestarted": false
+  },
+  "geographicReleaseGate": {
+    "executed": false,
+    "satisfied": false,
+    "reason": "No raster associations in captured DEV; existing release gate is unchanged."
+  },
+  "authorization": {
+    "push": false,
+    "productionContact": false,
+    "deployment": false,
+    "sharedServiceRestart": false,
+    "dockerOperation": false,
+    "newMigrations": 0,
+    "laterGeoImplementation": false
+  }
+}

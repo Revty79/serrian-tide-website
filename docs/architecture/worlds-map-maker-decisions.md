@@ -2,6 +2,66 @@
 
 Owner decisions recorded 2026-10-14 during the C2/C3 deployment repair, from pushed C3 `14f9e2c24a17de16a37527a5f7e6de8aa2c2b58c`. These are permanent requirements for later separately authorized work. Recording them does not authorize Geo D/E implementation.
 
+## Revised completion roadmap — adopted 2026-10-15
+
+The owner and Ember adopted the repository comparison at UX-0 `b40bccc2cced333832b55239c77bcb21d165bb95`. The goal is a powerful, intuitive Map Maker that an ordinary creator can use to make beautiful, editable, interconnected Worlds without developer coaching. Existing Atlas, geographic-source, generation, settlement, interior, dungeon, navigation and Living History systems remain the foundation; extend and integrate them rather than rebuild them without a demonstrated architectural defect.
+
+This section updates the remaining development sequence. Earlier authorizations and reports remain historical records. Adopting the roadmap authorizes its documentation and the development-readiness/UX-0 owner-acceptance step only. D3-B implementation requires a separately approved, bounded brief. No remote push, Production contact/change, deployment, shared-service restart, later increment or persistent demonstration content is authorized by this adoption.
+
+### Five completion standards
+
+Every remaining D3–E increment must meet all five standards, with evidence appropriate to its scope:
+
+1. **Capability:** the tool performs its intended operation correctly.
+2. **Discoverability:** a new creator can find the appropriate action without external instructions.
+3. **Usability:** the creator can complete the task without developer coaching.
+4. **Output quality:** the result meets the agreed cartographic standard and remains fully editable.
+5. **Reliability:** saving, reopening, revising, undoing, recovery and navigation preserve the creator's work.
+
+Automated regressions support technical evidence; owner hands-on acceptance and observation of an unfamiliar creator remain separate. Tooltips and field coverage alone do not establish usability. Lead with creator intentions such as Create a World Map, Generate a Continent, Draw an Island, Add Mountains and Rivers, Place a City, Create a Building Interior, Create a Dungeon and Import Real-World Geography. Coordinate references, source versions and provenance remain available when needed and authoritative underneath. Preserve independent artwork, geography, generation, raster-preference and historical saves, combined navigation protection, privacy and exact version identities.
+
+Map Maker workflow and language improvements belong inside each relevant increment. The later application-wide Worlds navigation/language cleanup retains its separate place after Geo E.
+
+### Remaining sequence and human journeys
+
+Pass names below are planning boundaries, not implementation authorization. Split further when needed to deliver independently usable and deployable increments.
+
+| Order | Bounded result | Human acceptance journey |
+| --- | --- | --- |
+| Development readiness | Verify the actual DEV database identity, schema/migration health and a matched backup of PostgreSQL plus all private geographic/raster assets. Successfully restore both into isolated targets and compare their contents. Follow the [development-readiness procedure](../operations/worlds-map-maker-development-readiness.md). | Establish a recoverable current checkpoint without restoring lost Earth data or changing shared DEV/Production. |
+| UX-0 owner acceptance | Retain the focused Map Studio workspace. UX-0 technical review has passed according to the owner's handoff; owner comfort/use acceptance remains pending until explicitly given. | Enter the Studio, find tools, draw/edit, change settings, save, reopen and return on desktop and phone. |
+| D3-B | Establish its precise initial terrain/elevation scope and acceptance requirements before implementation. Complete the agreed editable terrain foundation and ordinary creation workflow using existing geographic and rendering systems. Advanced sculpting and sophisticated simulation remain later Advanced Map Studio work. | Create land, add the agreed terrain/elevation content, revise it, save and reopen it without learning internal source terminology. |
+| Remaining D3, provisionally D3-C | Complete the agreed waterways, lakes, regions and climate/biome assistance, preserving editable results, source identities, recipes and prior manual work. Scope must distinguish authoritative geography, any numerical model and illustrated terrain. | Develop a believable fictional landscape, override generated choices and continue editing retained geography. |
+| Geographic Data Library/import checkpoint | Add reusable approved datasets, exact-version World attachments, supported additional-file imports and bounded recoverable processing with visible progress. Reuse existing import services and private storage. | Create a fresh Earth through the website, select genuine datasets, understand coverage/credits and safely retry an interrupted import. |
+| D4 connected creation | Integrate existing regional, settlement, building, interior and dungeon editors and navigation. Complete finer regional-source selection here if not delivered in the data checkpoint. Explicitly review historical interior/dungeon layout requirements. | World → region → settlement → building → interior → dungeon → return, preserving place identities, drafts, arrivals and selected historical context. |
+| D5 professional 2D output | Deliver polished terrain, settlement/city, interior and dungeon assets, coherent styling/readability and consistent suitable image exports. Agree visual examples early enough to guide development. | Improve a structurally complete map into beautiful editable cartography and export a useful image. |
+| Geo E | Complete both substantial demonstrations and full acceptance using supported application workflows, including an unfamiliar creator's uncoached tasks and the historical-layout review. | Finish the fictional and real-geographic journeys, including failure/retry, save/reopen, connected navigation, exports, privacy and desktop/touch/keyboard use. |
+| After Geo E | Major Worlds interface/navigation/language cleanup, then Phases 7–9 in the previously approved order. | Validate the broader application experience in its separately authorized scope. |
+
+### Geographic Data Library and real-source requirements
+
+The minimum maintainable extension separates a centrally provisioned, curated immutable source library from World attachments and creator modifications. Retain common originals once where appropriate; World-specific places, permissions, selections and revisions remain separate. Existing content-addressed raster files are reusable, but current World-scoped vector originals do not yet constitute a shared vector library. Any necessary schema change needs a new numbered migration and explicit authorization; never rewrite finalized migrations.
+
+The current small source-bundle importer and controlled CPU preparation are foundations, not a completed ordinary-creator worldwide importer. Generalize orchestration that currently targets the former Earth IDs. Define supported formats/references, coverage, licensing, validation, storage/CPU limits, progress, cancellation and safe retry/resumption. Do not expand this into an unrestricted GIS conversion platform, require creators to duplicate worldwide archives, or add expensive infrastructure without a demonstrated need. Prepared approved datasets can be provisioned once by an operator; creators must be able to establish and populate their Worlds through supported website actions without per-World custom scripts.
+
+Current raster associations select one elevation and one classification source per map. Progressive selection of separate finer regional sources needs implementation, including registration, deterministic overlap/precedence, NoData, exact source/version identities and current authorization. Deliver this before Geo E, either in the data checkpoint or a bounded D4 increment. Native 10-metre ESA classification in at least one manageable region and reusable provisioning for another region remain mandatory. E verifies these working capabilities; it must not conceal unfinished import or regional-selection development. Classification resolution does not imply matching elevation, buildings or imagery.
+
+### Initial-scope decisions and output quality
+
+Before authorizing D3-B, agree its precise initial terrain/elevation model, editing operations, generation behavior, supported surfaces, performance bounds and acceptance examples. Retained D3-A coastlines and older decorative terrain generation are distinct capabilities. Do not claim terrain simulation merely because mountain symbols can be painted. Preserve older seed/algorithm versions and never automatically regenerate saved manual work.
+
+Assess current interactive geometry limits against the agreed journeys: 256 original vertices per geographic feature, bounded multipart/ring counts and restricted local spherical editing/generation. Unsupported originals remain intact and explicitly read-only. Address required gaps narrowly; do not claim unrestricted spherical editing or silently simplify originals to fit limits. Define expected cross-session/crash recovery and draft restoration before claiming reliability complete: a recovery JSON download alone does not establish a supported restore workflow.
+
+D5 must deliver genuinely attractive professional 2D cartography, including settlements, interiors and dungeons. Polished tabletop/print/VTT-style output is the visual direction; previously rejected retro sprite-style artwork is not the target. Agree export resolution/readability, asset rights and runtime budgets with visual examples. This is a quality commitment within the initial Map Maker, not permission to defer meaningful quality to Advanced Map Studio or introduce VTT runtime integration.
+
+### Demonstrations, preservation and later work
+
+Recovery of the lost Earth database is canceled. Fresh Earth must be created with new application-generated identities using the finished application's own creator workflows and genuine, accurately registered, attributed sources. Historical recovery scripts or old DB imports cannot substitute for that demonstration. Surviving originals remain protected; this decision does not authorize deletion or reprovisioning of retained assets.
+
+Glass Sea remains the substantial coherent fictional demonstration across D3–E. Preserve surviving Glass Island/exterior/opening, Copper Isles, Glass Channel, original planar reference, identities, versions, provenance, artwork and associations. Use disposable copies for compatibility and proposals. New permanent geography, settlements and lore require owner approval; do not replace the existing World or silently establish canon.
+
+The commitments below remain in force: rectangular Earth display with authoritative spherical coordinates; shared source accounting and GPU-free low-cost hosting; native regional 10-metre classification before E; D4/E historical interior/dungeon-layout review; and D5 local-map visual assets. Dated layout authoring remains separately approved scope. After the initial Map Maker, cleanup and Phases 7–9, retain the later independent Advanced Map Studio and Comprehensive Historical Earth plan, with improvements integrated back. Advanced topologies/projections, sophisticated simulation, advanced sculpting and 2.5D/3D remain there. Worlds remains standalone; future VTT is a separate dashboard application.
+
 ## Progressive source resolution
 
 Keep C3's worldwide ESA WorldCover 2021 approximately 594-metre categorical overview. Its resolution is a baseline, never an architectural ceiling. Do not replace it with the approximately 117-GB native worldwide archive.
