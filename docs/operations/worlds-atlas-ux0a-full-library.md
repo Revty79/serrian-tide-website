@@ -1,5 +1,7 @@
 # UX-0A full-library implementation and review index
 
+
+The [2026-10-16 composition correction checkpoint](worlds-atlas-ux0a-corrections.md) responds to Ember’s later review and supplies fresh website exports. The original evidence below remains at its original provenance; acceptance remains pending.
 2026-10-16 candidate on `codex/atlas-ux0a`, from `d858c208d051c532dbdbb0900c0659b1f4bfeec8`. The exact pushed review SHA is supplied in [coordination v2 PR #6](https://github.com/Revty79/serrian-tide-website/pull/6) and [draft implementation PR #7](https://github.com/Revty79/serrian-tide-website/pull/7). **Independent final artwork and joint testing-readiness decisions remain pending.** This document does not invite owner testing or authorize merging/deployment.
 
 ## Implemented result

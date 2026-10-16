@@ -1,0 +1,301 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "branch": "manual",
+      "initial": {
+        "worlds": 0,
+        "maps": 0
+      },
+      "mapId": "141518ea-7595-4ee5-a10a-65428b5a23c1",
+      "browser": "154.0.8037.57",
+      "verification": {
+        "allDrawingAndPointIdsRetained": true,
+        "allPlaceAndLabelLinksRetained": true,
+        "allAssetReferencesRetained": true,
+        "allGeographicVersionsUnchanged": true,
+        "corrections": {
+          "riverPoints": [
+            "252de7aa-8636-4a35-973c-6da970605b3f",
+            "d8349e4a-81eb-49b0-8989-a417d63d443e",
+            "4511b616-204f-4133-996c-f14c994c3232",
+            "7ac82b0f-df91-4720-b00c-5bd809a6d9ce",
+            "db431da0-907e-4dfb-b2d8-eeccf6adecfe",
+            "22c95bcb-59c6-4862-82cf-0ae8665aaf16"
+          ],
+          "river": [
+            {
+              "x": 1000,
+              "y": 430
+            },
+            {
+              "x": 1040,
+              "y": 520
+            },
+            {
+              "x": 1090,
+              "y": 650
+            },
+            {
+              "x": 1050,
+              "y": 775
+            },
+            {
+              "x": 1090,
+              "y": 945
+            },
+            {
+              "x": 1120,
+              "y": 1050
+            }
+          ],
+          "mouth": {
+            "x": 1120,
+            "y": 1050
+          },
+          "harbor": {
+            "x": 1430,
+            "y": 892
+          },
+          "harborRotation": -7,
+          "source": "Read-only sampling of the actual geographic land mask; all saved changes applied through website inspector forms",
+          "editingHistory": "Undo and redo final retained-stroke point adjustment"
+        },
+        "subjects": 14,
+        "paintedSubjects": 10,
+        "linkedPlaces": 4,
+        "sources": [
+          {
+            "feature_id": "d5629f9a-3fa3-4c8a-99c1-fddf120d76b3",
+            "revision": 2
+          }
+        ],
+        "mixedGroveRevisions": [
+          4,
+          3
+        ],
+        "wetlandRotationAfterRecovery": 7,
+        "drawingIds": [
+          "051e1f4e-200a-4c01-845e-d405385dff85",
+          "8b3b6507-362e-4c82-9e21-e8f345dc6d60",
+          "0674adc9-e813-4f96-a8fe-8dbbe403a5cd",
+          "294fe30b-fb40-4479-b319-7f539f859b78",
+          "adc97683-14cf-4c45-80ae-2da8699f1d65",
+          "5c0b1284-1cff-491c-8c00-6eab62e29794",
+          "15b52436-c9ac-4871-8551-a25bd76a31ea",
+          "b397a7f0-5acf-43b4-b6ce-fb63c20c28dd",
+          "a13a2189-5232-4c50-a294-aa16a54f5899",
+          "68dc0ecb-e3f1-452d-96e3-a04d29fb43eb",
+          "e75729c4-4778-4127-b27a-9439561605bb",
+          "052c6da1-bde7-4a70-aa84-14a5bea48d38",
+          "46ff7007-f3de-4aae-a35c-621c5c9622d9",
+          "50275612-7422-4f37-9c46-0fd5bef34d82",
+          "af309a87-56a7-4016-a27e-def54e6245a6",
+          "3d979646-840c-4513-ba31-47b7e6dda1ea",
+          "80c33a7b-2c9d-49ff-be4f-68a93dfd6ff9",
+          "bc3602a6-09c7-4f22-9ec8-7b9d3fde1643",
+          "6cfb40b8-37a4-4dc5-93a8-34c69b24678a",
+          "783e46c6-9fc0-4b35-ada0-c2e8e9447bd7",
+          "20a1b54d-307f-4373-8e4d-4c09db8455a3",
+          "9e20f6cd-7afa-4aa0-a7e0-6dda07ca4807",
+          "6af38a78-b83f-4fcf-ae6a-ab303e5c924a",
+          "6173da21-cbfd-4cef-9ee9-a468a327b29d",
+          "15f0f319-ca24-4333-9a16-3612d57cac9b",
+          "58232643-3d4e-4ad8-9d53-223285994a37",
+          "7773dd52-b933-4187-a821-5ffb4ce67df8",
+          "acb21f34-5044-4853-8306-9ee19b8cb36b",
+          "7ac557d9-2af5-4cec-b74c-7e96395f3f5c"
+        ],
+        "worlds": 1
+      },
+      "errors": [],
+      "contentOrigin": "All World, map, geographic sources, artwork and places created using normal website controls. SQL used read-only for verification.",
+      "review": "Candidate full-library island. Independent final artwork/technical readiness and owner acceptance remain pending."
+    },
+    {
+      "branch": "generated",
+      "initial": {
+        "worlds": 0,
+        "maps": 0
+      },
+      "mapId": "7856fc72-ee90-4040-9aff-86901d613d0b",
+      "browser": "154.0.8037.57",
+      "verification": {
+        "allDrawingAndPointIdsRetained": true,
+        "allPlaceAndLabelLinksRetained": true,
+        "allAssetReferencesRetained": true,
+        "allGeographicVersionsUnchanged": true,
+        "corrections": {
+          "riverPoints": [
+            "9636e68f-eed1-408b-9327-356c43647b51",
+            "1ff26c98-c616-4f30-bfc9-d778301d6963",
+            "720df1ae-e180-472a-b24e-7a098b62ca07",
+            "08c583a9-afdb-4bab-9383-81c3160e52f3",
+            "af38b4f8-474d-4973-ac14-0ddef3f3dd01",
+            "fe1ea1f0-6203-4232-b3ac-009a980688cc"
+          ],
+          "river": [
+            {
+              "x": 1450,
+              "y": 459.51807228915663
+            },
+            {
+              "x": 1470,
+              "y": 537.5903614457832
+            },
+            {
+              "x": 1495,
+              "y": 650.3614457831325
+            },
+            {
+              "x": 1475,
+              "y": 758.7951807228915
+            },
+            {
+              "x": 1480,
+              "y": 863
+            },
+            {
+              "x": 1510,
+              "y": 968
+            }
+          ],
+          "mouth": {
+            "x": 1510,
+            "y": 968
+          },
+          "harbor": {
+            "x": 1665,
+            "y": 866
+          },
+          "harborRotation": -41,
+          "shorelineChecks": [
+            {
+              "name": "river outlet",
+              "point": {
+                "x": 1510,
+                "y": 968
+              },
+              "land": false,
+              "actualLand": false
+            },
+            {
+              "name": "harbor buildings",
+              "point": {
+                "x": 1636.5754623564853,
+                "y": 858.908761761694
+              },
+              "land": true,
+              "actualLand": true
+            },
+            {
+              "name": "harbor boat",
+              "point": {
+                "x": 1685.9050377049953,
+                "y": 871.1477566524385
+              },
+              "land": false,
+              "actualLand": false
+            },
+            {
+              "name": "central pier end",
+              "point": {
+                "x": 1679.5635436560544,
+                "y": 888.8504528659323
+              },
+              "land": false,
+              "actualLand": false
+            },
+            {
+              "name": "Ashmere label anchor",
+              "point": {
+                "x": 1255,
+                "y": 797.8313253012047
+              },
+              "land": true,
+              "actualLand": true
+            },
+            {
+              "name": "Wrenhaven label anchor",
+              "point": {
+                "x": 1375,
+                "y": 901.9277108433735
+              },
+              "land": true,
+              "actualLand": true
+            },
+            {
+              "name": "South Quay label anchor",
+              "point": {
+                "x": 1645,
+                "y": 745.7831325301204
+              },
+              "land": true,
+              "actualLand": true
+            },
+            {
+              "name": "Crownwatch label anchor",
+              "point": {
+                "x": 1420,
+                "y": 693.7349397590363
+              },
+              "land": true,
+              "actualLand": true
+            }
+          ],
+          "source": "Read-only sampling of the actual geographic land mask; all saved changes applied through website inspector forms",
+          "editingHistory": "Undo and redo final retained-stroke point adjustment"
+        },
+        "subjects": 14,
+        "paintedSubjects": 10,
+        "linkedPlaces": 4,
+        "sources": [
+          {
+            "feature_id": "681da1ec-2f06-4571-b36a-3285f7e79eab",
+            "revision": 2
+          }
+        ],
+        "mixedGroveRevisions": [
+          4,
+          3
+        ],
+        "wetlandRotationAfterRecovery": 7,
+        "drawingIds": [
+          "b396fc9b-46cb-46e7-a45f-a54d2346710d",
+          "73ee9f0d-c969-4fdd-8e2a-d65c23ffa662",
+          "80230c52-f6f0-43b4-bda8-d1dcc4678f90",
+          "4758520f-4d99-4c3a-9363-f5eab3f69619",
+          "cabd5555-4a59-4d87-97ec-1f9cd0d67724",
+          "96279d7f-d8de-4f1c-a22c-ac588ac351a2",
+          "4696e9f9-713e-44f8-8d25-6771a1f2def2",
+          "068060b9-3dcb-4edd-87c6-8b576aa70273",
+          "9b382b4c-b18d-4c27-aac9-1337c32b65b6",
+          "44bfed40-a331-4997-be75-48a597d3afbb",
+          "c2da3690-d162-4dd9-b934-210c09e3bdd1",
+          "3c083473-9222-448c-b251-e6586fbb116a",
+          "3d72dfd4-06fe-4798-bea2-63812c22ba75",
+          "7a136f6b-6833-4f3b-bd1d-88d78da6ecd7",
+          "48305a02-8876-46c2-b1a0-d7bc7fc8d97c",
+          "c9355971-b39b-4a09-9151-0ed80d27e293",
+          "a4caa11d-4e95-4756-8cda-d9dd01b2d958",
+          "95ff4107-4625-44c6-b6b4-4bf6ddda9f81",
+          "8816ff0b-be7f-49cc-8887-ef0ca2726f1f",
+          "228e5821-924f-4ccd-8674-b2f39d167b20",
+          "e9689863-e2c0-4a9f-b765-1f5cfdb78eb1",
+          "eca6f8da-c01d-4547-9134-57543b7d7e7e",
+          "29eb5a1f-761c-4c8c-8821-954f106021cd",
+          "feae8161-e765-4b21-a6a4-f18144180de4",
+          "50e4ab9b-72bb-42e1-ad04-eabb89dcb2d3",
+          "e3a083cb-660e-485e-b506-71930191b3cc",
+          "3d337bdc-0089-4417-8ae1-bc996406d187",
+          "130b009c-cd59-4a12-89fa-807f7f87703c",
+          "bca8ef36-bfb3-4975-b704-670d81232331"
+        ],
+        "worlds": 1
+      },
+      "errors": [],
+      "contentOrigin": "All World, map, geographic sources, artwork and places created using normal website controls. SQL used read-only for verification.",
+      "review": "Candidate full-library island. Independent final artwork/technical readiness and owner acceptance remain pending."
+    }
+  ]
+}

@@ -4,6 +4,8 @@
 
 The implementation parent and exact proposal SHA are recorded in the accompanying coordination request. This audit inspects repository contracts, services, editors and renderers. UX-0A browser evidence covers its regional island workflow; it does not establish fresh novice acceptance of every city/interior/dungeon capability below. A schema field, helper function or named tool alone does not establish professional usability.
 
+The [Ember review amendment](worlds-professional-2d-studio-amendment.md) records the required topology, historical-layout, visual coverage, output/performance and sequencing corrections. Read that planning addendum with this audit; it supersedes the affected proposal language and remains pending owner decision.
+
 ## What the existing application gives us
 
 Keep Atlas inside Worlds. The application already separates persistent geographic/place identities from drawings, has dedicated settlement and plan models, and connects maps, buildings, floors and levels. Reuse those systems. The remaining work is substantial authoring, visual and output development, with shared editing capabilities integrated into each existing editor. A larger stamp collection alone cannot deliver the requested result.

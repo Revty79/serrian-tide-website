@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "scope": "Existing actual website journey maps reopened; only view settings changed, no content writes. Source labels intentionally hidden for the images; no persistent preference or physical phone claim.",
+  "results": [
+    {
+      "branch": "manual",
+      "mapId": "141518ea-7595-4ee5-a10a-65428b5a23c1",
+      "browser": "154.0.8037.57",
+      "nativeTouchEmulation": true,
+      "unobscuredCanvas": true,
+      "zoomedWithNativeTap": true,
+      "errors": []
+    },
+    {
+      "branch": "generated",
+      "mapId": "7856fc72-ee90-4040-9aff-86901d613d0b",
+      "browser": "154.0.8037.57",
+      "nativeTouchEmulation": true,
+      "unobscuredCanvas": true,
+      "zoomedWithNativeTap": true,
+      "errors": []
+    }
+  ]
+}
