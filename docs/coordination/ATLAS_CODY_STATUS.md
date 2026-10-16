@@ -5,12 +5,18 @@
 ## Current status
 
 - Implementation remains in progress; no owner-testing or deployment readiness.
-- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `130955b44cab66f4ff6675b8e3d69116ed479c96`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
+- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `752278d9fc8c503515933580552069d528238720`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
 - Draft implementation PR: https://github.com/Revty79/serrian-tide-website/pull/5 — DO NOT MERGE.
 - Main remains the owner's preserved b5dbd5d checkpoint.
 - Early artwork gate: e7c68f8 received **CORRECTIONS REQUIRED**. Third focused candidate `f71c17023e79c88afaa18090104a25e3675ff813` is now **PENDING INDEPENDENT REVIEW**, PNG SHA-256 `bbd75f8e14c27654ed8290c978928eba476223928e16e7dcd0ca2683346bbcc0`.
 - Ember's decision: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778; Cody acknowledgment: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207992373.
 - No full-library expansion or revised-asset promotion. [Third study and exact actual-size evidence](https://github.com/Revty79/serrian-tide-website/blob/f71c17023e79c88afaa18090104a25e3675ff813/docs/screenshots/worlds-geo-ux0a/art-direction/revision-3/README.md). [New explicit review request](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6208133625). Same three subjects, two genuinely different grove footprints, seven groups instead of 34 repeated stamps, richer mountain and city detail. Cody approved this candidate direction; Ember approval is not inferred.
+
+## Latest verified real-editor learning checkpoint
+
+[Report, screenshots, actual PNGs and identity proof](https://github.com/Revty79/serrian-tide-website/blob/752278d9fc8c503515933580552069d528238720/docs/operations/worlds-atlas-ux0a-learning.md). Exact checkpoint `752278d9fc8c503515933580552069d528238720`. Create land, a nine-step real-editor lesson and searchable reference/worked examples are implemented. Lesson checks actual saved source revision changes, terrain, river, persistent city+label, independent saves, new editor visit and successful visible PNG. Native phone/tablet settings expand for reading; pending fields, undo, help close/resume/search and keyboard focus return are retained. Actual manual/generated website routes pass in a fresh zero-World root target, creating content only through the website. They share one new World (second route starts with one map); separate final art-approved zero-start acceptance runs are explicitly still required. Cody inspected desktop/phone and actual PNGs. No page errors.
+
+All **2,233 feature tests**, TypeScript, changed-file lint, diff check and isolated Node 22 production build pass. Runtime fingerprint `f3348c6e3c13b3908170c3102bc721368a483e51d0f5a6ca9f80fa74fa0bab96`. The initial island brush is lighter; existing strokes/v1 defaults remain retained. No generator algorithm or existing recipe output changed. Next: synthetic scientific-presentation recovery fault checks and the required performance/device/storage measurements. No final art/readiness claim; current retained three-subject runtime catalog only.
 
 ## Latest verified save/recovery checkpoint
 
@@ -36,7 +42,7 @@ All 2,218 feature tests pass, 23 focused composition/source/frame/assets tests p
 
 ## Required remaining work
 
-Independent art decision before full-library expansion; integrated lesson/searchable reference; scientific presentation recovery browser proof; full generated/manual first-island journeys, further fault-injection/resource/performance and final independent readiness review. Existing compatibility/mask proofs do not establish those gates.
+Independent art decision before full-library expansion; scientific presentation recovery browser proof; full generated/manual first-island journeys, further fault-injection/resource/performance and final independent readiness review. Existing compatibility/mask proofs do not establish those gates.
 
 Only owned disposable database/application/private-storage targets are used. No shared DEV/Production write, deleted-Earth restoration, retained backup/private-asset changes, Docker, shared restart, D3-B, automatic main merge or deployment.
 
