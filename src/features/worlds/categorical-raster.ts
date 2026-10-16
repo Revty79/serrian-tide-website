@@ -33,6 +33,7 @@ export const categoricalCommandSchema=z.discriminatedUnion("action",[
   z.object({action:z.literal("preferences"),mapId:geoId,timelineId:geoId,sourceId:geoId,revision:z.number().int().positive(),preferences:categoricalPreferencesSchema}).strict(),
   z.object({action:z.literal("revise"),mapId:geoId,timelineId:geoId,sourceId:geoId,revision:z.number().int().positive(),requestId:geoId,note:z.string().trim().min(1).max(4000),protected:z.boolean(),archived:z.boolean()}).strict(),
 ]);
+export type CategoricalCommand=z.infer<typeof categoricalCommandSchema>;
 /** Areas share their surface's units. Angular weights need no Earth radius. */
 export function categoricalRowWeight(grid:Pick<CategoricalGrid,"height"|"bounds">,row:number,reference:Pick<SpatialReference,"kind">){if(reference.kind==="plane")return 1;const n=grid.bounds[3]-row/grid.height*(grid.bounds[3]-grid.bounds[1]),s=grid.bounds[3]-(row+1)/grid.height*(grid.bounds[3]-grid.bounds[1]);return Math.sin(n*Math.PI/180)-Math.sin(s*Math.PI/180);}
 /** No numeric averaging. Unknown area participates; ties prefer NoData, then

@@ -47,7 +47,7 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
  const rasterProps={worldId,timelineId,mapId:enabled?mapId:"",ordinary,review,viewport};
  const elevation=useElevation(rasterProps),landCover=useLandCover(rasterProps);
  function move(dx=0,dy=0,factor=1){if(reference&&extent)setBounds(moveGeographicExtent(reference,extent,dx,reference.kind==="plane"?-dy:dy,factor));}
- return {context,layer,frame,viewport,loading:enabled&&(!current||current.loading),error:current?.error??"",retry:()=>setRefresh(n=>n+1),themes,setThemes,labels,setLabels,kind,setProjection,move,setExtent:setBounds,fit:()=>setBounds(null),extent,choose:(id:string)=>{setSelected(id);studio?.show("geography");},reading,selected,focus:()=>{if(reference&&reading?.value)setBounds(focusedGeographicExtent(reading.value.bounds,reference));},closeSource:()=>setSelected(""),elevation,landCover,dirty:elevation.dirty||landCover.dirty};
+ return {context,layer,frame,viewport,loading:enabled&&(!current||current.loading),error:current?.error??"",retry:()=>setRefresh(n=>n+1),themes,setThemes,labels,setLabels,kind,setProjection,move,setExtent:setBounds,restoreView:(value:GeographicBounds|null,kind:ProjectionKind)=>setViewDraft({key:base,bounds:value?projectionExtent(value,kind):null,projection:kind}),fit:()=>setBounds(null),extent,choose:(id:string)=>{setSelected(id);studio?.show("geography");},reading,selected,focus:()=>{if(reference&&reading?.value)setBounds(focusedGeographicExtent(reading.value.bounds,reference));},closeSource:()=>setSelected(""),elevation,landCover,dirty:elevation.dirty||landCover.dirty};
 }
 export type AtlasGeography=ReturnType<typeof useAtlasGeography>;
 

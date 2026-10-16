@@ -33,6 +33,7 @@ export const rasterCommandSchema=z.discriminatedUnion("action",[
   z.object({action:z.literal("preferences"),mapId:geoId,timelineId:geoId,sourceId:geoId,revision:z.number().int().positive(),preferences:rasterPreferencesSchema}).strict(),
   z.object({action:z.literal("revise"),mapId:geoId,timelineId:geoId,sourceId:geoId,revision:z.number().int().positive(),requestId:geoId,note:z.string().trim().min(1).max(4000),protected:z.boolean(),archived:z.boolean()}).strict(),
 ]);
+export type RasterCommand=z.infer<typeof rasterCommandSchema>;
 export function rasterTilePlan<L extends Pick<RasterLevel,"factor"|"width"|"height">>(grid:Pick<RasterGrid,"bounds"|"width"|"height">,levels:L[],extent:GeographicBounds,style:z.infer<typeof rasterStyleSchema>|"classification"):{level:L;tiles:RasterTile[]}{
   for(const level of levels){const tiles=new Map<string,RasterTile>(),[west,south,east,north]=grid.bounds;
     for(const e of splitExtent(extent)){const a=Math.max(west,e[0]),b=Math.max(south,e[1]),c=Math.min(east,e[2]),d=Math.min(north,e[3]);if(a>=c||b>=d)continue;

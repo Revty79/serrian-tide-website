@@ -68,3 +68,6 @@ export function visitCoordinates(geometry:SourceGeometry,visit:(p:Coordinate)=>v
 export function geometryParts(geometry:SourceGeometry):SourceGeometry[]{if(geometry.type==="MultiPolygon")return geometry.coordinates.map(coordinates=>({type:"Polygon",coordinates}));if(geometry.type==="MultiLineString")return geometry.coordinates.map(coordinates=>({type:"LineString",coordinates}));return [geometry];}
 export function coordinateCount(geometry:SourceGeometry){let count=0;visitCoordinates(geometry,()=>count++);return count;}
 export function atlasPolygonToSource(points:{x:number;y:number}[]):SourceGeometry {if(points.length<3)throw new Error("Choose a saved polygon with at least three points.");const coordinates=points.map(p=>[p.x,p.y] as Coordinate);return {type:"Polygon",coordinates:[[...coordinates,coordinates[0]]]};}
+
+/** Compare validated coordinate references independent of JSONB property order. */
+export function sameSpatialReference(a:SpatialReference,b:SpatialReference){return JSON.stringify(spatialReferenceSchema.parse(a))===JSON.stringify(spatialReferenceSchema.parse(b));}

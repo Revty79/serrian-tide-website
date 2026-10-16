@@ -1,10 +1,10 @@
 "use client";
 import {createContext,useContext,useCallback,useEffect,useRef,useState,type ReactNode} from "react";
 import {createPortal} from "react-dom";
-import {Brush,Globe2,Layers,History,Link2,Download,Sparkles,X,SlidersHorizontal} from "lucide-react";
+import {Brush,Globe2,Layers,History,Link2,Download,Sparkles,X,SlidersHorizontal,Save} from "lucide-react";
 import styles from "./map-studio.module.css";
 
-const panels=[['artwork','Artwork',Brush],['geography','Geography',Globe2],['generation','Generate',Sparkles],['display','Layers',Layers],['history','History',History],['links','Connections',Link2],['export','Export',Download]] as const;
+const panels=[['artwork','Artwork',Brush],['geography','Geography',Globe2],['generation','Generate',Sparkles],['display','Layers',Layers],['recovery','Save and recovery',Save],['history','History',History],['links','Connections',Link2],['export','Export',Download]] as const;
 export type StudioSection=typeof panels[number][0];
 type Studio={section:StudioSection;input:"artwork"|"geography";register:(section:StudioSection)=>()=>void;show:(section:StudioSection)=>void;inspector:HTMLDivElement|null;actions:HTMLElement|null};
 const Context=createContext<Studio|null>(null);
