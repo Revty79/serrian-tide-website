@@ -2,40 +2,43 @@
 
 **Owner:** Ember (independent technical/artwork reviewer). **Scope:** approved UX-0A only.
 **Public coordination:** https://github.com/Revty79/serrian-tide-website/issues/3
+**Discussion:** https://github.com/Revty79/serrian-tide-website/pull/4
 
-This is a **review log**, not code, not an authorization to merge/deploy, and not owner acceptance. The review must identify exact pushed implementation commits and actual evidence. Use the issue/PR thread for conversational requests and responses.
+This is a public review record, **not application code**, deployment authorization, or final owner acceptance.
 
-## Current pending gate
+## 2026-10-15 — Early illustrated-island art gate: CORRECTIONS REQUIRED
 
-**Early UX-0A illustrated island artwork — REVIEW PENDING**
+- **Reviewed artwork checkpoint:** `e6f521a35bc94a27e33af422742d86619b5f1d8c`, made remotely reviewable by packaging commit `538fa38f3fc37559364e68e4acd716a32e1f5066`.
+- **Actual source image:** [2000×1400 island PNG](https://github.com/Revty79/serrian-tide-website/blob/538fa38f3fc37559364e68e4acd716a32e1f5066/docs/screenshots/worlds-geo-ux0a/art-direction/ember-review-e6f521a/first-island.png).
+- **Manifest-reported original image SHA-256:** `8e7f938986efff72581af2cf878aa02d5a288addd20e79bd6208d196d30d2bf6`.
+- **Evidence:** inspected full island PNG and native-pixel [mountain](https://github.com/Revty79/serrian-tide-website/blob/538fa38f3fc37559364e68e4acd716a32e1f5066/docs/screenshots/worlds-geo-ux0a/art-direction/ember-review-e6f521a/details/mountains.png), [woodland](https://github.com/Revty79/serrian-tide-website/blob/538fa38f3fc37559364e68e4acd716a32e1f5066/docs/screenshots/worlds-geo-ux0a/art-direction/ember-review-e6f521a/details/woodland.png), [city/river/label](https://github.com/Revty79/serrian-tide-website/blob/538fa38f3fc37559364e68e4acd716a32e1f5066/docs/screenshots/worlds-geo-ux0a/art-direction/ember-review-e6f521a/details/settlement-river-label.png), [coastline](https://github.com/Revty79/serrian-tide-website/blob/538fa38f3fc37559364e68e4acd716a32e1f5066/docs/screenshots/worlds-geo-ux0a/art-direction/ember-review-e6f521a/details/coastline.png), and 400×280 composition thumbnail; read README, manifest, provenance and art-review brief.
+- **Decision:** **CORRECTIONS REQUIRED before authorizing expansion of the 12–16 asset starter library.** This is **not** a rejection of the restrained ink-and-wash palette or the Atlas architecture. The early composition is promising, but the current repeated symbols and finishing are not yet at the agreed professional-cartography quality.
 
-- Cody reported a local checkpoint: `e6f521a`.
-- As of channel creation, no pushed source, accessible actual island sample or review brief for that checkpoint was available to Ember.
-- **No artwork-direction approval is given.** Review must consider composition, style coherence, coastline treatment, mountain/woodland quality, label hierarchy, scale, readability and asset/version consistency.
-- Unrelated tasks in the previously authorized UX-0A scope may proceed without that artwork approval.
-- Do not expand the full illustrated starter library before this gate is approved.
+### Retain from this direction
 
-## Next review entry — template
+Readable muted sea/land/ink palette, calm negative space, overall map hierarchy, border, compass treatment, restrained typography concept, original versioned SVG/source and transparent provenance. Preserve the art-first, editable-vector approach and the non-retro intent.
 
-### [EMBER → CODY] [REVIEW PENDING / APPROVED / CORRECTIONS REQUIRED]
+### Specific blocking improvements
 
-- Date/time:
-- **Exact code branch/commit reviewed:**
-- Gate: art direction / technical implementation / ready for owner testing / other
-- Evidence reviewed: links to actual source diff, screenshots, rendered artwork and test reports
-- Findings:
-- Specific required corrections:
-- Decision and its limitations:
-- Remaining gates:
+1. **Coastline silhouette/treatment:** the coastline consists of visibly long straight angular segments and sharp corners. Improve the actual generated shoreline shape and/or truthful rendering, with varied scale of coves/headlands and coast linework suitable for polished illustrated cartography. Do not add a second fake coastline or introduce displayed/interactive mask mismatch; respect current source vertex/topology limits.
+2. **Mountain illustrations and grouping:** a diagonal chain of repeated near-identical triangular stamp forms currently reads as a row of icons. Improve the original mountain subject's silhouette/ink/wash/hatching/detail and show believable overlapping groups, size/silhouette variation, irregular spacing and lighting consistency. Avoid obvious copy-stamp repetition or a retro sprite-sheet appearance.
+3. **Woodland illustrations and scattering:** the tree clusters appear as repetitive small round symbols, especially at normal size. Increase botanical and cluster variety, depth/texture and natural organic group edges, while avoiding mechanical rows, dense overlaps and visible scatter tiling. Keep styles consistent with mountain and town artwork.
+4. **River, city, labels:** the bright illustrated river is almost straight, appears to cut through the mountains and city, and the rotated *Silverwater* lettering crosses the buildings. Correct river curvature/termination and visual layer ordering for a believable illustrated flow (numerical hydrology is **not** required in UX-0A); keep waterways clear of buildings and remove text collisions. Keep city and geographic identities separate as specified by the contract.
+5. **Map-scale/asset-scale proof:** show a revised full composition and actual palette-thumbnail-sized previews of the revised mountain, woodland and city SVGs, plus a reduced map view and representative grayscale/print-contrast check. The existing 400×280 *full-map* thumbnail does not substitute for the actual 64–96px art-browser thumbnails. Ensure key labels remain legible and are not occluded.
+
+### Next required review
+
+Submit a *revised small-subset island sample* and exact new pushed code/image SHA, plus the review brief, original vector sources and comparison crops. An early limited subject revision is allowed to prove the quality direction; **do not expand all 14 assets yet**. Ember will inspect the revised work and issue an explicit gate decision. Other unrelated authorized UX-0A work can continue.
+
+This **does not** grant approval to merge, deploy, edit shared DEV/Production, test with the owner, or begin D3-B. Initial application technical readiness and owner visual/usability acceptance remain separate.
 
 ## Standing review protections
 
-- No review of unpushed local-only code unless independently accessible actual artifacts are provided.
-- A passing build, CI or screenshots alone do not prove that a beginner can create and edit a beautiful map through the website.
-- Art-direction approval is separate from functional readiness; neither is final owner acceptance.
-- No write, merge, deploy, destructive operation, canon edit or migration on shared databases is permitted by these notes.
-- Preserve backward compatibility and the UX-0A contract's scoped migration/testing and temporary-isolated-data requirements.
-- Cody and Ember independently record both readiness decisions for the **same code SHA** before any owner invitation.
-- Only post when substantive new evidence or an explicit question justifies a response; do not repeat unchanged reviews.
+- Review exact accessible commit/evidence; no approval of unseen art or unpushed local-only code.
+- A passing build, CI or screenshots alone do not prove an uncoached beginner can create and edit a beautiful map.
+- Art-direction approval is separate from functional testing readiness; neither is final owner acceptance.
+- No code changes, merge, deploy, destructive data operation, canon edit or migration on shared databases are permitted by these notes.
+- Record both Cody and Ember's independent readiness decisions for the **same exact code SHA** before any owner invitation.
+- Only post substantive new evidence or a specific clarification; avoid duplicate unchanged review comments.
 
-**Stop/pause:** If the owner pauses reviews, leave the current review decision intact for future resumption without automatically approving unfinished work.
+**Pause:** If the owner pauses reviews, leave the last decision intact; no automatic approval or automatic restart of a stopped coding agent.
