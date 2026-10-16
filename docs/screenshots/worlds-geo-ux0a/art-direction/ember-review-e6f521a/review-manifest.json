@@ -1,0 +1,153 @@
+{
+  "sampleCheckpoint": "e6f521a35bc94a27e33af422742d86619b5f1d8c",
+  "emberDecision": "PENDING VISUAL REVIEW - neither approved nor rejected",
+  "libraryExpansionApproved": false,
+  "fullSize": {
+    "width": 2000,
+    "height": 1400,
+    "viewing": "100% zoom; 1 image pixel per display pixel"
+  },
+  "originalPngSha256": "8e7f938986efff72581af2cf878aa02d5a288addd20e79bd6208d196d30d2bf6",
+  "files": [
+    {
+      "file": "first-island.png",
+      "bytes": 377350,
+      "sha256": "8e7f938986efff72581af2cf878aa02d5a288addd20e79bd6208d196d30d2bf6",
+      "source": "docs/screenshots/worlds-geo-ux0a/art-direction/first-island.png",
+      "method": "byte-for-byte checkpoint copy"
+    },
+    {
+      "file": "first-island.svg",
+      "bytes": 25832,
+      "sha256": "7604e0c329f1d50c48eebd78bc232c06ee46a60755eb76dcf6e4eebb52a8c746",
+      "source": "docs/screenshots/worlds-geo-ux0a/art-direction/first-island.svg",
+      "method": "byte-for-byte checkpoint copy"
+    },
+    {
+      "file": "sample-provenance.json",
+      "bytes": 1274,
+      "sha256": "cd9015a9d45814e5abf56eb3615269490119d8f7edbf773c6da899530307fb3b",
+      "source": "docs/screenshots/worlds-geo-ux0a/art-direction/sample-provenance.json",
+      "method": "byte-for-byte checkpoint copy"
+    },
+    {
+      "file": "artwork/PROVENANCE.md",
+      "bytes": 1099,
+      "sha256": "655f3a6375f4943ce0891b8142231af95193832246de15a9496c3daceb819af5",
+      "source": "public/cartography/serrian-atlas-island/1/PROVENANCE.md",
+      "method": "byte-for-byte checkpoint copy"
+    },
+    {
+      "file": "artwork/mountain-rounded-1.svg",
+      "bytes": 1390,
+      "sha256": "b35dc7f986aeae7370aa73bcdfd5c3103cb24332602ca537acc07a5002825d2f",
+      "source": "public/cartography/serrian-atlas-island/1/mountain-rounded-1.svg",
+      "method": "byte-for-byte checkpoint copy"
+    },
+    {
+      "file": "artwork/woodland-broadleaf-grove-1.svg",
+      "bytes": 1775,
+      "sha256": "b77079ded0f016187637172d5091237f0c30d5339c00e52a77d057a927d6ea4f",
+      "source": "public/cartography/serrian-atlas-island/1/woodland-broadleaf-grove-1.svg",
+      "method": "byte-for-byte checkpoint copy"
+    },
+    {
+      "file": "artwork/settlement-city-1.svg",
+      "bytes": 2223,
+      "sha256": "ff9d52bbf121c9ba3c124979347637b81b9fe3e78f8c41169a62c64b25ce7701",
+      "source": "public/cartography/serrian-atlas-island/1/settlement-city-1.svg",
+      "method": "byte-for-byte checkpoint copy"
+    },
+    {
+      "file": "details/mountains.png",
+      "bytes": 73379,
+      "sha256": "68196ae2677d775d6dd9dee18458d7d6a1e4a348b419143904fa74617e2e1099",
+      "source": "first-island.png",
+      "method": "native-pixel crop; no resizing or retouching",
+      "crop": {
+        "left": 560,
+        "top": 420,
+        "width": 530,
+        "height": 405
+      }
+    },
+    {
+      "file": "details/woodland.png",
+      "bytes": 138954,
+      "sha256": "cb313248744795d2a21ab69513de5aafd295ab3e1b1ee0c0b2b5f718bb07315e",
+      "source": "first-island.png",
+      "method": "native-pixel crop; no resizing or retouching",
+      "crop": {
+        "left": 340,
+        "top": 660,
+        "width": 655,
+        "height": 395
+      }
+    },
+    {
+      "file": "details/settlement-river-label.png",
+      "bytes": 29059,
+      "sha256": "5b410c5d895468e6ad39ccb3acfd8ae29701cd47d98f3fdd0b4f29346cec6281",
+      "source": "first-island.png",
+      "method": "native-pixel crop; no resizing or retouching",
+      "crop": {
+        "left": 955,
+        "top": 740,
+        "width": 310,
+        "height": 240
+      }
+    },
+    {
+      "file": "details/coastline.png",
+      "bytes": 26920,
+      "sha256": "dcb897993f1b31579f48ca9c7a2d721568d2534509764116773bea29be5fe0a7",
+      "source": "first-island.png",
+      "method": "native-pixel crop; no resizing or retouching",
+      "crop": {
+        "left": 210,
+        "top": 245,
+        "width": 600,
+        "height": 260
+      }
+    },
+    {
+      "file": "details/typography-title.png",
+      "bytes": 15507,
+      "sha256": "4e03b1a615bf72ce782f4ef4780d7fa259506f2a598f84860c9bb6f4fb5e681e",
+      "source": "first-island.png",
+      "method": "native-pixel crop; no resizing or retouching",
+      "crop": {
+        "left": 600,
+        "top": 45,
+        "width": 800,
+        "height": 125
+      }
+    },
+    {
+      "file": "details/typography-map-labels.png",
+      "bytes": 14870,
+      "sha256": "e9af3d161bf825dfb0ddfb6e07299c2312a2467398ef42a87c8058feae0e1c44",
+      "source": "first-island.png",
+      "method": "native-pixel crop; no resizing or retouching",
+      "crop": {
+        "left": 600,
+        "top": 1005,
+        "width": 1160,
+        "height": 95
+      }
+    },
+    {
+      "file": "details/thumbnail-400.png",
+      "bytes": 45549,
+      "sha256": "11e09a38f65305befa4c40d9324089cf0d54deb2a1953f1cee3edcd3c2f270a3",
+      "source": "first-island.png",
+      "method": "400 x 280 downsample for composition/readability review; not a runtime palette screenshot"
+    },
+    {
+      "file": "README.md",
+      "bytes": 6338,
+      "sha256": "543fc44866cba5c0f4d61f5f1f35c8f6cbb288d23b777bbdeed0c056e04025f4",
+      "method": "review brief accompanying this unchanged checkpoint"
+    }
+  ]
+}

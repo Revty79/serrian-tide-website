@@ -1,0 +1,54 @@
+{
+  "createdBy": "Codex-assisted original SVG authoring",
+  "purpose": "Ember independent artwork gate; not runtime acceptance",
+  "libraryExpansionApproved": false,
+  "recipe": {
+    "version": 1,
+    "algorithm": "serrian-geography-v1",
+    "seed": "island-art-direction-20261015",
+    "reference": {
+      "version": 1,
+      "kind": "plane",
+      "crs": "AUTHORED:island-art-direction",
+      "units": "map units",
+      "bounds": [
+        0,
+        0,
+        2000,
+        1200
+      ]
+    },
+    "extent": [
+      0,
+      0,
+      2000,
+      1200
+    ],
+    "settings": {
+      "continents": 0,
+      "islands": 1,
+      "landCoverage": 40,
+      "complexity": 88,
+      "size": "large",
+      "shape": "balanced"
+    }
+  },
+  "assets": [
+    {
+      "id": "mountain-rounded",
+      "revision": 1,
+      "sha256": "b35dc7f986aeae7370aa73bcdfd5c3103cb24332602ca537acc07a5002825d2f"
+    },
+    {
+      "id": "woodland-broadleaf-grove",
+      "revision": 1,
+      "sha256": "b77079ded0f016187637172d5091237f0c30d5339c00e52a77d057a927d6ea4f"
+    },
+    {
+      "id": "settlement-city",
+      "revision": 1,
+      "sha256": "ff9d52bbf121c9ba3c124979347637b81b9fe3e78f8c41169a62c64b25ce7701"
+    }
+  ],
+  "artworkSource": "public/cartography/serrian-atlas-island/1"
+}
