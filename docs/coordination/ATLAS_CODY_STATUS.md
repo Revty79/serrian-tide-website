@@ -1,41 +1,33 @@
 # ATLAS_CODY_STATUS — Cody's review handoff
 
-**Owner:** Cody. **Scope:** UX-0A only. **Coordination channel:** https://github.com/Revty79/serrian-tide-website/issues/3
-
-> This file is on the coordination branch; application code and assets stay on codex/atlas-ux0a. Public sanitized review material only.
+**Owner:** Cody. **Scope:** UX-0A only. **Coordination:** https://github.com/Revty79/serrian-tide-website/issues/3
 
 ## Current status
 
-- **Updated:** 2026-10-16 03:56:12 UTC.
-- **Implementation:** in progress; no completed application journey or release readiness claim.
-- **Feature branch:** `codex/atlas-ux0a`.
-- **Pushed checkpoint:** `1aa5d87e1e1dc738fcc9a06a97effbdcf28ea49e` (technical foundation; revised art remains pinned separately to e7c68f8).
-- **Draft implementation PR:** https://github.com/Revty79/serrian-tide-website/pull/5 (DO NOT MERGE).
-- **Early art gate:** original e6f521a received CORRECTIONS REQUIRED; revised small subset awaits a fresh decision.
-- **Review request:** https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207384046.
-- **Full image/brief/details/actual previews/grayscale:** https://github.com/Revty79/serrian-tide-website/blob/e7c68f808cace64d88363c1e9807b5fa8954c00a/docs/screenshots/worlds-geo-ux0a/art-direction/revision-2/README.md.
-- **PNG SHA-256:** `f2909ffbb8ea8485e2edee98ec4de96002698b7149484a9f8dbb64d6106835c0`.
+- Implementation remains in progress; no owner-testing or deployment readiness.
+- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `e7301cd69311810b1b33ed5e38c2e67ca692ceb5`.
+- Draft implementation PR: https://github.com/Revty79/serrian-tide-website/pull/5 — DO NOT MERGE.
+- Main remains the owner's preserved b5dbd5d checkpoint.
+- Early artwork gate: **CORRECTIONS REQUIRED** on revised art e7c68f808cace64d88363c1e9807b5fa8954c00a, PNG f2909ffbb8ea8485e2edee98ec4de96002698b7149484a9f8dbb64d6106835c0.
+- Ember's decision: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778; Cody acknowledgment: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207992373.
+- No full-library expansion or revised-asset promotion. Next art work is a focused third revision of the same mountain/woodland/city subjects, with actual-size previews and full/reduced/grayscale/crop proof.
 
-## Latest verified technical foundation
+## Latest verified technical checkpoint
 
-[Checkpoint report and screenshots/export](https://github.com/Revty79/serrian-tide-website/blob/1aa5d87e1e1dc738fcc9a06a97effbdcf28ea49e/docs/operations/worlds-atlas-ux0a-foundation.md). Strict retained-v1/additive-v2 contracts, exact catalog/role/place validation, shared vector rendering and missing-reference warnings/export block; planned additive migration 0132 has fresh and populated isolated proof with every prior row/history payload retained. All 2,214 feature tests, TypeScript, isolated Node 22 production build and actual desktop/save/export/touch-browser compatibility checks pass. Full lint has zero errors and one pre-existing stories-harness warning. No full application readiness is claimed. Next is the real empty-World journey, geographic presentation/masking, learning and independent saves/recovery.
+[Composition report and evidence](https://github.com/Revty79/serrian-tide-website/blob/e7301cd69311810b1b33ed5e38c2e67ca692ceb5/docs/operations/worlds-atlas-ux0a-composition.md).
 
-## Current art handoff
+Shared source-backed land/water composition now serves editor, explorer, thumbnails and visible PNG. Independent even-odd source fills union land, retain openings and allow another island inside an opening; original painted strokes remain complete. Valid authoring/generation previews use transient derived masks; loading or changed access cannot reuse old masks. Visual theme toggles do not remove clipping boundaries. Scientific unknown coverage stays neutral, original scientific colors/values and legacy/night rendering remain retained. New regional generic maps pin the shared ink-and-wash style, require explicit coordinate-surface association, and expose Generate/Draw island. Direct editor URLs now preserve the Atlas tab.
 
-The revised study retains exactly three subjects and all earlier originals. It adds mountain/grove revision 2, an explicitly authored validated 256-vertex source shoreline shared with the clip, organic woodland composition, separated curved river/town/text, true 64/96px subject previews and grayscale/reduced views. TypeScript, 23 focused geography tests, focused new-script ESLint, source validation, evidence links/dimensions/hash and actual standalone Chrome text/artwork collision checks pass. Cody inspected the actual material. Application browser/build/migration/performance/recovery gates remain incomplete.
+Actual zero-count website baseline reproduced both source-only dark canvas and legacy illustrated generation. Actual UI-created mask proof has mainland + opening + inner/offshore islands, independent saves and retained cross-water v1 brush stroke. Actual visible PNG contains 14,632 full-color terrain pixels on land and zero outside; close/reload/reopen and corrected direct URL pass. 390x844 native-touch-browser pan/zoom and bounded width pass; no physical-device claim. Cody inspected actual desktop, touch and PNG evidence.
 
-**Decision requested:** approve expansion in this direction, or specify remaining corrections, for the exact art SHA above. In particular assess illustration richness and remaining grove repetition/density. No owner testing is requested. Full-library expansion stays on hold until explicit independent art approval.
+All 2,218 feature tests pass, 23 focused composition/source/frame/assets tests pass, isolated Node 22.23.3 production build/TypeScript pass. Full lint: zero errors and the existing stories-harness unused import warning. No new migration beyond immutable 0132, whose fresh/populated compatibility rehearsal remains at [foundation checkpoint 1aa5d87](https://github.com/Revty79/serrian-tide-website/blob/1aa5d87e1e1dc738fcc9a06a97effbdcf28ea49e/docs/operations/worlds-atlas-ux0a-foundation.md).
 
-Independent authorized work can continue: strict v1/v2 validation and planned additive migration in newly owned disposable targets, source-mask/render integration, saves/recovery, learning and the real empty-World journey. No shared DEV/Production writes, deleted-Earth restoration, Docker, shared-service restart, later Geo scope, merge or deployment.
+## Required remaining work
 
-The owner explicitly authorized the current GitHub coordination/publication loop. Main remains the owner's preserved b5dbd5d checkpoint; future work stays on the feature branch. No history rewriting.
+Focused art correction and independent approval before full-library expansion; visual palette and persistent city/label workflow; independent status/save/recovery; integrated lesson/searchable reference; full generated/manual first-island journeys, fault-injection/resource/performance and final independent readiness review. Existing compatibility/mask proofs do not establish those gates.
 
-## Rules
+Only owned disposable database/application/private-storage targets are used. No shared DEV/Production write, deleted-Earth restoration, retained backup/private-asset changes, Docker, shared restart, D3-B, automatic main merge or deployment.
 
-1. Put code/assets/migrations on a **separate feature branch and draft PR**. Do not add code to this coordination branch.
-2. When requesting review, post `[CODY → EMBER] [REVIEW REQUEST]` in the coordination issue or coordination draft PR with the exact SHA and evidence.
-3. Do not assume Ember approved anything because time passed or a checker is green.
-4. Do not expand the starter artwork collection before Ember explicitly approves the early illustrated island quality gate.
-5. Keep shared DEV/Production, historical backups, retained Earth assets and persistent canon protected. Review coordination does not expand implementation permissions.
+## Coordination rules
 
-**Stop/pause:** When the owner directs a stop, pause further work as instructed; a scheduler pause alone does not stop a separately running coding session.
+Application code/artwork stay on the feature branch. This file alone is Cody's coordination record; do not edit Ember's review file. Send substantive exact-SHA review requests/comments in discussion-only PR #4; do not infer approval from silence, elapsed time or tests. The owner needs no manual relay. Ember reported the original scheduler ran once and then disabled itself and is repairing it. That is not proof that a stopped Cody turn will be awakened. Honor explicit owner stop/pause instructions.
