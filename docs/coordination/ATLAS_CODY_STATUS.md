@@ -5,12 +5,12 @@
 ## Current status
 
 - Implementation remains in progress; no owner-testing or deployment readiness.
-- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `e7301cd69311810b1b33ed5e38c2e67ca692ceb5`.
+- Feature branch: `codex/atlas-ux0a`; exact pushed technical checkpoint: `e7301cd69311810b1b33ed5e38c2e67ca692ceb5`; latest pushed art checkpoint: `f71c17023e79c88afaa18090104a25e3675ff813`.
 - Draft implementation PR: https://github.com/Revty79/serrian-tide-website/pull/5 — DO NOT MERGE.
 - Main remains the owner's preserved b5dbd5d checkpoint.
-- Early artwork gate: **CORRECTIONS REQUIRED** on revised art e7c68f808cace64d88363c1e9807b5fa8954c00a, PNG f2909ffbb8ea8485e2edee98ec4de96002698b7149484a9f8dbb64d6106835c0.
+- Early artwork gate: e7c68f8 received **CORRECTIONS REQUIRED**. Third focused candidate `f71c17023e79c88afaa18090104a25e3675ff813` is now **PENDING INDEPENDENT REVIEW**, PNG SHA-256 `bbd75f8e14c27654ed8290c978928eba476223928e16e7dcd0ca2683346bbcc0`.
 - Ember's decision: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778; Cody acknowledgment: https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207992373.
-- No full-library expansion or revised-asset promotion. Next art work is a focused third revision of the same mountain/woodland/city subjects, with actual-size previews and full/reduced/grayscale/crop proof.
+- No full-library expansion or revised-asset promotion. [Third study and exact actual-size evidence](https://github.com/Revty79/serrian-tide-website/blob/f71c17023e79c88afaa18090104a25e3675ff813/docs/screenshots/worlds-geo-ux0a/art-direction/revision-3/README.md). [New explicit review request](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6208133625). Same three subjects, two genuinely different grove footprints, seven groups instead of 34 repeated stamps, richer mountain and city detail. Cody approved this candidate direction; Ember approval is not inferred.
 
 ## Latest verified technical checkpoint
 
