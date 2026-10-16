@@ -23,7 +23,9 @@ Restore the selected current dump with `pg_restore --exit-on-error --no-owner --
 
 ## UX-0 hands-on owner acceptance
 
-The owner reports that UX-0 technical review passed. Owner acceptance remains **pending** until explicitly given; automated evidence and screenshots do not imply it. Use the current focused Studio in an isolated acceptance environment when creator writes are required. Keep it separate from the pristine restored recovery target. Ordinary developer use of a restored fixture is not restoration of the lost Earth into shared DEV.
+The owner reports that UX-0 technical review passed, followed by a 2026-10-15 hands-on result of **not accepted for usability / changes requested**. The owner observed a black background after coastline generation, did not understand most tools or where/how to use them, and found the overall workspace too difficult without coaching. Discoverability and usability therefore remain blocking issues before D3-B. See the [proposed UX-0A correction](../architecture/worlds-map-studio-usability-correction.md); this feedback authorizes its proposal, not implementation. Historical technical receipts and screenshots remain retained and do not imply usability acceptance.
+
+Use the current focused Studio in an isolated acceptance environment when creator writes are required. Keep it separate from the pristine restored recovery target. Ordinary developer use of a restored fixture is not restoration of the lost Earth into shared DEV.
 
 The owner should be able to:
 
@@ -35,7 +37,7 @@ The owner should be able to:
 
 Record observed friction, task outcomes and the owner's explicit decision. Fixes beyond this readiness/documentation authorization require their own bounded scope; do not silently start D3-B or the broad Worlds cleanup. Later increments repeat the five completion standards. Geo E additionally observes an unfamiliar creator completing the agreed journeys without developer coaching.
 
-Use this record during the owner's review. All outcomes begin **pending**; a developer's smoke check does not fill them in for the owner.
+Use this template for the next owner's review. Its pending task cells do not supersede the overall usability rejection recorded above; no individual acceptance is inferred from the owner's general feedback or a developer's smoke check.
 
 | Task | What to record | Owner outcome |
 | --- | --- | --- |

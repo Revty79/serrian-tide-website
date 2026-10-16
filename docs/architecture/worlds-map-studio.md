@@ -2,7 +2,7 @@
 
 Authorized from independently approved D3-A `72150c1efc3524080a286890305f011697aea40c`. This is a presentation/workspace pass before D3-B. No new source, geometry engine, schema, dataset, persistent World edit or later Geo work is authorized.
 
-Owner handoff on 2026-10-15 confirms independent technical approval of UX-0 `b40bccc2cced333832b55239c77bcb21d165bb95`. Hands-on owner comfort/use acceptance remains pending until explicitly given. Follow the adopted [remaining roadmap](worlds-map-maker-decisions.md#revised-completion-roadmap--adopted-2026-10-15) and [development-readiness/owner-acceptance procedure](../operations/worlds-map-maker-development-readiness.md); neither technical approval nor screenshots authorize D3-B or establish human usability.
+Owner handoff on 2026-10-15 confirms independent technical approval of UX-0 `b40bccc2cced333832b55239c77bcb21d165bb95`. Subsequent hands-on feedback is **not accepted for usability**: the owner reports a black background after coastline generation, unclear tools/locations/purposes and an overall workflow requiring coaching. The scrolling correction remains a technical result; discoverability and usability are unresolved blockers before D3-B. See the [proposed bounded UX-0A correction](worlds-map-studio-usability-correction.md), the adopted [remaining roadmap](worlds-map-maker-decisions.md#revised-completion-roadmap--adopted-2026-10-15) and [development-readiness/owner-acceptance procedure](../operations/worlds-map-maker-development-readiness.md). The correction is a proposal, not implementation authorization; neither technical approval nor screenshots establish human usability.
 
 ## Inventory before reorganization
 

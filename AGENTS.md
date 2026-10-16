@@ -14,6 +14,8 @@ On 2026-10-15 the owner adopted the [revised Map Maker completion roadmap](docs/
 
 ## Geo UX-0 authorization
 
+The owner's 2026-10-15 hands-on result is **not accepted for usability**: a black background after coastline generation, unclear tools and a workflow requiring coaching. UX-0's scrolling correction remains technically approved, but discoverability/usability block D3-B. Follow the [proposed bounded UX-0A correction](docs/architecture/worlds-map-studio-usability-correction.md) for first-map workflow, understandable tool grouping, default presentation and distinct geography/artwork/content actions. The current request authorizes documenting the feedback and proposing the pass only; do not implement UX-0A or begin D3-B without separate authorization. Preserve historical technical/recovery receipts.
+
 The owner independently technically approved D3-A at `72150c1efc3524080a286890305f011697aea40c` and authorized the [focused Map Studio workspace](docs/architecture/worlds-map-studio.md) before D3-B. Retain every existing tool, coordinate adapter, separate save boundary, draft/undo/conflict protection, map type, historical context and privacy rule while replacing whole-page scrolling with a viewport workspace and contextual inspector. Use only read-only/disposable Earth and Glass Sea fixtures. No schema migration, new engine/dataset/assets, persistent DEV/Production operations, Docker, shared-service restart, later Geo work or application-wide Worlds cleanup. Stop at a clean local review commit without push for Ember and owner acceptance.
 
 ## Geo D3-A authorization
