@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "sourceFingerprint": "c54a9affa2ee768254672858701bd9ef18e03e2d07aabdff24bd902578551f52",
+  "node": "v22.23.3",
+  "productionBuild": true,
+  "typeScript": true,
+  "lintErrors": 0,
+  "preexistingLintWarning": "Unused LoreFamily in scripts/worlds-stories-checks.ts",
+  "featureTests": {
+    "passed": 2250,
+    "failed": 0,
+    "skipped": 0,
+    "files": 277
+  },
+  "focusedPreviewTests": 9,
+  "browser": "134.0.6998.166",
+  "originalHeaderAndNavigationExact": true,
+  "worldRowsUnchanged": true,
+  "migrationChanges": 0,
+  "parent": "cbd9a9654e33345832331d0fb7899c57bd8afd21",
+  "browserReceipt": "results.json",
+  "physicalPhoneClaim": false
+}

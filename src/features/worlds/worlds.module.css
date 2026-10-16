@@ -179,6 +179,38 @@
 @media(prefers-reduced-motion:reduce) { .worldCard {transition:none;} }
 
 .workspaceTabs { flex-wrap:wrap; }
+.openingPages {align-items:start;gap:1.25rem;}
+.openingPages .story,.openingPages .recent {padding:1.25rem;margin-bottom:1.25rem;}
+.openingPages .sectionHeading {margin-bottom:.75rem;}
+.openingPages .story :global(.st-button) {margin-top:0;}
+.openingPages .readingLink {margin:.5rem 0;padding:.6rem .75rem;}
+.openingPages .prose {font-size:1rem;line-height:1.8;}
+.overviewContextBar {display:flex;justify-content:space-between;align-items:start;gap:.75rem;flex-wrap:wrap;margin-bottom:.5rem;}
+.overviewDisclosure {border:1px solid var(--st-border);border-radius:.65rem;padding:.65rem 1rem;background:var(--st-surface-soft);min-width:0;color:var(--st-text);}
+.overviewDisclosure summary {cursor:pointer;min-height:44px;display:list-item;align-content:center;line-height:1.6;overflow-wrap:anywhere;}
+.overviewDisclosure[open]>summary {margin-bottom:.75rem;}
+.overviewDisclosure>div[data-field-guidance] {margin-top:1rem;}
+.overviewContextBar>.overviewDisclosure {flex:0 1 30rem;}
+.overviewHistory .timeline {margin-bottom:1.25rem;}
+.timeline[data-compact="true"] .timelineViewport {max-height:260px;}
+.timelineGuide {margin-top:.75rem;color:var(--st-muted);font-size:.8rem;}
+.timelineGuide summary {cursor:pointer;min-height:44px;align-content:center;}
+.timelineUndatedSummary {font-size:.8rem;color:var(--st-muted);margin:.75rem 0 0;}
+.worldMap {border:1px solid var(--st-border);background:var(--st-surface-soft);border-radius:1rem;padding:1.25rem;margin-bottom:1.25rem;min-width:0;}
+.worldMap .sectionHeading {margin-bottom:.75rem;}
+.worldMapImage {margin:0;min-width:0;}
+.worldMapImage svg {display:block;width:100%;height:auto;}
+.worldMapImage [data-atlas-thumbnail]>div:empty {display:none;}
+.worldMap>.overviewDisclosure {margin-top:.75rem;}
+.mapChoice {display:grid;gap:.5rem;max-width:26rem;}
+.overviewBackground {display:grid;grid-template-columns:1fr 1fr;align-items:start;gap:1rem;margin-bottom:1.25rem;}
+.overviewBackground .prose {font-size:1rem;line-height:1.8;}
+.overviewBackground :global(.st-button) {margin-top:1rem;}
+@media(max-width:650px){
+ .overviewBackground {grid-template-columns:1fr;}
+ .overviewContextBar>.overviewDisclosure {flex:1 1 100%;}
+ .worldMap {padding:1rem;}
+}
 .timelineSelection { display:flex; flex-wrap:wrap; align-items:center; gap:1rem; margin-block:1rem; padding:1rem; border:1px solid var(--st-border); border-radius:1rem; background:var(--st-surface); }
 .timelineSelection label { flex:1 1 14rem; }
 .timelineSelection p { flex:2 1 16rem; color:var(--st-text-secondary); overflow-wrap:anywhere; }

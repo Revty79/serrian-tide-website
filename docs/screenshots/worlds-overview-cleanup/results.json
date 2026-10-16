@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "groups": [
+    "existing header and all13 navigation destinations retained; opening/history/whole-World map order; quiet disclosures and filtered map choices",
+    "all workspace destinations and overview timeline switching preserve explicit URL/context",
+    "Open Atlas opens the Atlas map-maker library and creation tools; failed introduction save retains draft and explicit discard leaves saved content unchanged",
+    "390px native-touch browser fits without horizontal overflow; retained navigation, timeline controls and clean World map",
+    "empty World shows an honest map action, never substitutes continent/region cards",
+    "foreign/player/default Admin denial, explicit read-only Admin review, ordinary protected-map filtering and every saved World row unchanged"
+  ],
+  "errors": [],
+  "disposableDatabase": "serrian_ux0a_acceptance_1792176945282",
+  "worldRowsUnchanged": true,
+  "sharedDataAccess": false,
+  "physicalPhoneClaim": false
+}
