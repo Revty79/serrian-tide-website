@@ -1,0 +1,344 @@
+{
+  "scope": "Standalone SVG art study only; not an application journey",
+  "browser": "134.0.6998.166",
+  "viewport": {
+    "width": 2040,
+    "height": 1440
+  },
+  "deviceScaleFactor": 1,
+  "externalRequests": [],
+  "texts": [
+    {
+      "text": "THE FIRST ISLAND",
+      "x": 719.0703125,
+      "y": 60,
+      "width": 561.859375,
+      "height": 56
+    },
+    {
+      "text": "AN ORIGINAL INK-AND-WASH CARTOGRAPHIC STUDY",
+      "x": 696.578125,
+      "y": 134,
+      "width": 605.84375,
+      "height": 21
+    },
+    {
+      "text": "THE HIGH COUNTRY",
+      "x": 874.1437377929688,
+      "y": 396.85260009765625,
+      "width": 273.07135009765625,
+      "height": 67.32302856445312
+    },
+    {
+      "text": "Harbor city",
+      "x": 1081.6605224609375,
+      "y": 979,
+      "width": 117.12841796875,
+      "height": 26
+    },
+    {
+      "text": "The greenward woods",
+      "x": 546.359375,
+      "y": 681,
+      "width": 207.28125,
+      "height": 21
+    },
+    {
+      "text": "Silverwater",
+      "x": 1229,
+      "y": 717,
+      "width": 96.9150390625,
+      "height": 21
+    },
+    {
+      "text": "The open sea",
+      "x": 1503.8671875,
+      "y": 1028,
+      "width": 192.265625,
+      "height": 31
+    },
+    {
+      "text": "N",
+      "x": 1741.171875,
+      "y": 235,
+      "width": 18,
+      "height": 26
+    },
+    {
+      "text": "One source coastline · Original illustrated subjects · Clear places and labels",
+      "x": 638.4609375,
+      "y": 1240,
+      "width": 723.078125,
+      "height": 25
+    },
+    {
+      "text": "Revised three-subject study, with retained originals and editable geographic source.",
+      "x": 686.703125,
+      "y": 1284,
+      "width": 626.59375,
+      "height": 20
+    },
+    {
+      "text": "INTERNAL ART DIRECTION / NOT CANON / NOT APPLICATION ACCEPTANCE EVIDENCE",
+      "x": 645.3984375,
+      "y": 1326,
+      "width": 709.203125,
+      "height": 17
+    }
+  ],
+  "artwork": [
+    {
+      "asset": "#mountain-rounded",
+      "x": 776.0999755859375,
+      "y": 496.1000061035156,
+      "width": 324.9000244140625,
+      "height": 188.10000610351562
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 681.6622314453125,
+      "y": 716.58740234375,
+      "width": 83.0447998046875,
+      "height": 51.88262939453125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 597.8466796875,
+      "y": 734.1732177734375,
+      "width": 76.51617431640625,
+      "height": 47.80377197265625
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 703.3604125976562,
+      "y": 748.4000854492188,
+      "width": 80.17218017578125,
+      "height": 50.087890625
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 644.6944580078125,
+      "y": 756.4222412109375,
+      "width": 64.50335693359375,
+      "height": 40.29876708984375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 551.3585815429688,
+      "y": 745.396728515625,
+      "width": 92.70721435546875,
+      "height": 57.91925048828125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 737.7720336914062,
+      "y": 774.1321411132812,
+      "width": 85.13397216796875,
+      "height": 53.1878662109375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 618.4608154296875,
+      "y": 787.8018188476562,
+      "width": 60.0638427734375,
+      "height": 37.525146484375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 673.2947998046875,
+      "y": 792.224365234375,
+      "width": 60.8472900390625,
+      "height": 38.01458740234375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 544.8319091796875,
+      "y": 783.2407836914062,
+      "width": 87.48431396484375,
+      "height": 54.65618896484375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 702.5318603515625,
+      "y": 800.43798828125,
+      "width": 88.7900390625,
+      "height": 55.47198486328125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 791.7134399414062,
+      "y": 809.170166015625,
+      "width": 93.7518310546875,
+      "height": 58.57183837890625
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 571.2449340820312,
+      "y": 824.2686767578125,
+      "width": 72.3377685546875,
+      "height": 45.19329833984375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 647.3958740234375,
+      "y": 827.4633178710938,
+      "width": 88.26776123046875,
+      "height": 55.1456298828125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 841.9632568359375,
+      "y": 843.6558227539062,
+      "width": 68.68170166015625,
+      "height": 42.9091796875
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 589.3716430664062,
+      "y": 841.9609985351562,
+      "width": 90.61810302734375,
+      "height": 56.614013671875
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 739.19140625,
+      "y": 853.5081787109375,
+      "width": 66.33135986328125,
+      "height": 41.4407958984375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 813.3067626953125,
+      "y": 869.8344116210938,
+      "width": 60.8472900390625,
+      "height": 38.01458740234375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 693.0576782226562,
+      "y": 872.9255981445312,
+      "width": 62.15301513671875,
+      "height": 38.83038330078125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 756.1719970703125,
+      "y": 873.0802612304688,
+      "width": 86.70086669921875,
+      "height": 54.166748046875
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 901.9082641601562,
+      "y": 879.8367309570312,
+      "width": 82.52252197265625,
+      "height": 51.5562744140625
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 720.5372924804688,
+      "y": 895.5257568359375,
+      "width": 67.1148681640625,
+      "height": 41.93023681640625
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 664.7283325195312,
+      "y": 895.8978881835938,
+      "width": 66.85369873046875,
+      "height": 41.76708984375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 837.3448486328125,
+      "y": 902.8911743164062,
+      "width": 59.54156494140625,
+      "height": 37.1988525390625
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 760.0437622070312,
+      "y": 909.5235595703125,
+      "width": 75.9937744140625,
+      "height": 47.47747802734375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 962.1478881835938,
+      "y": 909.8264770507812,
+      "width": 88.00653076171875,
+      "height": 54.9825439453125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 906.658935546875,
+      "y": 913.6744995117188,
+      "width": 88.006591796875,
+      "height": 54.9825439453125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 690.8916625976562,
+      "y": 919.6701049804688,
+      "width": 76.77728271484375,
+      "height": 47.9669189453125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 772.2987060546875,
+      "y": 934.9054565429688,
+      "width": 89.83465576171875,
+      "height": 56.12457275390625
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 1002.4344482421875,
+      "y": 947.0294799804688,
+      "width": 65.80908203125,
+      "height": 41.114501953125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 857.4176635742188,
+      "y": 940.8068237304688,
+      "width": 90.87921142578125,
+      "height": 56.77716064453125
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 928.3421020507812,
+      "y": 945.8310546875,
+      "width": 85.39508056640625,
+      "height": 53.3509521484375
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 718.7327270507812,
+      "y": 948.9511108398438,
+      "width": 90.35693359375,
+      "height": 56.45086669921875
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 914.8966064453125,
+      "y": 984.567138671875,
+      "width": 62.93646240234375,
+      "height": 39.31982421875
+    },
+    {
+      "asset": "#woodland-broadleaf-grove",
+      "x": 996.1317138671875,
+      "y": 993.2813720703125,
+      "width": 62.67529296875,
+      "height": 39.1566162109375
+    },
+    {
+      "asset": "#settlement-city",
+      "x": 1077.2470703125,
+      "y": 866.47998046875,
+      "width": 125.8599853515625,
+      "height": 105.13134765625
+    }
+  ],
+  "collisions": []
+}

@@ -1,6 +1,10 @@
 # UX-0A early island artwork review
 
-Status: **PENDING VISUAL REVIEW - neither approved nor rejected.** Ember's supplied 2026-10-15 response reports that local checkpoint `e6f521a` and its actual image/brief were unavailable to her. Cody inspected the sample; Ember has not yet assessed its artwork. The owner authorized this internal gate as part of UX-0A. This is not an invitation for owner application testing, a complete library or runtime acceptance evidence.
+Status: **Original candidate: CORRECTIONS REQUIRED. Revised subset: independent decision pending.** Ember inspected the actual original PNG and supporting evidence after publication and posted [her decision in the coordination channel](https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207195299). The owner subsequently authorized ongoing GitHub coordination and feature-branch review publication. The original request for file delivery is resolved; art expansion remains blocked. This is not an invitation for owner application testing, a complete library or runtime acceptance evidence.
+
+## Revised small-subset review
+
+[Revision 2 evidence and review brief](../screenshots/worlds-geo-ux0a/art-direction/revision-2/README.md) retain the old candidate and append two original subject revisions. The candidate addresses source-backed coastline articulation, mountain/woodland grouping and detail, river/city/text separation, 64/96px asset previews and grayscale/reduced composition evidence. Its 256-vertex actual geographic outline passes existing D2 validation; the original seed algorithm and saved maps are unchanged. No additional subject family or full-library expansion has occurred.
 
 ## Review package
 
@@ -23,8 +27,8 @@ Fresh inspection while packaging shows that the rotated Silverwater river label 
 
 Review the PNG and original vectors at actual size, including thumbnail-scale readability, subject quality, coherent linework/shading/colors, composition and label hierarchy, overlap/scatter behavior and grayscale/print legibility. Return either approval to expand the starter library in this direction or concrete corrections. Record the reviewed sample/provenance hashes and any conditions. Further independent review is required if a correction materially changes this direction.
 
-- Cody visual inspection: completed; portable materials prepared for the owner to forward. Receipt by Ember is not assumed.
-- Ember decision: **PENDING VISUAL REVIEW - neither approved nor rejected**, as explicitly relayed by the owner.
+- Cody visual inspection: original and revised full PNGs, details, previews and grayscale/reduced material inspected; browser bounding-box checks supplement the revised candidate assessment.
+- Ember decision: **CORRECTIONS REQUIRED** for original `e6f521a`; the new subset awaits its own exact-SHA decision.
 - Full 12-16 asset library expansion: **blocked on this decision**.
 - Other authorized UX-0A implementation: may continue.
 - Initial application testing readiness: **not achieved**.
