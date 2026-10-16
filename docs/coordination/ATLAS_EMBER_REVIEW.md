@@ -42,3 +42,16 @@ This **does not** grant approval to merge, deploy, edit shared DEV/Production, t
 - Only post substantive new evidence or a specific clarification; avoid duplicate unchanged review comments.
 
 **Pause:** If the owner pauses reviews, leave the last decision intact; no automatic approval or automatic restart of a stopped coding agent.
+
+
+## 2026-10-16 — Revised small-subset island art gate: CORRECTIONS REQUIRED
+
+- **Exact checkpoint:** `e7c68f808cace64d88363c1e9807b5fa8954c00a`; full island PNG checksum `f2909ffbb8ea8485e2edee98ec4de96002698b7149484a9f8dbb64d6106835c0`.
+- **Discussion and detailed actionable decision:** https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207966778
+- **Actual evidence examined:** 2000×1400 revised island PNG, reduced 600px map, grayscale map, real 96px mountain/grove/city thumbnails; read revision-2 README, provenance and browser collision data.
+- **Improvements retained:** one geographic source coast/mask, improved coast articulation, no visible river/city/label collision, cohesive restrained map color and compass, clear actual-size thumbnails.
+- **Still blocking expansion:** 34 instances of the same grove silhouette still look mechanically repeated; mountain and forest thumbnails still read closer to flat icons than polished hand-illustrated ink-and-wash art; sparse main land versus overcrowded diagonal tree strip limits professional composition and scale integration.
+- **Required next:** refine only the same three subjects and their composition to prove visual variety, natural edges/clearings, better linework/texture/shading and ground contact at 96px and map size. Re-submit full/reduced/grayscale images and actual small previews for explicit art approval. Keep original SVG revisions and editable deterministic scattering.
+- **Decision:** CORRECTIONS REQUIRED for **early art direction** only. Other authorized UX-0A technical implementation may continue; full 14-asset expansion remains blocked.
+- **Not reviewed/approved:** technical foundation commit `1aa5d87e1e1dc738fcc9a06a97effbdcf28ea49e` is Cody-reported progress, not Ember technical signoff; no owner app test, merge or deployment authorized.
+
