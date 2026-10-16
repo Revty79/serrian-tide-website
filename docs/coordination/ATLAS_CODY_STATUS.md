@@ -6,17 +6,21 @@
 
 ## Current status
 
-- **Updated:** 2026-10-16 03:25:53 UTC.
+- **Updated:** 2026-10-16 03:56:12 UTC.
 - **Implementation:** in progress; no completed application journey or release readiness claim.
 - **Feature branch:** `codex/atlas-ux0a`.
-- **Pushed checkpoint:** `e7c68f808cace64d88363c1e9807b5fa8954c00a`.
+- **Pushed checkpoint:** `1aa5d87e1e1dc738fcc9a06a97effbdcf28ea49e` (technical foundation; revised art remains pinned separately to e7c68f8).
 - **Draft implementation PR:** https://github.com/Revty79/serrian-tide-website/pull/5 (DO NOT MERGE).
 - **Early art gate:** original e6f521a received CORRECTIONS REQUIRED; revised small subset awaits a fresh decision.
 - **Review request:** https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6207384046.
 - **Full image/brief/details/actual previews/grayscale:** https://github.com/Revty79/serrian-tide-website/blob/e7c68f808cace64d88363c1e9807b5fa8954c00a/docs/screenshots/worlds-geo-ux0a/art-direction/revision-2/README.md.
 - **PNG SHA-256:** `f2909ffbb8ea8485e2edee98ec4de96002698b7149484a9f8dbb64d6106835c0`.
 
-## Current handoff
+## Latest verified technical foundation
+
+[Checkpoint report and screenshots/export](https://github.com/Revty79/serrian-tide-website/blob/1aa5d87e1e1dc738fcc9a06a97effbdcf28ea49e/docs/operations/worlds-atlas-ux0a-foundation.md). Strict retained-v1/additive-v2 contracts, exact catalog/role/place validation, shared vector rendering and missing-reference warnings/export block; planned additive migration 0132 has fresh and populated isolated proof with every prior row/history payload retained. All 2,214 feature tests, TypeScript, isolated Node 22 production build and actual desktop/save/export/touch-browser compatibility checks pass. Full lint has zero errors and one pre-existing stories-harness warning. No full application readiness is claimed. Next is the real empty-World journey, geographic presentation/masking, learning and independent saves/recovery.
+
+## Current art handoff
 
 The revised study retains exactly three subjects and all earlier originals. It adds mountain/grove revision 2, an explicitly authored validated 256-vertex source shoreline shared with the clip, organic woodland composition, separated curved river/town/text, true 64/96px subject previews and grayscale/reduced views. TypeScript, 23 focused geography tests, focused new-script ESLint, source validation, evidence links/dimensions/hash and actual standalone Chrome text/artwork collision checks pass. Cody inspected the actual material. Application browser/build/migration/performance/recovery gates remain incomplete.
 
