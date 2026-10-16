@@ -1,7 +1,7 @@
 {
   "passed": true,
   "browser": "134.0.6998.166",
-  "request": "7ed0d650-cfa6-45b6-be44-56a929216e2d",
+  "request": "07fba189-fbed-42a4-9e17-3a1915ee2b83",
   "groups": [
     "scoped opt-in checkpoint and manual bundle download",
     "partial artwork save retains source draft in local checkpoint",
@@ -13,5 +13,7 @@
     "390px native-touch recovery review/cancel",
     "storage quota error keeps live draft and manual download"
   ],
-  "errors": []
+  "errors": [],
+  "runtimeFingerprint": "1ccb8d1acd81337847bd83da83280004ce6a847c958815d3c4bd0aaa7e65df77",
+  "inspection": "Cody inspected actual screenshots; this is technical recovery evidence, not final artwork or owner acceptance."
 }

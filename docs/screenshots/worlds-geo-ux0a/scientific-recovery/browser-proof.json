@@ -1,0 +1,83 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "world": "deb73783-a317-4ff5-b8b4-dc98722f3925",
+  "map": "bdfde92c-69a5-494d-99db-648458e9c78d",
+  "groups": [
+    "small visible vertex with retained full touch target and keyboard edit/undo",
+    "independent relief/cover preference saves retain source accounts",
+    "website restore preserves source request and exact reader version",
+    "lost source reply and both archive replies retry original operations once",
+    "unavailable version rejected before staging",
+    "stale preferences compare and deliberately rebase",
+    "original numerical/classification manifests and bundles retained across all versions",
+    "ordinary protected sources request no tiles",
+    "Admin explicit review exposes no recovery/write actions"
+  ],
+  "versions": [
+    {
+      "sourceId": "b5a3d47d-5894-4007-8fd0-7344385c16e4",
+      "revision": 1,
+      "archived": false,
+      "protected": false,
+      "bundle": "185311fe7ba80c433ac937ac47b72fd742081f303e2c6cc4e044ce59d09f27c5"
+    },
+    {
+      "sourceId": "b5a3d47d-5894-4007-8fd0-7344385c16e4",
+      "revision": 2,
+      "archived": false,
+      "protected": true,
+      "bundle": "185311fe7ba80c433ac937ac47b72fd742081f303e2c6cc4e044ce59d09f27c5"
+    },
+    {
+      "sourceId": "b5a3d47d-5894-4007-8fd0-7344385c16e4",
+      "revision": 3,
+      "archived": true,
+      "protected": true,
+      "bundle": "185311fe7ba80c433ac937ac47b72fd742081f303e2c6cc4e044ce59d09f27c5"
+    },
+    {
+      "sourceId": "b5a3d47d-5894-4007-8fd0-7344385c16e4",
+      "revision": 4,
+      "archived": false,
+      "protected": true,
+      "bundle": "185311fe7ba80c433ac937ac47b72fd742081f303e2c6cc4e044ce59d09f27c5"
+    },
+    {
+      "sourceId": "e3fd8038-689a-46bb-8b5b-d9492b749c58",
+      "revision": 1,
+      "archived": false,
+      "protected": false,
+      "bundle": "d5956636c903d0b22bde42038885f5521cc4a36198b730e9a9b6d4b671e0e518"
+    },
+    {
+      "sourceId": "e3fd8038-689a-46bb-8b5b-d9492b749c58",
+      "revision": 2,
+      "archived": false,
+      "protected": true,
+      "bundle": "d5956636c903d0b22bde42038885f5521cc4a36198b730e9a9b6d4b671e0e518"
+    },
+    {
+      "sourceId": "e3fd8038-689a-46bb-8b5b-d9492b749c58",
+      "revision": 3,
+      "archived": true,
+      "protected": true,
+      "bundle": "d5956636c903d0b22bde42038885f5521cc4a36198b730e9a9b6d4b671e0e518"
+    },
+    {
+      "sourceId": "e3fd8038-689a-46bb-8b5b-d9492b749c58",
+      "revision": 4,
+      "archived": false,
+      "protected": true,
+      "bundle": "d5956636c903d0b22bde42038885f5521cc4a36198b730e9a9b6d4b671e0e518"
+    }
+  ],
+  "archiveRequests": {
+    "elevation": "8b56d5c7-b118-4dc7-a17e-75fd431b52a1",
+    "landCover": "ec2bd501-5fca-4aec-bc95-1bba78254100"
+  },
+  "errors": [],
+  "source": "New 64x32 original synthetic values/classes only; isolated compatibility target, no backups or retained private assets.",
+  "runtimeFingerprint": "c52b4c83beeeaf38bab6c2d3f094741ce7cbfca4328b7219224725171e13a837",
+  "inspection": "Cody inspected actual screenshots; this is technical recovery evidence, not final artwork or owner acceptance."
+}
