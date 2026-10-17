@@ -1,0 +1,47 @@
+{
+  "passed": false,
+  "runtime": "runtime-checkout-library",
+  "physicalDevice": false,
+  "results": [
+    {
+      "touch": false,
+      "cache": {
+        "count": 20,
+        "retained": true
+      },
+      "pointer": {
+        "ctmReads": 12,
+        "preview": "translate(95.88014981273407 22.82860709827002)"
+      },
+      "resize": {
+        "transform": "translate(136.9716425896201 45.65721419654004)",
+        "correct": false
+      },
+      "previewCleared": true,
+      "savedExact": true,
+      "writes": [],
+      "errors": [],
+      "passed": false
+    },
+    {
+      "touch": true,
+      "cache": {
+        "count": 20,
+        "retained": true
+      },
+      "pointer": {
+        "ctmReads": 12,
+        "preview": "translate(109.59797765636468 26.09475658484873)"
+      },
+      "resize": {
+        "transform": "translate(156.5685395090924 52.18951316969746)",
+        "correct": false
+      },
+      "previewCleared": true,
+      "savedExact": true,
+      "writes": [],
+      "errors": [],
+      "passed": false
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import {freshIslandEnvironment,ownedPool,UX0A_DIRECTORY} from "./worlds-geo-ux0a
 import {islandRuntime} from "./worlds-geo-ux0a-runtime";
 import {openStudioSection} from "./worlds-studio-test-tools";
 import type {MapDrawing} from "../src/features/worlds/cartography";
-const directory=process.env.SERRIAN_UX0A_DEV==="1"?path.join(UX0A_DIRECTORY,"n0-debug"):"docs/screenshots/worlds-geo-ux0a/novice-controls";
+const directory=process.env.SERRIAN_UX0A_EVIDENCE_DIR??(process.env.SERRIAN_UX0A_DEV==="1"?path.join(UX0A_DIRECTORY,"n0-debug"):"docs/screenshots/worlds-geo-ux0a/novice-controls");
 async function session(branch:"manual"|"generated",touch:boolean){
  const label=`${branch}-${touch?"touch":"desktop"}`,e=await freshIslandEnvironment("acceptance"),r=await islandRuntime("empty",`n0-${label}`,e),pool=await ownedPool(e,"empty");
  const c=await r.browser.newContext({viewport:{width:touch?390:1600,height:touch?844:1000},hasTouch:touch,isMobile:touch,acceptDownloads:true});await r.login(c);const p=await c.newPage(),cdp=await c.newCDPSession(p),errors:string[]=[],writes:string[]=[],steps:string[]=[];p.setDefaultTimeout(30000);p.on("pageerror",e=>errors.push(e.message));p.on("dialog",d=>void d.accept());p.on("request",req=>{if(req.method()==="POST"&&/\/api\/worlds\//.test(req.url()))writes.push(new URL(req.url()).pathname);});

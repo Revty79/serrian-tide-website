@@ -1,0 +1,282 @@
+{
+  "runtimeFingerprint": "79abdebfc3fa421abdcdc624b1e79a782a018ed68abca4f592cacdaeaa3fa1bd",
+  "node": "v22.23.3",
+  "browser": "154.0.8037.57",
+  "baseline": "8a3b1a12315b1e78c82b0f800367dd006cc29684",
+  "performancePassed": false,
+  "pinchPassed": true,
+  "collectionComplete": false,
+  "pinchCollectionComplete": true,
+  "hardware": {
+    "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "logicalCpus": 5,
+    "cpuQuota": "400000 100000",
+    "gpuDevices": [
+      {
+        "vendorId": 65535,
+        "deviceId": 65535,
+        "vendorString": "Google Inc. (Google)",
+        "deviceString": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver-5.0.0)",
+        "driverVendor": "SwANGLE",
+        "driverVersion": "5.0.0"
+      }
+    ],
+    "graphicsFeatureStatus": {
+      "2d_canvas": "unavailable_software",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "disabled_software",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "disabled_off",
+      "rasterization": "disabled_software",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "disabled_software",
+      "video_encode": "disabled_software",
+      "vulkan": "disabled_off",
+      "webgl": "unavailable_software",
+      "webgpu": "unavailable_software",
+      "webgpu_on_vk_via_gl_interop": "disabled_off",
+      "webnn": "unavailable_software"
+    },
+    "totalMemory": 35743784960,
+    "os": "linux 6.18.44"
+  },
+  "unitTests": 2259,
+  "featureTestFiles": 280,
+  "rasterTests": 3,
+  "svgCases": 24,
+  "ownerBrowser": "Chrome in local DEV; version unknown",
+  "nativeOwnerExceptionReproduced": false,
+  "strictSvgPointCompatibilityFaultInjection": true,
+  "physicalDevice": false,
+  "uncoachedHuman": false,
+  "ownerVisualApproval": false,
+  "readyForMerge": false,
+  "migrationsApplied": 0,
+  "protectedContent": {
+    "passed": true,
+    "sourceVersions": 4,
+    "drawings": 100,
+    "historicalRowsInTechnicalFixture": 0,
+    "historyEvidence": "Nonempty historical appearances are checked separately by saved-edit and SVG compatibility journeys.",
+    "migrationLedger": 133,
+    "sourceVersionsExact": true,
+    "drawingIdsAndContentExact": true,
+    "migrationLedgerExact": true,
+    "migrationsApplied": 0
+  },
+  "results": [
+    {
+      "device": {
+        "width": 1440,
+        "height": 900,
+        "touch": false,
+        "rate": 1
+      },
+      "complete": false,
+      "phase": "operations",
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.165195000001,
+        "frames": 286,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 1422,
+          "height": 422.359375
+        },
+        "fps": 57.2
+      },
+      "brushP95": 37.100000001490116,
+      "exportMs": 2034.5052329999999,
+      "budgets": {
+        "complete": false
+      },
+      "failure": "Transfer capture must complete before closing its context\n+ actual - expected\n\n+ [\n+   {\n+     message: 'Error: response.body: Response body is unavailable',\n+     path: '/_next/static/chunks/0qu1y_a5ofp54.js'\n+   }\n+ ]\n- []\n"
+    },
+    {
+      "device": {
+        "width": 1024,
+        "height": 768,
+        "touch": false,
+        "rate": 1
+      },
+      "complete": true,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 5000.732652999999,
+        "frames": 300,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 1012.40625,
+          "height": 262.828125
+        },
+        "fps": 60
+      },
+      "brushP95": 40.19999999925494,
+      "exportMs": 1611.880833000003,
+      "operations": {
+        "checkpointMs": 90.19999999925494,
+        "recoveryBytes": 42415,
+        "saveMs": 387.82473500000197,
+        "editUndoReopenCycles": 5,
+        "generationMs": 816.4463350000005,
+        "cancelMs": 348.5625299999956
+      },
+      "heapGrowth": 6684080,
+      "compressedTransfer": 418824,
+      "budgets": {
+        "transfer": true,
+        "external": true,
+        "fps": true,
+        "brush": true,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 390,
+        "height": 844,
+        "touch": true,
+        "rate": 6
+      },
+      "complete": true,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.7536069999915,
+        "frames": 278,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 383.21875,
+          "height": 370.3125
+        },
+        "fps": 55.6
+      },
+      "brushP95": 324.19999999925494,
+      "exportMs": 11141.495412000018,
+      "operations": {
+        "checkpointMs": 392.69999999925494,
+        "recoveryBytes": 42448,
+        "saveMs": 1789.1023939999868,
+        "editUndoReopenCycles": 5,
+        "generationMs": 1809.7811639999854,
+        "cancelMs": 502.4804379999987
+      },
+      "heapGrowth": 5698760,
+      "compressedTransfer": 418824,
+      "budgets": {
+        "transfer": true,
+        "external": true,
+        "fps": true,
+        "brush": false,
+        "export": false,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 360,
+        "height": 800,
+        "touch": true,
+        "rate": 6
+      },
+      "complete": false,
+      "phase": "export",
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.814588000008,
+        "frames": 247,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 353.21875,
+          "height": 326.3125
+        },
+        "fps": 49.4
+      },
+      "brushP95": 308,
+      "budgets": {
+        "complete": false
+      },
+      "failure": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('navigation', { name: 'Studio tools', exact: true }).getByRole('button', { name: 'Export', exact: true })\u001b[22m\n\u001b[2m    - locator resolved to <button aria-pressed=\"false\" class=\"st-button is-secondary\" aria-controls=\"map-studio-inspector\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <button class=\"st-button is-secondary\">…</button> from <footer aria-label=\"Map save and history actions\" class=\"map-studio-module__IZYtxq__actions\">…</footer> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <button class=\"st-button is-secondary\">…</button> from <footer aria-label=\"Map save and history actions\" class=\"map-studio-module__IZYtxq__actions\">…</footer> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    51 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <button class=\"st-button is-secondary\">…</button> from <footer aria-label=\"Map save and history actions\" class=\"map-studio-module__IZYtxq__actions\">…</footer> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n"
+    },
+    {
+      "device": {
+        "width": 844,
+        "height": 390,
+        "touch": true,
+        "rate": 6
+      },
+      "complete": false,
+      "phase": "load",
+      "budgets": {
+        "complete": false
+      },
+      "failure": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('application', { name: 'Editable map canvas' }) to be visible\u001b[22m\n\u001b[2m    49 × locator resolved to hidden <svg tabindex=\"0\" role=\"application\" data-tool=\"select\" viewBox=\"0 0 2000 1200\" aria-label=\"Editable map canvas\" class=\"atlas-module__PmJxfa__canvas\">…</svg>\u001b[22m\n"
+    },
+    {
+      "device": {
+        "width": 1024,
+        "height": 768,
+        "touch": true,
+        "rate": 6
+      },
+      "complete": true,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.8514689999865,
+        "frames": 259,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 1012.40625,
+          "height": 262.828125
+        },
+        "fps": 51.8
+      },
+      "brushP95": 228.60000000149012,
+      "exportMs": 12527.749738999992,
+      "operations": {
+        "checkpointMs": 433.0999999977648,
+        "recoveryBytes": 42449,
+        "saveMs": 2030.0829309999244,
+        "editUndoReopenCycles": 5,
+        "generationMs": 2113.185846999986,
+        "cancelMs": 856.3879510000115
+      },
+      "heapGrowth": 5712580,
+      "compressedTransfer": 418824,
+      "budgets": {
+        "transfer": true,
+        "external": true,
+        "fps": true,
+        "brush": false,
+        "export": false,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    }
+  ],
+  "artworkPixels": [
+    {
+      "branch": "manual",
+      "comparison": "First 2000×1200 map pixels of actual old/new website PNGs; credit strip excluded",
+      "changedPixels": 224,
+      "changedPercent": 0.009333333333333332,
+      "meanChannelDifference": 0.00006305555555555555,
+      "maximumChannelDifference": 5
+    },
+    {
+      "branch": "generated",
+      "comparison": "First 2000×1200 map pixels of actual old/new website PNGs; credit strip excluded",
+      "changedPixels": 687,
+      "changedPercent": 0.028624999999999998,
+      "meanChannelDifference": 0.00018541666666666666,
+      "maximumChannelDifference": 5
+    }
+  ]
+}

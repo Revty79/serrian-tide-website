@@ -7,7 +7,7 @@ import {ownedPool,UX0A_DIRECTORY} from "./worlds-geo-ux0a-harness";
 import {openStudioSection} from "./worlds-studio-test-tools";
 import {islandAsset} from "../src/features/worlds/island-assets";
 import type {MapDrawing} from "../src/features/worlds/cartography";
-const directory=process.env.SERRIAN_UX0A_DEV==="1"?path.join(UX0A_DIRECTORY,"saved-edit-debug"):"docs/screenshots/worlds-geo-ux0a/novice-controls/saved-edit";
+const directory=process.env.SERRIAN_UX0A_EVIDENCE_DIR??(process.env.SERRIAN_UX0A_DEV==="1"?path.join(UX0A_DIRECTORY,"saved-edit-debug"):"docs/screenshots/worlds-geo-ux0a/novice-controls/saved-edit");
 async function main(){await mkdir(directory,{recursive:true});const beforeHits=JSON.parse(await readFile("docs/screenshots/worlds-geo-ux0a/novice-controls/hit-before/results.json","utf8"));
  for(const branch of ["manual","generated"]){if(process.argv.includes("--manual")&&branch!=="manual")continue;const f=JSON.parse(await readFile(path.join(UX0A_DIRECTORY,`library-${branch}-journey.json`),"utf8")),r=await islandRuntime("empty",`saved-edit-${branch}`,f.environment),pool=await ownedPool(f.environment,"empty");let lastPage:import("playwright-core").Page|undefined;
   try{for(const touch of [false,true]){if(process.argv.includes("--desktop")&&touch)continue;const label=`${branch}-${touch?"touch":"desktop"}`,c=await r.browser.newContext({viewport:{width:touch?390:1600,height:touch?844:1000},hasTouch:touch,isMobile:touch});await r.login(c);const p=await c.newPage(),cdp=await c.newCDPSession(p),errors:string[]=[],steps:string[]=[];lastPage=p;p.setDefaultTimeout(30000);p.on("pageerror",e=>errors.push(e.message));p.on("dialog",d=>void d.accept());

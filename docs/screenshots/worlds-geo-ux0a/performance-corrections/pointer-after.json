@@ -1,0 +1,58 @@
+{
+  "passed": true,
+  "runtime": "runtime-checkout",
+  "physicalDevice": false,
+  "results": [
+    {
+      "touch": false,
+      "cache": {
+        "count": 20,
+        "retained": true
+      },
+      "pointer": {
+        "ctmReads": 0,
+        "preview": "translate(95.88014981273407 22.82860709827002)"
+      },
+      "resize": {
+        "transform": "translate(122.10504001271927 40.701680004239755)",
+        "correct": true
+      },
+      "previewCleared": true,
+      "savedExact": true,
+      "writes": [],
+      "errors": [],
+      "passed": true
+    },
+    {
+      "touch": true,
+      "cache": {
+        "count": 20,
+        "retained": true
+      },
+      "pointer": {
+        "ctmReads": 0,
+        "preview": "translate(109.59797765636468 26.09475658484873)"
+      },
+      "resize": {
+        "transform": "translate(169.86640714854462 56.62213571618154)",
+        "correct": true
+      },
+      "previewCleared": true,
+      "savedExact": true,
+      "writes": [],
+      "errors": [],
+      "passed": true
+    }
+  ],
+  "explorerResize": {
+    "resize": {
+      "transform": "translate(92.02453987730061 36.809815950920246) translate(1000 600) scale(1) translate(-1000 -600)",
+      "correct": true
+    },
+    "previewCleared": true,
+    "sourceExact": true,
+    "writes": [],
+    "errors": [],
+    "passed": true
+  }
+}

@@ -10,7 +10,8 @@ function paintedClone(node:SVGElement){
 }
 
 // A temporary display cache only. Editable source and full vector export stay authoritative.
-export async function terrainBitmap(source:SVGGElement,prefix:string,drawing:TerrainDrawing){
+export async function terrainBitmap(source:SVGGElement,prefix:string,drawing:TerrainDrawing,signal?:AbortSignal){
+  signal?.throwIfAborted();
   const scene=source.closest("[data-cartography-scene]");if(!scene)throw new Error("Terrain scene unavailable.");
   const defs=document.createElementNS(namespace,"defs");
   if(drawing.version===2){
@@ -26,10 +27,16 @@ export async function terrainBitmap(source:SVGGElement,prefix:string,drawing:Ter
   const scale=Math.min(2,4096/Math.max(width,height),Math.sqrt(1200000/(width*height)));
   const root=document.createElementNS(namespace,"svg");root.setAttribute("xmlns",namespace);root.setAttribute("width",String(Math.ceil(width*scale)));root.setAttribute("height",String(Math.ceil(height*scale)));root.setAttribute("viewBox",`${x} ${y} ${width} ${height}`);root.append(defs,art);
   const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(root)],{type:"image/svg+xml;charset=utf-8"}));
+  const image=new Image();let canvas:HTMLCanvasElement|undefined;
   try{
-    const image=new Image();await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(new Error("Terrain cache unavailable."));image.src=url;});
-    const canvas=document.createElement("canvas");canvas.width=Math.ceil(width*scale);canvas.height=Math.ceil(height*scale);const context=canvas.getContext("2d");if(!context)throw new Error("Terrain cache unavailable.");context.drawImage(image,0,0,canvas.width,canvas.height);
-    const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error("Terrain cache unavailable.")),"image/png"));
-    return {url:URL.createObjectURL(blob),x,y,width,height,scale};
-  }finally{URL.revokeObjectURL(url);}
+    await new Promise<void>((resolve,reject)=>{
+      const aborted=()=>{image.src="";reject(signal?.reason??new DOMException("Terrain cache cancelled.","AbortError"));};
+      const finish=(error?:Error)=>{signal?.removeEventListener("abort",aborted);if(error)reject(error);else resolve();};
+      image.onload=()=>finish();image.onerror=()=>finish(new Error("Terrain cache unavailable."));
+      signal?.addEventListener("abort",aborted,{once:true});if(signal?.aborted)aborted();else image.src=url;
+    });
+    signal?.throwIfAborted();canvas=document.createElement("canvas");canvas.width=Math.ceil(width*scale);canvas.height=Math.ceil(height*scale);const context=canvas.getContext("2d");if(!context)throw new Error("Terrain cache unavailable.");context.drawImage(image,0,0,canvas.width,canvas.height);
+    signal?.throwIfAborted();const target=canvas,blob=await new Promise<Blob>((resolve,reject)=>target.toBlob(b=>b?resolve(b):reject(new Error("Terrain cache unavailable.")),"image/png"));
+    signal?.throwIfAborted();return {url:URL.createObjectURL(blob),x,y,width,height,scale};
+  }finally{if(canvas){canvas.width=0;canvas.height=0;}image.src="";URL.revokeObjectURL(url);}
 }
