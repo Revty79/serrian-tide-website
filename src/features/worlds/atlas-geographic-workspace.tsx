@@ -33,7 +33,7 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
   const timer=setTimeout(()=>{void(async()=>{
    setResult({key,value:null,loading:true,error:""});const q=new URLSearchParams(query);if(bounds)q.set("bounds",JSON.stringify(bounds));if(projection)q.set("projection",projection);q.set("themes",GEOGRAPHIC_THEMES.map(t=>t.id).join(","));q.set("lod",reference&&bounds?automaticGeographicDetail(bounds,reference):"overview");
    let after="",lastPaint=0;
-   do{if(after)q.set("cursor",after);else q.delete("cursor");const value=await worldApi<GeographicViewport>(`${api}?${q}`,"GET",undefined,controller.signal);if(controller.signal.aborted||live.current!==key)return;pages.append(value,after);setLayer({key:base,value:value.layer});if(!value.nextCursor||performance.now()-lastPaint>250){setResult({key,value:pages.value(),loading:!!value.nextCursor,error:""});lastPaint=performance.now();}after=value.nextCursor??"";}while(after);
+   do{if(after)q.set("cursor",after);else q.delete("cursor");const value=await worldApi<GeographicViewport>(`${api}?${q}`,"GET",undefined,controller.signal);if(controller.signal.aborted||live.current!==key)return;pages.append(value,after);setLayer(previous=>previous?.key===base&&JSON.stringify(previous.value)===JSON.stringify(value.layer)?previous:{key:base,value:value.layer});if(!value.nextCursor||performance.now()-lastPaint>250){setResult({key,value:pages.value(),loading:!!value.nextCursor,error:""});lastPaint=performance.now();}after=value.nextCursor??"";}while(after);
   })().catch(e=>{if(controller.signal.aborted||live.current!==key)return;const denied=e instanceof SaveError&&[401,403,404].includes(e.status)||e instanceof GeographicPageError&&e.clear;if(denied)setLayer(null);setResult({key,value:denied?null:pages.value(),loading:false,error:e instanceof SaveError&&e.status===404?"":e.message});});},100);
   return()=>{clearTimeout(timer);controller.abort();};
   // Reference comes from this very request; adding it would cancel its initial pages.
@@ -52,7 +52,7 @@ export function useAtlasGeography(context:AtlasGeographicContext|undefined,mapId
   timer=setTimeout(()=>void check(),30000);return()=>{clearTimeout(timer);controller.abort();};
  },[enabled,api,query,key,current]);
  useEffect(()=>{if(!enabled||!selected)return;const controller=new AbortController();worldApi<GeographicReading>(`${api}?${query}&feature=${selected}`,"GET",undefined,controller.signal).then(value=>{if(!controller.signal.aborted)setReading({key:readKey,value,error:""});}).catch(e=>{if(!controller.signal.aborted)setReading({key:readKey,value:null,error:e.message});});return()=>controller.abort();},[enabled,api,query,selected,readKey]);
- const extent=bounds??(reference?surfaceBounds(reference):null),kind=projection??(reference?.kind==="plane"?"planar":"equirectangular");
+ const extent=useMemo(()=>bounds??(reference?surfaceBounds(reference):null),[bounds,reference]),kind=projection??(reference?.kind==="plane"?"planar":"equirectangular");
  const frame=useMemo(()=>reference&&extent?atlasGeographicFrame(reference,extent,kind):null,[reference,extent,kind]);
  const viewport:GeographicViewport|null=current?.value??(layer&&extent?{layer,bounds:extent,projection:kind,lod:automaticGeographicDetail(extent,layer.surface.reference),canEdit:false,context:"loading",shapes:[],attributions:[],nextCursor:null}:null);
  const rasterProps={worldId,timelineId,mapId:enabled?mapId:"",ordinary,review,viewport};

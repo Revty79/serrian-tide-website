@@ -1,0 +1,30 @@
+{
+  "technicalPass": true,
+  "after": false,
+  "kind": "artwork",
+  "touchEmulated": true,
+  "initial": {
+    "worlds": 0,
+    "maps": 0
+  },
+  "mapId": "c3a9cee9-375e-4b3b-953e-5032d370b6e3",
+  "primaryControls": [
+    "Move item",
+    "Remove from map",
+    "Edit points"
+  ],
+  "discoverableEditCoastline": false,
+  "visibleCoastAndMaskChange": true,
+  "undoRedoExact": true,
+  "noImplicitSave": true,
+  "savedReopened": true,
+  "priorSourceVersionsExact": true,
+  "migrationLedgerExact": true,
+  "physicalDevice": false,
+  "uncoachedHuman": false,
+  "steps": [
+    "Zero-World website creation and named map; no service-authored content or model-ID selection",
+    "Saved map reopened in Select; clicked actual visible shoreline. Primary controls: Move item, Remove from map, Edit points"
+  ],
+  "errors": []
+}

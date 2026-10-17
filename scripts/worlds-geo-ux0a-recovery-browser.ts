@@ -7,7 +7,7 @@ import {ownedPool,UX0A_DIRECTORY} from "./worlds-geo-ux0a-harness";
 import {islandRecoveryKey,type IslandRecoveryBundle} from "../src/features/worlds/island-recovery";
 
 async function main(){
- const runtime=await islandRuntime("empty","recovery"),{browser,login,e}=runtime,dir=process.argv.includes("--performance-regression")?"docs/screenshots/worlds-geo-ux0a/performance/recovery-regression":"docs/screenshots/worlds-geo-ux0a/recovery";await mkdir(dir,{recursive:true});
+ const runtime=await islandRuntime("empty","recovery"),{browser,login,e}=runtime,dir=process.argv.includes("--full-library")?"docs/screenshots/worlds-geo-ux0a/full-library/recovery-regression":process.argv.includes("--performance-regression")?"docs/screenshots/worlds-geo-ux0a/performance/recovery-regression":"docs/screenshots/worlds-geo-ux0a/recovery";await mkdir(dir,{recursive:true});
  const baseline=JSON.parse(await readFile(path.join(UX0A_DIRECTORY,"journey-baseline.json"),"utf8")),context=await browser.newContext({viewport:{width:1440,height:900},acceptDownloads:true});await login(context);
  let page=await context.newPage();const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));page.on("dialog",dialog=>void dialog.accept());
  const nav=()=>page.getByRole("navigation",{name:"Studio tools"}),recovery=()=>page.getByRole("region",{name:"Save and recovery",exact:true});

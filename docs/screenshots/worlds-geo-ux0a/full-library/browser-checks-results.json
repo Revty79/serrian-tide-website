@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "name": "final-journeys",
+      "passed": true
+    },
+    {
+      "name": "final-loading",
+      "passed": true
+    },
+    {
+      "name": "final-compatibility",
+      "passed": true
+    },
+    {
+      "name": "final-layout",
+      "passed": true
+    },
+    {
+      "name": "final-pinch",
+      "passed": true
+    },
+    {
+      "name": "final-recovery",
+      "passed": true
+    },
+    {
+      "name": "final-scientific-setup",
+      "passed": true
+    },
+    {
+      "name": "final-scientific-recovery",
+      "passed": true
+    }
+  ]
+}

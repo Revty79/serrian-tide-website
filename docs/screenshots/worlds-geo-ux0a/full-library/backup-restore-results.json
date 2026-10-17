@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "scope": "Only the new service-authored full-library benchmark database, matching public artwork release and task-owned private root. No shared database, surviving backup or deleted Earth used.",
+  "source": "serrian_ux0a_performance_1792167360167",
+  "restored": "serrian_ux0a_performance_1792172553278",
+  "migrations": 133,
+  "publicTables": 322,
+  "allPublicRowsExact": true,
+  "normalizedSchemaExact": true,
+  "checksReparsedByPostgres": 22,
+  "sequencesExact": 139,
+  "schemaSha256": "e89b0602bc59cee3bb517829787f9bb2e315071132dca483c03eaf01a39abb5a",
+  "validatorDefinitionsAndLedgerExact": true,
+  "artworkFiles": 22,
+  "artworkBytes": 324416,
+  "privateFiles": 0,
+  "originalDatabaseAndFilesUnchanged": true,
+  "limitation": "This fixture has no attached scientific rasters. Its empty private root is verified as such; this does not establish restoration of an operator's retained scientific archive. Old code is not assumed compatible with saved v2 data; use compatible forward fixes or separately authorized matched recovery."
+}

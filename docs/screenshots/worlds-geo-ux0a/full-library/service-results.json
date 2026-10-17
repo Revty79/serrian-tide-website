@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "groups": [
+    "unchanged 0132 accepts all 14 pinned subjects and mixed terrain; v1 remains valid",
+    "server rejects forged hill/wetland slots, place roles, links and missing revisions atomically",
+    "immutable historical payload retains all 14 exact pins after baseline revision and archive",
+    "ordinary history filters protected appearance; foreign/player reads and Administrator edits fail"
+  ],
+  "migrations": 133,
+  "migration0132Sha256": "a82737d944b8c96f719059131e0d758221129161f7ce054778b8928a3c5c0574",
+  "subjects": 14,
+  "history": {
+    "stateId": "ba353f7b-e25a-4854-9cfb-b4cb94dc1275",
+    "versionId": "a084400c-12b9-435f-864d-f25996764dd3",
+    "allPinsAndOriginalPayloadPreserved": true
+  },
+  "database": "serrian_ux0a_performance_1792167360167",
+  "sharedDatabaseAccess": false
+}

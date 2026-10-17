@@ -1,0 +1,102 @@
+{
+  "passed": true,
+  "meaning": "Before-fix failure reproduced, not acceptance. Exact original feature runtime 5b842aa09bac6bc6ee5e5afc7fec1c08dd66c792 in a separate isolated checkout. Visible ink stays within the actual 2000×1200 clip with 8px padding and outside the old anchor box; all sessions read-only.",
+  "results": [
+    {
+      "branch": "manual",
+      "touchEmulated": false,
+      "drawingId": "e75729c4-4778-4127-b27a-9439561605bb",
+      "candidate": {
+        "local": {
+          "x": 14,
+          "y": -209
+        },
+        "screen": {
+          "x": 733.9263671875,
+          "y": 486.55263671875
+        },
+        "oldAnchorBox": {
+          "x": 708.71484375,
+          "y": 512.49609375,
+          "width": 44,
+          "height": 44
+        }
+      },
+      "selectedDrawingIds": [],
+      "reproduced": true,
+      "noContentWrites": true
+    },
+    {
+      "branch": "manual",
+      "touchEmulated": true,
+      "drawingId": "e75729c4-4778-4127-b27a-9439561605bb",
+      "candidate": {
+        "local": {
+          "x": -114,
+          "y": -129
+        },
+        "screen": {
+          "x": 75.94926153887809,
+          "y": 471.05321792579446
+        },
+        "oldAnchorBox": {
+          "x": 75.35586547851562,
+          "y": 473.2764892578125,
+          "width": 43.99999237060547,
+          "height": 44
+        }
+      },
+      "selectedDrawingIds": [],
+      "reproduced": true,
+      "noContentWrites": true
+    },
+    {
+      "branch": "generated",
+      "touchEmulated": false,
+      "drawingId": "c2da3690-d162-4dd9-b934-210c09e3bdd1",
+      "candidate": {
+        "local": {
+          "x": 14,
+          "y": -209
+        },
+        "screen": {
+          "x": 981.0301562882844,
+          "y": 523.6686713034694
+        },
+        "oldAnchorBox": {
+          "x": 956.4609375,
+          "y": 540.0234375,
+          "width": 44.00006103515625,
+          "height": 44
+        }
+      },
+      "selectedDrawingIds": [],
+      "reproduced": true,
+      "noContentWrites": true
+    },
+    {
+      "branch": "generated",
+      "touchEmulated": true,
+      "drawingId": "c2da3690-d162-4dd9-b934-210c09e3bdd1",
+      "candidate": {
+        "local": {
+          "x": 14,
+          "y": -209
+        },
+        "screen": {
+          "x": 302.25833880092387,
+          "y": 486.4133914016196
+        },
+        "oldAnchorBox": {
+          "x": 278.15521240234375,
+          "y": 495.80975341796875,
+          "width": 44.000030517578125,
+          "height": 44
+        }
+      },
+      "selectedDrawingIds": [],
+      "reproduced": true,
+      "noContentWrites": true
+    }
+  ]
+}

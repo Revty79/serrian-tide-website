@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "source": "Existing website-authored saved manual/generated studies; normal production UI PNG downloads, no content changes",
+  "allContentRowsExact": true,
+  "results": [
+    {
+      "branch": "manual",
+      "phoneViewport": false,
+      "touchEmulated": false,
+      "exportMs": 380.0968759999996,
+      "contentWrites": 0,
+      "pageErrors": 0
+    },
+    {
+      "branch": "manual",
+      "phoneViewport": true,
+      "touchEmulated": false,
+      "exportMs": 281.730509,
+      "contentWrites": 0,
+      "pageErrors": 0
+    },
+    {
+      "branch": "generated",
+      "phoneViewport": false,
+      "touchEmulated": false,
+      "exportMs": 317.8078409999998,
+      "contentWrites": 0,
+      "pageErrors": 0
+    },
+    {
+      "branch": "generated",
+      "phoneViewport": true,
+      "touchEmulated": false,
+      "exportMs": 269.1289110000016,
+      "contentWrites": 0,
+      "pageErrors": 0
+    }
+  ]
+}

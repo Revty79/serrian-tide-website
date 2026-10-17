@@ -25,3 +25,12 @@
 .studio[data-compact-height=true] .context p{white-space:nowrap;max-height:1.4rem}
 .studio[data-compact-height=true] .inspector{height:min(58%,250px)}
 .studio[data-compact-height=true][data-inspector-expanded=true] .inspector{height:calc(100% - 60px)}
+
+.studio[data-canvas-first=true]{grid-template-columns:minmax(0,1fr) 350px}.studio[data-canvas-first=true][data-inspector-open=false]{grid-template-columns:minmax(0,1fr) 0}.studio[data-canvas-first=true]>.editor{grid-column:1}.studio[data-canvas-first=true]>.inspector{grid-column:2}.toolsMenu{padding:.2rem .5rem;flex-shrink:0;border-bottom:1px solid var(--st-border)}.toolsMenu>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:.8rem;color:var(--st-text-strong)}.panelPalette{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.3rem;max-height:180px;overflow:auto;padding:.25rem}.panelPalette button{font-size:.7rem;min-height:44px;padding:.3rem;white-space:normal}.panelPalette svg{display:none}.panelPalette button[aria-pressed=true]{border-color:var(--st-primary);background:var(--st-primary-soft);color:var(--st-primary-text)}
+@media(max-width:1050px){.studio[data-canvas-first=true],.studio[data-canvas-first=true][data-inspector-open=false]{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}.studio[data-canvas-first=true]>.editor{grid-row:2}.studio[data-canvas-first=true]>.inspector{grid-column:1;grid-row:2}.studio[data-canvas-first=true]>.actions{grid-row:3}.panelPalette{max-height:120px}}
+
+.studio[data-canvas-first=true] [data-map-coordinate-note]{display:none}
+
+/* Opening the tools menu must leave its final row above the fixed footer. */
+@media(max-width:1050px){.studio .inspector:has(.toolsMenu[open]){height:min(72%,470px)}.studio[data-compact-height=true] .inspector:has(.toolsMenu[open]){height:calc(100% - 60px)}}
+@media(max-height:600px){.editor>section>header [aria-label="Current map tool"]{display:none}}

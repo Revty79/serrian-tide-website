@@ -1,0 +1,55 @@
+# UX-0A composition corrections: review checkpoint
+
+**2026-10-16 · PR #7 · independent acceptance pending.** This checkpoint responds to [Ember's UX-0A decision](https://github.com/Revty79/serrian-tide-website/pull/6#issuecomment-6224085443). The owner authorized these corrections and a pushed review checkpoint. It does not authorize joint initial owner testing, merge, deployment, numerical heightmaps, new editor architecture or roadmap implementation. The exact checkpoint SHA belongs in the accompanying PR #6 review request.
+
+Both studies were recreated through the normal website in separate, initially zero-World/zero-map disposable Cloud databases. Each study was saved and reopened, then its existing drawings were corrected with the website inspector. These are new Cloud rehearsal identities, not claims of access to or modification of the earlier IDE fixtures. Within each Cloud journey, all 29 drawing IDs, retained point IDs, four persistent places and their four linked labels remain the same before/after correction. The earlier reviewed evidence is retained under [journeys](../screenshots/worlds-geo-ux0a/full-library/journeys/).
+
+## Corrected authoring
+
+- **River:** Edit points on the saved Wrenwater path and reshape its six retained points into a flowing route ending just across the actual southern shoreline. The outlet is determined from the displayed geographic land mask. This remains an illustrated river, without a numerical drainage claim or replacement geographic source.
+- **South Quay:** Move the existing port to the actual coast, scale it with valid inspector values and align its quay with the local shoreline. Buildings sit inland; docks and boat extend into water. Move its existing linked label to quiet inland ground.
+- **Composition:** Move Ashmere and its linked lettering inland; adjust Wrenhaven's scale/position and existing label. Reshape retained foothill, woodland and reed strokes into curved groups around settlement edges and the riverbank; adjust existing symbols and spacing. Retain all 14 subjects and all exact revisions, including the mixed grove's revisions 4 and 3. No new art family or PNG repaint is included.
+
+The manual rehearsal exposed two test-recipe issues: a browser callback used a transpiler helper unavailable in the browser, and non-step-aligned scale values prevented form submission. Both were corrected in the recipe, valid form values are now asserted, and the same saved map was reopened for the successful correction/recovery run. These were not runtime changes. The generated journey also resumed its own saved map after an inspector transition timeout; its original independent zero-World boundary is retained.
+
+## Actual website exports
+
+| Study | Full website PNG | Reduced / grayscale | Phone canvas / detail | Native crops |
+| --- | --- | --- | --- | --- |
+| Manual · Wrenfall | [Full](../screenshots/worlds-geo-ux0a/full-library/corrections/manual-visible.png) | [600 px](../screenshots/worlds-geo-ux0a/full-library/corrections/manual-600.png) · [grayscale](../screenshots/worlds-geo-ux0a/full-library/corrections/manual-grayscale.png) | [Canvas](../screenshots/worlds-geo-ux0a/full-library/corrections/manual-phone-map.png) · [detail](../screenshots/worlds-geo-ux0a/full-library/corrections/manual-phone-detail.png) | [Harbor](../screenshots/worlds-geo-ux0a/full-library/corrections/details/manual-harbor.png) · [mouth](../screenshots/worlds-geo-ux0a/full-library/corrections/details/manual-river-mouth.png) · [settlements/labels](../screenshots/worlds-geo-ux0a/full-library/corrections/details/manual-settlements-and-labels.png) |
+| Generated · Morrow Isle | [Full](../screenshots/worlds-geo-ux0a/full-library/corrections/generated-visible.png) | [600 px](../screenshots/worlds-geo-ux0a/full-library/corrections/generated-600.png) · [grayscale](../screenshots/worlds-geo-ux0a/full-library/corrections/generated-grayscale.png) | [Canvas](../screenshots/worlds-geo-ux0a/full-library/corrections/generated-phone-map.png) · [detail](../screenshots/worlds-geo-ux0a/full-library/corrections/generated-phone-detail.png) | [Harbor](../screenshots/worlds-geo-ux0a/full-library/corrections/details/generated-harbor.png) · [mouth](../screenshots/worlds-geo-ux0a/full-library/corrections/details/generated-river-mouth.png) · [settlements/labels](../screenshots/worlds-geo-ux0a/full-library/corrections/details/generated-settlements-and-labels.png) |
+
+The originals are PNG downloads produced by Atlas's authorized visible-map export. Sharp performs only resizing, grayscale conversion and native-pixel extraction. A final website-only pass moves the generated harbor’s same linked label clear of a tree and re-downloads both originals; [its receipt](../screenshots/worlds-geo-ux0a/full-library/corrections/final-export-results.json) verifies every other drawing and all historical payloads remain exact. Desktop and native-touch-emulated phone screenshots retain website context. Touch emulation is not a physical-device or uncoached owner acceptance claim. Geographic center labels are hidden as a temporary view choice for readability; saved geography and its source versions remain intact.
+
+## Verification and limits
+
+[Journey receipt](../screenshots/worlds-geo-ux0a/full-library/corrections/journey-results.json) verifies two independent initial boundaries, 14 placed/10 painted subjects per map, all drawing/point/place/label identities and exact asset references, and unchanged geographic version rows. Each journey deliberately aborts its first corrected artwork save, downloads the real recovery bundle, stages it through the recovery dialog, saves successfully and reloads before export. Artwork undo/redo operates on a retained stroke. Four named places remain linked; decorative terrain creates no place records. The local bundles and database receipts remain ignored and are not included as application content.
+
+[History/privacy receipt](../screenshots/worlds-geo-ux0a/full-library/corrections/history-privacy-results.json) records a protected historical appearance created with website controls from each corrected map. Two subsequent baseline saves retain every immutable source/version payload exactly. Ordinary knowledge omits the protected appearance and rejects its pinned version; foreign/player access and administrator writes are denied; administrator review is read-only. These are bounded technical preservation checks, not professional multi-era city/interior/dungeon acceptance.
+
+[Phone receipt](../screenshots/worlds-geo-ux0a/full-library/corrections/phone-results.json) reopens both corrected maps and checks unobscured native-tap zoom without horizontal overflow or browser JavaScript errors. [Visual index](../screenshots/worlds-geo-ux0a/full-library/corrections/visual-review-index.json) hashes the full website exports. [Technical receipt](../screenshots/worlds-geo-ux0a/full-library/corrections/technical-results.json) records the production build and exact runtime/source fingerprint against `cbd9a9654e33345832331d0fb7899c57bd8afd21`, all 18 original asset revisions hashed and native-rendered, and all 2,249 unit tests passing across 276 files. TypeScript passes; full lint has zero errors and the existing unused `LoreFamily` warning. Changed-script lint passes.
+
+The composition-only phase ran against `cbd9a96` and was preserved as commit `a19cfcd` after the external `5b842aa` overview merge. The later owner-authorized N0 instructions add runtime corrections in this checkpoint: visible navigation/history/removal, starter routes, saved-item editing and footprint selection. The original technical receipt retains its capture provenance; it is not a statement that the final runtime is unchanged. See the [N0 correction report](worlds-atlas-ux0a-novice-controls.md) for final-runtime evidence and limitations. Original vectors, published migrations and the earlier reviewed evidence remain retained. Independent artwork assessment is still required for the outlet transition, harbor, composition and supplied sizes; neither study claims future professional 2D completion.
+
+## Reproduction in an isolated Cloud target
+
+Do not load `.env.local` or use owner/shared DEV or Production. A disposable source receipt must explicitly identify a task-owned local database URL and its expected PostgreSQL data directory, with `disposable: true`. The corrections setup checks the live host/port/database/data directory, zero Worlds/maps, and all 133 committed migration hashes/timestamps before copying it into a new owned cluster. It refuses to overwrite an existing harness receipt. It restores this disposable baseline, adds fake access accounts, and executes **zero migrations**. Migration 0132 is neither changed nor reapplied.
+
+With Node 22, PostgreSQL tools selected through `SERRIAN_TEST_PG_BIN`, Chromium through `SERRIAN_TEST_CHROME`, and an explicit `SERRIAN_UX0A_SOURCE_RECEIPT`:
+
+```sh
+node --conditions=react-server --import tsx scripts/worlds-geo-ux0a-corrections-setup.ts
+export SERRIAN_UX0A_CLONE_EMPTY=1
+export SERRIAN_UX0A_CHECKOUT=runtime-checkout-library
+node --conditions=react-server --import tsx scripts/worlds-geo-ux0a-harness.ts build
+node --conditions=react-server --import tsx scripts/worlds-geo-ux0a-library-journeys.ts
+node --conditions=react-server --import tsx scripts/worlds-geo-ux0a-corrections-history.ts
+node --conditions=react-server --import tsx scripts/worlds-geo-ux0a-corrections-final-export.ts
+node --conditions=react-server --import tsx scripts/worlds-geo-ux0a-library-phone-proof.ts
+node scripts/package-worlds-ux0a-library-review.mjs
+node --conditions=react-server --import tsx scripts/worlds-geo-ux0a-harness.ts stop
+```
+
+The existing build helper expects npm adjacent to the selected Node binary; this Cloud toolchain provides an environment-local npm link. `--branch=manual|generated` selects a single new journey. `--resume` reopens that branch's own saved pre-correction receipt, preserving its identity and initial boundary. `--collect-only` assembles both completed receipts without creating or changing content. The original harness migration/legacy setup is not used for this correction run. Test servers bind loopback inside Codex Cloud and are stopped after evidence collection; they are not an IDE or deployed preview.
+
+The separate [professional 2D amendment](../architecture/worlds-professional-2d-studio-amendment.md) is planning only. During this work PR #8 was externally merged into PR #7 at `5b842aa09bac6bc6ee5e5afc7fec1c08dd66c792`; Cody did not perform that merge. Its source tree matches reviewed `e03716da87e4813a23e884786b00404c5bde98d2` exactly, and owner visual approval remains pending. The correction commit preserves that remote work; main remains unchanged. The [safe local-preview procedure](worlds-atlas-ux0a-local-preview.md) is prepared, but the separate owner IDE preview has not been started from Cloud. No merge, deployment or numerical heightmap work is included.

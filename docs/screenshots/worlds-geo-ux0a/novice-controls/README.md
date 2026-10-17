@@ -1,0 +1,14 @@
+# N0 production-browser evidence
+
+See the [correction report](../../../operations/worlds-atlas-ux0a-novice-controls.md) for behavior, scope and limits. The exact review SHA is posted on [discussion PR #6](https://github.com/Revty79/serrian-tide-website/pull/6); `technical-results.json` binds these sessions to the final runtime fingerprint. These are automated website journeys, not uncoached human or physical-device acceptance.
+
+| Case | New empty-World website journey | Previous-visit saved-map edit round trip | Visible-ink selection |
+| --- | --- | --- | --- |
+| Manual, desktop | [Receipt](manual-desktop-results.json) · [finished UI](manual-desktop-finished.png) | [Receipt](saved-edit/manual-desktop-results.json) · [reopened](saved-edit/manual-desktop-reopened.png) | [Before](hit-before/manual-desktop-wrong-selection.png) · [after](saved-edit/manual-desktop-outer-ink-selected.png) |
+| Manual, 390px touch emulation | [Receipt](manual-touch-results.json) · [finished UI](manual-touch-finished.png) | [Receipt](saved-edit/manual-touch-results.json) · [reopened](saved-edit/manual-touch-reopened.png) | [Before](hit-before/manual-touch-wrong-selection.png) · [after](saved-edit/manual-touch-outer-ink-selected.png) |
+| Generated, desktop | [Receipt](generated-desktop-results.json) · [finished UI](generated-desktop-finished.png) | [Receipt](saved-edit/generated-desktop-results.json) · [reopened](saved-edit/generated-desktop-reopened.png) | [Before](hit-before/generated-desktop-wrong-selection.png) · [after](saved-edit/generated-desktop-outer-ink-selected.png) |
+| Generated, 390px touch emulation | [Receipt](generated-touch-results.json) · [finished UI](generated-touch-finished.png) | [Receipt](saved-edit/generated-touch-results.json) · [reopened](saved-edit/generated-touch-reopened.png) | [Before](hit-before/generated-touch-wrong-selection.png) · [after](saved-edit/generated-touch-outer-ink-selected.png) |
+
+[Before-fix coordinates/IDs](hit-before/results.json) use the exact original `5b842aa` runtime. Every published point is within the actual map clip with an eight-pixel inset, on pinned SVG ink, and outside the old anchor rectangle. The earlier clipped phone probe was discarded and recaptured. Saved-edit sessions use those same local artwork points and the final production runtime, edit all supported kinds, save/reopen exact records, then restore the original review composition through website recovery. Original source/appearance history remains exact.
+
+[Selection restrictions](selection-guards/results.json) cover locked/hidden layers, ordinary read-only mode, native field shortcuts and simulated exact-asset HTTP 404. Public receipts omit disposable database URLs, environment files and auth/storage secrets. The [composition index](../full-library/corrections/visual-review-index.json) refers to the separate 14-subject artistic studies; the small first-start journeys above are technical interaction examples.

@@ -1,0 +1,824 @@
+{
+  "fixture": "8ddf1381-b233-46a9-96ec-8fb0f2c46eeb",
+  "scope": "Technical service-authored full 14-subject benchmark with latest exact references and mixed grove revisions. Not beginner acceptance or artwork acceptance.",
+  "map": {
+    "id": "8ddf1381-b233-46a9-96ec-8fb0f2c46eeb",
+    "revision": 16,
+    "map_row_bytes": 1714,
+    "presentation_bytes": 460
+  },
+  "drawings": {
+    "count": 100,
+    "contentBytes": 51234,
+    "identitiesAndDigests": [
+      {
+        "id": "1b58e25d-73c2-4863-81eb-2164bfdbea82",
+        "bytes": 640,
+        "digest": "fec4341c1b7c131b8776cbf5f6a58a72"
+      },
+      {
+        "id": "69f09667-8bf8-4bdd-be08-dcbd864f0938",
+        "bytes": 788,
+        "digest": "0ffddf11dae013a2f4d96b2ba71b079f"
+      },
+      {
+        "id": "58fa6827-07be-4e35-9ac9-e304a9af1e85",
+        "bytes": 636,
+        "digest": "9bf1f2a343471e73d121c3c7ac17e7e0"
+      },
+      {
+        "id": "57ea4515-e0b8-4cda-9458-055c83b2946e",
+        "bytes": 644,
+        "digest": "5293e4804dbd8c1af9940b4c30fbbe17"
+      },
+      {
+        "id": "811640d3-50fd-497c-940e-c50fbe531b14",
+        "bytes": 620,
+        "digest": "68d8337d307a66afeb8a28e70d8fc580"
+      },
+      {
+        "id": "ba9840f9-d566-4f4b-b37c-9eda94e09a09",
+        "bytes": 628,
+        "digest": "df3bcd2b9e8dfa2d65b18aaebee43e7b"
+      },
+      {
+        "id": "f4b96091-f9cf-4e8c-8e98-dd97ec4cfdbe",
+        "bytes": 644,
+        "digest": "b8dc153f35e9dff4bd37cb2171560d7c"
+      },
+      {
+        "id": "7075f1fe-afa8-4e92-9161-de0e49810b38",
+        "bytes": 640,
+        "digest": "c26a3642286994beb376f29b0f4029e5"
+      },
+      {
+        "id": "c2622265-e8bc-4df3-9950-45e4a413d54a",
+        "bytes": 644,
+        "digest": "6f77482adfdd76a31ea67c570b4b65d3"
+      },
+      {
+        "id": "2d3e90b7-365f-4f1c-996a-b511ad05e9ba",
+        "bytes": 632,
+        "digest": "a1463299a78e276e4766793762a17cc6"
+      },
+      {
+        "id": "484e5149-dd66-4dd9-95da-76d06f3a2f03",
+        "bytes": 640,
+        "digest": "cac5d5cd3e0296b32cfa1e0e6a3cc1a4"
+      },
+      {
+        "id": "77d5ec37-1067-49c1-9689-ba8a51b84512",
+        "bytes": 788,
+        "digest": "e211b7c50ce55e4543fec95a290d4936"
+      },
+      {
+        "id": "9ca2141d-48a2-408f-8b0e-da25609a4504",
+        "bytes": 636,
+        "digest": "f520d414db4f698c5a14ed08f3c1b180"
+      },
+      {
+        "id": "735979e1-e177-4210-8fb9-c683f3ae2f2c",
+        "bytes": 648,
+        "digest": "8932761fe135778607b7fcfd64ee9ded"
+      },
+      {
+        "id": "54061988-0e1d-4434-ac8a-aa2d78f78554",
+        "bytes": 624,
+        "digest": "aeb11938588d39933c277615c6f3fbb2"
+      },
+      {
+        "id": "57167483-c8f7-40b7-b460-1263e56c9ab6",
+        "bytes": 628,
+        "digest": "37eb6fd87b02b29d1990ed5e5afd63b9"
+      },
+      {
+        "id": "4b49c3ed-dfc3-4002-8be5-bdcdab9ab149",
+        "bytes": 644,
+        "digest": "2ac82048bb9b43eb3e479de66b9c3a90"
+      },
+      {
+        "id": "c05c4e5f-3190-4036-b636-815a6db11f7b",
+        "bytes": 644,
+        "digest": "c4b2de9d67e0e359192527bb3676f57b"
+      },
+      {
+        "id": "ebfb31e0-9721-4580-a622-5cfb26f9123a",
+        "bytes": 644,
+        "digest": "ff410717b91435d76f252f534d720372"
+      },
+      {
+        "id": "22744f6e-edf5-4cf0-9db9-fa9891d3d240",
+        "bytes": 632,
+        "digest": "1f1bd0c381404993b6260202269039b8"
+      },
+      {
+        "id": "dd109246-0f58-496a-812e-d462b245428e",
+        "bytes": 486,
+        "digest": "39a2fdca352ee59ff883d2de1178afe8"
+      },
+      {
+        "id": "5317afd7-6030-49da-852f-091b94d6853a",
+        "bytes": 490,
+        "digest": "4d57e47cf6a4ff4798e0a76dcd9f84d4"
+      },
+      {
+        "id": "23db82f4-4265-4a88-84ed-28fbe0ac6865",
+        "bytes": 482,
+        "digest": "71e452d37fca41bf479d093ae1376b15"
+      },
+      {
+        "id": "4b32cfec-d152-469a-977b-13f95d021826",
+        "bytes": 490,
+        "digest": "460c13a761e34b20117f38547dcd8955"
+      },
+      {
+        "id": "2c6782fd-b1b6-401c-9f1b-cbb3ced18931",
+        "bytes": 470,
+        "digest": "a4bbac9862bfaff68238e423293e8c32"
+      },
+      {
+        "id": "a5fccf30-a147-47a4-810b-cb3f03ac5852",
+        "bytes": 478,
+        "digest": "06f7466a126edb072a82a52c324e8d7a"
+      },
+      {
+        "id": "b763978a-e0cc-4b45-82ef-4bbf6e6d2d1d",
+        "bytes": 486,
+        "digest": "f0ef8e7404a6de94ce528a0561f494cb"
+      },
+      {
+        "id": "87d47588-d168-495d-b5c0-277c85d10639",
+        "bytes": 486,
+        "digest": "692f978bff11a7a9a0ab1c24bbb1c492"
+      },
+      {
+        "id": "0381007d-17fd-4b1c-858a-01956f390ca3",
+        "bytes": 486,
+        "digest": "814291fe5adc5af53f6a3a21c59ddd9b"
+      },
+      {
+        "id": "bf9b33a1-9a36-493d-acf7-83300183977d",
+        "bytes": 474,
+        "digest": "e8569c20199c801ccecf000f7f2d5575"
+      },
+      {
+        "id": "28448e7f-fc2f-44ee-a8f5-668cdd5dd96b",
+        "bytes": 486,
+        "digest": "991748ab2ccc12389a1ea16499df6bb2"
+      },
+      {
+        "id": "8a2f4bc7-2b08-4029-81fa-4eb3f854bb32",
+        "bytes": 490,
+        "digest": "972717def6e0a986677c19ce837f5f92"
+      },
+      {
+        "id": "3d802f4b-3ce7-47ff-b6e6-24a618f0e71a",
+        "bytes": 482,
+        "digest": "173f695aa753eea5a6282fc2515ed392"
+      },
+      {
+        "id": "90d8a54c-69b8-43ac-ba8a-3baa73b58f15",
+        "bytes": 490,
+        "digest": "5984e25830f7f7d5c7b3ef9b3d6e2c50"
+      },
+      {
+        "id": "d4fd4701-7926-4f15-8231-49ae8349d9d5",
+        "bytes": 470,
+        "digest": "e156f7121c05cb6c433885104f2c2729"
+      },
+      {
+        "id": "9e9195bf-a2e3-4500-a42a-969a3c783d4b",
+        "bytes": 478,
+        "digest": "49801a49200437a1b9f5fd0551077cdd"
+      },
+      {
+        "id": "47154d49-10b2-4482-b636-a1a6fda29782",
+        "bytes": 490,
+        "digest": "d74a2ab55b66803b7118d22bb1369358"
+      },
+      {
+        "id": "967b6583-772b-4697-b874-60577efc2b8a",
+        "bytes": 486,
+        "digest": "7ae4a11150fa856ac2166dbf441eb4a5"
+      },
+      {
+        "id": "6a40e0d8-0d86-4a15-ac8a-d83bf1e5c18e",
+        "bytes": 486,
+        "digest": "fc4261c5979e24e522823aa3db4e5364"
+      },
+      {
+        "id": "cba93b96-4b95-4731-a1a5-c0bd8b0cb138",
+        "bytes": 478,
+        "digest": "8482d71a692edc1e42464202b6103a12"
+      },
+      {
+        "id": "99281c8f-85e7-44d8-bcb5-06da1ca6b61d",
+        "bytes": 486,
+        "digest": "2151a1c52faadaff5fa4340e85cfc456"
+      },
+      {
+        "id": "97f90abd-5888-46c8-a454-217acba4a1da",
+        "bytes": 490,
+        "digest": "1f75b3c8a6ca0233072e3235e29c28fa"
+      },
+      {
+        "id": "825cb52a-b090-41d7-8674-529b2db3c219",
+        "bytes": 482,
+        "digest": "2dce9af46b4d912a79fd088550fb79f6"
+      },
+      {
+        "id": "57f34356-0117-4601-90f1-783ec6591ca0",
+        "bytes": 490,
+        "digest": "d5dc002213e85aea8bcee54fb43b53d9"
+      },
+      {
+        "id": "114c2536-b7ff-42b0-90a5-51da791ace40",
+        "bytes": 470,
+        "digest": "f64513302111b2d216e490c0bcdf43ad"
+      },
+      {
+        "id": "a01966d2-9062-4cf4-a741-8340b954d8ec",
+        "bytes": 478,
+        "digest": "6bc606f5047dbec00cf8e54af180f11d"
+      },
+      {
+        "id": "9f6aad56-c522-4222-8841-7c9eecb03c70",
+        "bytes": 490,
+        "digest": "4c91b5b9b3e71159aed7ec12504b18bb"
+      },
+      {
+        "id": "254c37e2-547e-4abc-944f-595a3dda2a3d",
+        "bytes": 486,
+        "digest": "99724dd1994053ff159f438567d347d4"
+      },
+      {
+        "id": "20b93880-268e-4329-9a1f-1cf020c47f40",
+        "bytes": 486,
+        "digest": "80c723336b794add152fa4bf55bcc011"
+      },
+      {
+        "id": "b316d67b-a678-41f6-8f31-65f45252a3b2",
+        "bytes": 478,
+        "digest": "b5554dd8b4827edb9b382ea5ccc9aebc"
+      },
+      {
+        "id": "9411ed33-cfc2-4bfa-b105-cff6c87764c0",
+        "bytes": 486,
+        "digest": "ba2bed407c1a79615e36f84be3d0f76a"
+      },
+      {
+        "id": "db958f89-c455-4b80-909e-44cd1395a238",
+        "bytes": 490,
+        "digest": "b2bac9cb8a3e815d78a55addd534fa22"
+      },
+      {
+        "id": "ca8f8bfd-2ef6-44bc-960f-bcc9abd2d97d",
+        "bytes": 482,
+        "digest": "861e5dc0a0680093ae66d49a16ce0485"
+      },
+      {
+        "id": "041b4473-a5c4-4a6c-9ec5-8df00d66f141",
+        "bytes": 490,
+        "digest": "7268bd6a979295e45e77b6750474b439"
+      },
+      {
+        "id": "b9b4d7bf-e45b-4a52-bf1b-4abaf5d6b561",
+        "bytes": 470,
+        "digest": "9f1e60b1477cdcbbddf5800317a29256"
+      },
+      {
+        "id": "985e63bf-bd6a-4d5d-8fde-38c5fae67cba",
+        "bytes": 478,
+        "digest": "ba2efd9497dee1cbc56de0a1ffa98841"
+      },
+      {
+        "id": "3d343f9d-6eb5-4dca-aad6-8c3411ba5dfc",
+        "bytes": 490,
+        "digest": "cc3105457af4776766a77327d5b7fd8d"
+      },
+      {
+        "id": "40360cf2-fc93-498b-b283-0466b2721b2c",
+        "bytes": 486,
+        "digest": "12a4b5d5e1b07a583267eee23ec5662e"
+      },
+      {
+        "id": "847ada34-39a1-40b0-a37d-53543df51da0",
+        "bytes": 486,
+        "digest": "9b6e2084eea1023b6d8c827e17235c53"
+      },
+      {
+        "id": "2d93afd5-ae28-4bc5-8527-ce76fa811940",
+        "bytes": 478,
+        "digest": "fe1cdc2998522d44728c703482874e60"
+      },
+      {
+        "id": "b31a9a8c-e497-4246-b608-7971f7d64e07",
+        "bytes": 486,
+        "digest": "d53cf085a74da4bcc2279b0a6507ac98"
+      },
+      {
+        "id": "4bd49e6e-e5c6-47c9-8f5a-9fa8df13d59e",
+        "bytes": 490,
+        "digest": "7571f603cfb83d270360d606032177d9"
+      },
+      {
+        "id": "fc2656f1-4d01-465c-92b0-9a1035be785e",
+        "bytes": 482,
+        "digest": "706fcdd02f89e281756db2358fcc281f"
+      },
+      {
+        "id": "848a2a15-5429-4299-aa82-04894dde18ab",
+        "bytes": 490,
+        "digest": "017d144ae2d3a7e9a038e0b3872ebb57"
+      },
+      {
+        "id": "c4965e4c-39c2-4db9-9161-77be1f1816e8",
+        "bytes": 470,
+        "digest": "022a62b832bb657096c55764fd562e0d"
+      },
+      {
+        "id": "4084f723-69b6-4acb-8585-6f46228a8436",
+        "bytes": 478,
+        "digest": "ce9aa41eec95b2019fe363dfdd990ad2"
+      },
+      {
+        "id": "9c1cffcd-ca7c-49a9-a5e7-41206967b787",
+        "bytes": 490,
+        "digest": "3d6ac9947fdcf4a8cc83943363b5e5d0"
+      },
+      {
+        "id": "aba4d772-3af0-447f-92cc-3140b7eb84f2",
+        "bytes": 486,
+        "digest": "9f3ac701a75a081847c5919e66862b73"
+      },
+      {
+        "id": "b2058342-9a70-4f3a-b747-4b81e7550093",
+        "bytes": 486,
+        "digest": "a20a56e30db44bcdf6956a2e653ff2cb"
+      },
+      {
+        "id": "b1069b84-1512-41b1-8ec0-362682927d1c",
+        "bytes": 478,
+        "digest": "dc4629e50c85ba7cc351e77104aeefac"
+      },
+      {
+        "id": "0844569a-2381-464f-9574-82c91da6f325",
+        "bytes": 486,
+        "digest": "a5767c944a0695781433f32abe57973a"
+      },
+      {
+        "id": "668f42a8-d5ef-4016-9a12-1441a1d69979",
+        "bytes": 490,
+        "digest": "9f7d6bb2d50df64a2a1d837e1fb7c57b"
+      },
+      {
+        "id": "5e662585-a21e-420e-9a3c-ef1f7ecaf714",
+        "bytes": 482,
+        "digest": "02e5b41a0227b1d756143d46ac09e6c0"
+      },
+      {
+        "id": "6af22ca5-bb5b-40e6-9ccc-58800f17c373",
+        "bytes": 490,
+        "digest": "8e1b4fa5c3cde28bba964774891d8689"
+      },
+      {
+        "id": "14bd0d6d-2860-463b-b69a-48c1bc4f53c9",
+        "bytes": 470,
+        "digest": "54b4d35ba15152948a06c3ba50790eaa"
+      },
+      {
+        "id": "8a374c40-34a3-4fe9-b584-255e6e390b45",
+        "bytes": 478,
+        "digest": "f18e146e1d6bc7debba91d029f8c5f53"
+      },
+      {
+        "id": "79e7a067-61a5-4b72-aae7-5bd781413214",
+        "bytes": 490,
+        "digest": "eee695f76e234aeb1d3e969dc561f6f7"
+      },
+      {
+        "id": "57cf6f04-7b97-4a69-a875-0195144b63cc",
+        "bytes": 486,
+        "digest": "ff8b7ea20d3b59390380ca1a2cf4f36c"
+      },
+      {
+        "id": "92e9ecd4-835c-46ce-a707-fb82943b22a6",
+        "bytes": 486,
+        "digest": "6794eefb02483fbc1f37b07dc91fc13e"
+      },
+      {
+        "id": "bd27acce-91bc-4616-8e53-33357afe2b6e",
+        "bytes": 478,
+        "digest": "253382631d8fc13f302dd32897f6aa19"
+      },
+      {
+        "id": "d8ba9212-c48c-4328-b429-3d283b7d1747",
+        "bytes": 486,
+        "digest": "abc9f11a99442460789f062863d50e2f"
+      },
+      {
+        "id": "8e623790-e996-4c30-b65e-eb2f8756606f",
+        "bytes": 490,
+        "digest": "57790d178a23cd21eb29730c6b71b257"
+      },
+      {
+        "id": "4548c62b-a907-49d3-b5b9-356dc6783904",
+        "bytes": 482,
+        "digest": "5fb346a90db882abbb63e630a2aee3b3"
+      },
+      {
+        "id": "02796126-7d9c-4db0-a673-434a81f00651",
+        "bytes": 490,
+        "digest": "03989216ae96ef22c4d9ed6e81f6e735"
+      },
+      {
+        "id": "c2d54c0e-8ecc-4ec7-9f26-cc37bbec6115",
+        "bytes": 470,
+        "digest": "93d26176c5c523a4e091229810cc6226"
+      },
+      {
+        "id": "9e7e329e-230e-46a5-bc97-da94be4a6e82",
+        "bytes": 478,
+        "digest": "cd7d15ea2fea14061466820d65d768cd"
+      },
+      {
+        "id": "bf39bba0-9bcc-4778-9596-8674f45e0a5e",
+        "bytes": 490,
+        "digest": "3f7f74f04a6698e85e2c088db92922e4"
+      },
+      {
+        "id": "ccc85fcb-3bd5-4886-a656-05b1497f7060",
+        "bytes": 486,
+        "digest": "e63405aafc6a40dc9567ae6036fa8ea4"
+      },
+      {
+        "id": "a553f6bf-3113-4dce-a3c1-c58fe5279948",
+        "bytes": 486,
+        "digest": "845bb3f20bb31205bcb86f26d33de818"
+      },
+      {
+        "id": "f82a9885-5c64-476e-b50f-e9ec941097df",
+        "bytes": 478,
+        "digest": "4c978e8bda2361a3dcb4af689d8cb2ff"
+      },
+      {
+        "id": "0456d752-84fe-42af-8938-e77351aa22ec",
+        "bytes": 486,
+        "digest": "0f39cbe54d1be3fc9996e96c3bc9f577"
+      },
+      {
+        "id": "54366867-5808-4553-b397-1a72785d9f26",
+        "bytes": 490,
+        "digest": "d21638c65a32c3df71906318bc562837"
+      },
+      {
+        "id": "9c5ec18e-c9ae-4b81-9485-161df815e925",
+        "bytes": 322,
+        "digest": "c979c5ed34067deb2d359970aa1a494a"
+      },
+      {
+        "id": "250392a3-c0c4-42f7-b200-3605def0841b",
+        "bytes": 502,
+        "digest": "6e9ec04a336a90572b9ccc3321159394"
+      },
+      {
+        "id": "b445e45e-6a13-4778-86f1-9450c450a9b6",
+        "bytes": 326,
+        "digest": "f7a6deea036c4ca5fb5038c8abd1f4fd"
+      },
+      {
+        "id": "52f95bd1-c445-4054-a93b-9c3bd4caa92b",
+        "bytes": 490,
+        "digest": "c5a42cde6330ea0e424318ce7cf1fd5f"
+      },
+      {
+        "id": "ed0cc237-99d1-48e8-a1f6-28ae2f2cb28b",
+        "bytes": 322,
+        "digest": "e0c3a64fdfb144163b5b20703b91a5de"
+      },
+      {
+        "id": "991c42d7-2670-4119-9fb2-99c38fc42184",
+        "bytes": 498,
+        "digest": "7def1ec1075f8d3aba75eccff94955e9"
+      },
+      {
+        "id": "53a98e53-f05d-4387-b513-398e695c8ee0",
+        "bytes": 326,
+        "digest": "261f91fe6e18691a4f6781af63d69842"
+      },
+      {
+        "id": "e65a0744-86c0-4db9-8a79-25f43f71eedf",
+        "bytes": 584,
+        "digest": "5addabd30e0a890325c6f4d5d6dbb486"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "feature_id": "0e878132-6b2f-453a-9982-1b4ff80e2c10",
+      "id": "36ec91ac-b0fc-4b49-8dd6-1edc1f6c6ca6",
+      "revision": 1,
+      "geometry_bytes": 220,
+      "geometry_digest": "dc7090d10dc8bada89dd171cb36d7f84"
+    },
+    {
+      "feature_id": "62c0e184-8e15-4a40-8c7a-f063bf5d1b31",
+      "id": "b61fa07c-2596-4669-9936-e08c4a2696cd",
+      "revision": 1,
+      "geometry_bytes": 220,
+      "geometry_digest": "024c3ceae30223df0b3a94653bd74826"
+    },
+    {
+      "feature_id": "62c0e184-8e15-4a40-8c7a-f063bf5d1b31",
+      "id": "f424c7d4-fcef-42f5-8753-6f3b37f88226",
+      "revision": 2,
+      "geometry_bytes": 220,
+      "geometry_digest": "024c3ceae30223df0b3a94653bd74826"
+    },
+    {
+      "feature_id": "62c0e184-8e15-4a40-8c7a-f063bf5d1b31",
+      "id": "abbafe54-5573-4c60-a7cb-01df6e245b7b",
+      "revision": 3,
+      "geometry_bytes": 220,
+      "geometry_digest": "024c3ceae30223df0b3a94653bd74826"
+    },
+    {
+      "feature_id": "89e51c19-80a1-4381-8438-3dfb5dec6da6",
+      "id": "1a5d4f2e-a176-496c-b3b9-6b20126a7cb7",
+      "revision": 1,
+      "geometry_bytes": 388,
+      "geometry_digest": "16f0d89efba14cff9a8e545c5dd001c7"
+    },
+    {
+      "feature_id": "db31b4eb-7d27-47d7-b35e-e63d8a55de79",
+      "id": "5853a867-4a45-4334-960b-a16e35c4a7e1",
+      "revision": 1,
+      "geometry_bytes": 220,
+      "geometry_digest": "1c7b673135228f1b48af6c7fb8ca86bf"
+    }
+  ],
+  "history": {
+    "versions": 2,
+    "payload_bytes": 23826
+  },
+  "library": {
+    "runtimeAssets": [
+      {
+        "id": "mountain-rounded",
+        "revision": 1,
+        "file": "mountain-rounded-1.svg",
+        "bytes": 1390,
+        "gzipBytes": 692,
+        "sha256": "b35dc7f986aeae7370aa73bcdfd5c3103cb24332602ca537acc07a5002825d2f"
+      },
+      {
+        "id": "woodland-broadleaf-grove",
+        "revision": 1,
+        "file": "woodland-broadleaf-grove-1.svg",
+        "bytes": 1775,
+        "gzipBytes": 806,
+        "sha256": "b77079ded0f016187637172d5091237f0c30d5339c00e52a77d057a927d6ea4f"
+      },
+      {
+        "id": "settlement-city",
+        "revision": 1,
+        "file": "settlement-city-1.svg",
+        "bytes": 2223,
+        "gzipBytes": 939,
+        "sha256": "ff9d52bbf121c9ba3c124979347637b81b9fe3e78f8c41169a62c64b25ce7701"
+      },
+      {
+        "id": "mountain-rounded",
+        "revision": 3,
+        "file": "mountain-rounded-3.svg",
+        "bytes": 19541,
+        "gzipBytes": 8045,
+        "sha256": "b35bf4b55d23314a4a608a0186a6e5c1f236d7c8944c8332c080cf567930552c"
+      },
+      {
+        "id": "woodland-broadleaf-grove",
+        "revision": 3,
+        "file": "woodland-broadleaf-grove-3.svg",
+        "bytes": 82251,
+        "gzipBytes": 30749,
+        "sha256": "4c59aced78c5ad6d441a3315bed649cf7fdacdafce49bb1702e9cc46ac7e2c9e"
+      },
+      {
+        "id": "woodland-broadleaf-grove",
+        "revision": 4,
+        "file": "woodland-broadleaf-grove-4.svg",
+        "bytes": 62283,
+        "gzipBytes": 23225,
+        "sha256": "31b54d8848ee23ac843cad4a7c1d1798a3a54130fceb556dee562c3d6d6fad36"
+      },
+      {
+        "id": "settlement-city",
+        "revision": 2,
+        "file": "settlement-city-2.svg",
+        "bytes": 10431,
+        "gzipBytes": 2649,
+        "sha256": "411a30eccc21769836d115cf997427bdfafe3e58c3d8bc21b3e43f04a8af0a62"
+      },
+      {
+        "id": "mountain-craggy",
+        "revision": 1,
+        "file": "mountain-craggy-1.svg",
+        "bytes": 10069,
+        "gzipBytes": 4334,
+        "sha256": "e6e17b7ccfb0c225e154991d02a11ab6488087272719f3959cbbbee9999d3b54"
+      },
+      {
+        "id": "mountain-snow-capped",
+        "revision": 1,
+        "file": "mountain-snow-capped-1.svg",
+        "bytes": 10403,
+        "gzipBytes": 4435,
+        "sha256": "5a5bcbe76b01c1d8e8e2c3ff0b96051d42301a8cf2a42b7de16f664436ee2fdf"
+      },
+      {
+        "id": "hill-low",
+        "revision": 1,
+        "file": "hill-low-1.svg",
+        "bytes": 3519,
+        "gzipBytes": 1618,
+        "sha256": "95f85cf4615a08bf15c4f2e612cdbf164e0f3cc664e5296d135bd8c93a9ee631"
+      },
+      {
+        "id": "hill-rocky",
+        "revision": 1,
+        "file": "hill-rocky-1.svg",
+        "bytes": 4198,
+        "gzipBytes": 1771,
+        "sha256": "9507d9cad693235968819e891aa98af0ea97c98451bccea7d149229d3b81e2e4"
+      },
+      {
+        "id": "woodland-broadleaf-tree",
+        "revision": 1,
+        "file": "woodland-broadleaf-tree-1.svg",
+        "bytes": 10064,
+        "gzipBytes": 3442,
+        "sha256": "3b86a9653ce35ad2046ea5663d5f9b1e4685e49fb7410f48b178b5744a3b37d4"
+      },
+      {
+        "id": "woodland-conifer-tree",
+        "revision": 1,
+        "file": "woodland-conifer-tree-1.svg",
+        "bytes": 4114,
+        "gzipBytes": 1205,
+        "sha256": "8590361e33e7e5a2d599ca9647f39a0a8090698e67b6bf6605a1d9edf687872a"
+      },
+      {
+        "id": "woodland-conifer-grove",
+        "revision": 1,
+        "file": "woodland-conifer-grove-1.svg",
+        "bytes": 13709,
+        "gzipBytes": 2788,
+        "sha256": "11ed20149cf7512bea4a6436485904a987eecffe81b1cabb7e88fc1b38fd94dc"
+      },
+      {
+        "id": "settlement-village",
+        "revision": 1,
+        "file": "settlement-village-1.svg",
+        "bytes": 6895,
+        "gzipBytes": 1815,
+        "sha256": "462ab40103def07999e38200779f0e3574152bf55da70241b47b0d023fff855b"
+      },
+      {
+        "id": "settlement-port",
+        "revision": 1,
+        "file": "settlement-port-1.svg",
+        "bytes": 6979,
+        "gzipBytes": 1837,
+        "sha256": "8e70af240b6fc1c7fc641956ccf29bf145f873ec7f371bae81b06f20959a03eb"
+      },
+      {
+        "id": "settlement-castle",
+        "revision": 1,
+        "file": "settlement-castle-1.svg",
+        "bytes": 4281,
+        "gzipBytes": 1272,
+        "sha256": "e18c9b25ca85839ec5f5dbf21cea77c134e6c2e88a180e30086b25fb127dae1f"
+      },
+      {
+        "id": "wetland-reeds",
+        "revision": 1,
+        "file": "wetland-reeds-1.svg",
+        "bytes": 2936,
+        "gzipBytes": 1036,
+        "sha256": "df3f4778ef86dd0f21329b08d1bdeba8045851881244a5f446c702e6612de015"
+      }
+    ],
+    "pinnedSvgGzipBytes": 92658,
+    "catalogJsonBytes": 19939,
+    "generatedCatalogModuleBytes": 18485,
+    "generatedCatalogModuleGzipBytes": 2327,
+    "retainedOriginals": [
+      {
+        "file": "hill-low-1.svg",
+        "bytes": 3519,
+        "sha256": "95f85cf4615a08bf15c4f2e612cdbf164e0f3cc664e5296d135bd8c93a9ee631"
+      },
+      {
+        "file": "hill-rocky-1.svg",
+        "bytes": 4198,
+        "sha256": "9507d9cad693235968819e891aa98af0ea97c98451bccea7d149229d3b81e2e4"
+      },
+      {
+        "file": "mountain-craggy-1.svg",
+        "bytes": 10069,
+        "sha256": "e6e17b7ccfb0c225e154991d02a11ab6488087272719f3959cbbbee9999d3b54"
+      },
+      {
+        "file": "mountain-rounded-1.svg",
+        "bytes": 1390,
+        "sha256": "b35dc7f986aeae7370aa73bcdfd5c3103cb24332602ca537acc07a5002825d2f"
+      },
+      {
+        "file": "mountain-rounded-2.svg",
+        "bytes": 19075,
+        "sha256": "9c3c2173f20ab253f014c5eea2b5147531c10f107d6a1c2fa6c2dee6aff335d3"
+      },
+      {
+        "file": "mountain-rounded-3.svg",
+        "bytes": 19541,
+        "sha256": "b35bf4b55d23314a4a608a0186a6e5c1f236d7c8944c8332c080cf567930552c"
+      },
+      {
+        "file": "mountain-snow-capped-1.svg",
+        "bytes": 10403,
+        "sha256": "5a5bcbe76b01c1d8e8e2c3ff0b96051d42301a8cf2a42b7de16f664436ee2fdf"
+      },
+      {
+        "file": "settlement-castle-1.svg",
+        "bytes": 4281,
+        "sha256": "e18c9b25ca85839ec5f5dbf21cea77c134e6c2e88a180e30086b25fb127dae1f"
+      },
+      {
+        "file": "settlement-city-1.svg",
+        "bytes": 2223,
+        "sha256": "ff9d52bbf121c9ba3c124979347637b81b9fe3e78f8c41169a62c64b25ce7701"
+      },
+      {
+        "file": "settlement-city-2.svg",
+        "bytes": 10431,
+        "sha256": "411a30eccc21769836d115cf997427bdfafe3e58c3d8bc21b3e43f04a8af0a62"
+      },
+      {
+        "file": "settlement-port-1.svg",
+        "bytes": 6979,
+        "sha256": "8e70af240b6fc1c7fc641956ccf29bf145f873ec7f371bae81b06f20959a03eb"
+      },
+      {
+        "file": "settlement-village-1.svg",
+        "bytes": 6895,
+        "sha256": "462ab40103def07999e38200779f0e3574152bf55da70241b47b0d023fff855b"
+      },
+      {
+        "file": "wetland-reeds-1.svg",
+        "bytes": 2936,
+        "sha256": "df3f4778ef86dd0f21329b08d1bdeba8045851881244a5f446c702e6612de015"
+      },
+      {
+        "file": "woodland-broadleaf-grove-1.svg",
+        "bytes": 1775,
+        "sha256": "b77079ded0f016187637172d5091237f0c30d5339c00e52a77d057a927d6ea4f"
+      },
+      {
+        "file": "woodland-broadleaf-grove-2.svg",
+        "bytes": 26246,
+        "sha256": "153bdb2a7f77baba8bcc72fec43e26c3f9bd09dc3fb1a4db467fb39a6532ff9d"
+      },
+      {
+        "file": "woodland-broadleaf-grove-3.svg",
+        "bytes": 82251,
+        "sha256": "4c59aced78c5ad6d441a3315bed649cf7fdacdafce49bb1702e9cc46ac7e2c9e"
+      },
+      {
+        "file": "woodland-broadleaf-grove-4.svg",
+        "bytes": 62283,
+        "sha256": "31b54d8848ee23ac843cad4a7c1d1798a3a54130fceb556dee562c3d6d6fad36"
+      },
+      {
+        "file": "woodland-broadleaf-tree-1.svg",
+        "bytes": 10064,
+        "sha256": "3b86a9653ce35ad2046ea5663d5f9b1e4685e49fb7410f48b178b5744a3b37d4"
+      },
+      {
+        "file": "woodland-conifer-grove-1.svg",
+        "bytes": 13709,
+        "sha256": "11ed20149cf7512bea4a6436485904a987eecffe81b1cabb7e88fc1b38fd94dc"
+      },
+      {
+        "file": "woodland-conifer-tree-1.svg",
+        "bytes": 4114,
+        "sha256": "8590361e33e7e5a2d599ca9647f39a0a8090698e67b6bf6605a1d9edf687872a"
+      }
+    ],
+    "limitation": "14 latest candidate subjects; 18 exact catalog entries including the three retained revision-1 pins and the approved two grove footprints. Independent full-library artwork review remains pending."
+  },
+  "limits": {
+    "drawings512And513Rejection": true,
+    "marks6000And6075Rejection": true,
+    "points16384And16386Rejection": true
+  }
+}

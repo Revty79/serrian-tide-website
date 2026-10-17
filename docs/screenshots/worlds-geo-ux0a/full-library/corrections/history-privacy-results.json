@@ -1,0 +1,218 @@
+{
+  "passed": true,
+  "scope": "Disposable technical checks. Historical source authored through website; SQL verification read-only; role denials checked through authenticated HTTP. No all-scale historical-layout acceptance claim.",
+  "results": [
+    {
+      "branch": "manual",
+      "shorelineChecks": [
+        {
+          "name": "river outlet",
+          "point": {
+            "x": 1120,
+            "y": 1050,
+            "id": "22c95bcb-59c6-4862-82cf-0ae8665aaf16"
+          },
+          "land": false,
+          "actualLand": false
+        },
+        {
+          "name": "harbor buildings",
+          "point": {
+            "x": 1400.6005406160534,
+            "y": 859.3394459947222
+          },
+          "land": true,
+          "actualLand": true
+        },
+        {
+          "name": "harbor boat",
+          "point": {
+            "x": 1451.6787090864245,
+            "y": 915.9364486159951
+          },
+          "land": false,
+          "actualLand": false
+        },
+        {
+          "name": "central pier end",
+          "point": {
+            "x": 1428.943870695039,
+            "y": 932.631571356412
+          },
+          "land": false,
+          "actualLand": false
+        },
+        {
+          "name": "Ashmere label",
+          "point": {
+            "x": 610,
+            "y": 820
+          },
+          "land": true,
+          "actualLand": true
+        },
+        {
+          "name": "South Quay label",
+          "point": {
+            "x": 1390,
+            "y": 760
+          },
+          "land": true,
+          "actualLand": true
+        },
+        {
+          "name": "Crownwatch label",
+          "point": {
+            "x": 940,
+            "y": 700
+          },
+          "land": true,
+          "actualLand": true
+        },
+        {
+          "name": "Wrenhaven label",
+          "point": {
+            "x": 850,
+            "y": 940
+          },
+          "land": true,
+          "actualLand": true
+        }
+      ],
+      "mapId": "141518ea-7595-4ee5-a10a-65428b5a23c1",
+      "stateId": "ebafacba-9322-41ba-a580-6f45facd7d70",
+      "versionId": "d6e4bbd8-ae95-496d-88e0-ed884d7d5590",
+      "baselineSourceVersionId": "0e9c2520-04df-4a2d-9e73-f31e84e1df91",
+      "immutableVersions": 2,
+      "exactPayloadsPreservedAfterTwoBaselineSaves": true,
+      "protectedAppearanceAbsentInOrdinary": true,
+      "ordinaryPinnedVersionStatus": 404,
+      "ordinaryWrite": 403,
+      "adminReviewReadOnly": true,
+      "checks": [
+        {
+          "role": "foreign",
+          "read": 404,
+          "write": 404
+        },
+        {
+          "role": "player",
+          "read": 403,
+          "write": 403
+        },
+        {
+          "role": "admin",
+          "read": 404,
+          "write": 404
+        }
+      ],
+      "errors": []
+    },
+    {
+      "branch": "generated",
+      "shorelineChecks": [
+        {
+          "name": "river outlet",
+          "point": {
+            "x": 1510,
+            "y": 968,
+            "id": "fe1ea1f0-6203-4232-b3ac-009a980688cc"
+          },
+          "land": false,
+          "actualLand": false
+        },
+        {
+          "name": "harbor buildings",
+          "point": {
+            "x": 1636.5754623564853,
+            "y": 858.908761761694
+          },
+          "land": true,
+          "actualLand": true
+        },
+        {
+          "name": "harbor boat",
+          "point": {
+            "x": 1685.9050377049953,
+            "y": 871.1477566524385
+          },
+          "land": false,
+          "actualLand": false
+        },
+        {
+          "name": "central pier end",
+          "point": {
+            "x": 1679.5635436560544,
+            "y": 888.8504528659323
+          },
+          "land": false,
+          "actualLand": false
+        },
+        {
+          "name": "Ashmere label",
+          "point": {
+            "x": 1255,
+            "y": 797.83
+          },
+          "land": true,
+          "actualLand": true
+        },
+        {
+          "name": "Wrenhaven label",
+          "point": {
+            "x": 1375,
+            "y": 901.93
+          },
+          "land": true,
+          "actualLand": true
+        },
+        {
+          "name": "South Quay label",
+          "point": {
+            "x": 1645,
+            "y": 745.78
+          },
+          "land": true,
+          "actualLand": true
+        },
+        {
+          "name": "Crownwatch label",
+          "point": {
+            "x": 1420,
+            "y": 693.73
+          },
+          "land": true,
+          "actualLand": true
+        }
+      ],
+      "mapId": "7856fc72-ee90-4040-9aff-86901d613d0b",
+      "stateId": "4f35ea74-c190-4a69-887a-87ae37ee7d2f",
+      "versionId": "5bdb6fac-6b19-4289-a6de-d2f468abfbd9",
+      "baselineSourceVersionId": "5a32a840-d121-43d7-9a6c-f34b21625def",
+      "immutableVersions": 2,
+      "exactPayloadsPreservedAfterTwoBaselineSaves": true,
+      "protectedAppearanceAbsentInOrdinary": true,
+      "ordinaryPinnedVersionStatus": 404,
+      "ordinaryWrite": 403,
+      "adminReviewReadOnly": true,
+      "checks": [
+        {
+          "role": "foreign",
+          "read": 404,
+          "write": 404
+        },
+        {
+          "role": "player",
+          "read": 403,
+          "write": 403
+        },
+        {
+          "role": "admin",
+          "read": 404,
+          "write": 404
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

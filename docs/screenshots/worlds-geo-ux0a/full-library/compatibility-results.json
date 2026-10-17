@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "legacyMap": "ca61a677-db70-4b9d-a5b0-0a4b932a875b",
+  "legacyMapSha256": "d7a3849cf86479a57c3ca1de2a9ca887bfd0643f32bb882cf177b2cb0473b731",
+  "visibleForestPixels": 3634,
+  "groups": [
+    "retained v1 artwork/terrain stays visible after geographic association and reload/PNG",
+    "metadata-only current authorization with automatic protected-source removal",
+    "ordinary metadata excludes protected identities and source reading returns 404",
+    "no-geometry display extent uses the same eligible-head stamp",
+    "foreign denied and explicit read-only Admin review",
+    "original source coordinates/version retained after protection and restore"
+  ],
+  "errors": []
+}

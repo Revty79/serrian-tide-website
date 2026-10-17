@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "branch": "manual",
+      "mapId": "141518ea-7595-4ee5-a10a-65428b5a23c1",
+      "finalLabel": null,
+      "allOtherDrawingsExact": true,
+      "allHistoricalVersionsExact": true,
+      "source": "Existing website-authored maps reopened; generated label moved with inspector; actual authorized visible PNG re-downloaded",
+      "errors": []
+    },
+    {
+      "branch": "generated",
+      "mapId": "7856fc72-ee90-4040-9aff-86901d613d0b",
+      "finalLabel": {
+        "id": "50e4ab9b-72bb-42e1-ad04-eabb89dcb2d3",
+        "geographyId": "202c99c4-d179-47f8-b371-60157f862cc2",
+        "point": {
+          "x": 1685,
+          "y": 793.49
+        }
+      },
+      "allOtherDrawingsExact": true,
+      "allHistoricalVersionsExact": true,
+      "source": "Existing website-authored maps reopened; generated label moved with inspector; actual authorized visible PNG re-downloaded",
+      "errors": []
+    }
+  ]
+}

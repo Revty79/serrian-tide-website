@@ -1,0 +1,194 @@
+{
+  "passed": true,
+  "browser": "134.0.6998.166",
+  "scope": "All latest subjects and three retained v1 pins, including margin outside each declared viewbox; former inline SVG use versus shared original SVG image use. This is rendering equivalence, not artistic acceptance.",
+  "results": [
+    {
+      "asset": "mountain-rounded",
+      "revision": 3,
+      "rmse": 0.007934920476158722,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 1.711371553051117,
+        "channelsChangedOver8": 0.009892592592592593
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "woodland-broadleaf-grove",
+      "revision": 4,
+      "rmse": 0.015986105077709065,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 2.271096162159977,
+        "channelsChangedOver8": 0.017662962962962964
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "settlement-city",
+      "revision": 2,
+      "rmse": 0,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 3.171752057004316,
+        "channelsChangedOver8": 0.032044444444444445
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "mountain-craggy",
+      "revision": 1,
+      "rmse": 0.010715167512214394,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 1.536095338476388,
+        "channelsChangedOver8": 0.007233333333333333
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "mountain-snow-capped",
+      "revision": 1,
+      "rmse": 0.004303314829119352,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 1.3084200254363898,
+        "channelsChangedOver8": 0.006151851851851852
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "hill-low",
+      "revision": 1,
+      "rmse": 0.006666666666666667,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 1.1465956050332138,
+        "channelsChangedOver8": 0.004514814814814814
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "hill-rocky",
+      "revision": 1,
+      "rmse": 0.005091750772173155,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 1.1650719259310098,
+        "channelsChangedOver8": 0.0049481481481481486
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "woodland-broadleaf-tree",
+      "revision": 1,
+      "rmse": 0.005091750772173155,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 1.4437682177782785,
+        "channelsChangedOver8": 0.006633333333333333
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "woodland-conifer-tree",
+      "revision": 1,
+      "rmse": 0.006382847385042254,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 1.5928730157939284,
+        "channelsChangedOver8": 0.008577777777777778
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "woodland-conifer-grove",
+      "revision": 1,
+      "rmse": 0.01,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 2.2106434457968214,
+        "channelsChangedOver8": 0.017448148148148147
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "settlement-village",
+      "revision": 1,
+      "rmse": 0.0033333333333333335,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 2.046568039606976,
+        "channelsChangedOver8": 0.01232962962962963
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "settlement-port",
+      "revision": 1,
+      "rmse": 0.005773502691896258,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 2.079082774971979,
+        "channelsChangedOver8": 0.01368888888888889
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "settlement-castle",
+      "revision": 1,
+      "rmse": 0,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 2.2349413779701166,
+        "channelsChangedOver8": 0.015274074074074074
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "wetland-reeds",
+      "revision": 1,
+      "rmse": 0.0090267093384844,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 2.0567603076107246,
+        "channelsChangedOver8": 0.015485185185185185
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "mountain-rounded",
+      "revision": 1,
+      "rmse": 0,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 2.0319795128742664,
+        "channelsChangedOver8": 0.01368888888888889
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "woodland-broadleaf-grove",
+      "revision": 1,
+      "rmse": 0.0019245008972987527,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 2.0132588286435285,
+        "channelsChangedOver8": 0.012914814814814815
+      },
+      "exportUsesOriginal": true
+    },
+    {
+      "asset": "settlement-city",
+      "revision": 1,
+      "rmse": 0,
+      "channelsChangedOver8": 0,
+      "displayCacheAt300px": {
+        "rmse": 2.8797074182657543,
+        "channelsChangedOver8": 0.03409259259259259
+      },
+      "exportUsesOriginal": true
+    }
+  ]
+}

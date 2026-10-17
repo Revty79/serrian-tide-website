@@ -14,3 +14,5 @@
 
 /* A pinned artistic style uses shared immutable cartographic roles, independent of branding. */
 .scene[data-cartographic-style="island-ink-wash:1"]:not([data-style=night]){--map-paper:var(--st-map-island-v1-paper);--map-ink:var(--st-map-island-v1-ink);--map-water:var(--st-map-island-v1-water);--map-land:var(--st-map-island-v1-land);--map-river:var(--st-map-island-v1-river)}
+
+.selectionBox{fill:none;stroke:var(--st-map-selection);stroke-width:2;stroke-dasharray:6 4;vector-effect:non-scaling-stroke;pointer-events:none}

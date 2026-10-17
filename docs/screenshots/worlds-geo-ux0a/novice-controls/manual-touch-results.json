@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "runtime": "production",
+  "label": "manual-touch",
+  "branch": "manual",
+  "touchEmulated": true,
+  "physicalDevice": false,
+  "uncoachedHuman": false,
+  "mapId": "4503be60-27d1-4d7e-a160-5ff634abcb14",
+  "steps": [
+    "Native canvas wheel zoom changes view",
+    "Visible starter prepares its default surface in this same map; no coordinate fields or hidden artwork dropdown used",
+    "hand pan preserves paint and makes no writes",
+    "Two-finger pan/pinch during paint cancels first-touch placement/preview, retains all drawings and makes no content writes",
+    "Native hand pan during brush task retains exact stroke and brush",
+    "Two-finger pan/pinch during symbol cancels first-touch placement/preview, retains all drawings and makes no content writes",
+    "Immediate placement undo/redo retains drawing/place/label IDs",
+    "Visible Move item plus immediate undo and redo retain the same village/place",
+    "Visible size/rotation applies reversibly without replacing identity",
+    "hand pan preserves path and makes no writes",
+    "Visible Items select/remove/restore/Delete/undo of symbol, text label, path and brush stroke retains IDs",
+    "Separate coastline vertex removal/undo/save retains the feature/place and every old immutable version; whole-source deletion remains unavailable"
+  ],
+  "retainedDrawingIds": [
+    "642aef0c-e6af-49ba-89aa-18f7008d54f1",
+    "94361d15-7b8f-4b5f-a310-ca63d321e24d",
+    "a9a935bf-fb74-49cd-8742-ee1cc676e4f4",
+    "b3b66885-e932-4aee-bb94-857386c5e57e",
+    "e5a15f88-0c42-4f1a-90c8-760b998ad90a"
+  ],
+  "errors": [],
+  "browser": "154.0.8037.57",
+  "initial": {
+    "worlds": 0,
+    "maps": 0
+  }
+}

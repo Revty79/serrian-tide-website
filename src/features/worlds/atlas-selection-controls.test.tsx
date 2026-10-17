@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import {test} from "node:test";
+import {createElement} from "react";
+import {renderToStaticMarkup} from "react-dom/server";
+import {AtlasSelectionControls} from "./atlas-selection-controls";
+import {assetReference,latestIslandAssets} from "./island-assets";
+import type {MapDrawing} from "./cartography";
+const ref=assetReference(latestIslandAssets.find(a=>a.id==="settlement-village")!);
+const drawing:MapDrawing={version:2,type:"symbol",id:"retained",name:"Saved village",archived:false,geographyId:"place",kind:"village",point:{x:500,y:500},scale:.6,rotation:0,style:"colored",role:"place",assetRef:{assetRevision:ref.assetRevision,assetId:ref.assetId,libraryRevision:ref.libraryRevision,libraryId:ref.libraryId}};
+const render=(drawing:MapDrawing)=>renderToStaticMarkup(createElement(AtlasSelectionControls,{drawing,blocked:false,fieldsPending:false,onEditFields:()=>{},onApplyFields:()=>{},onChange:()=>true,onClose:()=>{}}));
+test("saved JSONB reference key order does not disable valid existing-stamp editing",()=>{const before=structuredClone(drawing),markup=render(drawing);assert.ok(markup.includes('aria-label="Selection scale"'));assert.ok(!markup.includes("unavailable"));assert.ok(!markup.includes('disabled=""'));assert.deepEqual(drawing,before);});
+test("an actually missing saved revision retains the reference and explains disabled settings",()=>{if(drawing.type!=="symbol"||drawing.version!==2)throw Error("Expected v2");const missing={...drawing,assetRef:{...drawing.assetRef,assetRevision:999}},before=structuredClone(missing),markup=render(missing);assert.ok(markup.includes("exact illustration revision is unavailable"));assert.ok(markup.includes('disabled=""'));assert.deepEqual(missing,before);});

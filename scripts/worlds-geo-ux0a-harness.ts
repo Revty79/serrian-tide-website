@@ -31,12 +31,14 @@ export async function ownedPool(e: Environment, target: "empty" | "compat") {
 }
 /** A new zero-World journey database, on the already verified task-owned cluster only. */
 export async function freshIslandEnvironment(purpose:"learning"|"acceptance"|"performance") {
-  assert.ok(purpose==="learning"||purpose==="acceptance"||purpose==="performance");const original=await ux0aEnvironment(),verified=await ownedPool(original,"empty");await verified.end();
+  assert.ok(purpose==="learning"||purpose==="acceptance"||purpose==="performance");const original=await ux0aEnvironment(),verified=await ownedPool(original,"empty");
+  const clone=process.env.SERRIAN_UX0A_CLONE_EMPTY==="1";
+  try { if(clone) assert.deepEqual((await verified.query("select (select count(*) from world)::int worlds,(select count(*) from world_atlas_map)::int maps")).rows[0],{worlds:0,maps:0}); } finally { await verified.end(); }
   const database=`serrian_ux0a_${purpose}_${Date.now()}`;assert.match(database,/^serrian_ux0a_(learning|acceptance|performance)_\d+$/);
   const admin=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${original.port}/postgres`});
-  try{const row=(await admin.query("select inet_server_port() port,current_setting('data_directory') data")).rows[0];assert.equal(row.port,original.port);assert.equal(path.resolve(row.data),path.resolve(original.data));await admin.query(`create database "${database}"`);}finally{await admin.end();}
+  try{const row=(await admin.query("select inet_server_port() port,current_setting('data_directory') data")).rows[0];assert.equal(row.port,original.port);assert.equal(path.resolve(row.data),path.resolve(original.data));const template=new URL(original.empty).pathname.slice(1);assert.match(template,/^serrian_ux0a_empty_\d+$/);await admin.query(`create database "${database}"${clone?` template "${template}"`:""}`);}finally{await admin.end();}
   const e={...original,empty:`postgresql://postgres@127.0.0.1:${original.port}/${database}`},pool=await ownedPool(e,"empty");
-  try{await migrate(drizzle(pool),{migrationsFolder:"drizzle"});await accounts(pool,e);const initial=(await pool.query("select (select count(*) from world)::int worlds,(select count(*) from world_atlas_map)::int maps")).rows[0];assert.deepEqual(initial,{worlds:0,maps:0});assert.equal(Number((await pool.query("select count(*) n from drizzle.__drizzle_migrations")).rows[0].n),133);await writeFile(path.join(UX0A_DIRECTORY,`${database}-environment.json`),JSON.stringify({environment:e,initial,purpose,source:purpose==="performance"?"Fresh schema/access accounts; technical performance fixtures use existing application services and are not website acceptance evidence.":"Fresh schema and access accounts only; all World/map/content creation belongs to the website."},null,2));return e;}finally{await pool.end();}
+  try{if(!clone){await migrate(drizzle(pool),{migrationsFolder:"drizzle"});await accounts(pool,e);}const initial=(await pool.query("select (select count(*) from world)::int worlds,(select count(*) from world_atlas_map)::int maps")).rows[0];assert.deepEqual(initial,{worlds:0,maps:0});assert.equal(Number((await pool.query("select count(*) n from drizzle.__drizzle_migrations")).rows[0].n),133);await writeFile(path.join(UX0A_DIRECTORY,`${database}-environment.json`),JSON.stringify({environment:e,initial,purpose,source:clone?"Clone of verified task-owned zero-World baseline and disposable access accounts; no migrations run. All World/map/content creation belongs to the website.":purpose==="performance"?"Fresh schema/access accounts; technical performance fixtures use existing application services and are not website acceptance evidence.":"Fresh schema and access accounts only; all World/map/content creation belongs to the website."},null,2));return e;}finally{await pool.end();}
 }
 export async function ux0aSnapshot(pool: pg.Pool) {
   const tables = (await pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows.map(row => String(row.tablename));
@@ -44,7 +46,7 @@ export async function ux0aSnapshot(pool: pg.Pool) {
   for (const table of tables) { assert.match(table, /^[a-z_]+$/); snapshot[table] = (await pool.query(`select md5(to_jsonb(row)::text) hash from "${table}" row order by 1`)).rows.map(row => String(row.hash)); }
   return snapshot;
 }
-async function accounts(pool: pg.Pool, e: Environment) {
+export async function accounts(pool: pg.Pool, e: Environment) {
   const password = await hashPassword("UX0A-Disposable-Only-Password!");
   for (const [kind, role] of [["owner", "god"], ["foreign", "god"], ["admin", "admin"], ["player", "player"]] as const) {
     const id = e.users[kind];
@@ -109,20 +111,23 @@ async function setup() {
 }
 async function build() {
   const e = await ux0aEnvironment(), pool = await ownedPool(e, "empty"); await pool.end();
-  const checkout = path.join(UX0A_DIRECTORY, "runtime-checkout"); await mkdir(checkout, { recursive: true });
+  const checkoutName=process.env.SERRIAN_UX0A_CHECKOUT??"runtime-checkout";
+  assert.ok(["runtime-checkout","runtime-checkout-library","runtime-checkout-overview"].includes(checkoutName));
+  const checkout = path.join(UX0A_DIRECTORY, checkoutName); await mkdir(checkout, { recursive: true });
   const files = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], { encoding: "utf8", windowsHide: true }).split("\0").filter(file => file && !file.startsWith("artifacts/"));
   const runtimeFiles = files.filter(file => file.startsWith("src/") && !/\.test\.tsx?$/.test(file) || /^(package(-lock)?\.json|tsconfig\.json|next\.config\.ts)$/.test(file)).sort();
   const fingerprint = async () => { const hash = createHash("sha256"); for (const file of runtimeFiles) { hash.update(file); hash.update(await readFile(file)); } return hash.digest("hex"); };
   const before = await fingerprint();
   for (const file of files) { const target = path.resolve(checkout, file); assert.ok(target.startsWith(checkout + path.sep)); await mkdir(path.dirname(target), { recursive: true }); await copyFile(file, target); }
-  const log = openSync(path.join(UX0A_DIRECTORY, "production-build.log"), "w");
+  const receiptPrefix=checkoutName==="runtime-checkout-library"?"library-":checkoutName==="runtime-checkout-overview"?"overview-":"";
+  const log = openSync(path.join(UX0A_DIRECTORY, `${receiptPrefix}production-build.log`), "w");
   try {
     const env: NodeJS.ProcessEnv = { ...process.env, PATH: path.dirname(process.execPath) + path.delimiter + process.env.PATH, NODE_ENV: "production", DATABASE_URL: e.empty, SERRIAN_RASTER_ROOT: e.assetRoot, BETTER_AUTH_URL: `http://127.0.0.1:${e.appPort}`, BETTER_AUTH_SECRET: "UX0A-owned-disposable-auth-secret-only", SERRIAN_TEST_NEXT_DIST_DIR: ".next-geo-ux0a", NEXT_TELEMETRY_DISABLED: "1" };
     if (!existsSync(path.join(checkout, "node_modules/next/dist/bin/next"))) execFileSync(process.execPath, [path.join(path.dirname(process.execPath), "node_modules/npm/bin/npm-cli.js"), "ci", "--offline", "--include=dev"], { cwd: checkout, windowsHide: true, env, stdio: ["ignore", log, log] });
     execFileSync(process.execPath, ["node_modules/next/dist/bin/next", "build"], { cwd: checkout, windowsHide: true, env, stdio: ["ignore", log, log] });
   } finally { closeSync(log); }
   assert.equal(await fingerprint(), before);
-  await writeFile(path.join(UX0A_DIRECTORY, "build-results.json"), JSON.stringify({ passed: true, node: process.version, fingerprint: before, checkout, target: "new owned empty-World acceptance database", migrated: 133 }, null, 2));
+  await writeFile(path.join(UX0A_DIRECTORY, `${receiptPrefix}build-results.json`), JSON.stringify({ passed: true, node: process.version, fingerprint: before, checkout, target: "verified task-owned disposable database", migrated: 133 }, null, 2));
   console.log("PASS isolated production build with Node 22 and verified owned empty-World database");
 }
 const command = process.argv[2];

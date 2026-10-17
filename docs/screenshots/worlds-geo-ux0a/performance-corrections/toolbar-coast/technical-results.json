@@ -1,0 +1,347 @@
+{
+  "runtimeFingerprint": "b2801dcb44a2c10e5bf04e0c0425b507eb95e85f024c128e30fff5ba6db635a6",
+  "node": "v22.23.3",
+  "browser": "154.0.8037.57",
+  "baseline": "8a3b1a12315b1e78c82b0f800367dd006cc29684",
+  "performancePassed": false,
+  "pinchPassed": true,
+  "collectionComplete": true,
+  "pinchCollectionComplete": true,
+  "hardware": {
+    "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "logicalCpus": 5,
+    "cpuQuota": "400000 100000",
+    "gpuDevices": [
+      {
+        "vendorId": 65535,
+        "deviceId": 65535,
+        "vendorString": "Google Inc. (Google)",
+        "deviceString": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver-5.0.0)",
+        "driverVendor": "SwANGLE",
+        "driverVersion": "5.0.0"
+      }
+    ],
+    "graphicsFeatureStatus": {
+      "2d_canvas": "unavailable_software",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "disabled_software",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "disabled_off",
+      "rasterization": "disabled_software",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "disabled_software",
+      "video_encode": "disabled_software",
+      "vulkan": "disabled_off",
+      "webgl": "unavailable_software",
+      "webgpu": "unavailable_software",
+      "webgpu_on_vk_via_gl_interop": "disabled_off",
+      "webnn": "unavailable_software"
+    },
+    "totalMemory": 35743784960,
+    "os": "linux 6.18.44"
+  },
+  "unitTests": 2259,
+  "featureTestFiles": 280,
+  "rasterTests": 3,
+  "svgCases": 24,
+  "ownerBrowser": "Chrome in local DEV; version unknown",
+  "nativeOwnerExceptionReproduced": false,
+  "strictSvgPointCompatibilityFaultInjection": true,
+  "physicalDevice": false,
+  "uncoachedHuman": false,
+  "ownerVisualApproval": false,
+  "readyForMerge": false,
+  "migrationsApplied": 0,
+  "protectedContent": {
+    "passed": true,
+    "sourceVersions": 4,
+    "drawings": 100,
+    "historicalRowsInTechnicalFixture": 0,
+    "historyEvidence": "Nonempty immutable appearances checked separately in SVG and retained-map browser journeys.",
+    "migrationLedger": 133,
+    "sourceVersionsExact": true,
+    "drawingIdsAndContentExact": true,
+    "migrationLedgerExact": true,
+    "migrationsApplied": 0
+  },
+  "coastline": {
+    "passed": true,
+    "beforeCases": 6,
+    "afterCases": 6,
+    "authoritativeSculpt": false
+  },
+  "results": [
+    {
+      "device": {
+        "width": 1440,
+        "height": 900,
+        "touch": false,
+        "rate": 1
+      },
+      "complete": true,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.493281000003,
+        "frames": 293,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 1422,
+          "height": 372.765625
+        },
+        "fps": 58.6
+      },
+      "brushP95": 31.099999997764826,
+      "exportMs": 1736.141137999999,
+      "operations": {
+        "checkpointMs": 85.09999999776483,
+        "recoveryBytes": 42415,
+        "saveMs": 418.3482990000048,
+        "editUndoReopenCycles": 5,
+        "generationMs": 417.0654319999958,
+        "cancelMs": 206.62233600000036
+      },
+      "heapGrowth": 6451000,
+      "compressedTransfer": 420596,
+      "budgets": {
+        "transfer": true,
+        "external": true,
+        "fps": true,
+        "brush": true,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 1024,
+        "height": 768,
+        "touch": false,
+        "rate": 1
+      },
+      "complete": true,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.462643000001,
+        "frames": 300,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 1012.40625,
+          "height": 262.828125
+        },
+        "fps": 60
+      },
+      "brushP95": 30.400000002235174,
+      "exportMs": 1293.976668000003,
+      "operations": {
+        "checkpointMs": 95.69999999925494,
+        "recoveryBytes": 42415,
+        "saveMs": 447.5887389999989,
+        "editUndoReopenCycles": 5,
+        "generationMs": 588.7279619999972,
+        "cancelMs": 119.41541399999551
+      },
+      "heapGrowth": 6361028,
+      "compressedTransfer": 421154,
+      "budgets": {
+        "transfer": true,
+        "external": true,
+        "fps": true,
+        "brush": true,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 390,
+        "height": 844,
+        "touch": true,
+        "rate": 6
+      },
+      "complete": true,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 5000.026291000002,
+        "frames": 268,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 383.21875,
+          "height": 362.3125
+        },
+        "fps": 53.6
+      },
+      "brushP95": 222.5,
+      "exportMs": 11397.646278,
+      "operations": {
+        "checkpointMs": 414.19999999925494,
+        "recoveryBytes": 42448,
+        "saveMs": 1811.0616369999916,
+        "editUndoReopenCycles": 5,
+        "generationMs": 1163.2290460000222,
+        "cancelMs": 567.9545939999807
+      },
+      "heapGrowth": 5381264,
+      "compressedTransfer": 420596,
+      "budgets": {
+        "transfer": true,
+        "external": true,
+        "fps": true,
+        "brush": false,
+        "export": false,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 360,
+        "height": 800,
+        "touch": true,
+        "rate": 6
+      },
+      "complete": true,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.566879000005,
+        "frames": 276,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 353.21875,
+          "height": 318.3125
+        },
+        "fps": 55.2
+      },
+      "brushP95": 262.8999999985099,
+      "exportMs": 9419.91764900001,
+      "operations": {
+        "checkpointMs": 328,
+        "recoveryBytes": 42448,
+        "saveMs": 1774.597609000004,
+        "editUndoReopenCycles": 5,
+        "generationMs": 1883.9602650000015,
+        "cancelMs": 395.12347600000794
+      },
+      "heapGrowth": 5781076,
+      "compressedTransfer": 420596,
+      "budgets": {
+        "transfer": true,
+        "external": true,
+        "fps": true,
+        "brush": false,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 844,
+        "height": 390,
+        "touch": true,
+        "rate": 6
+      },
+      "complete": true,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.276627000007,
+        "frames": 278,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 832.40625,
+          "height": 146.234375
+        },
+        "fps": 55.6
+      },
+      "brushP95": 306.4000000022352,
+      "exportMs": 9570.909876000005,
+      "operations": {
+        "checkpointMs": 443.5,
+        "recoveryBytes": 42448,
+        "saveMs": 1773.39162200001,
+        "editUndoReopenCycles": 5,
+        "generationMs": 1623.5181800000137,
+        "cancelMs": 2387.8383330000215
+      },
+      "heapGrowth": 5679656,
+      "compressedTransfer": 420596,
+      "budgets": {
+        "transfer": true,
+        "external": true,
+        "fps": true,
+        "brush": false,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    },
+    {
+      "device": {
+        "width": 1024,
+        "height": 768,
+        "touch": true,
+        "rate": 6
+      },
+      "complete": true,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 4999.111613999994,
+        "frames": 255,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 1012.40625,
+          "height": 262.828125
+        },
+        "fps": 51
+      },
+      "brushP95": 235.5,
+      "exportMs": 9041.651771999997,
+      "operations": {
+        "checkpointMs": 433.9000000022352,
+        "recoveryBytes": 42449,
+        "saveMs": 1708.6245349999954,
+        "editUndoReopenCycles": 5,
+        "generationMs": 1333.7945750000072,
+        "cancelMs": 1024.1539610000036
+      },
+      "heapGrowth": 5781812,
+      "compressedTransfer": 420596,
+      "budgets": {
+        "transfer": true,
+        "external": true,
+        "fps": true,
+        "brush": false,
+        "export": true,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    }
+  ],
+  "artworkPixels": [
+    {
+      "branch": "manual",
+      "comparison": "First 2000×1200 map pixels of actual old/new website PNGs; credit strip excluded",
+      "changedPixels": 224,
+      "changedPercent": 0.009333333333333332,
+      "meanChannelDifference": 0.00006305555555555555,
+      "maximumChannelDifference": 5
+    },
+    {
+      "branch": "generated",
+      "comparison": "First 2000×1200 map pixels of actual old/new website PNGs; credit strip excluded",
+      "changedPixels": 687,
+      "changedPercent": 0.028624999999999998,
+      "meanChannelDifference": 0.00018541666666666666,
+      "maximumChannelDifference": 5
+    }
+  ]
+}

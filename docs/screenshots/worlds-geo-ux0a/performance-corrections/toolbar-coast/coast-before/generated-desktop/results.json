@@ -1,0 +1,29 @@
+{
+  "technicalPass": true,
+  "after": false,
+  "kind": "generated",
+  "touchEmulated": false,
+  "initial": {
+    "worlds": 0,
+    "maps": 0
+  },
+  "mapId": "c9b3a815-e87a-4a73-9f69-5174e2630487",
+  "primaryControls": [
+    "Make your first map",
+    "Edit source boundary"
+  ],
+  "discoverableEditCoastline": false,
+  "visibleCoastAndMaskChange": true,
+  "undoRedoExact": true,
+  "noImplicitSave": true,
+  "savedReopened": true,
+  "priorSourceVersionsExact": true,
+  "migrationLedgerExact": true,
+  "physicalDevice": false,
+  "uncoachedHuman": false,
+  "steps": [
+    "Zero-World website creation and named map; no service-authored content or model-ID selection",
+    "Saved map reopened in Select; clicked actual visible shoreline. Primary controls: Make your first map, Edit source boundary"
+  ],
+  "errors": []
+}

@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "sourceVersions": 4,
+  "drawings": 100,
+  "historicalRowsInTechnicalFixture": 0,
+  "historyEvidence": "Nonempty historical appearances are checked separately by saved-edit and SVG compatibility journeys.",
+  "migrationLedger": 133,
+  "sourceVersionsExact": true,
+  "drawingIdsAndContentExact": true,
+  "migrationLedgerExact": true,
+  "migrationsApplied": 0
+}

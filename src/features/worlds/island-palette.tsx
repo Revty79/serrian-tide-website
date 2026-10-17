@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { GuidedField } from "@/components/field-guidance";
-import { islandAssets, assetReference, type IslandAsset } from "./island-assets";
+import { latestIslandAssets, assetReference, type IslandAsset } from "./island-assets";
 import type { GeographicLandMask } from "./geographic-land-mask";
 import type { Point } from "./atlas";
 import styles from "./island-palette.module.css";
@@ -16,7 +16,7 @@ export function pointOnGeographicLand(mask: GeographicLandMask, point: Point) {
 }
 export function IllustrationPalette({disabled,onChoose,disabledReason}:{disabled:boolean;disabledReason?:string;onChoose:(asset:IslandAsset,mode:"place"|"paint")=>void}) {
   const [search,setSearch]=useState(""),[family,setFamily]=useState("");
-  const latest=islandAssets.filter(a=>!islandAssets.some(b=>a.id===b.id&&a.libraryId===b.libraryId&&(b.libraryRevision>a.libraryRevision||b.libraryRevision===a.libraryRevision&&b.revision>a.revision)));
+  const latest=latestIslandAssets;
   const query=search.trim().toLocaleLowerCase(),visible=latest.filter(a=>(!family||a.family===family)&&[a.name,...a.tags].join(" ").toLocaleLowerCase().includes(query));
   return <section aria-label="Illustration palette" className={styles.palette}><h3>Paint artwork</h3><p>Choose a picture, then place it on the map or paint a terrain stroke. Artwork decorates the geographic land; it does not reshape the coast.</p>
     <GuidedField label="Find an illustration" help="Search names and tags, such as mountain, forest or city. This searches the built-in illustrated collection."><input className="st-control" type="search" value={search} onChange={e=>setSearch(e.target.value)}/></GuidedField>

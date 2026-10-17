@@ -1,0 +1,129 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "branch": "manual",
+      "initial": {
+        "worlds": 0,
+        "maps": 0
+      },
+      "database": "serrian_ux0a_acceptance_1792170444274",
+      "mapId": "47aaf706-b7dc-4ba5-b3d8-516e9fde9890",
+      "editorUrl": "http://127.0.0.1:49520/worlds/4b652045-8552-4c89-a49f-3d569ae01ecc?tab=atlas&editMap=47aaf706-b7dc-4ba5-b3d8-516e9fde9890",
+      "browser": "134.0.6998.166",
+      "verification": {
+        "subjects": 14,
+        "paintedSubjects": 10,
+        "linkedPlaces": 4,
+        "sources": [
+          {
+            "feature_id": "9b3030c1-f9b6-4735-948d-2d46a7cf0b07",
+            "revision": 2
+          }
+        ],
+        "mixedGroveRevisions": [
+          4,
+          3
+        ],
+        "wetlandRotationAfterRecovery": 7,
+        "drawingIds": [
+          "cf74adec-77c9-4331-b11a-3ce314570f7e",
+          "5cdf907d-ca93-43fe-93cf-5f54784cbbd7",
+          "f2283f7c-fe12-4007-8ee6-6e9d755b6970",
+          "6d024a63-e4ca-4835-af84-912878251264",
+          "60bb4c74-a1bc-4bd1-b200-bfb4511db4ee",
+          "fed8fdd7-d1b6-4708-9731-f0d32f2c426e",
+          "fa8b0201-4483-44fe-9904-00e9f4512a63",
+          "109bb756-a459-426c-a504-e8a49ff9ad53",
+          "c8f3d51f-9998-46ee-9d71-019c41429af9",
+          "e23c6642-1940-42b5-b2e5-c9d3e115d1ad",
+          "d957a13c-41b8-4ad7-ac6d-17cf6cde47e8",
+          "18c1987f-61bc-4337-8ec4-35c0e045e4e6",
+          "50ff6df9-d62d-43d9-b4c5-1022591a692f",
+          "c120c8c2-52a8-4bde-891e-a92526fb3d07",
+          "01ed3b58-0d18-44d6-8ab3-3148977a1743",
+          "563686f8-9c22-4626-a61f-17d3f58e8a15",
+          "3e273e3c-d755-4203-b33c-f85aae88576a",
+          "5aa64e11-e9c0-4eb3-ad05-9e550f7e1846",
+          "791e9fcc-7937-4b07-b703-0e0dfe782979",
+          "0c462483-fee0-4b2a-b335-fd5893028ce5",
+          "ee223995-4649-46e3-9a06-e6cb4aa487e7",
+          "ec3557a9-011d-4d8c-9acc-9817b6fb61f2",
+          "6e84582a-ad8e-47c0-8f55-ee3e51e7aa69",
+          "c36a7a05-c9c0-4785-abe7-fe904f4b40be",
+          "9f8dd4f6-6432-42d1-969e-c705bd8a8f52",
+          "7051a4d2-3e91-40d3-8798-f19c3c3cecda",
+          "f55da80c-abc7-4be0-bb87-122d20782fb7",
+          "344e2343-c88c-476a-89c9-290339efd697",
+          "e7dd9788-1719-4e94-aba4-db200d1762c8"
+        ],
+        "worlds": 1
+      },
+      "errors": [],
+      "contentOrigin": "All World, map, geographic sources, artwork and places created using normal website controls. SQL used read-only for verification.",
+      "review": "Candidate full-library island. Independent final artwork/technical readiness and owner acceptance remain pending."
+    },
+    {
+      "branch": "generated",
+      "initial": {
+        "worlds": 0,
+        "maps": 0
+      },
+      "database": "serrian_ux0a_acceptance_1792170475883",
+      "mapId": "739b0ed7-e2c4-4bae-9e14-eeef8d0bdc9e",
+      "editorUrl": "http://127.0.0.1:49520/worlds/ee782b08-9eb1-463c-9c6c-54b73910bc8b?tab=atlas&editMap=739b0ed7-e2c4-4bae-9e14-eeef8d0bdc9e",
+      "browser": "134.0.6998.166",
+      "verification": {
+        "subjects": 14,
+        "paintedSubjects": 10,
+        "linkedPlaces": 4,
+        "sources": [
+          {
+            "feature_id": "387cc3bd-9a74-41a9-8c7a-aa3748dcf142",
+            "revision": 2
+          }
+        ],
+        "mixedGroveRevisions": [
+          4,
+          3
+        ],
+        "wetlandRotationAfterRecovery": 7,
+        "drawingIds": [
+          "380057b9-7320-4c5e-9073-670d7f25d516",
+          "aabaf298-2347-4b8e-a21c-5c25fe22774e",
+          "672d449e-2509-4e95-b3b3-48d51270799a",
+          "d6c8c8fa-b2fa-4129-878c-9caff77ca9f7",
+          "6441fb5f-dd0a-472d-a81c-e2b913c03443",
+          "bba08aa3-ffcb-48b1-bc2b-ed99750b213c",
+          "74707cb0-0a49-4a1e-88c1-5e2662bea736",
+          "1de628b0-2fc1-4376-a77c-77ecb532a7fe",
+          "37b51c95-f8cd-4e70-9580-a3ec2b7d2d50",
+          "aa082ea0-e986-4d7f-a153-4fb7ee9bf39f",
+          "0e6e6e17-8580-4b75-9e4c-3baed7bedea7",
+          "68475154-bb28-4351-92ad-14369e76207e",
+          "1d152913-d8e0-4d54-9e00-e702024a3978",
+          "71dfabbb-872b-4cc0-84c2-bb1e678fe72b",
+          "31600ef0-508e-46cd-b870-c58a5cff2b6f",
+          "6cb0b532-204c-4eae-bdcc-77815094b6d7",
+          "d9b8981c-5a2c-4c25-8b3f-26f9baea84e4",
+          "ca3d83cd-458b-4dea-963f-f5ddfbbcce66",
+          "153a5b99-69fa-4bea-89e4-157a4d54d4e6",
+          "621c4f9b-5d2b-4e65-858e-2d34e5680a9a",
+          "4eb8dda0-4ab7-4a6a-bfd1-728cdde9816a",
+          "5db3bfa5-bafc-428c-97f9-3fdc2d112d1b",
+          "0beaafed-5b33-449a-b2d6-041f1a70ba01",
+          "3ca3829c-e5ca-450e-9477-89aa746ef6e6",
+          "5f03c622-f550-49b7-a7a0-278373386f28",
+          "abba4f6a-f493-4092-b855-9a38bb968538",
+          "f063feb9-d602-445f-b3ef-3637908130fc",
+          "ae31d7b6-3618-4ea2-a876-efa513d9fce4",
+          "1a120612-3910-4ceb-bb3c-05e990a63680"
+        ],
+        "worlds": 1
+      },
+      "errors": [],
+      "contentOrigin": "All World, map, geographic sources, artwork and places created using normal website controls. SQL used read-only for verification.",
+      "review": "Candidate full-library island. Independent final artwork/technical readiness and owner acceptance remain pending."
+    }
+  ]
+}

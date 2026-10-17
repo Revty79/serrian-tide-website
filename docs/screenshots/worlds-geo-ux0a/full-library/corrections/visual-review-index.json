@@ -1,0 +1,20 @@
+{
+  "images": [
+    {
+      "branch": "manual",
+      "width": 2000,
+      "height": 1336,
+      "sha256": "ee9f4cb2b11da9eeea32dfe6832f16b3b0bd397ae171e3399ae7b3d3ce67ccf5",
+      "source": "Actual Atlas website visible PNG download"
+    },
+    {
+      "branch": "generated",
+      "width": 2000,
+      "height": 1362,
+      "sha256": "1e0d928ec51709ec0add20f107e0d47bd4e81d76128df01e5224ef91c08eb77f",
+      "source": "Actual Atlas website visible PNG download"
+    }
+  ],
+  "derivatives": "Only size/grayscale and native-pixel crops of the website downloads. Source originals remain unchanged; no drawn replacement composition.",
+  "decision": "Pending independent final artwork review"
+}

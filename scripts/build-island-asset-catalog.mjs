@@ -1,21 +1,42 @@
-/** Build the metadata-only candidate catalog from project-owned vectors; independent art review remains required. */
+/** Metadata-only catalog. Old saved revisions remain available; full-library art review remains required. */
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {readFile,writeFile} from "node:fs/promises";
 
 const directory="public/cartography/serrian-atlas-island/1";
+// Each storage slot is declared per exact entry, independently of the semantic kind.
+const subject=(id,name,family,kind,legacySymbolKind,terrain,role,tags,revision=1,defaultScale=.7,paintGroup=null)=>({id,name,family,kind,legacySymbolKind,terrain,role,paint:role==="decoration",tags:[...tags,"regional","ink-and-wash"],revision,defaultScale,paintGroup});
 const subjects=[
- {id:"mountain-rounded",name:"Rounded mountain",family:"Mountains",kind:"mountain",terrain:"mountains",role:"decoration",paint:true,tags:["peak","mountain","relief"],viewBox:"-100 -145 200 175"},
- {id:"woodland-broadleaf-grove",name:"Broadleaf grove",family:"Woodland",kind:"tree",terrain:"forest",role:"decoration",paint:true,tags:["forest","tree","woodland","broadleaf"],viewBox:"-105 -145 210 175"},
- {id:"settlement-city",name:"City",family:"Settlements",kind:"city",terrain:null,role:"place",paint:false,tags:["city","settlement","town","location"],viewBox:"-115 -145 230 180"},
+ subject("mountain-rounded","Rounded mountain","Mountains","mountain","mountain","mountains","decoration",["peak","mountain","relief"]),
+ subject("woodland-broadleaf-grove","Broadleaf grove","Woodland","tree","pine","forest","decoration",["forest","tree","woodland","broadleaf"]),
+ subject("settlement-city","City","Settlements","city","city",null,"place",["city","settlement","town","location"]),
+ subject("mountain-rounded","Rounded mountain","Mountains","mountain","mountain","mountains","decoration",["peak","range","relief"],3,.5),
+ subject("woodland-broadleaf-grove","Broadleaf grove","Woodland","tree","pine","forest","decoration",["forest","tree","broadleaf","clearing"],3,.6,"broadleaf-groves"),
+ subject("woodland-broadleaf-grove","Broadleaf grove","Woodland","tree","pine","forest","decoration",["forest","tree","broadleaf","open edge"],4,.6,"broadleaf-groves"),
+ subject("settlement-city","City","Settlements","city","city",null,"place",["city","town","walled","preindustrial","fantasy"],2),
+ subject("mountain-craggy","Craggy peaks","Mountains","mountain","mountain","mountains","decoration",["rock","crag","range"],1,.6),
+ subject("mountain-snow-capped","Snow-capped peaks","Mountains","mountain","mountain","mountains","decoration",["snow","alpine","range"],1,.6),
+ subject("hill-low","Low hills","Hills","hill","mountain","hills","decoration",["rolling","foothill","lowland"]),
+ subject("hill-rocky","Rocky hills","Hills","hill","mountain","hills","decoration",["stone","foothill","outcrop"]),
+ subject("woodland-broadleaf-tree","Broadleaf tree","Woodland","tree","pine","forest","decoration",["tree","broadleaf","oak","deciduous"],1,.5),
+ subject("woodland-conifer-tree","Conifer tree","Woodland","tree","pine","forest","decoration",["pine","fir","tree","evergreen"],1,.5),
+ subject("woodland-conifer-grove","Conifer grove","Woodland","tree","pine","forest","decoration",["pine","fir","woodland","evergreen"]),
+ subject("settlement-village","Village","Settlements","village","village",null,"place",["village","hamlet","cottages","preindustrial","fantasy"]),
+ subject("settlement-port","Port","Settlements","port","port",null,"place",["harbor","harbour","quay","boats","preindustrial","fantasy"]),
+ subject("settlement-castle","Castle","Settlements","castle","castle",null,"place",["fortress","keep","fortification","preindustrial","fantasy"]),
+ subject("wetland-reeds","Reed marsh","Wetland","wetland","pine","wetland","decoration",["marsh","reeds","wetland","swamp"]),
 ];
+const prior=JSON.parse(await readFile(`${directory}/catalog.json`,"utf8"));
 const assets=[];
 for(const subject of subjects){
- const file=`${subject.id}-1.svg`,svg=(await readFile(`${directory}/${file}`,"utf8")).replaceAll("\r\n","\n");
+ const file=`${subject.id}-${subject.revision}.svg`,svg=(await readFile(`${directory}/${file}`,"utf8")).replaceAll("\r\n","\n");
  assert.ok(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"'));
  assert.ok(!/<(?:script|foreignObject|image|style|use|a)\b|(?:href|on\w+)\s*=|url\s*\(/i.test(svg));
- assets.push({...subject,revision:1,rendererVersion:1,libraryId:"serrian-atlas-island",libraryRevision:1,file,anchor:[0,0],defaultScale:.7,sourceSha256:createHash("sha256").update(svg).digest("hex"),checksumEncoding:"UTF-8 with LF newlines",author:"Serrian Tide / Codex-assisted original SVG",creationMethod:"Original code-authored illustration; no external art traced or embedded",rights:"Project-produced artwork for the application and creator map exports; see PROVENANCE.md"});
+ const sourceSha256=createHash("sha256").update(svg).digest("hex"),old=prior.assets.find(a=>a.id===subject.id&&a.revision===subject.revision);
+ if(old){assert.equal(old.sourceSha256,sourceSha256,"Never replace a published original");assert.equal(old.defaultScale,subject.defaultScale);if(old.legacySymbolKind)assert.equal(old.legacySymbolKind,subject.legacySymbolKind);}
+ assert.ok(["mountain","pine","village","city","castle","tower","ruin","port"].includes(subject.legacySymbolKind));
+ assets.push({...subject,viewBox:svg.match(/viewBox="([^"]+)"/)[1],rendererVersion:1,libraryId:"serrian-atlas-island",libraryRevision:1,file,anchor:[0,0],sourceSha256,checksumEncoding:"UTF-8 with LF newlines",author:"Serrian Tide / Codex-assisted original SVG",creationMethod:"Original code-authored illustration; no external art traced or embedded",rights:"Project-produced artwork for the application and creator map exports; see PROVENANCE.md"});
 }
 await writeFile("src/features/worlds/island-assets.generated.ts",`// Generated by scripts/build-island-asset-catalog.mjs. Preserve published revisions.\nexport const ISLAND_ASSETS = ${JSON.stringify(assets,null,2)} as const;\n`);
-await writeFile(`${directory}/catalog.json`,JSON.stringify({libraryId:"serrian-atlas-island",revision:1,status:"candidate; Ember artwork review pending",style:{id:"island-ink-wash",revision:1},assets:assets.map(asset=>({...asset,svg:undefined}))},null,2)+"\n");
-console.log(`Built ${assets.length} review-subset assets; no library expansion.`);
+await writeFile(`${directory}/catalog.json`,JSON.stringify({libraryId:"serrian-atlas-island",revision:1,status:"14-subject candidate; final independent artwork review pending",earlyArtDecision:"https://github.com/Revty79/serrian-tide-website/pull/4#issuecomment-6217538817",style:{id:"island-ink-wash",revision:1},assets},null,2)+"\n");
+console.log(`Built ${new Set(assets.map(a=>a.id)).size} subjects / ${assets.length} exact revisions; earlier SVG bytes preserved.`);

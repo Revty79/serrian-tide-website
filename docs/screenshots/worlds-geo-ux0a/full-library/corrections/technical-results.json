@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "implementationParent": "cbd9a9654e33345832331d0fb7899c57bd8afd21",
+  "runtimeFingerprint": "1e39ce2fd45dcb48f215ba371d09a36d9790dc845e9ad89fadbe23e70d2bd429",
+  "runtimeAndAssetSourcesUnchanged": true,
+  "isolatedProductionBuild": true,
+  "node": "v22.23.3",
+  "exactOriginalAssetRevisionsHashedAndNativeRendered": 18,
+  "distinctSubjects": 14,
+  "migrationsExecutedForCorrections": 0,
+  "baselineLedgerEntries": 133,
+  "fullUnit": {
+    "passed": 2249,
+    "failed": 0,
+    "files": 276
+  },
+  "scope": "Authoring recipes, disposable test setup, actual website evidence and planning only. Original UX-0A performance/v1 compatibility reports retained; no fresh full benchmark or legacy migration rehearsal claimed."
+}
