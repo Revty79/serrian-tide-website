@@ -6,6 +6,8 @@ Worlds remains the existing information-based world-building foundation. Atlas a
 
 The [Atlas removal pass](../operations/worlds-atlas-removal.md) supersedes the integrated Map Studio direction and continuation permissions below. Earlier scope, roadmap requirements and evidence remain retained as historical reference. Do not treat them as current implementation or publication authorization.
 
+The owner subsequently authorized publishing the completed removal pass to `origin/main` on 2026-10-17. The pre-removal Atlas code, tracked artwork and documentation have a named Git recovery checkpoint; see [Atlas retrieval](../operations/worlds-atlas-retrieval.md). This publication permission does not authorize deployment, data restoration or a replacement Map Maker.
+
 Owner decisions recorded 2026-10-14 during the C2/C3 deployment repair, from pushed C3 `14f9e2c24a17de16a37527a5f7e6de8aa2c2b58c`. These are permanent requirements for later separately authorized work. Recording them does not authorize Geo D/E implementation.
 
 ## Revised completion roadmap — adopted 2026-10-15

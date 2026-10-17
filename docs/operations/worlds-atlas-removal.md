@@ -1,6 +1,8 @@
 # Worlds Atlas removal — 2026-10-17
 
-Owner-authorized reversible application separation, based on `8743854`. Branch: `feature/worlds-atlas-removal`. The release commit is the commit containing this report; use `git log -1 --format=%H` on this branch to resolve its exact SHA. No remote push, merge, deployment, shared-service restart or shared DEV/Production writes are authorized.
+Owner-authorized reversible application separation, based on `8743854ecc52412e141569472684f34e553255cb`. Implementation and validation checkpoint: `b7889ced70260a7a64e0d77123a50a85a53245dc`, developed on `feature/worlds-atlas-removal`.
+
+The owner's subsequent instruction on 2026-10-17 explicitly authorizes publishing the completed pass to `origin/main`. This supersedes the original local-only publication boundary; the validation receipts retain their historical no-push status at the time of testing. The accompanying publication changes only documentation and Git references. The pre-removal Atlas is preserved through the named checkpoint and instructions in [Atlas retrieval](worlds-atlas-retrieval.md). No deployment, shared-service restart or shared DEV/Production writes are authorized.
 
 ## Behavior
 
@@ -63,4 +65,4 @@ Migration order: no changes; existing release migration ledger remains authorita
 
 Rollback is a code revert to the prior release; no database rollback is necessary. Previously saved maps, identities and historical sources remain available to that prior implementation. Protect existing database/private-asset backups using the established deployment process. Re-enabling retained Atlas is a separate owner decision.
 
-This is a local technical review checkpoint. Ember's exact-commit independent review and owner acceptance remain separate from the recorded technical checks. Do not push, merge, deploy or start a replacement Map Maker as a continuation of this pass.
+Ember's exact-commit independent review and owner acceptance remain separate from the recorded technical checks; publication to `origin/main` does not record either approval. The owner-authorized publication includes the completed removal and its retrieval documentation. Do not deploy, change shared data or start a replacement Map Maker as a continuation of this pass.
