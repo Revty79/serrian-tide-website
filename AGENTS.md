@@ -8,6 +8,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Current Worlds direction — Atlas separation (2026-10-17)
+
+The owner authorized the [Atlas removal pass](docs/operations/worlds-atlas-removal.md): keep Worlds as the information-based authoring foundation and remove Atlas/map-making access from its active interface. Preserve all map implementation, tables, migrations, source records, identities, historical states and relationships. Map-only HTTP routes are disabled; shared lore, geographic relationships, History, calendars and Campaign APIs remain available. Saved Realm-to-map relationships are read-only. Legacy map bookmarks normalize to a valid World view.
+
+This supersedes the earlier integrated Atlas implementation direction below. Those roadmaps and receipts remain historical reference; do not resume them or start the future separate Map Maker without fresh authorization. Work stays on a dedicated local branch, with validation only in newly owned disposable environments. Stop for Ember and owner review; no push, merge, deployment, shared service restart or shared DEV/Production mutation.
+
 ## Revised Map Maker roadmap and development readiness
 
 **GitHub coordination update, authorized by the owner on 2026-10-15:** continue UX-0A through a dedicated feature branch and draft implementation PR, following [coordination issue #3](https://github.com/Revty79/serrian-tide-website/issues/3) and [discussion-only draft PR #4](https://github.com/Revty79/serrian-tide-website/pull/4). The owner explicitly authorized Cody/Ember communication and publication of reviewable feature-branch checkpoints. This supersedes the earlier local-only publication boundary for this UX-0A loop; it does not authorize another main push/merge, deployment, shared DEV/Production writes, additional scope, or history rewriting. Preserve the owner's published `b5dbd5d` checkpoint. Read exact-SHA independent decisions; the original `e6f521a` artwork received corrections and a revised small subset needs fresh explicit approval before expansion. See [current coordination and continuation record](docs/operations/worlds-atlas-ux0a-coordination.md).

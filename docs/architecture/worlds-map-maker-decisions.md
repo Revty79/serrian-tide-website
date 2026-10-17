@@ -1,5 +1,11 @@
 # Unified Atlas development roadmap and permanent Map Maker decisions
 
+## Current direction — owner decision of 2026-10-17
+
+Worlds remains the existing information-based world-building foundation. Atlas and map-making access are temporarily removed from its user interface, with all implementation, source data, migrations, stable identities, relationships and historical versions preserved. The future professional interconnected Map Maker will be a separate application designed to use existing Worlds information; this decision does not authorize starting that project.
+
+The [Atlas removal pass](../operations/worlds-atlas-removal.md) supersedes the integrated Map Studio direction and continuation permissions below. Earlier scope, roadmap requirements and evidence remain retained as historical reference. Do not treat them as current implementation or publication authorization.
+
 Owner decisions recorded 2026-10-14 during the C2/C3 deployment repair, from pushed C3 `14f9e2c24a17de16a37527a5f7e6de8aa2c2b58c`. These are permanent requirements for later separately authorized work. Recording them does not authorize Geo D/E implementation.
 
 ## Revised completion roadmap — adopted 2026-10-15

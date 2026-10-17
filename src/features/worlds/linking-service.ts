@@ -14,6 +14,7 @@ import { worldReadAccess, worldWriteTransaction, WorldError } from "./world-serv
 import { selectedTimeline, type HistoryTx } from "./history-version-service";
 import { ordinaryLoreSource, ordinaryLorePinnedSource } from "./ordinary-knowledge";
 import { isSocietyFamily, societyFamilies, linkCommandSchema, type LinkBundle, type LinkDraft, type LinkSource, type WorldLink } from "./linking";
+import { atlasUnavailableMessage } from "./atlas-availability";
 const unavailable = () => new WorldError("This connection or its saved source is unavailable in this timeline.",404);
 const conflict = () => new WorldError("A newer connection was saved in another tab. Your draft is retained. Load the latest connection before saving again.",409);
 const usableModes = ["authored", "inherited", "interpretation"] as const;
@@ -100,11 +101,13 @@ export async function changeWorldLink(userId:string,worldId:string,input:unknown
   return worldWriteTransaction(userId,worldId,async tx=>{
     const c=linkCommandSchema.parse(input),timeline=await selectedTimeline(tx,worldId,c.timelineId);if(timeline.archivedAt)throw new WorldError("Restore this timeline before changing its connections.",409);
     const [current]=await tx.select({head,version}).from(head).innerJoin(version,eq(head.versionId,version.id)).where(and(eq(head.worldId,worldId),eq(head.timelineId,timeline.id),eq(head.linkId,c.id)));
+    if(current?.version.draft.kind==="realm-map"||(c.action==="save"&&c.draft.kind==="realm-map"))throw new WorldError(atlasUnavailableMessage,404);
     if(c.action==="save"&&!c.revision&&current){if(isDeepStrictEqual(current.version.draft,c.draft))return c.id;throw conflict();}
     if(current?c.revision!==current.head.revision:c.revision!==undefined)throw conflict();
     if(c.action==="include"){
       if(!timeline.parentId)throw unavailable();
       const [source]=await tx.select({head,version}).from(head).innerJoin(version,eq(head.versionId,version.id)).where(and(eq(head.worldId,worldId),eq(head.timelineId,timeline.parentId),eq(head.linkId,c.id)));
+      if(source?.version.draft.kind==="realm-map")throw new WorldError(atlasUnavailableMessage,404);
       if(!source||source.head.versionId!==c.sourceVersionId||source.head.revision!==c.sourceRevision)throw conflict();
       if(source.version.archived||source.head.mode==="excluded"||source.version.adoptionId)throw new WorldError("This source cannot be included here. Primary adoption records remain in Primary; author a separate cultural interpretation in this timeline.",409);
       await sourceFor(tx,worldId,timeline.id,source.version.draft,timeline.primary);

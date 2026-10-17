@@ -93,3 +93,5 @@ next-env.d.ts
 /artifacts/campaign-skills-ui/
 /artifacts/campaign-skill-*-tests.log
 /artifacts/worlds-atlas-refinement/
+/artifacts/worlds-atlas-removal/
+/artifacts/atlas-removal-*.log

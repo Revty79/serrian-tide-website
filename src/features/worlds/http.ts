@@ -3,6 +3,7 @@ import { readOnlyPreview } from "./knowledge-preview";
 import { ZodError } from "zod";
 import { requireSession } from "@/lib/server-access";
 import { WorldError } from "./world-service";
+import { atlasUnavailableMessage, isMapOnlyWorldsApi } from "./atlas-availability";
 export function privateJson(data: unknown, status = 200) { return Response.json(data, { status, headers: { "Cache-Control": "private, no-store", "Vary": "Cookie", "X-Content-Type-Options": "nosniff" } }); }
 export async function worldRequest(request: Request, mutation: boolean, run: (userId: string) => Promise<unknown>) {
   try {
@@ -15,6 +16,9 @@ export async function worldRequest(request: Request, mutation: boolean, run: (us
       if (!originHost || originHost !== request.headers.get("host")) throw new WorldError("This request must come from this site.", 403);
     }
     const session = await requireSession().catch(() => { throw new WorldError("Sign in to access Worlds.", 401); });
+    // Block every retained map route before parsing bodies, loading sources or writing.
+    // Shared lore, History, calendar and Campaign endpoints retain their own guards.
+    if (isMapOnlyWorldsApi(new URL(request.url).pathname)) throw new WorldError(atlasUnavailableMessage, 404);
     if(mutation&&readOnlyPreview(new URL(request.url).searchParams))throw new WorldError("This preview is read-only.",403);
     const result=await run(session.user.id);
     if(result instanceof Response){result.headers.set("Cache-Control","private, no-store");result.headers.set("Vary","Cookie");result.headers.set("X-Content-Type-Options","nosniff");return result;}

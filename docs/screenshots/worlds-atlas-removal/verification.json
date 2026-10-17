@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-17",
+  "branch": "feature/worlds-atlas-removal",
+  "baseCommit": "8743854ecc52412e141569472684f34e553255cb",
+  "releaseCommit": "The local commit containing this receipt and its indexed report",
+  "productionBuild": {
+    "passed": true,
+    "bundler": "Turbopack",
+    "next": "16.3.2",
+    "node": "v24.18.0",
+    "fonts": "Genuine Google font download; no mocked font response",
+    "sourceMatchesOwnedBuildCheckout": true,
+    "runtimeFiles": 1462,
+    "canonicalRuntimeSha256": "700874c9659d1aa9e2a42a5c4d00226477bb3c03ee214fc97873daecd087a5d0"
+  },
+  "checks": {
+    "featureTests": {
+      "passed": 2262,
+      "failed": 0,
+      "files": 281
+    },
+    "standaloneTypeScript": "passed",
+    "productionTypeScript": "passed",
+    "fullLint": {
+      "errors": 0,
+      "preExistingWarnings": 1,
+      "file": "scripts/worlds-stories-checks.ts"
+    },
+    "changedPageAndHarnessLint": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "browserWorkflowGroups": 9,
+    "browserRuntimeErrors": 0,
+    "activeUiMapRequests": 0,
+    "mapSourceTablesUnchanged": 40,
+    "gameplayRuntimeTablesUnchanged": 133,
+    "realmMapVersionsUnchanged": true,
+    "existingMigrationsReplayed": 133,
+    "newMigrations": 0,
+    "schemaAndMigrationsUnchanged": true,
+    "retainedAtlasEntryModulesUnchanged": [
+      "src/features/worlds/atlas-workspace.tsx",
+      "src/features/worlds/world-geographic-preview.tsx"
+    ]
+  },
+  "isolation": {
+    "sharedDatabaseAccess": false,
+    "productionAccess": false,
+    "newOwnedLoopbackCluster": true,
+    "ownedDatabaseStopped": true,
+    "pushed": false,
+    "merged": false,
+    "deployed": false
+  },
+  "screenshots": [
+    {
+      "file": "overview-desktop.png",
+      "width": 1440,
+      "height": 1762,
+      "sha256": "476aa5dfd8f0c2059d5906d2b9368792f17f2344c23666dc7eaa14877c66c19c",
+      "personallyInspected": true
+    },
+    {
+      "file": "overview-phone.png",
+      "width": 390,
+      "height": 2741,
+      "sha256": "12c98102edc60ab79cd9ad2e5673e22c189d762f768a1abc1b32519af32f2bce",
+      "personallyInspected": true
+    },
+    {
+      "file": "realm-retained-relationship.png",
+      "width": 1440,
+      "height": 2734,
+      "sha256": "e38549c431a877aea35cc5e2e891b3a8c4a290cc9992b665682c656d8315bcb2",
+      "personallyInspected": true
+    },
+    {
+      "file": "cosmology-phone.png",
+      "width": 390,
+      "height": 3792,
+      "sha256": "9f31be0c715378f1d17a983110642fe5cfed89110b8253302403eaf35f86a654",
+      "personallyInspected": true
+    }
+  ],
+  "workflowReceiptSha256": "b878e73f3431f30e984e75480b5c431b0bb75998ec5be737508a56d4170abdff",
+  "acceptance": {
+    "independentEmberReview": "pending exact-commit review",
+    "ownerAcceptance": "pending",
+    "physicalPhoneTest": false
+  },
+  "limitations": [
+    "Phone evidence uses browser touch emulation.",
+    "Existing unused import lint warning remains unchanged.",
+    "Diagnostic webpack fallback has a pre-existing Chat node:crypto client import incompatibility; normal Turbopack build passed."
+  ]
+}
