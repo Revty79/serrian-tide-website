@@ -1,0 +1,38 @@
+{
+  "technicalPass": true,
+  "runtimeFingerprint": "b2801dcb44a2c10e5bf04e0c0425b507eb95e85f024c128e30fff5ba6db635a6",
+  "recording": "page@96aa6484e80fa029b67e9624eac5b3a7.webm",
+  "after": true,
+  "kind": "generated",
+  "touchEmulated": false,
+  "initial": {
+    "worlds": 0,
+    "maps": 0
+  },
+  "mapId": "72051a7d-18f8-4a1d-a029-b45155086d15",
+  "defaultMode": "Geography · select",
+  "primaryControls": [
+    "Edit coastline"
+  ],
+  "shapeResults": [],
+  "editedAgainAfterReopen": true,
+  "discoverableEditCoastline": true,
+  "visibleCoastAndMaskChange": true,
+  "draftPreviewIsNotSavedSource": true,
+  "undoRedoExact": true,
+  "noImplicitSave": true,
+  "savedReopened": true,
+  "retainedGeometryMatchesSave": true,
+  "sourceHeadsBefore": 1,
+  "otherSourceHeadsExact": true,
+  "historicalRowsInThisFixture": 0,
+  "priorSourceVersionsExact": true,
+  "migrationLedgerExact": true,
+  "physicalDevice": false,
+  "uncoachedHuman": false,
+  "steps": [
+    "Zero-World website creation and named map; no service-authored content or model-ID selection",
+    "Saved map reopened in Select; clicked actual visible shoreline. Primary controls: Edit coastline"
+  ],
+  "errors": []
+}

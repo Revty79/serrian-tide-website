@@ -70,7 +70,7 @@ async function main(){
    const tap=async(q:{x:number;y:number})=>{if(touch)await p.touchscreen.tap(q.x,q.y);else await p.mouse.click(q.x,q.y);};
    const selected=async(d:MapDrawing)=>{assert.equal(await canvas.locator(`[data-drawing="${d.id}"]`).getAttribute("data-selected"),"true",`${mode} ${touch} ${d.name}`);assert.equal(await canvas.locator('[data-feature][data-selected="true"]').count(),0);};
    const point=async(d:MapDrawing,local:{x:number;y:number})=>canvas.locator(`[data-drawing="${d.id}"] g[transform]`).first().evaluate((node,q)=>{const p=new DOMPoint(q.x,q.y).matrixTransform((node as SVGGElement).getScreenCTM()!);return {x:p.x,y:p.y};},local);
-   const city=map.drawings[0];await bar.getByRole("button",{name:"Select",exact:true}).click();await tap(await point(city,{x:-16,y:7}));
+   const city=map.drawings[0];await bar.getByRole("button",{name:/^Select(?: & Edit)?$/,exact:true}).click();await tap(await point(city,{x:-16,y:7}));
    if(before){await p.waitForTimeout(100);results.push({mode,nativeOwnerExceptionReproduced:mode==="native"&&errors.some(e=>e.includes("SVGPoint")),strictContractExceptionReproduced:mode==="strict"&&errors.some(e=>e.includes("SVGPoint")),errors,selectedId:await canvas.locator('[data-drawing][data-selected="true"]').first().getAttribute("data-drawing").catch(()=>null)});await p.screenshot({path:path.join(output,`${mode}.png`)});await c.close();continue;}
    if(mode==="unavailable"){
     await p.getByRole("status").filter({hasText:"Use Items to select safely"}).waitFor();assert.equal(await canvas.locator('[data-selected="true"]').count(),0);await bar.getByRole("button",{name:"Items",exact:true}).click();const items=p.getByRole("region",{name:"Map items",exact:true});await items.waitFor();await p.getByLabel("Find an item",{exact:true}).fill(city.name);await items.getByRole("button",{name:/^Select /}).first().click();await selected(city);assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);results.push({mode,touch,modern:map.modern,framed:map.framed,passed:true,itemsFallback:true,noFalseSelection:true,noWrites:true});await p.getByRole("region",{name:"Map Studio",exact:true}).screenshot({path:path.join(output,`fallback-${map.modern}-${map.framed}-${touch}.png`)});await c.close();continue;
@@ -88,7 +88,7 @@ async function main(){
     // The Items choice reveals retained vectors even when the initial display uses a cache.
     await bar.getByRole("button",{name:"Items",exact:true}).click();await p.getByLabel("Find an item",{exact:true}).fill(drawing.name);await p.getByRole("region",{name:"Map items",exact:true}).getByRole("button",{name:/^Select /}).first().click();
     const use=canvas.locator(`[data-drawing="${drawing.id}"] use[data-terrain-mark]`).first();const ink=await use.evaluate((node,version)=>{const q=version===1?{x:0,y:0}:{x:0,y:-30},p=new DOMPoint(q.x,q.y).matrixTransform((node as SVGGraphicsElement).getScreenCTM()!);return {x:p.x,y:p.y};},terrain.version);assert.ok(mark);
-    await bar.getByRole("button",{name:"Select",exact:true}).click();await tap(await point(city,{x:-16,y:7}));await selected(city);await tap(ink);await selected(drawing);
+    await bar.getByRole("button",{name:/^Select(?: & Edit)?$/,exact:true}).click();await tap(await point(city,{x:-16,y:7}));await selected(city);await tap(ink);await selected(drawing);
    }
    // The separate selection-guards journey tests clicks outside a retained legacy clip.
    await p.getByRole("region",{name:"Map Studio",exact:true}).screenshot({path:path.join(output,`${mode}-${map.modern}-${map.framed}-${touch}.png`)});
@@ -99,7 +99,7 @@ async function main(){
   }
   assert.deepEqual(await protectedRows(),protectedBefore);
   if(before)assert.ok(results.some(row=>(row as {strictContractExceptionReproduced?:boolean}).strictContractExceptionReproduced));
-  await writeFile(path.join(output,"results.json"),JSON.stringify({passed:true,before,captureOnly,filtered:!!selectedMode,ownerNativeBrowserReproduction:false,strictContractFaultInjection:true,browser:r.browser.version(),runtime:process.env.SERRIAN_UX0A_CHECKOUT??"runtime-checkout",physicalDevice:false,immutableAppearancesExact:true,sourceVersionsExact:true,migrationLedgerExact:true,results},null,2));
+  await writeFile(path.join(output,"results.json"),JSON.stringify({runtimeFingerprint:r.fingerprint,passed:true,before,captureOnly,filtered:!!selectedMode,ownerNativeBrowserReproduction:false,strictContractFaultInjection:true,browser:r.browser.version(),runtime:process.env.SERRIAN_UX0A_CHECKOUT??"runtime-checkout",physicalDevice:false,immutableAppearancesExact:true,sourceVersionsExact:true,migrationLedgerExact:true,results},null,2));
  }catch(error){await writeFile(path.join(output,"failure.txt"),String(error));throw error;}finally{await pool.end();await r.close();}
 }
 main().catch(e=>{console.error(e);process.exitCode=1;});

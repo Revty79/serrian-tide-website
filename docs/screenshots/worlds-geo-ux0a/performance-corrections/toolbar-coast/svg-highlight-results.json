@@ -1,0 +1,35 @@
+{
+  "runtimeFingerprint": "b2801dcb44a2c10e5bf04e0c0425b507eb95e85f024c128e30fff5ba6db635a6",
+  "passed": true,
+  "before": false,
+  "captureOnly": true,
+  "filtered": true,
+  "ownerNativeBrowserReproduction": false,
+  "strictContractFaultInjection": true,
+  "browser": "154.0.8037.57",
+  "runtime": "runtime-checkout",
+  "physicalDevice": false,
+  "immutableAppearancesExact": true,
+  "sourceVersionsExact": true,
+  "migrationLedgerExact": true,
+  "results": [
+    {
+      "mode": "strict",
+      "touch": false,
+      "cityId": "d24592b3-9756-4aea-ac19-b25fbabdc57d",
+      "selectedDrawingId": "d24592b3-9756-4aea-ac19-b25fbabdc57d",
+      "highlight": true,
+      "pageErrors": 0,
+      "contentWrites": 0
+    },
+    {
+      "mode": "strict",
+      "touch": true,
+      "cityId": "d24592b3-9756-4aea-ac19-b25fbabdc57d",
+      "selectedDrawingId": "d24592b3-9756-4aea-ac19-b25fbabdc57d",
+      "highlight": true,
+      "pageErrors": 0,
+      "contentWrites": 0
+    }
+  ]
+}

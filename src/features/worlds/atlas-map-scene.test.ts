@@ -37,7 +37,10 @@ test("hiding land's visual theme does not remove its clipping boundary or fetch 
 test("coastline and generation previews derive transient masks; saved versions remain unmodified", () => {
   const before = structuredClone(view), preview: SourceGeometry = { type: "Polygon", coordinates: [[[300, 300], [600, 300], [600, 900], [300, 900], [300, 300]]] };
   const markup = render(view, true, { replaceSource: "mainland", geometry: preview, generation: polygon });
-  assert.ok(!markup.includes('data-source="mainland"')); assert.match(markup, /data-source="draft-0"/); assert.match(markup, /data-source="draft-1"/);
+  assert.ok(!markup.includes('data-source="mainland"')); assert.doesNotMatch(markup, /data-source="draft-[01]"/, "A preview must not be addressable as a saved source");
+  const previewPath=boundedSourceDisplay(preview,plane,plane.bounds,"planar").path;
+  assert.equal(markup.split(`d="${previewPath}"`).length-1,2,"Edited coastline stays visible and supplies the matching mask");
+  assert.equal(markup.split(`d="${path}"`).length-1,2,"Generated preview stays visible and supplies the matching mask");
   assert.deepEqual(view, before);
 });
 

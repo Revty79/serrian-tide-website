@@ -1,0 +1,21 @@
+{
+  "source": "Actual website PNGs; no authored geometry, colors or original illustrations were changed",
+  "results": [
+    {
+      "branch": "manual",
+      "comparison": "First 2000×1200 map pixels of actual old/new website PNGs; credit strip excluded",
+      "changedPixels": 224,
+      "changedPercent": 0.009333333333333332,
+      "meanChannelDifference": 0.00006305555555555555,
+      "maximumChannelDifference": 5
+    },
+    {
+      "branch": "generated",
+      "comparison": "First 2000×1200 map pixels of actual old/new website PNGs; credit strip excluded",
+      "changedPixels": 687,
+      "changedPercent": 0.028624999999999998,
+      "meanChannelDifference": 0.00018541666666666666,
+      "maximumChannelDifference": 5
+    }
+  ]
+}

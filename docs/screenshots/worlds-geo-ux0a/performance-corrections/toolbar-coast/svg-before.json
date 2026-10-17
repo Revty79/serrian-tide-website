@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "before": true,
+  "ownerNativeBrowserReproduction": false,
+  "strictContractFaultInjection": true,
+  "browser": "154.0.8037.57",
+  "runtime": "runtime-checkout-library",
+  "physicalDevice": false,
+  "immutableAppearancesExact": true,
+  "sourceVersionsExact": true,
+  "migrationLedgerExact": true,
+  "results": [
+    {
+      "mode": "native",
+      "nativeOwnerExceptionReproduced": false,
+      "strictContractExceptionReproduced": false,
+      "errors": [],
+      "selectedId": "d24592b3-9756-4aea-ac19-b25fbabdc57d"
+    },
+    {
+      "mode": "strict",
+      "nativeOwnerExceptionReproduced": false,
+      "strictContractExceptionReproduced": true,
+      "errors": [
+        "Failed to execute 'isPointInFill' on 'SVGGeometryElement': parameter 1 is not of type 'SVGPoint'."
+      ],
+      "selectedId": null
+    }
+  ]
+}

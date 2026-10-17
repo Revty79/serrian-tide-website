@@ -1,0 +1,8 @@
+{
+  "beforeRuntimeFingerprint": "8e07207f0695a8445523d9888d6083a6872c8e85c526f4d57415a834874a1626",
+  "nativeTouch": true,
+  "uiError": "Invalid UUID",
+  "extraSavedSourceRead": true,
+  "reconstruction": "Final checkpoint with only src/features/worlds/geographic-scene.tsx restored from a003e8b14b2d742558573c744a22ed8fd6469d64",
+  "onlyRendererGuardDiffVerified": true
+}

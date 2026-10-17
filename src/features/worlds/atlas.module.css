@@ -30,3 +30,14 @@
 .quickTransform .selectionFields{display:flex;align-items:end;gap:.5rem;flex-wrap:wrap;border:0;margin:0;padding:0;min-width:0;flex-basis:100%}
 
 @media(max-width:600px){.canvasContext{max-height:110px;overflow:auto;align-content:start}.canvasContext>span:first-child{display:none}.canvasContext>strong{flex-basis:100%;font-size:.7rem}.canvasContext button{font-size:.65rem;padding:.25rem .4rem;min-height:44px}.canvasContext small{font-size:.65rem;line-height:1.3}.canvasContext strong{overflow-wrap:anywhere}}
+
+.coastEditor{display:grid;gap:.35rem;width:100%;min-width:0}.coastEditor>div{display:flex;gap:.35rem;overflow-x:auto;overscroll-behavior:contain;padding-bottom:.2rem}.coastEditor button{flex-shrink:0;white-space:nowrap}.coastEditor button[aria-pressed=true]{border-color:var(--st-primary);background:var(--st-primary-soft);color:var(--st-primary-text)}
+@media(max-width:600px){.canvasContext:has(.coastEditor){max-height:180px}.coastEditor>div{flex-wrap:nowrap}.coastEditor small{font-size:.65rem}}
+@media(max-height:600px){.navigation{display:flex;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior:contain}.navigation button{flex-shrink:0;min-width:44px}.canvasContext{flex-wrap:nowrap;max-height:105px;overflow:auto}.canvasContext>small{flex-basis:auto;min-width:200px}.canvasContext button{flex-shrink:0;white-space:nowrap}.starter{flex-wrap:nowrap;overflow-x:auto}.starter button{flex-shrink:0;white-space:nowrap}.starter>span{display:none}.coastEditor{gap:.15rem}.canvasContext:has(.coastEditor){max-height:130px}.coastEditor>small{white-space:nowrap;overflow:auto}.coastEditor>div{flex-shrink:0}}
+
+@media(max-width:600px) and (min-height:601px){.navigation{grid-template-columns:repeat(8,minmax(0,1fr))}.navigation button{font-size:.62rem!important;min-height:48px!important}}
+.canvasContext>label{display:flex;align-items:center;gap:.35rem}.canvasContext>label input{width:min(220px,40vw)}.canvasContext>label select{max-width:140px}
+
+.coastEditor>.coastHeading{overflow:visible}.coastHeading strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:600px){.canvasContext:has(.coastEditor){max-height:210px}.coastHeading strong{white-space:normal}.coastHeading button{padding:.25rem .4rem}}
+@media(max-height:600px){.canvasContext:has(.coastEditor){max-height:145px}}

@@ -30,3 +30,7 @@
 @media(max-width:1050px){.studio[data-canvas-first=true],.studio[data-canvas-first=true][data-inspector-open=false]{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto}.studio[data-canvas-first=true]>.editor{grid-row:2}.studio[data-canvas-first=true]>.inspector{grid-column:1;grid-row:2}.studio[data-canvas-first=true]>.actions{grid-row:3}.panelPalette{max-height:120px}}
 
 .studio[data-canvas-first=true] [data-map-coordinate-note]{display:none}
+
+/* Opening the tools menu must leave its final row above the fixed footer. */
+@media(max-width:1050px){.studio .inspector:has(.toolsMenu[open]){height:min(72%,470px)}.studio[data-compact-height=true] .inspector:has(.toolsMenu[open]){height:calc(100% - 60px)}}
+@media(max-height:600px){.editor>section>header [aria-label="Current map tool"]{display:none}}

@@ -1,0 +1,747 @@
+{
+  "runtimeFingerprint": "b2801dcb44a2c10e5bf04e0c0425b507eb95e85f024c128e30fff5ba6db635a6",
+  "collectionComplete": true,
+  "expectedDeviceCases": [
+    {
+      "width": 390,
+      "height": 844,
+      "touch": true,
+      "rate": 6
+    }
+  ],
+  "gesturesOnly": false,
+  "runtimeCheckout": "runtime-checkout",
+  "workerBoundMethod": "Closed/unavailable worker response bodies use full emitted file/gzip bounds only for the same-origin compiler-declared graph of the verified generation worker; these are conservative file-size bounds, not claimed measured wire bytes",
+  "passed": false,
+  "browser": "154.0.8037.57",
+  "hardware": {
+    "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "logicalCpus": 5,
+    "cpuQuota": "400000 100000",
+    "gpuDevices": [
+      {
+        "vendorId": 65535,
+        "deviceId": 65535,
+        "vendorString": "Google Inc. (Google)",
+        "deviceString": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver-5.0.0)",
+        "driverVendor": "SwANGLE",
+        "driverVersion": "5.0.0"
+      }
+    ],
+    "graphicsFeatureStatus": {
+      "2d_canvas": "unavailable_software",
+      "direct_rendering_display_compositor": "disabled_off_ok",
+      "gpu_compositing": "disabled_software",
+      "multiple_raster_threads": "enabled_on",
+      "opengl": "disabled_off",
+      "rasterization": "disabled_software",
+      "raw_draw": "disabled_off_ok",
+      "skia_graphite": "disabled_off",
+      "trees_in_viz": "disabled_off",
+      "video_decode": "disabled_software",
+      "video_encode": "disabled_software",
+      "vulkan": "disabled_off",
+      "webgl": "unavailable_software",
+      "webgpu": "unavailable_software",
+      "webgpu_on_vk_via_gl_interop": "disabled_off",
+      "webnn": "unavailable_software"
+    },
+    "totalMemory": 35743784960,
+    "os": "linux 6.18.44"
+  },
+  "scope": "Technical service-authored full 14-subject benchmark with latest exact references and mixed grove revisions. Not beginner acceptance or artwork acceptance.",
+  "fixture": {
+    "map": "37ae22a2-440a-4709-9842-1de149eea5fb",
+    "drawings": 100,
+    "marks": 1500,
+    "mapDraftBytes": 40527,
+    "storage": {
+      "drawing_bytes": 51234,
+      "history_bytes": null
+    },
+    "limits": {
+      "drawings512And513Rejection": true,
+      "marks6000And6075Rejection": true,
+      "points16384And16386Rejection": true
+    }
+  },
+  "results": [
+    {
+      "device": {
+        "width": 390,
+        "height": 844,
+        "touch": true,
+        "rate": 6
+      },
+      "complete": true,
+      "cache": "fresh context, warm gestures after loaded production Studio",
+      "coldSceneReadyMs": 24645.957637,
+      "assetDisplays": [
+        {
+          "reference": "mountain-rounded:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:4",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-grove:3",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-craggy:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "mountain-snow-capped:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-low:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "hill-rocky:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-broadleaf-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-tree:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "woodland-conifer-grove:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "wetland-reeds:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-city:2",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-village:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-port:1",
+          "bitmap": "true"
+        },
+        {
+          "reference": "settlement-castle:1",
+          "bitmap": "true"
+        }
+      ],
+      "emptyHeap": {
+        "usedSize": 13706716,
+        "totalSize": 14737408,
+        "embedderHeapUsedSize": 3262624,
+        "backingStorageSize": 2290836
+      },
+      "loadedHeap": {
+        "usedSize": 15955980,
+        "totalSize": 16629760,
+        "embedderHeapUsedSize": 6678872,
+        "backingStorageSize": 4431091
+      },
+      "afterHeap": {
+        "usedSize": 19087980,
+        "totalSize": 21037056,
+        "embedderHeapUsedSize": 10737616,
+        "backingStorageSize": 4765306
+      },
+      "heapGrowth": 5381264,
+      "pan": {
+        "inputs": 100,
+        "elapsedMs": 5000.026291000002,
+        "frames": 268,
+        "windowMs": 5000,
+        "canvasBounds": {
+          "width": 383.21875,
+          "height": 362.3125
+        },
+        "fps": 53.6
+      },
+      "brush": {
+        "received": 100,
+        "coalesced": 1,
+        "unmatched": 0,
+        "latencies": [
+          444.5,
+          373.5,
+          256.80000000074506,
+          85.90000000223517,
+          107.80000000074506,
+          151.69999999925494,
+          145.40000000223517,
+          192.80000000074506,
+          94,
+          136.09999999776483,
+          89.30000000074506,
+          101.59999999776483,
+          80.29999999701977,
+          72.30000000074506,
+          75.5,
+          92.5,
+          75,
+          96.60000000149012,
+          214.59999999776483,
+          216.89999999850988,
+          102.5,
+          141.19999999925494,
+          91,
+          116.10000000149012,
+          100.20000000298023,
+          101.59999999776483,
+          142.80000000074506,
+          159.29999999701977,
+          186.90000000223517,
+          161.10000000149012,
+          52.099999997764826,
+          56,
+          128.30000000074506,
+          124.80000000074506,
+          136.69999999925494,
+          88.80000000074506,
+          107.69999999925494,
+          128.70000000298023,
+          145.39999999850988,
+          93.69999999925494,
+          82.5,
+          100.5,
+          111.30000000074506,
+          98.70000000298023,
+          98.69999999925494,
+          102.79999999701977,
+          97,
+          167.69999999925494,
+          178,
+          83.80000000074506,
+          84.80000000074506,
+          90.80000000074506,
+          78.89999999850988,
+          167.70000000298023,
+          194.29999999701977,
+          83.60000000149012,
+          78.90000000223517,
+          79.30000000074506,
+          96.90000000223517,
+          129.30000000074506,
+          76.60000000149012,
+          202.5,
+          203.19999999925494,
+          78.80000000074506,
+          114.80000000074506,
+          89.10000000149012,
+          95.69999999925494,
+          79.29999999701977,
+          86.10000000149012,
+          183.19999999925494,
+          192.90000000223517,
+          85.60000000149012,
+          70.89999999850988,
+          81.90000000223517,
+          84.19999999925494,
+          197.20000000298023,
+          198.80000000074506,
+          222.5,
+          112.30000000074506,
+          106.80000000074506,
+          96.29999999701977,
+          113.79999999701977,
+          79.10000000149012,
+          91.09999999776483,
+          82.69999999925494,
+          156.70000000298023,
+          333.80000000074506,
+          250.40000000223517,
+          196,
+          198.5,
+          105.40000000223517,
+          80.29999999701977,
+          85.80000000074506,
+          90.60000000149012,
+          106,
+          86.80000000074506,
+          87.89999999850988,
+          91.10000000149012,
+          79.30000000074506,
+          78.80000000074506
+        ],
+        "inputDelays": [
+          268.3999999985099,
+          196.19999999925494,
+          223.60000000149012,
+          46.900000002235174,
+          84.19999999925494,
+          34.19999999925494,
+          118.70000000298023,
+          157.90000000223517,
+          43.80000000074506,
+          99.19999999925494,
+          46.599999997764826,
+          75.30000000074506,
+          51.099999997764826,
+          46.899999998509884,
+          50.5,
+          63.5,
+          37.30000000074506,
+          44.30000000074506,
+          87.89999999850988,
+          167.60000000149012,
+          50.69999999925494,
+          104.10000000149012,
+          46.100000001490116,
+          87.90000000223517,
+          63.80000000074506,
+          39.79999999701977,
+          67,
+          139.09999999776483,
+          100.70000000298023,
+          144.80000000074506,
+          35.19999999925494,
+          38.69999999925494,
+          40.20000000298023,
+          81.30000000074506,
+          102.80000000074506,
+          40.100000001490116,
+          54.5,
+          69.70000000298023,
+          73.80000000074506,
+          52.600000001490116,
+          34.5,
+          54.900000002235174,
+          82,
+          53.80000000074506,
+          68.29999999701977,
+          59.099999997764826,
+          68.19999999925494,
+          50.5,
+          147.79999999701977,
+          54.399999998509884,
+          52.80000000074506,
+          61.899999998509884,
+          49,
+          54,
+          157.79999999701977,
+          58.900000002235174,
+          55.100000001490116,
+          29.400000002235174,
+          50.30000000074506,
+          97.39999999850988,
+          40.600000001490116,
+          69.39999999850988,
+          172.39999999850988,
+          33.69999999925494,
+          80.59999999776483,
+          59.69999999925494,
+          64.80000000074506,
+          41.19999999925494,
+          46.19999999925494,
+          77.09999999776483,
+          152.5,
+          62.400000002235174,
+          46.899999998509884,
+          48.5,
+          59.100000001490116,
+          60.30000000074506,
+          139.80000000074506,
+          170.39999999850988,
+          85.5,
+          68.69999999925494,
+          49.099999997764826,
+          84.09999999776483,
+          53.100000001490116,
+          57.599999997764826,
+          37,
+          57.20000000298023,
+          177.09999999776483,
+          207.10000000149012,
+          107.39999999850988,
+          130.10000000149012,
+          89.90000000223517,
+          46.29999999701977,
+          41.30000000074506,
+          51.600000001490116,
+          71.30000000074506,
+          57.600000001490116,
+          57.899999998509884,
+          58.30000000074506,
+          51.19999999925494,
+          50.600000001490116
+        ],
+        "renderDelays": [
+          176,
+          177.19999999925494,
+          33.19999999925494,
+          39,
+          23.600000001490116,
+          116.69999999925494,
+          26.400000002235174,
+          34.899999998509884,
+          50.19999999925494,
+          36.899999998509884,
+          42.5,
+          26.299999997019768,
+          29.199999999254942,
+          25.400000002235174,
+          25,
+          28.899999998509884,
+          37.69999999925494,
+          52.30000000074506,
+          126.69999999925494,
+          49.29999999701977,
+          51.70000000298023,
+          37.099999997764826,
+          44.899999998509884,
+          28.199999999254942,
+          36.400000002235174,
+          61.80000000074506,
+          75.80000000074506,
+          20.099999997764826,
+          86.19999999925494,
+          16.200000002980232,
+          16.899999998509884,
+          17.300000000745058,
+          88.09999999776483,
+          43.5,
+          33.899999998509884,
+          48.69999999925494,
+          53.19999999925494,
+          59,
+          71.59999999776483,
+          41.099999997764826,
+          48,
+          45.599999997764826,
+          29.300000000745058,
+          44.900000002235174,
+          30.400000002235174,
+          43.69999999925494,
+          28.800000000745058,
+          117.19999999925494,
+          30.200000002980232,
+          29.400000002235174,
+          32,
+          28.900000002235174,
+          29.899999998509884,
+          113.70000000298023,
+          36.5,
+          24.699999999254942,
+          23.800000000745058,
+          49.899999998509884,
+          46.600000001490116,
+          31.900000002235174,
+          36,
+          133.10000000149012,
+          30.800000000745058,
+          45.100000001490116,
+          34.100000001490116,
+          29.400000002235174,
+          30.899999998509884,
+          38.099999997764826,
+          39.900000002235174,
+          106.10000000149012,
+          40.400000002235174,
+          23.199999999254942,
+          24,
+          33.400000002235174,
+          25.099999997764826,
+          136.80000000074506,
+          59,
+          52.100000001490116,
+          26.699999999254942,
+          38.100000001490116,
+          47.19999999925494,
+          29.699999999254942,
+          26,
+          33.5,
+          45.69999999925494,
+          99.5,
+          156.70000000298023,
+          43.30000000074506,
+          88.60000000149012,
+          68.39999999850988,
+          15.5,
+          34,
+          44.5,
+          39,
+          34.69999999925494,
+          29.199999999254942,
+          30,
+          32.80000000074506,
+          28.100000001490116,
+          28.199999999254942
+        ],
+        "p95": 222.5,
+        "definitionsRetained": true
+      },
+      "exportMs": 11397.646278,
+      "layout": {
+        "scrollWidth": 390,
+        "width": 390,
+        "scrollHeight": 1007,
+        "height": 844,
+        "x": 0,
+        "y": 0,
+        "overflow": "hidden"
+      },
+      "afterWheel": {
+        "x": 0,
+        "y": 0
+      },
+      "operations": {
+        "checkpointMs": 414.19999999925494,
+        "recoveryBytes": 42448,
+        "saveMs": 1811.0616369999916,
+        "editUndoReopenCycles": 5,
+        "generationMs": 1163.2290460000222,
+        "cancelMs": 567.9545939999807
+      },
+      "browserMemory": [
+        {
+          "Id": 145327,
+          "WorkingSet64": 146706432,
+          "CPU": 6
+        },
+        {
+          "Id": 145370,
+          "WorkingSet64": 49688576,
+          "CPU": 56
+        },
+        {
+          "Id": 145373,
+          "WorkingSet64": 71479296,
+          "CPU": 0
+        },
+        {
+          "Id": 145395,
+          "WorkingSet64": 23576576,
+          "CPU": 0
+        },
+        {
+          "Id": 145416,
+          "WorkingSet64": 80449536,
+          "CPU": 1
+        },
+        {
+          "Id": 145425,
+          "WorkingSet64": 34758656,
+          "CPU": 0
+        },
+        {
+          "Id": 145426,
+          "WorkingSet64": 852598784,
+          "CPU": 260
+        }
+      ],
+      "transferErrors": [],
+      "canceledWorkerBounds": [],
+      "transfers": [
+        {
+          "path": "/_next/static/chunks/1z8iucyzpaczo.js",
+          "bytes": 75918,
+          "gzipBytes": 22155
+        },
+        {
+          "path": "/_next/static/chunks/0_sme3_e89p6n.js",
+          "bytes": 1175523,
+          "gzipBytes": 308220
+        },
+        {
+          "path": "/_next/static/chunks/1z8iucyzpaczo.js",
+          "bytes": 75918,
+          "gzipBytes": 22155
+        },
+        {
+          "path": "/_next/static/chunks/0_sme3_e89p6n.js",
+          "bytes": 1175523,
+          "gzipBytes": 308220
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/mountain-rounded-3.svg",
+          "bytes": 19541,
+          "gzipBytes": 8045
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/woodland-broadleaf-grove-4.svg",
+          "bytes": 62283,
+          "gzipBytes": 23225
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/settlement-city-2.svg",
+          "bytes": 10431,
+          "gzipBytes": 2649
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/mountain-craggy-1.svg",
+          "bytes": 10069,
+          "gzipBytes": 4334
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/mountain-snow-capped-1.svg",
+          "bytes": 10403,
+          "gzipBytes": 4435
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/hill-low-1.svg",
+          "bytes": 3519,
+          "gzipBytes": 1618
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/hill-rocky-1.svg",
+          "bytes": 4198,
+          "gzipBytes": 1771
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/woodland-broadleaf-tree-1.svg",
+          "bytes": 10064,
+          "gzipBytes": 3442
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/mountain-rounded-3.svg",
+          "bytes": 19541,
+          "gzipBytes": 8045
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/woodland-broadleaf-grove-4.svg",
+          "bytes": 62283,
+          "gzipBytes": 23225
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/woodland-broadleaf-grove-3.svg",
+          "bytes": 82251,
+          "gzipBytes": 30749
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/mountain-snow-capped-1.svg",
+          "bytes": 10403,
+          "gzipBytes": 4435
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/mountain-craggy-1.svg",
+          "bytes": 10069,
+          "gzipBytes": 4334
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/hill-low-1.svg",
+          "bytes": 3519,
+          "gzipBytes": 1618
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/hill-rocky-1.svg",
+          "bytes": 4198,
+          "gzipBytes": 1771
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/woodland-broadleaf-tree-1.svg",
+          "bytes": 10064,
+          "gzipBytes": 3442
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/woodland-conifer-tree-1.svg",
+          "bytes": 4114,
+          "gzipBytes": 1205
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/woodland-conifer-grove-1.svg",
+          "bytes": 13709,
+          "gzipBytes": 2788
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/wetland-reeds-1.svg",
+          "bytes": 2936,
+          "gzipBytes": 1036
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/settlement-city-2.svg",
+          "bytes": 10431,
+          "gzipBytes": 2649
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/settlement-village-1.svg",
+          "bytes": 6895,
+          "gzipBytes": 1815
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/settlement-port-1.svg",
+          "bytes": 6979,
+          "gzipBytes": 1837
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/settlement-castle-1.svg",
+          "bytes": 4281,
+          "gzipBytes": 1272
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/woodland-conifer-tree-1.svg",
+          "bytes": 4114,
+          "gzipBytes": 1205
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/woodland-conifer-grove-1.svg",
+          "bytes": 13709,
+          "gzipBytes": 2788
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/settlement-village-1.svg",
+          "bytes": 6895,
+          "gzipBytes": 1815
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/settlement-port-1.svg",
+          "bytes": 6979,
+          "gzipBytes": 1837
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/settlement-castle-1.svg",
+          "bytes": 4281,
+          "gzipBytes": 1272
+        },
+        {
+          "path": "/cartography/serrian-atlas-island/1/wetland-reeds-1.svg",
+          "bytes": 2936,
+          "gzipBytes": 1036
+        },
+        {
+          "path": "/_next/static/chunks/1z8iucyzpaczo.js",
+          "bytes": 75918,
+          "gzipBytes": 22155
+        },
+        {
+          "path": "/_next/static/chunks/1z8iucyzpaczo.js",
+          "bytes": 75918,
+          "gzipBytes": 22155
+        }
+      ],
+      "libraryTransferGzipBytes": 420596,
+      "external": [],
+      "budgets": {
+        "transfer": true,
+        "external": true,
+        "fps": true,
+        "brush": false,
+        "export": false,
+        "operations": true,
+        "heap": true,
+        "layout": true
+      }
+    }
+  ],
+  "serverBefore": {
+    "Id": 145309,
+    "WorkingSet64": 159662080,
+    "CPU": 1
+  },
+  "serverAfter": {
+    "Id": 145309,
+    "WorkingSet64": 248324096,
+    "CPU": 6
+  },
+  "errors": []
+}

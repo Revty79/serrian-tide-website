@@ -1,0 +1,53 @@
+{
+  "technicalPass": true,
+  "runtimeFingerprint": "b2801dcb44a2c10e5bf04e0c0425b507eb95e85f024c128e30fff5ba6db635a6",
+  "recording": "page@8ce4ca6628f74c5abc37672fc563a262.webm",
+  "after": true,
+  "kind": "artwork",
+  "touchEmulated": true,
+  "initial": {
+    "worlds": 0,
+    "maps": 0
+  },
+  "mapId": "bbbd155e-8d1e-4584-8333-a39d4bb76534",
+  "defaultMode": "Artwork · Select",
+  "primaryControls": [
+    "Move item",
+    "Remove from map",
+    "Edit coastline"
+  ],
+  "shapeResults": [
+    {
+      "shape": "bay",
+      "beforeArea": 678973.4086757209,
+      "afterArea": 670530.606327137,
+      "undoRedoExact": true
+    },
+    {
+      "shape": "extend",
+      "beforeArea": 670530.606327137,
+      "afterArea": 677547.1792783197,
+      "undoRedoExact": true
+    }
+  ],
+  "editedAgainAfterReopen": true,
+  "discoverableEditCoastline": true,
+  "visibleCoastAndMaskChange": true,
+  "draftPreviewIsNotSavedSource": false,
+  "undoRedoExact": true,
+  "noImplicitSave": true,
+  "savedReopened": true,
+  "retainedGeometryMatchesSave": false,
+  "sourceHeadsBefore": 0,
+  "otherSourceHeadsExact": true,
+  "historicalRowsInThisFixture": 0,
+  "priorSourceVersionsExact": true,
+  "migrationLedgerExact": true,
+  "physicalDevice": false,
+  "uncoachedHuman": false,
+  "steps": [
+    "Zero-World website creation and named map; no service-authored content or model-ID selection",
+    "Saved map reopened in Select; clicked actual visible shoreline. Primary controls: Move item, Remove from map, Edit coastline"
+  ],
+  "errors": []
+}

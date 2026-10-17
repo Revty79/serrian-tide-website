@@ -1,6 +1,6 @@
 # Crash/performance correction checkpoint
 
-**Not ready to merge or deploy.** [Report, fixed budgets, limitations and isolated alternative plan](../../../operations/worlds-atlas-ux0a-performance-corrections.md). Runtime source binding and summary: [technical-results.json](technical-results.json).
+**Evidence from pushed checkpoint `a003e8b`; not ready to merge or deploy.** New [toolbar/coast follow-up evidence](toolbar-coast/README.md) is indexed separately. [Report, fixed budgets, limitations and isolated alternative plan](../../../operations/worlds-atlas-ux0a-performance-corrections.md). Runtime source binding and summary: [technical-results.json](technical-results.json).
 
 - [Native/strict/fallback SVG selection: 24 cases](svg-after.json); [starting-checkpoint strict failure](svg-before.json); [desktop highlight](svg-after-desktop.png), [emulated-touch highlight](svg-after-touch.png), [accessible fallback](svg-fallback-touch.png). Chromium 154 accepts the old DOMPoint natively: strict compatibility fault injection reproduces the owner-reported argument contract; owner Chrome retest remains outstanding.
 - [Six-device attempted matrix, including failures](performance-results.json); [disclosed 1440px collector repeat](collector-repeat.json); [all four pinch results](pinch-results.json); [idle authorization](idle-results.json). Red/incomplete results are not passes. Physical-device testing was not performed.
