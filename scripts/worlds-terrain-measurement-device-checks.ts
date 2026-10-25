@@ -35,8 +35,8 @@ export async function checkMeasurementDevices({browser,god,base,world,out,errors
   await c(p).focus();await p.keyboard.press("f");let b=await box(p);await p.mouse.click(b.x+b.width*.47,b.y+b.height*.49);await p.getByText(/^Points and route/).click();
   close(Number(await p.getByLabel("Point east (km)",{exact:true}).inputValue())%1000,0);close(Number(await p.getByLabel("Point south (km)",{exact:true}).inputValue())%1000,0);
   await settings(p);await p.getByRole("checkbox",{name:"Snap ruler and landform points to major grid intersections",exact:true}).uncheck();await p.getByLabel("Grid spacing",{exact:true}).selectOption("auto");await p.keyboard.press("Escape");
-  await p.getByRole("button",{name:"Clear measurement",exact:true}).click();await p.getByLabel("Measurement kind",{exact:true}).selectOption("path");await p.getByText(/^Points and route/).click();
-  if(await p.getByRole("button",{name:"Clear measurement",exact:true}).isEnabled())await p.getByRole("button",{name:"Clear measurement",exact:true}).click();await c(p).focus();await p.keyboard.press("f");await settle(p);b=await box(p);const v=await c(p).evaluate(e=>({x:Number(e.dataset.viewX),y:Number(e.dataset.viewY),z:Number(e.dataset.zoom)}));
+  await terrainPanel(p,"Measure");await p.getByRole("button",{name:"Clear measurement",exact:true}).click();await p.getByLabel("Measurement kind",{exact:true}).selectOption("path");await p.getByText(/^Points and route/).click();
+  if(await p.getByRole("button",{name:"Clear measurement",exact:true}).isEnabled())await terrainPanel(p,"Measure");await p.getByRole("button",{name:"Clear measurement",exact:true}).click();await c(p).focus();await p.keyboard.press("f");await settle(p);b=await box(p);const v=await c(p).evaluate(e=>({x:Number(e.dataset.viewX),y:Number(e.dataset.viewY),z:Number(e.dataset.zoom)}));
   const left=Math.max(24,v.x+24),right=Math.min(b.width-24,v.x+20000000*v.z-24),top=Math.max(24,v.y+24),bottom=Math.min(b.height-80,v.y+10000000*v.z-24);
   assert.ok((right-left)/15>13&&(bottom-top)/15>13,`256 distinct editable points fit: ${right-left} x ${bottom-top}`);
   const protocol=await god.newCDPSession(p);await protocol.send("HeapProfiler.collectGarbage");const heap=await protocol.send("Runtime.getHeapUsage"),initial=await pose(p),start=performance.now();
@@ -46,7 +46,7 @@ export async function checkMeasurementDevices({browser,god,base,world,out,errors
   for(let i=0;i<24;i++){await c(p).focus();await p.keyboard.press(i%2?"-":"+");await p.keyboard.press(i%2?"ArrowLeft":"ArrowRight");await unit(p,i%2?"km":"mi");overlayTimes.push(Number(await c(p).getAttribute("data-overlay-ms")));}
   assert.equal((await pose(p)).painted,initial.painted);assert.equal((await pose(p)).refresh,initial.refresh);assert.ok(Math.max(...overlayTimes)<150,"bounded CPU overlay work");
   await p.getByRole("region",{name:"Heightmap editor",exact:true}).screenshot({path:`${out}/long-path-desktop.png`});
-  await p.getByRole("button",{name:"Clear measurement",exact:true}).click();await unit(p);await p.getByLabel("Measurement kind",{exact:true}).selectOption("area");await c(p).focus();await p.keyboard.press("f");b=await box(p);
+  await terrainPanel(p,"Measure");await p.getByRole("button",{name:"Clear measurement",exact:true}).click();await unit(p);await p.getByLabel("Measurement kind",{exact:true}).selectOption("area");await c(p).focus();await p.keyboard.press("f");b=await box(p);
   const radius=Math.min(180,(b.height-120)/2),centre={x:b.width/2,y:b.height/2};assert.ok(radius>125);
   for(let i=0;i<64;i++){const angle=2*Math.PI*i/64;await p.mouse.click(b.x+centre.x+radius*Math.cos(angle),b.y+centre.y+radius*Math.sin(angle));}
   assert.equal(await pointCount(p),64);const area=Number(await c(p).getAttribute("data-measurement-area")),z=Number(await c(p).getAttribute("data-zoom")),expected=32*(radius/z)**2*Math.sin(2*Math.PI/64);assert.ok(Math.abs(area-expected)/expected<.02);
@@ -54,7 +54,7 @@ export async function checkMeasurementDevices({browser,god,base,world,out,errors
   await protocol.send("HeapProfiler.collectGarbage");const retained=await protocol.send("Runtime.getHeapUsage");assert.ok(retained.usedSize-heap.usedSize<32*1024*1024);
   results.performance={pathPoints:256,pathInputMs:pathMs,areaPoints:64,overlayTimesMs:overlayTimes,heapBefore:heap.usedSize,heapAfter:retained.usedSize,retainedBytes:retained.usedSize-heap.usedSize,noTileRefresh:true};
   // Native pen event path, including moving a selected endpoint.
-  await p.getByRole("button",{name:"Clear measurement",exact:true}).click();await p.getByLabel("Measurement kind",{exact:true}).selectOption("line");b=await box(p);
+  await terrainPanel(p,"Measure");await p.getByRole("button",{name:"Clear measurement",exact:true}).click();await p.getByLabel("Measurement kind",{exact:true}).selectOption("line");b=await box(p);
   const pen=async(type:"mousePressed"|"mouseMoved"|"mouseReleased",x:number,y:number)=>protocol.send("Input.dispatchMouseEvent",{type,x,y,pointerType:"pen",button:type==="mouseMoved"?"none":"left",buttons:type==="mouseReleased"?0:1,clickCount:1,force:type==="mouseReleased"?0:.6});
   for(const x of [.4,.6]){await pen("mousePressed",b.x+b.width*x,b.y+b.height*.5);await pen("mouseReleased",b.x+b.width*x,b.y+b.height*.5);}
   assert.equal(await pointCount(p),2);const penLength=Number(await c(p).getAttribute("data-measurement-length"));await pen("mousePressed",b.x+b.width*.6,b.y+b.height*.5);await pen("mouseMoved",b.x+b.width*.65,b.y+b.height*.5);await pen("mouseReleased",b.x+b.width*.65,b.y+b.height*.5);assert.ok(Number(await c(p).getAttribute("data-measurement-length"))>penLength);results.nativePenRuler=true;

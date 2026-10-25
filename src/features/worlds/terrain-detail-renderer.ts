@@ -22,6 +22,7 @@ export class TerrainDetailPainter{
  private style="";
  readonly metrics={painted:0,maxTextures:0,maxBatchMs:0};
  constructor(readonly limit=2048){}
+ get pending(){return this.jobs.length;}
  invalidate(id:string,keys:Iterable<number>|undefined,shape:TerrainGeometry){
   if(!keys){for(const [key,value] of this.images)if(value.id===id)this.images.delete(key);}
   else for(const fine of keys)for(let lod=0;lod<=Math.log2(Math.min(shape.width,shape.height)/32);lod++){

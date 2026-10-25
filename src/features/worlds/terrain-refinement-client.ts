@@ -20,7 +20,7 @@ export function detailViewPlan(metas:RefinementMeta[],view:TerrainViewport,world
 export function useTerrainRefinements(root:TerrainDocument,world:TerrainGeometry,view:TerrainViewport|undefined,review:boolean,activeId?:string){
  const api=refinementApi(root.worldId,root.id,review),[index,setIndex]=useState<RefinementIndex>(),[error,setError]=useState(""),[cacheTick,setCacheTick]=useState(0),[plans,setPlans]=useState<DetailPlan[]>([]),[loadProgress,setLoadProgress]=useState<number|null>(null);
  const fetcher=useCallback((plan:DetailPlan,signal:AbortSignal)=>worldApi<DetailBatch>(`${api}&refinement=${plan.meta.id}&revision=${plan.meta.revision}&lod=${plan.lod}&keys=${plan.keys.join(",")}`,"GET",undefined,signal),[api]);
- const cache=useMemo(()=>new TerrainDetailCache(fetcher),[fetcher]),previous=useMemo(()=>new Map<string,number>(),[cache]);
+ const cache=useMemo(()=>new TerrainDetailCache(fetcher),[fetcher]),previous=useMemo(()=>new Map<string,number>(),[]);
  useEffect(()=>{const unsubscribe=cache.subscribe(()=>setCacheTick(v=>v+1));return()=>{unsubscribe();cache.dispose();};},[cache]);
  const reload=useCallback(async()=>{try{const result=await worldApi<RefinementIndex>(api);setIndex(result);setError("");return result;}catch(e){setError(e instanceof Error?e.message:"Terrain detail could not be read.");throw e;}},[api]);
  useEffect(()=>{const controller=new AbortController();let alive=true;const run=()=>{void worldApi<RefinementIndex>(api,"GET",undefined,controller.signal).then(value=>{if(alive){setIndex(value);setError("");}}).catch(e=>{if(alive&&!controller.signal.aborted)setError(e.message);});};run();window.addEventListener("focus",run);return()=>{alive=false;controller.abort();window.removeEventListener("focus",run);};},[api]);

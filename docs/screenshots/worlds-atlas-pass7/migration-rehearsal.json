@@ -8,7 +8,7 @@
   "backupRestore": true,
   "pairedPrivateObjectsVerified": 235,
   "unchangedExistingTables": 337,
-  "existingRowsSha256": "a58bf1dcd632ef2279356c20797677eef3033a5b24bee09319feafcb91555464",
+  "existingRowsSha256": "256659595d583d26ca8ba27d083a118a658a219d5540ba81cb5af17ce3c65640",
   "ledger": 139,
   "sharedDevSchemaApplied": false,
   "productionAccess": false
