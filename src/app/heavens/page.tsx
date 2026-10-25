@@ -44,18 +44,6 @@ const coreTools = [
     href: "/heavens/creatures",
   },
   {
-    title: "SHOP BUILDER",
-    subtitle: "Campaign Commerce",
-    description: "Create Campaign Shops, assign persistent NPC staff, and curate authorized Equipment and Inventory offerings.",
-    href: "/heavens/shops",
-  },
-  {
-    title: "TOWN BUILDER",
-    subtitle: "Campaign Places",
-    description: "Organize Campaign Shops, persistent NPCs, and descriptive Places into living Town references.",
-    href: "/heavens/towns",
-  },
-  {
     title: "NPCS",
     subtitle: "Characters",
     description: "Create Race NPCs and independent Creature NPC individuals inside Campaigns.",
@@ -119,20 +107,6 @@ export default async function HeavensPage({
             initialCampaignId={initialCampaignId}
             initialPlayerUserId={query.player ?? null}
           />
-        </section>
-
-        <section className="mt-7">
-          <Link
-            href={initialCampaignId ? `/heavens/tabletop?campaign=${initialCampaignId}` : "/heavens/tabletop"}
-            className="group grid gap-5 overflow-hidden rounded-3xl border border-amber-300/20 bg-gradient-to-r from-purple-950/35 via-black/40 to-teal-950/25 p-6 shadow-2xl backdrop-blur-md transition hover:border-amber-300/45 sm:grid-cols-[1fr_auto] sm:items-center sm:p-8"
-          >
-            <div>
-              <p className="text-xs uppercase tracking-[0.14em] text-purple-200">Live Table Management</p>
-              <h3 className="font-sans mt-2 text-3xl text-slate-100">Tabletop Operations</h3>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Plan, start, complete, and reopen Campaign Sessions while persistent Character and NPC state remains authoritative.</p>
-            </div>
-            <span className="text-sm text-amber-200">Open Sessions →</span>
-          </Link>
         </section>
 
         <section className="mt-10">

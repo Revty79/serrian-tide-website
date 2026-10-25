@@ -21,7 +21,6 @@ test("Heavens exposes one consistent set of major destinations", () => {
       "Heavens Dashboard",
       "Crossroads",
       "Campaign Settings",
-      "Tabletop Operations",
       "Races",
       "Skills",
       "Derived Abilities",
@@ -29,8 +28,6 @@ test("Heavens exposes one consistent set of major destinations", () => {
       "Equipment",
       "Inventory",
       "NPCs",
-      "Shops",
-      "Towns",
     ],
   );
 });

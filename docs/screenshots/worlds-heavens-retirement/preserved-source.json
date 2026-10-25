@@ -1,0 +1,26 @@
+{
+  "baseline": "0d4d9bdcf35722fea3f65f11b6b7baafb670f525",
+  "protectedFiles": 539,
+  "protectedPaths": [
+    "src/app/heavens/tabletop",
+    "src/app/realms/tabletop",
+    "src/features/tabletop-operations",
+    "src/db",
+    "drizzle",
+    "src/app/heavens/towns/actions.ts",
+    "src/app/heavens/towns/town-workspace.tsx",
+    "src/app/heavens/towns/towns.css",
+    "src/app/heavens/shops/actions.ts",
+    "src/app/heavens/shops/shop-workspace.tsx",
+    "src/app/heavens/shops/shops.css",
+    "src/features/shops/shop-builder.ts",
+    "src/features/shops/shop-catalog-details.ts",
+    "src/features/towns/town-builder.ts"
+  ],
+  "allProtectedTrackedContentUnchanged": true,
+  "sourceInventorySha256": "94b6504420394593be9ab0e749e6db799e15e10b9206099b3ee720ba76e92bb1",
+  "sharedDatabaseAccess": false,
+  "newMigrations": 0,
+  "tabletopImplementationDeleted": false,
+  "legacyBuildersStillPresentAsUnmountedReferences": true
+}

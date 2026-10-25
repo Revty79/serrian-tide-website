@@ -2,6 +2,8 @@
 
 Foundation: `419c2ffa78ab50bffcc37b93cdc85d651705227c`. The implementation is the commit containing this report; its exact SHA is supplied in the Git handoff. Owner usability acceptance and approval to retire Heavens remain separate.
 
+**Subsequent owner direction:** Town/Shop retirement and removal of the Heavens Tabletop link are now explicitly authorized. The retained-interface statements below describe the original `0d4d9bd` delivery. See [the retirement audit and receipt](worlds-heavens-retirement.md) for the current interface, capability preservation and validation. This cleanup requires no database migration.
+
 ## Delivered behavior
 
 Open a World, then **Towns**. Towns, Shops, Places of interest, Buildings & facilities, and Residents & associations are visible destinations. Authoring uses the established full `CreatorWorkshop`: named freely selectable sections, independently scrolling content, live preview, fixed save/cancel controls, phone preview, whole-draft validation and retained related drafts.

@@ -1,4 +1,6 @@
 "use client";
+import {useState} from "react";
+import {matchesCreationSearch} from "./town-shop-directory";
 import {Field} from "./world-field";
 import {getCatalogItemDetails} from "@/features/shops/shop-catalog-details";
 import {SHOP_CATALOG_FILTER_OPTIONS,type ShopCatalogItem} from "@/features/shops/shop-builder";
@@ -11,9 +13,10 @@ type Choice={value:string;label:string};
 type Props={frame:CreationFrame;business:BusinessBundle;towns:TownSummary[];references:TownReferences;disabled:boolean;patch:(key:string,value:CreationDraft[string])=>void;open:(target:CreationTarget)=>void;createIndividual:()=>void;readIndividual:(id:string)=>void;catalog:ShopCatalogItem[];catalogSearch:string;catalogGroup:string;setCatalogSearch:(value:string)=>void;setCatalogGroup:(value:string)=>void;searchCatalog:()=>void};
 export function TownShopCreatorFields(p:Props){
  const {frame:f,business:b,towns,references:r,disabled,patch}=p,d=f.draft;
+ const [personSearch,setPersonSearch]=useState("");
  function field(key:string,label:string,help:string,type:"text"|"textarea"|"number"|"checkbox"="text",choices?:Choice[],nullable=false,maxLength?:number){
   if(creationFieldSection(f.kind,[key])!==f.section)return null;
-  const locked=disabled||(!!f.id&&((f.kind==="offering"&&key==="itemId")||(f.kind==="person"&&["geographyId","residentId"].includes(key))||(f.kind==="location"&&["shopId","townId"].includes(key))));
+  const locked=disabled||(!!f.id&&((f.kind==="offering"&&key==="itemId")||(f.kind==="place"&&key==="townId")||(f.kind==="person"&&["geographyId","residentId"].includes(key))||(f.kind==="location"&&["shopId","townId"].includes(key))));
   return <Field key={key} path={key} label={label} help={help}>{choices?<select disabled={locked} value={String(d[key]??"")} aria-label={label} onChange={e=>patch(key,e.target.value||(["cultureId","governmentId"].includes(key)?null:""))}>{choices.map(c=><option key={c.value} value={c.value}>{c.label}</option>)}</select>:type==="checkbox"?<input disabled={locked} type="checkbox" checked={!!d[key]} onChange={e=>{patch(key,e.target.checked);if(key==="unlimitedStock")patch("limitedQuantity",e.target.checked?null:0);}}/>:type==="textarea"?<textarea disabled={locked} rows={5} maxLength={maxLength} value={String(d[key]??"")} onChange={e=>patch(key,e.target.value)}/>:<input disabled={locked} type={type} maxLength={maxLength} min={type==="number"?0:undefined} step={type==="number"?(["limitedQuantity","sortOrder"].includes(key)?1:"any"):undefined} value={d[key]===null?"":String(d[key]??"")} onChange={e=>patch(key,type==="number"?(nullable&&e.target.value===""?null:Number(e.target.value)):e.target.value)}/>}</Field>;
  }
  const townChoices=[{value:"",label:f.kind==="shop"?"Choose later - unplaced Shop":"Choose a Town"},...towns.filter(t=>!t.archived||t.id===d.townId).map(t=>({value:t.id,label:`${t.name} (${t.category||"settlement"})`}))];
@@ -49,7 +52,7 @@ export function TownShopCreatorFields(p:Props){
   {field("name",d.placeKind==="building"?"Building name":"Place name","Name the landmark, building, facility or place of interest.","text",undefined,false,120)}
   {field("category","Type / category","Keep your own classification, such as building, inn, monument, meeting place or an original location.","text",undefined,false,120)}
   {field("townId","Town","Choose the Town this place belongs to. You can create the missing Town and return with this draft intact.","text",townChoices)}
-  {f.section==="identity"&&<button type="button" className="st-button is-secondary" disabled={disabled} onClick={()=>p.open({kind:"town"})}>Create a related Town</button>}
+  {f.section==="identity"&&!f.id&&<button type="button" className="st-button is-secondary" disabled={disabled} onClick={()=>p.open({kind:"town"})}>Create a related Town</button>}
   {field("description","Description and purpose","Explain what happens here, why it matters and what a visitor would notice.","textarea",undefined,false,5000)}
   {field("locationNotes","Location within the Town","Describe directions and surroundings without requiring a street map.","textarea",undefined,false,1000)}
   {field("godNotes","Private G.O.D. notes","Keep hidden features and private author plans here.","textarea",undefined,false,12000)}
@@ -57,8 +60,9 @@ export function TownShopCreatorFields(p:Props){
  </>;
  if(f.kind==="person")return <>
   {field("geographyId","Town, Shop or place","Choose the location of this particular relationship.","text",[{value:"",label:"Choose a location"},...towns.filter(t=>!t.archived).map(t=>({value:t.id,label:`Town: ${t.name}`})),...b.shops.filter(s=>!s.archived).map(s=>({value:s.id,label:`Shop: ${s.definition.name}`})),...b.places.filter(v=>!v.archived).map(v=>({value:v.id,label:`Place: ${v.name}`}))])}
-  {field("residentId","World inhabitant","Reuse a saved World person. The full Individual creator is available below when someone is missing.","text",[{value:"",label:"Choose an inhabitant"},...people.values()])}
-  {f.section==="person"&&<div className={styles.actions}><button type="button" className="st-button is-secondary" disabled={disabled} onClick={p.createIndividual}>Create a related inhabitant</button>{!!d.residentId&&b.individuals.some(i=>i.id===d.residentId||b.residents.some(r=>r.id===d.residentId&&r.loreId===i.id))&&<button type="button" className="st-button is-secondary" disabled={disabled} onClick={()=>p.readIndividual(String(d.residentId))}>Open full Individual creator</button>}</div>}
+  {f.section==="person"&&<Field label="Find an inhabitant" help="Search saved inhabitants by name or an existing local role. Searching does not change your draft."><input type="search" value={personSearch} onChange={e=>setPersonSearch(e.target.value)}/></Field>}
+  {field("residentId","World inhabitant","Reuse a saved World person. The full Individual creator is available below when someone is missing.","text",[{value:"",label:"Choose an inhabitant"},...[...people.values()].filter(person=>person.value===d.residentId||matchesCreationSearch(personSearch,[person.label,...b.people.filter(a=>a.residentId===person.value).map(a=>a.role)]))])}
+  {f.section==="person"&&<div className={styles.actions}>{!f.id&&<button type="button" className="st-button is-secondary" disabled={disabled} onClick={p.createIndividual}>Create a related inhabitant</button>}{!!d.residentId&&b.individuals.some(i=>i.id===d.residentId||b.residents.some(r=>r.id===d.residentId&&r.loreId===i.id))&&<button type="button" className="st-button is-secondary" disabled={disabled} onClick={()=>p.readIndividual(String(d.residentId))}>Open full Individual creator</button>}</div>}
   {field("role","Role or responsibility","Describe the relationship: proprietor, mayor, guide, resident or a role from your own setting.","text",undefined,false,160)}
   {field("note","Relationship notes","Keep context specific to this place or business. This does not overwrite the person's own story.","textarea",undefined,false,1000)}
   {field("primaryContact","Primary contact","Choose one primary contact for this location. Selecting another replaces the previous primary contact.","checkbox")}
@@ -68,7 +72,7 @@ export function TownShopCreatorFields(p:Props){
   {field("shopId","World-owned Shop","Choose the same business whose entrance you want to connect. Its inventory, staff and settings are not copied.","text",[{value:"",label:"Choose a Shop"},...b.shops.filter(s=>!s.archived).map(s=>({value:s.id,label:s.definition.name}))])}
   {field("townId","Town","Choose a Town for this entrance. The Shop can have other entrances as well.","text",townChoices)}
   {field("placeId","Place or building (optional)","Connect the entrance to an existing place inside this Town.","text",placeChoices)}
-  {f.section==="location"&&<div className={styles.actions}><button type="button" className="st-button is-secondary" disabled={disabled} onClick={()=>p.open({kind:"town"})}>Create a related Town</button><button type="button" className="st-button is-secondary" disabled={disabled} onClick={()=>p.open({kind:"place",initial:{townId:String(d.townId??""),category:"building",placeKind:"building"}})}>Create a related building</button>{!d.shopId&&<button type="button" className="st-button is-secondary" disabled={disabled} onClick={()=>p.open({kind:"shop"})}>Create a related Shop</button>}</div>}
+  {f.section==="location"&&<div className={styles.actions}>{!f.id&&<button type="button" className="st-button is-secondary" disabled={disabled} onClick={()=>p.open({kind:"town"})}>Create a related Town</button>}<button type="button" className="st-button is-secondary" disabled={disabled} onClick={()=>p.open({kind:"place",initial:{townId:String(d.townId??""),category:"building",placeKind:"building"}})}>Create a related building</button>{!d.shopId&&<button type="button" className="st-button is-secondary" disabled={disabled} onClick={()=>p.open({kind:"shop"})}>Create a related Shop</button>}</div>}
   {field("note","Entrance details","Describe this particular entrance and any local access information.","textarea",undefined,false,1000)}
   {field("sortOrder","Display order","Lower numbers appear first.","number")}
  </>;

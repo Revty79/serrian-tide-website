@@ -6,7 +6,7 @@ export const townDraftSchema = z.object({
 }).strict().refine(d=>new Set(d.historyIds).size===d.historyIds.length,"Choose each historical account once.");
 export type TownDraft = z.infer<typeof townDraftSchema>;
 export const emptyTown: TownDraft = {name:"",category:"settlement",description:"",locationNotes:"",background:"",population:"",cultureId:null,governmentId:null,historyIds:[],godNotes:""};
-export type TownSummary = {id:string;name:string;category:string;revision:number;geographyRevision:number;archived:boolean};
+export type TownSummary = {id:string;name:string;category:string;description?:string;locationNotes?:string;revision:number;geographyRevision:number;archived:boolean};
 export type TownRecord = TownSummary & {draft:TownDraft;archiveReason?:string};
 export type TownReferences = {cultures:{id:string;name:string;archived:boolean}[];governments:{id:string;name:string;archived:boolean}[];history:{id:string;name:string;archived:boolean}[];timelineId:string};
 export type MapPlace = {id:string;mapId:string;townId:string;name:string;category:string;revision:number;x:number;y:number;removed:boolean;archived:boolean;mapName:string};

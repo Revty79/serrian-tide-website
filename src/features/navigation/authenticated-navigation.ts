@@ -27,7 +27,6 @@ const CONTEXT_ITEMS: Record<AuthenticatedContext, AuthenticatedNavigationItem[]>
     { label: "Heavens Dashboard", href: "/heavens" },
     CROSSROADS_ITEM,
     { label: "Campaign Settings", href: "/heavens/campaigns" },
-    { label: "Tabletop Operations", href: "/heavens/tabletop" },
     { label: "Races", href: "/heavens/races" },
     { label: "Skills", href: "/heavens/skills" },
     { label: "Derived Abilities", href: "/heavens/derived-abilities" },
@@ -35,8 +34,6 @@ const CONTEXT_ITEMS: Record<AuthenticatedContext, AuthenticatedNavigationItem[]>
     { label: "Equipment", href: "/heavens/equipment" },
     { label: "Inventory", href: "/heavens/inventory" },
     { label: "NPCs", href: "/heavens/npcs" },
-    { label: "Shops", href: "/heavens/shops" },
-    { label: "Towns", href: "/heavens/towns" },
   ],
   worlds: [
     { label: "Worlds", href: "/worlds" },

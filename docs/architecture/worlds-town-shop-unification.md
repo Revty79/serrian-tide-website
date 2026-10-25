@@ -10,6 +10,8 @@ The owner also authorized a single magical Shop in multiple towns. A World Shop 
 
 ## Delivered model and interfaces
 
+The owner subsequently approved Heavens Town/Shop retirement and removal of the Heavens Tabletop link. See [the current retirement audit](../operations/worlds-heavens-retirement.md). The earlier interface-retention boundary below is historical; the underlying records, mechanics and Tabletop work remain preserved.
+
 The correction uses the established large `CreatorWorkshop` for Towns, Shops, places/buildings, merchandise, staff associations and entrances. It composes the original Shop fields, reusable definition/offering normalization, catalog detail formatter and validated commerce policies into named sections, previews and retained related drafts. World inhabitants use the full existing Individual creator directly. No minimal replacement person builder is active.
 
 World geography UUIDs are the permanent Town, Shop and place identities. Town profiles extend geography rather than define another location. World Shop definitions and offerings hold usual stock, prices and policies. Existing Campaign Shop/Town tables remain unchanged gameplay and compatibility records; they are not the permanent World authority. This separation is deliberate: merging live Campaign balances/transactions into World definitions would violate the owner's independence requirement. There is no import/adoption or speculative ID mapping system.

@@ -106,11 +106,11 @@ test("Town lifecycle preserves placement references, audits destructive work, an
   }
 });
 
-test("Town Builder is reachable and 0036 follows the exact 0035 tail", () => {
+test("Town authoring moves to Worlds while the exact Campaign migration and runtime remain", () => {
   const heavensPage = read("src/app/heavens/page.tsx");
-  assert.match(navigation, /label: "Towns", href: "\/heavens\/towns"/);
-  assert.match(heavensPage, /title: "TOWN BUILDER"/);
-  assert.ok(heavensPage.indexOf('title: "TOWN BUILDER"') < heavensPage.indexOf('title: "NPCS"'));
+  assert.doesNotMatch(navigation, /label: "Towns", href: "\/heavens\/towns"/);
+  assert.doesNotMatch(heavensPage, /title: "TOWN BUILDER"/);
+  assert.match(read("src/app/heavens/towns/page.tsx"), /redirect\("\/worlds\/towns"\)/);
   assert.match(heavensPage, /title: "NPCS",[\s\S]*?href: "\/heavens\/npcs",[\s\S]*?wide: true/);
   const journal = JSON.parse(read("drizzle/meta/_journal.json")) as {
     entries: Array<{ idx: number; version: string; when: number; tag: string; breakpoints: boolean }>;

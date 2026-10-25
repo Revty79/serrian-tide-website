@@ -134,14 +134,15 @@ test("permanent Shop deletion is guarded, exact-confirmed, audited, and limited 
   assert.doesNotMatch(deletion, /delete\(campaign\)|delete\(item\)|delete\(campaignCharacter\)/);
 });
 
-test("The Heavens exposes a dedicated Shop Builder card, route, and navigation destination", () => {
+test("Shop authoring is retired from Heavens with a guarded Worlds bookmark redirect", () => {
   const heavens = read("src/app/heavens/page.tsx");
   const navigation = read("src/features/navigation/authenticated-navigation.ts");
   const page = read("src/app/heavens/shops/page.tsx");
-  assert.match(heavens, /title: "SHOP BUILDER"[\s\S]*?href: "\/heavens\/shops"/);
-  assert.match(navigation, /label: "Shops", href: "\/heavens\/shops"/);
+  assert.doesNotMatch(heavens, /title: "SHOP BUILDER"/);
+  assert.doesNotMatch(navigation, /label: "Shops", href: "\/heavens\/shops"/);
   assert.match(page, /requireGodOrAdminAccessContext/);
-  assert.match(page, /<ShopWorkspace/);
+  assert.match(page, /redirect\("\/worlds\/towns\?section=shops"\)/);
+  assert.doesNotMatch(page, /<ShopWorkspace/);
 });
 
 test("Shop Builder covers Character-store browsing, pricing, stock, staff, ordering, lifecycle, and scroll preservation", () => {
