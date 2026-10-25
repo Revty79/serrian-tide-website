@@ -8,7 +8,7 @@ import {pngCrc,decodeNumericalPng,interpretHeightmap} from "../src/features/worl
 import {createGrid,readTile,terrainGeometry,type TerrainDocument} from "../src/features/worlds/terrain";
 const hash=(grid:Int16Array)=>createHash("sha256").update(new Uint8Array(grid.buffer)).digest("hex");
 const rendered=async(p:Page)=>{await p.locator('canvas[aria-label="Terrain map canvas"][data-render-pending="0"]').last().waitFor();};
-function png16(width:number,height:number){
+export function png16(width:number,height:number){
  function chunk(type:string,data:Buffer){const b=Buffer.alloc(data.length+12);b.writeUInt32BE(data.length);b.write(type,4);b.set(data,8);b.writeUInt32BE(pngCrc(b.subarray(4,-4)),b.length-4);return b;}
  const header=Buffer.alloc(13);header.writeUInt32BE(width);header.writeUInt32BE(height,4);header[8]=16;
  const raw=Buffer.alloc((width*2+1)*height);for(let y=0;y<height;y++)for(let x=0;x<width;x++)raw.writeUInt16BE((x*67+y*191)%65536,y*(width*2+1)+1+x*2);

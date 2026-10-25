@@ -1,0 +1,22 @@
+import assert from "node:assert/strict";
+import {mkdir,writeFile} from "node:fs/promises";
+import {execFileSync} from "node:child_process";
+import path from "node:path";
+import {pathToFileURL} from "node:url";
+import {terrainGeometry,terrainSettingsSchema,sculpt,type Brush} from "../src/features/worlds/terrain";
+import {TerrainStroke} from "../src/features/worlds/terrain-stroke";
+import {prepareTerrainOperation} from "../src/features/worlds/terrain-operations";
+async function main(){
+const shape=terrainGeometry(terrainSettingsSchema.parse({gridWidth:1024,gridHeight:1024})),base=Int16Array.from({length:1024*1024},(_,i)=>Math.round(Math.sin(i*.043)*400));
+const timings:Record<string,unknown>={grid:[1024,1024]},measure=<T>(name:string,run:()=>T)=>{const t=performance.now(),value=run();timings[name]=performance.now()-t;return value;};
+await mkdir("artifacts/worlds-atlas-pass4",{recursive:true});const baselineFile=path.resolve("artifacts/worlds-atlas-pass4/pass3-brush-baseline.ts"),source=execFileSync("git",["show","6169311ef8ad01d2d0275b3b2e8b05105e5d45ab:src/features/worlds/terrain.ts"],{encoding:"utf8"}).replace('from "./terrain-source"',()=> 'from '+JSON.stringify(path.resolve("src/features/worlds/terrain-source.ts").replaceAll("\\","/")));await writeFile(baselineFile,source);const legacy=await import(pathToFileURL(baselineFile).href),comparisons=[];
+for(const tool of ["raise","smooth"] as const)for(const radius of [24,64]){const results:Record<string,number>={},outputs:Int16Array[]=[];for(const [name,kernel] of [["pass3",legacy.sculpt as typeof sculpt],["pass4",sculpt]] as const){const g=base.slice(),before=new Map<number,number>(),scratch={halo:new Int16Array(0)},brush:Brush={tool,radius,strength:150};for(let n=0;n<20;n++)kernel(g,450+n,500,brush,before,shape,scratch);const start=performance.now();for(let n=0;n<150;n++)kernel(g,450+n%100,500+n%20,brush,before,shape,scratch);results[name]=(performance.now()-start)/150;outputs.push(g);}assert.deepEqual(outputs[0],outputs[1],"unchanged brush defaults retain exact numerical results");comparisons.push({tool,radius,meanDabMs:results,ratio:results.pass4/results.pass3});}timings.pairedPass3BrushComparison=comparisons;
+const stroke=new TerrainStroke(base.slice(),shape,{tool:"level",target:1200,radius:64,strength:250},{x:10,y:10});stroke.enqueue({x:1000,y:1000});const batches:number[]=[];while(stroke.pending){const t=performance.now();stroke.advance(5);batches.push(performance.now()-t);}measure("levelGestureFinishMs",()=>stroke.finish());timings.levelBatches={count:batches.length,meanMs:batches.reduce((a,b)=>a+b,0)/batches.length,maxMs:Math.max(...batches)};
+const points=Array.from({length:256},(_,i)=>({x:i*4,y:512+Math.sin(i*.08)*200}));for(const kind of ["ridge","valley"] as const){const r=measure(`${kind}256PointWorkerKernelMs`,()=>prepareTerrainOperation(base,shape,{kind,points,radius:64,height:2000,hardness:0}));assert.ok(r.changed>100000);}
+measure("fullGrid20PassSmoothingMs",()=>prepareTerrainOperation(base,shape,{kind:"area",tool:"smooth",area:{x:0,y:0,width:1024,height:1024},target:0,amount:1,strength:100,passes:20,feather:0}));
+await new Promise<void>(r=>setImmediate(r));global.gc?.();await new Promise<void>(r=>setImmediate(r));global.gc?.();const memoryBefore=process.memoryUsage();let retained=prepareTerrainOperation(base,shape,{kind:"area",area:{x:0,y:0,width:1,height:1},tool:"level",target:100,amount:1,strength:100,passes:1,feather:0});
+measure("twelveFullGridLevelPreviewsMs",()=>{for(let n=0;n<12;n++)retained=prepareTerrainOperation(base,shape,{kind:"area",area:{x:0,y:0,width:1024,height:1024},tool:"level",target:1000+n*10,amount:1,strength:100,passes:1,feather:0});});await new Promise<void>(r=>setImmediate(r));global.gc?.();await new Promise<void>(r=>setImmediate(r));global.gc?.();assert.equal(retained.changed,1024*1024);const memoryAfter=process.memoryUsage();timings.memory={gcAvailable:!!global.gc,before:memoryBefore,after:memoryAfter,arrayBufferGrowthBytes:memoryAfter.arrayBuffers-memoryBefore.arrayBuffers,retainedLatestGridAndExactPatchBytes:retained!.grid.byteLength+(retained!.patch.indices as Uint32Array).byteLength+(retained!.patch.before as Int16Array).byteLength+(retained!.patch.after as Int16Array).byteLength};
+await mkdir("docs/screenshots/worlds-atlas-pass4",{recursive:true});await writeFile("docs/screenshots/worlds-atlas-pass4/numerical-performance.json",JSON.stringify(timings,null,2));console.log(JSON.stringify(timings));
+
+}
+main().catch(e=>{console.error(e);process.exitCode=1;});
