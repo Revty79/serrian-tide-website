@@ -1,0 +1,25 @@
+# Atlas Pass 3: numerical World generation and heightmap import
+
+Owner instruction: Website Atlas Pass 3, received after published `9ec36e2ed78b518dd67ce6f9cf628cddf9039cb3`. Its reference to `0d4d9bd` predates the completed Heavens retirement; retain both commits and all cleanup work. This is a bounded extension of original Stage 2, not Town Maps or completion of the World Mapmaker. The full eight-stage list is not present in the current repository; the supplied Pass 3 directive is the exact active Stage 2 scope rather than a reconstructed roadmap.
+
+## Numerical and interface decisions
+
+Keep the existing Canvas2D renderer, signed 16-bit metre tiles, independently configured physical dimensions, grid limits, brush mechanics, accepted revision chain, private files and marker identities. Generation and import run in a cancellable browser worker. Every proposal stays temporary until accepted through the guarded terrain API. Creation, previewing/regenerating and editing use the same numerical format and visualization.
+
+The versioned generator supports Single Continent, Multiple Continents, Archipelago, Large Island, Land-Dominant and Randomized World presets. A seed and bounded approachable parameters control land coverage, major masses, mountain intensity, ruggedness, coastline complexity, island size/spacing/distribution and elevation variation. Periodic horizontal noise and wrapped landmass distances preserve the east/west seam. Coherent warped continental fields, connected lobes, elongated mountain ridges and interior plains replace unstructured pixel noise. No geological simulation is claimed.
+
+Import initially supports non-interlaced grayscale PNG at raw 8-bit or 16-bit precision. Decode samples directly, including byte filters and chunk checksums; do not pass through Canvas image conversion. Validate file/chunk/decompression bounds before allocating beyond the declared resource limits. Initial source limits: 16 MiB compressed, 4096 per axis and 4,194,304 pixels. Reject unsupported color/palette/alpha/animation/interlace encodings explicitly. Handle grayscale transparency or a chosen NoData value through explicit fill consent. Preview linear black/white elevation interpretation, nearest/bilinear resampling and full-source fitting or centred aspect crop. Display aspect implications, source bit precision, metre rounding and absence of supported georeferencing. Never silently clamp heights.
+
+Raw PNG interpretation follows the [W3C PNG specification](https://www.w3.org/TR/png-3/); bounded zlib decoding uses the browser's [Compression Streams API](https://compression.spec.whatwg.org/). Numerical source values do not use photographic gamma correction. Existing terrain remains integer metres: interpretations round to the nearest metre, with at most 0.5 m rounding error; lower source precision is not disguised as higher precision.
+
+## Required forward persistence correction
+
+Add version provenance to `world_terrain_version` and a fixed tile-sized manual-protection mask to `world_terrain_tile`. Historical rows receive explicit legacy defaults without changing their previous data. Existing previously painted tiles are protected conservatively as a whole; new manual strokes protect only the samples whose numerical values changed. A creator may explicitly permit replacing protected samples inside a selected area. All other samples must remain identical.
+
+New source provenance stores generator version/seed/accepted parameters or import source hash/dimensions/depth/interpretation. Persist the actual numerical samples independently of the recipe. Keep request/hash idempotency, optimistic revisions, atomic acceptance and the original private-storage publication order. Regeneration is an explicitly accepted selected rectangle, with optional edge blending and undo through the existing editor. It never silently runs over the whole map and never changes map/World/marker records.
+
+0133, 0134 and 0135 are immutable. Determine the next migration number from the live DEV ledger and repository journal. Before DEV application: fresh current replay, populated disposable upgrade, verified database/private-file backup and exact disposable restoration, unchanged old-column/row checks, then independently verify the DEV result. No Production access or deployment is authorized.
+
+## Acceptance and pass boundary
+
+Cover seed reproducibility, coherent presets, several seam seeds, cancellation without records, numerical PNG precision/filter/error/resource cases, interpretation/cropping/NoData, accepted create/reopen/sculpt/restart, local undo and recovery, stale/repeated requests, selected-area outside-cell equality and default manual protection. Test the existing highest supported resolution, worker cancellation, transport/storage and real desktop/tablet/phone workflows. Preserve every non-Atlas creator and Heavens retirement through regression checks. Publish only the completed tested pass under the owner's current Git authorization, with exact commit, screenshots, performance and migration/recovery receipts. Owner review is separate from technical checks.

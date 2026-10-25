@@ -8,7 +8,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Active Worlds direction - corrected Towns and Shops Pass 2 (2026-10-24)
+## Active Worlds direction - Atlas Pass 3, Stage 2 terrain creation (2026-10-24)
+
+The owner authorized [Pass 3 numerical World generation and heightmap import](docs/architecture/worlds-terrain-pass3.md) on top of published `9ec36e2`, preserving the completed Heavens cleanup. Extend the existing numerical terrain editor, private tile storage, explicit acceptance, autosave, recovery and physical-coordinate model. Provide deterministic coherent World presets, genuinely decoded high-precision heightmap import, temporary zoomable/inspectable previews and protected selected-area regeneration. No preview creates permanent records. Preserve World/map/Town marker identities and ordinary/privacy guards. Applied migrations through 0135 are immutable; add only the required forward provenance/manual-protection migration after ledger verification, disposable replay/populated rehearsal and backup/restore-tested DEV upgrade. Notify the owner prominently if a migration is needed. Do not modify Heavens, Towns/Shops, Campaigns, Tabletop, standalone Studio, Production or the Ubuntu server. No Town Maps, interiors, dungeons, Earth reconstruction or other local-map work. Keep 1024-per-axis limits unless measured consequences justify changing them. Complete this pass, its tests and review handoff; it does not complete Stage 2 or the whole Mapmaker. Git publication follows the existing authorized workflow; deployment remains unauthorized.
+
+## Completed corrected Towns and Shops Pass 2 (2026-10-24)
 
 **Subsequent owner-approved retirement:** the owner explicitly authorized removing Town and Shop authoring from Heavens after a fresh feature-preservation audit, and also removing the Heavens Tabletop dashboard/navigation link. Retire the Town/Shop routes to guarded Worlds-selection redirects and remove their Heavens cards/navigation. Preserve the full original builders as unmounted reference implementations, all reusable rules and current Campaign/Tabletop services, routes, tests, tables and records for the future redesign. Carry over useful directory/search behavior before retirement. No schema migration or DEV/Production data mutation is required for this interface cleanup. This supersedes the earlier hold below; Git publication remains authorized, deployment does not.
 

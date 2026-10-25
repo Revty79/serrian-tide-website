@@ -100,6 +100,7 @@ next-env.d.ts
 /artifacts/worlds-terrain-pass1-*.log
 /storage/world-terrain/
 /artifacts/worlds-atlas-pass2/
+/artifacts/worlds-atlas-pass3/
 /artifacts/worlds-terrain-pass2-*.log
 
 /artifacts/worlds-terrain-pass2-eslint.json
