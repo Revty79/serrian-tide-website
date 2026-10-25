@@ -1,4 +1,5 @@
 import {brushRadius,sculpt,tileKey,type Brush,type SculptWorkspace,type TerrainGeometry} from "./terrain";
+import {physicalBrushGeometry} from "./terrain-physical-brush";
 import type {TerrainPathPoint} from "./terrain-operations";
 /** Queued numerical dabs are processed in bounded animation-frame batches. */
 export class TerrainStroke{
@@ -8,7 +9,8 @@ export class TerrainStroke{
  private touched=new Set<number>();
  private workspace:SculptWorkspace={halo:new Int16Array(0)};
  readonly spacing:number;
- constructor(private grid:Int16Array,private shape:TerrainGeometry,private brush:Brush,start:TerrainPathPoint){this.position={...start};this.spacing=Math.max(1,brushRadius(shape,brush.radius)/3);this.targets.push({...start});}
+ private metric:{x:number;y:number}|null;
+ constructor(private grid:Int16Array,private shape:TerrainGeometry,private brush:Brush,start:TerrainPathPoint){if(brush.radiusMetres!==undefined&&!physicalBrushGeometry(shape,brush.radiusMetres))throw Error("Choose a supported physical brush radius before starting a stroke.");this.position={...start};this.metric=brush.radiusMetres===undefined?null:{x:shape.displayWidth/shape.width,y:shape.displayHeight/shape.height};this.spacing=this.metric?Math.max(Math.min(this.metric.x,this.metric.y)/4,brush.radiusMetres!/3):Math.max(1,brushRadius(shape,brush.radius)/3);this.targets.push({...start});}
  get pending(){return this.targets.length>0;}
  enqueue(point:TerrainPathPoint){
   if(!Number.isFinite(point.x)||!Number.isFinite(point.y))return;
@@ -20,7 +22,7 @@ export class TerrainStroke{
  advance(budgetMs=5){
   this.touched.clear();const started=performance.now();let dabs=0;
   while(this.targets.length&&dabs<64){
-   const target=this.targets[0],dx=target.x-this.position.x,dy=target.y-this.position.y,distance=Math.hypot(dx,dy);
+   const target=this.targets[0],dx=target.x-this.position.x,dy=target.y-this.position.y,distance=this.metric?Math.hypot(dx*this.metric.x,dy*this.metric.y):Math.hypot(dx,dy);
    if(distance>this.spacing){const t=this.spacing/distance;this.position.x+=dx*t;this.position.y+=dy*t;}else{this.position.x=target.x;this.position.y=target.y;this.targets.shift();}
    sculpt(this.grid,this.position.x,this.position.y,this.brush,this.before,this.shape,this.workspace,this.touched);dabs++;
    if(performance.now()-started>=budgetMs)break;

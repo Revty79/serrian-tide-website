@@ -1,0 +1,19 @@
+import assert from "node:assert/strict";
+import {writeFile} from "node:fs/promises";
+import {terrainGeometry,terrainSettingsSchema,sculpt,type Brush} from "../src/features/worlds/terrain";
+import {TerrainStroke} from "../src/features/worlds/terrain-stroke";
+import {prepareTerrainOperation} from "../src/features/worlds/terrain-operations";
+import {boundedGridPlan,measurementStats,emptyMeasurement} from "../src/features/worlds/terrain-measurement";
+import {physicalSizeLimits} from "../src/features/worlds/terrain-physical-brush";
+
+async function main(){
+ const shape=terrainGeometry(terrainSettingsSchema.parse({gridWidth:1024,gridHeight:1024,widthKm:20000,heightKm:10000,wrap:true})),base=Int16Array.from({length:1048576},(_,i)=>Math.round(3000*Math.sin(i%1024*.03)*Math.cos(Math.floor(i/1024)*.02))),limits=physicalSizeLimits(shape),rows:Record<string,unknown>[]=[];
+ for(const tool of ["raise","lower","smooth","level","coast-land","coast-water","coast-smooth"] as const){const grid=base.slice(),brush:Brush={tool,radius:24,radiusMetres:limits.maximum/2,strength:500,seaLevel:0,target:1000,coastHeight:150,coastBand:1000},before=new Map<number,number>(),times:number[]=[];for(let n=0;n<24;n++){const t=performance.now();sculpt(grid,n*3,500,brush,before,shape);times.push(performance.now()-t);}rows.push({tool,physicalDiameterM:limits.maximum,maximumDabMs:Math.max(...times),meanDabMs:times.reduce((a,b)=>a+b)/times.length,protectedSampleCount:before.size});}
+ const grid=base.slice(),stroke=new TerrainStroke(grid,shape,{tool:"raise",radius:24,radiusMetres:limits.maximum/2,strength:150},{x:100,y:100});stroke.enqueue({x:450,y:900});const frames:number[]=[];while(stroke.pending){const t=performance.now();stroke.advance(5);frames.push(performance.now()-t);}const patch=stroke.finish();for(let n=0;n<patch.indices.length;n++)grid[patch.indices[n]]=patch.before[n];assert.deepEqual(grid,base);
+ const points=Array.from({length:64},(_,n)=>({x:512+350*Math.cos(2*Math.PI*n/63),y:512+350*Math.sin(2*Math.PI*n/63)})),t=performance.now(),ridge=prepareTerrainOperation(base,shape,{kind:"ridge",points,radius:128,radiusMetres:physicalSizeLimits(shape,128).maximum/2,height:1500,hardness:.2}),ridgeMs=performance.now()-t;
+ const area={...emptyMeasurement(),kind:"area" as const,points:Array.from({length:256},(_,n)=>({x:5e8+100*Math.cos(2*Math.PI*n/256),y:5e8+100*Math.sin(2*Math.PI*n/256)}))},huge={...shape,displayWidth:1e9,displayHeight:1e9},areaStart=performance.now();for(let n=0;n<100;n++)assert.ok(measurementStats(area,huge).area!>30000);const areaMeanMs=(performance.now()-areaStart)/100;
+ for(let n=0;n<10000;n++){const plan=boundedGridPlan({x:-n*1000,y:-n*500,scale:1e-6},1440,900,huge,.001);assert.ok((plan.bounds.right-plan.bounds.left)/plan.step<=120.001);}
+ const gc=async()=>{for(let n=0;n<3;n++){await new Promise<void>(r=>setImmediate(r));global.gc?.();}};await gc();const memoryBefore=process.memoryUsage();for(let n=0;n<100;n++){const g=base.slice(),s=new TerrainStroke(g,shape,{tool:"smooth",radius:24,radiusMetres:200000,strength:500},{x:500,y:500});s.advance();s.cancel();}await gc();const memoryAfter=process.memoryUsage();assert.ok(memoryAfter.arrayBuffers-memoryBefore.arrayBuffers<8*1024*1024);
+ await writeFile("docs/screenshots/worlds-atlas-pass6/numerical-performance.json",JSON.stringify({machine:"Windows CPU, Node numerical kernels; browser overlays measured separately",gridCeiling:1024,gpuRequired:false,brushes:rows,stroke:{frames:frames.length,maxBatchMs:Math.max(...frames),changed:patch.indices.length,onePatchExactUndo:true},physicalRidge:{points:64,kernelMs:ridgeMs,changed:ridge.changed},area256PointsMeanMs:areaMeanMs,denseGridPlans:10000,memory:{before:memoryBefore,after:memoryAfter,arrayBufferGrowth:memoryAfter.arrayBuffers-memoryBefore.arrayBuffers}},null,2)+"\n");console.log("PASS physical brush/landform and bounded measurement CPU benchmarks");
+}
+main().catch(e=>{console.error(e);process.exitCode=1;});

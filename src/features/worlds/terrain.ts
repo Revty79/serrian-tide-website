@@ -1,5 +1,6 @@
 import {terrainSourceSchema,type TerrainSource,type ProtectedTile} from "./terrain-source";
 import { z } from "zod";
+import {physicalBrushGeometry} from "./terrain-physical-brush";
 
 // Terrain samples and physical coordinates are independent. The active editor
 // always supplies the saved geometry; defaults support small pure calculations.
@@ -44,7 +45,7 @@ export function readTile(grid: Int16Array, key: number, shape: TerrainGeometry =
 }
 export type BrushTool = "raise" | "lower" | "smooth" | "level" | "coast-land" | "coast-water" | "coast-smooth";
 export type TerrainPatch = { indices: number[] | Uint32Array; before: number[] | Int16Array; after: number[] | Int16Array };
-export type Brush = { tool: BrushTool; radius: number; strength: number; hardness?:number; target?:number; seaLevel?:number; coastHeight?:number; coastBand?:number };
+export type Brush = { radiusMetres?:number; tool: BrushTool; radius: number; strength: number; hardness?:number; target?:number; seaLevel?:number; coastHeight?:number; coastBand?:number };
 export type SculptWorkspace={halo:Int16Array};
 export const brushRadius=(shape:TerrainGeometry,radius:number)=>Math.max(1,Math.min(64,shape.width/2,radius));
 export function brushWeight(distance:number,hardness=0){if(distance>=1)return 0;if(hardness===0)return (1-distance*distance)**2;const firm=Math.max(0,Math.min(1,hardness));if(distance<=firm)return 1;const edge=(distance-firm)/(1-firm);return (1-edge*edge)**2;}
@@ -53,16 +54,17 @@ export function sculpt(grid: Int16Array, cx: number, cy: number, brush: Brush, b
   if(!Number.isFinite(brush.radius)||!Number.isFinite(brush.strength)||!Number.isFinite(brush.hardness??0)||(brush.tool==="level"&&!Number.isFinite(brush.target??0))||(brush.tool.startsWith("coast-")&&![brush.seaLevel??0,brush.coastHeight??150,brush.coastBand??500].every(Number.isFinite)))return touched;
   if (!Number.isFinite(cx) || !Number.isFinite(cy) || cy < 0 || cy >= shape.height || (!shape.wrap && (cx < 0 || cx >= shape.width))) return touched;
   if (shape.wrap) cx = (cx % shape.width + shape.width) % shape.width;
-  const radius = brushRadius(shape,brush.radius), strength = Math.max(1, Math.min(1000, brush.strength));
+  const physical=brush.radiusMetres===undefined?null:physicalBrushGeometry(shape,brush.radiusMetres);if(brush.radiusMetres!==undefined&&!physical)return touched;
+  const radius = physical?.x??brushRadius(shape,brush.radius),radiusY=physical?.y??radius, strength = Math.max(1, Math.min(1000, brush.strength));
   const left = shape.wrap ? Math.floor(cx - radius) : Math.max(0, Math.floor(cx - radius)), right = shape.wrap ? Math.ceil(cx + radius) : Math.min(shape.width - 1, Math.ceil(cx + radius));
-  const top = Math.max(0, Math.floor(cy - radius)), bottom = Math.min(shape.height - 1, Math.ceil(cy + radius)), haloWidth = right - left + 3;
+  const top = Math.max(0, Math.floor(cy - radiusY)), bottom = Math.min(shape.height - 1, Math.ceil(cy + radiusY)), haloWidth = right - left + 3;
   const smoothing=brush.tool==="smooth"||brush.tool==="coast-smooth",needed=haloWidth*(bottom-top+3);
   if(smoothing&&workspace&&workspace.halo.length<needed)workspace.halo=new Int16Array(needed);
   const source=smoothing?(workspace?.halo??new Int16Array(needed)):null;
   const indexOf = (x: number, y: number) => Math.max(0, Math.min(shape.height - 1, y)) * shape.width + (shape.wrap ? (x % shape.width + shape.width) % shape.width : Math.max(0, Math.min(shape.width - 1, x)));
   if (source) for (let y = top - 1; y <= bottom + 1; y++) for (let x = left - 1; x <= right + 1; x++) source[(y - top + 1) * haloWidth + x - left + 1] = grid[indexOf(x, y)];
   for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) {
-    const distance = Math.hypot(x - cx, y - cy) / radius; if (distance >= 1) continue;
+    const distance = physical?Math.hypot((x-cx)*physical.spacing.x,(y-cy)*physical.spacing.y)/physical.metres:Math.hypot(x - cx, y - cy) / radius; if (distance >= 1) continue;
     const index = indexOf(x, y), value = grid[index], weight = brushWeight(distance,brush.hardness);
     let next = value + (brush.tool === "lower" ? -strength : strength) * weight;
     if(brush.tool==="level")next=value+((brush.target??0)-value)*weight*Math.min(1,strength/250);

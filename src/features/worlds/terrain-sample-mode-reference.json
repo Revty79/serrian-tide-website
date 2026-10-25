@@ -1,0 +1,20 @@
+{
+  "raise:false": "9e031b2209be91a523c88d35cae3afba939cf069a930b2b215fba7ef399569ae",
+  "lower:false": "8c2bf170b38012d41ce459a3ba36433efd9b5822f0ead191dfdc25851f22c32f",
+  "smooth:false": "2107a17f1c4fd6347700e5d2a41bfcedf71f80f2bb6fc3dc0ae593a669cec33b",
+  "level:false": "431b0f356489b67d6aad5bdfe3505212068bc0b8dfc4c6e33758400acba690ff",
+  "coast-land:false": "f61a3077445c069138d9902e0df61b61a5073152ec5f8be7620724c1484e0f64",
+  "coast-water:false": "0c07818cf8ff6e78e77ce787c92c7bdb8f88e5492147e97a1d7ad96fba4ee7fc",
+  "coast-smooth:false": "95fb405842e84f956666709ce44a4b66bfca61f152f8a28b2dce48be53d8a121",
+  "ridge:false": "1dc428c1ca74799c8980e9b7a7c2a4e24fcecd88d0ca0f3ff1508fd5807b39a1",
+  "valley:false": "d5845e402aa493db8120b82d972824683fb8d4348e5ebbdc98961c4720b865ef",
+  "raise:true": "29473b5c296c718f1a2066935b51f4730bae08210d29d9ff9840fab600b318a7",
+  "lower:true": "eef85fa0d243f5f708eb4faa6ca060b2db5b2296c3d4c8d77e199f22aa4dcc31",
+  "smooth:true": "83eef35567f5547053f17982193c12427e01655844ad3f7fb0c5c767c739d2ab",
+  "level:true": "a5b429882919c809ff8e557d636188f71c4f2e6b9cd9718ddc93bae1472ab94d",
+  "coast-land:true": "e20602be2ccf7ca224610e04c1ca9fb1cced6e1edeb93c4caadde72f8a9585cb",
+  "coast-water:true": "fb8186798f7e351eb9a71a6c50bdd4f00dd07b914c6c05e876f6be0c014eb12a",
+  "coast-smooth:true": "76d670a3291a759d8eec069566e360fae55a8e068eadd94d3e6d18381abadf08",
+  "ridge:true": "adbdc343e43d1a4fcf313cba5018c8e22f332aedf17c0e22d6802bfec558650c",
+  "valley:true": "ba4e7ab4b0907e2d5a5f50bd2cdfda3fe61b3e05d55bfb8c43cd02c6f405fdad"
+}

@@ -1,11 +1,12 @@
 import {z} from "zod";
+import {physicalBrushGeometry} from "./terrain-physical-brush";
 import {brushWeight,type TerrainGeometry,type TerrainPatch} from "./terrain";
 import {terrainAreaSchema,type TerrainArea} from "./terrain-source";
 
 export type TerrainPathPoint={x:number;y:number};
 const point=z.object({x:z.number().finite(),y:z.number().finite()}).strict();
 export const terrainOperationSchema=z.discriminatedUnion("kind",[
- z.object({kind:z.enum(["ridge","valley"]),points:z.array(point).min(2).max(256),radius:z.number().min(1).max(128),height:z.number().int().min(1).max(30000),hardness:z.number().min(0).max(1)}).strict(),
+ z.object({kind:z.enum(["ridge","valley"]),points:z.array(point).min(2).max(256),radius:z.number().min(1).max(128),radiusMetres:z.number().finite().positive().max(1e9).optional(),height:z.number().int().min(1).max(30000),hardness:z.number().min(0).max(1)}).strict(),
  z.object({kind:z.literal("area"),area:terrainAreaSchema,tool:z.enum(["level","smooth","raise","lower"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32)}).strict(),
 ]);
 export type TerrainOperation=z.infer<typeof terrainOperationSchema>;
@@ -34,14 +35,15 @@ export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,ra
   }
  }else{
   if(operation.points.some(p=>p.x<0||p.x>=shape.width||p.y<0||p.y>=shape.height))throw Error("Keep the path's control points on this map.");
-  const points=unwrapTerrainPath(operation.points,shape),weights=new Float32Array(base.length),radius=Math.min(operation.radius,shape.width/2),sign=operation.kind==="ridge"?1:-1;
+  const physical=operation.radiusMetres===undefined?null:physicalBrushGeometry(shape,operation.radiusMetres,128);if(operation.radiusMetres!==undefined&&!physical)throw Error("The requested physical width is below practical sample spacing or above the bounded landform width. Choose an explicit supported width.");
+  const points=unwrapTerrainPath(operation.points,shape),weights=new Float32Array(base.length),radius=physical?.x??Math.min(operation.radius,shape.width/2),radiusY=physical?.y??radius,sign=operation.kind==="ridge"?1:-1;
   // A maximum distance field prevents intersections and short segments from
   // piling up height/depth. Each segment visits only its own bounded corridor.
   for(let n=1;n<points.length;n++){
-   const a=points[n-1],b=points[n],dx=b.x-a.x,dy=b.y-a.y,length2=dx*dx+dy*dy;
-   const left=shape.wrap?Math.floor(Math.min(a.x,b.x)-radius):Math.max(0,Math.floor(Math.min(a.x,b.x)-radius)),right=shape.wrap?Math.ceil(Math.max(a.x,b.x)+radius):Math.min(shape.width-1,Math.ceil(Math.max(a.x,b.x)+radius)),top=Math.max(0,Math.floor(Math.min(a.y,b.y)-radius)),bottom=Math.min(shape.height-1,Math.ceil(Math.max(a.y,b.y)+radius));
+   const a=points[n-1],b=points[n],dx=b.x-a.x,dy=b.y-a.y,mx=physical?.spacing.x??1,my=physical?.spacing.y??1,length2=dx*dx*mx*mx+dy*dy*my*my;
+   const left=shape.wrap?Math.floor(Math.min(a.x,b.x)-radius):Math.max(0,Math.floor(Math.min(a.x,b.x)-radius)),right=shape.wrap?Math.ceil(Math.max(a.x,b.x)+radius):Math.min(shape.width-1,Math.ceil(Math.max(a.x,b.x)+radius)),top=Math.max(0,Math.floor(Math.min(a.y,b.y)-radiusY)),bottom=Math.min(shape.height-1,Math.ceil(Math.max(a.y,b.y)+radiusY));
    for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
-    const t=length2?Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/length2)):0,distance=Math.hypot(x-a.x-t*dx,y-a.y-t*dy)/radius;if(distance>=1)continue;
+    const t=length2?Math.max(0,Math.min(1,((x-a.x)*dx*mx*mx+(y-a.y)*dy*my*my)/length2)):0,distance=physical?Math.hypot((x-a.x-t*dx)*mx,(y-a.y-t*dy)*my)/physical.metres:Math.hypot(x-a.x-t*dx,y-a.y-t*dy)/radius;if(distance>=1)continue;
     const i=indexAt(x,y,shape);weights[i]=Math.max(weights[i],brushWeight(distance,operation.hardness));
    }
    progress?.(n/points.length*.85);
