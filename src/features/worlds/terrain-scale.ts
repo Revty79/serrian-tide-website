@@ -1,7 +1,7 @@
 import type {TerrainGeometry} from "./terrain";
 import type {GenerationRecipeV2} from "./terrain-source";
 import {physicalSeed} from "./terrain-physical-noise";
-export const resolvePhysicalPreset=(r:GenerationRecipeV2)=>r.preset==="random"?(["continent","continents","archipelago","island","land"] as const)[physicalSeed(r.seed)%5]:r.preset;
+export const resolvePhysicalPreset=(r:GenerationRecipeV2)=>r.preset==="random"?(["continent","continents","archipelago","island","land"] as const)[physicalSeed(r.seed.trim())%5]:r.preset;
 
 export const sampleSpacingKm=(shape:TerrainGeometry)=>({x:shape.displayWidth/shape.width/1000,y:shape.displayHeight/shape.height/1000});
 export type ScaleAssessment={spacingXKm:number;spacingYKm:number;spanKm:number;spanSamplesX:number;spanSamplesY:number;estimatedCoverage:number;suggestedCount:number;warnings:string[];requiresAcknowledgement:boolean;coverageConflict:boolean};

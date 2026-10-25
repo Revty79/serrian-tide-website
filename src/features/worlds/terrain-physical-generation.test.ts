@@ -54,3 +54,5 @@ test("server admission requires deliberate low-resolution acceptance and respect
 test("pathological overlaps stop at a bounded candidate budget without resizing requested geography",()=>{
  const s=shape(10000,10000,1024),r={...presetRecipe("archipelago"),landmasses:64,islandWidthKm:2000000};assert.throws(()=>generateTerrain(s,r,0),/too many overlapping terrain candidates/);assert.equal(r.islandWidthKm,2000000);
 });
+
+test("seed whitespace uses the same canonical recipe for random resolution warnings and generation",()=>{const s=shape(40000,24000,256,160),r=presetRecipe("random","Canonical seed"),spaced={...r,seed:"  Canonical seed  "};assert.deepEqual(assessGeographicScale(s,spaced),assessGeographicScale(s,r));assert.equal(hash(generateTerrain(s,spaced,0).grid),hash(generateTerrain(s,r,0).grid));});
