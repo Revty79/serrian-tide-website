@@ -47,7 +47,7 @@ export function readTile(grid: Int16Array, key: number, shape: TerrainGeometry =
 export type BrushTool = "raise" | "lower" | "smooth" | "level" | "coast-land" | "coast-water" | "coast-smooth";
 export type TerrainPatch = { indices: number[] | Uint32Array; before: number[] | Int16Array; after: number[] | Int16Array };
 export type Brush = { radiusMetres?:number; tool: BrushTool; radius: number; strength: number; hardness?:number; target?:number; seaLevel?:number; coastHeight?:number; coastBand?:number };
-export type SculptWorkspace={halo:Int16Array};
+export type SculptWorkspace={halo:Int16Array;blocked?:Uint8Array};
 export const brushRadius=(shape:TerrainGeometry,radius:number)=>Math.max(1,Math.min(64,shape.width/2,radius));
 export function brushWeight(distance:number,hardness=0){if(distance>=1)return 0;if(hardness===0)return (1-distance*distance)**2;const firm=Math.max(0,Math.min(1,hardness));if(distance<=firm)return 1;const edge=(distance-firm)/(1-firm);return (1-edge*edge)**2;}
 /** Only the brush rectangle is visited. Smoothing reads a stable one-cell halo. */
@@ -67,6 +67,7 @@ export function sculpt(grid: Int16Array, cx: number, cy: number, brush: Brush, b
   for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) {
     const distance = physical?Math.hypot((x-cx)*physical.spacing.x,(y-cy)*physical.spacing.y)/physical.metres:Math.hypot(x - cx, y - cy) / radius; if (distance >= 1) continue;
     const index = indexOf(x, y), value = grid[index], weight = brushWeight(distance,brush.hardness);
+    if(workspace?.blocked?.[index])continue;
     let next = value + (brush.tool === "lower" ? -strength : strength) * weight;
     if(brush.tool==="level")next=value+((brush.target??0)-value)*weight*Math.min(1,strength/250);
     if(brush.tool==="coast-land"||brush.tool==="coast-water"){const sea=brush.seaLevel??0,height=Math.max(1,brush.coastHeight??150),target=brush.tool==="coast-land"?Math.min(shape.max,sea+height):Math.max(shape.min,sea-height);next=value+(brush.tool==="coast-land"?Math.max(0,target-value):Math.min(0,target-value))*weight*Math.min(1,strength/250);}

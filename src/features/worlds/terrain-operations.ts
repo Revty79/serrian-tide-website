@@ -17,7 +17,7 @@ export function unwrapTerrainPath(points:TerrainPathPoint[],shape:TerrainGeometr
 const indexAt=(x:number,y:number,s:TerrainGeometry)=>Math.max(0,Math.min(s.height-1,y))*s.width+(s.wrap?(x%s.width+s.width)%s.width:Math.max(0,Math.min(s.width-1,x)));
 const bounded=(v:number,s:TerrainGeometry)=>Math.round(Math.max(s.min,Math.min(s.max,v)));
 /** Independent preview buffer; neither the caller's grid nor outside cells mutate. */
-export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,raw:TerrainOperation,progress?:(p:number)=>void){
+export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,raw:TerrainOperation,progress?:(p:number)=>void,blocked?:Uint8Array){
  const operation=terrainOperationSchema.parse(raw);if(base.length!==shape.width*shape.height)throw Error("The terrain buffer does not match this map.");
  const grid=base.slice();
  if(operation.kind==="area"){
@@ -27,6 +27,7 @@ export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,ra
    if(pass)source=grid.slice();
    for(let y=a.y;y<a.y+a.height;y++)for(let x=a.x;x<a.x+a.width;x++){
     const i=y*shape.width+x,value=source[i],edge=Math.min(x-a.x+.5,a.x+a.width-x-.5,y-a.y+.5,a.y+a.height-y-.5),t=operation.feather?Math.min(1,edge/operation.feather):1,weight=t*t*(3-2*t)*operation.strength/100;
+    if(blocked?.[i])continue;
     let target=operation.tool==="raise"?value+operation.amount:operation.tool==="lower"?value-operation.amount:operation.target;
     if(operation.tool==="smooth"){target=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)target+=source[indexAt(x+dx,y+dy,shape)];target/=9;}
     grid[i]=bounded(value+(target-value)*weight,shape);
@@ -48,7 +49,7 @@ export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,ra
    }
    progress?.(n/points.length*.85);
   }
-  for(let i=0;i<grid.length;i++)if(weights[i])grid[i]=bounded(base[i]+sign*operation.height*weights[i],shape);
+  for(let i=0;i<grid.length;i++)if(weights[i]&&!blocked?.[i])grid[i]=bounded(base[i]+sign*operation.height*weights[i],shape);
  }
  let changed=0,minimum=Infinity,maximum=-Infinity;for(let i=0;i<grid.length;i++){if(grid[i]!==base[i])changed++;minimum=Math.min(minimum,grid[i]);maximum=Math.max(maximum,grid[i]);}
  const indices=new Uint32Array(changed),before=new Int16Array(changed),after=new Int16Array(changed);let n=0;

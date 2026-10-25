@@ -113,3 +113,62 @@
 @media(max-width:600px){.measurePreferences .controls{gap:.35rem;font-size:.8rem;}.measurementBar{gap:.3rem;}.measurementPanel{padding:.4rem;}.measureActions{gap:.3rem;}}
 
 .editor button,.editor summary {touch-action:manipulation;}
+
+/* One persistent map surface; settings scroll independently of the viewport. */
+.workspaceToolbar { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; margin-block:.4rem; flex-shrink:0; }
+.workspaceToolbar .toolkit { flex:1; min-width:280px; margin:0; max-height:none; overflow:visible; }
+.workspaceToolbar .compactToolbar { flex-wrap:nowrap; align-items:end; }
+.workspaceToolbar .compactToolbar>div:first-child { flex:0 1 230px; }
+.workspaceToolbar .mapTools { flex-basis:auto; position:relative; }
+.workspaceToolbar .mapTools>.tools { position:absolute; z-index:8; right:0; width:280px; padding:.7rem; background:var(--st-surface-raised); border:1px solid var(--st-border-strong); border-radius:.5rem; box-shadow:0 .5rem 1.5rem var(--st-shadow); }
+.editorMain { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 350px; gap:.65rem; height:680px; min-height:0; }
+.editorMain[data-inspector="closed"] { grid-template-columns:minmax(0,1fr); }
+.mapColumn { min-width:0; min-height:0; }
+.mapColumn>.viewport { height:100%; min-height:0; max-height:none; }
+.editorInspector { display:flex; flex-direction:column; min-width:0; min-height:0; background:var(--st-surface-raised); border:1px solid var(--st-border); border-radius:.6rem; }
+.editorInspector[hidden],.inspectorBody section[hidden] { display:none; }
+.inspectorHeading { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.5rem; color:var(--st-text-strong); }
+.inspectorTabs { display:flex; flex-wrap:wrap; gap:.3rem; padding:0 .5rem .5rem; border-bottom:1px solid var(--st-border); }
+.inspectorTabs button { min-height:40px; padding:.35rem .6rem; }
+.inspectorBody { flex:1; overflow:auto; overscroll-behavior:contain; min-height:0; padding:.65rem; }
+.inspectorBody .controls { grid-template-columns:minmax(0,1fr); gap:.6rem; }
+.inspectorBody input,.inspectorBody select { max-width:100%; min-width:0; }
+.inspectorBody .toolkit,.inspectorBody .brushSettings[open],.inspectorBody .measurementPanel { max-height:none; overflow:visible; }
+.inspectorBody .brushSettings { margin:0; }
+.inspectorBody .brushSettings>summary { display:none; }
+.inspectorBody .drawingBar { margin-block:.6rem; }
+.inspectorBody .drawingBar>span { display:block; }
+.inspectorBody .townLayout { grid-template-columns:minmax(0,1fr); }
+.editor.expanded { overflow:hidden; gap:0; }
+.expanded .editorHeader { position:static; padding:0 0 .3rem; margin:0; align-items:center; }
+.expanded .editorHeader h3 { font-size:1.1rem; margin:0; }
+.expanded .editorHeader p { font-size:.8rem; margin:.15rem 0; }
+.expanded .editorMain { flex:1; height:auto; min-height:0; }
+.expanded .workspaceToolbar { flex-shrink:0; }
+.expanded .workspaceToolbar .toolkit { min-height:0; flex-shrink:0; }
+.expanded .inspection { max-height:2.5rem; min-height:1.8rem; margin-top:.3rem; }
+.expanded .saveStatus { position:static; font-size:.8rem; line-height:1.2; padding:.3rem; }
+@media(max-width:1050px) {
+ .editorMain { grid-template-columns:minmax(0,1fr); }
+ .editorInspector { position:absolute; z-index:7; bottom:0; left:0; right:0; max-height:50%; box-shadow:0 -.5rem 1.5rem var(--st-shadow); }
+ .workspaceToolbar .compactToolbar { flex-wrap:wrap; }
+ .workspaceToolbar .mapTools { display:none; }
+ .inspectorTabs { flex-wrap:nowrap; overflow-x:auto; }
+ .inspectorTabs button { flex-shrink:0; }
+ .inspectorBody .controls { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .expanded .editorHeader { display:flex; gap:.3rem; }
+ .expanded .editorHeader>div:first-child { flex:1; min-width:120px; }
+ .expanded .editorHeader p { display:none; }
+ .expanded .editorMain { min-height:0; }
+}
+@media(max-width:600px) {
+ .workspaceToolbar { gap:.3rem; }
+ .workspaceToolbar .toolkit { flex-basis:100%; min-width:0; }
+ .workspaceToolbar .compactToolbar { flex-wrap:nowrap; }
+ .workspaceToolbar .compactToolbar>div:first-child { flex:1; min-width:120px; }
+ .workspaceToolbar button { font-size:.8rem; padding:.35rem .55rem; }
+ .workspaceToolbar select { min-height:40px; }
+ .editorMain { height:65dvh; }
+ .editorInspector { max-height:48%; }
+ .inspectorBody .controls { grid-template-columns:minmax(0,1fr); }
+}
