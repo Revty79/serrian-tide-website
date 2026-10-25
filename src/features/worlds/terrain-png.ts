@@ -14,8 +14,9 @@ export async function decodeNumericalPng(buffer:ArrayBuffer):Promise<NumericalPn
  if(bytes.length>PNG_LIMITS.bytes)fail("Choose a PNG no larger than 16 MiB.");
  if(bytes.length<33||[137,80,78,71,13,10,26,10].some((v,i)=>bytes[i]!==v))fail("This file is not a valid PNG heightmap.");
  let offset=8,width=0,height=0,bitDepth:8|16=8,transparent:number|null=null,ended=false,idatStarted=false,idatFinished=false,total=0;
- const chunks:Uint8Array[]=[];
+ const chunks:Uint8Array[]=[];let chunkCount=0;
  while(offset<bytes.length){
+  if(++chunkCount>16384)fail("The PNG exceeds the supported limit of 16,384 chunks. Re-export it with ordinary image-data chunk sizes.");
   if(offset+12>bytes.length)fail("The PNG ends inside a chunk.");const length=view.getUint32(offset),start=offset+4,data=offset+8,end=data+length;
   if(end+4>bytes.length)fail("A PNG chunk exceeds the file bounds.");const type=String.fromCharCode(...bytes.subarray(start,data));
   if(!/^[A-Za-z]{4}$/.test(type)||pngCrc(bytes.subarray(start,end))!==view.getUint32(end))fail("The PNG contains a damaged chunk or checksum.");
@@ -24,7 +25,7 @@ export async function decodeNumericalPng(buffer:ArrayBuffer):Promise<NumericalPn
    if(width||length!==13)fail("The PNG has invalid or repeated dimensions.");width=view.getUint32(data);height=view.getUint32(data+4);const depth=bytes[data+8],color=bytes[data+9];
    if(!width||!height||width>PNG_LIMITS.dimension||height>PNG_LIMITS.dimension||width*height>PNG_LIMITS.pixels)fail("Use dimensions up to 4096 per side and at most 4,194,304 source pixels. Crop or resize the source in an elevation-aware tool first.");
    if(color!==0||(depth!==8&&depth!==16))fail("Use an 8-bit or 16-bit grayscale PNG. RGB, palette and alpha images are not interpreted as elevation.");
-   if(bytes[data+10]!==0||bytes[data+11]!==0||bytes[data+12]!==0)fail("This PNG uses unsupported compression, filtering or interlacing. Export a non-interlaced grayscale PNG.");bitDepth=depth;
+   if(bytes[data+10]!==0||bytes[data+11]!==0||bytes[data+12]!==0)fail("This PNG uses unsupported compression, filtering or interlacing. Export a non-interlaced grayscale PNG.");bitDepth=depth as 8|16;
   }else if(type==="IDAT"){
    if(idatFinished)fail("PNG image-data chunks must be consecutive.");idatStarted=true;total+=length;chunks.push(bytes.subarray(data,end));
   }else{
@@ -55,6 +56,7 @@ export async function decodeNumericalPng(buffer:ArrayBuffer):Promise<NumericalPn
 
 export function interpretHeightmap(png:NumericalPng,shape:TerrainGeometry,input:ImportInterpretation){
  const settings=importInterpretationSchema.parse(input);if(settings.low<shape.min||settings.high>shape.max||settings.fillElevation<shape.min||settings.fillElevation>shape.max)fail("The import heights and NoData fill must fit within this map's elevation limits. Adjust the interpretation or the limits; no heights were clamped.");
+ if(settings.noData!==null&&settings.noData>(png.bitDepth===8?255:65535))fail("The NoData sample must fit the source bit depth.");
  const missing=new Set([settings.noData,png.transparent].filter((v):v is number=>v!==null));let sourceNoData=0;for(const v of png.values)if(missing.has(v))sourceNoData++;
  if(sourceNoData&&settings.noDataMode==="reject")fail(`${sourceNoData.toLocaleString()} source samples are NoData. Choose an explicit fill elevation before preparing a preview.`);
  const width=png.width,height=png.height,sourceRatio=width/height,targetRatio=shape.displayWidth/shape.displayHeight;

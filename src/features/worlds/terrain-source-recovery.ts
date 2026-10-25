@@ -1,0 +1,7 @@
+import {terrainCommandSchema} from "./terrain";
+export type SourceCommand=ReturnType<typeof terrainCommandSchema.parse>;
+export type SourceAttempt={key:string;command:SourceCommand;savedAt:string};
+async function database(){return new Promise<IDBDatabase>((resolve,reject)=>{const request=indexedDB.open("serrian-terrain-source-v1",1);request.onupgradeneeded=()=>request.result.createObjectStore("attempts",{keyPath:"key"});request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});}
+export async function sourceRecovery(action:"read"|"write"|"delete",key:string,attempt?:SourceAttempt):Promise<SourceAttempt|undefined>{
+ const db=await database();try{return await new Promise((resolve,reject)=>{const tx=db.transaction("attempts",action==="read"?"readonly":"readwrite"),store=tx.objectStore("attempts"),request=action==="read"?store.get(key):action==="write"?store.put(attempt):store.delete(key);tx.oncomplete=()=>{try{if(action!=="read"||!request.result){resolve(undefined);return;}const value=request.result;if(value.key!==key||typeof value.savedAt!=="string")throw new Error("This source recovery belongs to another workspace.");resolve({key,command:terrainCommandSchema.parse(value.command),savedAt:value.savedAt});}catch(error){reject(error);}};tx.onabort=()=>reject(tx.error??new Error("Source recovery was interrupted."));tx.onerror=()=>reject(tx.error);});}finally{db.close();}
+}

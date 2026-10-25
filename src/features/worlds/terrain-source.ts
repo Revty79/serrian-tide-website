@@ -25,7 +25,7 @@ export const terrainSourceSchema=z.discriminatedUnion("kind",[
  z.object({kind:z.literal("manual")}).strict(),
  z.object({kind:z.literal("blank"),surface:z.enum(["ocean","land"])}).strict(),
  z.object({kind:z.literal("generated"),recipe:generationRecipeSchema}).strict(),
- z.object({kind:z.literal("imported"),format:z.literal("grayscale-png"),fileName:z.string().max(180),sha256:z.string().regex(/^[a-f0-9]{64}$/),sourceWidth:z.number().int().positive().max(4096),sourceHeight:z.number().int().positive().max(4096),bitDepth:z.union([z.literal(8),z.literal(16)]),interpretation:importInterpretationSchema}).strict(),
+ z.object({kind:z.literal("imported"),format:z.literal("grayscale-png"),fileName:z.string().max(180),sha256:z.string().regex(/^[a-f0-9]{64}$/),sourceWidth:z.number().int().positive().max(4096),sourceHeight:z.number().int().positive().max(4096),bitDepth:z.union([z.literal(8),z.literal(16)]),interpretation:importInterpretationSchema,transparentSample:z.number().int().min(0).max(65535).nullable().optional(),sourceNoDataCount:z.number().int().min(0).max(4194304).optional()}).strict(),
  z.object({kind:z.literal("regenerated"),recipe:generationRecipeSchema,area:terrainAreaSchema,preserveManual:z.boolean(),feather:z.number().int().min(0).max(32)}).strict(),
 ]);
 export type TerrainSource=z.infer<typeof terrainSourceSchema>;

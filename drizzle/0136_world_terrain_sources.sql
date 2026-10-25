@@ -1,0 +1,4 @@
+ALTER TABLE "world_terrain_tile" ADD COLUMN "manual_protection" text DEFAULT 'legacy' NOT NULL;--> statement-breakpoint
+ALTER TABLE "world_terrain_version" ADD COLUMN "source" jsonb DEFAULT '{"kind":"legacy"}'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "world_terrain_tile" ADD CONSTRAINT "world_terrain_tile_protection_valid" CHECK ("world_terrain_tile"."manual_protection"='legacy' OR ("world_terrain_tile"."manual_protection" ~ '^[a-f0-9]+$' AND length("world_terrain_tile"."manual_protection")=256));--> statement-breakpoint
+ALTER TABLE "world_terrain_version" ADD CONSTRAINT "world_terrain_version_source_valid" CHECK (jsonb_typeof("world_terrain_version"."source")='object' AND "world_terrain_version"."source"->>'kind' IN ('legacy','manual','blank','generated','imported','regenerated'));

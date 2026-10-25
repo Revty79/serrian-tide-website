@@ -1,13 +1,14 @@
 import type {TerrainGeometry} from "./terrain";
-import {generationRecipeSchema,type GenerationRecipe,type TerrainArea} from "./terrain-source";
+import {generationRecipeSchema,terrainAreaSchema,type GenerationRecipe,type TerrainArea} from "./terrain-source";
 
 function seedHash(seed:string){let hash=2166136261;for(let i=0;i<seed.length;i++)hash=Math.imul(hash^seed.charCodeAt(i),16777619);return hash>>>0;}
 function lattice(x:number,y:number,seed:number){let v=Math.imul(x,374761393)+Math.imul(y,668265263)+seed;v=Math.imul(v^(v>>>13),1274126177);return ((v^(v>>>16))>>>0)/4294967295;}
 const smooth=(x:number)=>x*x*x*(x*(x*6-15)+10);
+const gradients=[[1,0],[-1,0],[0,1],[0,-1],[.7071,.7071],[-.7071,.7071],[.7071,-.7071],[-.7071,-.7071]];
 function noise(x:number,y:number,frequency:number,seed:number,wrap:boolean){
  const px=x*frequency,py=y*frequency,ix=Math.floor(px),iy=Math.floor(py),a=smooth(px-ix),b=smooth(py-iy);
- const at=(xx:number,yy:number)=>lattice(wrap?(xx%frequency+frequency)%frequency:xx,yy,seed);
- const low=at(ix,iy)*(1-a)+at(ix+1,iy)*a,high=at(ix,iy+1)*(1-a)+at(ix+1,iy+1)*a;return low*(1-b)+high*b;
+ const at=(xx:number,yy:number)=>{const g=gradients[Math.floor(lattice(wrap?(xx%frequency+frequency)%frequency:xx,yy,seed)*8)%8];return g[0]*(px-xx)+g[1]*(py-yy);};
+ const low=at(ix,iy)*(1-a)+at(ix+1,iy)*a,high=at(ix,iy+1)*(1-a)+at(ix+1,iy+1)*a;return .5+(low*(1-b)+high*b)*.7;
 }
 function fractal(x:number,y:number,frequency:number,seed:number,wrap:boolean,octaves=3){let value=0,weight=1,total=0;for(let n=0;n<octaves;n++){value+=weight*noise(x,y,frequency,seed+n*1103,wrap);total+=weight;weight*=.5;frequency*=2;}return value/total;}
 type Mass={x:number;y:number;rx:number;ry:number;angle:number;lobes:number;phase:number;cos:number;sin:number};
@@ -55,9 +56,9 @@ export function generateTerrain(shape:TerrainGeometry,raw:GenerationRecipe,seaLe
   const v=(y+.5)/shape.height;for(let x=0;x<shape.width;x++){
    const u=x/shape.width,index=y*shape.width+x,d=field[index]-threshold;
    if(d<=0){grid[index]=Math.round(seaLevel-deep*Math.pow(Math.min(1,-d/below),.65));continue;}
-   const inland=Math.min(1,d/above),large=fractal(u,v,4,seed+3079,shape.wrap,2),ridge=Math.pow(1-Math.abs(noise(u,v*.4,16,seed+4001,shape.wrap)*2-1),5),belt=smooth(Math.max(0,Math.min(1,(large-.25)*2))),fine=fractal(u,v,48,seed+5011,shape.wrap,2)-.5;
-   const plains=.08+.24*Math.pow(inland,.7),ranges=mountain*.72*ridge*belt*smooth(Math.min(1,inland*6)),rough=fine*ruggedness*.18*Math.sqrt(inland);
-   grid[index]=Math.max(seaLevel+1,Math.min(shape.max,Math.round(seaLevel+high*Math.max(.0001,plains+ranges+rough))));
+   const inland=Math.min(1,d/above),large=fractal(u,v,4,seed+3079,shape.wrap,2),warp=fractal(u,v,5,seed+3203,shape.wrap,2)-.5,ridge=Math.pow(1-Math.abs(noise(u+warp*.14,v*.55+warp*.16,14,seed+4001,shape.wrap)*2-1),4),belt=smooth(Math.max(0,Math.min(1,(large-.38)*4))),fine=fractal(u,v,48,seed+5011,shape.wrap,2)-.5;
+   const shore=smooth(Math.min(1,inland*18)),plains=.015+.24*Math.pow(inland,.85),ranges=mountain*.85*ridge*belt*smooth(Math.min(1,inland*5)),rough=fine*ruggedness*.1*Math.sqrt(inland);
+   grid[index]=Math.max(seaLevel+1,Math.min(shape.max,Math.round(seaLevel+high*Math.max(.0001,(plains+ranges+rough)*shore))));
   }
   if(y%32===0)progress?.(.55+y/shape.height*.45);
  }
@@ -65,6 +66,7 @@ export function generateTerrain(shape:TerrainGeometry,raw:GenerationRecipe,seaLe
 }
 
 export function regenerateArea(base:Int16Array,proposed:Int16Array,shape:TerrainGeometry,area:TerrainArea,protectedCells:Uint8Array,preserveManual:boolean,feather:number){
+ area=terrainAreaSchema.parse(area);if(base.length!==shape.width*shape.height||proposed.length!==base.length||protectedCells.length!==base.length)throw new Error("The regeneration buffers do not match this map.");
  if(area.x+area.width>shape.width||area.y+area.height>shape.height)throw new Error("Choose an area inside this map.");
  const output=base.slice();let changed=0,protectedCount=0;
  for(let y=area.y;y<area.y+area.height;y++)for(let x=area.x;x<area.x+area.width;x++){

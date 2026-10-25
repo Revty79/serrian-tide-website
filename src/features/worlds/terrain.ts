@@ -1,3 +1,4 @@
+import {terrainSourceSchema,type TerrainSource,type ProtectedTile} from "./terrain-source";
 import { z } from "zod";
 
 // Terrain samples and physical coordinates are independent. The active editor
@@ -17,12 +18,13 @@ export const terrainSettingsSchema = z.object({
 export type TerrainSettings = z.infer<typeof terrainSettingsSchema>;
 export function terrainGeometry(s: TerrainSettings): TerrainGeometry { return { width: s.gridWidth, height: s.gridHeight, tileSize: 32, displayWidth: s.widthKm * 1000, displayHeight: s.heightKm * 1000, min: s.minElevation, max: s.maxElevation, wrap: s.wrap }; }
 export type TerrainSummary = { id: string; name: string; revision: number; seaLevel: number; updatedAt: string };
-export type TerrainDocument = TerrainSummary & { terrainId: string; settings: TerrainSettings; worldId: string; format: 1; width: number; height: number; tileSize: number; baseElevation: number; tiles: TerrainTile[]; canEdit: boolean; acceptedRequestId: string };
+export type TerrainDocument = TerrainSummary & { terrainId: string; settings: TerrainSettings; worldId: string; format: 1; width: number; height: number; tileSize: number; baseElevation: number; tiles: TerrainTile[]; canEdit: boolean; acceptedRequestId: string;protection?:ProtectedTile[];source?:TerrainSource;origin?:TerrainSource };
 export const elevationSchema = z.number().int().min(-30000).max(30000);
 export const tileSchema = z.object({ x: z.number().int().min(0).max(31), y: z.number().int().min(0).max(31), samples: z.array(elevationSchema).length(TERRAIN.tileSize ** 2) }).strict();
 export const terrainCommandSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("create"), requestId: z.uuid(), name: z.string().trim().min(1).max(160), initial: z.enum(["ocean", "land"]), settings: terrainSettingsSchema.default(() => terrainSettingsSchema.parse({})) }).strict(),
-  z.object({ action: z.literal("save"), requestId: z.uuid(), mapId: z.uuid(), revision: z.number().int().positive(), seaLevel: elevationSchema, tiles: z.array(tileSchema).max(MAX_TILE_COUNT) }).strict().superRefine((v, ctx) => {
+  z.object({ action: z.literal("create"), requestId: z.uuid(), name: z.string().trim().min(1).max(160), initial: z.enum(["ocean", "land","generated","imported"]),seaLevel:elevationSchema.optional(),source:terrainSourceSchema.optional(),tiles:z.array(tileSchema).max(MAX_TILE_COUNT).optional(), settings: terrainSettingsSchema.default(() => terrainSettingsSchema.parse({})) }).strict().superRefine((v,ctx)=>{const generated=v.initial==="generated"||v.initial==="imported";if(generated&&(!v.source||v.source.kind!==v.initial))ctx.addIssue({code:"custom",message:"The numerical source must match this starting option."});if(!generated&&(v.tiles?.length||v.source&&(v.source.kind!=="blank"||v.source.surface!==v.initial)))ctx.addIssue({code:"custom",message:"A blank surface cannot contain an unrelated numerical source."});if(generated&&(!v.tiles||v.tiles.length!==(v.settings.gridWidth/32)*(v.settings.gridHeight/32)||new Set(v.tiles.map(t=>`${t.x}:${t.y}`)).size!==v.tiles.length))ctx.addIssue({code:"custom",message:"Accept the complete preview grid exactly once, without missing or repeated tiles."});}),
+  z.object({ action: z.literal("save"), requestId: z.uuid(), mapId: z.uuid(), revision: z.number().int().positive(), seaLevel: elevationSchema,source:terrainSourceSchema.optional(), tiles: z.array(tileSchema).max(MAX_TILE_COUNT) }).strict().superRefine((v, ctx) => {
+    if(v.source&&v.source.kind!=="manual"&&v.source.kind!=="regenerated")ctx.addIssue({code:"custom",message:"Existing terrain accepts manual edits or an explicitly selected regeneration."});
     if (new Set(v.tiles.map(t => `${t.x}:${t.y}`)).size !== v.tiles.length) ctx.addIssue({ code: "custom", message: "A terrain tile was submitted more than once." });
   }),
 ]);

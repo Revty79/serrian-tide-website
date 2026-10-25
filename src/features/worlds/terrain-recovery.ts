@@ -1,8 +1,9 @@
+import {terrainSourceSchema,type TerrainSource} from "./terrain-source";
 import { z } from "zod";
 import { tileSchema, elevationSchema, MAX_TILE_COUNT, type TerrainTile } from "./terrain";
-export type TerrainRecovery = { key: string; revision: number; seaLevel: number; tiles: TerrainTile[]; savedAt: string; pending?: { requestId: string; revision: number; seaLevel: number; tiles: TerrainTile[] } };
+export type TerrainRecovery = { key: string; revision: number; seaLevel: number; tiles: TerrainTile[]; savedAt: string; pending?: {source?:TerrainSource; requestId: string; revision: number; seaLevel: number; tiles: TerrainTile[] } };
 const tiles = z.array(tileSchema).max(MAX_TILE_COUNT).refine(v => new Set(v.map(t => `${t.x}:${t.y}`)).size === v.length, "The recovered draft contains duplicate tiles.");
-const recoverySchema = z.object({ key: z.string(), revision: z.number().int().positive(), seaLevel: elevationSchema, tiles, savedAt: z.iso.datetime(), pending: z.object({ requestId: z.uuid(), revision: z.number().int().positive(), seaLevel: elevationSchema, tiles }).strict().optional() }).strict();
+const recoverySchema = z.object({ key: z.string(), revision: z.number().int().positive(), seaLevel: elevationSchema, tiles, savedAt: z.iso.datetime(), pending: z.object({source:terrainSourceSchema.optional(), requestId: z.uuid(), revision: z.number().int().positive(), seaLevel: elevationSchema, tiles }).strict().optional() }).strict();
 export function parseTerrainRecovery(value: unknown, key: string): TerrainRecovery { const parsed = recoverySchema.parse(value); if (parsed.key !== key) throw new Error("This recovery belongs to another map."); return parsed; }
 // IndexedDB avoids the small synchronous localStorage quota and keeps drafts out
 // of shared server records. A recovery is never silently accepted on the server.

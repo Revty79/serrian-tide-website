@@ -1,4 +1,5 @@
-﻿import { sql } from "drizzle-orm";
+﻿import type {TerrainSource} from "@/features/worlds/terrain-source";
+import { sql } from "drizzle-orm";
 import { boolean, check, doublePrecision, foreignKey, integer, jsonb, pgTable, primaryKey, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { worldAtlasMap } from "./world-atlas-schema";
 import { world } from "./world-schema";
@@ -24,15 +25,16 @@ export const worldMapCanvas = pgTable("world_map_canvas", {
 
 export const worldTerrainVersion = pgTable("world_terrain_version", {
   terrainId: text("terrain_id").notNull(), worldId: text("world_id").notNull(), revision: integer("revision").notNull(), previousRevision: integer("previous_revision"),
-  requestId: text("request_id").notNull().unique(), contentHash: text("content_hash").notNull(), seaLevel: integer("sea_level").notNull(), authorId: text("author_id").notNull().references(() => user.id, { onDelete: "restrict" }), createdAt: timestamp("created_at").notNull().defaultNow(),
+  source:jsonb("source").$type<TerrainSource>().notNull().default({kind:"legacy"}),requestId: text("request_id").notNull().unique(), contentHash: text("content_hash").notNull(), seaLevel: integer("sea_level").notNull(), authorId: text("author_id").notNull().references(() => user.id, { onDelete: "restrict" }), createdAt: timestamp("created_at").notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.terrainId, t.revision] }), unique("world_terrain_version_world_uq").on(t.terrainId, t.worldId, t.revision),
   foreignKey({ name: "world_terrain_version_terrain_fk", columns: [t.terrainId, t.worldId], foreignColumns: [worldTerrain.id, worldTerrain.worldId] }).onDelete("restrict"),
   foreignKey({ name: "world_terrain_version_parent_fk", columns: [t.terrainId, t.worldId, t.previousRevision], foreignColumns: [t.terrainId, t.worldId, t.revision] }).onDelete("restrict"),
-  check("world_terrain_version_valid", sql`${t.revision}>0 AND ((${t.revision}=1 AND ${t.previousRevision} IS NULL) OR (${t.previousRevision} IS NOT NULL AND ${t.previousRevision}=${t.revision}-1)) AND ${t.seaLevel} BETWEEN -30000 AND 30000 AND ${t.contentHash} ~ '^[a-f0-9]{64}$'`)]);
+  check("world_terrain_version_source_valid",sql`jsonb_typeof(${t.source})='object' AND ${t.source}->>'kind' IN ('legacy','manual','blank','generated','imported','regenerated')`),check("world_terrain_version_valid", sql`${t.revision}>0 AND ((${t.revision}=1 AND ${t.previousRevision} IS NULL) OR (${t.previousRevision} IS NOT NULL AND ${t.previousRevision}=${t.revision}-1)) AND ${t.seaLevel} BETWEEN -30000 AND 30000 AND ${t.contentHash} ~ '^[a-f0-9]{64}$'`)]);
 
 export const worldTerrainTile = pgTable("world_terrain_tile", {
   terrainId: text("terrain_id").notNull(), worldId: text("world_id").notNull(), revision: integer("revision").notNull(), level: integer("detail_level").notNull().default(0), x: integer("tile_x").notNull(), y: integer("tile_y").notNull(),
-  sha256: text("sha256").notNull(), bytes: integer("bytes").notNull(), encoding: text("encoding").notNull().default("i16le-v1"),
+  manualProtection:text("manual_protection").notNull().default("legacy"),sha256: text("sha256").notNull(), bytes: integer("bytes").notNull(), encoding: text("encoding").notNull().default("i16le-v1"),
 }, t => [primaryKey({ columns: [t.terrainId, t.level, t.x, t.y, t.revision] }),
   foreignKey({ name: "world_terrain_tile_version_fk", columns: [t.terrainId, t.worldId, t.revision], foreignColumns: [worldTerrainVersion.terrainId, worldTerrainVersion.worldId, worldTerrainVersion.revision] }).onDelete("restrict"),
+  check("world_terrain_tile_protection_valid",sql`${t.manualProtection}='legacy' OR (${t.manualProtection} ~ '^[a-f0-9]+$' AND length(${t.manualProtection})=256)`),
   check("world_terrain_tile_valid", sql`${t.level}=0 AND ${t.x} BETWEEN 0 AND 31 AND ${t.y} BETWEEN 0 AND 31 AND ${t.sha256} ~ '^[a-f0-9]{64}$' AND ${t.bytes}=2048 AND ${t.encoding}='i16le-v1'`)]);

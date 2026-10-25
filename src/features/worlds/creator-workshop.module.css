@@ -8,6 +8,7 @@
 .nav button { flex:none; min-height:44px; padding:.5rem .7rem; border-radius:.4rem; color:var(--st-text); }
 .nav button[aria-current="page"] { background:var(--st-primary-soft); color:var(--st-primary-bright); }
 .body { display:grid; grid-template-columns:minmax(0,1fr) minmax(16rem, .65fr); min-height:0; }
+.singlePane { grid-template-columns:minmax(0,1fr); }
 .content,.preview { overflow-y:auto; overscroll-behavior:contain; min-width:0; padding:1.2rem; scrollbar-gutter:stable; }
 .content { scroll-padding-block:1rem; }
 .content fieldset { border:0; margin:0; padding:0; min-width:0; display:grid; gap:1rem; }
