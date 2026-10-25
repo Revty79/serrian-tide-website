@@ -95,7 +95,7 @@ async function main(){
     if(process.env.SERRIAN_PASS3_BUILD_ONLY==="1"){console.log("PASS final current-source production build");return;}
     server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--hostname","127.0.0.1","--port",String(appPort)],{cwd:checkout,env:environment,stdio:["ignore","pipe","pipe"],windowsHide:true});server.stdout!.pipe(log,{end:false});server.stderr!.pipe(log,{end:false});
     const deadline=Date.now()+120000;while(true){assert.equal(server.exitCode,null);try{if((await fetch(`${base}/login`)).ok)break;}catch{}assert.ok(Date.now()<deadline);await new Promise(r=>setTimeout(r,300));}
-    browser=await chromium.launch({executablePath:process.env.SERRIAN_TEST_CHROME??"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true});
+    browser=await chromium.launch({executablePath:process.env.SERRIAN_TEST_CHROME??"C:/Program Files/Google/Chrome/Application/chrome.exe",headless:true,args:["--disable-gpu"]});
     const god=await browser.newContext({viewport:{width:1440,height:1000}});await signIn(god,base,"world-god");page=await god.newPage();const p=page;
     p.on("pageerror",e=>errors.push(e.message));p.on("request",r=>{if(/\/api\/worlds\/[^/]+\/(atlas|geography|elevation|land-cover)(\/|\?|$)/.test(r.url()))mapRequests.push(r.url());});
     const nav=()=>p.getByRole("navigation",{name:"World workspace",exact:true});

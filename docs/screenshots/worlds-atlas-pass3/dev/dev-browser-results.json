@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "database": "serrian_tide_dev",
+  "actualDevHttpWorkflow": true,
+  "temporaryOwnerSession": true,
+  "ownerDevelopmentServerUntouched": true,
+  "ownProductionAppRestarted": true,
+  "world": "cf0ce951-f676-45a8-8a04-e3e411d44ad0",
+  "fullGenerationAndImportJourney": true,
+  "verificationWorldArchived": true,
+  "preexistingWorldsUnchanged": true,
+  "legacyCampaignTablesUnchanged": 91,
+  "productionAccess": false
+}

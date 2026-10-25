@@ -1,0 +1,25 @@
+{
+  "generationMs": 5478,
+  "createMs": 9137,
+  "largestGrid": [
+    1024,
+    1024
+  ],
+  "allSixPresetPreviews": true,
+  "cancelCreatesNothing": true,
+  "workerCancellation": true,
+  "tabletLayout": true,
+  "stalePreviewBlocked": true,
+  "numericalReopen": true,
+  "generatedSculptRestart": true,
+  "importSculptRestart": true,
+  "lostAcceptanceRecoveryReload": true,
+  "lostRegenerationRetainsNewerEdit": true,
+  "selectedAreaExactOutside": true,
+  "protectedManualEdits": true,
+  "regenerationUndoRedo": true,
+  "real16BitImport": true,
+  "damagedPngRejected": true,
+  "touchEmulation": true,
+  "physicalPhone": false
+}

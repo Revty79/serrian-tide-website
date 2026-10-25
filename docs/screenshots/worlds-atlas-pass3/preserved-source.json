@@ -1,0 +1,15 @@
+{
+  "baseline": "9ec36e2ed78b518dd67ce6f9cf628cddf9039cb3",
+  "protectedExistingFiles": 539,
+  "existingProtectedFilesUnchanged": 537,
+  "authorizedChanges": [
+    "drizzle/0136_world_terrain_sources.sql",
+    "drizzle/meta/0136_snapshot.json",
+    "drizzle/meta/_journal.json",
+    "src/db/world-terrain-schema.ts"
+  ],
+  "historicalMigrationFilesUnchanged": true,
+  "heavensRetirementPreserved": true,
+  "tabletopAndCampaignImplementationUnchanged": true,
+  "oldTownShopImplementationsUnchanged": true
+}

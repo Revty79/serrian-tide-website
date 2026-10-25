@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "tests": 2287,
+  "featureFiles": 286,
+  "numericalTests": 9,
+  "fullLintErrors": 0,
+  "existingFullLintWarnings": 1,
+  "changedFileLintErrors": 0,
+  "physicalPhone": false,
+  "implementationCommit": "6869225c1a8136043bb952794f1d9d729330f755",
+  "rootTypecheck": true,
+  "rootFeatureTests": true,
+  "productionBuild": true,
+  "gpuDisabledBrowser": true,
+  "devMigration0136Applied": true,
+  "devFullJourney": true,
+  "devTemporarySessionsRemoved": true,
+  "productionAccess": false
+}

@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "oldMigrations": 136,
+  "newMigrations": 1,
+  "oldTablesUnchanged": 337,
+  "oldPaintedTileUnchanged": true,
+  "oldMapIdentityUnchanged": true,
+  "legacyRecipeExplicit": true,
+  "oldManualTilesProtected": true,
+  "sharedDatabaseAccess": false
+}
