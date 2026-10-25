@@ -1,0 +1,22 @@
+{
+  "implementationCommit": "09ec66ed1af022ea8115028f1fd8da409218cd64",
+  "featureTests": 2292,
+  "featureFiles": 287,
+  "focusedTests": 13,
+  "fullFeatureSuite": true,
+  "typecheck": true,
+  "productionBuild": true,
+  "changedLintErrors": 0,
+  "changedLintWarnings": 0,
+  "fullLintErrors": 0,
+  "preexistingFullLintWarnings": 1,
+  "newMigrations": 0,
+  "devLedgerEntries": 137,
+  "sharedDevWrites": false,
+  "productionAccess": false,
+  "gpuDisabledBrowser": true,
+  "physicalPhone": false,
+  "markerIdentityAndPositionVerified": true,
+  "finalSamplingGuardVerified": true,
+  "rootFinalTargetedTests": 13
+}

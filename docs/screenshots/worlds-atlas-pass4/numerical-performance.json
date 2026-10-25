@@ -1,0 +1,73 @@
+{
+  "grid": [
+    1024,
+    1024
+  ],
+  "pairedPass3BrushComparison": [
+    {
+      "tool": "raise",
+      "radius": 24,
+      "meanDabMs": {
+        "pass3": 0.11643200000000017,
+        "pass4": 0.10955866666666679
+      },
+      "ratio": 0.9409669735696942
+    },
+    {
+      "tool": "raise",
+      "radius": 64,
+      "meanDabMs": {
+        "pass3": 0.6853146666666665,
+        "pass4": 0.687685333333333
+      },
+      "ratio": 1.0034592381893668
+    },
+    {
+      "tool": "smooth",
+      "radius": 24,
+      "meanDabMs": {
+        "pass3": 0.10206333333333305,
+        "pass4": 0.10996000000000018
+      },
+      "ratio": 1.0773702602958994
+    },
+    {
+      "tool": "smooth",
+      "radius": 64,
+      "meanDabMs": {
+        "pass3": 0.5602920000000002,
+        "pass4": 0.5917
+      },
+      "ratio": 1.0560564848329081
+    }
+  ],
+  "levelGestureFinishMs": 4.051500000000033,
+  "levelBatches": {
+    "count": 16,
+    "meanMs": 5.509106249999981,
+    "maxMs": 6.173499999999876
+  },
+  "ridge256PointWorkerKernelMs": 152.33199999999988,
+  "valley256PointWorkerKernelMs": 136.55229999999983,
+  "fullGrid20PassSmoothingMs": 937.9396999999999,
+  "twelveFullGridLevelPreviewsMs": 239.36190000000033,
+  "memory": {
+    "gcAvailable": true,
+    "before": {
+      "rss": 124657664,
+      "heapTotal": 33792000,
+      "heapUsed": 14874008,
+      "external": 18232568,
+      "arrayBuffers": 15519689
+    },
+    "after": {
+      "rss": 135565312,
+      "heapTotal": 33792000,
+      "heapUsed": 14904408,
+      "external": 28718368,
+      "arrayBuffers": 26005449
+    },
+    "arrayBufferGrowthBytes": 10485760,
+    "retainedLatestGridAndExactPatchBytes": 10485760
+  }
+}
