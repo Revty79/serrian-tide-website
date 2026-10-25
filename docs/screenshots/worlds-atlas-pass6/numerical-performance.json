@@ -1,0 +1,86 @@
+{
+  "machine": "Windows CPU, Node numerical kernels; browser overlays measured separately",
+  "gridCeiling": 1024,
+  "gpuRequired": false,
+  "brushes": [
+    {
+      "tool": "raise",
+      "physicalDiameterM": 1250000,
+      "maximumDabMs": 4.495299999999986,
+      "meanDabMs": 1.0188541666666662,
+      "protectedSampleCount": 14864
+    },
+    {
+      "tool": "lower",
+      "physicalDiameterM": 1250000,
+      "maximumDabMs": 1.7293999999999983,
+      "meanDabMs": 0.6497874999999951,
+      "protectedSampleCount": 14864
+    },
+    {
+      "tool": "smooth",
+      "physicalDiameterM": 1250000,
+      "maximumDabMs": 2.6242999999999483,
+      "meanDabMs": 0.880487500000001,
+      "protectedSampleCount": 6344
+    },
+    {
+      "tool": "level",
+      "physicalDiameterM": 1250000,
+      "maximumDabMs": 2.365000000000009,
+      "meanDabMs": 0.707004166666664,
+      "protectedSampleCount": 15004
+    },
+    {
+      "tool": "coast-land",
+      "physicalDiameterM": 1250000,
+      "maximumDabMs": 2.159400000000005,
+      "meanDabMs": 0.6165291666666661,
+      "protectedSampleCount": 11405
+    },
+    {
+      "tool": "coast-water",
+      "physicalDiameterM": 1250000,
+      "maximumDabMs": 2.4087000000000103,
+      "meanDabMs": 0.6940875000000091,
+      "protectedSampleCount": 4728
+    },
+    {
+      "tool": "coast-smooth",
+      "physicalDiameterM": 1250000,
+      "maximumDabMs": 2.7357000000000653,
+      "meanDabMs": 0.8858083333333298,
+      "protectedSampleCount": 557
+    }
+  ],
+  "stroke": {
+    "frames": 7,
+    "maxBatchMs": 6.595199999999977,
+    "changed": 71752,
+    "onePatchExactUndo": true
+  },
+  "physicalRidge": {
+    "points": 64,
+    "kernelMs": 112.3338,
+    "changed": 430626
+  },
+  "area256PointsMeanMs": 0.43173700000000054,
+  "denseGridPlans": 10000,
+  "memory": {
+    "before": {
+      "rss": 125304832,
+      "heapTotal": 33005568,
+      "heapUsed": 14698496,
+      "external": 13167262,
+      "arrayBuffers": 10454383
+    },
+    "after": {
+      "rss": 128471040,
+      "heapTotal": 33267712,
+      "heapUsed": 14713112,
+      "external": 15266704,
+      "arrayBuffers": 12553785
+    },
+    "arrayBufferGrowth": 2099402
+  }
+}

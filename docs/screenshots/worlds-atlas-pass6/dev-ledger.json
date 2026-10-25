@@ -1,0 +1,11 @@
+{
+  "verifiedAt": "2026-10-25T18:07:15.655Z",
+  "database": "serrian_tide_dev",
+  "readOnly": true,
+  "migrationCount": 137,
+  "lastTag": "0136_world_terrain_sources",
+  "lastHash": "4ef0c01a4c1484fec257bd1c1ad53fe5f173e483022157c02245b685c201867f",
+  "matches": true,
+  "sharedDatabaseWrites": false,
+  "productionAccess": false
+}

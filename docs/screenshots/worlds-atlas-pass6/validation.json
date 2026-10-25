@@ -1,0 +1,47 @@
+{
+  "implementation": "60056f36575fa75eb02f7d202b6e077b73968820",
+  "verifiedAt": "2026-10-25T18:42:46.782Z",
+  "featureTests": {
+    "passed": 2327,
+    "files": 291,
+    "root": true
+  },
+  "rootTypecheck": true,
+  "fullLint": {
+    "errors": 0,
+    "warnings": 1,
+    "existingWarning": "scripts/worlds-stories-checks.ts unused LoreFamily"
+  },
+  "finalChangedLint": {
+    "errors": 0,
+    "warnings": 0,
+    "root": true
+  },
+  "productionBuild": {
+    "passed": true,
+    "bundler": "Turbopack",
+    "exactRuntimeFiles": 1529,
+    "gpuDisabled": true
+  },
+  "fullRegression": {
+    "passed": true,
+    "earlierPasses": "Passes 1 through 6 plus all information creators, History/calendars, privacy, roles, HTTP and legacy/gameplay snapshots",
+    "finalPolish": "Final measurement readout placement, guidance and coordinate label precision rechecked in final focused acceptance after the full regression run",
+    "legacyRuntimeTablesUnchanged": 133,
+    "sharedDatabaseAccess": false
+  },
+  "finalPass6": {
+    "passed": true,
+    "desktop": true,
+    "nativePen": true,
+    "phone390": true,
+    "tablet820": true,
+    "physicalTouchPaintUndo": true,
+    "markersUnchanged": true
+  },
+  "newMigrations": 0,
+  "productionAccess": false,
+  "physicalDeviceClaim": false,
+  "independentReviewClaim": false,
+  "ownerAcceptance": false
+}

@@ -1,0 +1,86 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "performance": {
+    "pathPoints": 256,
+    "pathInputMs": 12182.980899999995,
+    "areaPoints": 64,
+    "overlayTimesMs": [
+      1.3000000715255737,
+      1.600000023841858,
+      1.5,
+      1.2999999523162842,
+      1.5,
+      1.4000000953674316,
+      1.399999976158142,
+      1.3000000715255737,
+      1.600000023841858,
+      1.2000000476837158,
+      1.7000000476837158,
+      1.5,
+      1,
+      0.8999999761581421,
+      1.5999999046325684,
+      1.5,
+      1.600000023841858,
+      1,
+      1.7000000476837158,
+      1.5999999046325684,
+      1,
+      1.600000023841858,
+      1.5,
+      1.7999999523162842
+    ],
+    "heapBefore": 11542168,
+    "heapAfter": 12112356,
+    "retainedBytes": 570188,
+    "noTileRefresh": true
+  },
+  "nativePenRuler": true,
+  "resizeAndUnitPosePreserved": true,
+  "normalQuickBrushSettings": true,
+  "touch390": {
+    "navigationFirst": true,
+    "ruler": true,
+    "twoFingerRollback": true,
+    "metrics": {
+      "pageWidth": 390,
+      "windowWidth": 390,
+      "panel": {
+        "top": 0,
+        "bottom": 844
+      },
+      "canvas": {
+        "top": 546.28125,
+        "bottom": 726.28125,
+        "height": 180
+      },
+      "scroll": 850,
+      "bodyOverflow": "hidden"
+    }
+  },
+  "physicalTouchPaintAndExactUndo": true,
+  "touch820": {
+    "navigationFirst": true,
+    "ruler": true,
+    "twoFingerRollback": true,
+    "metrics": {
+      "pageWidth": 820,
+      "windowWidth": 820,
+      "panel": {
+        "top": 0,
+        "bottom": 1180
+      },
+      "canvas": {
+        "top": 587.546875,
+        "bottom": 1083.21875,
+        "height": 495.671875
+      },
+      "scroll": 160,
+      "bodyOverflow": "hidden"
+    }
+  },
+  "adminReadOnlyMeasurement": true,
+  "townAndShopIdentityUnchanged": true
+}

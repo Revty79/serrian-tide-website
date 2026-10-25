@@ -1,0 +1,8 @@
+{
+  "implementation": "60056f36575fa75eb02f7d202b6e077b73968820",
+  "files": 1529,
+  "exactSourceBytes": true,
+  "manifestSha256": "a6fe6f37bfe81a12ff646ac417a8421e26b0111b081d4b27a730e36e848c3543",
+  "ownedProductionBuild": true,
+  "noSharedEnvironmentFile": true
+}

@@ -1,0 +1,37 @@
+{
+  "baseline": "ca19ee19de2dbf3fef97d6a3bdb00044384a7b0d",
+  "modifiedExistingRuntimeFiles": [
+    "src/features/worlds/terrain-canvas.tsx",
+    "src/features/worlds/terrain-editor.tsx",
+    "src/features/worlds/terrain-locations.tsx",
+    "src/features/worlds/terrain-operation-workshop.tsx",
+    "src/features/worlds/terrain-operations.ts",
+    "src/features/worlds/terrain-scale-feedback.tsx",
+    "src/features/worlds/terrain-scale.ts",
+    "src/features/worlds/terrain-source-controls.tsx",
+    "src/features/worlds/terrain-source-workshop.tsx",
+    "src/features/worlds/terrain-stroke.ts",
+    "src/features/worlds/terrain-tools.tsx",
+    "src/features/worlds/terrain.module.css",
+    "src/features/worlds/terrain.ts"
+  ],
+  "protectedFiles": 1779,
+  "databaseAndMigrationFiles": 326,
+  "protectedManifestSha256": "bb1472e23f1f42916ea9f5257a598e376e4627f85aeb6680c743c8c1f398da8f",
+  "unexpectedProtectedChanges": [],
+  "unchanged": [
+    "numeric DTOs and command validation",
+    "private terrain storage and immutable revision services",
+    "autosave/recovery transport and browser recovery",
+    "v1 and v2 generation kernels and recipes",
+    "Classic and physical tile renderer",
+    "all World business, Town/Shop, Campaign and Tabletop code",
+    "all historical migrations and database schema",
+    "all existing source/private asset contracts"
+  ],
+  "sampleModeReferenceCases": 18,
+  "newMigration": false,
+  "implementation": "60056f36575fa75eb02f7d202b6e077b73968820",
+  "authoritativeCommandSchemaExact": true,
+  "authoritativeCommandSchemaSha256": "3f5b393fb261a0f07441a1d611119820b577924de1505d796c82b27a1015fd07"
+}

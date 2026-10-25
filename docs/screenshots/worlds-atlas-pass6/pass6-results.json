@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "timings": {
+    "gridAndRuler": {
+      "fit": {
+        "zoom": 0.000056587999999999994,
+        "x": 10000000.000000002,
+        "y": 5000000.000000001,
+        "painted": 64,
+        "refresh": 2,
+        "grid": 2000000
+      },
+      "zoomed": {
+        "zoom": 0.00009563372,
+        "x": 10000000.000000002,
+        "y": 5000000.000000001,
+        "painted": 64,
+        "refresh": 2,
+        "grid": 1000000
+      },
+      "rulerPose": {
+        "zoom": 0.00009563372,
+        "x": 10000000.000000002,
+        "y": 5000000.000000001,
+        "painted": 64,
+        "refresh": 2,
+        "grid": 100000
+      },
+      "viewOnlyPosts": 0
+    },
+    "physicalBrush": {
+      "widthMetres": 9000,
+      "heightMetres": 9500,
+      "requestedDiameterMetres": 10000
+    }
+  },
+  "known100km": true,
+  "known5000SquareKm": true,
+  "seamArea2000SquareKm": true,
+  "directRouteChoice": true,
+  "unitsPersisted": true,
+  "viewOnlyNumericsUnchanged": true,
+  "noOverlayTileRepaint": true,
+  "physicalCircleUnequalSpacing": true,
+  "sampleModeCoveredByReferences": true,
+  "physicalRidge": true,
+  "extremeResolutionHonest": true,
+  "requestedPhysicalSizeRetained": true,
+  "creationUnitsDoNotChangeRecipe": true,
+  "gpuDisabled": true,
+  "errors": []
+}
