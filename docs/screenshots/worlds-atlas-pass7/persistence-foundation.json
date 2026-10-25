@@ -1,7 +1,7 @@
 {
   "passed": true,
-  "mapId": "07741fde-3b51-4b22-b116-373bac83e2df",
-  "refinementId": "eec704b0-0e19-457c-8aba-5e7efa1b27b1",
+  "mapId": "af0ecd05-0171-4e23-beac-e1962efb4289",
+  "refinementId": "6b619db4-accf-41e3-8896-446c043543ce",
   "frame": {
     "x": 593739223,
     "y": 582799089,
@@ -9,8 +9,8 @@
     "height": 20000
   },
   "spacingM": 19.53125,
-  "initializationAndReadMs": 1865.5391999999993,
-  "saveAcceptanceMs": 120.19759999999951,
+  "initializationAndReadMs": 1602.1101999999955,
+  "saveAcceptanceMs": 100.91879999999946,
   "controlledRestore": true,
   "reusableWorldHeightQueries": true,
   "changedSamples": 2017,

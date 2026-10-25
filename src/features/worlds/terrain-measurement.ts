@@ -27,7 +27,7 @@ export function measurementStats(m:TerrainMeasurement,s:TerrainGeometry){
  }
  return {points,length,lastSegment,area,perimeter,width:spanX,height:spanY,issue};
 }
-export function visibleTerrainBounds(view:TerrainView,width:number,height:number,s:TerrainGeometry){return {left:Math.max(0,-view.x/view.scale),right:Math.min(s.displayWidth,(width-view.x)/view.scale),top:Math.max(0,-view.y/view.scale),bottom:Math.min(s.displayHeight,(height-view.y)/view.scale)};}
+export function visibleTerrainBounds(view:TerrainView,width:number,height:number,s:TerrainGeometry){const left=-view.x/view.scale,right=(width-view.x)/view.scale,wrapped=s.wrap&&right-left<s.displayWidth*2;return {left:wrapped?left:Math.max(0,left),right:wrapped?right:Math.min(s.displayWidth,right),top:Math.max(0,-view.y/view.scale),bottom:Math.min(s.displayHeight,(height-view.y)/view.scale)};}
 export function niceDistance(metres:number,preference:DistancePreference){const unit=convenientUnit(metres,preference),factor=distanceUnits[unit].metres,value=metres/factor,power=10**Math.floor(Math.log10(value)),mantissa=value/power,step=mantissa<1.5?1:mantissa<3.5?2:mantissa<7.5?5:10;return {metres:step*power*factor,unit};}
 export function gridInterval(scale:number,p:MeasurementPreferences,previous=0):{metres:number;unit:DistanceUnit}{
  if(p.gridMode==="manual")return {metres:p.manualSpacingM,unit:convenientUnit(p.manualSpacingM,p.distance)};

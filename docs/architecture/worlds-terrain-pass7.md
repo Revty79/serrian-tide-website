@@ -32,6 +32,8 @@ Verify the existing transform before changing it. At `(593749223,582809089)` met
 
 ## Verification and migration boundary
 
+The forward sequence now includes `0138_world_terrain_wrapped_refinement` after 0137. Adjacent/nested/wrapped acceptance exposed that a full-width wrapped parent must contain seam-crossing child coverage. Preserve the already published 0137 and correct its insertion validator through 0138; no existing data or numerical tile changes are required. Fresh/populated/restore rehearsals cover all 139 ledger entries through 0138. Shared DEV remains on its independently observed earlier ledger until separately authorized application.
+
 Rehearse 0137 on fresh and populated disposable databases, including immutable old data, failed/stale/duplicate saves, secure files and authorization. No shared DEV schema application is authorized by this pass; that requires separate authorization, verified backups and restore rehearsal. Production must be verified independently before any later deployment.
 
 Deliver the genuine 20 km square / 1024-square refinement in a million-km World: approximately 19.53125 m spacing, a sculpted approximately 1 km island, numerical save, full-world zoom, exact return, restart/reopen and continued editing. Include multiple/nested/adjacent/wrapped areas, parent protection, historical reads, recovery, all tools, all earlier regressions, CPU/GPU-disabled performance, screenshots and desktop/phone/tablet checks. Keep the existing large TypeScript/build work sequential. Stop only after the completed pass and handoff, or report a real architectural blocker without misrepresenting scaffolding as delivery.

@@ -30,7 +30,7 @@ export class TerrainDetailCache {
  get loading(){return this.running.size+this.queue.length;}
  values(){return this.entries.values();}
  async accept(plan:DetailPlan,batch:DetailBatch){
-  if(batch.refinement.id!==plan.meta.id||batch.refinement.revision!==plan.meta.revision||batch.lod!==plan.lod||batch.refinement.gridWidth!==plan.meta.gridWidth||batch.refinement.gridHeight!==plan.meta.gridHeight||batch.refinement.parentId!==plan.meta.parentId||batch.refinement.level!==plan.meta.level||["x","y","width","height"].some(k=>batch.refinement.frame[k as keyof typeof batch.refinement.frame]!==plan.meta.frame[k as keyof typeof plan.meta.frame]))throw Error("Terrain detail response does not match its pinned source.");
+  if(batch.refinement.id!==plan.meta.id||batch.refinement.revision!==plan.meta.revision||batch.lod!==plan.lod||batch.refinement.gridWidth!==plan.meta.gridWidth||batch.refinement.gridHeight!==plan.meta.gridHeight||batch.refinement.worldId!==plan.meta.worldId||batch.refinement.terrainId!==plan.meta.terrainId||batch.refinement.mapId!==plan.meta.mapId||batch.refinement.parentRevision!==plan.meta.parentRevision||batch.refinement.parentId!==plan.meta.parentId||batch.refinement.level!==plan.meta.level||["x","y","width","height"].some(k=>batch.refinement.frame[k as keyof typeof batch.refinement.frame]!==plan.meta.frame[k as keyof typeof plan.meta.frame]))throw Error("Terrain detail response does not match its pinned source.");
   const columns=plan.meta.gridWidth/2**plan.lod/32,rows=plan.meta.gridHeight/2**plan.lod/32,requested=new Set(plan.keys);if(plan.keys.length>64||batch.tiles.length!==requested.size)throw Error("The numerical tile batch is incomplete.");
   const converted=await Promise.all(batch.tiles.map(async tile=>{
    const key=tile.y*columns+tile.x;if(!Number.isInteger(tile.x)||!Number.isInteger(tile.y)||tile.x<0||tile.y<0||tile.x>=columns||tile.y>=rows||!requested.delete(key)||tile.samples.length!==1024||tile.samples.some(n=>!Number.isInteger(n)||n< -30000||n>30000)||!/^[a-f0-9]{256}$/.test(tile.mask)||!/^[a-f0-9]{64}$/.test(tile.sha256)||await numericalChecksum(tile.samples)!==tile.sha256)throw Error("A numerical detail tile failed validation. The coarse surface remains available.");
@@ -53,5 +53,5 @@ export class TerrainDetailCache {
   }
  }
  retry(){this.error="";this.schedule(this.lastPlan);}
- dispose(){this.stopped=true;for(const controller of this.running.keys())controller.abort();this.queue=[];this.entries.clear();this.listeners.clear();}
+ dispose(){this.stopped=true;for(const controller of this.running.keys()){controller.abort();this.metrics.cancelled++;}this.running.clear();this.queue=[];this.entries.clear();this.listeners.clear();}
 }

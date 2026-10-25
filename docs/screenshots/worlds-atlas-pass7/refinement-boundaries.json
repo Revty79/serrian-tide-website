@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "adjacent": true,
+  "nested": true,
+  "sameSourceAcrossWrap": true,
+  "nestedCanonicalZero": true,
+  "parentProtection": true,
+  "concurrentWriterRejected": true,
+  "historicalSeaLevel": true,
+  "oldWriterGuard": true,
+  "sameWorldCoordinates": true
+}

@@ -1,12 +1,15 @@
 {
-  "migration": "0137_world_terrain_refinements",
+  "migrations": [
+    "0137_world_terrain_refinements",
+    "0138_world_terrain_wrapped_refinement"
+  ],
   "freshReplay": true,
   "populatedUpgrade": true,
   "backupRestore": true,
   "pairedPrivateObjectsVerified": 235,
   "unchangedExistingTables": 337,
-  "existingRowsSha256": "f4313b1e48d638c96357b6160dce75598ff2ce699e4bd58689aecd4c250f2b04",
-  "ledger": 138,
+  "existingRowsSha256": "a58bf1dcd632ef2279356c20797677eef3033a5b24bee09319feafcb91555464",
+  "ledger": 139,
   "sharedDevSchemaApplied": false,
   "productionAccess": false
 }

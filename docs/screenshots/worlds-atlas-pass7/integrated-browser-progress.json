@@ -1,8 +1,8 @@
 {
   "passed": true,
-  "development": true,
-  "mapId": "85f15a4d-0196-4a14-8cae-627931d9e583",
-  "refinementId": "03849474-9f63-4dc9-a402-0cae72a8f322",
+  "development": false,
+  "mapId": "36cbfb28-46f3-4ad8-bc74-1cb722671aa2",
+  "refinementId": "95fbed9d-fabb-464d-83c4-2a6b552aa087",
   "spacingM": 19.53125,
   "canvasRetained": true,
   "mapHeightWithSettings": 670.125,

@@ -28,7 +28,7 @@ export function framesOverlap(a:TerrainFrame,b:TerrainFrame,worldWidth:number,wr
  if(a.y+a.height+margin<=b.y||b.y+b.height+margin<=a.y)return false;
  return (wrap?[-worldWidth,0,worldWidth]:[0]).some(offset=>a.x+a.width+margin>b.x+offset&&b.x+offset+b.width+margin>a.x);
 }
-export function frameInside(child:TerrainFrame,parent:TerrainFrame,worldWidth:number,wrap:boolean){const p=frameLocalPoint(child,parent,worldWidth,wrap);return p.x>=0&&p.y>=0&&p.x+child.width<=parent.width+1e-6&&p.y+child.height<=parent.height+1e-6;}
+export function frameInside(child:TerrainFrame,parent:TerrainFrame,worldWidth:number,wrap:boolean){const p=frameLocalPoint(child,parent,worldWidth,wrap);return (wrap&&parent.width>=worldWidth-1e-6||p.x>=0&&p.x+child.width<=parent.width+1e-6)&&p.y>=0&&p.y+child.height<=parent.height+1e-6;}
 export function validateRefinement(frame:TerrainFrame,width:number,height:number,parent:TerrainGeometry,parentFrame:TerrainFrame,world:TerrainGeometry){
  refinementFrameSchema.parse(frame);refinementGridSize.parse(width);refinementGridSize.parse(height);
  if(frame.x>=world.displayWidth||frame.y+frame.height>world.displayHeight||frame.width>world.displayWidth||!world.wrap&&frame.x+frame.width>world.displayWidth||!frameInside(frame,parentFrame,world.displayWidth,world.wrap))throw Error("Keep the complete refinement inside its parent and the fixed north/south World edges.");

@@ -123,14 +123,20 @@
 .workspaceToolbar .mapTools>.tools { position:absolute; z-index:8; right:0; width:280px; padding:.7rem; background:var(--st-surface-raised); border:1px solid var(--st-border-strong); border-radius:.5rem; box-shadow:0 .5rem 1.5rem var(--st-shadow); }
 .editorMain { position:relative; display:grid; grid-template-columns:minmax(0,1fr) 350px; gap:.65rem; height:680px; min-height:0; }
 .editorMain[data-inspector="closed"] { grid-template-columns:minmax(0,1fr); }
-.mapColumn { min-width:0; min-height:0; }
+.mapColumn { position:relative; min-width:0; min-height:0; }
+.viewportControls { position:absolute; z-index:2; top:.5rem; right:.5rem; max-width:55%; border-radius:.5rem; background:var(--st-surface-raised); border:1px solid var(--st-border); padding:.25rem; }
+.viewportControls .tools { padding:0; gap:.25rem; }
+.viewportControls button { min-height:36px; padding:.35rem .5rem; font-size:.8rem; }
+.viewportControls button[aria-label^="Pan "] { display:none; }
+.viewportSymbol { display:none; }
 .mapColumn>.viewport { height:100%; min-height:0; max-height:none; }
 .editorInspector { display:flex; flex-direction:column; min-width:0; min-height:0; background:var(--st-surface-raised); border:1px solid var(--st-border); border-radius:.6rem; }
 .editorInspector[hidden],.inspectorBody section[hidden] { display:none; }
 .inspectorHeading { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.5rem; color:var(--st-text-strong); }
-.inspectorTabs { display:flex; flex-wrap:wrap; gap:.3rem; padding:0 .5rem .5rem; border-bottom:1px solid var(--st-border); }
-.inspectorTabs button { min-height:40px; padding:.35rem .6rem; }
-.inspectorBody { flex:1; overflow:auto; overscroll-behavior:contain; min-height:0; padding:.65rem; }
+.inspectorHeading,.inspectorTabs { flex-shrink:0; }
+.inspectorTabs { display:flex; flex-wrap:nowrap; overflow-x:auto; gap:.3rem; padding:0 .5rem .5rem; border-bottom:1px solid var(--st-border); }
+.inspectorTabs button { min-height:40px; padding:.35rem .5rem; font-size:.85rem; flex-shrink:0; }
+.inspectorBody { flex:1 1 0; overflow:auto; overscroll-behavior:contain; min-height:0; padding:.65rem; }
 .inspectorBody .controls { grid-template-columns:minmax(0,1fr); gap:.6rem; }
 .inspectorBody input,.inspectorBody select { max-width:100%; min-width:0; }
 .inspectorBody .toolkit,.inspectorBody .brushSettings[open],.inspectorBody .measurementPanel { max-height:none; overflow:visible; }
@@ -162,6 +168,11 @@
  .expanded .editorMain { min-height:0; }
 }
 @media(max-width:600px) {
+ .viewportControls { max-width:none; }
+ .viewportControls .tools { flex-wrap:nowrap; }
+ .viewportControls button { min-width:34px; }
+ .viewportControls .viewportWord { display:none; }
+ .viewportControls .viewportSymbol { display:inline; }
  .workspaceToolbar { gap:.3rem; }
  .workspaceToolbar .toolkit { flex-basis:100%; min-width:0; }
  .workspaceToolbar .compactToolbar { flex-wrap:nowrap; }

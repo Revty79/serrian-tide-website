@@ -10,7 +10,7 @@ export type TerrainDetailScene={
  preview?:{meta:RefinementMeta;grid:Int16Array;shape:TerrainGeometry};
 };
 type TileImage={signature:string;canvas:HTMLCanvasElement;id:string;lod:number;key:number};
-type PaintJob={plan:DetailPlan;key:number;signature:string;sample:(x:number,y:number)=>number};
+type PaintJob={plan:DetailPlan;key:number;signature:string;sample:(x:number,y:number)=>number;prepareRows:number};
 
 /** Only visible numerical tiles become textures. Both caches have explicit budgets. */
 export class TerrainDetailPainter{
@@ -53,12 +53,14 @@ export class TerrainDetailPainter{
      for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++)halo.push(scene.cache.peek(plan.meta.id,plan.meta.revision,plan.lod,(y+j)*columns+x+i)?.sha256??"missing");
      signature=halo.join(":");sample=(px,py)=>{px=Math.max(0,Math.min(shape.width-1,px));py=Math.max(0,Math.min(shape.height-1,py));return scene.cache.peek(plan.meta.id,plan.meta.revision,plan.lod,Math.floor(py/32)*columns+Math.floor(px/32))?.samples[py%32*32+px%32]??center!.samples[Math.max(0,Math.min(31,py-y*32))*32+Math.max(0,Math.min(31,px-x*32))];};
     }
-    const existing=this.images.get(id);if(existing?.signature===signature){this.images.delete(id);this.images.set(id,existing);}else this.jobs.push({plan,key,signature,sample});
+    const existing=this.images.get(id);if(existing?.signature===signature){this.images.delete(id);this.images.set(id,existing);}else this.jobs.push({plan,key,signature,sample,prepareRows:active&&plan.lod>=3?0:34});
    }
   }
  }
  paint(world:TerrainGeometry,sea:number,relief:TerrainRelief|undefined,budget=6){
-  const started=performance.now();while(this.jobs.length){const {plan,key,signature,sample}=this.jobs.shift()!,shape=lodGeometry(frameGeometry(plan.meta,world),plan.lod),canvas=document.createElement("canvas");canvas.width=32;canvas.height=32;
+  const started=performance.now();while(this.jobs.length){const job=this.jobs[0],{plan,key,signature,sample}=job,shape=lodGeometry(frameGeometry(plan.meta,world),plan.lod),x0=key%(shape.width/32)*32,y0=Math.floor(key/(shape.width/32))*32;
+   while(job.prepareRows<34){const row=job.prepareRows++;for(let x=-1;x<=32;x++)sample(x0+x,y0+row-1);if(performance.now()-started>=budget){this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-started);return this.jobs.length;}}
+   this.jobs.shift();const canvas=document.createElement("canvas");canvas.width=32;canvas.height=32;
    canvas.getContext("2d")!.putImageData(paintTerrainTile(new Int16Array(0),sea,key,shape,relief,sample),0,0);
    const id=`${plan.meta.id}/${plan.meta.revision}/${plan.lod}/${key}`;this.images.delete(id);this.images.set(id,{signature,canvas,id:plan.meta.id,lod:plan.lod,key});this.metrics.painted++;
    while(this.images.size>this.limit)this.images.delete(this.images.keys().next().value!);this.metrics.maxTextures=Math.max(this.metrics.maxTextures,this.images.size);if(performance.now()-started>=budget)break;

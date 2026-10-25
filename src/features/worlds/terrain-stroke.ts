@@ -11,6 +11,7 @@ export class TerrainStroke{
  readonly spacing:number;
  private metric:{x:number;y:number}|null;
  constructor(private grid:Int16Array,private shape:TerrainGeometry,private brush:Brush,start:TerrainPathPoint,blocked?:Uint8Array){this.workspace.blocked=blocked;if(brush.radiusMetres!==undefined&&!physicalBrushGeometry(shape,brush.radiusMetres))throw Error("Choose a supported physical brush radius before starting a stroke.");this.position={...start};this.metric=brush.radiusMetres===undefined?null:{x:shape.displayWidth/shape.width,y:shape.displayHeight/shape.height};this.spacing=this.metric?Math.max(Math.min(this.metric.x,this.metric.y)/4,brush.radiusMetres!/3):Math.max(1,brushRadius(shape,brush.radius)/3);this.targets.push({...start});}
+ get blockedCount(){return this.workspace.blockedHits??0;}
  get pending(){return this.targets.length>0;}
  enqueue(point:TerrainPathPoint){
   if(!Number.isFinite(point.x)||!Number.isFinite(point.y))return;
