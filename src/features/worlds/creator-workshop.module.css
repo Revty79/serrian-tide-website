@@ -19,7 +19,7 @@
 .preview dt { font-weight:600; color:var(--st-text-strong); }
 .footer { border-top:1px solid var(--st-border); padding:.7rem 1.2rem; background:var(--st-surface-raised); display:grid; gap:.5rem; }
 .actions { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; justify-content:space-between; }
-.actions > div { display:flex; gap:.5rem; }
+.actions > div { display:flex; flex-wrap:wrap; gap:.5rem; }
 .hint { font-size:.85rem; color:var(--st-text-secondary); }
 .error { border-left:3px solid var(--st-danger); padding:.3rem .7rem; color:var(--st-text); background:color-mix(in srgb,var(--st-danger) 8%,var(--st-surface)); max-height:6rem; overflow-y:auto; }
 .group { border:1px solid var(--st-border); border-radius:.6rem; padding:1rem; margin-block:.8rem; display:grid; gap:.7rem; }

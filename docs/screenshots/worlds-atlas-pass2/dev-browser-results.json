@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "database": "serrian_tide_dev",
+  "actualDevHttpWorkflow": true,
+  "temporaryOwnerSession": true,
+  "ownerDevelopmentServerUntouched": true,
+  "ownDevelopmentAppRestarted": true,
+  "world": "9ad04241-9cf8-4723-a6b1-b09b55b08afa",
+  "townIds": [
+    "877df65a-6993-4d11-a16b-6c7378fc60fe",
+    "415bc760-1dd4-4ba6-bf53-6516cc2fe625"
+  ],
+  "shopId": "f41c597c-f933-47bf-833b-cf1ec1fbfe43",
+  "placeId": "80e45d93-32e7-409d-8988-9921d2865a34",
+  "residentId": "b82c2085-7f3a-4b4f-ad40-59b7ce977205",
+  "mapId": "2be8e0fa-31cf-4b4c-ac6c-67f7626d60b6",
+  "oneShopTwoTowns": true,
+  "definitionRequiresNoCampaign": true,
+  "baselineStockAndPricesPersisted": true,
+  "fullWorldIndividual": true,
+  "originalHeavensRetained": true,
+  "terrainAutosaveAndRestart": true,
+  "physicalWrapSeam": true,
+  "verifiedTileReferences": 4,
+  "verificationWorldArchived": true,
+  "preexistingWorldsUnchanged": true,
+  "legacyCampaignTablesUnchanged": 91,
+  "productionAccess": false
+}

@@ -1,6 +1,6 @@
 {
-  "mapId": "7b29b6ad-b721-415b-84a4-6796b3bd5aa5",
-  "landId": "3746b448-5563-4d8a-bb28-72ba4a5a8757",
+  "mapId": "14f01025-3c69-4882-8e3f-c257146e48f8",
+  "landId": "42afc50c-df31-4730-a4a2-1effb8cf47a6",
   "acceptanceJourney": true,
   "applicationRestartPersistence": true,
   "recoverReload": true,
@@ -11,7 +11,7 @@
   "desktop": "1440×1000",
   "phone": "390×844 touch emulation",
   "physicalPhone": false,
-  "desktopMetrics": "Brush batches: 84; mean 0.51 ms; maximum 2.70 ms. Changed tiles: 41.",
+  "desktopMetrics": "Brush batches: 84; mean 0.58 ms; maximum 3.70 ms. Changed tiles: 41.",
   "metrics": "Brush batches: 0; mean 0.00 ms; maximum 0.00 ms. Changed tiles: 0.",
-  "phoneMetrics": "Brush batches: 1; mean 1.40 ms; maximum 1.40 ms. Changed tiles: 0."
+  "phoneMetrics": "Brush batches: 1; mean 1.30 ms; maximum 1.30 ms. Changed tiles: 0."
 }

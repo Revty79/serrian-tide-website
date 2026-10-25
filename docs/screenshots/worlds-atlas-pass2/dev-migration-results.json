@@ -1,0 +1,18 @@
+{
+  "applied": "0134_world_towns_shops",
+  "database": "serrian_tide_dev",
+  "migrationCount": 135,
+  "backupSha256": "19c3c67da1f495f4342c32a5340a0359ed6c9bd750ec75a6e6a468dbd935ab69",
+  "backup": "artifacts\\worlds-atlas-pass2\\dev-backups\\2026-10-25T02-15-45-548Z\\before-0134.dump",
+  "exactRestoreVerified": true,
+  "existingRowsUnchanged": true,
+  "existingTables": 326,
+  "existingTerrainFiles": true,
+  "priorLedgerLineEndingOnlyMatches": [
+    132
+  ],
+  "priorLedgerUnchanged": true,
+  "terrainManifestSha256": "381f89468bbfeca7c78dc310dfd0d9f25b675ea0db12a810977034473f9106df",
+  "verifiedTerrainFiles": 259,
+  "productionAccess": false
+}

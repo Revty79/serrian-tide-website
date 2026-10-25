@@ -177,7 +177,7 @@ test("Shop Builder covers Character-store browsing, pricing, stock, staff, order
     "useInPlaceScrollPreservation",
     `data-preserve-scroll="shop-catalog-available"`,
     `data-preserve-scroll="shop-catalog-listed"`,
-  ]) assert.match(workspace, new RegExp(seam));
+  ]) assert.match(workspace + readFileSync("src/features/shops/shop-catalog-details.ts", "utf8"), new RegExp(seam));
   for (const browseField of [
     "weaponType",
     "damageType",

@@ -1,0 +1,36 @@
+{
+  "applied": "0135_world_creator_relationships",
+  "database": "serrian_tide_dev",
+  "migrationCount": 136,
+  "backupSha256": "453d624583fe5dc6b41c58df9f6012f1770f8e55d410215ae73bb87c3ed639e5",
+  "backup": "artifacts\\worlds-atlas-pass2\\dev-backups\\2026-10-25T03-35-48-973Z\\before-0135.dump",
+  "exactRestoreVerified": true,
+  "existingRowsUnchanged": true,
+  "existingTables": 337,
+  "existingTerrainFiles": true,
+  "priorLedgerLineEndingOnlyMatches": [
+    132
+  ],
+  "priorLedgerUnchanged": true,
+  "inventory": {
+    "town": 1,
+    "shop": 0,
+    "town_shop_membership": 0,
+    "town_place": 0,
+    "town_npc_association": 0,
+    "shop_offering": 0,
+    "shop_staff_assignment": 0,
+    "shop_transaction": 0,
+    "shop_money_event": 0,
+    "world_settlement_profile": 2,
+    "world_shop": 1,
+    "world_town_place": 1,
+    "world_town_resident": 1,
+    "world_place_person": 1
+  },
+  "newFieldsOnly": true,
+  "noLegacyImport": true,
+  "terrainManifestSha256": "f7965ba1d1d95fe74e32b7b0925a98be15d95fbbb17673a9eec042ed0c06fc3d",
+  "verifiedTerrainFiles": 389,
+  "productionAccess": false
+}

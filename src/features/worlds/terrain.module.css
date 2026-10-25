@@ -21,3 +21,16 @@
 .details { border-top: 1px solid var(--st-border); padding-block: .75rem; margin-top: .75rem; color: var(--st-text-secondary); }
 .details summary { cursor: pointer; min-height: 44px; color: var(--st-text-strong); }
 @media (max-width: 700px) { .controls { grid-template-columns: 1fr; gap: .5rem; } .editor { padding: .65rem; } .viewport { height: 52vh; min-height: 320px; } .heading > button { width: 100%; } }
+.townFields { display: grid; gap: 1rem; padding: 0; border: 0; min-width: 0; }
+.townFields input, .townFields textarea, .townFields select { width: 100%; min-width: 0; }
+.townLayout { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 1rem; align-items: start; }
+.townList { display: flex; flex-direction: column; gap: .5rem; margin-block: .75rem; max-height: 28rem; overflow-y: auto; }
+.townList button { min-height: 44px; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.preserveLines { white-space: pre-wrap; overflow-wrap: anywhere; }
+.locations { border-top: 1px solid var(--st-border); padding-top: 1rem; margin-top: 1rem; }
+.locations h3, .locations h4 { color: var(--st-text-strong); }
+.workspace a { color: var(--st-primary-text); }
+.dialog { max-height: 90dvh; overflow-y: auto; }
+@media (max-width: 700px) { .townLayout { grid-template-columns: 1fr; } .townList { max-height: 16rem; } }
+
+.townFields input[type="checkbox"] { width:1.2rem; height:1.2rem; accent-color:var(--st-primary); }

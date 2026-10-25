@@ -136,6 +136,10 @@ function optionalNonNegativeNumber(value: number | null, label: string): number 
 }
 
 export function normalizeShopCoreValues(input: ShopCoreValues): ShopCoreValues {
+  return {...normalizeShopDefinition(input), campaignId:positiveId(input.campaignId,"Campaign")};
+}
+
+export function normalizeShopDefinition(input: Omit<ShopCoreValues,"campaignId">): Omit<ShopCoreValues,"campaignId"> {
   if (!SHOP_STOREFRONT_STATES.includes(input.storefrontState)) {
     throw new Error("Storefront State must be open or closed.");
   }
@@ -149,7 +153,6 @@ export function normalizeShopCoreValues(input: ShopCoreValues): ShopCoreValues {
     throw new Error("Changed-Sale Confirmation Mode is invalid.");
   }
   return {
-    campaignId: positiveId(input.campaignId, "Campaign"),
     name: textWithin(input.name, "Shop Name", 120, true),
     category: textWithin(input.category, "Shop Type / Category", 120, true),
     description: textWithin(input.description, "Description", 5000),
@@ -176,6 +179,10 @@ export function normalizeShopStaffValues(input: ShopStaffValues): ShopStaffValue
 }
 
 export function normalizeShopOfferingValues(input: ShopOfferingValues): ShopOfferingValues {
+  return {...normalizeOfferingDefinition(input), shopId:positiveId(input.shopId,"Shop"),campaignId:positiveId(input.campaignId,"Campaign")};
+}
+
+export function normalizeOfferingDefinition(input: Omit<ShopOfferingValues,"shopId"|"campaignId">): Omit<ShopOfferingValues,"shopId"|"campaignId"> {
   if (!SHOP_FULFILLMENT_KINDS.includes(input.fulfillmentKind)) {
     throw new Error("Offering Fulfillment must transfer an Item or record a service / narrative offering.");
   }
@@ -190,8 +197,6 @@ export function normalizeShopOfferingValues(input: ShopOfferingValues): ShopOffe
     limitedQuantity = input.limitedQuantity;
   }
   return {
-    shopId: positiveId(input.shopId, "Shop"),
-    campaignId: positiveId(input.campaignId, "Campaign"),
     itemId: positiveId(input.itemId, "Item"),
     fulfillmentKind: input.fulfillmentKind,
     enabled: input.enabled,

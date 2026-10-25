@@ -1,0 +1,25 @@
+import {sql} from "drizzle-orm";
+import {check,doublePrecision,foreignKey,index,integer,jsonb,pgTable,primaryKey,text,timestamp,unique} from "drizzle-orm/pg-core";
+import {worldGeography} from "./world-atlas-schema";
+import {worldMapCanvas} from "./world-terrain-schema";
+import {worldLoreIdentity} from "./world-peoples-schema";
+import {worldEntry} from "./world-schema";
+import {user} from "./auth-schema";
+import type {TownResult} from "@/features/worlds/world-towns";
+export const worldSettlementProfile=pgTable("world_settlement_profile",{
+  geographyId:text("geography_id").primaryKey(),worldId:text("world_id").notNull(),category:text("category").notNull().default("settlement"),background:text("background").notNull().default(""),population:text("population").notNull().default(""),godNotes:text("god_notes").notNull().default(""),
+  cultureId:text("culture_id"),cultureFamily:text("culture_family").notNull().default("culture"),governmentId:text("government_id"),governmentFamily:text("government_family").notNull().default("government"),revision:integer("revision").notNull().default(1),locationNotes:text("location_notes").notNull().default(""),archiveReason:text("archive_reason").notNull().default(""),
+},t=>[unique("world_settlement_profile_world_uq").on(t.geographyId,t.worldId),
+foreignKey({name:"world_settlement_profile_place_fk",columns:[t.geographyId,t.worldId],foreignColumns:[worldGeography.id,worldGeography.worldId]}).onDelete("restrict"),
+foreignKey({name:"world_settlement_profile_culture_fk",columns:[t.cultureId,t.worldId,t.cultureFamily],foreignColumns:[worldLoreIdentity.id,worldLoreIdentity.worldId,worldLoreIdentity.family]}).onDelete("restrict"),
+foreignKey({name:"world_settlement_profile_government_fk",columns:[t.governmentId,t.worldId,t.governmentFamily],foreignColumns:[worldLoreIdentity.id,worldLoreIdentity.worldId,worldLoreIdentity.family]}).onDelete("restrict"),
+check("world_settlement_profile_valid",sql`length(${t.category})<=120 AND length(${t.background})<=12000 AND length(${t.population})<=1200 AND length(${t.godNotes})<=12000 AND ${t.cultureFamily}='culture' AND ${t.governmentFamily}='government' AND ${t.revision}>0`)]);
+export const worldSettlementHistory=pgTable("world_settlement_history",{
+  geographyId:text("geography_id").notNull(),worldId:text("world_id").notNull(),entryId:text("entry_id").notNull(),
+},t=>[primaryKey({columns:[t.geographyId,t.entryId]}),foreignKey({name:"world_settlement_history_town_fk",columns:[t.geographyId,t.worldId],foreignColumns:[worldSettlementProfile.geographyId,worldSettlementProfile.worldId]}).onDelete("restrict"),foreignKey({name:"world_settlement_history_entry_fk",columns:[t.entryId,t.worldId],foreignColumns:[worldEntry.id,worldEntry.worldId]}).onDelete("restrict")]);
+export const worldMapPlace=pgTable("world_map_place",{
+  id:text("id").primaryKey(),worldId:text("world_id").notNull(),mapId:text("map_id").notNull(),geographyId:text("geography_id").notNull(),x:doublePrecision("x_metres").notNull(),y:doublePrecision("y_metres").notNull(),revision:integer("revision").notNull().default(1),removedAt:timestamp("removed_at",{withTimezone:true}),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow(),
+},t=>[unique("world_map_place_identity_uq").on(t.mapId,t.geographyId),index("world_map_place_world_idx").on(t.worldId,t.mapId),foreignKey({name:"world_map_place_map_fk",columns:[t.mapId,t.worldId],foreignColumns:[worldMapCanvas.mapId,worldMapCanvas.worldId]}).onDelete("restrict"),foreignKey({name:"world_map_place_town_fk",columns:[t.geographyId,t.worldId],foreignColumns:[worldSettlementProfile.geographyId,worldSettlementProfile.worldId]}).onDelete("restrict"),check("world_map_place_valid",sql`${t.revision}>0 AND ${t.x} BETWEEN 0 AND 1000000000 AND ${t.y} BETWEEN 0 AND 1000000000`)]);
+export const worldPlaceOperation=pgTable("world_place_operation",{
+  requestId:text("request_id").primaryKey(),worldId:text("world_id").notNull(),geographyId:text("geography_id").notNull(),mapId:text("map_id"),authorId:text("author_id").notNull().references(()=>user.id,{onDelete:"restrict"}),kind:text("kind").notNull(),inputHash:text("input_hash").notNull(),result:jsonb("result").$type<TownResult>().notNull(),snapshot:jsonb("snapshot").$type<Record<string,unknown>>().notNull(),createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),
+},t=>[index("world_place_operation_town_idx").on(t.worldId,t.geographyId,t.createdAt),foreignKey({name:"world_place_operation_town_fk",columns:[t.geographyId,t.worldId],foreignColumns:[worldSettlementProfile.geographyId,worldSettlementProfile.worldId]}).onDelete("restrict"),foreignKey({name:"world_place_operation_map_fk",columns:[t.mapId,t.worldId],foreignColumns:[worldMapCanvas.mapId,worldMapCanvas.worldId]}).onDelete("restrict"),check("world_place_operation_valid",sql`${t.kind} IN ('save','archive','restore','place','place-new','remove') AND ${t.inputHash} ~ '^[a-f0-9]{64}$' AND jsonb_typeof(${t.result})='object' AND jsonb_typeof(${t.snapshot})='object'`)]);
