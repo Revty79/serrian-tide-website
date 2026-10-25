@@ -1,0 +1,23 @@
+.workspace { min-width: 0; padding-block: 1rem; }
+.heading, .editorHeader { display: flex; align-items: start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.heading h2, .editorHeader h3 { color: var(--st-text-strong); font-size: 1.5rem; margin: 0 0 .4rem; }
+.workspace p { color: var(--st-text-secondary); line-height: 1.55; margin-block: .5rem; }
+.actions, .tools { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.tools { padding-block: .75rem; }
+.tools button, .actions button { min-height: 44px; }
+.controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: end; padding-block: .5rem; }
+.controls input { width: 100%; min-height: 44px; }
+.editor { border: 1px solid var(--st-border); background: var(--st-surface); border-radius: 1rem; padding: 1rem; margin-top: 1rem; min-width: 0; }
+.viewport { height: clamp(320px, 60vh, 800px); overflow: hidden; background: var(--st-surface-deep); border: 1px solid var(--st-border-strong); border-radius: .6rem; }
+.canvas { display: block; width: 100%; height: 100%; touch-action: none; outline-offset: -4px; }
+.canvas:focus-visible { outline: 2px solid var(--st-focus); }
+.inspection { display: block; padding: .6rem; background: var(--st-surface-soft); color: var(--st-text-strong); border-radius: .5rem; min-height: 2.8rem; }
+.feedback { border: 1px solid var(--st-border-strong); background: var(--st-surface-raised); padding: 1rem; border-radius: .5rem; margin-block: .75rem; color: var(--st-text); }
+.empty { text-align: center; padding: 3rem 1rem; border: 1px dashed var(--st-border-strong); margin-top: 1rem; border-radius: 1rem; }
+.dialog { background: var(--st-surface-raised); color: var(--st-text); border: 1px solid var(--st-border-strong); border-radius: 1rem; padding: 1.5rem; width: min(94vw, 36rem); }
+.dialog::backdrop { background: color-mix(in srgb, var(--st-page) 78%, transparent); }
+.dialog form { display: grid; gap: 1rem; }
+.dialog .actions { justify-content: end; }
+.details { border-top: 1px solid var(--st-border); padding-block: .75rem; margin-top: .75rem; color: var(--st-text-secondary); }
+.details summary { cursor: pointer; min-height: 44px; color: var(--st-text-strong); }
+@media (max-width: 700px) { .controls { grid-template-columns: 1fr; gap: .5rem; } .editor { padding: .65rem; } .viewport { height: 52vh; min-height: 320px; } .heading > button { width: 100%; } }

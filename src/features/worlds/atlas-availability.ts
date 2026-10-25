@@ -1,4 +1,4 @@
-/** Application-level separation only. Retained Atlas sources and services stay intact. */
+/** Legacy Atlas stays disabled. The additive /terrain API has its own guards. */
 export const atlasUnavailableMessage = "Map making is unavailable in Worlds.";
 
 const atlasQueryKeys = [
@@ -16,6 +16,6 @@ export function isMapOnlyWorldsApi(pathname: string): boolean {
 export function normalizeWorldsQuery(params: URLSearchParams): URLSearchParams {
   const normalized = new URLSearchParams(params);
   for (const key of atlasQueryKeys) normalized.delete(key);
-  if (["atlas", "geography", "maps", "map"].includes(normalized.get("tab") ?? "")) normalized.set("tab", "overview");
+  if (["geography", "maps", "map"].includes(normalized.get("tab") ?? "") || (normalized.get("tab") === "atlas" && params.has("atlas"))) normalized.set("tab", "overview");
   return normalized;
 }

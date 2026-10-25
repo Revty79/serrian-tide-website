@@ -8,7 +8,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Current Worlds direction — Atlas separation (2026-10-17)
+## Active Worlds direction - integrated lightweight Atlas (2026-10-24)
+
+The owner superseded the October 17 separation decision and authorized [Atlas rebuild Pass 1](docs/architecture/worlds-terrain-pass1.md) inside this website's selected World workspace. Deliver the numerical flat-world heightmap vertical slice: multiple maps, blank ocean/land, sculpting, viewport, elevation/sea-level preview, undo/redo, explicit accepted saves, browser recovery and safe reopen. Reuse existing World/map identities with additive terrain data and forward migrations. Keep the legacy Atlas/geographic HTTP boundary disabled; only the explicitly guarded terrain API is active. Preserve all prior implementation, migrations, source data, historical appearances, links and private raster assets. Do not touch the standalone Studio repository or create gameplay records. Owner-only authoring and explicit read-only Admin review remain unchanged. Validate in newly owned disposable environments before any backed-up local DEV migration. Stop after this slice at a local review commit or identified working-tree diff. No remote push, deployment, Production mutation or next construction phase is authorized. This section supersedes conflicting historical Atlas roadmaps and publication permissions below; retain those records as history.
+
+## Historical Worlds direction — Atlas separation (2026-10-17)
 
 The owner authorized the [Atlas removal pass](docs/operations/worlds-atlas-removal.md): keep Worlds as the information-based authoring foundation and remove Atlas/map-making access from its active interface. Preserve all map implementation, tables, migrations, source records, identities, historical states and relationships. Map-only HTTP routes are disabled; shared lore, geographic relationships, History, calendars and Campaign APIs remain available. Saved Realm-to-map relationships are read-only. Legacy map bookmarks normalize to a valid World view.
 

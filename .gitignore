@@ -95,3 +95,7 @@ next-env.d.ts
 /artifacts/worlds-atlas-refinement/
 /artifacts/worlds-atlas-removal/
 /artifacts/atlas-removal-*.log
+
+/artifacts/worlds-terrain-pass1/
+/artifacts/worlds-terrain-pass1-*.log
+/storage/world-terrain/

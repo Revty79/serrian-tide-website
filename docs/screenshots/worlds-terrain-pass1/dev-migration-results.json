@@ -1,0 +1,16 @@
+{
+  "applied": "0133_worlds_editable_terrain",
+  "database": "serrian_tide_dev",
+  "migrationCount": 134,
+  "backupSha256": "dbf9cd6abb4c16dba55aea827045573e106910b70297a87f53d709a66c860982",
+  "backup": "artifacts/worlds-terrain-pass1/dev-backup/before-0133.dump",
+  "exactRestoreVerified": true,
+  "existingRowsUnchanged": true,
+  "existingTables": 322,
+  "existingTerrainFiles": false,
+  "priorLedgerLineEndingOnlyMatches": [
+    132
+  ],
+  "priorLedgerUnchanged": true,
+  "productionAccess": false
+}

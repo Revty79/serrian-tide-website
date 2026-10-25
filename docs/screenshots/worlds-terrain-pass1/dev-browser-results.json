@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "database": "serrian_tide_dev",
+  "actualDevHttpWorkflow": true,
+  "temporaryOwnerSession": true,
+  "ownerRolesUnchanged": true,
+  "ownDevelopmentAppRestarted": true,
+  "ownerDevelopmentServerUntouched": true,
+  "numericalTilesExactAfterRestart": true,
+  "continuedEditing": true,
+  "undoPreservesAcceptedTerrain": true,
+  "revision": 3,
+  "verifiedTileReferences": 26,
+  "verificationWorld": "ec995e50-827a-4547-bfc2-477d75f84669",
+  "mapId": "46390b36-a9b1-4f67-a964-db95d5733e65",
+  "verificationWorldArchived": true,
+  "preexistingWorldRowsUnchanged": true,
+  "privateTerrainRoot": "storage/world-terrain (or configured SERRIAN_TERRAIN_ROOT)",
+  "productionAccess": false
+}

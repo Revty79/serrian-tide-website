@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "previousMigrations": 133,
+  "newMigrations": 1,
+  "existingTablesPreserved": 322,
+  "retainedMapIdentityAndHistory": true,
+  "customDimensionsAndWrapping": true,
+  "postStagingFailureAtomic": true,
+  "abandonedStageIdentified": true,
+  "pairedRestoreExact": true,
+  "checksumCorruptionRejected": true,
+  "backupSha256": "4b91c7a69e8ae77ae1639c0155b5900399e796815a3bf2b64ddb3182b7cb3104",
+  "productionAccess": false
+}

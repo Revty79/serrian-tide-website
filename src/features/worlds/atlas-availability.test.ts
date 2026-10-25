@@ -12,6 +12,11 @@ test("shared information APIs stay available",()=>{
   for(const path of ["/api/worlds","/api/worlds/campaign-contexts",... ["","history","milestones","peoples","links","sky","calendars","calendars/history","chronology","timelines","campaigns"].map(p=>`/api/worlds/world-id/${p}`),"/api/campaigns/1"])
     assert.equal(isMapOnlyWorldsApi(path),false,path);
 });
+test("new heightmap destination and API are available without reopening legacy routes",()=>{
+  assert.equal(normalizeWorldsQuery(new URLSearchParams("tab=atlas&terrainMap=new-map&timeline=branch")).toString(),"tab=atlas&terrainMap=new-map&timeline=branch");
+  assert.equal(isMapOnlyWorldsApi("/api/worlds/world-id/terrain"),false);
+  assert.equal(isMapOnlyWorldsApi("/api/worlds/world-id/atlas/terrain"),true);
+});
 test("old bookmarks preserve timeline, review, ordinary knowledge and non-map selections",()=>{
   const params=new URLSearchParams("tab=atlas&atlas=map&place=place&editMap=map&geography=1&geographicMap=geo&mapYear=5&timeline=branch&review=1&knowledge=ordinary&ordinary=1");
   assert.equal(normalizeWorldsQuery(params).toString(),"tab=overview&timeline=branch&review=1&knowledge=ordinary&ordinary=1");
