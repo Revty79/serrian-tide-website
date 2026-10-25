@@ -3,7 +3,7 @@ import {randomUUID} from "node:crypto";
 import type pg from "pg";
 import {generateTerrain,regenerateArea} from "../src/features/worlds/terrain-generation";
 import {terrainSettingsSchema,terrainGeometry,createGrid,readTile} from "../src/features/worlds/terrain";
-import {presetRecipe,protectionGrid,type TerrainSource} from "../src/features/worlds/terrain-source";
+import {presetRecipeV1 as presetRecipe,protectionGrid,type TerrainSource} from "../src/features/worlds/terrain-source";
 export async function checkPass3Database(options:{pool:pg.Pool;world:string;foreign:string}){
  await (await import("./worlds-atlas-pass2-db-checks")).checkPass2Database(options);
  const {pool,world,foreign}=options,{changeTerrain:change,getTerrain:read}=await import("../src/features/worlds/terrain-service");

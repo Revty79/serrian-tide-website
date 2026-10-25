@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { worldAtlasMap } from "@/db/world-atlas-schema";
 import { worldMapCanvas, worldTerrain, worldTerrainTile, worldTerrainVersion } from "@/db/world-terrain-schema";
 import { WorldError, worldReadAccess, worldWriteTransaction } from "./world-service";
-import { terrainCommandSchema, type TerrainDocument, type TerrainSummary } from "./terrain";
+import { terrainCommandSchema,terrainGeometry, type TerrainDocument, type TerrainSummary } from "./terrain";
+import {validateGenerationAcceptance} from "./terrain-generation-acceptance";
 import {EMPTY_PROTECTION,isProtected,protectSamples} from "./terrain-source";
 import { readTerrainTile, stageTerrainTiles, type TerrainObject } from "./terrain-storage";
 const unavailable = () => new WorldError("This terrain map is unavailable.", 404);
@@ -48,6 +49,7 @@ export async function changeTerrain(userId: string, worldId: string, raw: unknow
       const [collision] = await tx.select({ id: worldAtlasMap.id }).from(worldAtlasMap).where(eq(worldAtlasMap.id, command.requestId)); if (collision) throw unavailable();
       const s = command.settings, terrainId = randomUUID(),seaLevel=command.seaLevel??0,tiles=command.tiles??[];
       if(seaLevel<s.minElevation||seaLevel>s.maxElevation||tiles.some(t=>t.x>=s.gridWidth/32||t.y>=s.gridHeight/32||t.samples.some(v=>v<s.minElevation||v>s.maxElevation)))throw new WorldError("The proposed source exceeds this map's grid or elevation limits. Nothing was accepted.",400);
+      try{if(command.source)validateGenerationAcceptance(terrainGeometry(s),command.source,seaLevel);}catch(error){throw new WorldError(error instanceof Error?error.message:"The physical-scale proposal is invalid.",400);}
       const objects=tiles.length?await stageTerrainTiles(command.requestId,worldId,terrainId,tiles):[];
       const source=command.source??{kind:"blank" as const,surface:command.initial as "ocean"|"land"};
       await tx.insert(worldAtlasMap).values({ id: command.requestId, worldId, name: command.name, scope: "world", mapKind: "generic" });
@@ -65,6 +67,7 @@ export async function changeTerrain(userId: string, worldId: string, raw: unknow
     if (row.t.revision !== command.revision) throw conflict();
     if (command.seaLevel < row.t.minElevation || command.seaLevel > row.t.maxElevation || tiles.some(t => t.x >= row.t.gridWidth / 32 || t.y >= row.t.gridHeight / 32 || t.samples.some(z => z < row.t.minElevation || z > row.t.maxElevation))) throw new WorldError("The edit exceeds this terrain's dimensions or elevation range. Your draft is retained.", 400);
     const source=command.source??{kind:"manual" as const},masks=new Map<string,string>();
+    try{validateGenerationAcceptance({width:row.t.gridWidth,height:row.t.gridHeight,tileSize:32,displayWidth:row.t.widthMetres,displayHeight:row.t.heightMetres,min:row.t.minElevation,max:row.t.maxElevation,wrap:row.t.wrap},source,command.seaLevel);}catch(error){throw new WorldError(error instanceof Error?error.message:"The physical-scale proposal is invalid.",400);}
     const previous=(await tx.execute<TerrainObject&{x:number;y:number;mask:string}>(sql`SELECT DISTINCT ON (tile_x,tile_y) tile_x AS x,tile_y AS y,sha256,bytes,encoding,manual_protection AS mask FROM world_terrain_tile WHERE terrain_id=${row.t.id} AND world_id=${worldId} AND revision<=${row.t.revision} AND detail_level=0 ORDER BY tile_x,tile_y,revision DESC`)).rows;
     const references=new Map(previous.map(r=>[r.x+":"+r.y,r]));let changedSamples=0;
     if(source.kind==="regenerated"&&command.seaLevel!==row.t.seaLevel)throw new WorldError("A selected-area regeneration must retain the saved sea level. Change sea level separately in the editor.",400);

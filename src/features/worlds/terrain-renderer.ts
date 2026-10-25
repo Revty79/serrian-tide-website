@@ -1,17 +1,19 @@
 import { elevationColor } from "./raster";
 import { TERRAIN, type TerrainGeometry } from "./terrain";
+import {CLASSIC_RELIEF,physicalGradient,physicalReliefShade,type TerrainRelief} from "./terrain-relief";
 // Scientific elevation encoding is shared with retained numerical rasters.
 const LOW = -30000, HIGH = 30000;
 const colors = new Uint8ClampedArray((HIGH - LOW + 1) * 3);
 for (let z = LOW; z <= HIGH; z++) colors.set(elevationColor(z), (z - LOW) * 3);
 /** A single tile plus its read-only halo. No whole-map work per brush dab. */
-export function paintTerrainTile(grid: Int16Array, seaLevel: number, key: number, shape: TerrainGeometry = TERRAIN) {
+export function paintTerrainTile(grid: Int16Array, seaLevel: number, key: number, shape: TerrainGeometry = TERRAIN,relief:TerrainRelief=CLASSIC_RELIEF) {
   const size = shape.tileSize, x0 = key % (shape.width / shape.tileSize) * size, y0 = Math.floor(key / (shape.width / shape.tileSize)) * size, pixels = new Uint8ClampedArray(size * size * 4);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
     const gx = x0 + x, gy = y0 + y, z = grid[gy * shape.width + gx], water = z <= seaLevel;
     const encoded = water ? Math.min(0, z - seaLevel) : Math.max(1, z), color = (Math.max(LOW, Math.min(HIGH, encoded)) - LOW) * 3;
     const west = grid[gy * shape.width + (shape.wrap ? (gx - 1 + shape.width) % shape.width : Math.max(0, gx - 1))], east = grid[gy * shape.width + (shape.wrap ? (gx + 1) % shape.width : Math.min(shape.width - 1, gx + 1))], north = grid[Math.max(0, gy - 1) * shape.width + gx], south = grid[Math.min(shape.height - 1, gy + 1) * shape.width + gx];
-    const shade = water ? 1 : Math.max(.6, Math.min(1.25, 1 + (west - east + north - south) / 1600)), p = (y * size + x) * 4;
+    const gradient=relief.mode==="physical"&&!water?physicalGradient(west,east,north,south,gx,gy,shape):null;
+    const shade = water ? 1 : gradient?physicalReliefShade(gradient.x,gradient.y,relief.exaggeration):Math.max(.6, Math.min(1.25, 1 + (west - east + north - south) / 1600)), p = (y * size + x) * 4;
     for (let c = 0; c < 3; c++) pixels[p + c] = colors[color + c] * shade;
     pixels[p + 3] = 255;
   }

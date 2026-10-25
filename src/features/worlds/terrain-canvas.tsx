@@ -2,6 +2,7 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import { type TerrainGeometry, brushRadius, fitTerrain, zoomTerrain, terrainPoint, type Brush, type TerrainPatch, type TerrainView } from "./terrain";
 import { paintTerrainTile, terrainRenderKeys } from "./terrain-renderer";
+import type {TerrainRelief} from "./terrain-relief";
 import type {TerrainArea} from "./terrain-source";
 import {normalizePlacePoint,type MapPlace,type PlaceOverlay} from "./world-towns";
 import styles from "./terrain.module.css";
@@ -9,7 +10,7 @@ import {TerrainStroke} from "./terrain-stroke";
 import {unwrapTerrainPath,type TerrainPathPoint} from "./terrain-operations";
 export type TerrainCanvasHandle = { refresh: (keys?: Iterable<number>) => void; fit: () => void; zoom: (factor: number) => void; pan: (x: number, y: number) => void; redraw:()=>void };
 export type TerrainCanvasTool = "pan" | "inspect" | "locations" | "select" | "sample" | "path" | Brush["tool"];
-type Props = { handleRef: Ref<TerrainCanvasHandle>; shape: TerrainGeometry; grid: Int16Array; seaLevel: number; brush: Brush; tool: TerrainCanvasTool; touchEdit?:boolean;path?:TerrainPathPoint[];pathRadius?:number;onPath?:(points:TerrainPathPoint[])=>void;onSample?:(height:number)=>void;onTool?:(tool:TerrainCanvasTool)=>void;onHistory?:(direction:"undo"|"redo")=>void;selection?:TerrainArea|null;onSelect?:(area:TerrainArea)=>void;onRenderReady?:(ready:boolean)=>void; locations:PlaceOverlay; onLocation:(point:{x:number;y:number},hit?:MapPlace)=>void; canEdit: boolean; onStroke: (patch: TerrainPatch) => void; onWorking: (working: boolean) => void; onInspect: (text: string) => void; onMeasure: (ms: number) => void };
+type Props = { relief?:TerrainRelief; handleRef: Ref<TerrainCanvasHandle>; shape: TerrainGeometry; grid: Int16Array; seaLevel: number; brush: Brush; tool: TerrainCanvasTool; touchEdit?:boolean;path?:TerrainPathPoint[];pathRadius?:number;onPath?:(points:TerrainPathPoint[])=>void;onSample?:(height:number)=>void;onTool?:(tool:TerrainCanvasTool)=>void;onHistory?:(direction:"undo"|"redo")=>void;selection?:TerrainArea|null;onSelect?:(area:TerrainArea)=>void;onRenderReady?:(ready:boolean)=>void; locations:PlaceOverlay; onLocation:(point:{x:number;y:number},hit?:MapPlace)=>void; canEdit: boolean; onStroke: (patch: TerrainPatch) => void; onWorking: (working: boolean) => void; onInspect: (text: string) => void; onMeasure: (ms: number) => void };
 export function TerrainCanvas({ handleRef, ...props }: Props) {
   const element = useRef<HTMLCanvasElement>(null), current = useRef(props), api = useRef<TerrainCanvasHandle>(null);
   useEffect(() => { current.current = props; });
@@ -21,7 +22,7 @@ export function TerrainCanvas({ handleRef, ...props }: Props) {
     const pixels = texture.getContext("2d")!;
     let width = 1, height = 1, view: TerrainView = fitTerrain(1, 1, shape), initialized = false, cursor: { x: number; y: number } | null = null;
     const queue = terrainRenderKeys(undefined, shape);
-    let renderFrame = 0, moveFrame = 0, space=false;
+    let renderFrame = 0, moveFrame = 0, space=false,renderStarted=performance.now(),renderPeak=0,renderedTiles=0;
     let gesture: {id:number;mode:"pan"|"inspect"|"sculpt"|"select"|"path";x:number;y:number;last:{x:number;y:number};stroke?:TerrainStroke;ending?:boolean;pathBefore?:TerrainPathPoint[];vertex?:number;dragVertex?:boolean}|null=null;
     const positions = new Map<number, { x: number; y: number }>();
     let pinch: { distance: number; x: number; y: number } | null = null;
@@ -47,11 +48,11 @@ export function TerrainCanvas({ handleRef, ...props }: Props) {
     }
     function render() {
       renderFrame = 0; const start = performance.now();
-      for (const key of queue) { pixels.putImageData(paintTerrainTile(current.current.grid, current.current.seaLevel, key, shape), key % (shape.width / shape.tileSize) * shape.tileSize, Math.floor(key / (shape.width / shape.tileSize)) * shape.tileSize); queue.delete(key); if (performance.now() - start > 6) break; }
-      draw();canvas.dataset.renderBatchMs=String(performance.now()-start); canvas.dataset.renderPending = String(queue.size);current.current.onRenderReady?.(queue.size===0);
+      for (const key of queue) { pixels.putImageData(paintTerrainTile(current.current.grid, current.current.seaLevel, key, shape,current.current.relief), key % (shape.width / shape.tileSize) * shape.tileSize, Math.floor(key / (shape.width / shape.tileSize)) * shape.tileSize); queue.delete(key);renderedTiles++; if (performance.now() - start > 6) break; }
+      draw();const batchMs=performance.now()-start;renderPeak=Math.max(renderPeak,batchMs);canvas.dataset.renderPeakMs=String(renderPeak);canvas.dataset.renderedTiles=String(renderedTiles);if(!queue.size)canvas.dataset.renderElapsedMs=String(performance.now()-renderStarted);canvas.dataset.renderBatchMs=String(batchMs);canvas.dataset.renderRelief=(current.current.relief?.mode??"classic")+":"+(current.current.relief?.exaggeration??1); canvas.dataset.renderPending = String(queue.size);current.current.onRenderReady?.(queue.size===0);
       if (queue.size) renderFrame = requestAnimationFrame(render);
     }
-    function refresh(keys?: Iterable<number>) { current.current.onRenderReady?.(false); for (const key of terrainRenderKeys(keys, shape)) queue.add(key); if (!renderFrame) renderFrame = requestAnimationFrame(render); }
+    function refresh(keys?: Iterable<number>) { current.current.onRenderReady?.(false);const next=terrainRenderKeys(keys,shape);canvas.dataset.refreshTiles=String(next.size);if(!queue.size){renderStarted=performance.now();renderPeak=0;renderedTiles=0;} for (const key of next) queue.add(key); if (!renderFrame) renderFrame = requestAnimationFrame(render); }
     const observer = new ResizeObserver(() => { const rect = canvas.getBoundingClientRect(), previousWidth = width, previousHeight = height; width = rect.width; height = rect.height; const dpr = Math.min(2, window.devicePixelRatio || 1); canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr); if (!initialized) { view = fitTerrain(width, height, shape); initialized = true; } else { view.x += (width - previousWidth) / 2; view.y += (height - previousHeight) / 2; } draw(); }); observer.observe(canvas);
     api.current = { refresh, fit: () => { view = fitTerrain(width, height, shape); draw(); }, zoom: factor => { view = zoomTerrain(view, width / 2, height / 2, factor); draw(); }, pan: (x, y) => { view = { ...view, x: view.x + x, y: view.y + y }; draw(); },redraw:draw };
     function inspect(p: { x: number; y: number }) { const g = terrainPoint(view, p.x, p.y, shape), x = Math.floor(g.x), y = Math.floor(g.y); if (x >= 0 && x < shape.width && y >= 0 && y < shape.height) { const z = current.current.grid[y * shape.width + x]; current.current.onInspect(`Elevation ${z.toLocaleString()} m · ${z <= current.current.seaLevel ? "water" : "land"} · sample ${x}, ${y}`); } }
@@ -92,7 +93,7 @@ export function TerrainCanvas({ handleRef, ...props }: Props) {
     canvas.addEventListener("pointerdown", down); canvas.addEventListener("pointermove", move); canvas.addEventListener("pointerup", up); canvas.addEventListener("pointercancel", cancelled); canvas.addEventListener("lostpointercapture", cancelled);canvas.addEventListener("keydown",spaceDown);canvas.addEventListener("keyup",spaceUp);canvas.addEventListener("blur",blur); canvas.addEventListener("pointerleave", leave); canvas.addEventListener("wheel", wheel, { passive: false }); refresh();
     return () => { observer.disconnect(); cancelAnimationFrame(renderFrame); cancelAnimationFrame(moveFrame); canvas.removeEventListener("pointerdown", down); canvas.removeEventListener("pointermove", move); canvas.removeEventListener("pointerup", up); canvas.removeEventListener("pointercancel", cancelled); canvas.removeEventListener("lostpointercapture", cancelled);canvas.removeEventListener("keydown",spaceDown);canvas.removeEventListener("keyup",spaceUp);canvas.removeEventListener("blur",blur); canvas.removeEventListener("pointerleave", leave); canvas.removeEventListener("wheel", wheel); api.current = null; };
   }, []);
-  useEffect(() => { api.current?.refresh(); }, [props.seaLevel]);
+  useEffect(() => { api.current?.refresh(); }, [props.seaLevel,props.relief?.mode,props.relief?.exaggeration]);
   useEffect(()=>{api.current?.redraw();},[props.locations,props.tool,props.selection,props.path,props.brush]);
   return <canvas ref={element} className={styles.canvas} tabIndex={0} aria-label="Terrain map canvas" aria-describedby="terrain-canvas-help" onKeyDown={e => { const moves: Record<string, [number, number]> = { ArrowLeft: [50, 0], ArrowRight: [-50, 0], ArrowUp: [0, 50], ArrowDown: [0, -50] }; if (moves[e.key]) { e.preventDefault(); api.current?.pan(...moves[e.key]); } else if (e.key === "+" || e.key === "=") api.current?.zoom(1.25); else if (e.key === "-") api.current?.zoom(.8); else if (e.key.toLowerCase() === "f") api.current?.fit();else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();props.onHistory?.(e.shiftKey?"redo":"undo");}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y"){e.preventDefault();props.onHistory?.("redo");}else if(!e.ctrlKey&&!e.metaKey){const tools:Record<string,TerrainCanvasTool>={p:"pan",i:"inspect",r:"raise",l:"lower",s:"smooth",t:"level"};if(tools[e.key.toLowerCase()])props.onTool?.(tools[e.key.toLowerCase()]);} }} />;
 }

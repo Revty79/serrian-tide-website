@@ -3,7 +3,7 @@ import test from "node:test";
 import {createHash} from "node:crypto";
 import {terrainGeometry,terrainSettingsSchema} from "./terrain";
 import {generateTerrain,regenerateArea} from "./terrain-generation";
-import {presetRecipe,EMPTY_PROTECTION,protectSamples,isProtected,protectionGrid} from "./terrain-source";
+import {presetRecipeV1 as presetRecipe,EMPTY_PROTECTION,protectSamples,isProtected,protectionGrid} from "./terrain-source";
 const shape=terrainGeometry(terrainSettingsSchema.parse({gridWidth:256,gridHeight:160}));
 const digest=(grid:Int16Array)=>createHash("sha256").update(new Uint8Array(grid.buffer)).digest("hex");
 test("all six numerical presets are deterministic, bounded and near their requested land fraction",()=>{
