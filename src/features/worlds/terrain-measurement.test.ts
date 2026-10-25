@@ -29,6 +29,6 @@ test("sample/physical transforms preserve unequal-axis coordinates and preferenc
  const s={...shape,height:1024},point={x:125,y:300},physical=sampleToPhysical(point,s);assert.equal(physical.x,125*19531.25);assert.equal(physical.y,300*9765.625);assert.deepEqual(physicalToSample(physical,s),point);assert.deepEqual(parseMeasurementPreferences(prefs),prefs);assert.equal(parseMeasurementPreferences({...prefs,manualSpacingM:0}),null);assert.equal(parseMeasurementPreferences({...prefs,height:"yd"}),null);assert.equal(parseMeasurementPreferences({...prefs,distance:"furlongs"}),null);
 });
 
-test("cursor coordinates keep local precision on enormous Worlds and boundary snapping stays on grid",()=>{assert.equal(formatCoordinate(500000001.25,"m"),"500,000,001.25 m");assert.deepEqual(snapPhysicalPoint({x:999,y:999},600,{...shape,displayWidth:1000,displayHeight:1000}),{x:600,y:600});});
+test("cursor coordinates keep local precision on enormous Worlds and boundary snapping stays on grid",()=>{assert.equal(formatCoordinate(500000001.25,"m"),"500,000,001.25 m");assert.equal(formatCoordinate(500001000,"km"),"500,001 km");assert.notEqual(formatCoordinate(500001000,"km"),formatCoordinate(500002000,"km"));assert.deepEqual(snapPhysicalPoint({x:999,y:999},600,{...shape,displayWidth:1000,displayHeight:1000}),{x:600,y:600});});
 
 test("height units preserve original metre validation and round only explicit feet entry",()=>{assert.equal(toStoredHeight(1.5,"m"),1.5);assert.equal(toStoredHeight(10,"ft"),3);});
