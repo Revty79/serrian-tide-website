@@ -1,0 +1,12 @@
+{
+  "migration": "0137_world_terrain_refinements",
+  "freshReplay": true,
+  "populatedUpgrade": true,
+  "backupRestore": true,
+  "pairedPrivateObjectsVerified": 235,
+  "unchangedExistingTables": 337,
+  "existingRowsSha256": "70da0aa8db7bf9f90f5609e00a33d10ae3abc851cbf6a2cedc18a36af4750fd5",
+  "ledger": 138,
+  "sharedDevSchemaApplied": false,
+  "productionAccess": false
+}

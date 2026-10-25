@@ -8,6 +8,8 @@ import { WorldError, worldReadAccess, worldWriteTransaction } from "./world-serv
 import { terrainCommandSchema,terrainGeometry, type TerrainDocument, type TerrainSummary } from "./terrain";
 import {validateGenerationAcceptance} from "./terrain-generation-acceptance";
 import {EMPTY_PROTECTION,isProtected,protectSamples} from "./terrain-source";
+import {getRefinementEditMask} from "./terrain-refinement-service";
+import {rootFrame} from "./terrain-refinement";
 import { readTerrainTile, stageTerrainTiles, type TerrainObject } from "./terrain-storage";
 const unavailable = () => new WorldError("This terrain map is unavailable.", 404);
 const conflict = () => new WorldError("Another tab saved a newer terrain revision. Your local draft is retained. Load the saved map to compare; it will not be overwritten.", 409);
@@ -70,12 +72,13 @@ export async function changeTerrain(userId: string, worldId: string, raw: unknow
     try{validateGenerationAcceptance({width:row.t.gridWidth,height:row.t.gridHeight,tileSize:32,displayWidth:row.t.widthMetres,displayHeight:row.t.heightMetres,min:row.t.minElevation,max:row.t.maxElevation,wrap:row.t.wrap},source,command.seaLevel);}catch(error){throw new WorldError(error instanceof Error?error.message:"The physical-scale proposal is invalid.",400);}
     const previous=(await tx.execute<TerrainObject&{x:number;y:number;mask:string}>(sql`SELECT DISTINCT ON (tile_x,tile_y) tile_x AS x,tile_y AS y,sha256,bytes,encoding,manual_protection AS mask FROM world_terrain_tile WHERE terrain_id=${row.t.id} AND world_id=${worldId} AND revision<=${row.t.revision} AND detail_level=0 ORDER BY tile_x,tile_y,revision DESC`)).rows;
     const references=new Map(previous.map(r=>[r.x+":"+r.y,r]));let changedSamples=0;
+    const editShape={width:row.t.gridWidth,height:row.t.gridHeight,tileSize:32,displayWidth:row.t.widthMetres,displayHeight:row.t.heightMetres,min:row.t.minElevation,max:row.t.maxElevation,wrap:row.t.wrap},refinementMask=await getRefinementEditMask(tx,row.t.id,editShape,rootFrame(editShape),editShape);
     if(source.kind==="regenerated"&&command.seaLevel!==row.t.seaLevel)throw new WorldError("A selected-area regeneration must retain the saved sea level. Change sea level separately in the editor.",400);
     if(source.kind==="regenerated"&&(source.area.x+source.area.width>row.t.gridWidth||source.area.y+source.area.height>row.t.gridHeight))throw new WorldError("The selected regeneration area is outside this map.",400);
     for(let offset=0;offset<tiles.length;offset+=16)await Promise.all(tiles.slice(offset,offset+16).map(async tile=>{
       const key=tile.x+":"+tile.y,ref=references.get(key),before=ref?await readTerrainTile(ref):new Array<number>(1024).fill(row.t.baseElevation),mask=ref?.mask??EMPTY_PROTECTION,changed:number[]=[];
       for(let n=0;n<1024;n++)if(tile.samples[n]!==before[n]){
-       changed.push(n);if(source.kind==="regenerated"){const x=tile.x*32+(n&31),y=tile.y*32+(n>>5),a=source.area;if(x<a.x||x>=a.x+a.width||y<a.y||y>=a.y+a.height)throw new WorldError("Regeneration cannot change samples outside the explicitly selected area.",400);if(source.preserveManual&&isProtected(mask,n))throw new WorldError("This proposal would replace protected manual terrain. Prepare a new preview or explicitly allow replacement inside the selected area.",400);}
+       if(refinementMask?.[(tile.y*32+(n>>5))*row.t.gridWidth+tile.x*32+(n&31)])throw new WorldError("This parent edit overlaps accepted finer terrain or its interpolation support. Edit the finer source instead. Your draft and all accepted detail are retained.",409);changed.push(n);if(source.kind==="regenerated"){const x=tile.x*32+(n&31),y=tile.y*32+(n>>5),a=source.area;if(x<a.x||x>=a.x+a.width||y<a.y||y>=a.y+a.height)throw new WorldError("Regeneration cannot change samples outside the explicitly selected area.",400);if(source.preserveManual&&isProtected(mask,n))throw new WorldError("This proposal would replace protected manual terrain. Prepare a new preview or explicitly allow replacement inside the selected area.",400);}
       }
       changedSamples+=changed.length;masks.set(key,source.kind==="manual"?protectSamples(mask,changed):mask);
     }));
@@ -83,6 +86,7 @@ export async function changeTerrain(userId: string, worldId: string, raw: unknow
     // Private files are verified and published before the atomic revision/head
     // transaction commits references. A failed transaction leaves safe orphans.
     const objects = await stageTerrainTiles(command.requestId, worldId, row.t.id, tiles), revision = command.revision + 1;
+    if(refinementMask)await tx.execute(sql`SELECT set_config('serrian.refinement_guard',${row.t.id},true)`);
     await tx.insert(worldTerrainVersion).values({ terrainId: row.t.id, worldId, revision, previousRevision: command.revision, requestId: command.requestId, contentHash,source, seaLevel: command.seaLevel, authorId: userId });
     if (objects.length) await tx.insert(worldTerrainTile).values(objects.map(object => ({ terrainId: row.t.id, worldId, revision, ...object,manualProtection:masks.get(object.x+":"+object.y)! })));
     await tx.update(worldTerrain).set({ revision, seaLevel: command.seaLevel, updatedAt: new Date() }).where(eq(worldTerrain.id, row.t.id));

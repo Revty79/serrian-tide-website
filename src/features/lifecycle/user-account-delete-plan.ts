@@ -20,6 +20,7 @@ export type UserAccountForeignKeyPlanEntry = {
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "world_creation_operation", columnName: "author_id", constraintName: "world_creation_operation_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable World town building authorship" },
   { tableName: "world_place_operation", columnName: "author_id", constraintName: "world_place_operation_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable World settlement and map appearance authorship" },
+  { tableName: "world_terrain_refinement_version", columnName: "author_id", constraintName: "world_terrain_refinement_version_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable World terrain refinement authorship" },
   { tableName: "world_terrain_version", columnName: "author_id", constraintName: "world_terrain_version_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable World terrain authorship" },
   { tableName: "world_raster_version", columnName: "author_id", constraintName: "world_raster_version_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable World numerical and categorical raster authorship" },
   { tableName: "world_geo_dataset", columnName: "importer_id", constraintName: "world_geo_dataset_importer_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "World geographic import attribution" },

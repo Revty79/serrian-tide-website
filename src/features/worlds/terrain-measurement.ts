@@ -36,3 +36,10 @@ export function gridInterval(scale:number,p:MeasurementPreferences,previous=0):{
 /** At most ~120 major intervals per axis even for a tiny manual request. */
 export function boundedGridPlan(view:TerrainView,width:number,height:number,s:TerrainGeometry,interval:number){const bounds=visibleTerrainBounds(view,width,height,s),span=Math.max(0,bounds.right-bounds.left,bounds.bottom-bounds.top),stride=Math.max(1,Math.ceil(span/Math.max(.001,interval)/120),Math.ceil(50/(interval*view.scale))),step=interval*stride;return {bounds,requested:interval,step,stride,minor:stride===1&&step*view.scale/5>=12&&span/(step/5)<=140?step/5:0};}
 export function scaleBar(scale:number,p:DistancePreference){const step=niceDistance(100/scale,p);return {...step,pixels:step.metres*scale};}
+
+/** Stable aligned references, with no new origin and no accumulated pan offsets. */
+export function gridLabelReference(bounds:{left:number;right:number;top:number;bottom:number},step:number){
+ const local=Math.max(Math.abs(bounds.left),Math.abs(bounds.right),Math.abs(bounds.top),Math.abs(bounds.bottom))/step>10000;
+ const xIndex=Math.floor(((bounds.left+bounds.right)/2)/step/1000)*1000,yIndex=Math.floor(((bounds.top+bounds.bottom)/2)/step/1000)*1000;
+ return {local,xIndex,yIndex,x:xIndex*step,y:yIndex*step};
+}

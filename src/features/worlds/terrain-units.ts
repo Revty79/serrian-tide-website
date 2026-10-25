@@ -19,8 +19,12 @@ export const distanceEditUnit=(p:DistancePreference):DistanceUnit=>p==="auto-met
 export const toMetres=(value:number,unit:DistanceUnit)=>value*distanceUnits[unit].metres;
 export const fromMetres=(value:number,unit:DistanceUnit)=>value/distanceUnits[unit].metres;
 export const inputDistance=(metres:number,unit:DistanceUnit)=>Number(fromMetres(metres,unit).toPrecision(12));
+/** Coordinate inputs retain the complete double; display-unit changes never round-trip it. */
+export const inputCoordinate=(metres:number,unit:DistanceUnit)=>fromMetres(metres,unit);
 const number=(value:number,compact=false)=>value.toLocaleString(undefined,{maximumSignificantDigits:compact?5:8,...compact&&Math.abs(value)>=1e9?{notation:"scientific" as const}:{}});
 export function formatDistance(metres:number,preference:DistancePreference,unit?:DistanceUnit,compact=false){const u=unit??convenientUnit(metres,preference);return `${number(fromMetres(metres,u),compact)} ${distanceUnits[u].symbol}`;}
+/** Useful readout precision relative to a quarter CSS pixel, never stored rounding. */
+export function formatViewportDistance(metres:number,preference:DistancePreference,scale:number,unit?:DistanceUnit){const u=unit??convenientUnit(metres,preference),precision=Math.max(0,Math.min(8,Math.ceil(-Math.log10(.25/(scale*distanceUnits[u].metres)))));return `${fromMetres(metres,u).toLocaleString(undefined,{maximumFractionDigits:precision})} ${u}`;}
 export function formatArea(squareMetres:number,preference:DistancePreference){const u=convenientUnit(Math.sqrt(Math.abs(squareMetres)),preference);return `${number(squareMetres/distanceUnits[u].metres**2)} ${distanceUnits[u].symbol}\u00b2`;}
 export function formatHeight(metres:number,unit:HeightUnit){return `${fromMetres(metres,unit).toLocaleString(undefined,{maximumFractionDigits:unit==="ft"?2:0})} ${unit}`;}
 export function formatCoordinate(metres:number,preference:DistancePreference){const unit=convenientUnit(metres,preference);return `${fromMetres(metres,unit).toLocaleString(undefined,{maximumFractionDigits:unit==="km"||unit==="mi"?6:3})} ${unit}`;}
