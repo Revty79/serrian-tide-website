@@ -1,0 +1,229 @@
+{
+  "machine": "Windows CPU; Node numerical/render kernels (browser measurements are separate)",
+  "gridCeiling": 1024,
+  "gpuRequired": false,
+  "gcAvailable": true,
+  "rows": [
+    {
+      "widthKm": 10000,
+      "heightKm": 10000,
+      "grid": [
+        256,
+        256
+      ],
+      "scale": "familiar",
+      "wrap": false,
+      "kernelMs": [
+        102.05489999999998,
+        104.44709999999998,
+        103.25470000000007
+      ],
+      "meanKernelMs": 103.25223333333334,
+      "landPercent": 9.9822998046875,
+      "requestedSpanKm": 5000,
+      "measuredCovarianceSpanKm": 4576.27678629302,
+      "minimumM": -4500,
+      "maximumM": 3250,
+      "spacingKm": [
+        39.0625,
+        39.0625
+      ],
+      "requiresAcknowledgement": true,
+      "featureCount": 1,
+      "rangeCount": 4
+    },
+    {
+      "widthKm": 10000,
+      "heightKm": 10000,
+      "grid": [
+        1024,
+        1024
+      ],
+      "scale": "familiar",
+      "wrap": false,
+      "kernelMs": [
+        1745.1315,
+        1653.7808999999997,
+        1631.1605
+      ],
+      "meanKernelMs": 1676.6909666666663,
+      "landPercent": 9.986495971679688,
+      "requestedSpanKm": 5000,
+      "measuredCovarianceSpanKm": 4580.890584067183,
+      "minimumM": -4500,
+      "maximumM": 3257,
+      "spacingKm": [
+        9.765625,
+        9.765625
+      ],
+      "requiresAcknowledgement": false,
+      "featureCount": 1,
+      "rangeCount": 4
+    },
+    {
+      "widthKm": 40000,
+      "heightKm": 40000,
+      "grid": [
+        1024,
+        1024
+      ],
+      "scale": "familiar",
+      "wrap": false,
+      "kernelMs": [
+        149.06990000000042,
+        144.54759999999987,
+        163.28369999999995
+      ],
+      "meanKernelMs": 152.30040000000008,
+      "landPercent": 0.6238937377929688,
+      "requestedSpanKm": 5000,
+      "measuredCovarianceSpanKm": 4576.27678629302,
+      "minimumM": -4500,
+      "maximumM": 3250,
+      "spacingKm": [
+        39.0625,
+        39.0625
+      ],
+      "requiresAcknowledgement": true,
+      "featureCount": 1,
+      "rangeCount": 4
+    },
+    {
+      "widthKm": 20000,
+      "heightKm": 10000,
+      "grid": [
+        1024,
+        1024
+      ],
+      "scale": "familiar",
+      "wrap": false,
+      "kernelMs": [
+        829.5702999999994,
+        788.7338,
+        844.0678000000007
+      ],
+      "meanKernelMs": 820.7906333333334,
+      "landPercent": 4.993438720703125,
+      "requestedSpanKm": 5000,
+      "measuredCovarianceSpanKm": 4580.676621154279,
+      "minimumM": -4500,
+      "maximumM": 3242,
+      "spacingKm": [
+        19.53125,
+        9.765625
+      ],
+      "requiresAcknowledgement": true,
+      "featureCount": 1,
+      "rangeCount": 4
+    },
+    {
+      "widthKm": 1000000,
+      "heightKm": 1000000,
+      "grid": [
+        1024,
+        1024
+      ],
+      "scale": "familiar",
+      "wrap": false,
+      "kernelMs": [
+        1.1512000000002445,
+        1.5018999999992957,
+        1.144800000000032
+      ],
+      "meanKernelMs": 1.2659666666665241,
+      "landPercent": 0.0011444091796875,
+      "requestedSpanKm": 5000,
+      "measuredCovarianceSpanKm": 4893.651164834931,
+      "minimumM": -4500,
+      "maximumM": 2054,
+      "spacingKm": [
+        976.5625,
+        976.5625
+      ],
+      "requiresAcknowledgement": true,
+      "featureCount": 1,
+      "rangeCount": 4
+    },
+    {
+      "widthKm": 1000000,
+      "heightKm": 1000000,
+      "grid": [
+        1024,
+        1024
+      ],
+      "scale": "colossal",
+      "wrap": false,
+      "kernelMs": [
+        255.8109000000004,
+        255.03759999999966,
+        256.21850000000086
+      ],
+      "meanKernelMs": 255.6890000000003,
+      "landPercent": 1.5982627868652344,
+      "requestedSpanKm": 200000,
+      "measuredCovarianceSpanKm": 183187.71043914184,
+      "minimumM": -10000,
+      "maximumM": 9603,
+      "spacingKm": [
+        976.5625,
+        976.5625
+      ],
+      "requiresAcknowledgement": false,
+      "featureCount": 1,
+      "rangeCount": 2
+    },
+    {
+      "widthKm": 40000,
+      "heightKm": 24000,
+      "grid": [
+        1024,
+        1024
+      ],
+      "scale": "familiar",
+      "wrap": true,
+      "kernelMs": [
+        172.65769999999975,
+        199.60109999999986,
+        176.97470000000067
+      ],
+      "meanKernelMs": 183.07783333333342,
+      "landPercent": 1.0417938232421875,
+      "requestedSpanKm": 5000,
+      "measuredCovarianceSpanKm": 4570.5185241158815,
+      "minimumM": -4500,
+      "maximumM": 3293,
+      "spacingKm": [
+        39.0625,
+        23.4375
+      ],
+      "requiresAcknowledgement": true,
+      "featureCount": 1,
+      "rangeCount": 4
+    }
+  ],
+  "render": {
+    "classicFullGridKernelMs": 42.220400000000154,
+    "classicNineTileHaloMeanMs": 0.19981299999999463,
+    "physicalEnhancedFullGridKernelMs": 31.590000000000146,
+    "physicalEnhancedNineTileHaloMeanMs": 0.5133029999999963,
+    "ordinaryRaiseMeanDabMs": 0.13472749999999906
+  },
+  "memory": {
+    "before": {
+      "rss": 165597184,
+      "heapTotal": 86716416,
+      "heapUsed": 16831336,
+      "external": 9297386,
+      "arrayBuffers": 6615346
+    },
+    "after": {
+      "rss": 168669184,
+      "heapTotal": 86716416,
+      "heapUsed": 16831808,
+      "external": 11394162,
+      "arrayBuffers": 8712498
+    },
+    "arrayBufferGrowthBytes": 2097152,
+    "retainedLatestGridBytes": 2097152
+  }
+}

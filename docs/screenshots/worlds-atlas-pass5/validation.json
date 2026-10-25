@@ -1,0 +1,46 @@
+{
+  "implementation": "771ad35162d4035bf5a9e74fdd9d5e027e336268",
+  "rootFeatureTests": {
+    "tests": 2310,
+    "files": 289,
+    "passed": 2310,
+    "failed": 0
+  },
+  "typecheck": {
+    "passed": true
+  },
+  "lint": {
+    "errors": 0,
+    "warnings": 1,
+    "preExistingWarning": "scripts/worlds-stories-checks.ts unused LoreFamily import"
+  },
+  "changedCodeLint": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "productionBuild": {
+    "passed": true,
+    "bundler": "Turbopack",
+    "nextVersion": "16.3.2"
+  },
+  "fullDisposableBrowserAndDatabase": {
+    "passed": true,
+    "receipt": "results.json",
+    "testedImplementation": "fed9b593352eeda23373c32969467ee41a6b2b7d"
+  },
+  "physicalBrowser": {
+    "passed": true,
+    "receipt": "pass5-results.json",
+    "gpuDisabled": true,
+    "testedImplementation": "771ad35162d4035bf5a9e74fdd9d5e027e336268",
+    "focusedReceipt": "focused-results.json"
+  },
+  "benchmark": "numerical-performance.json",
+  "preservation": "preserved-source.json",
+  "devLedger": "dev-ledger-readonly.json",
+  "newMigrations": 0,
+  "sharedDatabaseWrites": false,
+  "productionContact": false,
+  "ownerAcceptance": "pending",
+  "independentReview": "not claimed"
+}

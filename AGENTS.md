@@ -8,9 +8,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Active Worlds direction - Atlas Pass 5, physical geography and relief (2026-10-25)
+## Completed Worlds direction - Atlas Pass 5, physical geography and relief (2026-10-25)
 
 The owner authorized [Pass 5 physical-scale generation and relief](docs/architecture/worlds-terrain-pass5.md) from published `f1b446a`. Preserve Passes 1–4, exact v1 generation, the palette/Canvas2D editor, all sculpting/expanded/touch behavior, persistence, recovery, provenance and stable identities. Add a new versioned physical generator using meaningful kilometre dimensions and intended metre heights, transparent coverage conflicts and resolution limits, and separately adjustable physical relief with Classic compatibility. Never resize physical features to satisfy a land percentage, infer new detail from zoom, or derive intended mountains from allowed height bounds. Keep 1024-per-axis limits and bounded worker/tile work. Existing JSONB provenance should suffice; applied migrations through 0136 are immutable. Validate in owned disposable targets, including million-kilometre worlds and GPU-disabled desktop/touch, and publish the completed tested pass under the authorized workflow. No Production/Ubuntu, deployment, Studio, Town Maps/interiors/dungeons, Stage 3 simulation, adaptive refinement/measurement tools, multiple styles or Describe Your World work. Do not mark Stage 2 complete.
+
+Pass 5 is implemented at `771ad35162d4035bf5a9e74fdd9d5e027e336268`, including core `fed9b59`. See [delivery, evidence and owner review](docs/operations/worlds-atlas-pass5-delivery.md). No new migration is required. Owner artistic/usability acceptance and independent review are not recorded. Publication completes this bounded pass; later construction and server deployment still require separate authorization.
 
 ## Completed Worlds direction - Atlas Pass 4, Stage 2 terrain sculpting (2026-10-25)
 

@@ -1,0 +1,19 @@
+{
+  "database": "serrian_tide_dev",
+  "journalCount": 137,
+  "ledgerCount": 137,
+  "expectedLast": {
+    "idx": 136,
+    "tag": "0136_world_terrain_sources",
+    "when": 1792904704491
+  },
+  "actualLast": {
+    "id": 137,
+    "createdAt": 1792904704491,
+    "hashPrefix": "4ef0c01a4c14"
+  },
+  "matches": true,
+  "readOnly": true,
+  "sharedDatabaseWrites": false,
+  "productionContact": false
+}
