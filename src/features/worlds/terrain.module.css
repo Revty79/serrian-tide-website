@@ -60,7 +60,7 @@
 .expanded .editorHeader {margin-bottom:.25rem;flex-shrink:0;}
 .expanded .editorHeader .downloadDraft {display:none;}
 .expanded .toolkit {margin-block:.25rem;flex-shrink:0;}
-.expanded>.viewport {flex:1 1 240px;height:auto;min-height:180px;max-height:none;}
+.expanded>.viewport {flex:1 1 240px;height:auto;min-height:182px;max-height:none;}
 .expanded>.tools,.expanded>.drawingBar,.expanded>.inspection,.expanded>.saveStatus {flex-shrink:0;}
 .expanded>.tools button[aria-label^="Pan "] {display:none;}
 .expanded .canvasHelp {display:none;}
@@ -99,7 +99,7 @@
 .measureActions {display:flex;flex-wrap:wrap;align-items:end;gap:.4rem;}
 .measureActions>div {flex:1;min-width:140px;}
 .measureActions button {min-height:44px;}
-.measureResult {display:block;color:var(--st-text-strong);padding:.4rem 0;line-height:1.5;}
+.measureResult {position:sticky;top:0;z-index:1;background:var(--st-surface-soft);display:block;color:var(--st-text-strong);padding:.4rem 0;line-height:1.5;}
 .physicalSettings {grid-column:1/-1;min-width:0;}
 .editor:not(.expanded)>.measurementBar {position:sticky;top:4.5rem;z-index:3;background:var(--st-surface-raised);padding:.35rem;border:1px solid var(--st-border);border-radius:.5rem;}
 .editor:not(.expanded) .brushSettings[open] {max-height:280px;overflow:auto;overscroll-behavior:contain;}
@@ -111,3 +111,5 @@
 .expanded .measurePreferences>div {max-height:min(28dvh,260px);}
 .expanded>.inspection {max-height:3rem;overflow:auto;}
 @media(max-width:600px){.measurePreferences .controls{gap:.35rem;font-size:.8rem;}.measurementBar{gap:.3rem;}.measurementPanel{padding:.4rem;}.measureActions{gap:.3rem;}}
+
+.editor button,.editor summary {touch-action:manipulation;}
