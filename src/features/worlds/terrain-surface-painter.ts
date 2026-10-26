@@ -3,6 +3,8 @@ import type {TerrainDetailScene} from "./terrain-detail-renderer";
 import type {TerrainFrame,TerrainViewport} from "./terrain-refinement";
 import {terrainSurfaceSampler} from "./terrain-surface-field";
 import {surfacePixel} from "./terrain-surface-art";
+import {MEAN_SURFACE_TEXTURES} from "./terrain-surface-textures";
+import {cachedSurfaceTextures,loadSurfaceTextures} from "./terrain-surface-texture-client";
 import {EMPTY_TERRAIN_MATERIALS,type MaterialStroke} from "./terrain-materials";
 
 type Image={canvas:HTMLCanvasElement;frame:TerrainFrame;baseKey:string};
@@ -14,7 +16,13 @@ export class TerrainSurfacePainter{
  private root?:Int16Array;private scene?:TerrainDetailScene;private stamp=0;private signature="";private sample?:ReturnType<typeof terrainSurfaceSampler>;
  private world?:TerrainGeometry;private sea=0;private relief=20;private layer=EMPTY_TERRAIN_MATERIALS;
  readonly metrics={painted:0,hits:0,maxBatchMs:0,maxTextures:0,visualMetres:0};
- constructor(readonly limit=1024){}
+ private textures=cachedSurfaceTextures()??MEAN_SURFACE_TEXTURES;private disposed=false;private fineArtwork=false;
+ assetState:"unloaded"|"loading"|"ready"|"error"=cachedSurfaceTextures()?"ready":"unloaded";
+ constructor(private readonly onArtworkChange:()=>void=()=>{},readonly limit=1024){}
+ get waitingForAssets(){return this.fineArtwork&&this.assetState==="loading";}
+ get artworkBytes(){return this.textures.bytes;}
+ private requestArtwork(){if(this.assetState==="ready"||this.assetState==="loading"||this.disposed)return;this.assetState="loading";void loadSurfaceTextures().then(textures=>{if(this.disposed)return;this.textures=textures;this.assetState="ready";this.invalidate();this.onArtworkChange();}).catch(()=>{if(this.disposed)return;this.assetState="error";this.onArtworkChange();});}
+ retryArtwork(){this.assetState="unloaded";this.requestArtwork();this.onArtworkChange();}
  invalidate(){this.stamp++;this.signature="";}
  get pending(){return this.jobs.length;}
  get bytes(){let n=0;for(const i of this.images.values())n+=i.canvas.width*i.canvas.height*4;return n;}
@@ -22,6 +30,7 @@ export class TerrainSurfacePainter{
   if(root!==this.root){this.root=root;this.invalidate();}
   const level=Math.max(0,Math.min(48,Math.floor(Math.log2(world.displayWidth*view.scale*dpr/128)))),size=world.displayWidth/2**level;
   const resolution=Math.max(32,Math.min(256,Math.ceil(size*view.scale*dpr))),left=Math.max(world.wrap?-(2**level):0,Math.floor(view.left/size)),right=Math.min(world.wrap?2*2**level-1:2**level-1,Math.floor(view.right/size)),top=Math.max(0,Math.floor(view.top/size)),bottom=Math.min(Math.ceil(world.displayHeight/size)-1,Math.floor(view.bottom/size));
+  this.fineArtwork=size/resolution<32;if(this.fineArtwork&&this.assetState==="unloaded")this.requestArtwork();
   const signature=[left,right,top,bottom,level,resolution,sea,relief,this.stamp,layer===this.layer?"retained":"changed"].join("/");if(signature===this.signature&&scene===this.scene&&layer===this.layer)return;this.signature=signature;this.scene=scene;
   this.world=world;this.sea=sea;this.relief=relief;this.layer=layer;this.sample=terrainSurfaceSampler(root,world,scene);this.metrics.visualMetres=size/resolution;
   const old=new Map(this.jobs.map(j=>[j.key,j])),jobs:Job[]=[],wanted:{key:string;baseKey:string;frame:TerrainFrame}[]=[],seen=new Set<string>(),period=world.wrap?world.displayWidth:null;
@@ -37,7 +46,7 @@ export class TerrainSurfacePainter{
   for(const job of jobs.slice(1))if(job.pixels){job.pixels=undefined;job.row=0;job.col=0;}this.wanted=wanted;this.jobs=jobs;
  }
  paint(budget=4){const start=performance.now();if(!this.sample||!this.world)return;while(this.jobs.length){const j=this.jobs[0],edge=j.resolution+2,pixels=j.pixels??(j.pixels=new ImageData(edge,edge)),step=j.frame.width/j.resolution,period=this.world.wrap?this.world.displayWidth:null;
-   while(j.row<edge){const row=j.row;while(j.col<edge){const col=j.col++;let x=j.frame.x+(col-.5)*step;const y=j.frame.y+(row-.5)*step;if(period)x=((x%period)+period)%period;const field=this.sample(x,y),rgb=surfacePixel(field,x,y,step,this.sea,this.relief,this.layer,j.strokes,period),i=(row*edge+col)*4;pixels.data[i]=rgb[0];pixels.data[i+1]=rgb[1];pixels.data[i+2]=rgb[2];pixels.data[i+3]=255;if(j.col%8===0&&performance.now()-start>=budget){this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);return;}}j.row++;j.col=0;if(performance.now()-start>=budget){this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);return;}}
+   while(j.row<edge){const row=j.row;while(j.col<edge){const col=j.col++;let x=j.frame.x+(col-.5)*step;const y=j.frame.y+(row-.5)*step;if(period)x=((x%period)+period)%period;const field=this.sample(x,y),rgb=surfacePixel(field,x,y,step,this.sea,this.relief,this.layer,j.strokes,period,this.textures),i=(row*edge+col)*4;pixels.data[i]=rgb[0];pixels.data[i+1]=rgb[1];pixels.data[i+2]=rgb[2];pixels.data[i+3]=255;if(j.col%8===0&&performance.now()-start>=budget){this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);return;}}j.row++;j.col=0;if(performance.now()-start>=budget){this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);return;}}
    const canvas=document.createElement("canvas");canvas.width=canvas.height=edge;canvas.getContext("2d")!.putImageData(pixels,0,0);this.images.set(j.key,{canvas,frame:j.frame,baseKey:j.baseKey});this.fallback.set(j.baseKey,j.key);this.jobs.shift();this.metrics.painted++;
    while(this.images.size>this.limit||this.bytes>64*1024*1024){const key=this.images.keys().next().value!,old=this.images.get(key)!;this.images.delete(key);if(this.fallback.get(old.baseKey)===key)this.fallback.delete(old.baseKey);}this.metrics.maxTextures=Math.max(this.metrics.maxTextures,this.images.size);if(performance.now()-start>=budget)break;
   }this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);}
@@ -45,6 +54,7 @@ export class TerrainSurfacePainter{
   for(const {key,baseKey,frame} of this.wanted){const image=this.images.get(key)??this.images.get(this.fallback.get(baseKey)??"");if(image)ctx.drawImage(image.canvas,1,1,image.canvas.width-2,image.canvas.height-2,view.x+frame.x*view.scale,view.y+frame.y*view.scale,frame.width*view.scale+.02,frame.height*view.scale+.02);}ctx.restore();
  }
  clear(){this.images.clear();this.fallback.clear();this.jobs=[];this.wanted=[];this.signature="";this.sample=undefined;}
+ dispose(){this.disposed=true;this.clear();}
 }
 function intersects(s:MaterialStroke,f:TerrainFrame,period:number|null){for(let i=0;i<s.points.length;i++){const a=s.points[i],b=s.points[Math.min(i+1,s.points.length-1)];let dx=b.x-a.x;if(period)dx-=Math.round(dx/period)*period;for(const offset of period?[-period,0,period]:[0]){const x=a.x+offset;if(Math.min(x,x+dx)-s.radiusM<=f.x+f.width&&Math.max(x,x+dx)+s.radiusM>=f.x&&Math.min(a.y,b.y)-s.radiusM<=f.y+f.height&&Math.max(a.y,b.y)+s.radiusM>=f.y)return true;}}return false;}
 function fingerprint(text:string){let a=2166136261,b=3339675911;for(let i=0;i<text.length;i++){a=Math.imul(a^text.charCodeAt(i),16777619);b=Math.imul(b^text.charCodeAt(i),2246822519);}return (a>>>0).toString(16)+(b>>>0).toString(16)+":"+text.length;}

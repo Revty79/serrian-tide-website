@@ -1,5 +1,7 @@
 import type {SurfaceField} from "./terrain-surface-field";
 import {paintMaterialWeights,type TerrainMaterials,type MaterialStroke} from "./terrain-materials";
+import {shadeSurfaceTextures} from "./terrain-surface-texture-shading";
+import type {SurfaceTextureSet} from "./terrain-surface-textures";
 
 const clamp=(n:number,a=0,b=1)=>Math.max(a,Math.min(b,n));
 const smooth=(n:number)=>{n=clamp(n);return n*n*(3-2*n);};
@@ -16,10 +18,11 @@ export function automaticSurface(field:SurfaceField,sea:number){
 }
 /** Original procedural surface artwork. Texture normals affect light only and are
  * never exposed as measured relief. Snow is explicit paint, never a climate inference. */
-export function surfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null):[number,number,number]{
+export function surfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null,textures?:SurfaceTextureSet):[number,number,number]{
  const band=(scale:number)=>smooth(scale/(footprint*2)-.4),n=(scale:number,ox=0,oy=0)=>{const weight=band(scale);return weight ? .5+(surfaceNoise(x+ox,y+oy,scale,period)-.5)*weight:.5;},broad=.5+(n(9000)-.5)*.65+(n(240000)-.5)*.35,meso=n(320),grain=n(5),detail=band(20),slope=Math.hypot(field.gx,field.gy),depth=sea-field.waterHeight;
  const shallow=Math.exp(-Math.max(0,depth)/45),shelf=Math.exp(-Math.max(0,depth)/700),ripple=Math.sin(n(4)*6+meso*5)*band(5)*.25,water=[12+shallow*56+shelf*9+ripple,39+shallow*94+shelf*22+ripple*2,57+shallow*74+shelf*24+ripple*2],landFraction=slope<1e-6?(depth>=0?0:1):clamp(.5-depth/(slope*footprint));if(landFraction===0)return water as [number,number,number];
  const coverage=layer.visible?layer.opacity:0,weights=layer.automatic?automaticSurface(field,sea):[0,0,1,0,0,0];if(strokes.length)paintMaterialWeights(weights,{visible:true,opacity:1},strokes,x,y,period);for(let i=0;i<6;i++)weights[i]=weights[i]*coverage+(i===2?1-coverage:0);
+ if(textures)return shadeSurfaceTextures(textures,field,weights,x,y,footprint,relief,period,broad,water,landFraction);
  // Warped, stratified stone: connected ridges, mineral faces and narrow joints.
  const warp=n(65)*3,periodicX=period?Math.sin(2*Math.PI*x/period)*period/(2*Math.PI):x,axis=(periodicX*.72+y*.43)/17+warp+field.height*.012,vein=Math.abs(Math.sin(axis)),joints=smooth((.12-vein)/.12),facets=Math.abs(n(28)-.5)*2;
  const plates=weights[0]>.08&&band(30)>0?stoneCells((periodicX*.8+y*.6)/28+n(90)*1.2,(-periodicX*.6+y*.8)/28+field.height*.003):{edge:1,radius:0,tone:.5,nx:0,ny:0},cracks=(1-smooth(plates.edge/Math.max(.035,footprint/28)))*band(30),plateNormal=(plates.nx*.16+plates.ny*.11)*band(30);

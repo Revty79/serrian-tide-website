@@ -191,3 +191,4 @@
 .materialControls { display: grid; gap: .65rem; }
 .materialControls h4, .materialControls p { margin: 0; }
 .materialControls > details > label { display: block; margin-block: .45rem; }
+.artworkRetry { position: absolute; right: .6rem; bottom: 5rem; z-index: 2; max-width: 16rem; }
