@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {INTENT_VERSION,intentPlanSchema,intentIssueSchema} from "./terrain-intent";
 
 export const GENERATOR_V1_VERSION="world-heightmap-v1" as const;
 export const GENERATOR_VERSION="world-heightmap-v2" as const;
@@ -12,7 +13,9 @@ export const generationRecipeV1Schema=z.object({
 export const geographicScales={familiar:"Familiar Geography",grand:"Grand Fantasy Geography",colossal:"Colossal Geography",custom:"Custom"} as const;
 const kilometres=z.number().finite().min(.01).max(2000000),height=z.number().int().min(1).max(30000);
 export const generationRecipeV2Schema=generationRecipeV1Schema.extend({version:z.literal(GENERATOR_VERSION),landCoverage:percentage,landmasses:z.number().int().min(1).max(64),geographicScale:z.enum(["familiar","grand","colossal","custom"]),continentWidthKm:kilometres,islandWidthKm:kilometres,landmassSpacingKm:kilometres,clusterSpacingKm:kilometres,coastScaleKm:kilometres,mountainLengthKm:kilometres,mountainWidthKm:kilometres,mountainSpacingKm:kilometres,mountainHeightM:height,oceanDepthM:height,lowlandHeightM:height,highlandHeightM:height,highlandCoverage:percentage,plateauStrength:percentage,coastalPlainKm:kilometres}).strict();
-export const generationRecipeSchema=z.discriminatedUnion("version",[generationRecipeV1Schema,generationRecipeV2Schema]);
+export const generationRecipeV3Schema=generationRecipeV2Schema.extend({version:z.literal(INTENT_VERSION),description:z.string().max(12000),plan:intentPlanSchema,interpretationNotes:z.array(z.string().max(1000)).max(80),interpretationIssues:z.array(intentIssueSchema).max(80),planConfirmed:z.boolean()}).strict();
+export type GenerationRecipeV3=z.infer<typeof generationRecipeV3Schema>;
+export const generationRecipeSchema=z.discriminatedUnion("version",[generationRecipeV1Schema,generationRecipeV2Schema,generationRecipeV3Schema]);
 export type GenerationRecipeV1=z.infer<typeof generationRecipeV1Schema>;
 export type GenerationRecipeV2=z.infer<typeof generationRecipeV2Schema>;
 export type GenerationRecipe=z.infer<typeof generationRecipeSchema>;

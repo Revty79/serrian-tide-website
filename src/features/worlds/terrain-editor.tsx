@@ -59,7 +59,7 @@ function Sculptor({ document: rootDocument, api:baseApi, editable, review, onDir
   const [acceptedSource,setAcceptedSource]=useState(saved.source);
   const [measurementPreferences,setMeasurementPreferences]=useMeasurementPreferences(),[measurement,setMeasurement]=useState<TerrainMeasurement>(emptyMeasurement),[sizeMode,setSizeMode]=useState<"samples"|"physical">("samples"),[requestedDiameter,setRequestedDiameter]=useState(()=>2*Math.min(24,shape.width/2)*Math.min(shape.displayWidth/shape.width,shape.displayHeight/shape.height)),[sizeAdjustment,setSizeAdjustment]=useState<PhysicalSizeAdjustment>("requested");
   const physicalSize=physicalSizeAssessment(shape,requestedDiameter,sizeAdjustment);
-  const [relief,setRelief]=useTerrainRelief(saved.worldId+":"+saved.id,saved.origin?.kind==="generated"&&saved.origin.recipe.version==="world-heightmap-v2");
+  const [relief,setRelief]=useTerrainRelief(saved.worldId+":"+saved.id,saved.origin?.kind==="generated"&&(saved.origin.recipe.version==="world-heightmap-v2"||saved.origin.recipe.version==="world-heightmap-v3"));
   const baseline = useRef<Int16Array>(grid.slice()), revision = useRef(saved.revision), baselineSea = useRef(saved.seaLevel), changed = useRef(new Set<number>());
   const canvas = useRef<TerrainCanvasHandle>(null), undo = useRef<History[]>([]), redo = useRef<History[]>([]), pendingCommand = useRef<TerrainRecovery["pending"]>(undefined);
   const [tool, setTool] = useState<TerrainCanvasTool>("raise"), [radius, setRadius] = useState(Math.min(24, shape.width / 2)), [strength, setStrength] = useState(150), [seaLevel, setSeaLevel] = useState(saved.seaLevel), sea = useRef(seaLevel);

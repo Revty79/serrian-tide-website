@@ -71,6 +71,7 @@ export class TerrainDetailPainter{
   if(!scene)return;
   for(const plan of [...scene.plans].sort((a,b)=>a.meta.level-b.meta.level)){
    const frame:TerrainFrame=plan.meta.frame,shape=lodGeometry(frameGeometry(plan.meta,world),plan.lod),columns=shape.width/32,tw=frame.width/columns,th=frame.height/(shape.height/32);
+   ctx.imageSmoothingEnabled=Math.max(tw/32,th/32)*view.scale<2;
    for(const key of plan.keys){const image=this.images.get(`${plan.meta.id}/${plan.meta.revision}/${plan.lod}/${key}`);if(!image)continue;
     for(const offset of world.wrap?[-world.displayWidth,0,world.displayWidth]:[0]){const x=view.x+(frame.x+offset+key%columns*tw)*view.scale,y=view.y+(frame.y+Math.floor(key/columns)*th)*view.scale;ctx.drawImage(image.canvas,x,y,tw*view.scale+.05,th*view.scale+.05);}
    }

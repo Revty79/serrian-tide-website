@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Active Worlds direction - Atlas Pass 8, described geographic creation (2026-10-25)
+
+The owner authorized the complete [Pass 8 described geographic intent and Stage 2 review](docs/architecture/worlds-terrain-pass8.md) from `3900117725bea42113a9841a0c5122152ae523d7`. Deliver the local transparent interpreter, editable physical plan, new versioned numerical generator, creation/refinement workflows and full Stage 2 technical acceptance. Preserve v1/v2 semantics and all Pass 1-7 functionality. Keep active work in this main checkout and publish checkpoints/completed work to `origin/main`; do not deploy or mutate shared DEV/Production. Read-only DEV verification now confirms 139 applied entries through 0138; both hashes match published migrations. Preserve every historical migration; prefer existing JSONB provenance. Use newly owned disposable validation targets. Owner Stage 2 acceptance and Stage 3 authorization remain separate.
+
 ## Completed Worlds direction - Atlas Pass 7, multiresolution terrain (2026-10-25)
 
 The owner subsequently directed all active work to remain in this main checkout and explicitly authorized progress commits and pushes to `origin/main` before Pass 7 is complete. Label checkpoints honestly and continue implementation after publication. This does not authorize server deployment or shared DEV/Production migration application. Preserve the separate `codex/atlas-pass7` recovery checkout rather than discarding it.

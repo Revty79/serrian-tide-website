@@ -1,4 +1,8 @@
 .workspace { min-width: 0; padding-block: 1rem; }
+.intentStage {height:100%;min-height:0;position:relative;overflow:hidden;border:1px solid var(--st-border-strong);border-radius:.5rem;background:var(--st-surface-deep);}
+.intentStage>canvas {width:100%;height:100%;display:block;}
+.intentMapActions {position:absolute;right:.4rem;top:.4rem;display:flex;gap:.25rem;z-index:2;background:var(--st-surface-raised);padding:.25rem;border-radius:.4rem;}
+.intentMapStatus {position:absolute;left:.4rem;bottom:.4rem;right:.4rem;max-height:4.5rem;overflow:auto;color:var(--st-text-strong);background:var(--st-surface-raised);padding:.35rem;border:1px solid var(--st-border);border-radius:.35rem;font-size:.8rem;pointer-events:none;}
 .heading, .editorHeader { display: flex; align-items: start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .heading h2, .editorHeader h3 { color: var(--st-text-strong); font-size: 1.5rem; margin: 0 0 .4rem; }
 .workspace p { color: var(--st-text-secondary); line-height: 1.55; margin-block: .5rem; }
