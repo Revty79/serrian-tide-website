@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "originalWorldCoordinates": true,
+  "sharedWorldRenderer": true,
+  "fineRidge": true,
+  "fineValley": true,
+  "fineSelectedArea": true,
+  "fineSelectedRegeneration": true,
+  "baseUnchanged": true,
+  "heights": {
+    "initial": -500,
+    "ridge": 699,
+    "valley": 99.39999999999998,
+    "selectedArea": 900
+  }
+}

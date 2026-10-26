@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "previewPerformance": {
+    "samples": 1048576,
+    "workerMs": 61
+  },
+  "frame": {
+    "x": 9990000,
+    "y": 5990000,
+    "width": 20000,
+    "height": 20000
+  },
+  "physicalIslandWidthM": 1000,
+  "manualProtection": true,
+  "previewCancelNoRevision": true,
+  "descriptionDraftRecovery": true,
+  "realMountainAndSouthernBay": true,
+  "sameRefinementIdentity": true,
+  "undoRedo": true,
+  "furtherSculpt": true,
+  "restartReopen": true,
+  "parentExact": true,
+  "historicalV3Source": true,
+  "gpuDisabled": true
+}

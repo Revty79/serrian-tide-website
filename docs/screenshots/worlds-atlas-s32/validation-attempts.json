@@ -1,0 +1,50 @@
+{
+  "scope": "Stage 3 Pass 2 validation history",
+  "attempts": [
+    {
+      "name": "initial procedural foundation",
+      "outcome": "passed full functional chain",
+      "implementationCommit": "00f30a25b482187f1adcaa491ecdf3de5f045701",
+      "receipt": "foundation-results.json",
+      "note": "Superseded presentation quality; retained as functional evidence, not final artwork acceptance."
+    },
+    {
+      "name": "first bundled photographic artwork",
+      "outcome": "failed",
+      "failure": "90-second close-up redraw timeout",
+      "localLog": "artifacts/s32-textured-review.log"
+    },
+    {
+      "name": "optimized texture filtering, unfiltered run",
+      "outcome": "failed",
+      "runtimeWorkspaceSha256": "f250abe0b7687af44414ef6c0a75f91a91c339d21acc399ee77569f07ffc136e",
+      "productionBuildId": "moaShJsJ5zlGL6RqHc9EZ",
+      "failure": "90-second mountainside redraw timeout after retained terrain and creator journeys passed",
+      "localLog": "artifacts/s32-final-release.log"
+    },
+    {
+      "name": "cached numerical reconstruction, focused production run",
+      "outcome": "passed",
+      "runtimeWorkspaceSha256": "15a13a63dede21636f16ff8bcd76a811b542a0135379294a5e46766dce032df1",
+      "runtimeFiles": 1556,
+      "productionBuildId": "JD0rK15qld1NL9yKaP_vC",
+      "mode": "focused",
+      "visualOnly": false,
+      "development": false,
+      "sharedDatabaseWrites": false,
+      "receipt": "cached-focused-results.json",
+      "note": "All material/browser workflows including recovery, sculpt/undo and DPR 2 native input passed. Final unfiltered validation also covers subsequent material-only cache reuse."
+    },
+    {
+      "name": "frozen implementation, final unfiltered production run",
+      "outcome": "passed",
+      "implementationCommit": "62d91cb1165b1649410efdd4c112b9ca997f8cb7",
+      "runtimeWorkspaceSha256": "f8afa35ac1834d51af67264d5e1b3ef30944a09eec48fc67da2abbf233b517e8",
+      "productionBuildId": "pLfSbdXAmvciL2aJiokvQ",
+      "receipt": "results.json",
+      "deliveryReceipt": "delivery-validation.json"
+    }
+  ],
+  "ownerArtisticAcceptance": false,
+  "productionContacted": false
+}

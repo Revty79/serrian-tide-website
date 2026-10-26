@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "viewport": {
+    "initial": {
+      "zoom": 0.0284803125,
+      "painted": 1024,
+      "rawTiles": 1024,
+      "textures": 0,
+      "viewportRequests": 0,
+      "cacheHits": 0,
+      "viewportConcurrency": 0,
+      "maxDetailBatchMs": 0
+    },
+    "after": {
+      "zoom": 0.0284803125,
+      "painted": 1024,
+      "rawTiles": 1280,
+      "textures": 256,
+      "viewportRequests": 4,
+      "cacheHits": 256,
+      "viewportConcurrency": 2,
+      "maxDetailBatchMs": 5.700000047683716
+    },
+    "navigationMs": 1473.868999999977,
+    "heapBefore": 13549436,
+    "heapAfter": 13925988,
+    "retainedBytes": 376552
+  },
+  "wrapped": {
+    "sameRefinementBothSides": true,
+    "editedBothSides": true,
+    "shortestRulerMetres": 2000,
+    "panZoomAlignment": true
+  }
+}

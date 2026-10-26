@@ -1,0 +1,213 @@
+{
+  "passed": true,
+  "implementationCommit": "62d91cb1165b1649410efdd4c112b9ca997f8cb7",
+  "baselineCommit": "21cc99eec95779f61b8e2720120bf55e9405cf36",
+  "runtimeWorkspaceSha256": "f8afa35ac1834d51af67264d5e1b3ef30944a09eec48fc67da2abbf233b517e8",
+  "productionBuildId": "pLfSbdXAmvciL2aJiokvQ",
+  "productionRuntimeFiles": 1556,
+  "fullUnfilteredProductionRun": true,
+  "checks": {
+    "unitTests": 2387,
+    "featureTestFiles": 299,
+    "typeScript": true,
+    "lintErrors": 0,
+    "existingLintWarnings": 1,
+    "drizzleMetadata": true,
+    "migrationFreshPopulatedBackupRestore": true,
+    "oldMigrationTablesExact": 341,
+    "gameplayRuntimeTablesExact": 133,
+    "allRetainedTerrainAndWorldCreatorJourneys": true,
+    "browserErrors": []
+  },
+  "numerical": {
+    "materialOnlyElevationExact": true,
+    "fineChecksum": "7aca10b239a10fd05f00ff81c39dcf1278d7df1ce86a913794f349575a02caf6",
+    "fineRevisionDuringMaterialOnlyEdits": 8,
+    "sculptAndExactUndoPreservesMaterials": true
+  },
+  "performance": {
+    "gpuDisabled": true,
+    "browser": "134.0.6998.166",
+    "frameWorkBudgetMs": 8,
+    "observedMaxSurfaceBatchMs": 15.600000023841858,
+    "worldFirstRenderMs": 3152.4334000000963,
+    "millionKmRenderMs": 1202.4782000000123,
+    "closeupZoomRedraws": [
+      {
+        "wheelDelta": -1100,
+        "wallMs": 9239.421800000011
+      },
+      {
+        "wheelDelta": -800,
+        "wallMs": 17510.813900000066
+      },
+      {
+        "wheelDelta": 1500,
+        "wallMs": 4536.461899999995
+      },
+      {
+        "wheelDelta": -1900,
+        "wallMs": 7246.586600000039
+      }
+    ],
+    "paintAndAutosaveJourneys": [
+      {
+        "material": "rock",
+        "wallMs": 1910.2676999999676
+      },
+      {
+        "material": "sand",
+        "wallMs": 1800.5376999999862
+      },
+      {
+        "material": "grass",
+        "wallMs": 2892.383599999943
+      },
+      {
+        "material": "automatic",
+        "wallMs": 1861.4265999998897
+      }
+    ],
+    "localNavigation": {
+      "cycles": 12,
+      "revisitedArtworkChecksum": "61880ed4519d9cfcb7580ad500f2bf6ca31a75d06ccf66448d20b009f17530e9",
+      "wallMs": 3669.0304999999935,
+      "retainedHeapBytes": -210584,
+      "hits": 1222,
+      "bytes": 20646700,
+      "batchMs": 15.600000023841858
+    },
+    "textureCacheLimitBytes": 67108864,
+    "decodedMaterialPixelBytes": 16777200
+  },
+  "devices": {
+    "desktop": [
+      1728,
+      1000
+    ],
+    "phone": {
+      "viewport": [
+        390,
+        844
+      ],
+      "devicePixelRatio": 2,
+      "input": "native protocol touch"
+    },
+    "tablet": {
+      "viewport": [
+        820,
+        1180
+      ],
+      "devicePixelRatio": 2,
+      "input": "native protocol pen"
+    },
+    "physicalDeviceClaim": false
+  },
+  "artwork": {
+    "locallyBundledCC0Materials": 6,
+    "runtimeExternalTextureRequests": false,
+    "missingArtworkExplicitRetryPassed": true,
+    "personallyInspectedActualScreenshots": true,
+    "ownerArtisticAcceptance": false
+  },
+  "migration": {
+    "number": "0140",
+    "sha256": "256459c86e6d1019249640f4d0523cfb3bbaea6f8f683ee189f16bf1f31736b1",
+    "devAppliedByOwner": true,
+    "devReadOnlyVerification": true,
+    "devLedger": 141,
+    "additionalMigrationNeeded": false,
+    "productionContacted": false,
+    "productionStatus": "unverified"
+  },
+  "sharedDatabaseWrites": false,
+  "deploymentPerformed": false,
+  "nextPassStarted": false,
+  "screenshots": [
+    {
+      "file": "before-world-cartography.png",
+      "bytes": 118990,
+      "sha256": "8bb7c4242287d70c0edb2233020168b23c99c1cbd9191bdcb93e18bf6c10b626"
+    },
+    {
+      "file": "realistic-world.png",
+      "bytes": 119409,
+      "sha256": "e7336993d9583263c2a1c44a36dafe5c93f908917af2fad571e676e236d49eb2"
+    },
+    {
+      "file": "before-island-topographic.png",
+      "bytes": 144390,
+      "sha256": "587c5d2b64a0014933691b324a0961ce6a0dc3c88c35a68194a0544a6d8dbf83"
+    },
+    {
+      "file": "realistic-refinement-20km.png",
+      "bytes": 78498,
+      "sha256": "0bfc9774599380c5bf9d237f14d2b13dc99c1975fbd406958de3519dfb645e98"
+    },
+    {
+      "file": "realistic-island.png",
+      "bytes": 132958,
+      "sha256": "dc372a0dedd9a7084330566a2038a52cceecbe46cfe71009117dad2fbea01cbe"
+    },
+    {
+      "file": "realistic-coastline.png",
+      "bytes": 660793,
+      "sha256": "c566df68b0f27bc0a10203d119f5100d7dfb315fb240ba58abd7727322c1edd6"
+    },
+    {
+      "file": "realistic-mountainside.png",
+      "bytes": 1547357,
+      "sha256": "f875427d87d97f71614941d2ef66923ed152c993f582cfd0a56a713dc2b637be"
+    },
+    {
+      "file": "realistic-material-painting.png",
+      "bytes": 520786,
+      "sha256": "e6c3a9e48149bfda669dc862ac6d20be75330cb0c9d665dce3e1f1dd656e3a9f"
+    },
+    {
+      "file": "realistic-material-erased.png",
+      "bytes": 521090,
+      "sha256": "f610ea116bbca294349f155915aa3599a11bbd398c4ee4068bfe3a2f194301cb"
+    },
+    {
+      "file": "realistic-material-reopen.png",
+      "bytes": 526142,
+      "sha256": "36496cfb747220c3c1fb7f2b36e7c908013600caafc47fcd37f9599c1d2751b5"
+    },
+    {
+      "file": "realistic-million-km.png",
+      "bytes": 71467,
+      "sha256": "9ccb1bb7a59e94304087e7dbbc57603a4655bb719ea2f4e975cbb63722844f2c"
+    },
+    {
+      "file": "realistic-adjacent-nested-wrapped.png",
+      "bytes": 59075,
+      "sha256": "bf05da70d4a726cf7873a2c10e980847087aba710e411571ef77b0ee62f84fd9"
+    },
+    {
+      "file": "realistic-artwork-recovery.png",
+      "bytes": 68078,
+      "sha256": "e3d4f4a715c6fec5bd756ed76ed018e6489224139c69f2f605d10f96d889d5ad"
+    },
+    {
+      "file": "realistic-390-native.png",
+      "bytes": 523071,
+      "sha256": "1cc0228479c75b386466b07621b60934a1e9b9244ee04adc764f72aa6b94e2fb"
+    },
+    {
+      "file": "realistic-820-native.png",
+      "bytes": 1721749,
+      "sha256": "14c74c718a0c33519d3e874e6df9c9d1e8e8950be466bca3cbac0e14bddeb7d4"
+    },
+    {
+      "file": "realistic-described-preview.png",
+      "bytes": 203085,
+      "sha256": "505e5b03a81421057dd264c1303c653c0a9a4169a21af4b1c9fc09f16ff1b721"
+    },
+    {
+      "file": "realistic-generated-preview.png",
+      "bytes": 73784,
+      "sha256": "075d3496ba6aca390325d95e0ba08243687a7ad3cc2fc2c2a09843deb401edf3"
+    }
+  ]
+}

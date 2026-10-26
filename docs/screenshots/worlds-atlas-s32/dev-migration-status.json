@@ -1,0 +1,24 @@
+{
+  "readOnly": true,
+  "identity": {
+    "database": "serrian_tide_dev",
+    "role": "serrian_tide_app",
+    "address": "::1",
+    "port": 5432
+  },
+  "ledgerEntries": 141,
+  "last": {
+    "id": 141,
+    "hash": "256459c86e6d1019249640f4d0523cfb3bbaea6f8f683ee189f16bf1f31736b1",
+    "created_at": "1793018843793"
+  },
+  "migration0140Sha256": "256459c86e6d1019249640f4d0523cfb3bbaea6f8f683ee189f16bf1f31736b1",
+  "migration0140Applied": true,
+  "materialTables": {
+    "head": true,
+    "history": true
+  },
+  "appliedByOwner": true,
+  "sharedDatabaseWrites": false,
+  "productionContacted": false
+}

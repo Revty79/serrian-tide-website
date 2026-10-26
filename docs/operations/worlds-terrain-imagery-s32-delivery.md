@@ -1,0 +1,89 @@
+# Stage 3 Pass 2: Realistic Terrain and surface materials
+
+Status: complete for owner hands-on review. Exact tested implementation: **`62d91cb1165b1649410efdd4c112b9ca997f8cb7`**, from `21cc99eec95779f61b8e2720120bf55e9405cf36`. The complete unfiltered production/browser run passes against byte-exact main-checkout source and bundled artwork. Owner artistic acceptance remains a separate decision. No subsequent pass, deployment or shared database write was performed.
+
+## Using Realistic Terrain
+
+Open **Worlds → your World → Atlas**, open numerical terrain and expand the editor. In **World → Map Appearance**, select **Realistic Terrain**. The existing Classic Elevation, Physical Relief, Topographic and Illustrated Fantasy modes remain available. **Save map appearance** stores a shared map default separately from elevation; local preview choices can differ from that default. Realistic Terrain uses explicit appearance version 2; existing version 1 defaults remain valid.
+
+The new presentation generates surface imagery at the current view's resolution. It combines weathered exposed rock and fractures, gravel/scree, soil, grass ground cover, sand, explicit pale/snow material, water depth and physical slope lighting. It combines original geographic/procedural work with six locally bundled [Poly Haven CC0 materials](https://polyhaven.com/license), with [individual sources, authors and original hashes](../../public/worlds/terrain-materials/v1/LICENSE.md). No external image provider, downloaded satellite imagery, online texture dependency, new package or dedicated GPU is required. It is an artistic surface interpretation, not a climate, ecosystem or satellite survey.
+
+For visual authoring, select **Paint Surface Materials** from the existing tool palette. This selects Realistic Terrain and retains the canvas and physical view. The Tool inspector contains the material, physical circular brush diameter and stroke strength. Brush dimensions follow the shared distance units. The first brush size adapts to the current view; later explicit choices are retained for the session. The header identifies surface painting and its independent material revision. Sculpting tools continue to edit numerical elevation.
+
+Paint rock, gravel/scree, earth, grass ground cover, sand or pale/snow. **Erase to automatic** restores the current automatic interpretation in the painted area. Water always follows numerical sea level: submerged paint is retained beneath it and becomes visible if that ground becomes land. Snow/pale ground is an explicit creator choice; elevation alone never establishes snow or climate.
+
+The **Terrain Materials** layer has visibility, opacity, automatic interpretation and a painting lock. Hiding it shows neutral earth while retaining water, geography and all authored strokes. Lower opacity blends the complete layer toward that neutral reference. Undo/redo follows the active mode: material history for surface painting and numerical history for sculpting. Completed material changes autosave separately; **Save materials** is also available. Accepted material history can be restored as a new draft without changing earlier versions.
+
+Saved materials survive style changes, zooming, changing numerical editing sources, close/reopen and later sculpting/regeneration. One map owns one physical vector layer; it does not maintain competing coarse/refined paint records. A later height edit changes automatic surface suggestions and lighting while preserving creator-painted overrides.
+
+## Rendering and data architecture
+
+See [the architecture record](../architecture/worlds-terrain-imagery-s32.md). Numerical tiles remain authoritative. A presentation sampler reconstructs smooth fields, uses actual available root/refinement neighborhoods and blends coverage edges toward the parent. Continuous ruggedness informs material suggestions. Nearby numerical water is required for automatic beach suggestions. Physical slopes guide lighting independently of numerical source level, avoiding artificial lighting borders between equivalent coarse/refined coverage.
+
+Artwork tiles use the existing World frame but have their own visual LOD and raster dimensions. Texture phases use physical World coordinates, including periodic wrapped longitude. Fixed physical texture scales are filtered out when they become too fine for the view; patterns are not reseeded or resized to chase the screen. Rock mineral faces/fractures, gravel, earth and beach detail can be finer than height samples without claiming additional measured elevations. The legend separately reports artwork metres per pixel and points to the numerical scale readout. It warns below the useful surface-detail range.
+
+The CPU Canvas2D painter generates only relevant viewport tiles, yields during pixel work, and retains at most 1,024 textures / **64 MiB of texture pixels**. The versioned local material library adds at most **16 MiB of decoded mip pixels**, loaded only when fine artwork becomes visible. Coarse views use its stable material means. Missing local artwork retains a functional basic view and exposes an explicit retry. Numerical reconstruction retains at most 8,192 complete neighborhoods across all current source plans, shares them across material-only redraws and discards them after numerical refresh. Only its active job allocates a pixel buffer. It reuses unchanged numerical/material neighborhoods and keeps prior matching artwork visible while a material edit is prepared. Switching render families releases inactive presentation textures. Numerical tile streaming, active source data and existing history budgets retain their established independent bounds.
+
+Physical stroke vectors are sparse content, not stored high-resolution World imagery. The initial layer supports at most 4,096 strokes, 32,768 path points and 256 points per stroke; the request ceiling is 2 MiB. The interface reports these limits, retains the recorded portion of a full stroke and supports draft export. Composition evaluates recent strokes first and skips completely hidden older work.
+
+`world_terrain_material` stores the accepted head. `world_terrain_material_version` stores append-only accepted states, author attribution and globally unique request identities. Existing World ownership locks serialize saves and protect competing first inserts. Retries can confirm an original accepted material request even after another save. Stale writers receive a conflict rather than replacing newer work. Browser recovery retains the independent map-scoped draft and original request; explicit restore, export and load-saved controls support recovery. Existing owner-only writes, read-only Admin review, ordinary privacy, CSRF and bounded strict/frame-validated requests remain enforced.
+
+## Evidence and validation
+
+Actual application captures and structured receipts are in [the evidence directory](../screenshots/worlds-atlas-s32/). No concept artwork substitutes for browser evidence.
+
+- [Previous World cartography](../screenshots/worlds-atlas-s32/before-world-cartography.png) and [Realistic Terrain](../screenshots/worlds-atlas-s32/realistic-world.png) show the same accepted three-continent geography.
+- [Previous island Topographic](../screenshots/worlds-atlas-s32/before-island-topographic.png) and [Realistic Terrain island](../screenshots/worlds-atlas-s32/realistic-island.png) use the accepted approximately 1 km island in its 20 km refinement.
+- [Refinement overview](../screenshots/worlds-atlas-s32/realistic-refinement-20km.png), [coastline](../screenshots/worlds-atlas-s32/realistic-coastline.png) and [rocky mountainside](../screenshots/worlds-atlas-s32/realistic-mountainside.png) show actual changing physical views and appropriate artwork detail.
+- [Material painting](../screenshots/worlds-atlas-s32/realistic-material-painting.png) and [reopen](../screenshots/worlds-atlas-s32/realistic-material-reopen.png) show retained authored work.
+- [Million-km World](../screenshots/worlds-atlas-s32/realistic-million-km.png) and [adjacent/nested/wrapped coverage](../screenshots/worlds-atlas-s32/realistic-adjacent-nested-wrapped.png) cover extreme coordinates and source boundaries.
+- Description/procedural previews and native-input phone/tablet captures are indexed by the final receipt. Native protocol input is emulation, not physical-device certification.
+
+Root validation passes 2,387/2,387 unit tests across 299 feature files, TypeScript, Drizzle metadata and lint (zero errors; the existing unused `LoreFamily` import warning remains). The [final delivery receipt](../screenshots/worlds-atlas-s32/delivery-validation.json), [complete unfiltered production result](../screenshots/worlds-atlas-s32/results.json), [source verification](../screenshots/worlds-atlas-s32/source-verification.json) and [build identity](../screenshots/worlds-atlas-s32/run-build.json) bind the tested implementation to production build `pLfSbdXAmvciL2aJiokvQ`, all 1,556 runtime/data/bundled-asset files and SHA-256 `f8afa35ac1834d51af67264d5e1b3ef30944a09eec48fc67da2abbf233b517e8`.
+
+An earlier bundled-artwork run passed the retained terrain/creator journeys but timed out at the mountainside redraw. Reconstruction now reuses complete numerical neighborhoods; the corrected imagery journey passes, including painting/save/reopen and unchanged elevations. The final complete unfiltered run passes after that correction. The [attempt history](../screenshots/worlds-atlas-s32/validation-attempts.json) retains the failed aggregate result explicitly; it is not counted as success. Intermediate failure captures and logs remain in ignored local diagnostics.
+
+The final chain covers all retained Pass 2-8 browser journeys, all four existing cartographic modes, material tools, lost-response recovery, original-request retry, concurrent-save conflict/export/reload, immutable history, authorization/CSRF, generation/description previews, physical brushes, numerical sculpt and exact undo. All thirteen information creator families save/reopen; World lifecycle, History/calendars/timelines, ordinary filtering and explicit Admin review pass. All **133 Campaign/gameplay runtime tables**, retained legacy Atlas rows and Realm map versions remain exact. The original three generator implementations, original renderers, 140 historical migrations, journal entries and snapshots remain preserved.
+
+[Material persistence](../screenshots/worlds-atlas-s32/material-persistence.json) verifies ten numerical/identity tables unchanged by material operations. The accepted fine terrain checksum is `7aca10b239a10fd05f00ff81c39dcf1278d7df1ce86a913794f349575a02caf6`; revision 8 remains unchanged throughout material-only editing. A subsequent actual numerical sculpt changes the terrain, exact undo restores the checksum, and manual surface overrides remain intact. [Integration evidence](../screenshots/worlds-atlas-s32/surface-integration.json) includes adjacent/nested/wrapped water continuity, unchanged source metadata and underwater masking of painted rock. Domain tests also verify continuous material/slope reconstruction and periodic land-texture sampling.
+
+[CPU measurements](../screenshots/worlds-atlas-s32/surface-browser-results.json) use installed Chrome 134 with GPU disabled. Wall times include browser orchestration and, for painting, controls and autosave:
+
+| Journey | Observed wall time |
+| --- | ---: |
+| First World appearance | 3.15 s |
+| Million-km World appearance | 1.20 s |
+| New coastline zoom | 9.24 s |
+| New extreme mountainside close-up | 17.51 s |
+| Material controls, stroke, drawing and accepted autosave | 1.80-2.89 s |
+| Twelve local pan/zoom return cycles | 3.67 s total |
+
+The painter yields against an 8 ms work budget; the largest observed surface batch was **15.6 ms**, including scheduling/GC effects. Cold close-ups still prepare progressively; their total redraw time is a known performance limitation, not instantaneous rendering. [Navigation evidence](../screenshots/worlds-atlas-s32/surface-workflows.json) records cache reuse, identical revisited artwork (`61880ed4519d9cfcb7580ad500f2bf6ca31a75d06ccf66448d20b009f17530e9`) and no retained-heap growth after GC in the twelve-cycle run. Pixel cache and decoded material mipmaps retain their independent 64 MiB / 16 MiB limits; those limits do not describe total browser memory.
+
+[Native input evidence](../screenshots/worlds-atlas-s32/surface-devices.json) covers 390 × 844 and 820 × 1180 CSS-pixel viewports, both at DPR 2, with GPU disabled. Protocol-native pan/pinch, touch painting and pen painting retain the canvas and produce only independent material saves. The map remains over 300 CSS pixels tall. These are browser emulations, not physical-phone certification. Actual final World, island, coastline, mountainside, material/reopen and phone/tablet screenshots were personally inspected. [Artwork recovery](../screenshots/worlds-atlas-s32/surface-artwork.json) verifies failed local assets, functional basic presentation, explicit successful retry, 16,777,200 decoded mip bytes and no data writes.
+
+Reproduce the complete owned disposable validation with `node --conditions=react-server --import tsx scripts/worlds-surface-disposable.test.ts`. `SERRIAN_S32_FOCUSED=1` runs new imagery plus retained Pass 8/cartography workflows without repeating all information-workspace journeys. A local PostgreSQL binary installation is required. The runner never loads `.env.local`, never uses shared DEV for testing and builds its own production application copy. `node scripts/worlds-surface-source-check.mjs` verifies that production copy against the main workspace and checks preserved generators, renderers, historical migrations and snapshots.
+
+## Migration and deployment
+
+**MIGRATION 0140 IS APPLIED TO DEV by the owner. NO ADDITIONAL MIGRATION IS REQUIRED FOR THIS DELIVERY. Its SQL is immutable. Production remains untouched and unverified.**
+
+Read-only DEV checks confirm localhost `serrian_tide_dev`, role `serrian_tide_app`, **141 entries through applied 0140**, matching the exact migration hash. Both material tables exist. The owner applied this migration; the agent performed read-only checks. Production has not been contacted or independently verified. Migration 0140 SHA-256: `256459c86e6d1019249640f4d0523cfb3bbaea6f8f683ee189f16bf1f31736b1`.
+
+0140 adds the independent material head/history, immutable-history trigger, restrictive identity/authorship relationships and a deliberate v1/v2 appearance constraint. It neither changes numerical terrain tables nor replaces the constrained legacy `world_map_canvas.rendering` JSON. Existing maps need no material import or backfill. Without 0140, local Realistic Terrain previews remain available, while material authoring and saved v2 defaults clearly identify the required migration.
+
+No new runtime configuration or package dependency is required. Deployment must include the complete `public/worlds/terrain-materials/v1` directory (about 11.4 MiB of original texture files plus credits/manifest). Existing PostgreSQL, authentication and private numerical storage remain necessary. For separately authorized deployment:
+
+1. Verify the exact release, target identity, current ledger and existing data independently, particularly Production.
+2. Back up the database together with its private numerical objects; verify restoration in a newly owned disposable environment.
+3. Apply pending migrations in order using the normal runner. An up-to-date Stage 3 Pass 1 target needs only **0140**; an older Stage 2 target needs **0139, then 0140**, after its earlier prerequisites. Never edit historical SQL or manufacture ledger entries.
+4. Activate compatible code only under deployment authorization. Check old-map reopen, all five styles, a v2 map-default save, material painting/save/reopen, owner editing, read-only Admin review and retained numerical sculpting.
+5. Retain paired backups and Git checkpoints through owner acceptance. Follow the [pass deployment standard](pass-deployment-standard.md).
+
+Git rollback does not reverse schema or data. Old Pass 1 code cannot read v2 appearance defaults or classify the new material attribution FKs. Prefer a compatible forward repair; retain compatible administrative writers. If restoration is necessary, pause writers, preserve later work and restore database/private numerical objects together. Do not drop material history, numerical versions, objects or migration ledger entries as a rollback shortcut.
+
+## Deliberate limits and owner review
+
+The renderer interprets saved geography. It does not invent measured cliffs, fine landform geometry, forests, ecosystems, rivers, snow climate or other environmental facts. Coarse or smooth saved shapes retain those limitations even when the surface artwork has finer character. Very broad, low-gradient World views remain restrained when fine surface grain is filtered out. Coarse or deliberately sculpted geometry can retain angular shorelines and plateau edges. Texture mapping scales are artistic choices, not surveyed mineral or plant sizes. Initial preparation can show the retained numerical fallback with a visible drawing notice; CPU timings are hardware-dependent. This is one bounded material layer and one new appearance, not a complete layer studio or photorealistic satellite simulation.
+
+For hands-on review, compare the same saved terrain in Topographic and Realistic Terrain, zoom from the World into a refinement, paint several materials and erase an area, undo/redo, toggle visibility/opacity/lock, switch styles, save/reopen, then sculpt and exactly undo a small height change. Confirm that manual surface work stays aligned and that material-only editing leaves the elevation revision unchanged. The owner determines artistic acceptance. Do not automatically begin the next pass.

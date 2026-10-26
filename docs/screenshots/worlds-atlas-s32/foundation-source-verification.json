@@ -1,0 +1,27 @@
+{
+  "baselineCommit": "21cc99eec95779f61b8e2720120bf55e9405cf36",
+  "workspaceHead": "00f30a25b482187f1adcaa491ecdf3de5f045701",
+  "runtimeFilesChecked": 1538,
+  "runtimeWorkspaceSha256": "576ed82f1659428c63ce42862138bc0ad996e4d5948cae4b295e59b8a5938210",
+  "productionCopyByteExact": true,
+  "productionBuildId": "E-RbUdFqS69Lhr71FwVPk",
+  "priorGeneratorAndRendererImplementationsUnchanged": [
+    "src/features/worlds/terrain-generation-v1.ts",
+    "src/features/worlds/terrain-generation-v2.ts",
+    "src/features/worlds/terrain-generation-v3.ts",
+    "src/features/worlds/terrain-physical-noise.ts",
+    "src/features/worlds/terrain-renderer.ts",
+    "src/features/worlds/terrain-detail-renderer.ts",
+    "src/features/worlds/terrain-cartography.ts",
+    "src/features/worlds/terrain-cartography-painter.ts"
+  ],
+  "publishedMigrationContentsUnchanged": 140,
+  "priorJournalEntriesExact": true,
+  "historicalSnapshotsUnchanged": true,
+  "migration0140Sha256": "256459c86e6d1019249640f4d0523cfb3bbaea6f8f683ee189f16bf1f31736b1",
+  "newMigrationOnly": 140,
+  "manifestDefinition": "Sorted runtime/data files and package/package-lock/Next/PostCSS configuration; path, NUL, raw bytes",
+  "validationTsconfigDifference": "Only Next's isolated build-directory type include paths",
+  "sharedDatabaseWrites": false,
+  "productionContacted": false
+}
