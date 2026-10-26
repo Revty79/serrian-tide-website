@@ -188,3 +188,6 @@
 }
 .cartographyLegend{position:absolute;right:.65rem;bottom:.7rem;max-width:65%;padding:.35rem .55rem;border-radius:.3rem;background:var(--st-surface-deep);color:var(--st-text-strong);font:500 .72rem/1.35 system-ui;pointer-events:none;box-shadow:0 0 0 1px var(--st-border)}
 .appearanceControls{grid-template-columns:minmax(0,1fr)}
+.materialControls { display: grid; gap: .65rem; }
+.materialControls h4, .materialControls p { margin: 0; }
+.materialControls > details > label { display: block; margin-block: .45rem; }

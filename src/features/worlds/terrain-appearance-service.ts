@@ -19,6 +19,7 @@ export async function saveMapAppearance(userId:string,worldId:string,raw:unknown
  const command=appearanceSaveSchema.parse(raw);
  return worldWriteTransaction(userId,worldId,async tx=>{
   await mapAccess(tx,worldId,command.mapId);if(!await available(tx))throw new WorldError("Apply migration 0139 before saving map appearances. The visual preview and numerical terrain remain available.",409);
+  if(command.spec.version===2&&!(await tx.execute<{present:boolean}>(sql`select to_regclass('public.world_terrain_material_version') is not null as present`)).rows[0].present)throw new WorldError("MIGRATION 0140 REQUIRED before saving Realistic Terrain appearances. Your local preview is retained.",409);
   const [row]=await tx.select().from(worldMapAppearance).where(and(eq(worldMapAppearance.worldId,worldId),eq(worldMapAppearance.mapId,command.mapId))).for("update");
   if(row?.requestId===command.requestId){if(JSON.stringify(mapAppearanceSchema.parse(row.spec))!==JSON.stringify(command.spec))throw new WorldError("This appearance request was already used with different choices.",409);return {revision:row.revision,spec:mapAppearanceSchema.parse(row.spec)};}
   if((row?.revision??0)!==command.revision)throw new WorldError("Another tab saved a newer map appearance. Your view is retained; load the saved appearance before saving again.",409);

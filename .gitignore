@@ -113,3 +113,5 @@ next-env.d.ts
 /artifacts/pass8-*.log
 /artifacts/worlds-atlas-s31/
 /artifacts/s31-*.log
+/artifacts/worlds-atlas-s32/
+/artifacts/s32-*.log

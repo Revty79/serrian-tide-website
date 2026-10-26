@@ -13,5 +13,5 @@ export const worldMapAppearance=pgTable("world_map_appearance",{
  unique("world_map_appearance_request_uq").on(t.requestId),
  foreignKey({name:"world_map_appearance_map_fk",columns:[t.mapId,t.worldId],foreignColumns:[worldMapCanvas.mapId,worldMapCanvas.worldId]}).onDelete("restrict"),
  foreignKey({name:"world_map_appearance_editor_fk",columns:[t.updatedBy],foreignColumns:[user.id]}).onDelete("restrict"),
- check("world_map_appearance_valid",sql`${t.revision}>0 AND jsonb_typeof(${t.spec})='object' AND ${t.spec}->>'version'='1' AND ${t.spec}->>'style' IN ('classic-elevation','physical-relief','topographic','illustrated-fantasy')`),
+ check("world_map_appearance_valid",sql`${t.revision}>0 AND jsonb_typeof(${t.spec})='object' AND ((${t.spec}->>'version'='1' AND ${t.spec}->>'style' IN ('classic-elevation','physical-relief','topographic','illustrated-fantasy')) OR (${t.spec}->>'version'='2' AND ${t.spec}->>'style' IN ('classic-elevation','physical-relief','topographic','illustrated-fantasy','realistic-terrain')))`),
 ]);

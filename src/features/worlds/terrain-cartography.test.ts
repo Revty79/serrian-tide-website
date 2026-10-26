@@ -9,7 +9,7 @@ import {terrainGeometry,terrainSettingsSchema} from "./terrain";
 test("appearance is a strict versioned presentation with exact legacy relief compatibility",()=>{
  assert.deepEqual(parseTerrainRelief(CLASSIC_RELIEF),CLASSIC_RELIEF);assert.deepEqual(parseTerrainRelief(ENHANCED_RELIEF),ENHANCED_RELIEF);
  for(const style of ["classic-elevation","physical-relief","topographic","illustrated-fantasy"] as const){const spec={...DEFAULT_MAP_APPEARANCE,style};assert.deepEqual(visualAppearance(parseTerrainRelief(appearanceRelief(spec))!),spec);}
- assert.equal(mapAppearanceSchema.safeParse({...DEFAULT_MAP_APPEARANCE,elevations:[1]}).success,false);assert.equal(mapAppearanceSchema.safeParse({...DEFAULT_MAP_APPEARANCE,version:2}).success,false);assert.equal(parseTerrainRelief({...ENHANCED_RELIEF,appearance:{...DEFAULT_MAP_APPEARANCE,intervalM:-1}}),null);
+ assert.equal(mapAppearanceSchema.safeParse({...DEFAULT_MAP_APPEARANCE,elevations:[1]}).success,false);assert.equal(mapAppearanceSchema.safeParse({...DEFAULT_MAP_APPEARANCE,version:3}).success,false);assert.equal(parseTerrainRelief({...ENHANCED_RELIEF,appearance:{...DEFAULT_MAP_APPEARANCE,intervalM:-1}}),null);
 });
 test("contours interpolate actual elevations and resolve saddles from the numerical centre",()=>{
  assert.deepEqual(contourCell([0,100,100,0],50),[[[.5,0],[.5,1]]]);assert.deepEqual(contourCell([0,100,100,0],200),[]);
