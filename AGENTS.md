@@ -8,7 +8,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Active Worlds direction - Atlas Pass 8, described geographic creation (2026-10-25)
+## Active Worlds direction - Stage 3 Pass 1, professional 2D cartography (2026-10-25)
+
+The owner explicitly accepted Stage 2 / Pass 8 and authorized the complete Stage 3 Pass 1 brief from `78534362e6c3d9c93b0e7ddd9db0148bba9085e8`: modular presentation, genuinely distinct Topographic and Illustrated Fantasy styles, retained Classic/physical modes, map-first controls, separate versioned appearance persistence, multiresolution/preview/wrapped rendering and complete numerical/visual/CPU/regression validation. Active work stays on main and the completed tested result is published to `origin/main`. Preserve numerical samples, V1/V2/V3, identities, tools, recovery, all historical migrations, private objects and the disabled legacy boundary. Read-only DEV verification confirms 139 entries through 0138; additive 0139 is reserved for map appearance only. Rehearse migration in newly owned disposable targets; do not apply to shared DEV, Production or Ubuntu. No Studio, gameplay, Town Maps, interiors, dungeons, climate/vegetation/rivers or next Stage 3 pass. Owner artistic acceptance remains a separate decision.
+
+## Completed Worlds direction - Atlas Pass 8, described geographic creation (2026-10-25)
 
 The owner authorized the complete [Pass 8 described geographic intent and Stage 2 review](docs/architecture/worlds-terrain-pass8.md) from `3900117725bea42113a9841a0c5122152ae523d7`. Deliver the local transparent interpreter, editable physical plan, new versioned numerical generator, creation/refinement workflows and full Stage 2 technical acceptance. Preserve v1/v2 semantics and all Pass 1-7 functionality. Keep active work in this main checkout and publish checkpoints/completed work to `origin/main`; do not deploy or mutate shared DEV/Production. Read-only DEV verification now confirms 139 applied entries through 0138; both hashes match published migrations. Preserve every historical migration; prefer existing JSONB provenance. Use newly owned disposable validation targets. Owner Stage 2 acceptance and Stage 3 authorization remain separate.
 

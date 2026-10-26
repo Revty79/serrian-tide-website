@@ -974,6 +974,13 @@
       "when": 1792964260748,
       "tag": "0138_world_terrain_wrapped_refinement",
       "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1792989558361,
+      "tag": "0139_world_cartographic_appearance",
+      "breakpoints": true
     }
   ]
 }

@@ -1,10 +1,13 @@
 import type {TerrainGeometry} from "./terrain";
-export type TerrainRelief={mode:"classic"|"physical";exaggeration:number};
+import {mapAppearanceSchema,type MapAppearance} from "./terrain-appearance";
+export type TerrainRelief={mode:"classic"|"physical";exaggeration:number;appearance?:MapAppearance};
 export const CLASSIC_RELIEF:TerrainRelief={mode:"classic",exaggeration:1};
 export const ENHANCED_RELIEF:TerrainRelief={mode:"physical",exaggeration:20};
 export function parseTerrainRelief(value:unknown):TerrainRelief|null{
  if(!value||typeof value!=="object")return null;const r=value as TerrainRelief;
- return (r.mode==="classic"||r.mode==="physical")&&Number.isFinite(r.exaggeration)&&r.exaggeration>=1&&r.exaggeration<=1000?{mode:r.mode,exaggeration:r.exaggeration}:null;
+ if((r.mode!=="classic"&&r.mode!=="physical")||!Number.isFinite(r.exaggeration)||r.exaggeration<1||r.exaggeration>1000)return null;
+ const appearance=r.appearance?mapAppearanceSchema.safeParse(r.appearance):null;if(appearance&&!appearance.success)return null;
+ return {mode:r.mode,exaggeration:r.exaggeration,...appearance?.success?{appearance:appearance.data}:{}};
 }
 /** Metres / metres, with centered interior and one-sided fixed-edge gradients.
  * A wrapped seam has two real neighbors, rather than a duplicated edge sample. */

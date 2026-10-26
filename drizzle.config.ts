@@ -27,6 +27,8 @@ export default defineConfig({
     "./src/db/world-atlas-schema.ts",
     "./src/db/world-terrain-schema.ts",
     "./src/db/world-terrain-refinement-schema.ts",
+    "./src/db/world-map-appearance-schema.ts",
+    "./src/db/world-map-appearance-schema.ts",
     "./src/db/world-town-schema.ts",
     "./src/db/world-town-commerce-schema.ts",
     "./src/db/catalog-preferences-schema.ts",

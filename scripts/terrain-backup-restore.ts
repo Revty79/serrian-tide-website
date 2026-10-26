@@ -7,8 +7,8 @@ import { readFile, writeFile } from "node:fs/promises";
  * Set the replay session path explicitly; do not change any function or row.
  * The caller must verify target identity and supply the private SQL destination.
  */
-export async function restoreTerrainBackup(options: { pgRestore: string; psql: string; dump: string; sql: string; host: string; port: number; user: string; database: string; env?: NodeJS.ProcessEnv }) {
-  execFileSync(options.pgRestore, ["--no-owner", "--no-privileges", "--file", options.sql, options.dump], { windowsHide: true, stdio: "pipe", env: options.env });
+export async function restoreTerrainBackup(options: { pgRestore: string; psql: string; dump: string; sql: string; host: string; port: number; user: string; database: string; env?: NodeJS.ProcessEnv; dataOnly?:boolean }) {
+  execFileSync(options.pgRestore, ["--no-owner", "--no-privileges",...options.dataOnly?["--data-only","--disable-triggers"]:[], "--file", options.sql, options.dump], { windowsHide: true, stdio: "pipe", env: options.env });
   const original = await readFile(options.sql, "utf8"), statement = "SELECT pg_catalog.set_config('search_path', '', false);";
   assert.equal(original.split(statement).length, 2, "Review a changed dump preamble before restoration");
   await writeFile(options.sql, original.replace(statement, "SELECT pg_catalog.set_config('search_path', 'pg_catalog,public', false);"));

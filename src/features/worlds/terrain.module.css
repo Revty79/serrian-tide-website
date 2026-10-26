@@ -13,7 +13,7 @@
 .controls input { width: 100%; min-height: 44px; }
 .editor { border: 1px solid var(--st-border); background: var(--st-surface); border-radius: 1rem; padding: 1rem; margin-top: 1rem; min-width: 0; }
 .viewport { height: clamp(320px, 60vh, 800px); overflow: hidden; background: var(--st-surface-deep); border: 1px solid var(--st-border-strong); border-radius: .6rem; }
-.sourceViewport { height:clamp(300px,48vh,620px); overflow:hidden; background:var(--st-surface-deep); border:1px solid var(--st-border-strong); border-radius:.6rem; }
+.sourceViewport { position:relative; height:clamp(300px,48vh,620px); overflow:hidden; background:var(--st-surface-deep); border:1px solid var(--st-border-strong); border-radius:.6rem; }
 .canvas { display: block; width: 100%; height: 100%; touch-action: none; outline-offset: -4px; }
 .canvas:focus-visible { outline: 2px solid var(--st-focus); }
 .inspection { display: block; padding: .6rem; background: var(--st-surface-soft); color: var(--st-text-strong); border-radius: .5rem; min-height: 2.8rem; }
@@ -186,3 +186,5 @@
  .editorMain { height:65dvh; }
  .inspectorBody .controls { grid-template-columns:minmax(0,1fr); }
 }
+.cartographyLegend{position:absolute;right:.65rem;bottom:.7rem;max-width:65%;padding:.35rem .55rem;border-radius:.3rem;background:var(--st-surface-deep);color:var(--st-text-strong);font:500 .72rem/1.35 system-ui;pointer-events:none;box-shadow:0 0 0 1px var(--st-border)}
+.appearanceControls{grid-template-columns:minmax(0,1fr)}
