@@ -7,3 +7,5 @@ drizzle/0133_worlds_editable_terrain.sql text eol=lf
 drizzle/0134_world_towns_shops.sql text eol=lf
 drizzle/0135_world_creator_relationships.sql text eol=lf
 drizzle/0136_world_terrain_sources.sql text eol=lf
+drizzle/0137_world_terrain_refinements.sql text eol=lf
+drizzle/0138_world_terrain_wrapped_refinement.sql text eol=lf
