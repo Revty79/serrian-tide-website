@@ -1,0 +1,154 @@
+{
+  "implementationCommit": "fffa0ffe928de3e46e036edefa6ac9318728477b",
+  "runtimeSourceSha256": "cf3bf033ff5ac27389d9dd1f711872de0149e564ca0fb32338b3659471830cb1",
+  "previousFailedAttempts": [
+    {
+      "file": "artifacts/hydrology-core-tests.log",
+      "status": "failed",
+      "summary": "The seam fixture placed both seam-adjacent columns below sea level; no land receiver crossed. Corrected the last column to land while retaining the crossing assertion.",
+      "bytes": 4258,
+      "sha256": "c66b2220975456249d21bb62714960af7fea92624b7e4401c906bd80efd9d715"
+    },
+    {
+      "file": "artifacts/hydrology-all-unit.log",
+      "status": "failed",
+      "summary": "2403/2405 passed. Two stale lifecycle FK expectations (122 total / 115 blocked) did not yet include two new authorship blockers. Explicit registry and assertions now cover 124 / 117.",
+      "bytes": 443430,
+      "sha256": "550098a2865fb7c188ce607380db69c4f1442fb756edc86b944d9519d5311faf"
+    },
+    {
+      "file": "artifacts/hydrology-core-lifecycle.log",
+      "status": "failed",
+      "summary": "19/20 passed after changing the assertions; the exported registry count still said 122. Corrected to 124.",
+      "bytes": 5774,
+      "sha256": "eca84e0fc3bd0ee54da843cdd5b77a4e841dc3a25d757c0227aeb81277f8bc4b"
+    },
+    {
+      "file": "artifacts/hydrology-lint.log",
+      "status": "failed",
+      "summary": "20 errors / 4 warnings: ref reads used for rendering, synchronous form-reset effect, unescaped text and unused imports. State ledger and keyed form state replaced these patterns; warnings/imports/text were corrected.",
+      "bytes": 125828,
+      "sha256": "cf5b3cadf930e0b088b6522fe370eb16dea50a623ca8c94dc448c7937371e2cf"
+    },
+    {
+      "file": "artifacts/hydrology-lint-all-current.json",
+      "status": "failed",
+      "summary": "One prefer-const error and one unused type import in new test scripts, subsequently fixed.",
+      "bytes": 59830,
+      "sha256": "4c0ac9e30d9e1ff614e19f2d430485dec7fd2cde48e95aef9d5923769e9238a3"
+    },
+    {
+      "file": "artifacts/hydrology-focused-1.log",
+      "status": "failed",
+      "summary": "Database/build passed. Browser asserted 1e-5 m precision for a subpixel mouse move. The corrected real-pointer test uses a visible move, checks both axes within a CSS pixel and retains exact numeric-domain tests.",
+      "bytes": 2080,
+      "sha256": "65a7473698e1222c8b2cde4e6c743f0a09e567bee21381a991c338f5993c38f2"
+    }
+  ],
+  "finalStaticChecks": [
+    {
+      "file": "artifacts/hydrology-all-unit-final.log",
+      "status": "passed",
+      "summary": "2407/2407 tests; 301 files; no skips/cancellations.",
+      "bytes": 439932,
+      "sha256": "6d7a086303270dcd6b9664291c88a8471aa9fe4a8cce691dbad4254df37c7960"
+    },
+    {
+      "file": "artifacts/hydrology-types-final.log",
+      "status": "passed",
+      "summary": "Root TypeScript --noEmit, zero diagnostics.",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "artifacts/hydrology-repo-lint.json",
+      "status": "passed-with-existing-warning",
+      "summary": "1974 files, zero errors, one pre-existing unused LoreFamily type warning in scripts/worlds-stories-checks.ts.",
+      "bytes": 533970,
+      "sha256": "3132a107cee99b49e821e3158c5c5260a8a551ee51c4e3a8902c61c68b5aa4b3"
+    },
+    {
+      "file": "artifacts/hydrology-drizzle-final.log",
+      "status": "passed",
+      "summary": "Drizzle snapshot/journal consistency; offline target override, no database connection.",
+      "bytes": 484,
+      "sha256": "bafc9fddce546fa43e5a47d60b5ff6bec596b3d1887851bbccae6222f1b85a0c"
+    },
+    {
+      "file": "artifacts/hydrology-types-delivery.log",
+      "status": "passed",
+      "summary": "Root TypeScript after the final browser-script additions; zero diagnostics.",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "artifacts/hydrology-delivery-scripts-lint.json",
+      "status": "passed",
+      "summary": "Additional browser/source verification scripts: zero errors/warnings.",
+      "bytes": 742,
+      "sha256": "2da29f5fed55afd2db55cbf5d777f3d645a03a0afff0e070e92d2bd5d1768902"
+    }
+  ],
+  "fullRegressionStatus": "full-1 passed, no filtering, no visual-only flag, no browser errors",
+  "focusedWaterStatus": "final-water passed with selected acceptance, exact remove/undo and editing-source switches",
+  "additionalReviewCorrections": [
+    "Initial cancellation race fixed with request generation and abort handling, verified by delayed first-source GET cancellation.",
+    "A staged single-finger tap is cancelled by two-finger navigation; touch and pen tests passed.",
+    "A finite 120-second watchdog retains authoring when analysis stalls."
+  ],
+  "environmentNotes": [
+    "An attempted sandboxed initdb could not obtain a restricted Windows token; no cluster/app started. The identical test was then run with authorized elevated process permissions in a fresh owned disposable target. Its setup log was superseded by the actual focused-2 run. No automatic approval rejection occurred."
+  ],
+  "sharedDevOrProductionWrites": false,
+  "deployment": false,
+  "ownerVisualAcceptance": "rejected and deferred",
+  "physicalOwnerDeviceAcceptance": false,
+  "emberAcceptanceRecorded": false,
+  "testCheckpoint": "0293ac759832e7f5bb9912ae950fd8874dc44f69",
+  "productionBuildId": "6qXuSAFzFWXJPzmuiFf23",
+  "runtimeFiles": 1575,
+  "finalRuntimeChecks": [
+    {
+      "file": "artifacts/hydrology-full-1.log",
+      "status": "passed",
+      "summary": "Complete previous Atlas/Worlds and new water database/browser/migration suite, fresh production build; all passed.",
+      "bytes": 18398,
+      "sha256": "da1818e563e1cd13d42d191ad1ba4b13872190ec398d677dd2e738f831f8a865"
+    },
+    {
+      "file": "artifacts/hydrology-final-water.log",
+      "status": "passed",
+      "summary": "Newly owned focused final water run against the identical production build; all passed.",
+      "bytes": 1644,
+      "sha256": "c61df59025f181ab1e9057e27b01c5afaae2b6be148497a9fa09f1a6b04e48c8"
+    }
+  ],
+  "fullRegression": {
+    "migrations": "142",
+    "browser": "134.0.6998.166",
+    "errors": [],
+    "legacyMapRowsUnchanged": true,
+    "realmMapVersionsUnchanged": true,
+    "runtimeTablesUnchanged": 133,
+    "runtimeRowsUnchanged": true,
+    "ordinaryPrivacyAndRoleBoundaries": true,
+    "sharedDatabaseAccess": false
+  },
+  "migration": {
+    "file": "drizzle/0141_world_hydrology.sql",
+    "rehearsal": "full-1/hydrology-migration.json",
+    "sharedDevApplied": false,
+    "productionApplied": false
+  },
+  "commandNotes": {
+    "complete": "$env:SERRIAN_HYDROLOGY_PASS=\"1\"; $env:SERRIAN_S32_EVIDENCE_DIR=\"docs/screenshots/worlds-atlas-s33/full-1\"; $env:SERRIAN_TERRAIN_REUSE_BUILD=\"1\"; node --conditions=react-server --import tsx scripts/worlds-surface-disposable.test.ts",
+    "focused": "Same runner with SERRIAN_WATER_ONLY=1, SERRIAN_WATER_SKIP_MIGRATION=1 and SERRIAN_S32_FOCUSED=1, writing final-water evidence; this repeats water checks, not the already-passed full migration/legacy suite.",
+    "unit": "node scripts/run-feature-tests.mjs",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "lint": "node node_modules/eslint/bin/eslint.js -f json -o artifacts/hydrology-repo-lint.json",
+    "schema": "node node_modules/drizzle-kit/bin.cjs check (offline DATABASE_URL override)",
+    "source": "node scripts/worlds-hydrology-source-check.mjs"
+  },
+  "sourceVerification": "final-water/source-verification.json",
+  "sourceCopyByteExact": true
+}

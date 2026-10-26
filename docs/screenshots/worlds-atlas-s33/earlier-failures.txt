@@ -1,0 +1,182 @@
+Initial hydrology unit test attempt (9 passed / 1 failed):
+
+✔ a refinement crossing wrapped longitude partitions the existing World exactly (19.0618ms)
+✔ analysis plans are bounded, deterministic and independent of viewport ordering (6.2974ms)
+✔ acceptance includes downstream connections, protects authoring and keeps previews unchanged (9.0113ms)
+✔ source placement follows saved drainage and manual junction edits keep connected endpoints coherent (7.0549ms)
+✔ graph validation rejects false links, flow loops, unexplained exceptions and outside coordinates (8.6424ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 9
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 501.7593
+
+✖ failing tests:
+
+test at src\features\worlds\terrain-hydrology.test.ts:2:4980
+✖ wrapped flow crosses the true seam over short physical distances and has no east/west boundary exits (16.9589ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+    assert.ok(crossings>0)
+
+      at TestContext.<anonymous> (D:\serrian-tide-website\src\features\worlds\terrain-hydrology.test.ts:35:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+
+Initial complete unit attempt (2403 passed / 2 failed):
+
+✔ fit and cursor-anchored zoom keep grid coordinates distinct from display space (0.664ms)
+✔ maximum-radius CPU brush benchmark and full-grid incremental tile preservation (189.0142ms)
+✔ custom proportions, distance frame, grid sizes, independent elevation ranges and wrapped brushes (3.7563ms)
+✔ recovery rejects malformed samples, duplicate tiles and another map identity (5.4207ms)
+✔ lazy preview queue bounds active jobs, drops cancelled waiting contexts and drains after failures (5.9421ms)
+✔ fresh authorization can retain the same original pixels after unrelated stamps or opacity change (1.6037ms)
+✔ preview pixels cannot cross readers, immutable originals, grids, tile plans or revoked access (0.3924ms)
+✔ artwork titles and revisions do not invalidate unchanged geographic paths (0.3044ms)
+✔ geographic status invalidates changed sources, permissions, readers and surface contexts (0.2637ms)
+✔ a Town directory lists one person with their separate Town, building and Shop roles (3.908ms)
+✔ retained profiles linked to a full Individual never duplicate that person's directory entry (0.4216ms)
+✔ creation search finds description and location text with empty and case-insensitive queries (0.26ms)
+✔ World overview cannot substitute a continent, region, plan or unavailable map (2.4871ms)
+✔ a sparse World settlement has no Campaign requirement or invented population (5.6158ms)
+✔ physical positions use each map's independent extent and canonical wrapped seam (0.9502ms)
+✔ matching names suggest separate identities, with archived towns excluded (0.9916ms)
+✔ placement validation rejects missing acceptance data and duplicate historical associations (3.5139ms)
+ℹ tests 2405
+ℹ suites 2
+ℹ pass 2403
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 34966.2566
+
+✖ failing tests:
+
+test at src\features\lifecycle\admin-account-lifecycle.test.ts:2:2582
+✖ the account plan classifies the current 122-FK User closure (25.4311ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  124 !== 122
+
+      at TestContext.<anonymous> (D:\serrian-tide-website\src\features\lifecycle\admin-account-lifecycle.test.ts:90:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 124,
+    expected: 122,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src\features\lifecycle\admin-account-lifecycle.test.ts:2:3812
+✖ only authentication, personal preferences, and membership associations are cleanup FKs (1.6684ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  117 !== 115
+
+      at TestContext.<anonymous> (D:\serrian-tide-website\src\features\lifecycle\admin-account-lifecycle.test.ts:113:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 117,
+    expected: 115,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+node : validate:unit failed with exit code 1.
+At line:2 char:1
++ node scripts/run-feature-tests.mjs *> artifacts/hydrology-all-unit.lo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (validate:unit failed with exit code 1.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+
+
+Follow-up lifecycle attempt (19 passed / 1 failed):
+
+✔ flat plateaus route to lower exits, while an enclosed depression remains a potential lake basin (15.2947ms)
+✔ wrapped flow crosses the true seam over short physical distances and has no east/west boundary exits (10.9443ms)
+✔ clipped adjacent/nested coverage conserves area and joins coarse/fine neighbors bidirectionally (32.0148ms)
+✔ a refinement crossing wrapped longitude partitions the existing World exactly (20.3444ms)
+✔ analysis plans are bounded, deterministic and independent of viewport ordering (6.0558ms)
+✔ acceptance includes downstream connections, protects authoring and keeps previews unchanged (9.3963ms)
+✔ source placement follows saved drainage and manual junction edits keep connected endpoints coherent (13.977ms)
+✔ graph validation rejects false links, flow loops, unexplained exceptions and outside coordinates (16.7351ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 19
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 444.7546
+
+✖ failing tests:
+
+test at src\features\lifecycle\admin-account-lifecycle.test.ts:2:2582
+✖ the account plan classifies the current 124-FK User closure (12.4406ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  124 !== 122
+
+      at TestContext.<anonymous> (D:\serrian-tide-website\src\features\lifecycle\admin-account-lifecycle.test.ts:90:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 124,
+    expected: 122,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+
+First browser failure:
+
+PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials
+PASS isolated production build and migration replay
+node : AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+At line:2 char:247
++ ... _BUILD='1'; node --conditions=react-server --import tsx scripts/world ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (AssertionError ... a falsy value::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+
+  t.ok(Math.abs(adjusted.points[0].x-moved.x)<1e-5)
+
+    at checkHydrologyBrowser (D:\serrian-tide-website\scripts\worlds-hydrology-browser-checks.ts:38:472)
+    at async main (D:\serrian-tide-website\scripts\worlds-surface-disposable.test.ts:107:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}

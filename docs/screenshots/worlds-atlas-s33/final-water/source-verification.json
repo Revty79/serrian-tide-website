@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "baseline": "789e755295d2aba263b093212dcb3239f86b53b8",
+  "workspaceHead": "0293ac759832e7f5bb9912ae950fd8874dc44f69",
+  "runtimeFiles": 1575,
+  "runtimeSourceSha256": "cf3bf033ff5ac27389d9dd1f711872de0149e564ca0fb32338b3659471830cb1",
+  "productionBuildId": "6qXuSAFzFWXJPzmuiFf23",
+  "productionCopyByteExact": true,
+  "preservedImplementations": [
+    "src/features/worlds/terrain-generation-v1.ts",
+    "src/features/worlds/terrain-generation-v2.ts",
+    "src/features/worlds/terrain-generation-v3.ts",
+    "src/features/worlds/terrain-physical-noise.ts",
+    "src/features/worlds/terrain-renderer.ts",
+    "src/features/worlds/terrain-detail-renderer.ts",
+    "src/features/worlds/terrain-cartography.ts",
+    "src/features/worlds/terrain-cartography-painter.ts",
+    "src/features/worlds/terrain-material-service.ts",
+    "src/features/worlds/terrain-material-client.tsx",
+    "src/features/worlds/terrain-appearance.ts",
+    "src/features/worlds/terrain-appearance-service.ts",
+    "src/features/worlds/terrain-service.ts",
+    "src/features/worlds/terrain-refinement-service.ts"
+  ],
+  "allHistoricalMigrationsExact": 141,
+  "historicalJournalPrefixAndSnapshotsUnchanged": true,
+  "newMigrations": [
+    "0141_world_hydrology"
+  ],
+  "priorDatabaseSchemasUnchanged": true,
+  "originalArtworkFilesExact": 14,
+  "sharedDatabaseWrites": false,
+  "directProductionDatabaseConnection": false,
+  "manifestDefinition": "Sorted source/data/bundled-material files plus package, lock, Next and PostCSS configuration; path, NUL, raw bytes"
+}
