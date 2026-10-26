@@ -1,0 +1,54 @@
+import assert from "node:assert/strict";
+import {createHash,randomUUID} from "node:crypto";
+import {drizzle} from "drizzle-orm/node-postgres";
+import {migrate} from "drizzle-orm/node-postgres/migrator";
+import {writeFile} from "node:fs/promises";
+import type {checkSurfaceDatabase} from "./worlds-surface-db-checks";
+import {terrainGeometry,terrainSettingsSchema,readTile,createGrid} from "../src/features/worlds/terrain";
+import {EMPTY_HYDROLOGY,acceptHydrology,makeHydroAnalysis} from "../src/features/worlds/terrain-hydrology";
+import {calculateHydroFlow,hydroSuggestions} from "../src/features/worlds/terrain-hydrology-flow";
+import {initializeRefinement,rootFrame,type TerrainFrame} from "../src/features/worlds/terrain-refinement";
+
+export async function checkHydrologyDatabase(options:Parameters<typeof checkSurfaceDatabase>[0]){
+  if(process.env.SERRIAN_WATER_ONLY!=="1")await (await import("./worlds-surface-db-checks")).checkSurfaceDatabase(options);
+  const {pool,world,foreign}=options,url=new URL(process.env.DATABASE_URL!);assert.equal(url.hostname,"127.0.0.1");assert.notEqual(url.port,"5432");assert.equal(url.pathname,"/serrian_atlas_s32");assert.equal((await pool.query("select current_database() name")).rows[0].name,"serrian_atlas_s32");
+  if(process.env.SERRIAN_WATER_ONLY==="1")await migrate(drizzle(pool),{migrationsFolder:"drizzle"});
+  const terrain=await import("../src/features/worlds/terrain-service"),water=await import("../src/features/worlds/terrain-hydrology-service"),settings=terrainSettingsSchema.parse({gridWidth:128,gridHeight:128,widthKm:200,heightKm:120,wrap:true}),shape=terrainGeometry(settings),mapId=randomUUID();
+  await terrain.changeTerrain("world-god",world,{action:"create",requestId:mapId,name:"Hydrology valley and coastal drainage",initial:"land",settings});
+  const grid=Int16Array.from({length:shape.width*shape.height},(_,i)=>Math.round(2100-Math.floor(i/shape.width)*22+Math.abs(i%shape.width-64)*20));
+  const tiles=Array.from({length:grid.length/1024},(_,key)=>readTile(grid,key,shape));await terrain.changeTerrain("world-god",world,{action:"save",mapId,requestId:randomUUID(),revision:1,seaLevel:0,source:{kind:"manual"},tiles});
+  const detail=await import("../src/features/worlds/terrain-refinement-service"),detailGrids=new Map<string,Int16Array>();
+  const createDetail=async(name:string,frame:TerrainFrame,parentId:string|null,parentGrid:Int16Array,parentShape:typeof shape,parentFrame:TerrainFrame,size:number)=>{
+    const preview=initializeRefinement(parentGrid,parentShape,parentFrame,frame,size,size,shape),id=randomUUID();
+    await detail.createRefinement("world-god",world,{action:"create",requestId:id,mapId,parentId,parentRevision:parentId?1:2,name,frame,gridWidth:size,gridHeight:size,previewHash:createHash("sha256").update(Buffer.from(preview.buffer)).digest("hex")});detailGrids.set(id,preview);return id;
+  };
+  const westFrame={x:60000,y:30000,width:25000,height:25000},west=await createDetail("Hydrology west detail",westFrame,null,grid,shape,rootFrame(shape),64);
+  await createDetail("Hydrology east detail",{...westFrame,x:85000},null,grid,shape,rootFrame(shape),64);
+  await createDetail("Hydrology nested stream",{x:70000,y:40000,width:4000,height:4000},west,detailGrids.get(west)!,{...shape,width:64,height:64,displayWidth:25000,displayHeight:25000,wrap:false},westFrame,32);
+  const initial=await water.getTerrainHydrology("world-god",world,mapId);assert.ok(initial.available);assert.equal(initial.revision,0);assert.deepEqual(initial.layer,EMPTY_HYDROLOGY);
+  const input={sources:initial.sources,patches:initial.sources.sources.map(source=>({source,lod:0,width:source.gridWidth,height:source.gridHeight,grid:source.level===0?grid:detailGrids.get(source.id)!})),focus:{x:0,y:0,width:shape.displayWidth,height:shape.displayHeight},minimumAreaM2:12e6},analysis=makeHydroAnalysis(initial.sources,input.focus,input.minimumAreaM2),preview=hydroSuggestions(calculateHydroFlow(input),analysis),layer=acceptHydrology(EMPTY_HYDROLOGY,preview);
+  assert.ok(layer.edges.length>0);assert.ok(layer.nodes.some(n=>n.kind==="confluence"));assert.ok(layer.nodes.some(n=>n.kind==="sea-outlet"));
+  const snapshot=async()=>{const rows:Record<string,unknown>={};for(const table of ["world_terrain","world_terrain_tile","world_terrain_version","world_terrain_refinement","world_terrain_refinement_tile","world_terrain_refinement_version","world_map_canvas","world_map_appearance","world_terrain_material","world_terrain_material_version","world_atlas_map"]){rows[table]=(await pool.query(`select coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text),'[]'::jsonb) rows from "${table}" t`)).rows[0].rows;}return rows;},before=await snapshot();
+  const command={mapId,revision:0,requestId:randomUUID(),layer};assert.equal((await water.saveTerrainHydrology("world-god",world,command)).revision,1);
+  const named={...layer,edges:layer.edges.map((e,i)=>i===0?{...e,name:"The retained river",protected:true}:e)};
+  await water.saveTerrainHydrology("world-god",world,{mapId,revision:1,requestId:randomUUID(),layer:named});assert.equal((await water.saveTerrainHydrology("world-god",world,command)).revision,1);assert.equal((await water.getTerrainHydrology("world-god",world,mapId)).revision,2);
+  await assert.rejects(water.saveTerrainHydrology("world-god",world,{...command,layer:named}),/different/);await assert.rejects(water.saveTerrainHydrology("world-god",world,{...command,requestId:randomUUID()}),/newer/);
+  const candidates=await Promise.allSettled(["Concurrent A","Concurrent B"].map(name=>water.saveTerrainHydrology("world-god",world,{mapId,revision:2,requestId:randomUUID(),layer:{...named,edges:named.edges.map((e,i)=>i===0?{...e,name}:e)}})));assert.equal(candidates.filter(r=>r.status==="fulfilled").length,1);assert.equal((await water.getTerrainHydrology("world-god",world,mapId)).revision,3);
+  assert.deepEqual(await snapshot(),before);assert.deepEqual((await water.getTerrainHydrology("world-god",world,mapId,{revision:1})).layer,layer);
+  for(const user of ["other-god","world-player"])await assert.rejects(water.getTerrainHydrology(user,world,mapId));await assert.rejects(water.getTerrainHydrology("world-god",foreign,mapId));await assert.rejects(water.getTerrainHydrology("world-god",world,mapId,{ordinary:true}));await assert.rejects(water.getTerrainHydrology("world-admin",world,mapId));assert.equal((await water.getTerrainHydrology("world-admin",world,mapId,{review:true})).revision,3);await assert.rejects(water.saveTerrainHydrology("world-admin",world,{...command,revision:3}));
+  await assert.rejects(water.saveTerrainHydrology("world-god",world,{...command,revision:3,requestId:randomUUID(),layer:{...layer,nodes:[{...layer.nodes[0],point:{x:1e9,y:0}},...layer.nodes.slice(1)]}}));
+  await assert.rejects(pool.query("update world_hydrology_version set layer=layer where map_id=$1",[mapId]),/immutable/);await assert.rejects(pool.query("delete from world_hydrology_version where map_id=$1",[mapId]),/immutable/);
+  const changed=tiles[0];changed.samples[0]+=1;await terrain.changeTerrain("world-god",world,{action:"save",requestId:randomUUID(),mapId,revision:2,seaLevel:0,source:{kind:"manual"},tiles:[changed]});
+  const stale=await water.getTerrainHydrology("world-god",world,mapId);assert.notEqual(stale.sources.fingerprint,initial.sources.fingerprint);assert.equal(stale.revision,3);assert.deepEqual(stale.layer,(await water.getTerrainHydrology("world-god",world,mapId,{revision:3})).layer);
+  const extra={...layer.edges[0],id:"new-stale-channel"};await assert.rejects(water.saveTerrainHydrology("world-god",world,{mapId,revision:3,requestId:randomUUID(),layer:{...layer,edges:[...layer.edges,extra]}}),/older terrain/);
+  const manualEdit={...stale.layer,edges:stale.layer.edges.map((e,i)=>i===0?{...e,name:"Retained after sculpting"}:e)};await water.saveTerrainHydrology("world-god",world,{mapId,revision:3,requestId:randomUUID(),layer:manualEdit});
+  const restored={mapId,revision:4,requestId:randomUUID(),restoreRevision:1,layer};assert.equal((await water.saveTerrainHydrology("world-god",world,restored)).revision,5);assert.equal((await water.saveTerrainHydrology("world-god",world,restored)).revision,5);assert.deepEqual((await water.getTerrainHydrology("world-god",world,mapId)).layer,layer);assert.equal((await pool.query("select restored_from_revision from world_hydrology_version where map_id=$1 and revision=5",[mapId])).rows[0].restored_from_revision,1);
+  await assert.rejects(water.saveTerrainHydrology("world-god",world,{...restored,restoreRevision:2}),/different/);
+  await assert.rejects(water.saveTerrainHydrology("world-god",world,{mapId,revision:5,requestId:randomUUID(),restoreRevision:1,layer:named}),/exact retained/);
+  const current=(await terrain.getTerrain("world-god",world,{mapId})).document!,currentGrid=createGrid(current.baseElevation,current.tiles,terrainGeometry(current.settings)),currentSources=(await water.getTerrainHydrology("world-god",world,mapId)).sources,newInput={...input,sources:currentSources,patches:currentSources.sources.map(source=>({source,lod:0,width:source.gridWidth,height:source.gridHeight,grid:source.level===0?currentGrid:detailGrids.get(source.id)!}))},newAnalysis=makeHydroAnalysis(currentSources,input.focus,input.minimumAreaM2),fresh=hydroSuggestions(calculateHydroFlow(newInput),newAnalysis);
+  await water.saveTerrainHydrology("world-god",world,{mapId,revision:5,requestId:randomUUID(),layer:fresh});assert.equal((await water.getTerrainHydrology("world-god",world,mapId)).revision,6);
+  const numericalAfter=await snapshot();await assert.rejects(water.saveTerrainHydrology("world-god",world,{mapId,revision:6,requestId:randomUUID(),layer:fresh,heights:[1]}));assert.deepEqual(await snapshot(),numericalAfter);
+  await writeFile(`${process.env.SERRIAN_PASS8_EVIDENCE_DIR}/hydrology-database.json`,JSON.stringify({passed:true,mapId,world,sourceChecksum:createHash("sha256").update(Buffer.from(currentGrid.buffer)).digest("hex"),independentWaterRevisions:6,confluences:true,coastalOutlets:true,atomicRetry:true,oneConcurrentWinner:true,immutableHistory:true,historyRestoration:true,staleNewRoutesRejected:true,existingRoutesRetainedOnTerrainChange:true,worldCoordinatesValidated:true,ownerOnly:true,readOnlyAdmin:true,ordinaryHidden:true,strictPayloads:true,numericalAppearanceMaterialAndMapRowsExact:true,sharedDatabaseWrites:false},null,2)+"\n");
+  if(process.env.SERRIAN_WATER_SKIP_MIGRATION!=="1")await (await import("./worlds-hydrology-migration-checks")).checkHydrologyMigration(pool);
+  console.log("PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials");
+}

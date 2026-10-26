@@ -1,6 +1,6 @@
 import type {Page,Locator} from "playwright-core";
 /** User-facing navigation shared by regression journeys after the map-first layout change. */
-export async function terrainPanel(p:Page|Locator,name:"Tool"|"Measure"|"Terrain detail"|"World"){
+export async function terrainPanel(p:Page|Locator,name:"Tool"|"Measure"|"Terrain detail"|"Water"|"World"){
  const show=p.getByRole("button",{name:"Show settings",exact:true});if(await show.isVisible())await show.click();await p.getByRole("tab",{name,exact:true}).click();
 }
 export async function terrainTool(p:Page,tool:string){await p.getByLabel("Active terrain tool",{exact:true}).selectOption(tool.toLowerCase());}
