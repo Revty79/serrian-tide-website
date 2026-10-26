@@ -1,0 +1,1017 @@
+{
+  "renderer": "stage3-2f-1",
+  "implementationCommit": "2cb9c8adeba1b48f6f33fa2163b0076d3c2d39b1",
+  "runtimeSourceSha256": "a70bc25379c935f1bdb42d4a362d467faa305a490e6edacafbca78b041aefa46",
+  "runtimeFiles": 1563,
+  "productionBuildId": "NQTONe1uOPxUOSoOCoDsN",
+  "technicalValidationPassed": true,
+  "ownerEnvironmentParityVerified": false,
+  "ownerArtisticAcceptance": false,
+  "configurationIssue": "Local app configuration currently targets Production, unlike prior DEV receipt. Direct database inspection not authorized.",
+  "newMigrations": 0,
+  "existingMaterialMigration": "0140_world_terrain_materials.sql",
+  "existingMigrationSha256": "256459c86e6d1019249640f4d0523cfb3bbaea6f8f683ee189f16bf1f31736b1",
+  "historicalMigrationsUnchanged": 141,
+  "disposableUpgradeAndBackupRestore": true,
+  "unrelatedGameplayTablesExact": 133,
+  "sharedDatabaseWrites": false,
+  "directProductionDatabaseConnection": false,
+  "deployed": false,
+  "nextPassStarted": false,
+  "checks": {
+    "unit": {
+      "passed": true,
+      "logSha256": "84793500629251fd4ce2ad8825df4e38680fca9be06935d556d7faeed1e3f29b",
+      "log": "artifacts/s32-pass2f-all-unit.log"
+    },
+    "types": {
+      "passed": true,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log": "artifacts/s32-pass2f-final-types.log"
+    },
+    "lint": {
+      "passed": true,
+      "logSha256": "0cc371e1212d818d5fde1e10f9af039da1d5b0bed139922d893ec16f6b9d972e",
+      "log": "artifacts/s32-pass2f-final-lint.log"
+    },
+    "drizzle": {
+      "passed": true,
+      "logSha256": "9b558df2557a42685ebf0ebaaeaa22424468f946931c93306a3ea75a099575b4",
+      "log": "artifacts/s32-pass2f-final-drizzle.log"
+    },
+    "full": {
+      "passed": true,
+      "logSha256": "8434eef2bd97d9a26e11f55cace568dd76c685f9ea3bc24ba33a05e074c698d6",
+      "log": "artifacts/s32-pass2f-full.log"
+    }
+  },
+  "unitTests": 2395,
+  "unitFiles": 300,
+  "wholeCanvasParity": "development-production-parity.json",
+  "sameLocationScaleMatrix": "scale-matrix/profile.json",
+  "sourceGridExactAcrossComparisons": true,
+  "matchedColdArtworkTimings": [
+    {
+      "name": "world",
+      "beforeMs": 3466.6542,
+      "afterMs": 2497.911500000002
+    },
+    {
+      "name": "coastline",
+      "beforeMs": 18583.9534,
+      "afterMs": 1970.4439999999959
+    },
+    {
+      "name": "mountainside",
+      "beforeMs": 33974.8873,
+      "afterMs": 4719.6486
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "baseline/coastline.png",
+      "bytes": 660152,
+      "sha256": "0218490b889736d27584c5eaff6e72b5bbc73975bc2d59ef9e0fa3666bd2b59f"
+    },
+    {
+      "path": "baseline/island.png",
+      "bytes": 131675,
+      "sha256": "5961a67b97e5c6e68656ce286641c95eacc8d37773703d35e471098dae233958"
+    },
+    {
+      "path": "baseline/mountainside.png",
+      "bytes": 1547654,
+      "sha256": "790ad1da0ba70302e993ce1896390b3dfa78bef3e1c30f42577516b7b32b49b5"
+    },
+    {
+      "path": "baseline/refinement-20km.png",
+      "bytes": 78341,
+      "sha256": "6ce4d4aefb3241643769299fb5770d888a0d7e01ebf4897b7c315e65a9fe399c"
+    },
+    {
+      "path": "baseline/world.png",
+      "bytes": 92645,
+      "sha256": "d66d51a54f2113c22008848d0ef97b8607c9962d8c0d6709ef33927ed7ba8f94"
+    },
+    {
+      "path": "corrected/coastline.png",
+      "bytes": 644235,
+      "sha256": "d73f26b36c3cca6c5cc155defe27b2d9ba2313a3ef5ffeb7097b7f50cbe5e272"
+    },
+    {
+      "path": "corrected/island.png",
+      "bytes": 129317,
+      "sha256": "c95d423472e45117adbf7c3e52ebdc0626c96ea3ada1372744b7846150523a70"
+    },
+    {
+      "path": "corrected/mountainside.png",
+      "bytes": 1479439,
+      "sha256": "9ad6e6a96f9428aa7d1e63999d9bebc8047a7d0ceeef56e743737736b64af322"
+    },
+    {
+      "path": "corrected/refinement-20km.png",
+      "bytes": 78275,
+      "sha256": "0d926f26f3825a3e97e28e26647adc90240820dd989b429326c59d0f0e018611"
+    },
+    {
+      "path": "corrected/world.png",
+      "bytes": 140487,
+      "sha256": "42befbbf51cf5a3fa987beec95b3884c1f291f04d02dcd4b89ec5584a4ba934c"
+    },
+    {
+      "path": "development/coastline.png",
+      "bytes": 644343,
+      "sha256": "e74318e72913b3e5ecfe1c686d6af0905b453f178d3f3b35d8e7cdf0d6c8b6f1"
+    },
+    {
+      "path": "development/island.png",
+      "bytes": 129335,
+      "sha256": "3e20a0ba21254052a1d66a99e31c185a0120e45a7ce06c33ccb96011ab369b34"
+    },
+    {
+      "path": "development/mountainside.png",
+      "bytes": 1482591,
+      "sha256": "e1aeaf5a60f9fa49c9307f9f49cc36f5642923ec829c4642a7109ed7a8c6f61e"
+    },
+    {
+      "path": "development/refinement-20km.png",
+      "bytes": 78281,
+      "sha256": "c8717247ebd8c9cdb4dfdb9fa38f346416b1669a49164e26a1596729a4812e09"
+    },
+    {
+      "path": "development/world.png",
+      "bytes": 140487,
+      "sha256": "42befbbf51cf5a3fa987beec95b3884c1f291f04d02dcd4b89ec5584a4ba934c"
+    },
+    {
+      "path": "development-final/coastline.png",
+      "bytes": 644358,
+      "sha256": "57ca7274b9b1b1f32f9e51cd2239ee0649fc89866f475668fee1606b68502d82"
+    },
+    {
+      "path": "development-final/island.png",
+      "bytes": 129335,
+      "sha256": "3e20a0ba21254052a1d66a99e31c185a0120e45a7ce06c33ccb96011ab369b34"
+    },
+    {
+      "path": "development-final/mountainside.png",
+      "bytes": 1482229,
+      "sha256": "edf5fe3651434946303f869fbe76b51a3c52cccd4c63d74473ef4db9a6f839d1"
+    },
+    {
+      "path": "development-final/refinement-20km.png",
+      "bytes": 78281,
+      "sha256": "c8717247ebd8c9cdb4dfdb9fa38f346416b1669a49164e26a1596729a4812e09"
+    },
+    {
+      "path": "development-final/world.png",
+      "bytes": 140490,
+      "sha256": "6f66cd4c9e2c12867e71f315c72e200fc3bdda9b3d86a984bc40cdcf2ac8b8fe"
+    },
+    {
+      "path": "final/coastline.png",
+      "bytes": 644358,
+      "sha256": "57ca7274b9b1b1f32f9e51cd2239ee0649fc89866f475668fee1606b68502d82"
+    },
+    {
+      "path": "final/island.png",
+      "bytes": 129335,
+      "sha256": "3e20a0ba21254052a1d66a99e31c185a0120e45a7ce06c33ccb96011ab369b34"
+    },
+    {
+      "path": "final/mountainside.png",
+      "bytes": 1482229,
+      "sha256": "edf5fe3651434946303f869fbe76b51a3c52cccd4c63d74473ef4db9a6f839d1"
+    },
+    {
+      "path": "final/refinement-20km.png",
+      "bytes": 78281,
+      "sha256": "c8717247ebd8c9cdb4dfdb9fa38f346416b1669a49164e26a1596729a4812e09"
+    },
+    {
+      "path": "final/world.png",
+      "bytes": 140490,
+      "sha256": "6f66cd4c9e2c12867e71f315c72e200fc3bdda9b3d86a984bc40cdcf2ac8b8fe"
+    },
+    {
+      "path": "final-production/coastline.png",
+      "bytes": 644343,
+      "sha256": "e74318e72913b3e5ecfe1c686d6af0905b453f178d3f3b35d8e7cdf0d6c8b6f1"
+    },
+    {
+      "path": "final-production/island.png",
+      "bytes": 129335,
+      "sha256": "3e20a0ba21254052a1d66a99e31c185a0120e45a7ce06c33ccb96011ab369b34"
+    },
+    {
+      "path": "final-production/mountainside.png",
+      "bytes": 1482591,
+      "sha256": "e1aeaf5a60f9fa49c9307f9f49cc36f5642923ec829c4642a7109ed7a8c6f61e"
+    },
+    {
+      "path": "final-production/refinement-20km.png",
+      "bytes": 78281,
+      "sha256": "c8717247ebd8c9cdb4dfdb9fa38f346416b1669a49164e26a1596729a4812e09"
+    },
+    {
+      "path": "final-production/world.png",
+      "bytes": 140487,
+      "sha256": "42befbbf51cf5a3fa987beec95b3884c1f291f04d02dcd4b89ec5584a4ba934c"
+    },
+    {
+      "path": "full/accepted-heightmap-desktop.png",
+      "bytes": 963381,
+      "sha256": "dea45a5394b7489044b1dc410b928831d36ff6a73156787767e7fbfb296089e1"
+    },
+    {
+      "path": "full/adjacent-nested-wrapped-illustrated-fantasy.png",
+      "bytes": 97601,
+      "sha256": "10852f34e41e5d206bdd7b1bf027f25a6b8cfd68a98f95ccf9c586caed3e5389"
+    },
+    {
+      "path": "full/adjacent-nested-wrapped-topographic.png",
+      "bytes": 100007,
+      "sha256": "6d63a23dc75a994b00ee82bd5dc8891f35abb32924634608777d160f070a1c86"
+    },
+    {
+      "path": "full/area-5000-square-km.png",
+      "bytes": 143254,
+      "sha256": "e2452ad2d7dcc50c0e4b4f0293c098f1be0af02037f1a48e53fdec5a4e640afd"
+    },
+    {
+      "path": "full/area-desktop-64-points.png",
+      "bytes": 195554,
+      "sha256": "38429cd1aa461d75cce8e641513aeb99aa6c86df143c1cc246e1846e9deeb5c4"
+    },
+    {
+      "path": "full/before-island-topographic.png",
+      "bytes": 144390,
+      "sha256": "587c5d2b64a0014933691b324a0961ce6a0dc3c88c35a68194a0544a6d8dbf83"
+    },
+    {
+      "path": "full/before-world-cartography.png",
+      "bytes": 118990,
+      "sha256": "8bb7c4242287d70c0edb2233020168b23c99c1cbd9191bdcb93e18bf6c10b626"
+    },
+    {
+      "path": "full/cartography-390-map.png",
+      "bytes": 67479,
+      "sha256": "740f020edf22815e50e9069b5de3f00b862c41f0853d3229a7841f98b2122b5d"
+    },
+    {
+      "path": "full/cartography-390-settings.png",
+      "bytes": 51099,
+      "sha256": "95d07d7cd2c125f23090a6c32326627b38b5c917d51d9533c5e80004b911febe"
+    },
+    {
+      "path": "full/cartography-820-map.png",
+      "bytes": 97509,
+      "sha256": "05503b7e4d35bc21a7e74947bf6ff76fd90d45991f4a5e9e1de5d871377a1f5e"
+    },
+    {
+      "path": "full/cartography-820-settings.png",
+      "bytes": 86811,
+      "sha256": "f80997218dda12250f762f354fe2889c0159ceec8c5d057f71f6397957a9d140"
+    },
+    {
+      "path": "full/colossal-million-km-wrapped.png",
+      "bytes": 74975,
+      "sha256": "f9068935373547cf97892cb125c9eb502a0b92c228bd5841829f7ebcbccfa6b6"
+    },
+    {
+      "path": "full/cosmology-phone.png",
+      "bytes": 442957,
+      "sha256": "5cf439185b943c4efbcdd9b46e7cb78cc0cb202c8f0befc7b3b1521913b18462"
+    },
+    {
+      "path": "full/described-390-map-and-ruler.png",
+      "bytes": 48407,
+      "sha256": "f7e105d02dcbc4b3bdd99b97f2387cc70bab88025f115e7ba19fd79dcf6eefd6"
+    },
+    {
+      "path": "full/described-390-settings.png",
+      "bytes": 48828,
+      "sha256": "18e25af77f87c6217f286643fe5b97d305d5b42e3a7278b43ddd87e0935c8b85"
+    },
+    {
+      "path": "full/described-820-map-and-ruler.png",
+      "bytes": 69140,
+      "sha256": "4d5fdcaa5be3cc91942d533b912db93952f8a244b0d156fcfdcd8987255966a6"
+    },
+    {
+      "path": "full/described-820-settings.png",
+      "bytes": 74952,
+      "sha256": "a60319c08c5ca548cf59c7d53860d73f33c5df47553b38d94e62fa788dbf78d7"
+    },
+    {
+      "path": "full/described-preview-illustrated-fantasy.png",
+      "bytes": 261500,
+      "sha256": "1d0415e2d6f983167333ffde059f4ca99c74020a940e2a41f879ea7f79cceadf"
+    },
+    {
+      "path": "full/described-preview-topographic.png",
+      "bytes": 283024,
+      "sha256": "abe4b09e7d5166be68fa7e4b5cbf06b95044ed3613f1f08b0cf744e04837f181"
+    },
+    {
+      "path": "full/described-refinement-preview.png",
+      "bytes": 102058,
+      "sha256": "01e06d1115df0e0a13b930d191e71c24563879f6cb82f379dd11ab14a8bf3262"
+    },
+    {
+      "path": "full/described-refinement-reopened.png",
+      "bytes": 112986,
+      "sha256": "86c2df56f8ede09508b34aec16a734081dece85d31eabc5d561c02618fbd5db1"
+    },
+    {
+      "path": "full/described-world-first-preview.png",
+      "bytes": 202591,
+      "sha256": "f0eb6f88926436270416924100e3125e2a7cbb074cccb80324bf49f67d309a3a"
+    },
+    {
+      "path": "full/described-world-reopened.png",
+      "bytes": 1032494,
+      "sha256": "35d422a185fafb93cdb74d9cad1cb09085fe0d728c8203a27525e6849b11a496"
+    },
+    {
+      "path": "full/described-world-variation-preview.png",
+      "bytes": 200240,
+      "sha256": "52bd3feb08a5e6ebaa0865c671ea4460caf74f82a6652f99f30b7e41d968c949"
+    },
+    {
+      "path": "full/expanded-desktop.png",
+      "bytes": 118576,
+      "sha256": "99df16ad51f2005d8a59273a4ab25408386c8ffd3512623f9547b543b617ff72"
+    },
+    {
+      "path": "full/expanded-measure-settings-open.png",
+      "bytes": 94053,
+      "sha256": "e82595651f7748b776b1d55ae203745d3d2adbb6bd3de2c4387697a2add270ec"
+    },
+    {
+      "path": "full/expanded-phone.png",
+      "bytes": 50193,
+      "sha256": "caede9c6d5a415462ee00bfe1f25110662c8502c878d41a0cdb3f953b1e5c6a4"
+    },
+    {
+      "path": "full/expanded-settings-closed.png",
+      "bytes": 51197,
+      "sha256": "a30c68ad69606330111837e6b7ed404edb0a60674449b99b0fb7983a52857cd6"
+    },
+    {
+      "path": "full/expanded-tablet.png",
+      "bytes": 80452,
+      "sha256": "b19d96058e1337822d2c38156f155ead538a91df5fb0b9405231743d463fe29c"
+    },
+    {
+      "path": "full/extreme-explicit-physical-adjustment.png",
+      "bytes": 172783,
+      "sha256": "015d85ec842bd7a20934dd6617ae96db49eaca049e6600dfdd6ad2dc3686b78d"
+    },
+    {
+      "path": "full/extreme-grid-is-not-terrain-detail.png",
+      "bytes": 174723,
+      "sha256": "f0cfbab259607c5a536a4f81dcd50e1935c5c3ca714d8d4fb8f24d1b3fd25af9"
+    },
+    {
+      "path": "full/extreme-million-km-resolution-feedback.png",
+      "bytes": 100786,
+      "sha256": "e74dc955a7170d9bb9a527f4fe83a4c7f5428f4099bf51aad1bb1a04ad771da6"
+    },
+    {
+      "path": "full/extreme-million-km-world.png",
+      "bytes": 47246,
+      "sha256": "2936c6ebc003616fffd0367098af41909a2a9f29a23483f4251ee2fad042ab3e"
+    },
+    {
+      "path": "full/extreme-two-metre-ruler-and-grid.png",
+      "bytes": 120349,
+      "sha256": "466308df33f83a2d912fb71657d352afcd88dfe523a2dd8edbbca184ba723343"
+    },
+    {
+      "path": "full/fine-island-reopened.png",
+      "bytes": 101623,
+      "sha256": "e4274d3eb222bd26b7a4e0618aae75be4c6d11a4f20a518c053aecc94bbb3b6d"
+    },
+    {
+      "path": "full/fine-island-return.png",
+      "bytes": 98290,
+      "sha256": "6c25c1a611e54d52d6d96dffffe2f1b411c6db18ce5f52c6c906f5641ef4e33a"
+    },
+    {
+      "path": "full/fine-island-sculpted.png",
+      "bytes": 96876,
+      "sha256": "5e57f97b62ed1760461aa9355aabf0ccbd6dd16a1e22109c8bf619d830f7d9b1"
+    },
+    {
+      "path": "full/fine-island-world-context.png",
+      "bytes": 91110,
+      "sha256": "d88d4b285840333b30fda68f633d07ef8a43a0f8bbde4b927d6d189163de624c"
+    },
+    {
+      "path": "full/fine-regeneration-world-frame-preview.png",
+      "bytes": 66697,
+      "sha256": "047a014e0da0d3317aadc183881e6aa160ec72c0df223901c79d6242e8e5d204"
+    },
+    {
+      "path": "full/fine-ridge-world-frame-preview.png",
+      "bytes": 77088,
+      "sha256": "417085e4d56a3336a2454adf48612af74c2a0807cb9c43892707cf3453129faa"
+    },
+    {
+      "path": "full/fine-valley-world-frame-preview.png",
+      "bytes": 75508,
+      "sha256": "81919d751457e80813513f3e4bf6027def7c81aa29ba12bbbc9d14dbea871b6d"
+    },
+    {
+      "path": "full/generated-preview-illustrated-fantasy.png",
+      "bytes": 127161,
+      "sha256": "02abf1966f0499767f326acef95483a5d37f7a0328106c1db7855fa2736d14c5"
+    },
+    {
+      "path": "full/generated-preview-topographic.png",
+      "bytes": 135257,
+      "sha256": "3dec5eadc1dada97442474b184b65dfc7aa68e473f26ac0ff41e354ffd70784a"
+    },
+    {
+      "path": "full/generation-phone.png",
+      "bytes": 251589,
+      "sha256": "b9581ae4d0c7f2c79fa2c1ae427dc51ad5252cb470b6e76d1635a927849cb259"
+    },
+    {
+      "path": "full/heavens-after-retirement.png",
+      "bytes": 1080009,
+      "sha256": "61a26be0416529a0856728f64bb590558464acc9d1ab21bd5049dae1f0fed1a3"
+    },
+    {
+      "path": "full/heightmap-16-preview.png",
+      "bytes": 752366,
+      "sha256": "0a0116148fc3d70db0841afdcbd777edbf6bd19350bac6988eae71970a40db3b"
+    },
+    {
+      "path": "full/inherited-refinement-preview.png",
+      "bytes": 85537,
+      "sha256": "74a36ef820076359736a63f61f7463bc4015a57f02bce5c47128863ee394bfac"
+    },
+    {
+      "path": "full/largest-generated-preview.png",
+      "bytes": 639394,
+      "sha256": "514062102aac5b45cb1c89458bd944d219fd8ff69cd43ae3cbeda3e3bfef5930"
+    },
+    {
+      "path": "full/local-illustrated-fantasy.png",
+      "bytes": 324354,
+      "sha256": "e1c3319bbc8957c916a98abe6d140688ac66905f9b76adf20400f3ad86c2645f"
+    },
+    {
+      "path": "full/local-topographic.png",
+      "bytes": 364941,
+      "sha256": "08cfdd445d6e95047c48b8726135f6f305737db23150ebaae001e66a088bdb4c"
+    },
+    {
+      "path": "full/long-path-desktop.png",
+      "bytes": 226656,
+      "sha256": "8c7584a2faf0b7ecceb67a50f1c05c0ad1e9ffd4365908ae9ba860149fb07499"
+    },
+    {
+      "path": "full/measurement-grid-desktop.png",
+      "bytes": 146965,
+      "sha256": "2935600d4472b97bc805d75eb1965e463621cc4a5b6d1626041b576792c06c07"
+    },
+    {
+      "path": "full/measurement-phone-expanded.png",
+      "bytes": 43327,
+      "sha256": "36fd91c840e04d86b93712a4a3b937bf2080d1c026a10fe0471b43c672eaeb13"
+    },
+    {
+      "path": "full/measurement-tablet-expanded.png",
+      "bytes": 51859,
+      "sha256": "3ebb98bc6da6b46e77dd193a3e1979126bf8c637d77116b8c39124e066a580aa"
+    },
+    {
+      "path": "full/million-km-illustrated-fantasy.png",
+      "bytes": 112866,
+      "sha256": "717fee88be63ddba59ea030e3ea2b9508aa79b5a2f17f83748bd80fb8a99753d"
+    },
+    {
+      "path": "full/million-km-topographic.png",
+      "bytes": 119682,
+      "sha256": "b8a7f5f73810a2f6674e59036654e80fdb6f75f633c91cc5cb5c505013cfd493"
+    },
+    {
+      "path": "full/overview-desktop.png",
+      "bytes": 765574,
+      "sha256": "8228e8473494d984ad96d2ac83589aeb94c457bf7087bc8a394ce6e43347c52d"
+    },
+    {
+      "path": "full/overview-phone.png",
+      "bytes": 288683,
+      "sha256": "9b2522061c08206c7b78e50be706e2f2004bcba8a934994d9d0898d87084c662"
+    },
+    {
+      "path": "full/physical-40000km-feedback.png",
+      "bytes": 95995,
+      "sha256": "b7963809608ff86103fbc1293ada93a011e243740fa1a7ec61f49f30bfc5e1cc"
+    },
+    {
+      "path": "full/physical-circle-unequal-spacing.png",
+      "bytes": 116558,
+      "sha256": "144d3e8508ff4a571d61bc023f4198dc16154b61d49bc8393665f4cb255ae8bb"
+    },
+    {
+      "path": "full/physical-continent-10000km.png",
+      "bytes": 93492,
+      "sha256": "562da060b30016dd38041006b5e8b5a496eee81e52dc280a67cca6587f3c1c46"
+    },
+    {
+      "path": "full/physical-continent-40000km.png",
+      "bytes": 52108,
+      "sha256": "d2d2ae4ae43c91da8201cc4fc65680fd8a12fad1bd00ca7c08dac91b54a6fdcb"
+    },
+    {
+      "path": "full/physical-controls-phone.png",
+      "bytes": 46969,
+      "sha256": "a308f77491f23ac201ca55fdcddd3c37aa2decd11749e4d3533faf03e0eb6871"
+    },
+    {
+      "path": "full/physical-controls-tablet.png",
+      "bytes": 64318,
+      "sha256": "25a4a2426379e2538b3767671ca219fa7640cfbf24a26cc42ba3603e86045c6a"
+    },
+    {
+      "path": "full/physical-preset-archipelago.png",
+      "bytes": 54418,
+      "sha256": "42afbb8918f6f5dc17ff47ce1528c4b233226a71171d61d28589f864d6d127eb"
+    },
+    {
+      "path": "full/physical-preset-continent.png",
+      "bytes": 52108,
+      "sha256": "d2d2ae4ae43c91da8201cc4fc65680fd8a12fad1bd00ca7c08dac91b54a6fdcb"
+    },
+    {
+      "path": "full/physical-preset-continents.png",
+      "bytes": 65437,
+      "sha256": "a191e4fad72ea69df65ceea136d4c6eb22a133189cef5ea6553240fc522a35fd"
+    },
+    {
+      "path": "full/physical-preset-island.png",
+      "bytes": 47648,
+      "sha256": "c409ea83ea5fbe92a0d6c1c5a85fa59de1e8aa3505ebada70cb1659a97faeb1b"
+    },
+    {
+      "path": "full/physical-preset-land.png",
+      "bytes": 115267,
+      "sha256": "b6229206306d9569b8fb33a73ab9d95be19c8649023138f8a8fa734d96e95234"
+    },
+    {
+      "path": "full/physical-preset-random.png",
+      "bytes": 52269,
+      "sha256": "d29fd3f33a610fde7cce82dacb2a801f699f3f8562cc432eff0e6c70fafaa0de"
+    },
+    {
+      "path": "full/physical-preview-phone.png",
+      "bytes": 48325,
+      "sha256": "bf0b3dcd963c193cf31b7a7e2a63c2d292e14f7afab55c087830681a7ec75c3b"
+    },
+    {
+      "path": "full/physical-preview-tablet.png",
+      "bytes": 71532,
+      "sha256": "87c018190be68da2aa592aa81a3898037d1a9cf97c5e7c585ddfdb6a43144169"
+    },
+    {
+      "path": "full/physical-rectangular-world.png",
+      "bytes": 94777,
+      "sha256": "ed189e1feeec0c7303f01b392aeea2ae0f99e3f47649868b665ee005fe54a936"
+    },
+    {
+      "path": "full/physical-ridge-preview.png",
+      "bytes": 57424,
+      "sha256": "c64f48c13e3d52b900c291d5cfd3e73bda3411bd01c545162c786307caaf4912"
+    },
+    {
+      "path": "full/plateau-and-transitions.png",
+      "bytes": 53541,
+      "sha256": "eb75a4895249b8d52cba9a74ababa4a046053182263aa4c4d5633121475b84c2"
+    },
+    {
+      "path": "full/preset-archipelago.png",
+      "bytes": 299596,
+      "sha256": "bc0e07154f051bb5bfbca1a40a557a947dca279fa8cbe888003201a41a678687"
+    },
+    {
+      "path": "full/preset-continent.png",
+      "bytes": 294937,
+      "sha256": "f77a740d21f3ecb94ac928353ec7e78fb90850869af27795b8a3c3307e2e0463"
+    },
+    {
+      "path": "full/preset-continents.png",
+      "bytes": 301112,
+      "sha256": "a0851f18c5f00e7e90f15fdbd24641ec10a631ff095bef045e270f4fcebb58e8"
+    },
+    {
+      "path": "full/preset-island.png",
+      "bytes": 281187,
+      "sha256": "2a844c6cf85913ec1fff1889932da66ed7cc282ede02fb59b30694b2212fa7d7"
+    },
+    {
+      "path": "full/preset-land.png",
+      "bytes": 324527,
+      "sha256": "b8369f851d7bc53811048f8f83a67c5e26baf978d242f0b0673c126ad9307f5e"
+    },
+    {
+      "path": "full/preset-random.png",
+      "bytes": 310569,
+      "sha256": "6d6bf2c73c89c80308fa09fb5a3f813096b3cd83f88e3833c4f5171b9c1e46fa"
+    },
+    {
+      "path": "full/realistic-390-native.png",
+      "bytes": 510423,
+      "sha256": "4e68bb3d4cc563401d604e291fb739606c53c749ba75e934731a94c62bbca4fd"
+    },
+    {
+      "path": "full/realistic-820-native.png",
+      "bytes": 1665978,
+      "sha256": "9f478c74728a7aa60a67151ab73a43449804c9f3a0eddeec7f7def4c6cc8ba05"
+    },
+    {
+      "path": "full/realistic-adjacent-nested-wrapped.png",
+      "bytes": 59075,
+      "sha256": "bf05da70d4a726cf7873a2c10e980847087aba710e411571ef77b0ee62f84fd9"
+    },
+    {
+      "path": "full/realistic-artwork-recovery.png",
+      "bytes": 67892,
+      "sha256": "ae56394e8ad7a9b2ada2831ccd0b11f110871bb538a96243903f857cc4bdaa2e"
+    },
+    {
+      "path": "full/realistic-coastline.png",
+      "bytes": 643590,
+      "sha256": "9c542de8f0e863e8727ebb24e9496b82b38f1c27e3b57a5f0c1f073942f4669c"
+    },
+    {
+      "path": "full/realistic-described-preview.png",
+      "bytes": 273887,
+      "sha256": "b2b28b2f375936959fceddde1fb3090d61692ae84886b76b767a4b84e1758e95"
+    },
+    {
+      "path": "full/realistic-generated-preview.png",
+      "bytes": 91004,
+      "sha256": "3baed9244a187c0afa19f3fb70cfa4b7c8950890d52955ffed8e036d0d64b047"
+    },
+    {
+      "path": "full/realistic-island.png",
+      "bytes": 129941,
+      "sha256": "d49a18c6dfbc9ce1b8bb5bd6e21d7b58a49b3824e92586587d4fc24bbd71ee50"
+    },
+    {
+      "path": "full/realistic-material-erased.png",
+      "bytes": 512934,
+      "sha256": "a2819d4ed7d6ac5b45f56d8f9223299bed636c3d55b3a49bab377d00b978d395"
+    },
+    {
+      "path": "full/realistic-material-painting.png",
+      "bytes": 512930,
+      "sha256": "75c14e7ce37001981e7fd2330c72a3c3586746cf8c4fc55fa8d632ffc522dd6f"
+    },
+    {
+      "path": "full/realistic-material-reopen.png",
+      "bytes": 516820,
+      "sha256": "b0368c554b189f4250bacdc9978111a7ffd9914b763ac85e8239bc088740bbf5"
+    },
+    {
+      "path": "full/realistic-million-km.png",
+      "bytes": 77633,
+      "sha256": "6d1be14f9804f52b29bd76f3c2eb9cc6fd2c4855dfa646248efbfceeb75c82dd"
+    },
+    {
+      "path": "full/realistic-mountainside.png",
+      "bytes": 1480682,
+      "sha256": "1acab8e19096c5480920f713b17483529278fd38a3ac092acab93003ad81e20b"
+    },
+    {
+      "path": "full/realistic-refinement-20km.png",
+      "bytes": 78437,
+      "sha256": "f99376891ea1fee2beccc008de04b3227ba9b9268786fa2da6966c69b1ba3b5e"
+    },
+    {
+      "path": "full/realistic-world.png",
+      "bytes": 204586,
+      "sha256": "23dc54ee920548796ecc7166f3e176b98ed523ee01073eb44402126c66d3c4a2"
+    },
+    {
+      "path": "full/realm-retained-relationship.png",
+      "bytes": 969493,
+      "sha256": "885a51d3426fc0d632e35ada81202a2142994c387d3b3430d8c3dc3a0cbd3634"
+    },
+    {
+      "path": "full/refinement-390-settings-open.png",
+      "bytes": 53870,
+      "sha256": "3cc31381a3c70b965910c959c9bef324ee77063f69ba7ae22f4b2fbbfc6ab3ef"
+    },
+    {
+      "path": "full/refinement-390-touch-settings-closed.png",
+      "bytes": 58154,
+      "sha256": "b5c0f74c0cd150e158566e702052fca4834d2dc89ee20bba4e534c5cef4c22cd"
+    },
+    {
+      "path": "full/refinement-820-settings-open.png",
+      "bytes": 109758,
+      "sha256": "e59fbfadcfa9ccb9323c6a593885d2cbc980667db0a9c0c3bba985ed75f23ff3"
+    },
+    {
+      "path": "full/refinement-820-touch-settings-closed.png",
+      "bytes": 89566,
+      "sha256": "44d9a755dba8770a7472c268297112e243cf2d405d355f4372a060e761fc13ae"
+    },
+    {
+      "path": "full/refinement-conflict-retains-draft.png",
+      "bytes": 141692,
+      "sha256": "8368e6aa0324f37df2cb7a0ebeda6f5cd140b839bc7614e74a8e814f9c1c0b18"
+    },
+    {
+      "path": "full/regeneration-tablet.png",
+      "bytes": 431356,
+      "sha256": "5930b60b989fbb77cee34b58f9c13ca69f0a31dbb1d7bdddcf734198b004faec"
+    },
+    {
+      "path": "full/regional-illustrated-fantasy.png",
+      "bytes": 367265,
+      "sha256": "d25818634858f378e55d13ed91b8db5faf3421d1654e4080d518e5297a9e5417"
+    },
+    {
+      "path": "full/regional-topographic.png",
+      "bytes": 405473,
+      "sha256": "0a3ec078316e464e28075648d6f509f87e4dec8b847a1e18b45609956ed520e7"
+    },
+    {
+      "path": "full/relief-classic.png",
+      "bytes": 60850,
+      "sha256": "2a588bd0a8dde7c62de6ca4b68f558daf486e998040456c51c07fef9718be916"
+    },
+    {
+      "path": "full/relief-enhanced.png",
+      "bytes": 58959,
+      "sha256": "6bb7261e7630cb5f11b6374c3e9c7b2d7c286358e593e215a783192e272282d4"
+    },
+    {
+      "path": "full/relief-natural.png",
+      "bytes": 50531,
+      "sha256": "7eb2d2bd1923f0673c64305d373aec49ec4b1abdce8661c25d61dd351e94d297"
+    },
+    {
+      "path": "full/residents-directory-desktop.png",
+      "bytes": 235981,
+      "sha256": "1554c6b9025b368de7a890ba9f60e82946b0065bc4f5fd20b2cc427f068fea3f"
+    },
+    {
+      "path": "full/residents-directory-phone.png",
+      "bytes": 324303,
+      "sha256": "22edfb8a1bfc1d37a5b7c57f53dd17ae394f383703383dcad77d1673f07280c7"
+    },
+    {
+      "path": "full/ridge-preview.png",
+      "bytes": 205756,
+      "sha256": "29eefd202bfbb98c3cea513376f3a6e2b9ca1e8799f83885b1b2af67219166f0"
+    },
+    {
+      "path": "full/ruler-100km.png",
+      "bytes": 145971,
+      "sha256": "1715dc039de5014d210afadc2334aedd75c9830ae3e68dbcf72a63f84cb059bd"
+    },
+    {
+      "path": "full/sculpted-island-and-bay.png",
+      "bytes": 45141,
+      "sha256": "dba13a6923cb6d0231ed41306f973cbb7417215fe47cc5379d91e67c21ff9c57"
+    },
+    {
+      "path": "full/sculpted-mountains.png",
+      "bytes": 55518,
+      "sha256": "84b24f869024509b803617f96df700a3443a003ab62aaefad5117e788fe6d84d"
+    },
+    {
+      "path": "full/sculpted-valley.png",
+      "bytes": 58175,
+      "sha256": "15716e9772024cfc1ebc07ffdbff27db70a4fe07c9d11dc3c42c4a9d8c91b9e2"
+    },
+    {
+      "path": "full/selected-area-preview.png",
+      "bytes": 704114,
+      "sha256": "a3457081a2350456b662caacd9cd7ffbbfa66020f4fb1af677e62b5a2dd71c9b"
+    },
+    {
+      "path": "full/shop-workshop-desktop.png",
+      "bytes": 213041,
+      "sha256": "301015ae5e0403db6f2c56e95c98c473d6e8dd1bdbb9d73c625855e6e1dcec68"
+    },
+    {
+      "path": "full/shop-workshop-phone.png",
+      "bytes": 63487,
+      "sha256": "258befbcaced1e14c78a563e06833517aef4aef82b7556f3f9138b653e1f600d"
+    },
+    {
+      "path": "full/terrain-autosave-desktop.png",
+      "bytes": 633327,
+      "sha256": "4da3c1fb3b7ce503421866fdfce2e73377ac91168a09edb55210e053761946f7"
+    },
+    {
+      "path": "full/terrain-autosave-phone.png",
+      "bytes": 335524,
+      "sha256": "e82c111264f53dcf5c24c2ae2115dc2005617025d1a6d417cff8b4c3e16f99bb"
+    },
+    {
+      "path": "full/terrain-conflict.png",
+      "bytes": 659141,
+      "sha256": "fae65529c6ec26052da17b85d6287f19324487bc35388e6e54ecd46256d37f9a"
+    },
+    {
+      "path": "full/town-workshop-desktop.png",
+      "bytes": 249357,
+      "sha256": "2fc3a4d4c02ce9350357e1209ec3a53edfcae3272ba6903b52b7155a4c3d34bc"
+    },
+    {
+      "path": "full/valley-preview.png",
+      "bytes": 186355,
+      "sha256": "53016d92eb7ca140f4b4d046f6fb9495bdc1d37549b95365862ff343c2ed5bcb"
+    },
+    {
+      "path": "full/world-classic-elevation.png",
+      "bytes": 202134,
+      "sha256": "2ff532b18abf2e38ddbfa417eaa316dd1899272ba4bf5bbbf649b59563284989"
+    },
+    {
+      "path": "full/world-illustrated-fantasy.png",
+      "bytes": 178932,
+      "sha256": "5f84ccbd54d9dc971a017f4c07f2fb5f480cef05772acef64046169db8b18279"
+    },
+    {
+      "path": "full/world-physical-relief.png",
+      "bytes": 193472,
+      "sha256": "a21895e1a3973d3983fc126926662ada7d7c83d7ed0a022a03e5862cb57136d3"
+    },
+    {
+      "path": "full/world-topographic.png",
+      "bytes": 208397,
+      "sha256": "ae7f18dd25a8700ff61572c66fd002475c0d913e6cbee3ec3de26da96ba8a85e"
+    },
+    {
+      "path": "full/worlds-towns-shops-desktop.png",
+      "bytes": 1309558,
+      "sha256": "d7fa7a99b94a6db45ca93749491fd9e6d5e8ea922b4642b59f52c53becf25ff5"
+    },
+    {
+      "path": "full/worlds-towns-shops-phone.png",
+      "bytes": 549299,
+      "sha256": "bd489a30a1c63bd299ee588bbb87616b777164ed81852daadfdc962c0acf6063"
+    },
+    {
+      "path": "full/wrapped-area-and-perimeter.png",
+      "bytes": 172904,
+      "sha256": "d439bc36990e5b4c5ced8eb48d6e0a3624771bbc233fb404cc0331a4ac5d119d"
+    },
+    {
+      "path": "full/wrapped-refinement-and-ruler.png",
+      "bytes": 156967,
+      "sha256": "85b5b87af631f8abe9cda6cb9ee45b467d58287f19f091a7d8cedcd7e0eab02e"
+    },
+    {
+      "path": "main-fallback/coastline.png",
+      "bytes": 644358,
+      "sha256": "57ca7274b9b1b1f32f9e51cd2239ee0649fc89866f475668fee1606b68502d82"
+    },
+    {
+      "path": "main-fallback/island.png",
+      "bytes": 129335,
+      "sha256": "3e20a0ba21254052a1d66a99e31c185a0120e45a7ce06c33ccb96011ab369b34"
+    },
+    {
+      "path": "main-fallback/mountainside.png",
+      "bytes": 1482229,
+      "sha256": "edf5fe3651434946303f869fbe76b51a3c52cccd4c63d74473ef4db9a6f839d1"
+    },
+    {
+      "path": "main-fallback/refinement-20km.png",
+      "bytes": 78281,
+      "sha256": "c8717247ebd8c9cdb4dfdb9fa38f346416b1669a49164e26a1596729a4812e09"
+    },
+    {
+      "path": "main-fallback/world.png",
+      "bytes": 140490,
+      "sha256": "6f66cd4c9e2c12867e71f315c72e200fc3bdda9b3d86a984bc40cdcf2ac8b8fe"
+    },
+    {
+      "path": "parity-production/coastline.png",
+      "bytes": 644343,
+      "sha256": "e74318e72913b3e5ecfe1c686d6af0905b453f178d3f3b35d8e7cdf0d6c8b6f1"
+    },
+    {
+      "path": "parity-production/island.png",
+      "bytes": 129335,
+      "sha256": "3e20a0ba21254052a1d66a99e31c185a0120e45a7ce06c33ccb96011ab369b34"
+    },
+    {
+      "path": "parity-production/mountainside.png",
+      "bytes": 1482591,
+      "sha256": "e1aeaf5a60f9fa49c9307f9f49cc36f5642923ec829c4642a7109ed7a8c6f61e"
+    },
+    {
+      "path": "parity-production/refinement-20km.png",
+      "bytes": 78281,
+      "sha256": "c8717247ebd8c9cdb4dfdb9fa38f346416b1669a49164e26a1596729a4812e09"
+    },
+    {
+      "path": "parity-production/world.png",
+      "bytes": 140487,
+      "sha256": "42befbbf51cf5a3fa987beec95b3884c1f291f04d02dcd4b89ec5584a4ba934c"
+    },
+    {
+      "path": "sampling-optimized/coastline.png",
+      "bytes": 660152,
+      "sha256": "0218490b889736d27584c5eaff6e72b5bbc73975bc2d59ef9e0fa3666bd2b59f"
+    },
+    {
+      "path": "sampling-optimized/island.png",
+      "bytes": 131675,
+      "sha256": "5961a67b97e5c6e68656ce286641c95eacc8d37773703d35e471098dae233958"
+    },
+    {
+      "path": "sampling-optimized/mountainside.png",
+      "bytes": 1547654,
+      "sha256": "790ad1da0ba70302e993ce1896390b3dfa78bef3e1c30f42577516b7b32b49b5"
+    },
+    {
+      "path": "sampling-optimized/refinement-20km.png",
+      "bytes": 78341,
+      "sha256": "6ce4d4aefb3241643769299fb5770d888a0d7e01ebf4897b7c315e65a9fe399c"
+    },
+    {
+      "path": "sampling-optimized/world.png",
+      "bytes": 92645,
+      "sha256": "d66d51a54f2113c22008848d0ef97b8607c9962d8c0d6709ef33927ed7ba8f94"
+    },
+    {
+      "path": "scale-matrix/coastline.png",
+      "bytes": 644358,
+      "sha256": "57ca7274b9b1b1f32f9e51cd2239ee0649fc89866f475668fee1606b68502d82"
+    },
+    {
+      "path": "scale-matrix/island.png",
+      "bytes": 129335,
+      "sha256": "3e20a0ba21254052a1d66a99e31c185a0120e45a7ce06c33ccb96011ab369b34"
+    },
+    {
+      "path": "scale-matrix/mountainside.png",
+      "bytes": 1482229,
+      "sha256": "edf5fe3651434946303f869fbe76b51a3c52cccd4c63d74473ef4db9a6f839d1"
+    },
+    {
+      "path": "scale-matrix/refinement-20km.png",
+      "bytes": 80052,
+      "sha256": "08207da2912759f92487ba28a18c2936f511a1b90570f97e3f986498857cd4aa"
+    },
+    {
+      "path": "scale-matrix/same-location-continental.png",
+      "bytes": 215292,
+      "sha256": "1d57298d064917d699adf0fa6925670ab5ff3375b7a84e61584bb2702766792f"
+    },
+    {
+      "path": "scale-matrix/same-location-regional.png",
+      "bytes": 64244,
+      "sha256": "1f9915c3992446e9f726dd6fcaf2b18589a2bc77b35e21a323dda0f04f777d63"
+    },
+    {
+      "path": "scale-matrix/same-location-world.png",
+      "bytes": 142496,
+      "sha256": "d9a0512d1331e910167cb0ec09e41307e8400595ba1f8be2a6943e7004fab4e5"
+    },
+    {
+      "path": "scale-matrix/world.png",
+      "bytes": 140490,
+      "sha256": "6f66cd4c9e2c12867e71f315c72e200fc3bdda9b3d86a984bc40cdcf2ac8b8fe"
+    },
+    {
+      "path": "worker/coastline.png",
+      "bytes": 660152,
+      "sha256": "0218490b889736d27584c5eaff6e72b5bbc73975bc2d59ef9e0fa3666bd2b59f"
+    },
+    {
+      "path": "worker/island.png",
+      "bytes": 131675,
+      "sha256": "5961a67b97e5c6e68656ce286641c95eacc8d37773703d35e471098dae233958"
+    },
+    {
+      "path": "worker/mountainside.png",
+      "bytes": 1547654,
+      "sha256": "790ad1da0ba70302e993ce1896390b3dfa78bef3e1c30f42577516b7b32b49b5"
+    },
+    {
+      "path": "worker/refinement-20km.png",
+      "bytes": 78341,
+      "sha256": "6ce4d4aefb3241643769299fb5770d888a0d7e01ebf4897b7c315e65a9fe399c"
+    },
+    {
+      "path": "worker/world.png",
+      "bytes": 92645,
+      "sha256": "d66d51a54f2113c22008848d0ef97b8607c9962d8c0d6709ef33927ed7ba8f94"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "migration": "0139_world_cartographic_appearance",
+  "freshReplay": true,
+  "populated0138Upgrade": true,
+  "stage2NumericalRefinementsPresent": true,
+  "existingTablesExact": 340,
+  "appearanceBackupRestore": true,
+  "repeatMigrationNoChange": true,
+  "invalidSqlSpecRejected": true,
+  "ledger": 141,
+  "sharedDatabaseWrites": false,
+  "productionContacted": false
+}

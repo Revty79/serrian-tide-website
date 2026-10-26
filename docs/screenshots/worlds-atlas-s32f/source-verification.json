@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "baseline": "a31ceed2afba7020a87ab3409624e228b644cd7d",
+  "workspaceHead": "2cb9c8adeba1b48f6f33fa2163b0076d3c2d39b1",
+  "runtimeFiles": 1563,
+  "runtimeSourceSha256": "a70bc25379c935f1bdb42d4a362d467faa305a490e6edacafbca78b041aefa46",
+  "productionBuildId": "NQTONe1uOPxUOSoOCoDsN",
+  "productionCopyByteExact": true,
+  "preservedImplementations": [
+    "src/features/worlds/terrain-generation-v1.ts",
+    "src/features/worlds/terrain-generation-v2.ts",
+    "src/features/worlds/terrain-generation-v3.ts",
+    "src/features/worlds/terrain-physical-noise.ts",
+    "src/features/worlds/terrain-renderer.ts",
+    "src/features/worlds/terrain-detail-renderer.ts",
+    "src/features/worlds/terrain-cartography.ts",
+    "src/features/worlds/terrain-cartography-painter.ts",
+    "src/features/worlds/terrain-material-service.ts",
+    "src/features/worlds/terrain-material-client.tsx",
+    "src/features/worlds/terrain-appearance.ts",
+    "src/features/worlds/terrain-appearance-service.ts",
+    "src/features/worlds/terrain-service.ts",
+    "src/features/worlds/terrain-refinement-service.ts"
+  ],
+  "allHistoricalMigrationsExact": 141,
+  "journalAndSnapshotsUnchanged": true,
+  "newMigrations": 0,
+  "databaseSchemasUnchanged": true,
+  "originalArtworkFilesExact": 14,
+  "sharedDatabaseWrites": false,
+  "directProductionDatabaseConnection": false,
+  "manifestDefinition": "Sorted source/data/bundled-material files plus package, lock, Next and PostCSS configuration; path, NUL, raw bytes"
+}

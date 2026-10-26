@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "wholeCanvasExact": true,
+  "views": [
+    {
+      "name": "world",
+      "sha256": "e075c7e7e684d6a5d16350116fe10caf49e370e628b6b257ece97cd8898fd8bb"
+    },
+    {
+      "name": "refinement-20km",
+      "sha256": "828f5d49b2471ff363e527cd1c7e1eeb8e086b87af26afed67d34f65b4a1f2fc"
+    },
+    {
+      "name": "island",
+      "sha256": "8f1478b1a6632f97e85a539c5c01bea27216c2fc93543713d0e3bf101e3510cf"
+    },
+    {
+      "name": "coastline",
+      "sha256": "64a3de7d802dd0e4d66f2d150e164ebb0476e31b533d4db03f18da9a64997518"
+    },
+    {
+      "name": "mountainside",
+      "sha256": "691aaa3690526e434c0ae9293df0cf8b5d73b75775f9f04046b3aab8c524bbf3"
+    }
+  ],
+  "production": "final/profile.json",
+  "development": "development-final/profile.json",
+  "mainThreadFallback": "main-fallback/profile.json",
+  "gpuDisabled": true,
+  "ownerEnvironmentParityVerified": false,
+  "limitation": "No connected owner browser. Current local configuration targets Production; no direct database inspection authorized.",
+  "runtimeSourceSha256": "a70bc25379c935f1bdb42d4a362d467faa305a490e6edacafbca78b041aefa46",
+  "implementationCommit": "2cb9c8adeba1b48f6f33fa2163b0076d3c2d39b1",
+  "downloadedEditorGridSha256": "8d825913b15765364479966a6fd4eadc3a35b951f5122e38f31214accda5ffa6",
+  "downloadedIdentityAndNumericalSourceExact": true
+}

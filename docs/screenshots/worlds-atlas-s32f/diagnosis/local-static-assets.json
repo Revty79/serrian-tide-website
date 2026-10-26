@@ -1,0 +1,81 @@
+{
+  "checkedAt": "2026-10-26T18:11:40.958Z",
+  "base": "http://localhost:3000",
+  "assets": [
+    {
+      "name": "grass-diffuse.jpg",
+      "status": 200,
+      "bytes": 876584,
+      "sha256": "a79cc5ed65af0f80261b39a383b64a8c5272c5144d724deb43dbc29f0e4cd19b"
+    },
+    {
+      "name": "grass-normal.jpg",
+      "status": 200,
+      "bytes": 1310516,
+      "sha256": "7000e2ccd479bb7b66dcdf4faef7b47554324566886314ca620cbf03e274e826"
+    },
+    {
+      "name": "rock-diffuse.jpg",
+      "status": 200,
+      "bytes": 927082,
+      "sha256": "ea48e0e47ad42c8bd312476178b1248ec66f0eb19156a26a1c222f2a40caaf2d"
+    },
+    {
+      "name": "rock-normal.jpg",
+      "status": 200,
+      "bytes": 1146788,
+      "sha256": "c6423169583f31715cf0636954bad524e806848a5f2861fcea6794275f726ff0"
+    },
+    {
+      "name": "sand-diffuse.jpg",
+      "status": 200,
+      "bytes": 900798,
+      "sha256": "3b26e6033205d4c774bb8c48bda8081b5a369e01ac701a0dcaa7ddc1f484f1de"
+    },
+    {
+      "name": "sand-normal.jpg",
+      "status": 200,
+      "bytes": 1223062,
+      "sha256": "1bda846d2361eeba2938700e68771711a29880299da61733bd2bcdd7af83c1f4"
+    },
+    {
+      "name": "scree-diffuse.jpg",
+      "status": 200,
+      "bytes": 925640,
+      "sha256": "9f668e7926d2e8347eddc9090360da26848b55a12ba306e332cd08ac98c534cf"
+    },
+    {
+      "name": "scree-normal.jpg",
+      "status": 200,
+      "bytes": 1527382,
+      "sha256": "c991b6a99a0f29c5096d2d502b33a8bd98ff643c536987427ef31276c6183f04"
+    },
+    {
+      "name": "snow-diffuse.jpg",
+      "status": 200,
+      "bytes": 325497,
+      "sha256": "523a4e69c90b96d787dd69b897f29a2b3761a017024405c60aa630d1e8e9009a"
+    },
+    {
+      "name": "snow-normal.jpg",
+      "status": 200,
+      "bytes": 1081858,
+      "sha256": "9495ec680616b8340e2cbecbd151bff84c690cfad4209e90cc98d2d0ba81f810"
+    },
+    {
+      "name": "soil-diffuse.jpg",
+      "status": 200,
+      "bytes": 526262,
+      "sha256": "6da4fbd6fc5d21044dcbdbd96e098fb464ed544b42c982e72ce8ccd1d53686c5"
+    },
+    {
+      "name": "soil-normal.jpg",
+      "status": 200,
+      "bytes": 1229474,
+      "sha256": "b53758dbc93f1ab3ad2884ca07a217dd90450e6a70d055f34573573668812a2a"
+    }
+  ],
+  "allTwelveByteExact": true,
+  "authenticationOrTerrainQuery": false,
+  "directDatabaseConnection": false
+}
