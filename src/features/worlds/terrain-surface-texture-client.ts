@@ -1,9 +1,10 @@
 import {SURFACE_TEXTURES,type TextureMip,type SurfaceTextureSet} from "./terrain-surface-textures";
 let loaded:SurfaceTextureSet|undefined,promise:Promise<SurfaceTextureSet>|undefined;
 export const cachedSurfaceTextures=()=>loaded;
+function materialCanvas(size:number){if(typeof document==="undefined")return new OffscreenCanvas(size,size);const c=document.createElement("canvas");c.width=c.height=size;return c;}
 async function decode(path:string,signal:AbortSignal):Promise<TextureMip[]>{
  const response=await fetch(path,{signal,cache:"force-cache"});if(!response.ok)throw new Error("A bundled surface texture is unavailable.");const blob=await response.blob(),image=await createImageBitmap(blob,{resizeWidth:512,resizeHeight:512,resizeQuality:"high"});
- try{const canvas=document.createElement("canvas");canvas.width=canvas.height=512;const context=canvas.getContext("2d",{willReadFrequently:true})!;context.drawImage(image,0,0,512,512);const levels:TextureMip[]=[];for(let size=512;size>=1;size/=2){if(size<512){const next=document.createElement("canvas");next.width=next.height=size;const c=next.getContext("2d",{willReadFrequently:true})!;c.imageSmoothingEnabled=true;c.imageSmoothingQuality="high";c.drawImage(canvas,0,0,size,size);canvas.width=canvas.height=size;context.drawImage(next,0,0);}levels.push({size,pixels:context.getImageData(0,0,size,size).data});await new Promise<void>(r=>setTimeout(r,0));}return levels;}finally{image.close();}
+ try{const canvas=materialCanvas(512),context=canvas.getContext("2d",{willReadFrequently:true}) as CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D;context.drawImage(image,0,0,512,512);const levels:TextureMip[]=[];for(let size=512;size>=1;size/=2){if(size<512){const next=materialCanvas(size),c=next.getContext("2d",{willReadFrequently:true}) as CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D;c.imageSmoothingEnabled=true;c.imageSmoothingQuality="high";c.drawImage(canvas,0,0,size,size);canvas.width=canvas.height=size;context.drawImage(next,0,0);}levels.push({size,pixels:context.getImageData(0,0,size,size).data});await new Promise<void>(r=>setTimeout(r,0));}return levels;}finally{image.close();}
 }
 /** One lazily decoded, 512px mipmapped collection per document: <=16 MiB of
  * retained pixel data. Sequential decode bounds temporary bitmap memory. */

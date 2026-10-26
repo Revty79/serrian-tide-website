@@ -1,0 +1,9 @@
+# Stage 3 Pass 2F: rendering correction and optimization
+
+The owner authorized the complete correction brief from `a31ceed2afba7020a87ab3409624e228b644cd7d`. The starting main checkout is clean at that exact commit. Earlier troubleshooting changed no tracked code or data; the owner restarted the server and reported no improvement. Preserve Pass 2, its assets, all accepted numerical and material data, existing styles and World/gameplay identities.
+
+The work must reconcile the owner's running application with the validated build, instrument CPU costs before optimization, correct demonstrated material transitions, improve geographic structure at World scale, retain sharp stable multiscale imagery and complete all retained regressions. No hydrology, climate, forests, Studio or subsequent pass. No shared data writes, historical migration changes, owner-service restart or deployment. A renderer-only correction is preferred. Complete on main and publish the tested result under the owner's existing Git workflow.
+
+The owner's visible flat map is an unresolved acceptance case at every reported zoom. Fixture screenshots do not establish owner-environment parity. The local app serves the checked texture bytes correctly. Its current configuration targets a different database from the earlier local DEV receipt; a database guard refused connection pending clarification of read-only authorization. Never infer that the local URL is a disposable or DEV database.
+
+Profiling uses sampled per-pixel stages with explicit inclusive nesting, full batch upload/composition/cache timings and input-event latency. Unprofiled final readiness timings must also be recorded. Preserve the failed Pass 2 cold-render results and compare the same stored geography, views, hardware, texture loading and completed artwork.

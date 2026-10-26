@@ -24,8 +24,8 @@ export function materialCoverage(stroke:MaterialStroke,x:number,y:number,period:
 }
 /** One physical vector coverage applies at every numerical resolution. Ordered erase
  * strokes restore the current automatic interpretation, never numerical heights. */
-export function paintMaterialWeights(weights:number[],layer:Pick<TerrainMaterials,"visible"|"opacity">,strokes:MaterialStroke[],x:number,y:number,period:number|null){
- const original=weights.slice();if(!layer.visible)return weights;weights.fill(0);let remaining=1;
+export function paintMaterialWeights(weights:number[],layer:Pick<TerrainMaterials,"visible"|"opacity">,strokes:MaterialStroke[],x:number,y:number,period:number|null,scratch?:number[]){
+ const original=scratch??weights.slice();if(scratch)for(let i=0;i<6;i++)original[i]=weights[i];if(!layer.visible)return weights;weights.fill(0);let remaining=1;
  for(let n=strokes.length-1;n>=0&&remaining>0;n--){const stroke=strokes[n],t=materialCoverage(stroke,x,y,period)*layer.opacity;if(!t)continue;const index=["rock","scree","soil","grass","sand","snow"].indexOf(stroke.material);for(let i=0;i<6;i++)weights[i]+=(index<0?original[i]:i===index?1:0)*t*remaining;remaining*=1-t;}
  for(let i=0;i<6;i++)weights[i]+=original[i]*remaining;return weights;
 }

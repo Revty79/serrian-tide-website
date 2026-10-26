@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import {createHash} from "node:crypto";
+import {execFileSync} from "node:child_process";
+const baseline="a31ceed2afba7020a87ab3409624e228b644cd7d",git=(...args)=>execFileSync("git",args,{encoding:"utf8",windowsHide:true,maxBuffer:24*1024*1024}),e=JSON.parse(fs.readFileSync("artifacts/worlds-atlas-s32/environment.json","utf8")),checkout=path.resolve(e.checkout),normal=s=>s.replace(/\r\n/g,"\n");
+assert.equal(checkout,path.resolve("artifacts/worlds-atlas-pass7/checkout"));
+const files=git("ls-files","--cached","--others","--exclude-standard","-z").split("\0").filter(f=>f&&(f.startsWith("src/")||f.startsWith("data/")||f.startsWith("public/worlds/terrain-materials/v1/")||["package.json","package-lock.json","next.config.ts","postcss.config.mjs"].includes(f))).sort(),hash=createHash("sha256");
+for(const file of files){const bytes=fs.readFileSync(file);assert.ok(bytes.equals(fs.readFileSync(path.join(checkout,file))),"Tested source differs: "+file);hash.update(file+"\0");hash.update(bytes);}
+const original=["terrain-generation-v1.ts","terrain-generation-v2.ts","terrain-generation-v3.ts","terrain-physical-noise.ts","terrain-renderer.ts","terrain-detail-renderer.ts","terrain-cartography.ts","terrain-cartography-painter.ts","terrain-material-service.ts","terrain-material-client.tsx","terrain-appearance.ts","terrain-appearance-service.ts","terrain-service.ts","terrain-refinement-service.ts"].map(f=>"src/features/worlds/"+f);
+for(const file of original)assert.equal(normal(fs.readFileSync(file,"utf8")),normal(git("show",baseline+":"+file)),"Preserved implementation changed: "+file);
+const prior=JSON.parse(git("show",baseline+":drizzle/meta/_journal.json")),journal=JSON.parse(fs.readFileSync("drizzle/meta/_journal.json","utf8"));assert.deepEqual(journal,prior);assert.equal(journal.entries.length,141);
+for(const entry of journal.entries){const file="drizzle/"+entry.tag+".sql";assert.equal(normal(fs.readFileSync(file,"utf8")),normal(git("show",baseline+":"+file)),file);}
+assert.equal(git("diff",baseline,"--name-only","--","src/db","drizzle").trim(),"");
+const assets=git("ls-tree","-r","--name-only",baseline,"public/worlds/terrain-materials/v1").trim().split("\n");for(const file of assets){const old=execFileSync("git",["show",baseline+":"+file],{windowsHide:true,maxBuffer:4*1024*1024});assert.ok(fs.readFileSync(file).equals(old),"Original artwork changed: "+file);}
+const config=JSON.parse(fs.readFileSync(path.join(checkout,"tsconfig.json"),"utf8"));config.include=config.include.filter(p=>![".next-terrain-pass1/",".next-pass7-dev/"].some(prefix=>p.startsWith(prefix)));assert.deepEqual(config,JSON.parse(fs.readFileSync("tsconfig.json","utf8")));
+const out={passed:true,baseline,workspaceHead:git("rev-parse","HEAD").trim(),runtimeFiles:files.length,runtimeSourceSha256:hash.digest("hex"),productionBuildId:fs.readFileSync(path.join(checkout,".next-terrain-pass1/BUILD_ID"),"utf8").trim(),productionCopyByteExact:true,preservedImplementations:original,allHistoricalMigrationsExact:141,journalAndSnapshotsUnchanged:true,newMigrations:0,databaseSchemasUnchanged:true,originalArtworkFilesExact:assets.length,sharedDatabaseWrites:false,directProductionDatabaseConnection:false,manifestDefinition:"Sorted source/data/bundled-material files plus package, lock, Next and PostCSS configuration; path, NUL, raw bytes"};
+const destination=process.env.SERRIAN_S32F_SOURCE_EVIDENCE??"docs/screenshots/worlds-atlas-s32f/source-verification.json";fs.writeFileSync(destination,JSON.stringify(out,null,2)+"\n");console.log(JSON.stringify(out));

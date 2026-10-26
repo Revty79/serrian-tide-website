@@ -1,7 +1,8 @@
+import type {TerrainSurfaceProfile} from "./terrain-surface-profile";
 import type {SurfaceField} from "./terrain-surface-field";
 import {paintMaterialWeights,type TerrainMaterials,type MaterialStroke} from "./terrain-materials";
-import {shadeSurfaceTextures} from "./terrain-surface-texture-shading";
-import type {SurfaceTextureSet} from "./terrain-surface-textures";
+import {shadeSurfaceTextures,surfaceLightingScale} from "./terrain-surface-texture-shading";
+import {surfaceTextureWork,type SurfaceTextureWork,type SurfaceTextureSet} from "./terrain-surface-textures";
 
 const clamp=(n:number,a=0,b=1)=>Math.max(a,Math.min(b,n));
 const smooth=(n:number)=>{n=clamp(n);return n*n*(3-2*n);};
@@ -11,19 +12,29 @@ function noise(x:number,y:number){const a=Math.floor(x),b=Math.floor(y),u=smooth
 function stoneCells(x:number,y:number){const ix=Math.floor(x),iy=Math.floor(y);let first=Infinity,second=Infinity,tone=.5,nx=0,ny=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const cx=ix+i,cy=iy+j,px=cx+.18+hash(cx,cy)*.64,py=cy+.18+hash(cx+701,cy-393)*.64,dx=x-px,dy=y-py,d=dx*dx+dy*dy;if(d<first){second=first;first=d;tone=hash(cx-183,cy+439);nx=dx;ny=dy;}else second=Math.min(second,d);}return {edge:Math.sqrt(second)-Math.sqrt(first),radius:Math.sqrt(first),tone,nx,ny};}
 /** Coordinate-anchored, periodic in wrapped Worlds, band limited by artwork footprint. */
 export function surfaceNoise(x:number,y:number,scale:number,period:number|null){if(period)x=((x%period)+period)%period;const a=noise(x/scale,y/scale);if(!period)return a;const t=smooth(x/period);return a*(1-t)+noise((x-period)/scale,y/scale)*t;}
-export function automaticSurface(field:SurfaceField,sea:number){
- const slope=Math.hypot(field.gx,field.gy),high=smooth((field.height-sea-100)/900),exposure=smooth(Math.max(slope*.9,field.rough*.32)/.55),rock=clamp(high*.22+exposure*.9),scree=smooth((slope-.03)/.35)*(1-rock)*.65;
- const coastDistance=Math.abs(field.waterHeight-sea)/Math.max(.02,slope),beach=(1-smooth(coastDistance/60))*(1-smooth(slope/.45))*(field.spacing<=200&&(field.coastLow??Infinity)<=sea&&(field.coastHigh??-Infinity)>sea?1:0),soil=.12*(1-rock),grass=Math.max(0,1-rock-scree-soil);
- const raw=[rock*(1-beach),scree*(1-beach),soil*(1-beach),grass*(1-beach),beach,0],sum=raw.reduce((a,b)=>a+b,0)||1;return raw.map(x=>x/sum);
+export type SurfacePixelWork={weights:number[];original:number[];water:[number,number,number];rgb:[number,number,number];texture:SurfaceTextureWork;lighting:{footprint:number;relief:number;scale:number}};
+export const surfacePixelWork=():SurfacePixelWork=>({weights:[0,0,0,0,0,0],original:[0,0,0,0,0,0],water:[0,0,0],rgb:[0,0,0],texture:surfaceTextureWork(),lighting:{footprint:NaN,relief:NaN,scale:1}});
+const OPAQUE_MATERIAL={visible:true,opacity:1};
+export function automaticSurface(field:SurfaceField,sea:number,out:number[]=[0,0,0,0,0,0]){
+ const slope=Math.hypot(field.gx,field.gy),height=Math.max(0,field.height-sea),high=height/(height+1000),steep=slope/(slope+.65),rugged=field.rough/(field.rough+1.8),rock=clamp(.70*steep+.22*rugged+.48*high,0,.94);
+ // Nearby accepted relief suggests loose material below a cliff, without
+ // changing the flat shelf's height or claiming unseen geology.
+ const rise=Math.max(0,(field.coastHigh??field.height)-field.height),talus=rise/(rise+80)*Math.min(1,80/Math.max(80,field.spacing)),loose=clamp(steep*.48+talus*.5,0,.75),scree=(1-rock)*loose;
+ const coastDistance=Math.abs(field.waterHeight-sea)/Math.max(.02,slope),beach=(1-smooth(coastDistance/60))*(1-smooth(slope/.45))*(field.spacing<=200&&(field.coastLow??Infinity)<=sea&&(field.coastHigh??-Infinity)>sea?1:0),soil=(1-rock-scree)*(.15+.2*high+.2*talus),grass=Math.max(0,1-rock-scree-soil);
+ out[0]=rock*(1-beach);out[1]=scree*(1-beach);out[2]=soil*(1-beach);out[3]=grass*(1-beach);out[4]=beach;out[5]=0;let sum=0;for(let i=0;i<6;i++)sum+=out[i];for(let i=0;i<6;i++)out[i]/=sum||1;return out;
 }
 /** Original procedural surface artwork. Texture normals affect light only and are
  * never exposed as measured relief. Snow is explicit paint, never a climate inference. */
-export function surfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null,textures?:SurfaceTextureSet):[number,number,number]{
- const band=(scale:number)=>smooth(scale/(footprint*2)-.4),n=(scale:number,ox=0,oy=0)=>{const weight=band(scale);return weight ? .5+(surfaceNoise(x+ox,y+oy,scale,period)-.5)*weight:.5;},broad=.5+(n(9000)-.5)*.65+(n(240000)-.5)*.35,meso=n(320),grain=n(5),detail=band(20),slope=Math.hypot(field.gx,field.gy),depth=sea-field.waterHeight;
- const shallow=Math.exp(-Math.max(0,depth)/45),shelf=Math.exp(-Math.max(0,depth)/700),ripple=Math.sin(n(4)*6+meso*5)*band(5)*.25,water=[12+shallow*56+shelf*9+ripple,39+shallow*94+shelf*22+ripple*2,57+shallow*74+shelf*24+ripple*2],landFraction=slope<1e-6?(depth>=0?0:1):clamp(.5-depth/(slope*footprint));if(landFraction===0)return water as [number,number,number];
- const coverage=layer.visible?layer.opacity:0,weights=layer.automatic?automaticSurface(field,sea):[0,0,1,0,0,0];if(strokes.length)paintMaterialWeights(weights,{visible:true,opacity:1},strokes,x,y,period);for(let i=0;i<6;i++)weights[i]=weights[i]*coverage+(i===2?1-coverage:0);
- if(textures)return shadeSurfaceTextures(textures,field,weights,x,y,footprint,relief,period,broad,water,landFraction);
+export function surfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null,textures?:SurfaceTextureSet,profile?:TerrainSurfaceProfile,work?:SurfacePixelWork):[number,number,number]{
+ const band=(scale:number)=>smooth(scale/(footprint*2)-.4),n=(scale:number,ox=0,oy=0)=>{const weight=band(scale);return weight ? .5+(surfaceNoise(x+ox,y+oy,scale,period)-.5)*weight:.5;},slope=Math.hypot(field.gx,field.gy),depth=sea-field.waterHeight,water=work?.water??[0,0,0],landFraction=slope<1e-6?(depth>=0?0:1):clamp(.5-depth/(slope*footprint));
+ if(landFraction<1){const shallow=Math.exp(-Math.max(0,depth)/45),shelf=Math.exp(-Math.max(0,depth)/700),ripple=Math.sin(n(4)*6+n(320)*5)*band(5)*.25;water[0]=12+shallow*56+shelf*9+ripple;water[1]=39+shallow*94+shelf*22+ripple*2;water[2]=57+shallow*74+shelf*24+ripple*2;}else water[0]=water[1]=water[2]=0;
+ if(landFraction===0)return water as [number,number,number];
+ const broad=.5+(n(9000)-.5)*.65+(n(240000)-.5)*.35;
+ const timed=profile?.sampling,classificationStart=timed?performance.now():0;
+ const coverage=layer.visible?layer.opacity:0,weights=layer.automatic?automaticSurface(field,sea,work?.weights):(work?.weights??[0,0,0,0,0,0]);if(!layer.automatic){weights.fill(0);weights[2]=1;}if(layer.automatic){const mineral=weights[0]+weights[1],ground=weights[2]+weights[3],shift=(n(80)-.5)*.5*Math.min(mineral,ground);if(mineral>0&&ground>0){weights[0]+=shift*weights[0]/mineral;weights[1]+=shift*weights[1]/mineral;weights[2]-=shift*weights[2]/ground;weights[3]-=shift*weights[3]/ground;}}if(timed)profile!.record("classification",performance.now()-classificationStart);const strokeStart=timed?performance.now():0;if(strokes.length)paintMaterialWeights(weights,OPAQUE_MATERIAL,strokes,x,y,period,work?.original);if(timed)profile!.record("strokes",performance.now()-strokeStart);for(let i=0;i<6;i++)weights[i]=weights[i]*coverage+(i===2?1-coverage:0);
+ if(textures){if(work&&(work.lighting.footprint!==footprint||work.lighting.relief!==relief)){work.lighting.footprint=footprint;work.lighting.relief=relief;work.lighting.scale=surfaceLightingScale(relief,footprint);}return shadeSurfaceTextures(textures,field,weights,x,y,footprint,relief,period,broad,water,landFraction,profile,work?.texture,work?.rgb,work?.lighting.scale);}
  // Warped, stratified stone: connected ridges, mineral faces and narrow joints.
+ const meso=n(320),grain=n(5),detail=band(20);
  const warp=n(65)*3,periodicX=period?Math.sin(2*Math.PI*x/period)*period/(2*Math.PI):x,axis=(periodicX*.72+y*.43)/17+warp+field.height*.012,vein=Math.abs(Math.sin(axis)),joints=smooth((.12-vein)/.12),facets=Math.abs(n(28)-.5)*2;
  const plates=weights[0]>.08&&band(30)>0?stoneCells((periodicX*.8+y*.6)/28+n(90)*1.2,(-periodicX*.6+y*.8)/28+field.height*.003):{edge:1,radius:0,tone:.5,nx:0,ny:0},cracks=(1-smooth(plates.edge/Math.max(.035,footprint/28)))*band(30),plateNormal=(plates.nx*.16+plates.ny*.11)*band(30);
  const rockTone=clamp(.53+(broad-.5)*.16+(meso-.5)*.22*detail+(plates.tone-.5)*.25*band(30)+facets*.18*detail-joints*.18*detail-cracks*.2),clasts=weights[1]>.1&&band(2)>0?stoneCells(periodicX/1.6,y/1.6):{radius:.5,tone:.5},gravel=(grain-.5)*detail+(1-smooth(clasts.radius/.48))*(clasts.tone-.25)*band(2),grassPatch=(meso-.5)*.22*detail+broad*.52,soilClods=(n(13)-.5)*detail;
