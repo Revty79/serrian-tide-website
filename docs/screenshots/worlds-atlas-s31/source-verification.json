@@ -1,0 +1,22 @@
+{
+  "baselineCommit": "78534362e6c3d9c93b0e7ddd9db0148bba9085e8",
+  "runtimeWorkspaceSha256": "65d0e29bc54d23bb05bc7fa98279e84ae382ecdec2f765a7c1c09ecf5246d3b0",
+  "runtimeFilesChecked": 1529,
+  "productionCopyByteExact": true,
+  "productionBuildId": "q0vU82fN0RoKhyM5z-UHg",
+  "priorGeneratorAndReliefImplementationsUnchanged": [
+    "src/features/worlds/terrain-generation-v1.ts",
+    "src/features/worlds/terrain-generation-v2.ts",
+    "src/features/worlds/terrain-generation-v3.ts",
+    "src/features/worlds/terrain-physical-noise.ts",
+    "src/features/worlds/terrain-renderer.ts",
+    "src/features/worlds/terrain-detail-renderer.ts"
+  ],
+  "publishedMigrationContentUnchanged": 139,
+  "priorJournalEntriesExact": true,
+  "migration0139Sha256": "09b90083e4a92321f559b85931b6ba0a1186cdd35f4a62dfa97c4659deaa7dab",
+  "newMigrationOnly": 139,
+  "contentComparison": "Historical text compared with normalized Windows line endings; runtime copy compared byte for byte",
+  "manifestDefinition": "Sorted src/ and data/ files plus package.json, package-lock.json, next.config.ts, postcss.config.mjs; each path, NUL, raw file bytes",
+  "validationTsconfigDifference": "Next adds only the isolated .next-terrain-pass1 type include paths during production build"
+}

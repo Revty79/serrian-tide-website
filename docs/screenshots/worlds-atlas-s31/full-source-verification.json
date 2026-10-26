@@ -1,0 +1,20 @@
+{
+  "baselineCommit": "78534362e6c3d9c93b0e7ddd9db0148bba9085e8",
+  "runtimeWorkspaceSha256": "0e178901853ced669be2163d473195be0beee11bce3b0396bbae55ffbd3a898c",
+  "runtimeFilesChecked": 1529,
+  "productionCopyByteExact": true,
+  "productionBuildId": "Hvr9GUAMhqN1A-DePKh_u",
+  "priorGeneratorAndReliefImplementationsUnchanged": [
+    "src/features/worlds/terrain-generation-v1.ts",
+    "src/features/worlds/terrain-generation-v2.ts",
+    "src/features/worlds/terrain-generation-v3.ts",
+    "src/features/worlds/terrain-physical-noise.ts",
+    "src/features/worlds/terrain-renderer.ts",
+    "src/features/worlds/terrain-detail-renderer.ts"
+  ],
+  "publishedMigrationContentUnchanged": 139,
+  "priorJournalEntriesExact": true,
+  "migration0139Sha256": "09b90083e4a92321f559b85931b6ba0a1186cdd35f4a62dfa97c4659deaa7dab",
+  "newMigrationOnly": 139,
+  "contentComparison": "Historical text compared with normalized Windows line endings; runtime copy compared byte for byte"
+}

@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "viewport390": {
+    "canvasHeight": 528.453125,
+    "nativeTouchPanPinch": true,
+    "penRuler": true,
+    "canvasRetained": true,
+    "style": "topographic",
+    "textureBytes": 5308416,
+    "batchMs": 8.699999928474426
+  },
+  "viewport820": {
+    "canvasHeight": 898.78125,
+    "nativeTouchPanPinch": true,
+    "penRuler": true,
+    "canvasRetained": true,
+    "style": "illustrated-fantasy",
+    "textureBytes": 7471104,
+    "batchMs": 22.09999990463257
+  }
+}

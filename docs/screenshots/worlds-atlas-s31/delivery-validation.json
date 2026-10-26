@@ -1,0 +1,468 @@
+{
+  "runtimeCommit": "62eb4a47a4e5442aac45bafe0f1cdd28750f010d",
+  "baselineCommit": "78534362e6c3d9c93b0e7ddd9db0148bba9085e8",
+  "generatedAt": "2026-10-26T06:39:47.214Z",
+  "stage2OwnerApproved": true,
+  "stage3Pass1TechnicalComplete": true,
+  "ownerArtisticAcceptance": false,
+  "independentReviewRecorded": false,
+  "nextPassStarted": false,
+  "publicationTarget": "origin/main",
+  "deploymentPerformed": false,
+  "sharedServiceRestart": false,
+  "build": {
+    "passed": true,
+    "mode": "production",
+    "bundler": "Turbopack",
+    "fullAndTargetedReviewSameBuild": false,
+    "baselineCommit": "78534362e6c3d9c93b0e7ddd9db0148bba9085e8",
+    "runtimeWorkspaceSha256": "65d0e29bc54d23bb05bc7fa98279e84ae382ecdec2f765a7c1c09ecf5246d3b0",
+    "runtimeFilesChecked": 1529,
+    "productionCopyByteExact": true,
+    "productionBuildId": "q0vU82fN0RoKhyM5z-UHg",
+    "priorGeneratorAndReliefImplementationsUnchanged": [
+      "src/features/worlds/terrain-generation-v1.ts",
+      "src/features/worlds/terrain-generation-v2.ts",
+      "src/features/worlds/terrain-generation-v3.ts",
+      "src/features/worlds/terrain-physical-noise.ts",
+      "src/features/worlds/terrain-renderer.ts",
+      "src/features/worlds/terrain-detail-renderer.ts"
+    ],
+    "publishedMigrationContentUnchanged": 139,
+    "priorJournalEntriesExact": true,
+    "migration0139Sha256": "09b90083e4a92321f559b85931b6ba0a1186cdd35f4a62dfa97c4659deaa7dab",
+    "newMigrationOnly": 139,
+    "contentComparison": "Historical text compared with normalized Windows line endings; runtime copy compared byte for byte",
+    "manifestDefinition": "Sorted src/ and data/ files plus package.json, package-lock.json, next.config.ts, postcss.config.mjs; each path, NUL, raw file bytes",
+    "validationTsconfigDifference": "Next adds only the isolated .next-terrain-pass1 type include paths during production build",
+    "fullUnfilteredRuntimeCommit": "a3dd0a7dd2367dc9682d3255b503cada94d248ae",
+    "fullUnfilteredBuildId": "Hvr9GUAMhqN1A-DePKh_u",
+    "finalTargetedRuntimeCommit": "62eb4a47a4e5442aac45bafe0f1cdd28750f010d",
+    "finalTargetedScope": "All new cartographic journeys, real first-default conflict recovery, Pass 8 browser/device regressions and retained database chain",
+    "lateCorrection": "Enable explicit default reload when another tab creates the first appearance; no schema, renderer or generation change"
+  },
+  "typescript": {
+    "passed": true,
+    "runtimeCommit": "62eb4a47a4e5442aac45bafe0f1cdd28750f010d"
+  },
+  "lint": {
+    "passed": true,
+    "errors": 0,
+    "warnings": 1,
+    "preexisting": "Unused LoreFamily in scripts/worlds-stories-checks.ts",
+    "fullRuntimeCommit": "a3dd0a7dd2367dc9682d3255b503cada94d248ae",
+    "changedFilesCleanAtRuntimeCommit": "62eb4a47a4e5442aac45bafe0f1cdd28750f010d"
+  },
+  "unit": {
+    "passed": true,
+    "tests": 2367,
+    "files": 297,
+    "failures": 0,
+    "skips": 0,
+    "newCartographyDomainTests": 9,
+    "fullRuntimeCommit": "a3dd0a7dd2367dc9682d3255b503cada94d248ae",
+    "cartographicDomainRepeatedAtRuntimeCommit": "62eb4a47a4e5442aac45bafe0f1cdd28750f010d",
+    "cartographicDomainPassedAgain": 9
+  },
+  "drizzleMetadata": {
+    "passed": true,
+    "offlineDummyDsn": true,
+    "runtimeCommit": "a3dd0a7dd2367dc9682d3255b503cada94d248ae",
+    "schemaUnchangedAtFinalCommit": true
+  },
+  "database": {
+    "migrationRequired": "0139_world_cartographic_appearance",
+    "migrationSha256": "09b90083e4a92321f559b85931b6ba0a1186cdd35f4a62dfa97c4659deaa7dab",
+    "devReadOnlyVerification": {
+      "readOnly": true,
+      "identity": {
+        "database": "serrian_tide_dev",
+        "role": "serrian_tide_app",
+        "address": "::1",
+        "port": 5432
+      },
+      "ledgerEntries": 139,
+      "latestHash": "020094861096f31e3a7d21284298a4bf8665d806365def097fd8f64be9aa9e80",
+      "appearanceTablePresent": false,
+      "migration0139Hash": "09b90083e4a92321f559b85931b6ba0a1186cdd35f4a62dfa97c4659deaa7dab",
+      "migration0139Applied": false,
+      "productionContacted": false
+    },
+    "productionContacted": false,
+    "sharedDatabaseWrites": false,
+    "rehearsal": {
+      "passed": true,
+      "migration": "0139_world_cartographic_appearance",
+      "freshReplay": true,
+      "populated0138Upgrade": true,
+      "stage2NumericalRefinementsPresent": true,
+      "existingTablesExact": 340,
+      "appearanceBackupRestore": true,
+      "repeatMigrationNoChange": true,
+      "invalidSqlSpecRejected": true,
+      "ledger": 140,
+      "sharedDatabaseWrites": false,
+      "productionContacted": false
+    },
+    "numericalAndIdentityPreservation": {
+      "passed": true,
+      "strictVersionedSpec": true,
+      "legacyMapsUnchanged": true,
+      "ownRevision": true,
+      "exactRetry": true,
+      "concurrentSaveProtected": true,
+      "ownerOnly": true,
+      "ordinaryHidden": true,
+      "readOnlyAdmin": true,
+      "numericalAndRelationshipTablesExact": [
+        "world_terrain",
+        "world_terrain_tile",
+        "world_terrain_version",
+        "world_terrain_refinement",
+        "world_terrain_refinement_version",
+        "world_terrain_refinement_tile",
+        "world_map_canvas",
+        "world_map_place",
+        "world_shop",
+        "world_shop_location"
+      ],
+      "sha256": "1f0f19b8ee2014212811ab37b5c5cf4c18080af89333c4871b2afb7522014069",
+      "sharedDatabaseWrites": false
+    }
+  },
+  "browser": {
+    "fullUnfilteredPassed": true,
+    "retainedPasses": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "thirteenCreatorFamilies": true,
+    "townShopIndividualWorkshops": true,
+    "errors": [],
+    "legacyMapRequests": [],
+    "nativeTouchPenEmulation": true,
+    "physicalDeviceCertification": false,
+    "gpuDisabled": true,
+    "cartographicWorkflows": {
+      "passed": true,
+      "lostAppearanceResponseOriginalRetryAfterReload": true,
+      "newEndpointSecurity": true,
+      "regionalNumericalTerrainRetained": true,
+      "refinementAppearanceOnlyExact": {
+        "hash": "7aca10b239a10fd05f00ff81c39dcf1278d7df1ce86a913794f349575a02caf6",
+        "revision": 6
+      },
+      "cartographicPainting": {
+        "numericalUndoExact": true,
+        "repaintedTiles": 32
+      },
+      "creationPreviewsNoTerrainRecords": true,
+      "wrappedRulerMetres": 2000,
+      "adjacentNestedWrappedContinuity": {
+        "exactBoundaryColors": {
+          "topographic": [
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ]
+          ],
+          "illustrated-fantasy": [
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ]
+          ]
+        },
+        "refinementMetadataUnchanged": true
+      }
+    },
+    "devices": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "viewport390": {
+        "canvasHeight": 528.453125,
+        "nativeTouchPanPinch": true,
+        "penRuler": true,
+        "canvasRetained": true,
+        "style": "topographic",
+        "textureBytes": 5308416,
+        "batchMs": 8.699999928474426
+      },
+      "viewport820": {
+        "canvasHeight": 898.78125,
+        "nativeTouchPanPinch": true,
+        "penRuler": true,
+        "canvasRetained": true,
+        "style": "illustrated-fantasy",
+        "textureBytes": 7471104,
+        "batchMs": 22.09999990463257
+      }
+    },
+    "fullUnfilteredRuntimeCommit": "a3dd0a7dd2367dc9682d3255b503cada94d248ae",
+    "finalTargetedRuntimeCommit": "62eb4a47a4e5442aac45bafe0f1cdd28750f010d",
+    "workflows": {
+      "passed": true,
+      "lostAppearanceResponseOriginalRetryAfterReload": true,
+      "newEndpointSecurity": true,
+      "regionalNumericalTerrainRetained": true,
+      "refinementAppearanceOnlyExact": {
+        "hash": "7aca10b239a10fd05f00ff81c39dcf1278d7df1ce86a913794f349575a02caf6",
+        "revision": 6
+      },
+      "cartographicPainting": {
+        "numericalUndoExact": true,
+        "repaintedTiles": 32
+      },
+      "creationPreviewsNoTerrainRecords": true,
+      "wrappedRulerMetres": 2000,
+      "adjacentNestedWrappedContinuity": {
+        "exactBoundaryColors": {
+          "topographic": [
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ],
+            [
+              162,
+              196,
+              211,
+              255
+            ]
+          ],
+          "illustrated-fantasy": [
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ],
+            [
+              169,
+              196,
+              200,
+              255
+            ]
+          ]
+        },
+        "refinementMetadataUnchanged": true
+      },
+      "firstAppearanceConcurrentRecovery": true
+    }
+  },
+  "performance": {
+    "world": {
+      "classic-elevation": {
+        "switchMs": 38.21569999997155,
+        "pixelHash": "8249f1bcbe805068e627bff64811876e5a504f4428b22d615c0c49bfca78464b"
+      },
+      "physical-relief": {
+        "switchMs": 66.40080000000307,
+        "pixelHash": "8fe8b2df7dcbdabc14474408f953a341d3f0f70740c6504bca85a00df4929358"
+      },
+      "topographic": {
+        "switchMs": 1275.7292000000016,
+        "pixelHash": "93628c33a23fec0c8bddc67a692ac277dee8584e330991cb95d1ee154f7142eb"
+      },
+      "illustrated-fantasy": {
+        "switchMs": 1574.4825000000128,
+        "pixelHash": "199e2feea172c70d51dd1372b8d8d344c6fecfa6071d7355ca323cfd053040c4"
+      }
+    },
+    "navigation": {
+      "cycles": 24,
+      "wallMs": 2138.4672000000137,
+      "retainedHeapBytes": -446700,
+      "stationaryPointerNoRepaint": true,
+      "cacheHits": 5028,
+      "textureBytes": 46137344,
+      "maxBatchMs": 45.09999990463257
+    },
+    "extreme": {
+      "textures": 128,
+      "bytes": 2097152,
+      "maxBatchMs": 7.5,
+      "painted": 128,
+      "hits": 485
+    },
+    "extremeSwitchMs": {
+      "topographic": 348.656799999997,
+      "illustrated-fantasy": 405.07010000001173
+    },
+    "brushAndUndo": {
+      "numericalUndoExact": true,
+      "repaintedTiles": 32
+    }
+  },
+  "dataPreservation": {
+    "terrainRevisionsUnchangedByAppearance": true,
+    "fullNumericalChecksumsExact": true,
+    "historicalMapRowsUnchanged": true,
+    "realmMapVersionsUnchanged": true,
+    "campaignRuntimeTablesUnchanged": 133
+  },
+  "personalVisualReview": [
+    "world-classic-elevation.png",
+    "world-physical-relief.png",
+    "world-topographic.png",
+    "world-illustrated-fantasy.png",
+    "regional-topographic.png",
+    "regional-illustrated-fantasy.png",
+    "local-topographic.png",
+    "local-illustrated-fantasy.png",
+    "cartography-390-map.png",
+    "cartography-820-map.png",
+    "adjacent-nested-wrapped-topographic.png"
+  ],
+  "unresolvedTechnicalBlockers": [],
+  "visualLimits": [
+    "Engraved interpretation of saved relief; smooth ranges remain smooth",
+    "Actual source sample spacing limits illustration detail",
+    "Dense steep contours are generalized",
+    "CPU first-use preparation may show retained relief fallback",
+    "Owner artistic acceptance remains pending"
+  ]
+}
