@@ -13,7 +13,7 @@ type Job={key:string;baseKey:string;frame:TerrainFrame;row:number;col:number;pix
  * raster pixel covers at most one device pixel. The one-pixel halo filters joins. */
 export class TerrainSurfacePainter{
  private images=new Map<string,Image>();private fallback=new Map<string,string>();private jobs:Job[]=[];private wanted:{key:string;baseKey:string;frame:TerrainFrame}[]=[];
- private root?:Int16Array;private scene?:TerrainDetailScene;private stamp=0;private signature="";private sample?:ReturnType<typeof terrainSurfaceSampler>;
+ private root?:Int16Array;private scene?:TerrainDetailScene;private stamp=0;private signature="";private sample?:ReturnType<typeof terrainSurfaceSampler>;private sampleStamp=-1;
  private world?:TerrainGeometry;private sea=0;private relief=20;private layer=EMPTY_TERRAIN_MATERIALS;
  readonly metrics={painted:0,hits:0,maxBatchMs:0,maxTextures:0,visualMetres:0};
  private textures=cachedSurfaceTextures()??MEAN_SURFACE_TEXTURES;private disposed=false;private fineArtwork=false;
@@ -31,8 +31,9 @@ export class TerrainSurfacePainter{
   const level=Math.max(0,Math.min(48,Math.floor(Math.log2(world.displayWidth*view.scale*dpr/128)))),size=world.displayWidth/2**level;
   const resolution=Math.max(32,Math.min(256,Math.ceil(size*view.scale*dpr))),left=Math.max(world.wrap?-(2**level):0,Math.floor(view.left/size)),right=Math.min(world.wrap?2*2**level-1:2**level-1,Math.floor(view.right/size)),top=Math.max(0,Math.floor(view.top/size)),bottom=Math.min(Math.ceil(world.displayHeight/size)-1,Math.floor(view.bottom/size));
   this.fineArtwork=size/resolution<32;if(this.fineArtwork&&this.assetState==="unloaded")this.requestArtwork();
-  const signature=[left,right,top,bottom,level,resolution,sea,relief,this.stamp,layer===this.layer?"retained":"changed"].join("/");if(signature===this.signature&&scene===this.scene&&layer===this.layer)return;this.signature=signature;this.scene=scene;
-  this.world=world;this.sea=sea;this.relief=relief;this.layer=layer;this.sample=terrainSurfaceSampler(root,world,scene);this.metrics.visualMetres=size/resolution;
+  const signature=[left,right,top,bottom,level,resolution,sea,relief,this.stamp,layer===this.layer?"retained":"changed"].join("/");if(signature===this.signature&&scene===this.scene&&layer===this.layer)return;this.signature=signature;
+  if(!this.sample||scene!==this.scene||world!==this.world||this.sampleStamp!==this.stamp){this.sample=terrainSurfaceSampler(root,world,scene);this.sampleStamp=this.stamp;}this.scene=scene;
+  this.world=world;this.sea=sea;this.relief=relief;this.layer=layer;this.metrics.visualMetres=size/resolution;
   const old=new Map(this.jobs.map(j=>[j.key,j])),jobs:Job[]=[],wanted:{key:string;baseKey:string;frame:TerrainFrame}[]=[],seen=new Set<string>(),period=world.wrap?world.displayWidth:null;
   for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
    const xx=world.wrap?((x%2**level)+2**level)%2**level:x;if(!world.wrap&&(xx<0||xx>=2**level))continue;
