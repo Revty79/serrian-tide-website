@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "previewPerformance": {
+    "samples": 245760,
+    "workerMs": 148
+  },
+  "structuredPlanReviewed": true,
+  "invalidHeightFocused": true,
+  "threeContinents": true,
+  "physicalSizeEdited": true,
+  "chainRepositioned": true,
+  "nativePlanDrag": true,
+  "rootSculptPreservesOrigin": true,
+  "seedRetainsPlan": true,
+  "canvasRetained": true,
+  "acceptedV3": true,
+  "lostAcceptanceRecovery": true,
+  "numericalTerrain": true,
+  "restartReopen": true,
+  "gpuDisabled": true
+}

@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "lostAcceptedResponseReconciled": true,
+  "exactRetryAfterReload": true,
+  "activeSourceResumed": true,
+  "fineUndoRedoExact": true,
+  "concurrentHeadProtected": true,
+  "sourceSwitchBlockedWhileDirty": true,
+  "downloadedScopedDraft": true
+}

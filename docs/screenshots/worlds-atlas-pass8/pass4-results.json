@@ -1,0 +1,60 @@
+{
+  "passed": true,
+  "largestGrid": [
+    1024,
+    1024
+  ],
+  "brushMetrics": "Brush batches: 57; mean 2.94 ms; maximum 9.30 ms. Changed tiles: 0.",
+  "ridgeWorker": "40,154 changed samples; elevation -500 m to 5,717 m. Worker processing: 38.3 ms.",
+  "valleyWorker": "13,189 changed samples; elevation -1,350 m to 5,717 m. Worker processing: 35.2 ms.",
+  "areaLevelWorker": "19,195 changed samples; elevation -1,343 m to 5,717 m. Worker processing: 19.6 ms.",
+  "areaSmoothWorker": "13,059 changed samples; elevation -1,275 m to 5,717 m. Worker processing: 43.0 ms.",
+  "sculptedMap": "7f3c9590-4493-4ada-b5d8-81f407491e19",
+  "originMaps": [
+    "8e83ba0f-7dea-4e30-af41-24723e4a4682",
+    "660c315f-427d-4a0d-8d3f-d1ef5a01fb79"
+  ],
+  "wraps": [
+    "1e98fc87-af37-4758-9ba7-a9d766306fe9",
+    "37139157-5caa-4891-b86b-f54398261fe9"
+  ],
+  "selectionOutsideExact": true,
+  "markerIdentityAndPositionUnchanged": true,
+  "workerCancellation": true,
+  "pointerCentredWheel": true,
+  "samplingOutsideNeverPaints": true,
+  "browserMemoryBefore": {
+    "usedSize": 11594664,
+    "totalSize": 13680640,
+    "embedderHeapUsedSize": 2898168,
+    "backingStorageSize": 10679643
+  },
+  "browserMemoryAfter": {
+    "usedSize": 14262116,
+    "totalSize": 16097280,
+    "embedderHeapUsedSize": 5114784,
+    "backingStorageSize": 15659575
+  },
+  "cancelCreatesNoChange": true,
+  "multipleUndoRedo": true,
+  "allOriginsEditable": true,
+  "restartPersistence": true,
+  "provenanceRetained": true,
+  "touchResults": [
+    {
+      "width": 390,
+      "height": 844,
+      "nativeNavigation": true,
+      "twoFingerRollback": true,
+      "explicitPainting": true
+    },
+    {
+      "width": 820,
+      "height": 1180,
+      "nativeNavigation": true,
+      "twoFingerRollback": true,
+      "explicitPainting": true
+    }
+  ],
+  "physicalPhone": false
+}
