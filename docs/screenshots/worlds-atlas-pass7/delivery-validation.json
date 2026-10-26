@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "runtimeCommit": "f7ad23611408f62e73b88f3be043921bd161c0ed",
+  "completeUnfilteredProductionBrowser": true,
+  "unitTests": 2344,
+  "unitFiles": 295,
+  "typecheck": true,
+  "drizzleMetadata": true,
+  "lintErrors": 0,
+  "preexistingLintWarnings": 1,
+  "inspectedDesktopAndMobileScreenshots": true,
+  "actualSavedIslandMetres": {
+    "width": 957.03125,
+    "height": 957.03125
+  },
+  "requiredMigrationSha256": {
+    "0137_world_terrain_refinements": "3a639f83c22e879f4e08d1e699af9945bc41179e58fd2f738e06defaa5758fb9",
+    "0138_world_terrain_wrapped_refinement": "020094861096f31e3a7d21284298a4bf8665d806365def097fd8f64be9aa9e80"
+  },
+  "sharedDevMigrationAppliedByThisWork": false,
+  "productionContact": false,
+  "deployed": false,
+  "independentReviewRecorded": false,
+  "ownerAcceptanceRecorded": false
+}

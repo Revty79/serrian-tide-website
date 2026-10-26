@@ -1,8 +1,8 @@
 {
-  "generationMs": 6046,
-  "createMs": 9929,
-  "importPreviewMs": 469,
-  "largestBrushMetrics": "Brush batches: 9; mean 1.00 ms; maximum 3.30 ms. Changed tiles: 0.",
+  "generationMs": 6052,
+  "createMs": 10743,
+  "importPreviewMs": 456,
+  "largestBrushMetrics": "Brush batches: 10; mean 0.86 ms; maximum 2.00 ms. Changed tiles: 0.",
   "largestGrid": [
     1024,
     1024

@@ -18,14 +18,14 @@
       "rawTiles": 1280,
       "textures": 256,
       "viewportRequests": 4,
-      "cacheHits": 256,
+      "cacheHits": 2560,
       "viewportConcurrency": 2,
-      "maxDetailBatchMs": 6.100000023841858
+      "maxDetailBatchMs": 6.200000047683716
     },
-    "navigationMs": 1692.1377999999968,
-    "heapBefore": 12809776,
-    "heapAfter": 13500224,
-    "retainedBytes": 690448
+    "navigationMs": 2873.2459999999846,
+    "heapBefore": 12828792,
+    "heapAfter": 13282744,
+    "retainedBytes": 453952
   },
   "wrapped": {
     "sameRefinementBothSides": true,

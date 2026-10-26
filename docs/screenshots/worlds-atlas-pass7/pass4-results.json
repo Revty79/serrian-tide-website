@@ -4,19 +4,19 @@
     1024,
     1024
   ],
-  "brushMetrics": "Brush batches: 57; mean 3.25 ms; maximum 8.80 ms. Changed tiles: 0.",
-  "ridgeWorker": "40,154 changed samples; elevation -500 m to 5,717 m. Worker processing: 45.0 ms.",
-  "valleyWorker": "13,189 changed samples; elevation -1,350 m to 5,717 m. Worker processing: 40.6 ms.",
-  "areaLevelWorker": "19,195 changed samples; elevation -1,343 m to 5,717 m. Worker processing: 27.8 ms.",
-  "areaSmoothWorker": "13,059 changed samples; elevation -1,275 m to 5,717 m. Worker processing: 53.2 ms.",
-  "sculptedMap": "d9034a6e-bc8b-40fe-b1d5-43055e57d284",
+  "brushMetrics": "Brush batches: 57; mean 3.13 ms; maximum 9.70 ms. Changed tiles: 0.",
+  "ridgeWorker": "40,154 changed samples; elevation -500 m to 5,717 m. Worker processing: 39.4 ms.",
+  "valleyWorker": "13,189 changed samples; elevation -1,350 m to 5,717 m. Worker processing: 41.1 ms.",
+  "areaLevelWorker": "19,195 changed samples; elevation -1,343 m to 5,717 m. Worker processing: 25.7 ms.",
+  "areaSmoothWorker": "13,059 changed samples; elevation -1,275 m to 5,717 m. Worker processing: 46.5 ms.",
+  "sculptedMap": "148fdf6c-8a37-483e-9f65-4eeb2ed8369c",
   "originMaps": [
-    "7668d9d8-e2e9-42ef-a848-1491addf0d0a",
-    "412b0efc-baad-4791-8a3e-a5690a4ef73d"
+    "b33c0744-191a-4af0-bc82-4a07a1c88ac9",
+    "68722494-d369-4e87-83f9-5b994772d81c"
   ],
   "wraps": [
-    "6fab066c-db56-44bd-9ff8-acfd0c5beb57",
-    "1d6585cf-7606-4640-b264-3e09b29fd589"
+    "d02d414b-bd6a-4a1c-95ee-2e909fff51fe",
+    "cb99e39b-597d-494e-8d40-9d3d3ebd2015"
   ],
   "selectionOutsideExact": true,
   "markerIdentityAndPositionUnchanged": true,
@@ -24,16 +24,16 @@
   "pointerCentredWheel": true,
   "samplingOutsideNeverPaints": true,
   "browserMemoryBefore": {
-    "usedSize": 11209056,
-    "totalSize": 13156352,
-    "embedderHeapUsedSize": 2611112,
-    "backingStorageSize": 10568471
+    "usedSize": 11464972,
+    "totalSize": 13680640,
+    "embedderHeapUsedSize": 3132848,
+    "backingStorageSize": 10575818
   },
   "browserMemoryAfter": {
-    "usedSize": 13803536,
-    "totalSize": 15572992,
-    "embedderHeapUsedSize": 5103400,
-    "backingStorageSize": 15548364
+    "usedSize": 13909480,
+    "totalSize": 15835136,
+    "embedderHeapUsedSize": 5113920,
+    "backingStorageSize": 15555750
   },
   "cancelCreatesNoChange": true,
   "multipleUndoRedo": true,

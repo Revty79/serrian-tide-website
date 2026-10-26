@@ -1,8 +1,8 @@
 {
-  "townId": "db8fa1f8-e729-4377-81d4-4eff61031930",
-  "shopId": "ee3d9ee7-bad2-4449-9a0d-e903f9d82465",
-  "mapId": "0c363820-4863-4265-b900-5b5783ae5a34",
-  "map2": "ddae81ea-5293-44bf-8a38-7e0fc1c656ea",
+  "townId": "225e2ad3-0092-4458-a0eb-c8b222cf77e8",
+  "shopId": "e04e0b9a-b858-4153-8a10-c89b6addb11c",
+  "mapId": "b970b575-06a8-42ae-bbe8-6450af439ed1",
+  "map2": "dcb4cb67-2694-48cf-a7eb-9a11b7f26075",
   "worldOwnedWithoutCampaign": true,
   "fullBusinessBaselines": true,
   "fullCreatorWorkshops": true,
@@ -25,8 +25,8 @@
   "restartPersistence": true,
   "browserRecovery": true,
   "terrainConflictProtection": true,
-  "desktopMetrics": "Brush batches: 16; mean 0.71 ms; maximum 3.30 ms. Changed tiles: 0.",
-  "phoneMetrics": "Brush batches: 1; mean 2.30 ms; maximum 2.30 ms. Changed tiles: 0.",
+  "desktopMetrics": "Brush batches: 16; mean 0.91 ms; maximum 4.80 ms. Changed tiles: 0.",
+  "phoneMetrics": "Brush batches: 1; mean 2.10 ms; maximum 2.10 ms. Changed tiles: 0.",
   "phoneTouchEmulation": true,
   "physicalPhone": false,
   "authorization": true

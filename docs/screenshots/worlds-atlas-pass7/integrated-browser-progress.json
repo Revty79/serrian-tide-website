@@ -1,12 +1,14 @@
 {
   "passed": true,
   "development": false,
-  "mapId": "10d437c9-ff2c-4fd7-aea6-f7704d8f2a11",
-  "refinementId": "e7536aac-f2aa-490c-a6fe-39712dd68ec1",
+  "mapId": "17af6b77-a0c0-4d31-a4f2-06c20ee5298f",
+  "refinementId": "e8245648-ba0f-4100-9736-7564635aea5a",
   "spacingM": 19.53125,
   "canvasRetained": true,
   "mapHeightWithSettings": 670.125,
   "islandNumericallySaved": true,
+  "islandWidthM": 957.03125,
+  "islandHeightM": 957.03125,
   "baseUnchanged": true,
   "restartReopen": true,
   "errors": []
