@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "viewport390": {
+    "canvasHeight": 387.96875,
+    "unsupportedDecision": true,
+    "canvasRetained": true,
+    "nativeNavigation": true,
+    "armedTouchRuler": true,
+    "touchOffHidesUi": true,
+    "nativePenIndependent": true,
+    "previewCreatesNoRecords": true,
+    "cancelDraftRecovery": true
+  },
+  "viewport820": {
+    "canvasHeight": 890.875,
+    "unsupportedDecision": true,
+    "canvasRetained": true,
+    "nativeNavigation": true,
+    "armedTouchRuler": true,
+    "touchOffHidesUi": true,
+    "nativePenIndependent": true,
+    "previewCreatesNoRecords": true,
+    "cancelDraftRecovery": true
+  }
+}

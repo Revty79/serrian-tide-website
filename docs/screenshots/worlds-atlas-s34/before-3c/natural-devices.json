@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "viewport390": {
+    "nativeInput": "touch",
+    "wetlandAndSpringSaved": true,
+    "twoFingerSafe": true,
+    "earlyCancellation": true,
+    "numericalWrites": 0,
+    "baselineRestoredExactly": true
+  },
+  "viewport820": {
+    "nativeInput": "pen",
+    "wetlandAndSpringSaved": true,
+    "twoFingerSafe": true,
+    "earlyCancellation": true,
+    "numericalWrites": 0,
+    "baselineRestoredExactly": true
+  }
+}

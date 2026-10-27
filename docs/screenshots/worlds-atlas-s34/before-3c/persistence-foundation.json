@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "mapId": "45197825-4fbb-4ae2-9c2a-8310d54d80b4",
+  "refinementId": "d935bcd6-1bb9-426c-b014-ebf9d0a88ae7",
+  "frame": {
+    "x": 593739223,
+    "y": 582799089,
+    "width": 20000,
+    "height": 20000
+  },
+  "spacingM": 19.53125,
+  "initializationAndReadMs": 1206.3411999999953,
+  "saveAcceptanceMs": 139.5749999999971,
+  "controlledRestore": true,
+  "reusableWorldHeightQueries": true,
+  "changedSamples": 2017,
+  "initialSha256": "fa1e6bddc845b55f2e61b3d910adb06b91ca7d7a4b8dea4645eca40258d57b35",
+  "savedSha256": "e07d7ba7198e316fb0b238ba865cbe682bf128e92836d81c094ca70f24273d18",
+  "exactRetry": true,
+  "historicalRead": true,
+  "staleSaveRejected": true,
+  "parentOverlapRejected": true,
+  "parentOutsideAccepted": true,
+  "parentDataRetained": true,
+  "boundaryProtected": true,
+  "numericalOverviews": true,
+  "authorization": true,
+  "immutableHistory": true
+}

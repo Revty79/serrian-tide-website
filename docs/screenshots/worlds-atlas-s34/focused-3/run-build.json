@@ -1,0 +1,9 @@
+{
+  "runtimeWorkspaceSha256": "159d7a8dc24ea0213729c05db9f88db41be2335958708027ae1b368ac11e1581",
+  "runtimeFiles": 1608,
+  "productionBuildId": "ekLFzZu6eWyqNu7mGplkH",
+  "resumedOwnedDisposable": true,
+  "sharedDatabaseAccess": false,
+  "validationDisposition": "INVALID as Pass 4 source/build evidence: the helper compared copied sources after a failed pre-build stage and reused the focused-1 compiled application. Retained for diagnostics only; superseded by forced rebuild and final fresh validation.",
+  "compiledRuntimeWorkspaceSha256": "5fe17f2eb1708493cc6f30bdfaa483afcbabeb3f03ca2721a820d0f06fb82533"
+}

@@ -1,0 +1,101 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "synchronousFrameBudgetMs": 8,
+  "zoomRedraws": [
+    {
+      "wheelDelta": -1100,
+      "wallMs": 1993.7617000000319
+    },
+    {
+      "wheelDelta": -800,
+      "wallMs": 3739.614900000044
+    },
+    {
+      "wheelDelta": 1500,
+      "wallMs": 1351.8600999999326
+    },
+    {
+      "wheelDelta": -1900,
+      "wallMs": 1865.3534000000218
+    }
+  ],
+  "paintRedraws": [
+    {
+      "material": "rock",
+      "wallMs": 1831.0391999999993
+    },
+    {
+      "material": "sand",
+      "wallMs": 1541.950599999982
+    },
+    {
+      "material": "grass",
+      "wallMs": 3120.3630999999586
+    },
+    {
+      "material": "automatic",
+      "wallMs": 1638.545000000042
+    }
+  ],
+  "world": {
+    "firstRenderMs": 1967.8007000000216,
+    "metrics": {
+      "pending": 0,
+      "painted": 40,
+      "hits": 121,
+      "bytes": 3598560,
+      "batchMs": 0.40000009536743164,
+      "visualMetres": 16556.29139072848,
+      "assets": "unloaded",
+      "assetBytes": 0
+    },
+    "numericalChecksum": "251d9db4561a47fb50480ef7455466823d28b126ee00fc2a2eae4261fa288d2d"
+  },
+  "local": {
+    "metrics": {
+      "pending": 0,
+      "painted": 314,
+      "hits": 553,
+      "bytes": 24674760,
+      "batchMs": 0.7999999523162842,
+      "visualMetres": 0.18608279344512196,
+      "assets": "ready",
+      "assetBytes": 16777200
+    },
+    "numericalBefore": {
+      "hash": "7aca10b239a10fd05f00ff81c39dcf1278d7df1ce86a913794f349575a02caf6",
+      "revision": 8
+    }
+  },
+  "materialPainting": {
+    "materials": [
+      "rock",
+      "sand",
+      "grass"
+    ],
+    "coastalSandOnSavedLowLand": true,
+    "eraseToAutomatic": true,
+    "undoRedo": true,
+    "visibilityRetainsStrokes": true,
+    "lockProtected": true,
+    "styleSwitchRetains": true,
+    "elevationExact": true,
+    "acceptedMaterialRevision": 10
+  },
+  "reopen": true,
+  "extreme": {
+    "renderMs": 1089.5099000000628,
+    "metrics": {
+      "pending": 0,
+      "painted": 32,
+      "hits": 65,
+      "bytes": 2151360,
+      "batchMs": 0.30000007152557373,
+      "visualMetres": 1562500,
+      "assets": "unloaded",
+      "assetBytes": 0
+    },
+    "numericalChecksum": "4ff0c49925f01018623a23ff23b80759ffce15b6fe7874fb5735f5ee88ccd56c"
+  }
+}

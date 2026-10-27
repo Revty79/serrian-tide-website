@@ -1,0 +1,58 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "matched3CTerrain": true,
+  "readinessRequiresEightStableFrames": true,
+  "coldApplicationReadyMs": 2534.6108999999997,
+  "warmNavigationTenKeysMs": 264.699099999998,
+  "regionalReadyMs": 2263.271999999997,
+  "closeReadyMs": 6238.929600000003,
+  "repeatedPanZoomMs": 7713.482100000023,
+  "inputDuringClimateMs": 16.068000000028405,
+  "climatePreviewMs": 1057.289700000023,
+  "first": {
+    "painted": 128,
+    "hits": 4983,
+    "sourceBytes": 2686978,
+    "maxBatchMs": 0,
+    "workerMaxMs": 33.10000002384186,
+    "visualMetres": 125,
+    "evictions": 0,
+    "bytes": 2230272
+  },
+  "warm": {
+    "painted": 128,
+    "hits": 6135,
+    "sourceBytes": 2686978,
+    "maxBatchMs": 0,
+    "workerMaxMs": 33.10000002384186,
+    "visualMetres": 125,
+    "evictions": 0,
+    "bytes": 2230272
+  },
+  "final": {
+    "painted": 420,
+    "hits": 49023,
+    "sourceBytes": 2686978,
+    "maxBatchMs": 0,
+    "workerMaxMs": 33.10000002384186,
+    "visualMetres": 15.625,
+    "evictions": 0,
+    "bytes": 7318080
+  },
+  "fallbackReadyMs": 3686.1794000000227,
+  "fallback": {
+    "painted": 64,
+    "hits": 8193,
+    "sourceBytes": 2686978,
+    "maxBatchMs": 6,
+    "workerMaxMs": 0,
+    "visualMetres": 125,
+    "evictions": 0,
+    "bytes": 1115136
+  },
+  "cacheLimitMiB": 32,
+  "bytesAreTypedAndBitmapEstimatesNotProcessRss": true,
+  "noEnvironmentOrGeographyWrites": true
+}

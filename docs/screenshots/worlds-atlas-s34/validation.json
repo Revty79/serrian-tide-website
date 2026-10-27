@@ -1,0 +1,2362 @@
+{
+  "passed": true,
+  "generatedAt": "2026-10-27T15:55:30.275Z",
+  "startingCommit": "9fe55788c16a80c72ff9f2e159fc2d6e17527d87",
+  "finalApplicationAndTestCommit": "f68c72013ff5c1c1c4dbe8889ec89f1c58b22df6",
+  "publication": "Normal origin/main publication authorized. Final evidence commit is reported in the handoff. No deployment.",
+  "build": "dOpwQf4LqQzFoN-wxYh7B",
+  "runtimeSourceSha256": "a0cbc87a5be96e917d97d2428889dbb4cb5e5c566922e36f0cc95621c93db16f",
+  "runtimeFiles": 1610,
+  "validationScriptsSha256": "d31f1e9814b028b4ebd25ac928ccfdc3d846832ff8584e3e803a2dea418b7cd8",
+  "validationScriptCount": 561,
+  "rootTypes": {
+    "passed": true
+  },
+  "unit": {
+    "passed": true,
+    "tests": 2465,
+    "files": 304,
+    "failed": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "passed": true,
+    "files": 2035,
+    "errors": 0,
+    "warnings": 1,
+    "existingWarning": "Unused LoreFamily in scripts/worlds-stories-checks.ts"
+  },
+  "offlineDrizzle": {
+    "passed": true,
+    "metadataOnly": true,
+    "connectionTargetUnreachableLoopback": true
+  },
+  "productionBuild": {
+    "passed": true,
+    "bundler": "Turbopack",
+    "existingWarning": "Unchanged dynamic filesystem path warning in raster-storage.ts"
+  },
+  "unfilteredDatabaseBrowser": {
+    "passed": true,
+    "path": "full-3/results.json",
+    "errors": [],
+    "mapRequests": [],
+    "runtimeTablesExact": 133,
+    "migrations": 143,
+    "newMigrations": 1,
+    "replayedInheritedMigrations": 5
+  },
+  "newMigration": {
+    "name": "0142_world_environment.sql",
+    "sha256": "e4e32b8f6d5b42679cf3ec884b482cdf7e0c237fa960a021c875791e1d676b98",
+    "sharedDevAppliedByAgent": false,
+    "productionAppliedByAgent": false,
+    "sharedTargetLedgersUnverified": true
+  },
+  "sourcePreservation": {
+    "passed": true,
+    "validationScriptsByteExact": true,
+    "validationScriptCount": 561,
+    "validationScriptsSha256": "d31f1e9814b028b4ebd25ac928ccfdc3d846832ff8584e3e803a2dea418b7cd8",
+    "separatelyExecutedVerifier": "scripts/worlds-environment-source-check.mjs",
+    "verifierSha256": "53adc700b00f6f48e9c0ef164c8247de534ec6ff1e3206fd39419b05b8d38223",
+    "original3ADrainageBodyExact": true,
+    "original3BMeshExact": true,
+    "baseline": "9fe55788c16a80c72ff9f2e159fc2d6e17527d87",
+    "workspaceHead": "f68c72013ff5c1c1c4dbe8889ec89f1c58b22df6",
+    "runtimeFiles": 1610,
+    "runtimeSourceSha256": "a0cbc87a5be96e917d97d2428889dbb4cb5e5c566922e36f0cc95621c93db16f",
+    "productionBuildId": "dOpwQf4LqQzFoN-wxYh7B",
+    "productionCopyByteExact": true,
+    "preservedImplementations": [
+      "src/features/worlds/terrain-generation-v1.ts",
+      "src/features/worlds/terrain-generation-v2.ts",
+      "src/features/worlds/terrain-generation-v3.ts",
+      "src/features/worlds/terrain-physical-noise.ts",
+      "src/features/worlds/terrain-renderer.ts",
+      "src/features/worlds/terrain-detail-renderer.ts",
+      "src/features/worlds/terrain-cartography.ts",
+      "src/features/worlds/terrain-cartography-painter.ts",
+      "src/features/worlds/terrain-material-service.ts",
+      "src/features/worlds/terrain-material-client.tsx",
+      "src/features/worlds/terrain-appearance.ts",
+      "src/features/worlds/terrain-appearance-service.ts",
+      "src/features/worlds/terrain-service.ts",
+      "src/features/worlds/terrain-refinement-service.ts",
+      "src/features/worlds/terrain-surface-field.ts",
+      "src/features/worlds/terrain-surface-art.ts",
+      "src/features/worlds/terrain-surface-raster.ts",
+      "src/features/worlds/terrain-surface-worker.ts",
+      "src/features/worlds/terrain-materials.ts",
+      "src/features/worlds/terrain-water-artwork.ts",
+      "src/features/worlds/terrain-hydrology-flow.ts",
+      "src/features/worlds/terrain-hydrology-mesh.ts"
+    ],
+    "allHistoricalMigrationsExact": 142,
+    "historicalJournalPrefixAndSnapshotsUnchanged": true,
+    "newMigrations": [
+      "0142_world_environment"
+    ],
+    "waterFormatExtension": 3,
+    "originalSurfaceAndWaterHelpersExportOnly": true,
+    "priorDatabaseSchemasUnchanged": true,
+    "originalArtworkFilesExact": 14,
+    "sharedDatabaseWrites": false,
+    "directProductionDatabaseConnection": false,
+    "manifestDefinition": "Sorted source/data/bundled-material files plus package, lock, Next and PostCSS configuration; path, NUL, raw bytes"
+  },
+  "environment": {
+    "environment-database": {
+      "passed": true,
+      "mapId": "4c000000-0000-4000-8000-000000000001",
+      "revision": 5,
+      "algorithm": "climate-v1",
+      "fieldCells": 45824,
+      "settingsAndFieldsExact": true,
+      "protectedAuthoredGeometryExact": true,
+      "idempotentOldRetriesExact": true,
+      "staleProvenanceDenied": true,
+      "oneConcurrentWinner": true,
+      "exactHistoricalRestoration": true,
+      "historyImmutable": true,
+      "rolePrivacy": true,
+      "terrainWaterMaterialsExact": true,
+      "newMigration": "0142_world_environment",
+      "sharedDatabaseAccess": false
+    },
+    "environment-migration": {
+      "passed": true,
+      "migration": "0142_world_environment",
+      "freshReplay": true,
+      "populated0141Upgrade": true,
+      "oldTablesExact": 345,
+      "realServiceBeforeMigration": true,
+      "completeBackupRestore": true,
+      "allEnvironmentalVersionsRestored": 5,
+      "realRestoredServiceEveryVersion": true,
+      "immutableHistoryAfterRestore": true,
+      "repeatedMigration": true,
+      "ledger": 143,
+      "sharedDatabaseWrites": false,
+      "productionContacted": false
+    },
+    "environment-browser": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "previewMs": 978.6674999999814,
+      "previewDidNotSave": true,
+      "acceptedSettingsReopened": true,
+      "protectedPriorRegionsRetained": true,
+      "brushUndoRedo": true,
+      "creatorVegetationSavedReopened": true,
+      "sameAcceptedDataAcrossFiveStyles": true,
+      "numericalAndWaterExact": true,
+      "noNumericalMaterialWaterWrites": true,
+      "errors": []
+    },
+    "environment-workflows": {
+      "passed": true,
+      "earlyCancelNoSave": true,
+      "polygonCreateSelectNameAndBiome": true,
+      "moveInsertRemoveBoundaryPoints": true,
+      "selectedDownscale": true,
+      "globalContextRetained": true,
+      "protectedOverridesExact": true,
+      "independentBiomeEraserUndo": true,
+      "acceptedLostResponseRecoveredExact": true,
+      "conflictRetainedExported": true,
+      "exactHistoricalRestoration": true,
+      "noNumericalMaterialWaterWrites": true,
+      "physicalDevice": false
+    },
+    "environment-cooperation": {
+      "passed": true,
+      "actualTerrainAutosave": true,
+      "exactTerrainUndoSaved": true,
+      "actualIndependentWaterEdit": true,
+      "pendingEnvironmentRetained": true,
+      "protectedIdentitiesAndPointsExact": true,
+      "acceptedFieldsNeverSilentlyRegenerated": true,
+      "staleReviewVisible": true,
+      "explicitEnvironmentSaveAfterSourceChange": true,
+      "sharedDatabaseAccess": false
+    },
+    "environment-devices": {
+      "390": {
+        "nativeInput": "touch",
+        "brushAndPolygonSaved": true,
+        "twoFingerSafe": true,
+        "noHorizontalOverflow": true,
+        "mapHeightOver300": true,
+        "exactCleanup": true,
+        "noNumericalWrites": true
+      },
+      "820": {
+        "nativeInput": "pen",
+        "brushAndPolygonSaved": true,
+        "twoFingerSafe": true,
+        "noHorizontalOverflow": true,
+        "mapHeightOver300": true,
+        "exactCleanup": true,
+        "noNumericalWrites": true
+      },
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false
+    },
+    "environment-visuals": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "matchedTerrainSha256": "a26a70236bfe8a6991dfb8f42c7e1416f6da58a14e4e81e10a14e5e9e8e4ab77",
+      "matchedHistoricalWaterGeographySha256": "c5ef135f7d15400e04308bda34a7af8da5c9db047ceed007478cc6d67f9a9930",
+      "matchedSettings": {
+        "algorithm": "climate-v1",
+        "seed": "my-world",
+        "thermal": "uniform",
+        "equatorC": 15,
+        "poleC": -22,
+        "equatorAt": 0.5,
+        "bandSpan": 1,
+        "northC": 12,
+        "southC": 24,
+        "exoticWaveC": 0,
+        "moisture": 0.65,
+        "windDegrees": 0,
+        "maritime": 0.7,
+        "continental": 0.65,
+        "lapseCPerKm": 6.5,
+        "rainShadow": 0.8,
+        "influenceKm": 800,
+        "seasonalityC": 12
+      },
+      "matchedSameFiveCameras": true,
+      "waterHeadUnchanged": true,
+      "manualGalleryClearlyAuthored": true,
+      "settings": [
+        {
+          "preset": "mixed",
+          "settings": {
+            "algorithm": "climate-v1",
+            "seed": "my-world",
+            "thermal": "bands",
+            "equatorC": 29,
+            "poleC": -22,
+            "equatorAt": 0.5,
+            "bandSpan": 1,
+            "northC": 12,
+            "southC": 24,
+            "exoticWaveC": 0,
+            "moisture": 0.62,
+            "windDegrees": 0,
+            "maritime": 0.7,
+            "continental": 0.65,
+            "lapseCPerKm": 6.5,
+            "rainShadow": 0.8,
+            "influenceKm": 800,
+            "seasonalityC": 12
+          },
+          "metrics": {
+            "cells": 45824,
+            "analysisMs": 589.0544999999693,
+            "workingBytes": 1047552,
+            "counts": {
+              "water": 9380,
+              "ice": 5908,
+              "coldDesert": 3361,
+              "tundra": 5539,
+              "boreal": 3029,
+              "alpine": 1412,
+              "steppe": 2386,
+              "scrub": 2286,
+              "conifer": 1514,
+              "grassland": 1004,
+              "deciduous": 4397,
+              "hotDesert": 2386,
+              "rainforest": 613,
+              "seasonal": 1911,
+              "savanna": 698
+            },
+            "spacingX": 7812.5,
+            "spacingY": 7821.229050279329,
+            "model": "Simplified calibrated thermal/moisture tendencies; no measured weather, rainfall or discharge."
+          }
+        },
+        {
+          "preset": "tropical",
+          "settings": {
+            "algorithm": "climate-v1",
+            "seed": "my-world",
+            "thermal": "uniform",
+            "equatorC": 28,
+            "poleC": -22,
+            "equatorAt": 0.5,
+            "bandSpan": 1,
+            "northC": 12,
+            "southC": 24,
+            "exoticWaveC": 0,
+            "moisture": 0.94,
+            "windDegrees": 0,
+            "maritime": 0.85,
+            "continental": 0.25,
+            "lapseCPerKm": 6.5,
+            "rainShadow": 0.8,
+            "influenceKm": 800,
+            "seasonalityC": 3
+          },
+          "metrics": {
+            "cells": 45824,
+            "analysisMs": 602.9331000000238,
+            "workingBytes": 1047552,
+            "counts": {
+              "water": 9380,
+              "rainforest": 17706,
+              "deciduous": 3255,
+              "grassland": 854,
+              "seasonal": 8211,
+              "savanna": 5071,
+              "conifer": 592,
+              "alpine": 755
+            },
+            "spacingX": 7812.5,
+            "spacingY": 7821.229050279329,
+            "model": "Simplified calibrated thermal/moisture tendencies; no measured weather, rainfall or discharge."
+          }
+        },
+        {
+          "preset": "temperate",
+          "settings": {
+            "algorithm": "climate-v1",
+            "seed": "my-world",
+            "thermal": "uniform",
+            "equatorC": 15,
+            "poleC": -22,
+            "equatorAt": 0.5,
+            "bandSpan": 1,
+            "northC": 12,
+            "southC": 24,
+            "exoticWaveC": 0,
+            "moisture": 0.65,
+            "windDegrees": 0,
+            "maritime": 0.7,
+            "continental": 0.65,
+            "lapseCPerKm": 6.5,
+            "rainShadow": 0.8,
+            "influenceKm": 800,
+            "seasonalityC": 12
+          },
+          "metrics": {
+            "cells": 45824,
+            "analysisMs": 634.4468000000343,
+            "workingBytes": 1047552,
+            "counts": {
+              "water": 9380,
+              "deciduous": 14661,
+              "conifer": 1048,
+              "boreal": 1013,
+              "alpine": 3032,
+              "scrub": 4514,
+              "steppe": 5807,
+              "grassland": 2727,
+              "coldDesert": 3642
+            },
+            "spacingX": 7812.5,
+            "spacingY": 7821.229050279329,
+            "model": "Simplified calibrated thermal/moisture tendencies; no measured weather, rainfall or discharge."
+          }
+        },
+        {
+          "preset": "arid",
+          "settings": {
+            "algorithm": "climate-v1",
+            "seed": "my-world",
+            "thermal": "uniform",
+            "equatorC": 29,
+            "poleC": -22,
+            "equatorAt": 0.5,
+            "bandSpan": 1,
+            "northC": 12,
+            "southC": 24,
+            "exoticWaveC": 0,
+            "moisture": 0.12,
+            "windDegrees": 0,
+            "maritime": 0.2,
+            "continental": 0.65,
+            "lapseCPerKm": 6.5,
+            "rainShadow": 0.8,
+            "influenceKm": 800,
+            "seasonalityC": 12
+          },
+          "metrics": {
+            "cells": 45824,
+            "analysisMs": 573.0958000000101,
+            "workingBytes": 1047552,
+            "counts": {
+              "water": 9380,
+              "hotDesert": 33358,
+              "coldDesert": 1645,
+              "scrub": 695,
+              "alpine": 525,
+              "steppe": 221
+            },
+            "spacingX": 7812.5,
+            "spacingY": 7821.229050279329,
+            "model": "Simplified calibrated thermal/moisture tendencies; no measured weather, rainfall or discharge."
+          }
+        },
+        {
+          "preset": "polar",
+          "settings": {
+            "algorithm": "climate-v1",
+            "seed": "my-world",
+            "thermal": "uniform",
+            "equatorC": -9,
+            "poleC": -22,
+            "equatorAt": 0.5,
+            "bandSpan": 1,
+            "northC": 12,
+            "southC": 24,
+            "exoticWaveC": 0,
+            "moisture": 0.4,
+            "windDegrees": 0,
+            "maritime": 0.7,
+            "continental": 0.65,
+            "lapseCPerKm": 6.5,
+            "rainShadow": 0.8,
+            "influenceKm": 800,
+            "seasonalityC": 12
+          },
+          "metrics": {
+            "cells": 45824,
+            "analysisMs": 585.0699000000022,
+            "workingBytes": 1047552,
+            "counts": {
+              "water": 9380,
+              "tundra": 5560,
+              "ice": 15985,
+              "coldDesert": 14899
+            },
+            "spacingX": 7812.5,
+            "spacingY": 7821.229050279329,
+            "model": "Simplified calibrated thermal/moisture tendencies; no measured weather, rainfall or discharge."
+          }
+        },
+        {
+          "preset": "exotic",
+          "settings": {
+            "algorithm": "climate-v1",
+            "seed": "my-world",
+            "thermal": "exotic",
+            "equatorC": 22,
+            "poleC": 4,
+            "equatorAt": 0.5,
+            "bandSpan": 1,
+            "northC": 12,
+            "southC": 24,
+            "exoticWaveC": 26,
+            "moisture": 0.7,
+            "windDegrees": 135,
+            "maritime": 0.7,
+            "continental": 0.65,
+            "lapseCPerKm": 6.5,
+            "rainShadow": 0.8,
+            "influenceKm": 800,
+            "seasonalityC": 12
+          },
+          "metrics": {
+            "cells": 45824,
+            "analysisMs": 554.2804000000469,
+            "workingBytes": 1047552,
+            "counts": {
+              "water": 9380,
+              "rainforest": 1204,
+              "seasonal": 5218,
+              "deciduous": 2376,
+              "conifer": 996,
+              "boreal": 2354,
+              "tundra": 6873,
+              "ice": 8521,
+              "grassland": 176,
+              "scrub": 1801,
+              "steppe": 2153,
+              "coldDesert": 81,
+              "savanna": 4091,
+              "alpine": 600
+            },
+            "spacingX": 7812.5,
+            "spacingY": 7821.229050279329,
+            "model": "Simplified calibrated thermal/moisture tendencies; no measured weather, rainfall or discharge."
+          }
+        }
+      ],
+      "captures": [
+        {
+          "file": "matched-after-realistic-terrain.png",
+          "camera": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 128,
+            "hits": 4949,
+            "sourceBytes": 2686978,
+            "maxBatchMs": 0,
+            "workerMaxMs": 25.100000023841858,
+            "visualMetres": 125,
+            "evictions": 0,
+            "bytes": 2230272
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "matched-after-illustrated-fantasy.png",
+          "camera": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "style": "illustrated-fantasy",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 192,
+            "hits": 7403,
+            "sourceBytes": 2686978,
+            "maxBatchMs": 0,
+            "workerMaxMs": 25.100000023841858,
+            "visualMetres": 125,
+            "evictions": 0,
+            "bytes": 3345408
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "matched-after-topographic.png",
+          "camera": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "style": "topographic",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 256,
+            "hits": 9716,
+            "sourceBytes": 2686978,
+            "maxBatchMs": 0,
+            "workerMaxMs": 25.100000023841858,
+            "visualMetres": 125,
+            "evictions": 0,
+            "bytes": 4460544
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "matched-after-physical-relief.png",
+          "camera": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "style": "physical-relief",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 320,
+            "hits": 11957,
+            "sourceBytes": 2686978,
+            "maxBatchMs": 0,
+            "workerMaxMs": 25.100000023841858,
+            "visualMetres": 125,
+            "evictions": 0,
+            "bytes": 5575680
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "matched-after-classic-elevation.png",
+          "camera": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "style": "classic-elevation",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 384,
+            "hits": 14207,
+            "sourceBytes": 2686978,
+            "maxBatchMs": 0,
+            "workerMaxMs": 25.100000023841858,
+            "visualMetres": 125,
+            "evictions": 0,
+            "bytes": 6690816
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "climate-mixed-world.png",
+          "camera": {
+            "x": "309.50359375",
+            "y": "107.51501562499999",
+            "scale": "0.00039649640625"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 96,
+            "painted": 96,
+            "hits": 3085,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 21.899999976158142,
+            "visualMetres": 3906.25,
+            "evictions": 0,
+            "bytes": 1672704
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "climate-tropical-world.png",
+          "camera": {
+            "x": "309.50359375",
+            "y": "107.51501562499999",
+            "scale": "0.00039649640625"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 96,
+            "painted": 48,
+            "hits": 2330,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 26.799999952316284,
+            "visualMetres": 3906.25,
+            "evictions": 0,
+            "bytes": 836352
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "climate-tropical-windward-mountains-regional.png",
+          "camera": {
+            "x": "-862.8888251546891",
+            "y": "-712.7147163391066",
+            "scale": "0.0015688888251546894"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 200,
+            "hits": 17320,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 26.799999952316284,
+            "visualMetres": 976.5625,
+            "evictions": 0,
+            "bytes": 3484800
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "climate-tropical-windward-mountains-illustrated.png",
+          "camera": {
+            "x": "-862.8888251546891",
+            "y": "-712.7147163391066",
+            "scale": "0.0015688888251546894"
+          },
+          "style": "illustrated-fantasy",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 344,
+            "hits": 28739,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 26.799999952316284,
+            "visualMetres": 976.5625,
+            "evictions": 0,
+            "bytes": 5993856
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "climate-temperate-world.png",
+          "camera": {
+            "x": "309.50359375",
+            "y": "107.51501562499999",
+            "scale": "0.00039649640625"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 96,
+            "painted": 96,
+            "hits": 3082,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 25.299999952316284,
+            "visualMetres": 3906.25,
+            "evictions": 0,
+            "bytes": 1672704
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "climate-temperate-windward-mountains-regional.png",
+          "camera": {
+            "x": "-862.8888251546891",
+            "y": "-712.7147163391066",
+            "scale": "0.0015688888251546894"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 247,
+            "hits": 17805,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 25.299999952316284,
+            "visualMetres": 976.5625,
+            "evictions": 0,
+            "bytes": 4303728
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "climate-temperate-windward-mountains-illustrated.png",
+          "camera": {
+            "x": "-862.8888251546891",
+            "y": "-712.7147163391066",
+            "scale": "0.0015688888251546894"
+          },
+          "style": "illustrated-fantasy",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 391,
+            "hits": 28878,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 25.299999952316284,
+            "visualMetres": 976.5625,
+            "evictions": 0,
+            "bytes": 6812784
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "climate-arid-world.png",
+          "camera": {
+            "x": "309.50359375",
+            "y": "107.51501562499999",
+            "scale": "0.00039649640625"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 96,
+            "painted": 96,
+            "hits": 3063,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 34.700000047683716,
+            "visualMetres": 3906.25,
+            "evictions": 0,
+            "bytes": 1672704
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "climate-polar-world.png",
+          "camera": {
+            "x": "309.50359375",
+            "y": "107.51501562499999",
+            "scale": "0.00039649640625"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 96,
+            "painted": 48,
+            "hits": 2197,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 26.200000047683716,
+            "visualMetres": 3906.25,
+            "evictions": 0,
+            "bytes": 836352
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "climate-exotic-world.png",
+          "camera": {
+            "x": "309.50359375",
+            "y": "107.51501562499999",
+            "scale": "0.00039649640625"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 96,
+            "painted": 48,
+            "hits": 2276,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 33.200000047683716,
+            "visualMetres": 3906.25,
+            "evictions": 0,
+            "bytes": 836352
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-rainforest-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 50380,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 32,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-rainforest-close.png",
+          "camera": {
+            "x": "-5490403.227906922",
+            "y": "-5487405.8975566095",
+            "scale": "7.844441852415365"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 91,
+            "painted": 419,
+            "hits": 58105,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 32,
+            "visualMetres": 0.2384185791015625,
+            "evictions": 0,
+            "bytes": 7300656
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-rainforest-close-illustrated.png",
+          "camera": {
+            "x": "-5490403.227906922",
+            "y": "-5487405.8975566095",
+            "scale": "7.844441852415365"
+          },
+          "style": "illustrated-fantasy",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 91,
+            "painted": 510,
+            "hits": 62496,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 35.10000002384186,
+            "visualMetres": 0.2384185791015625,
+            "evictions": 0,
+            "bytes": 8886240
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-seasonal-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 542,
+            "hits": 69309,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 30.300000071525574,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 9443808
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-deciduous-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 50223,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 28,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-deciduous-close.png",
+          "camera": {
+            "x": "-5490403.227906922",
+            "y": "-5487405.8975566095",
+            "scale": "7.844441852415365"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 91,
+            "painted": 418,
+            "hits": 57948,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 28,
+            "visualMetres": 0.2384185791015625,
+            "evictions": 0,
+            "bytes": 7283232
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-conifer-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 50202,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 41.699999928474426,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-boreal-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 49770,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 30.799999952316284,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-boreal-close.png",
+          "camera": {
+            "x": "-5490403.227906922",
+            "y": "-5487405.8975566095",
+            "scale": "7.844441852415365"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 91,
+            "painted": 417,
+            "hits": 57446,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 30.799999952316284,
+            "visualMetres": 0.2384185791015625,
+            "evictions": 0,
+            "bytes": 7265808
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-boreal-close-illustrated.png",
+          "camera": {
+            "x": "-5490403.227906922",
+            "y": "-5487405.8975566095",
+            "scale": "7.844441852415365"
+          },
+          "style": "illustrated-fantasy",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 91,
+            "painted": 508,
+            "hits": 61852,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 30.799999952316284,
+            "visualMetres": 0.2384185791015625,
+            "evictions": 0,
+            "bytes": 8851392
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-savanna-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 542,
+            "hits": 69007,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 32.299999952316284,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 9443808
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-grassland-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 49856,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 28.300000071525574,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-scrub-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 49758,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 40.299999952316284,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-steppe-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 49638,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 24.600000023841858,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-hotDesert-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 49609,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 30.600000023841858,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-hotDesert-close.png",
+          "camera": {
+            "x": "-5490403.227906922",
+            "y": "-5487405.8975566095",
+            "scale": "7.844441852415365"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 91,
+            "painted": 417,
+            "hits": 57356,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 30.600000023841858,
+            "visualMetres": 0.2384185791015625,
+            "evictions": 0,
+            "bytes": 7265808
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-coldDesert-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 49616,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 36.800000071525574,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-tundra-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 49701,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 25.200000047683716,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-tundra-close.png",
+          "camera": {
+            "x": "-5490403.227906922",
+            "y": "-5487405.8975566095",
+            "scale": "7.844441852415365"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 91,
+            "painted": 417,
+            "hits": 57437,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 26.399999976158142,
+            "visualMetres": 0.2384185791015625,
+            "evictions": 0,
+            "bytes": 7265808
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-alpine-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 49501,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 38,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-ice-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 50237,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 27.59999990463257,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-wetland-regional.png",
+          "camera": {
+            "x": "-5414.925370188114",
+            "y": "-5745.665800350053",
+            "scale": "0.008763411566424548"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 273,
+            "painted": 321,
+            "hits": 49687,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 61.299999952316284,
+            "visualMetres": 122.0703125,
+            "evictions": 0,
+            "bytes": 5593104
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-wetland-close.png",
+          "camera": {
+            "x": "-5490403.227906922",
+            "y": "-5487405.8975566095",
+            "scale": "7.844441852415365"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 91,
+            "painted": 417,
+            "hits": 57397,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 61.299999952316284,
+            "visualMetres": 0.2384185791015625,
+            "evictions": 0,
+            "bytes": 7265808
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "authored-meadow-woodland-transition.png",
+          "camera": {
+            "x": "-2633.05213001272",
+            "y": "-2959.0703472571554",
+            "scale": "0.004780042382506392"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 220,
+            "painted": 268,
+            "hits": 34750,
+            "sourceBytes": 1918209,
+            "maxBatchMs": 0,
+            "workerMaxMs": 35.39999997615814,
+            "visualMetres": 244.140625,
+            "evictions": 0,
+            "bytes": 4669632
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "accepted-water-and-wetland-environment.png",
+          "camera": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.15933"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 128,
+            "hits": 6028,
+            "sourceBytes": 2588674,
+            "maxBatchMs": 0,
+            "workerMaxMs": 18.100000023841858,
+            "visualMetres": 7.8125,
+            "evictions": 0,
+            "bytes": 2230272
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "accepted-water-and-wetland-illustrated.png",
+          "camera": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.15933"
+          },
+          "style": "illustrated-fantasy",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 144,
+            "painted": 192,
+            "hits": 8380,
+            "sourceBytes": 2588674,
+            "maxBatchMs": 0,
+            "workerMaxMs": 18.100000023841858,
+            "visualMetres": 7.8125,
+            "evictions": 0,
+            "bytes": 3345408
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        {
+          "file": "accepted-marsh-environment-regional.png",
+          "camera": {
+            "x": "-827.3438063424205",
+            "y": "-2610.1769225151006",
+            "scale": "0.8825000159831162"
+          },
+          "style": "realistic-terrain",
+          "environmentBackend": "worker",
+          "environment": {
+            "plannedEntries": 112,
+            "painted": 416,
+            "hits": 27279,
+            "sourceBytes": 2588674,
+            "maxBatchMs": 0,
+            "workerMaxMs": 18.100000023841858,
+            "visualMetres": 1.953125,
+            "evictions": 0,
+            "bytes": 7248384
+          },
+          "allPending": [
+            "0",
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        }
+      ],
+      "ownerArtisticAcceptance": false
+    },
+    "environment-performance": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "matched3CTerrain": true,
+      "readinessRequiresEightStableFrames": true,
+      "coldApplicationReadyMs": 1977.6829999999609,
+      "warmNavigationTenKeysMs": 148.93229999998584,
+      "regionalReadyMs": 1582.8774999999441,
+      "closeReadyMs": 4267.040700000012,
+      "repeatedPanZoomMs": 5364.13459999999,
+      "inputDuringClimateMs": 10.879799999995157,
+      "climatePreviewMs": 963.4428000000771,
+      "first": {
+        "plannedEntries": 144,
+        "painted": 128,
+        "hits": 4927,
+        "sourceBytes": 2686978,
+        "maxBatchMs": 0,
+        "workerMaxMs": 26,
+        "visualMetres": 125,
+        "evictions": 0,
+        "bytes": 2230272
+      },
+      "warm": {
+        "plannedEntries": 144,
+        "painted": 128,
+        "hits": 5887,
+        "sourceBytes": 2686978,
+        "maxBatchMs": 0,
+        "workerMaxMs": 26,
+        "visualMetres": 125,
+        "evictions": 0,
+        "bytes": 2230272
+      },
+      "final": {
+        "plannedEntries": 84,
+        "painted": 420,
+        "hits": 48652,
+        "sourceBytes": 2686978,
+        "maxBatchMs": 0,
+        "workerMaxMs": 26,
+        "visualMetres": 15.625,
+        "evictions": 0,
+        "bytes": 7318080
+      },
+      "fallbackReadyMs": 1445.3174000000581,
+      "fallback": {
+        "plannedEntries": 112,
+        "painted": 64,
+        "hits": 5390,
+        "sourceBytes": 2686978,
+        "maxBatchMs": 4.100000023841858,
+        "workerMaxMs": 0,
+        "visualMetres": 125,
+        "evictions": 0,
+        "bytes": 1115136
+      },
+      "farZoomReadyMs": 307.07159999990836,
+      "farZoom": {
+        "plannedEntries": 3,
+        "painted": 65,
+        "hits": 6480,
+        "sourceBytes": 2686978,
+        "maxBatchMs": 4.100000023841858,
+        "workerMaxMs": 0,
+        "visualMetres": 1000,
+        "evictions": 0,
+        "bytes": 1132560
+      },
+      "farZoomFitRestored": true,
+      "cacheLimitMiB": 32,
+      "bytesAreTypedAndBitmapEstimatesNotProcessRss": true,
+      "noEnvironmentOrGeographyWrites": true
+    },
+    "environment-security": {
+      "passed": true,
+      "csrf": true,
+      "boundedBodyBytes": 5242880,
+      "oversizeStatus": 413,
+      "ordinaryDenied": true,
+      "foreignMapDenied": true,
+      "adminExplicitReadOnlyGui": true,
+      "statuses": {
+        "anonymous": 401,
+        "world-player": 403,
+        "other-god": 404,
+        "world-admin": 404
+      },
+      "noNewRevision": true
+    },
+    "environment-prerequisite": {
+      "passed": true,
+      "actualProductionBuild": true,
+      "actualThrough0141Target": true,
+      "environmentOnlyDisabled": true,
+      "terrainMaterialsAndWaterRemainReadable": true,
+      "appearanceNavigationFunctional": true,
+      "sharedDatabaseAccess": false
+    }
+  },
+  "baseline": {
+    "applicationCommit": "9fe55788c16a80c72ff9f2e159fc2d6e17527d87",
+    "build": {
+      "runtimeWorkspaceSha256": "2bdda67bfe2c4e207b9c292e64e677fa0054f399a35f3d102a8fb362fdd67894",
+      "runtimeFiles": 1592,
+      "productionBuildId": "kt50pg5mQ9dYRwDecTwbH",
+      "mode": "focused",
+      "visualOnly": false,
+      "development": false,
+      "sharedDatabaseWrites": false
+    },
+    "performance": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "coldApplicationReadyMs": 1239.2565000000177,
+      "warmNavigationTenKeysMs": 123.34249999999884,
+      "regionalReadyMs": 1171.271299999993,
+      "closeReadyMs": 3888.047499999986,
+      "repeatedPanZoomMs": 3907.2498999999953,
+      "inputDuringFeaturesMs": 7.966099999990547,
+      "world": {
+        "preparations": 2,
+        "hits": 58,
+        "bytes": 119072,
+        "entries": 2,
+        "drawnChannels": 11,
+        "drawnPaths": 11,
+        "reanchors": 0,
+        "hiddenChannels": 15,
+        "lastPaintMs": 0.3999999761581421,
+        "maxPaintMs": 3.799999952316284
+      },
+      "warm": {
+        "preparations": 2,
+        "hits": 71,
+        "bytes": 119072,
+        "entries": 2,
+        "drawnChannels": 11,
+        "drawnPaths": 11,
+        "reanchors": 0,
+        "hiddenChannels": 15,
+        "lastPaintMs": 0.20000004768371582,
+        "maxPaintMs": 3.799999952316284
+      },
+      "regional": {
+        "preparations": 2,
+        "hits": 109,
+        "bytes": 119072,
+        "entries": 2,
+        "drawnChannels": 5,
+        "drawnPaths": 5,
+        "reanchors": 0,
+        "hiddenChannels": 0,
+        "lastPaintMs": 0.10000002384185791,
+        "maxPaintMs": 3.799999952316284
+      },
+      "close": {
+        "preparations": 2,
+        "hits": 137,
+        "bytes": 119072,
+        "entries": 2,
+        "drawnChannels": 1,
+        "drawnPaths": 1,
+        "reanchors": 0,
+        "hiddenChannels": 0,
+        "lastPaintMs": 0,
+        "maxPaintMs": 3.799999952316284
+      },
+      "final": {
+        "preparations": 2,
+        "hits": 216,
+        "bytes": 119072,
+        "entries": 2,
+        "drawnChannels": 1,
+        "drawnPaths": 1,
+        "reanchors": 0,
+        "hiddenChannels": 0,
+        "lastPaintMs": 0.10000002384185791,
+        "maxPaintMs": 3.799999952316284
+      },
+      "specialColdMs": 302.916899999982,
+      "specialWarmMs": 90.77409999998054,
+      "specialEvidence": "Special-feature review: 127 samples, 9.5 ms worker time, approximately 0.0 MiB additional working collections. ",
+      "featureDrainageMetrics": "16,384 connected analysis cells; calculation 75.1 ms, complete request 190.6 ms; retained/working typed arrays 2.4 MiB. 1 closed basin(s), 0 coastal outlet(s), 15 fixed-edge exit(s). JavaScript and browser overhead are additional.",
+      "firstNumericalReads": 0,
+      "warmNumericalReads": 0,
+      "noNumericalWrites": true,
+      "acceptedGeographyUnchanged": true,
+      "cacheEstimateLimitMiB": 32,
+      "cacheEstimateIsNotProcessRss": true
+    },
+    "completedCaptures": "before-3c/completed-visual-review.json",
+    "comparisonCaveat": "Same accepted original terrain/water/camera; final environment readiness additionally requires eight new stable frames. Samples are not hardware guarantees or owner-server parity."
+  },
+  "planningBefore": {
+    "sourceCheckpoint": "7febafa036883661470d792877de2c0eefe20184",
+    "worldProjectedWidthPx": 0.01,
+    "wantedDisplayEntries": 140001,
+    "uniqueJobs": 1,
+    "planningMs": 198.49439999999993,
+    "heapGrowthBytes": 36100792,
+    "renderedPixels": false,
+    "geographyMutated": false,
+    "sharedDatabaseAccess": false
+  },
+  "planningAfter": {
+    "sourceCheckpoint": "f68c72013ff5c1c1c4dbe8889ec89f1c58b22df6",
+    "worldProjectedWidthPx": 0.01,
+    "wantedDisplayEntries": 3,
+    "uniqueJobs": 1,
+    "planningMs": 2.7620000000000005,
+    "heapGrowthBytes": 223856,
+    "renderedPixels": false,
+    "geographyMutated": false,
+    "sharedDatabaseAccess": false
+  },
+  "visualInspection": {
+    "passed": true,
+    "applicationCommit": "f68c72013ff5c1c1c4dbe8889ec89f1c58b22df6",
+    "productionBuildId": "dOpwQf4LqQzFoN-wxYh7B",
+    "personallyInspectedActualFinalViews": [
+      "matched-after-realistic-terrain.png",
+      "authored-rainforest-close.png",
+      "accepted-marsh-environment-regional.png",
+      "environment-390-native.png",
+      "climate-mixed-world.png",
+      "climate-temperate-windward-mountains-regional.png",
+      "authored-meadow-woodland-transition.png",
+      "authored-alpine-regional.png",
+      "environment-820-native.png",
+      "authored-ice-regional.png"
+    ],
+    "additionalReviewedCorrectionImagesByteExact": [
+      {
+        "file": "authored-boreal-close-illustrated.png",
+        "identicalToPersonallyReviewedCorrection": true
+      },
+      {
+        "file": "authored-hotDesert-close.png",
+        "identicalToPersonallyReviewedCorrection": true
+      },
+      {
+        "file": "authored-tundra-close.png",
+        "identicalToPersonallyReviewedCorrection": true
+      },
+      {
+        "file": "authored-rainforest-close.png",
+        "identicalToPersonallyReviewedCorrection": true
+      }
+    ],
+    "completeGalleryReadiness": "42 captures checked for five empty paint queues and actual environmental painting; all 15 authored families present.",
+    "scope": "Actual owned disposable production captures. Manual examples remain labelled. Broad patterns, procedural detail and source uncertainty remain visible limits.",
+    "ownerArtisticAcceptance": false,
+    "physicalDeviceClaim": false,
+    "ownerServerParity": false
+  },
+  "iterations": "iterations.json",
+  "localRawLogHashes": [
+    {
+      "path": "artifacts/climate-4-baseline-completed-captures.log",
+      "bytes": 228,
+      "sha256": "0e6f64a839ba1df12a5a7cc4610abfdd44246dafd4b8503448602e65b16b3b05"
+    },
+    {
+      "path": "artifacts/climate-4-baseline-reviewed-app.log",
+      "bytes": 155,
+      "sha256": "5cf495240c396a71c8c5ab93512470685d0d28d338e7a9eecf8ce57f6d56ec9e"
+    },
+    {
+      "path": "artifacts/climate-4-baseline.log",
+      "bytes": 6316,
+      "sha256": "254de460ffbab9f35a6a4aa740d288d836f047272f93fb202abcbaf145b2b87f"
+    },
+    {
+      "path": "artifacts/climate-4-commit-foundation.log",
+      "bytes": 1718,
+      "sha256": "189f72c3d73c3a2d5f26cb05deac3729b83db9fed7057f7d6e3319e77db45584"
+    },
+    {
+      "path": "artifacts/climate-4-database-1.log",
+      "bytes": 5830,
+      "sha256": "f75a13540b24c441ff22ce854951915a3d910f46dd7c4654d571eec77cbbca2c"
+    },
+    {
+      "path": "artifacts/climate-4-delivery-drizzle.log",
+      "bytes": 484,
+      "sha256": "bafc9fddce546fa43e5a47d60b5ff6bec596b3d1887851bbccae6222f1b85a0c"
+    },
+    {
+      "path": "artifacts/climate-4-delivery-lint.json",
+      "bytes": 549139,
+      "sha256": "7cf73e4a69c27261feeb3fad72b031575f255f5a233dbebc70292986667b7c34"
+    },
+    {
+      "path": "artifacts/climate-4-delivery-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-delivery-unit.log",
+      "bytes": 451796,
+      "sha256": "56ea033a6ccd924bc841e43b76c86d0994e41deaae37b84ce318357691aa77a5"
+    },
+    {
+      "path": "artifacts/climate-4-drizzle-check.log",
+      "bytes": 452,
+      "sha256": "6994c97b2c8ad0981b56cb1a7936734ea0c500117503d5afd565f9d8f1958b0d"
+    },
+    {
+      "path": "artifacts/climate-4-drizzle-final.log",
+      "bytes": 458,
+      "sha256": "9b558df2557a42685ebf0ebaaeaa22424468f946931c93306a3ea75a099575b4"
+    },
+    {
+      "path": "artifacts/climate-4-drizzle-generate.log",
+      "bytes": 36620,
+      "sha256": "2b18094878860050c1062a3922068b9ba4a99a3f38e48b6e7cb2e29b209c7bef"
+    },
+    {
+      "path": "artifacts/climate-4-drizzle-offline.log",
+      "bytes": 466,
+      "sha256": "ca0bfc6923b5d7ffc1879e61efeecfa5bb84545129ea17f96c4a531da1a7693d"
+    },
+    {
+      "path": "artifacts/climate-4-final-lint-corrected.json",
+      "bytes": 548886,
+      "sha256": "8a97a75f417969c21f05b27a87b41274449f4090f2f9d84ba294972cc6094ba3"
+    },
+    {
+      "path": "artifacts/climate-4-final-lint.json",
+      "bytes": 548886,
+      "sha256": "8a97a75f417969c21f05b27a87b41274449f4090f2f9d84ba294972cc6094ba3"
+    },
+    {
+      "path": "artifacts/climate-4-final-production.log",
+      "bytes": 6927,
+      "sha256": "4a47ac52b78d029af2011e8b2c619528330f3a53b1205a04edda404b0b29e301"
+    },
+    {
+      "path": "artifacts/climate-4-final-types-corrected.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-final-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-final-unit-corrected.log",
+      "bytes": 451388,
+      "sha256": "db53bf2bd223b6f1cd6e4472acb004e004756d0b2bfd62bb9bf4390f7e5159b6"
+    },
+    {
+      "path": "artifacts/climate-4-final-unit.log",
+      "bytes": 450952,
+      "sha256": "cbb31d8854152dcbcc87c8aaff270f337aef597be3ad839c5989bb46127747fe"
+    },
+    {
+      "path": "artifacts/climate-4-focused-1.log",
+      "bytes": 6230,
+      "sha256": "6363ee77891b9cf88f7980520843333e9adb43514cab4dbba1b076d7733b0cb5"
+    },
+    {
+      "path": "artifacts/climate-4-focused-2.log",
+      "bytes": 9988,
+      "sha256": "37758995601418130d49583df37e60c2f58dc16dbf13c29d2c4100e0a6f28486"
+    },
+    {
+      "path": "artifacts/climate-4-focused-3.log",
+      "bytes": 3622,
+      "sha256": "7dd0c367bea2b8a6f5b06e93cbbd8d2ee69148e2bfaf258e3c143d8e87da066b"
+    },
+    {
+      "path": "artifacts/climate-4-focused-4.log",
+      "bytes": 1930,
+      "sha256": "398d8bf69f0d3cf47c6cf11f9945ce9f2f0cd29507fd8471aba2b2f5769a5f25"
+    },
+    {
+      "path": "artifacts/climate-4-focused-5.log",
+      "bytes": 2350,
+      "sha256": "40841484da720f5576c179fd75675de1047cfae03864ec3166b8bc8a33f3fe34"
+    },
+    {
+      "path": "artifacts/climate-4-focused-6.log",
+      "bytes": 1006,
+      "sha256": "2fcc2d9c6f7b7830eb6abb0075cca7743ce6fed6d1a6a2fd3cdbe0f3f9a36219"
+    },
+    {
+      "path": "artifacts/climate-4-focused-7.log",
+      "bytes": 772,
+      "sha256": "18cbb2d136565b4365809bf709c47b18f28a6e333b388ac4bb2cc18347ed2859"
+    },
+    {
+      "path": "artifacts/climate-4-full-1.log",
+      "bytes": 18030,
+      "sha256": "32f490996774067f0c9f6d80f223864b063a2b11da3d533ba6aef545fa267889"
+    },
+    {
+      "path": "artifacts/climate-4-full-2.log",
+      "bytes": 23526,
+      "sha256": "8b0cf0245d06024e806f6e8713e4fc18fd036016c9b12f9e41f81eaa02b21f82"
+    },
+    {
+      "path": "artifacts/climate-4-full-3.log",
+      "bytes": 23508,
+      "sha256": "f094d727d3c63e06d9d8ab5933507589d2e1cd1412acb44b08703f973476d728"
+    },
+    {
+      "path": "artifacts/climate-4-full-lint.json",
+      "bytes": 548394,
+      "sha256": "83e9a7c50d5d12d90993814c465f6c22840309192f4db73438fe1871558a0dd0"
+    },
+    {
+      "path": "artifacts/climate-4-full-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-full-unit-2.log",
+      "bytes": 453320,
+      "sha256": "bfdbb1fc05e313f016083de0688d127d02eb6846cd9f1d689b75fc9c596f0142"
+    },
+    {
+      "path": "artifacts/climate-4-full-unit-3.log",
+      "bytes": 451004,
+      "sha256": "008070f6cc025cf37781f161dc9400a9ca03b79718453c76f2c0b587ccd03877"
+    },
+    {
+      "path": "artifacts/climate-4-full-unit.log",
+      "bytes": 453340,
+      "sha256": "faa3f57c2b3891f4b7f06a87aa4d135b324c5379bccc19fd8c23e5a4e68bb99f"
+    },
+    {
+      "path": "artifacts/climate-4-lifecycle-fix.log",
+      "bytes": 2084,
+      "sha256": "c3dd1bbc00a9d0f307ee4de54fcfcc449fbcc26e841a4c19a76e001cbddd3b0e"
+    },
+    {
+      "path": "artifacts/climate-4-lint-art-corrected.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-lint-bounded.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-lint-camera-driver.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-lint-cooperation.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-lint-corrections.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-lint-current.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-lint-integration.json",
+      "bytes": 54695,
+      "sha256": "d1a5270f5f2c41f74116fddba7600232256766e826cb387154ee641e9e7a32e0"
+    },
+    {
+      "path": "artifacts/climate-4-lint-integration.log",
+      "bytes": 4756,
+      "sha256": "8f0a2bef84d6aa9477f6e7328bb8699062c6fba1fe68ab1b637b65ef090eb268"
+    },
+    {
+      "path": "artifacts/climate-4-lint-navigation.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-lint-source-verifier.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-planning-after-f68.log",
+      "bytes": 538,
+      "sha256": "e1f2d8642b054c2a457026a1ff5073667853bc0195fb962686525aececd21e6b"
+    },
+    {
+      "path": "artifacts/climate-4-planning-after-working.json",
+      "bytes": 290,
+      "sha256": "d6b009004d453b2fab9d55a4923b08d5c189f6b99ab0c324b66171851ab8f249"
+    },
+    {
+      "path": "artifacts/climate-4-planning-after.log",
+      "bytes": 510,
+      "sha256": "e7c5d92dc3f638cb7e99a6ace71c51a9a2e80eeb8ae7fb5bf180424eb3f63b91"
+    },
+    {
+      "path": "artifacts/climate-4-planning-before.log",
+      "bytes": 552,
+      "sha256": "97f848c1cd0ddd02075e62f4233dbeeaefa0b1e813a8882560707cff297351d6"
+    },
+    {
+      "path": "artifacts/climate-4-prerequisite-server.log",
+      "bytes": 155,
+      "sha256": "071f3909a2697f49c32c0bb602133b72a84012846625205eaa4def8e965b783e"
+    },
+    {
+      "path": "artifacts/climate-4-resumed-app.log",
+      "bytes": 21047,
+      "sha256": "bba557d07c69d619cd516bc72af8be42fada374d846611dda3a26d0fa08ab407"
+    },
+    {
+      "path": "artifacts/climate-4-source-full-1.log",
+      "bytes": 4484,
+      "sha256": "163b101004827ea29bbed652976a2870097492183756e9be07514f00b88e02ad"
+    },
+    {
+      "path": "artifacts/climate-4-source-full-2.log",
+      "bytes": 4484,
+      "sha256": "25e6759c9a2df989d8f712bfe0131648dc179ec99b8aff25b5627577821e065e"
+    },
+    {
+      "path": "artifacts/climate-4-source-full-3.log",
+      "bytes": 4484,
+      "sha256": "974625789057bad9796686ef15d02dd0bd25529f185ff7db8e66f3b20c240c1b"
+    },
+    {
+      "path": "artifacts/climate-4-types-art-corrected.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-art.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-bounded.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-browser1.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-canvas.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-client.log",
+      "bytes": 6712,
+      "sha256": "a09aa8a1c87b926f1b2cd2eb9abc89fd779a08405c0707cda05ea2df4fb60348"
+    },
+    {
+      "path": "artifacts/climate-4-types-complete.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-cooperation.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-core.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-core2.log",
+      "bytes": 472,
+      "sha256": "185c85421df1b66dadf4dcea44a9fec9be08b7910fd77122fea3be74f7936584"
+    },
+    {
+      "path": "artifacts/climate-4-types-core3.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-current.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-editor.log",
+      "bytes": 1202,
+      "sha256": "51c21f2837d14d56d23ba156a19f643dbea94211ed0d5cad99ab7b2b6daf668f"
+    },
+    {
+      "path": "artifacts/climate-4-types-editor2.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-editor3.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-frozen.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-navigation.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-tests.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-transition.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-types-workflows.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/climate-4-unit-21.log",
+      "bytes": 4384,
+      "sha256": "571f4fc21af8477ebd5d8bad84c956d157d6a1a107e5bd6a1380af6700268e05"
+    },
+    {
+      "path": "artifacts/climate-4-unit-23.log",
+      "bytes": 4736,
+      "sha256": "9d20085cd40c75624b65852a53829117c8c585df99898b83f0805b36f70f86fa"
+    },
+    {
+      "path": "artifacts/climate-4-unit-art-corrected.log",
+      "bytes": 5126,
+      "sha256": "24dd94f7ef92d07367756e989e3dafe46df9d7503fcf8d3b2d17369b0754e810"
+    },
+    {
+      "path": "artifacts/climate-4-unit-art.log",
+      "bytes": 3746,
+      "sha256": "63c37e9e0371042f3ed01596943831254a4ae9d4835b79ffbc6e9aebbca85a27"
+    },
+    {
+      "path": "artifacts/climate-4-unit-bounded.log",
+      "bytes": 5546,
+      "sha256": "988b1df1a9fbfc275899db7c812e54baba2158d15379b30197cf599e26f87e97"
+    },
+    {
+      "path": "artifacts/climate-4-unit-core.log",
+      "bytes": 2906,
+      "sha256": "d36afd8e473abc9d4ba67d81a37d5c5a543e08cede8f8fab2c8ab9031602bd4d"
+    },
+    {
+      "path": "artifacts/climate-4-unit-core2.log",
+      "bytes": 2868,
+      "sha256": "b25e61e6e1f704f30e0930485868efea4ce382d0133ae6ce822d4ec3139a26c3"
+    },
+    {
+      "path": "artifacts/climate-4-unit-erase.log",
+      "bytes": 4158,
+      "sha256": "f747942e7e6beafbc7e515efe723cb445d35357fca4de5f3c8eaa925e6f41749"
+    },
+    {
+      "path": "artifacts/climate-4-unit-transition.log",
+      "bytes": 6090,
+      "sha256": "9cde64a9ddb414fe55ac6c62ad77c6c44967001130150aaa69bc291053b05711"
+    }
+  ],
+  "physicalDeviceClaim": false,
+  "ownerArtisticAcceptance": false,
+  "ownerRunningServerParity": false,
+  "sharedDatabaseAccess": false,
+  "ownerServerRestarted": false,
+  "productionDeployment": false,
+  "stage3Pass5Started": false,
+  "fileManifest": "files.json"
+}

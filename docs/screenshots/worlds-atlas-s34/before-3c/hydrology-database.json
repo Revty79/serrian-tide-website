@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "mapId": "2c5c399f-01d7-4cc1-a179-789968e0b74d",
+  "world": "9289fa51-eabd-4950-8aee-552f85a0b7af",
+  "sourceChecksum": "f63e40463e617cfebea083c8a3935ab96604bae0523d5066038a1598dfe93b77",
+  "independentWaterRevisions": 6,
+  "confluences": true,
+  "coastalOutlets": true,
+  "atomicRetry": true,
+  "oneConcurrentWinner": true,
+  "immutableHistory": true,
+  "historyRestoration": true,
+  "staleNewRoutesRejected": true,
+  "existingRoutesRetainedOnTerrainChange": true,
+  "worldCoordinatesValidated": true,
+  "ownerOnly": true,
+  "readOnlyAdmin": true,
+  "ordinaryHidden": true,
+  "strictPayloads": true,
+  "numericalAppearanceMaterialAndMapRowsExact": true,
+  "sharedDatabaseWrites": false
+}

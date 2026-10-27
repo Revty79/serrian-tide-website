@@ -1,0 +1,42 @@
+{
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "performance": {
+    "pathPoints": 256,
+    "pathInputMs": 9573.82779999997,
+    "areaPoints": 64,
+    "overlayTimesMs": [
+      0.8999999761581421,
+      0.8999999761581421,
+      0.9000000953674316,
+      1,
+      1,
+      0.8999999761581421,
+      0.8999999761581421,
+      0.8999999761581421,
+      1,
+      0.8999999761581421,
+      0.9000000953674316,
+      0.8999999761581421,
+      0.8999999761581421,
+      0.8999999761581421,
+      0.8999999761581421,
+      0.8999999761581421,
+      1.1999999284744263,
+      1,
+      1,
+      0.8000000715255737,
+      0.8999999761581421,
+      1,
+      0.8000000715255737,
+      1
+    ],
+    "heapBefore": 15622796,
+    "heapAfter": 16806472,
+    "retainedBytes": 1183676,
+    "noTileRefresh": true
+  },
+  "nativePenRuler": true,
+  "resizeAndUnitPosePreserved": true,
+  "normalBrushInspectorRetainsSettings": true
+}

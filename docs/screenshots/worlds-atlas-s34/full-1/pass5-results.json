@@ -1,0 +1,100 @@
+{
+  "passed": true,
+  "nearMs": 922,
+  "farMs": 410,
+  "extremeMs": 321,
+  "colossalMs": 450,
+  "rectangularMs": 901,
+  "presets": [
+    {
+      "preset": "continent",
+      "previewAndRedrawMs": 389
+    },
+    {
+      "preset": "continents",
+      "previewAndRedrawMs": 534
+    },
+    {
+      "preset": "archipelago",
+      "previewAndRedrawMs": 399
+    },
+    {
+      "preset": "island",
+      "previewAndRedrawMs": 368
+    },
+    {
+      "preset": "land",
+      "previewAndRedrawMs": 880
+    },
+    {
+      "preset": "random",
+      "previewAndRedrawMs": 435
+    }
+  ],
+  "redraws": [
+    {
+      "label": "new physical Enhanced full redraw",
+      "requestedTiles": "1024",
+      "renderedTiles": "1024",
+      "elapsedMs": "227",
+      "peakFrameMs": "7.100000023841858",
+      "relief": "physical:20"
+    },
+    {
+      "label": "Classic full redraw",
+      "requestedTiles": "1024",
+      "renderedTiles": "1024",
+      "elapsedMs": "155.30000007152557",
+      "peakFrameMs": "7.100000023841858",
+      "relief": "classic:1"
+    },
+    {
+      "label": "Natural physical full redraw",
+      "requestedTiles": "1024",
+      "renderedTiles": "1024",
+      "elapsedMs": "214.20000004768372",
+      "peakFrameMs": "7.100000023841858",
+      "relief": "physical:1"
+    },
+    {
+      "label": "Dramatic full redraw",
+      "requestedTiles": "1024",
+      "renderedTiles": "1024",
+      "elapsedMs": "142.19999992847443",
+      "peakFrameMs": "7.200000047683716",
+      "relief": "physical:80"
+    },
+    {
+      "label": "ordinary stroke incremental halo",
+      "requestedTiles": "16",
+      "renderedTiles": "16",
+      "elapsedMs": "19.299999952316284",
+      "peakFrameMs": "4.199999928474426",
+      "relief": "physical:20"
+    }
+  ],
+  "browserHeap": {
+    "beforeBytes": 20940976,
+    "afterBytes": 21417176,
+    "growthBytes": 476200
+  },
+  "invalidInactiveHeightFocused": true,
+  "coverageAlternativeRequiresChoice": true,
+  "v1ClassicDefaultAndUnchanged": true,
+  "v2NumericalEquality": true,
+  "appearanceOnlyNoSaves": true,
+  "localViewPreferenceReopen": true,
+  "millionKmAcknowledgement": true,
+  "lostAcceptanceRecovery": true,
+  "workerCancellation": true,
+  "protectedV2Regeneration": true,
+  "exactOutsideSelection": true,
+  "restartNumericalEquality": true,
+  "gpuDisabled": true,
+  "touchEmulation": [
+    390,
+    820
+  ],
+  "physicalPhone": false,
+  "errors": []
+}

@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "baseline": true,
+  "mapId": "3c000000-0000-4000-8000-000000000001",
+  "gridSha256": "a26a70236bfe8a6991dfb8f42c7e1416f6da58a14e4e81e10a14e5e9e8e4ab77",
+  "geographySha256": "c5ef135f7d15400e04308bda34a7af8da5c9db047ceed007478cc6d67f9a9930",
+  "channels": 754,
+  "lakes": 2,
+  "minimumAreaM2": 24000000,
+  "navigationTenKeysMs": 111.98609999998007,
+  "gpuDisabled": true,
+  "physicalDevice": false
+}

@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "applicationCommit": "f68c72013ff5c1c1c4dbe8889ec89f1c58b22df6",
+  "productionBuildId": "dOpwQf4LqQzFoN-wxYh7B",
+  "personallyInspectedActualFinalViews": [
+    "matched-after-realistic-terrain.png",
+    "authored-rainforest-close.png",
+    "accepted-marsh-environment-regional.png",
+    "environment-390-native.png",
+    "climate-mixed-world.png",
+    "climate-temperate-windward-mountains-regional.png",
+    "authored-meadow-woodland-transition.png",
+    "authored-alpine-regional.png",
+    "environment-820-native.png",
+    "authored-ice-regional.png"
+  ],
+  "additionalReviewedCorrectionImagesByteExact": [
+    {
+      "file": "authored-boreal-close-illustrated.png",
+      "identicalToPersonallyReviewedCorrection": true
+    },
+    {
+      "file": "authored-hotDesert-close.png",
+      "identicalToPersonallyReviewedCorrection": true
+    },
+    {
+      "file": "authored-tundra-close.png",
+      "identicalToPersonallyReviewedCorrection": true
+    },
+    {
+      "file": "authored-rainforest-close.png",
+      "identicalToPersonallyReviewedCorrection": true
+    }
+  ],
+  "completeGalleryReadiness": "42 captures checked for five empty paint queues and actual environmental painting; all 15 authored families present.",
+  "scope": "Actual owned disposable production captures. Manual examples remain labelled. Broad patterns, procedural detail and source uncertainty remain visible limits.",
+  "ownerArtisticAcceptance": false,
+  "physicalDeviceClaim": false,
+  "ownerServerParity": false
+}

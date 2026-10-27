@@ -1,0 +1,234 @@
+{
+  "rawLogsRetainedLocally": true,
+  "failedAssertionsNotWaived": true,
+  "ownerArtisticAcceptance": false,
+  "entries": [
+    {
+      "topic": "Fixture syntax",
+      "failure": "An early ridge fixture used an unparenthesized negative exponent.",
+      "correction": "Parenthesized the expression; retained the failing type/unit logs.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-types-core2.log",
+          "sha256": "185c85421df1b66dadf4dcea44a9fec9be08b7910fd77122fea3be74f7936584"
+        },
+        {
+          "path": "artifacts/climate-4-unit-core.log",
+          "sha256": "d36afd8e473abc9d4ba67d81a37d5c5a543e08cede8f8fab2c8ab9031602bd4d"
+        }
+      ]
+    },
+    {
+      "topic": "React and editor types",
+      "failure": "React 19 refs required explicit initial values; an assumed selection variable was not editor state.",
+      "correction": "Used explicit ref unions/initial values and the actual selected environmental or accepted refinement frame.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-types-client.log",
+          "sha256": "a09aa8a1c87b926f1b2cd2eb9abc89fd779a08405c0707cda05ea2df4fb60348"
+        },
+        {
+          "path": "artifacts/climate-4-types-editor.log",
+          "sha256": "51c21f2837d14d56d23ba156a19f643dbea94211ed0d5cad99ab7b2b6daf668f"
+        }
+      ]
+    },
+    {
+      "topic": "Integration lint",
+      "failure": "Ref reads during render, effect-based number-field syncing and an unescaped apostrophe failed lint.",
+      "correction": "Memoized dirty comparison, keyed local number drafts and escaped JSX text; guidance and validation remain.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-lint-integration.log",
+          "sha256": "8f0a2bef84d6aa9477f6e7328bb8699062c6fba1fe68ab1b637b65ef090eb268"
+        }
+      ]
+    },
+    {
+      "topic": "Automatic visual boundaries",
+      "failure": "Initial World artwork had abrupt cover bands.",
+      "correction": "Added fixed two-analysis-cell artwork transitions without changing accepted classifications or painted geometry.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-unit-transition.log",
+          "sha256": "9cde64a9ddb414fe55ac6c62ad77c6c44967001130150aaa69bc291053b05711"
+        }
+      ]
+    },
+    {
+      "topic": "Canopy variation assertion",
+      "failure": "After transition filtering, a canopy sample produced 46 distinct colors against an existing greater-than-50 assertion.",
+      "correction": "Added fixed physical foliage/floor variation; retained the assertion and passed it.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-unit-transition.log",
+          "sha256": "9cde64a9ddb414fe55ac6c62ad77c6c44967001130150aaa69bc291053b05711"
+        },
+        {
+          "path": "artifacts/climate-4-unit-23.log",
+          "sha256": "9d20085cd40c75624b65852a53829117c8c585df99898b83f0805b36f70f86fa"
+        }
+      ]
+    },
+    {
+      "topic": "PostgreSQL timestamp precision",
+      "failure": "A test copier truncated microseconds by transferring dates through JavaScript Date.",
+      "correction": "Transferred to_jsonb timestamp text and verified every restored environmental version through the real service.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-focused-2.log",
+          "sha256": "37758995601418130d49583df37e60c2f58dc16dbf13c29d2c4100e0a6f28486"
+        }
+      ]
+    },
+    {
+      "topic": "Invalid resumed build",
+      "failure": "A prototype helper reused the old focused-1 compiled build after a pre-build failure, while copied files were newer.",
+      "correction": "Invalidated focused-3 as current source/build evidence; added compiled-source fingerprints and forced fresh final builds.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-focused-3.log",
+          "sha256": "7dd0c367bea2b8a6f5b06e93cbbd8d2ee69148e2bfaf258e3c143d8e87da066b"
+        }
+      ]
+    },
+    {
+      "topic": "HTTP privacy expectation",
+      "failure": "A test expected 403 for default Admin POST; the existing privacy boundary correctly returned 404 without explicit review.",
+      "correction": "Corrected the expectation; explicit review POST remains forbidden and Admin GUI stays read-only.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-focused-3.log",
+          "sha256": "7dd0c367bea2b8a6f5b06e93cbbd8d2ee69148e2bfaf258e3c143d8e87da066b"
+        }
+      ]
+    },
+    {
+      "topic": "Lifecycle aggregate failure",
+      "failure": "Two full unit runs found the new two-FK authorship closure still counted as 124 instead of 126.",
+      "correction": "Corrected the plan constant and exact snapshot assertion. All source FK comparisons remain enabled.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-full-unit.log",
+          "sha256": "faa3f57c2b3891f4b7f06a87aa4d135b324c5379bccc19fd8c23e5a4e68bb99f"
+        },
+        {
+          "path": "artifacts/climate-4-full-unit-2.log",
+          "sha256": "bfdbb1fc05e313f016083de0688d127d02eb6846cd9f1d689b75fc9c596f0142"
+        },
+        {
+          "path": "artifacts/climate-4-lifecycle-fix.log",
+          "sha256": "c3dd1bbc00a9d0f307ee4de54fcfcc449fbcc26e841a4c19a76e001cbddd3b0e"
+        },
+        {
+          "path": "artifacts/climate-4-final-unit-corrected.log",
+          "sha256": "db53bf2bd223b6f1cd6e4472acb004e004756d0b2bfd62bb9bf4390f7e5159b6"
+        }
+      ]
+    },
+    {
+      "topic": "Invalid previous-camera timings",
+      "failure": "A reused readiness counter could accept the previous zoom frame.",
+      "correction": "Reset the eight-frame gate for each wait and require each changed camera; focused-4 zoom numbers are not final benchmarks.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-focused-4.log",
+          "sha256": "398d8bf69f0d3cf47c6cf11f9945ce9f2f0cd29507fd8471aba2b2f5769a5f25"
+        }
+      ]
+    },
+    {
+      "topic": "Camera driver timeout",
+      "failure": "The stronger wait correctly timed out because cursor-free capture had moved wheel input outside the canvas.",
+      "correction": "Return the pointer onto the map before every wheel action. Do not waive the changed-camera wait.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-focused-5.log",
+          "sha256": "40841484da720f5576c179fd75675de1047cfae03864ec3166b8bc8a33f3fe34"
+        },
+        {
+          "path": "artifacts/climate-4-focused-6.log",
+          "sha256": "2fcc2d9c6f7b7830eb6abb0075cca7743ce6fed6d1a6a2fd3cdbe0f3f9a36219"
+        }
+      ]
+    },
+    {
+      "topic": "Close forest artwork",
+      "failure": "Early close crowns looked too regular and isolated.",
+      "correction": "Varied silhouettes, size, overlap, shading and physical foliage texture. Owner artistic acceptance remains open.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-unit-art.log",
+          "sha256": "63c37e9e0371042f3ed01596943831254a4ae9d4835b79ffbc6e9aebbca85a27"
+        },
+        {
+          "path": "artifacts/climate-4-unit-art-corrected.log",
+          "sha256": "24dd94f7ef92d07367756e989e3dafe46df9d7503fcf8d3b2d17369b0754e810"
+        }
+      ]
+    },
+    {
+      "topic": "Illustrated conifer orientation",
+      "failure": "Personal inspection found downward-pointing triangular conifers.",
+      "correction": "Added upright layered, variably sized conifer silhouettes and a visual-orientation regression test.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-unit-art-corrected.log",
+          "sha256": "24dd94f7ef92d07367756e989e3dafe46df9d7503fcf8d3b2d17369b0754e810"
+        }
+      ]
+    },
+    {
+      "topic": "Dry and cold ground",
+      "failure": "Personal inspection found weak desert contrast and uniform cold ground.",
+      "correction": "Strengthened sand/dune and tundra/ice treatment, preserving manual-material and water precedence. Added a desert-variation regression.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-unit-art-corrected.log",
+          "sha256": "24dd94f7ef92d07367756e989e3dafe46df9d7503fcf8d3b2d17369b0754e810"
+        }
+      ]
+    },
+    {
+      "topic": "Full-1 gallery cleanup rejected",
+      "failure": "The full frozen run failed when cleanup submitted an older source-pinned field as a new proposal after the terrain cooperation edit. The service returned 409.",
+      "correction": "Use exact accepted historical restoration for cleanup; retain strict stale-source rejection. The whole unfiltered chain is rerun.",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-full-1.log",
+          "sha256": "32f490996774067f0c9f6d80f223864b063a2b11da3d533ba6aef545fa267889"
+        },
+        {
+          "path": "artifacts/climate-4-focused-6.log",
+          "sha256": "2fcc2d9c6f7b7830eb6abb0075cca7743ce6fed6d1a6a2fd3cdbe0f3f9a36219"
+        }
+      ]
+    },
+    {
+      "topic": "Far-zoom display planning",
+      "failure": "The new overlay planned 140001 repeated display entries for one unique bitmap at a 0.01 px World width; an isolated probe allocated about 36 MB of heap.",
+      "correction": "Reuse the original three canonical wrapped copies, descend artwork LOD to at most 1024 unique visible bitmaps, and defer impossible lowest-level plans. Added bounded-plan regressions and an actual production far-zoom/fit/no-write case.",
+      "before": "full-2/far-zoom-planning-probe.json",
+      "after": "planning-after.json",
+      "focusedProduction": "focused-7/environment-performance.json",
+      "localRawLogs": [
+        {
+          "path": "artifacts/climate-4-planning-before.log",
+          "sha256": "97f848c1cd0ddd02075e62f4233dbeeaefa0b1e813a8882560707cff297351d6"
+        },
+        {
+          "path": "artifacts/climate-4-planning-after-f68.log",
+          "sha256": "e1f2d8642b054c2a457026a1ff5073667853bc0195fb962686525aececd21e6b"
+        },
+        {
+          "path": "artifacts/climate-4-unit-bounded.log",
+          "sha256": "988b1df1a9fbfc275899db7c812e54baba2158d15379b30197cf599e26f87e97"
+        },
+        {
+          "path": "artifacts/climate-4-focused-7.log",
+          "sha256": "18cbb2d136565b4365809bf709c47b18f28a6e333b388ac4bb2cc18347ed2859"
+        }
+      ]
+    }
+  ]
+}

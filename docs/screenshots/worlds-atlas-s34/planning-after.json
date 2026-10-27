@@ -1,0 +1,11 @@
+{
+  "sourceCheckpoint": "f68c72013ff5c1c1c4dbe8889ec89f1c58b22df6",
+  "worldProjectedWidthPx": 0.01,
+  "wantedDisplayEntries": 3,
+  "uniqueJobs": 1,
+  "planningMs": 2.7620000000000005,
+  "heapGrowthBytes": 223856,
+  "renderedPixels": false,
+  "geographyMutated": false,
+  "sharedDatabaseAccess": false
+}
