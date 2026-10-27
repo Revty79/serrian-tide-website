@@ -1,3 +1,4 @@
+import {environmentTilePlan} from "./terrain-environment-plan";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
@@ -50,3 +51,6 @@ test("deliberate regeneration can replace unprotected overrides but always retai
 
 test("illustrated conifers have narrow upright tops and layered wider lower foliage",()=>{assert.ok(illustratedConiferMask(0,-.5));assert.equal(illustratedConiferMask(.2,-.5),0);assert.ok(illustratedConiferMask(.2,.25));assert.equal(illustratedConiferMask(.6,.25),0);});
 test("authored desert artwork has visible sand-ridge variation rather than a green flat fill",()=>{const {input}=fixture(),biome={...region("biome"),biome:"hotDesert" as const},artist=createEnvironmentArtist({...EMPTY_ENVIRONMENT,regions:[biome]},input.sources.world,EMPTY_HYDROLOGY,EMPTY_TERRAIN_MATERIALS,"realistic-terrain"),terrain={...surfaceFieldWork(),height:100,waterHeight:100},values=Array.from({length:240},(_,i)=>artist(300000+i*.75,300000,.3,terrain));assert.ok(Math.max(...values.map(v=>v[0]))-Math.min(...values.map(v=>v[0]))>20);assert.ok(values.every(v=>v[0]>v[1]&&v[1]>v[2]&&v[3]>220));});
+
+test("far-zoom environmental plans keep the original three wrapped copies instead of millions",()=>{const world={width:256,height:256,tileSize:32,displayWidth:1000000,displayHeight:600000,min:-1000,max:4000,wrap:true},plan=environmentTilePlan(world,{left:-7e10,right:7e10,top:-4e10,bottom:4e10,scale:1e-8,width:1400,height:800});assert.ok(plan);assert.equal(plan.unique,1);assert.equal((plan.right-plan.left+1)*(plan.bottom-plan.top+1),3);assert.equal(plan.left,-1);assert.equal(plan.right,1);});
+test("large display environmental plans fit their bitmap budget and omit impossible tall-view allocations",()=>{const world={width:256,height:256,tileSize:32,displayWidth:1000000,displayHeight:600000,min:-1000,max:4000,wrap:true},plan=environmentTilePlan(world,{left:0,right:768000,top:0,bottom:432000,scale:.01,width:7680,height:4320},2);assert.ok(plan);assert.ok(plan.generalized);assert.ok(plan.unique<=1024);assert.ok((plan.right-plan.left+1)*(plan.bottom-plan.top+1)<=3072);assert.equal(environmentTilePlan({...world,displayWidth:100,displayHeight:1e9},{left:-7e11,right:7e11,top:0,bottom:1e12,scale:1e-9,width:1400,height:1000}),null);});
