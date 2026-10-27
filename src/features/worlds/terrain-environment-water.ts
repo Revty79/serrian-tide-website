@@ -1,0 +1,12 @@
+import type {HydroGeometry,HydroLayer,HydroPoint} from "./terrain-hydrology";
+import {unwrapWaterRing,waterDx} from "./terrain-water-geometry";
+
+/** Compile once per water snapshot. Point queries never rebuild shoreline paths. */
+export function environmentalWaterIndex(layer:HydroLayer,world:HydroGeometry){
+  const polygons=[...(layer.lakes??[]).filter(l=>l.condition==="standing").map(l=>({rings:l.rings,kind:"water" as const})),...(layer.features??[]).filter(f=>f.kind==="wetland"&&f.classification!=="potential").map(f=>({rings:f.kind==="wetland"?f.rings:[],kind:"wetland" as const}))].map(p=>{let first:number|undefined;const rings=p.rings.map(r=>{const points=unwrapWaterRing(r,world);first??=points[0].x;const shift=world.wrap?Math.round((first-points[0].x)/world.width)*world.width:0;return points.map(q=>({x:q.x+shift,y:q.y}));}),points=rings.flat();return {...p,rings,left:Math.min(...points.map(p=>p.x)),right:Math.max(...points.map(p=>p.x)),top:Math.min(...points.map(p=>p.y)),bottom:Math.max(...points.map(p=>p.y)),anchor:first!};});
+  const bins=new Map<number,typeof polygons>();
+  const bx=(x:number)=>Math.max(0,Math.min(31,Math.floor(x/world.width*32))),by=(y:number)=>Math.max(0,Math.min(31,Math.floor(y/world.height*32)));
+  for(const p of polygons)for(const offset of world.wrap?[-world.width,0,world.width]:[0]){const left=p.left+offset,right=p.right+offset;if(right<0||left>world.width)continue;for(let y=by(p.top);y<=by(p.bottom);y++)for(let x=bx(left);x<=bx(right);x++){const key=y*32+x,list=bins.get(key)??[];if(!list.includes(p))list.push(p);bins.set(key,list);}}
+  return (x:number,y:number):"water"|"wetland"|null=>{x=world.wrap?((x%world.width)+world.width)%world.width:x;let result:"wetland"|null=null;for(const p of bins.get(by(y)*32+bx(x))??[]){const qx=p.anchor+waterDx(p.anchor,x,world);if(qx<p.left||qx>p.right||y<p.top||y>p.bottom)continue;let inside=false;for(const ring of p.rings)for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a.y>y)!==(b.y>y)&&qx<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)inside=!inside;}if(inside){if(p.kind==="water")return "water";result="wetland";}}return result;};
+}
+export function environmentalRayContains(points:HydroPoint[],x:number,y:number,world:HydroGeometry){const anchor=points[0],qx=anchor.x+waterDx(anchor.x,x,world);let inside=false;for(let i=0,j=points.length-1;i<points.length;j=i++){const a=points[i],b=points[j];if((a.y>y)!==(b.y>y)&&qx<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)inside=!inside;}return inside;}

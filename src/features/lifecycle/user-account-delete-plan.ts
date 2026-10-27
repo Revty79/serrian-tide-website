@@ -18,6 +18,8 @@ export type UserAccountForeignKeyPlanEntry = {
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "world_environment", columnName: "updated_by_user_id", constraintName: "world_environment_editor_fk", onDelete: "restrict", disposition: "block", label: "World environmental authorship" },
+  { tableName: "world_environment_version", columnName: "created_by_user_id", constraintName: "world_environment_version_author_fk", onDelete: "restrict", disposition: "block", label: "World environmental history" },
   { tableName: "world_terrain_material", columnName: "updated_by_user_id", constraintName: "world_terrain_material_editor_fk", onDelete: "restrict", disposition: "block", label: "World terrain material authorship" },
   { tableName: "world_terrain_material_version", columnName: "created_by_user_id", constraintName: "world_terrain_material_version_author_fk", onDelete: "restrict", disposition: "block", label: "World terrain material history" },
   { tableName: "world_hydrology", columnName: "updated_by_user_id", constraintName: "world_hydrology_editor_fk", onDelete: "restrict", disposition: "block", label: "World waterway authorship" },

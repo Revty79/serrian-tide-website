@@ -11,7 +11,7 @@ import {EMPTY_HYDROLOGY,hydroLayerSchema,hydroSaveSchema,makeHydroAnalysis,valid
 
 type Connection=Pick<typeof db,"select"|"execute">;
 const unavailable=()=>new WorldError("This terrain map is unavailable.",404);
-async function sourceIndex(tx:Connection,worldId:string,mapId:string):Promise<HydroSources>{
+export async function sourceIndex(tx:Connection,worldId:string,mapId:string):Promise<HydroSources>{
   const [root]=await tx.select({terrain:worldTerrain,hash:worldTerrainVersion.contentHash}).from(worldMapCanvas)
     .innerJoin(worldAtlasMap,and(eq(worldAtlasMap.id,worldMapCanvas.mapId),eq(worldAtlasMap.worldId,worldId)))
     .innerJoin(worldTerrain,eq(worldTerrain.id,worldMapCanvas.terrainId))

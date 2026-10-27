@@ -112,9 +112,9 @@ test("only authentication, personal preferences, and membership associations are
   );
   assert.equal(
     USER_ACCOUNT_FOREIGN_KEY_PLAN.filter(({ disposition }) => disposition === "block").length,
-    117,
+    119,
   );
-  for (const constraint of ["world_hydrology_editor_fk", "world_hydrology_version_author_fk"]) {
+  for (const constraint of ["world_hydrology_editor_fk", "world_hydrology_version_author_fk", "world_environment_editor_fk", "world_environment_version_author_fk"]) {
     assert.equal(USER_ACCOUNT_FOREIGN_KEY_PLAN.find(entry => entry.constraintName === constraint)?.disposition, "block", "waterway attribution and accepted history remain protected");
   }
   assert.ok(
