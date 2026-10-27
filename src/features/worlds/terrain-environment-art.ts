@@ -13,12 +13,14 @@ const clamp=(n:number,a=0,b=1)=>Math.max(a,Math.min(b,n)),smooth=(n:number)=>{n=
 function hash(x:number,y:number,seed:number){let n=Math.imul(x|0,374761393)^Math.imul(y|0,668265263)^seed;n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967295;}
 function seedCode(text:string){let n=2166136261;for(const c of text)n=Math.imul(n^c.charCodeAt(0),16777619);return n|0;}
 export function manualMaterialAuthority(layer:TerrainMaterials,x:number,y:number,period:number|null){if(!layer.visible||!layer.opacity)return 0;let remaining=1,authority=0;for(let i=layer.strokes.length-1;i>=0&&remaining>.001;i--){const s=layer.strokes[i],amount=materialCoverage(s,x,y,period)*layer.opacity;if(s.material!=="automatic")authority+=amount*remaining;remaining*=1-amount;}return authority;}
+/** Upright layered conifer silhouette; the mask is illustrative, not surveyed. */
+export function illustratedConiferMask(x:number,y:number){let result=0;for(let tier=0;tier<3;tier++){const top=-.58+tier*.2,bottom=.02+tier*.2;if(y<top||y>bottom)continue;const width=(y-top)*.62;if(Math.abs(x)<width)result=Math.max(result,Math.abs(Math.abs(x)-width)<.025||Math.abs(y-bottom)<.025?2:1);}return result;}
 /** Artistic crown positions are deterministic coverage texture, never surveyed
  * trees or new terrain. The same physical cells are used by every image tile. */
 function canopy(x:number,y:number,scale:number,seed:number,kind:Vegetation,illustrated:boolean,period:number|null,out:{coverage:number;shade:number;edge:number}){
   const count=period?Math.max(1,Math.round(period/scale)):0;if(period)scale=period/count;const randomAt=(x:number,y:number)=>hash(count?((x%count)+count)%count:x,y,seed),ix=Math.floor(x/scale),iy=Math.floor(y/scale);let coverage=0,shade=1,edge=0,highest=-1;
   for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){const cx=ix+ox,cy=iy+oy,random=randomAt(cx,cy),dx=x/scale-(cx+.12+random*.76),dy=y/scale-(cy+.12+randomAt(cx+409,cy-817)*.76),radius=.35+randomAt(cx-29,cy+71)*.25;
-    if(kind==="conifer"&&illustrated){const width=(.38-dy)*.52,inside=dy>-.55&&dy<.36&&Math.abs(dx)<width;if(inside){coverage=1;shade=.65+clamp((width-Math.abs(dx))/(width+.01))*.2+clamp(-dx)*.35;edge=Math.abs(Math.abs(dx)-width)<.04?1:0;}continue;}
+    if(kind==="conifer"&&illustrated){const size=radius/.48,mask=illustratedConiferMask((dx+(random-.5)*dy*.18)/size,dy/size);if(mask){coverage=1;shade=.7+clamp(-dx)*.34+(random-.5)*.1;edge=mask===2?1:0;}continue;}
     const angle=Math.atan2(dy,dx),elongation=.78+randomAt(cx+43,cy+89)*.56,d=Math.sqrt(dx*dx*elongation+dy*dy/elongation),lobes=1+.09*Math.sin(angle*(kind==="conifer"?9:5)+random*17)+.045*Math.sin(angle*11+random*31),r=radius*lobes,height=1-(d/r)**2;if(d<r&&height>highest){highest=height;coverage=1;shade=.57+clamp(height)*.43+(-dx-dy)*.31+(random-.5)*.17;edge=d>r-.035?1:0;}else if((dx-.15)**2+(dy-.22)**2<radius*radius*1.05&&coverage===0){coverage=.4;shade=.42;}}
   out.coverage=coverage;out.shade=shade;out.edge=edge;return out;
 }
@@ -38,8 +40,8 @@ export function createEnvironmentArtist(layer:EnvironmentLayer,world:HydroGeomet
         const dapple=1+((n(2.2)-.5)*.22*band(2.2)+(n(13)-.5)*.16*band(13))*e.woody;r*=dapple;g*=dapple;b*=dapple;
         if(layer.artwork&&resolved>0){const artistic=canopy(period?((x%period)+period)%period:x,y,scale,seed,treeKind,illustrated,period,canopyWork),threshold=n(scale*5);const density=e.vegetation==="savanna"?cover*.35:cover;if(threshold<density){const amount=artistic.coverage*resolved,ink=illustrated&&artistic.edge?.64:1,foliage=1+(n(.85)-.5)*.32*band(.85)+(n(.22)-.5)*.18*band(.22),shade=artistic.shade*light*ink*foliage;r+=(green[0]*shade-r)*amount;g+=(green[1]*shade-g)*amount;b+=(green[2]*shade-b)*amount;alpha=Math.max(alpha,amount*(realistic?.94:illustrated?.88:.28));}}
       }else if(layer.vegetation&&layer.artwork&&["grass","scrub","tundra","alpine","wetland"].includes(e.vegetation)){const grain=(n(4)-.5)*band(4),tufts=(n(11)-.5)*Math.min(1,15/footprint),shade=1+grain*.15+tufts*.16;r*=shade;g*=shade;b*=shade;alpha=Math.max(alpha,e.density*(realistic?.57:.22));}
-      if(e.biome==="hotDesert"||e.biome==="coldDesert"){const periodicX=period?Math.sin(2*Math.PI*x/period)*period/(2*Math.PI):x,ripple=Math.sin(periodicX/43+y/72+n(270)*5)*Math.min(1,40/footprint);r+=ripple*6;g+=ripple*5;b+=ripple*3;}
-      if(slope>1.2){alpha*=.4;}
+      if(e.biome==="hotDesert"||e.biome==="coldDesert"){const periodicX=period?Math.sin(2*Math.PI*x/period)*period/(2*Math.PI):x,wave=periodicX/16+y/46+(n(180)-.5)*4,dune=Math.sin(wave)*band(90),crest=Math.max(0,Math.cos(wave))**4*band(90),grain=(n(1.2)-.5)*band(1.2);r+=dune*21+crest*9+grain*10;g+=dune*17+crest*7+grain*8;b+=dune*11+crest*4+grain*6;alpha=Math.max(alpha,realistic?(e.biome==="hotDesert"?.88:.79):illustrated?.3:.14);}
+      if(e.biome==="tundra"){const moss=smooth((n(12)-.32)*1.6),gravel=n(1.5)*band(1.5);r+=(moss-.5)*19+gravel*5;g+=(moss-.5)*25+gravel*5;b-=(moss-.5)*7;alpha=Math.max(alpha,realistic?.73:.2);}if(e.biome==="ice")alpha=Math.max(alpha,realistic?.82:.22);if(slope>1.2){alpha*=.4;}
     }
     out[0]=clamp(r,0,255);out[1]=clamp(g,0,255);out[2]=clamp(b,0,255);out[3]=clamp(alpha*layer.opacity*e.coverage*(1-authority))*255;return out;
   };
