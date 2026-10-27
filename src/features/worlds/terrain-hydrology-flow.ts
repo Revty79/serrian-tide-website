@@ -59,7 +59,7 @@ export function hydroSuggestions(flow:HydroFlow,analysis:HydroAnalysis,sourcePoi
     const start=starts[index];if(done.has(start)||receiver[start]<0)continue;done.add(start);const path=[start];let cursor=receiver[start];
     while(cursor>=0){if(path.length>=2&&collinear(mesh,path[path.length-2],path.at(-1)!,cursor))path.pop();path.push(cursor);if(junction(cursor))break;if(path.length>=512){starts.push(cursor);break;}cursor=receiver[cursor];}
     if(path.length<2)continue;const from=node(start),to=node(path.at(-1)!);points+=path.length;
-    edges.push({id:hydroIdentity("channel",from.id+"/"+to.id),from:from.id,to:to.id,name:`Waterway ${edges.length+1}`,points:path.map(id=>mesh.point(id)),drainageM2:area[start],flowKind:"derived",exceptionReason:"",protected:false,analysisId:analysis.id});
+    edges.push({id:hydroIdentity("channel",from.id+"/"+to.id),from:from.id,to:to.id,name:`Waterway ${edges.length+1}`,points:path.map(id=>mesh.point(id)),drainageM2:area[start],flowKind:"derived",exceptionReason:"",protected:false,analysisId:analysis.id,...analysis.method==="terrain-water-v2"?{sourceIds:[...new Set(path.map(id=>mesh.patches[mesh.sourceIds[id]].source.id))]}:{}});
     if(edges.length>HYDROLOGY_LIMITS.edges||nodes.size>HYDROLOGY_LIMITS.nodes||points>HYDROLOGY_LIMITS.points)throw Error("Too many waterways for one review. Increase the minimum drainage area or analyse the current view. Saved waterways are retained.");
   }
   return hydroLayerSchema.parse({...EMPTY_HYDROLOGY,analyses:edges.length?[analysis]:[],nodes:[...nodes.values()],edges});

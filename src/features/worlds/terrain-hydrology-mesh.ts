@@ -69,6 +69,7 @@ export class HydroMesh{
     this.forInterfaces((a,b)=>{this.neighbors[degrees[a]++]=b;this.neighbors[degrees[b]++]=a;},progress,.55,.2);
   }
   point(id:number):HydroPoint{const i=id*4;return {x:(this.bounds[i]+this.bounds[i+2])/2,y:(this.bounds[i+1]+this.bounds[i+3])/2};}
+  sampleAt(point:HydroPoint){const id=this.locate(point);return id<0?NaN:sample(this.patches[this.sourceIds[id]],point,this.world);}
   private reserve(size:number){if(size<=this.heights.length)return;const capacity=Math.min(HYDROLOGY_LIMITS.meshNodes,Math.ceil(this.heights.length*1.5)),bounds=new Float64Array(capacity*4),heights=new Float64Array(capacity),sources=new Uint16Array(capacity);bounds.set(this.bounds);heights.set(this.heights);sources.set(this.sourceIds);this.bounds=bounds;this.heights=heights;this.sourceIds=sources;}
   cellArea(id:number){const i=id*4;return (this.bounds[i+2]-this.bounds[i])*(this.bounds[i+3]-this.bounds[i+1]);}
   boundary(id:number){const i=id*4;return this.bounds[i+1]<=1e-7||this.bounds[i+3]>=this.world.height-1e-7||!this.world.wrap&&(this.bounds[i]<=1e-7||this.bounds[i+2]>=this.world.width-1e-7);}

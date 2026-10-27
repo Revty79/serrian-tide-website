@@ -44,13 +44,20 @@ export async function getTerrainHydrology(userId:string,worldId:string,mapId:str
 function checkProvenance(layer:HydroLayer,previous:HydroLayer,sources:HydroSources){
   for(const analysis of layer.analyses){
     const original=previous.analyses.find(a=>a.id===analysis.id);if(original&&JSON.stringify(original)===JSON.stringify(analysis))continue;
-    const expected=makeHydroAnalysis(sources,analysis.focus,analysis.minimumAreaM2);
+    const expected=makeHydroAnalysis(sources,analysis.focus,analysis.minimumAreaM2,analysis.method==="terrain-water-v2"?{lakeMinimumAreaM2:analysis.lakeMinimumAreaM2!,lakeMinimumDepthM:analysis.lakeMinimumDepthM!}:undefined);
     if(JSON.stringify(expected)!==JSON.stringify(analysis))throw new WorldError("Accepted terrain changed or the analysis provenance is invalid. Keep your draft and suggest rivers again before accepting new routes.",409);
   }
+  for(const object of [...layer.edges,...layer.lakes??[],...layer.catchments??[]]){const analysis=layer.analyses.find(a=>a.id===object.analysisId);if(object.sourceIds?.some(id=>!analysis?.pins.some(p=>p.id===id)))throw new WorldError("Water source references must belong to this map and its retained analysis.",400);}
   for(const edge of layer.edges)if(edge.flowKind==="derived"){
     const old=previous.edges.find(e=>e.id===edge.id),same=old&&old.flowKind==="derived"&&old.from===edge.from&&old.to===edge.to&&old.analysisId===edge.analysisId&&JSON.stringify(old.points)===JSON.stringify(edge.points);
     if(!same&&layer.analyses.find(a=>a.id===edge.analysisId)?.fingerprint!==sources.fingerprint)throw new WorldError("These new waterways use older terrain. Retain the draft and review a fresh suggestion; existing accepted rivers remain saved.",409);
   }
+  for(const lake of layer.lakes??[])for(const pin of lake.authoredPins??[]){const source=sources.sources.find(s=>s.id===pin.id);if(!source||pin.revision>source.revision||pin.revision===source.revision&&pin.contentHash!==source.contentHash)throw new WorldError("Authored lake source pins must refer to accepted terrain in this map.",400);}
+  for(const lake of layer.lakes??[])if(lake.flowKind==="derived"){
+    const old=previous.lakes?.find(l=>l.id===lake.id),same=old&&old.analysisId===lake.analysisId&&old.levelM===lake.levelM&&JSON.stringify(old.rings)===JSON.stringify(lake.rings);
+    if(!same&&layer.analyses.find(a=>a.id===lake.analysisId)?.fingerprint!==sources.fingerprint)throw new WorldError("These new lakes use older terrain. Retain the draft and review fresh basin proposals.",409);
+  }
+  for(const c of layer.catchments??[]){const old=previous.catchments?.find(v=>v.id===c.id);if(JSON.stringify(old)!==JSON.stringify(c)&&layer.analyses.find(a=>a.id===c.analysisId)?.fingerprint!==sources.fingerprint)throw new WorldError("This watershed uses older terrain. Review it again before saving.",409);}
 }
 export async function saveTerrainHydrology(userId:string,worldId:string,raw:unknown){
   const command=hydroSaveSchema.parse(raw);
@@ -62,7 +69,7 @@ export async function saveTerrainHydrology(userId:string,worldId:string,raw:unkn
     const [head]=await tx.select().from(worldHydrology).where(eq(worldHydrology.mapId,command.mapId)).for("update");
     if((head?.revision??0)!==command.revision)throw new WorldError("Another tab saved newer waterways. Your draft is retained; export it before loading the saved network.",409);
     if(command.restoreRevision!==undefined){const [restored]=await tx.select().from(worldHydrologyVersion).where(and(eq(worldHydrologyVersion.mapId,command.mapId),eq(worldHydrologyVersion.revision,command.restoreRevision)));if(!restored||JSON.stringify(hydroLayerSchema.parse(restored.layer))!==JSON.stringify(command.layer))throw new WorldError("Restore the exact retained water revision before editing it. Your draft is preserved.",400);}
-    else checkProvenance(command.layer,hydroLayerSchema.parse(head?.layer??EMPTY_HYDROLOGY),sources);
+    else {if((head?.layer as HydroLayer|undefined)?.systemVersion===2&&command.layer.systemVersion!==2)throw new WorldError("This map has connected lake authoring. Reload it before editing; an older writer cannot discard its lake relationships.",409);checkProvenance(command.layer,hydroLayerSchema.parse(head?.layer??EMPTY_HYDROLOGY),sources);}
     const revision=command.revision+1;
     await tx.insert(worldHydrology).values({mapId:command.mapId,worldId,revision,layer:command.layer,updatedBy:userId}).onConflictDoUpdate({target:worldHydrology.mapId,set:{revision,layer:command.layer,updatedBy:userId,updatedAt:new Date()}});
     await tx.insert(worldHydrologyVersion).values({mapId:command.mapId,worldId,revision,previousRevision:revision===1?null:revision-1,restoredFromRevision:command.restoreRevision??null,layer:command.layer,requestId:command.requestId,createdBy:userId});

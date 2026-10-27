@@ -1,6 +1,6 @@
 import {worldApi} from "./client-api";
 import {createGrid,terrainGeometry,type TerrainDocument} from "./terrain";
-import {hydrologyPlan,type HydroSources} from "./terrain-hydrology";
+import {hydrologyPlan,type HydroAnalysis,type HydroSources} from "./terrain-hydrology";
 import type {HydroPatch} from "./terrain-hydrology-mesh";
 import {TerrainDetailCache,type DetailBatch} from "./terrain-refinement-cache";
 import type {RefinementIndex} from "./terrain-refinement-client";
@@ -11,10 +11,10 @@ export function hydrologyUrl(api:string,mapId:string,child="hydrology"){
 
 /** Loads only a bounded camera-independent analysis plan, through the existing
  * guarded immutable terrain APIs. These fresh buffers never alias editor grids. */
-export async function loadHydrologyPatches(api:string,mapId:string,sources:HydroSources,signal:AbortSignal,progress:(value:number)=>void){
+export async function loadHydrologyPatches(api:string,mapId:string,sources:HydroSources,signal:AbortSignal,progress:(value:number)=>void,analysis?:HydroAnalysis){
   const [root,index]=await Promise.all([worldApi<{document:TerrainDocument|null}>(hydrologyUrl(api,mapId,""),"GET",undefined,signal),worldApi<RefinementIndex>(hydrologyUrl(api,mapId,"refinements"),"GET",undefined,signal)]);
   if(!root.document||root.document.revision!==sources.rootRevision||index.rootRevision!==sources.rootRevision||index.seaLevel!==sources.seaLevel)throw Error("The accepted World changed while preparing drainage. Suggest rivers again; saved waterways are retained.");
-  const shape=terrainGeometry(root.document.settings),plan=hydrologyPlan(sources),patches:HydroPatch[]=[];
+  const shape=terrainGeometry(root.document.settings),plan=hydrologyPlan(sources,undefined,analysis?.method==="terrain-water-v2"?analysis.focus:undefined),patches:HydroPatch[]=[];
   if(shape.displayWidth!==sources.world.width||shape.displayHeight!==sources.world.height||shape.wrap!==sources.world.wrap)throw Error("The drainage source does not match its World coordinates.");
   patches.push({...plan[0],grid:createGrid(root.document.baseElevation,root.document.tiles,shape)});
   let done=0,offset=0;const jobs=plan.slice(1),total=jobs.reduce((n,p)=>n+p.width*p.height/1024,0),cache=new TerrainDetailCache(async()=>{throw Error("Drainage uses explicitly pinned batches.");},1024);

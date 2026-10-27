@@ -1,12 +1,14 @@
 "use client";
 import {useState} from "react";
 import {GuidedField} from "@/components/field-guidance";
-import type {useTerrainHydrology} from "./terrain-hydrology-client";
+import type {useTerrainWater} from "./terrain-water-client";
+import {WaterSystemControls} from "./terrain-water-controls";
 import type {HydroEdge} from "./terrain-hydrology";
 import type {TerrainFrame,TerrainViewport} from "./terrain-refinement";
+import type {MeasurementPreferences} from "./terrain-units";
 import styles from "./terrain.module.css";
 
-type State=ReturnType<typeof useTerrainHydrology>;
+type State=ReturnType<typeof useTerrainWater>;
 function viewFrame(state:State,view:TerrainViewport|undefined,selected:TerrainFrame,scope:string):TerrainFrame{
   const world=state.sources?.world;if(!world)return selected;
   if(scope==="world")return {x:0,y:0,width:world.width,height:world.height};
@@ -14,7 +16,7 @@ function viewFrame(state:State,view:TerrainViewport|undefined,selected:TerrainFr
   const width=Math.min(world.width,view.right-view.left),x=world.wrap?((view.left%world.width)+world.width)%world.width:Math.max(0,view.left),y=Math.max(0,view.top);
   return {x:world.wrap?width===world.width?0:x:x,y,width:world.wrap?width:Math.max(0,Math.min(world.width,view.right)-x),height:Math.max(0,Math.min(world.height,view.bottom)-y)};
 }
-export function TerrainHydrologyControls({state,editable,selectedFrame,viewport,onMap}:{state:State;editable:boolean;selectedFrame:TerrainFrame;viewport?:TerrainViewport;onMap:()=>void}){
+export function TerrainHydrologyControls({state,editable,selectedFrame,viewport,onMap,preferences}:{state:State;editable:boolean;selectedFrame:TerrainFrame;viewport?:TerrainViewport;onMap:()=>void;preferences?:MeasurementPreferences}){
   const [scope,setScope]=useState("source"),[areaText,setAreaText]=useState(""),[version,setVersion]=useState(0),[draft,setDraft]=useState<{key:string;name:string;kind:HydroEdge["flowKind"];reason:string;protectedEdit:boolean}>(),[rawVertex,setVertex]=useState(0);
   const frame=viewFrame(state,viewport,selectedFrame,scope),defaultArea=Math.max(1,frame.width*frame.height/2000),requestedArea=areaText===""?defaultArea:Number(areaText)*1e6,validFrame=frame.width>0&&frame.height>0&&frame.y<(state.sources?.world.height??Infinity),validArea=Number.isFinite(requestedArea)&&requestedArea>0&&requestedArea<=1e18;
   const shown=state.selectedPreview?state.preview:state.layer,edge=shown?.edges.find(e=>e.id===state.selected),from=shown?.nodes.find(n=>n.id===edge?.from),to=shown?.nodes.find(n=>n.id===edge?.to);
@@ -25,6 +27,7 @@ export function TerrainHydrologyControls({state,editable,selectedFrame,viewport,
     <p>Follow the saved land to suggest rivers, then choose what belongs in your World. Waterways have their own authoring and history; they never carve or repaint your terrain.</p>
     {!state.remote&&<p role="status">Loading water authoring...</p>}
     {state.remote&&!state.remote.available&&<p role="alert"><strong>MIGRATION 0141 REQUIRED</strong> to save waterways. You can review temporary drainage; existing terrain and artwork remain available.</p>}
+    <WaterSystemControls state={state} frame={frame} minimumArea={requestedArea} onMap={onMap} preferences={preferences}/>
     {state.stale&&<p role="status">Terrain has changed since these waterways were analysed. Existing routes stay in place. Suggest rivers again and deliberately accept the changes you want.</p>}
     <label><input type="checkbox" checked={state.viewShown} onChange={e=>state.setViewShown(e.target.checked)}/> Show water overlay</label>
     <label><input type="checkbox" checked={state.previewShown} onChange={e=>state.setPreviewShown(e.target.checked)}/> Show temporary river suggestions</label>

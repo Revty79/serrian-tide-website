@@ -1,0 +1,25 @@
+# Stage 3 Pass 3B - connected water systems
+
+Start from published `7a875e49411eceaab29e5876f9a3c2a462ca4032`, with a clean main checkout. Pass 3A's complete production/database/browser chain, 2,407 units, immutable history, conflicts and recovery passed. Its exact mesh, D8 routing, source loading, API and independent water revisions are the foundation. Terrain artistic quality remains rejected/deferred. The new owner brief explicitly authorizes unattended implementation and origin/main publication, superseding only 3A's stop before this pass. No shared DEV/Production operations, deployment, owner-server restart or Pass 3C.
+
+## Extension contract
+
+Extend the existing version-1 water envelope with an explicit optional `systemVersion: 2` extension for lakes, lake ports, geometry overrides and retained catchments. Old documents and pending requests must parse and retry byte-semantically unchanged; do not add default properties while reading old history. New extension fields require the extension marker. Once a head contains the extension, a new save cannot silently downgrade it; an exact deliberate historical restore remains supported. Existing JSONB heads/history and graph ownership suffice, so no new SQL migration is planned. Migration 0141 remains a prerequisite and remains immutable. Verify that decision with compatibility, stale-writer, retry and populated upgrade tests.
+
+Lake identity, rings, one uniform water level, provisional wet/dry assumptions, terrain pins, protected/manual overrides and explicit inlet/outlet nodes belong to the same atomic graph. Inlets have an implicit directed connection through the lake to its single optional outlet. Include those arcs in cycle validation. Closed lakes have no outgoing lake arc. Removing a lake detaches its ports into explicit reviewable river endpoints and preserves every unrelated course. Shoreline/level changes preserve identity and flag affected ports for review.
+
+Use a deterministic priority-flood calculation on the existing nonoverlapping mesh for potential spill levels and escape paths. Original heights and 3A's unfilled receivers remain untouched. Potential impoundments are not permanent lakes; default suggestions remain provisional, with deliberately chosen levels and closed/spill alternatives. Local shoreline contours use accepted numerical sampling, bounded marching squares and shared physical coordinates. They never derive relief from imagery. Explicitly report analysis spacing and bounded contour resolution.
+
+Watersheds trace receivers upstream from a selected pour point or lake coverage, with weighted physical area, terminal classification and parent drainage destination. Boundaries and shading are independently visible geographic information, not material edits. Local requests retain coarse far-field context rather than loading every unrelated refinement at full resolution. Camera changes never change accepted geometry or trigger reanalysis.
+
+## Creator and safety workflow
+
+Keep concise Water controls in the existing optional inspector. Add lake drawing/selection, suggested lake acceptance/rejection, shoreline/level editing, source/control-point insertion/movement/removal, explicit river joining/splitting/disconnection, lake inflow/outlet connections, connected-network inspection, width overrides and watershed review. All authored changes use the existing separate undo/recovery/save path. Natural-flow feedback is guidance; described fictional exceptions remain possible without permitting incoherent graph cycles.
+
+Render accepted lake surfaces after terrain/material painters, preserving ground beneath. Keep stable World geometry across five appearances, wrapping and refinement-source switches. Smooth line joins only within bounded geographic uncertainty, distinguish automatic symbolic width from physical creator overrides, and retain exact junction positions. Terrain revisions flag affected source-dependent objects and offer deliberate focused review. Terrain saves never wait for water approval.
+
+## Validation and publication
+
+Test numerical basins/spills/contours/areas, multiple inflows/outlets, explicit closed lakes, wrap/refinement continuity, graph cycles, invalid geometry, editing and deletion. Exercise real save/reopen/history/conflict/interruption, old 3A documents, roles and privacy. Capture actual completed map views, connected mountain/lake systems, watershed and desktop/native touch. Measure before/after worker/memory/input behavior with GPU disabled. Preserve failed attempts. Run complete relevant root/build/unit/migration and existing Atlas/Worlds/gameplay regressions in newly owned disposable environments, publish the completed pass and stop for review.
+
+Algorithm references: [Barnes, Lehman and Mulla, Priority-Flood](https://arxiv.org/abs/1511.04463) and [Esri watershed definition](https://developers.arcgis.com/rest/services-reference/enterprise/watershed/). These describe the analytical basis; no paid service or external runtime is used.
