@@ -1,8 +1,9 @@
 import {hydroIdentity,hydroLayerSchema,moveHydroPoint,pruneHydrology,type HydroLayer,type HydroPoint,type HydroGeometry,type HydroSources,type WaterFeature} from "./terrain-hydrology";
-import {waterDx,waterPoint,insideWaterRings} from "./terrain-water-geometry";
+import {waterDx,waterPoint,insideWaterRings,waterBounds} from "./terrain-water-geometry";
 
 export const specialWater=(layer:HydroLayer):HydroLayer=>({...layer,systemVersion:3,features:layer.features??[]});
-export function waterAuthorPins(sources?:HydroSources,points?:HydroPoint[]){const relevant=sources?.sources.filter(s=>!points?.length||s.level===0||points.some(p=>{const x=sources.world.wrap?((p.x-s.frame.x)%sources.world.width+sources.world.width)%sources.world.width:p.x-s.frame.x;return x>=0&&x<=s.frame.width&&p.y>=s.frame.y&&p.y<=s.frame.y+s.frame.height;}));return relevant?.map(s=>({id:s.id,revision:s.revision,lod:0,contentHash:s.contentHash,spacingX:s.frame.width/s.gridWidth,spacingY:s.frame.height/s.gridHeight}));}
+export function waterAuthorPins(sources?:HydroSources,points?:HydroPoint[]){const box=sources&&points?.length?waterBounds(points,sources.world):undefined,relevant=sources?.sources.filter(s=>!box||s.level===0||s.frame.y<=box.y+box.height&&s.frame.y+s.frame.height>=box.y&&[-sources.world.width,0,sources.world.width].some(offset=>(sources.world.wrap||offset===0)&&s.frame.x+offset<=box.x+box.width&&s.frame.x+s.frame.width+offset>=box.x));return relevant?.map(s=>({id:s.id,revision:s.revision,lod:0,contentHash:s.contentHash,spacingX:s.frame.width/s.gridWidth,spacingY:s.frame.height/s.gridHeight}));}
+
 export function nearestRiverPoint(layer:HydroLayer,riverId:string,point:HydroPoint,world:HydroGeometry){
   const river=layer.edges.find(e=>e.id===riverId);if(!river)throw Error("Choose a saved river first.");let distance=Infinity,best=river.points[0];
   for(let i=1;i<river.points.length;i++){const a=river.points[i-1],b=river.points[i],sx=waterDx(a.x,b.x,world),sy=b.y-a.y,x=waterDx(a.x,point.x,world),y=point.y-a.y,t=Math.max(0,Math.min(1,(x*sx+y*sy)/(sx*sx+sy*sy||1))),d=Math.hypot(x-t*sx,y-t*sy);if(d<distance){distance=d;best=waterPoint({x:a.x+t*sx,y:a.y+t*sy},world);}}
