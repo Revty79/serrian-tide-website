@@ -1,0 +1,1064 @@
+{
+  "files": [
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/accepted-heightmap-desktop.png",
+      "bytes": 963605,
+      "sha256": "44a67a1f35af17f41818d433c44a0c245cf36ac8c55315b6f747accc8a50bc2b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/adjacent-nested-wrapped-illustrated-fantasy.png",
+      "bytes": 98200,
+      "sha256": "fd93daee3e7af2ec40470c66f82efb5320517675940ff7e3f3d7fd66f9cce20a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/adjacent-nested-wrapped-topographic.png",
+      "bytes": 100627,
+      "sha256": "358092e899df20175e15a78f69b59acc459f1dacfb35db4ea8e2e132d0cfb5fb"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/appearance-migration.json",
+      "bytes": 390,
+      "sha256": "bb61936dbd8d3ff0c26a54a5d9a3791a88804686b3b06852039294bc9ec5d619"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/appearance-persistence.json",
+      "bytes": 672,
+      "sha256": "0163c8a4f2044a10c39e7824d2fe6273bc16301a777b842839d4548201fc8332"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/area-5000-square-km.png",
+      "bytes": 143514,
+      "sha256": "3b96a6e29445ae44ea231df34e600154c1303f3de655f83cf7984a08fefb415c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/area-desktop-64-points.png",
+      "bytes": 195876,
+      "sha256": "a0b1a0c7e67cf0987bab58a989e269ac396fde466998aeafdca74a19e0ad1b12"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/before-island-topographic.png",
+      "bytes": 144390,
+      "sha256": "587c5d2b64a0014933691b324a0961ce6a0dc3c88c35a68194a0544a6d8dbf83"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/before-world-cartography.png",
+      "bytes": 118990,
+      "sha256": "8bb7c4242287d70c0edb2233020168b23c99c1cbd9191bdcb93e18bf6c10b626"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/cartography-390-map.png",
+      "bytes": 67499,
+      "sha256": "1d13bd10962a3e7e1176eae852c36e6814c5995382999efec2e8365fdd585fff"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/cartography-390-settings.png",
+      "bytes": 51532,
+      "sha256": "db23378ea2165d60059c2501cbb2fe0b0d1674e919557cd86751c9ee7a413e9a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/cartography-820-map.png",
+      "bytes": 97509,
+      "sha256": "05503b7e4d35bc21a7e74947bf6ff76fd90d45991f4a5e9e1de5d871377a1f5e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/cartography-820-settings.png",
+      "bytes": 87254,
+      "sha256": "f0ea1adf8bc939f76ab9d1350f61a3822366ef99543afda727a84b8c0d8e526c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/cartography-browser-results.json",
+      "bytes": 1761,
+      "sha256": "c74b247242dc5ae9d185ca429939e55ca2d8bea2e4cc32bb9c65e67b0b14929a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/cartography-core-progress.json",
+      "bytes": 1761,
+      "sha256": "c74b247242dc5ae9d185ca429939e55ca2d8bea2e4cc32bb9c65e67b0b14929a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/cartography-devices.json",
+      "bytes": 522,
+      "sha256": "1b9ae00714fd1ca42a02083ba3a590b937cfd678ded1b1daeee49d7f8762da31"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/cartography-workflows.json",
+      "bytes": 1812,
+      "sha256": "5fe6d684a0421c207e23af659f2ae66993f09a49b3c66d8d774f0e546191ad63"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/colossal-million-km-wrapped.png",
+      "bytes": 74975,
+      "sha256": "f9068935373547cf97892cb125c9eb502a0b92c228bd5841829f7ebcbccfa6b6"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/cosmology-phone.png",
+      "bytes": 442991,
+      "sha256": "807bf79ee808dad5bc8f82d361b80698b0ffbc6faa1d1ffb5bd61ad42ebb0420"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-390-map-and-ruler.png",
+      "bytes": 48409,
+      "sha256": "0bab7af2095c3c9a29c94edb793a6fefe3f82101888c570e6b7bedf55b2a0e66"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-390-settings.png",
+      "bytes": 48830,
+      "sha256": "7b7f2942b26e3f703be269613e2674c820d2a74e90f240c6d84968b58434350f"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-820-map-and-ruler.png",
+      "bytes": 69138,
+      "sha256": "51aaffd5e4e1ac209a7fc5869c31d313b1a3f076cccc4697a5001177c2df4f2d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-820-settings.png",
+      "bytes": 74952,
+      "sha256": "a60319c08c5ca548cf59c7d53860d73f33c5df47553b38d94e62fa788dbf78d7"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-preview-illustrated-fantasy.png",
+      "bytes": 261518,
+      "sha256": "0a88d3e96dabfbc355a4cce6c4f3cb5742d9be676c34a0d4e9e7e5526e128fb5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-preview-topographic.png",
+      "bytes": 283044,
+      "sha256": "4d9a7edb9a53d6d29cf21cee214a4baf11d91fa85d43121eb9895f4afa72ac6b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-refinement-preview.png",
+      "bytes": 102056,
+      "sha256": "bd3ccfd8c0eebbc909b27b4d4b3e4a433b2f4c7a617d45cd4a00557460f81d2a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-refinement-reopened.png",
+      "bytes": 113247,
+      "sha256": "99a3c2b02b514a8da7bdfa4f1bbdc7329bc38e1877a561917f5da938e65c98ff"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-world-first-preview.png",
+      "bytes": 202585,
+      "sha256": "ecccd82289a7cc3009ebd42a02db5cf5267943a92ada9a423424887705f23ca8"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-world-reopened.png",
+      "bytes": 1001824,
+      "sha256": "f0b7ff708403a90902741ad92a342388df354bc6c3f7009c786821a5c17ce262"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/described-world-variation-preview.png",
+      "bytes": 201035,
+      "sha256": "b9d1f4dd64a6cd0d76804f6233d4aa9e712e5159acba3299fb4892afbd1529dd"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/description-browser-results.json",
+      "bytes": 495,
+      "sha256": "a9f3fc354e6a055c73744613b8c2b134d30b329ae5750289fd8d2ffb04300e5b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/description-devices.json",
+      "bytes": 683,
+      "sha256": "e4c69fdd90b8807133e7111a914d4a02d4a24b4bc02fdcc2d2bcc50f29b6db0e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/description-persistence.json",
+      "bytes": 287,
+      "sha256": "a1197cb59c02cbfc8f4d46c88ae43619ada7d9bad3ce1eb94a23fee0a8709f23"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/description-refinement-results.json",
+      "bytes": 538,
+      "sha256": "2f74740cd40f292db745fc54135c26d4559c812b93f04a664d968990ce540480"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/expanded-desktop.png",
+      "bytes": 118757,
+      "sha256": "97486b9c1b0958102311120ec293bf3c933d0a1eebf7b6e75fde712bdec1ec84"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/expanded-measure-settings-open.png",
+      "bytes": 94357,
+      "sha256": "e439de9a5f139bf7a0dec36b12b7ea1b1da9c3bfed44e7b098ab25ad7156cd2d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/expanded-phone.png",
+      "bytes": 50193,
+      "sha256": "caede9c6d5a415462ee00bfe1f25110662c8502c878d41a0cdb3f953b1e5c6a4"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/expanded-settings-closed.png",
+      "bytes": 51197,
+      "sha256": "a30c68ad69606330111837e6b7ed404edb0a60674449b99b0fb7983a52857cd6"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/expanded-tablet.png",
+      "bytes": 80452,
+      "sha256": "b19d96058e1337822d2c38156f155ead538a91df5fb0b9405231743d463fe29c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/extreme-explicit-physical-adjustment.png",
+      "bytes": 172983,
+      "sha256": "94bd2b6d113cd8f86322a521553a0526aba79a6f4bff55509c4c55144e58c3fe"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/extreme-grid-is-not-terrain-detail.png",
+      "bytes": 174990,
+      "sha256": "59a820d789dd8033deb0be80201068e80bb0873c1f97e480716cb8aa45075109"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/extreme-million-km-resolution-feedback.png",
+      "bytes": 100786,
+      "sha256": "e74dc955a7170d9bb9a527f4fe83a4c7f5428f4099bf51aad1bb1a04ad771da6"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/extreme-million-km-world.png",
+      "bytes": 47246,
+      "sha256": "2936c6ebc003616fffd0367098af41909a2a9f29a23483f4251ee2fad042ab3e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/extreme-two-metre-ruler-and-grid.png",
+      "bytes": 120653,
+      "sha256": "4db81f81fa89df29b6b5eca91229ec843eb9766fe8407a9ab5eba4c270eca2b6"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/fine-island-reopened.png",
+      "bytes": 101868,
+      "sha256": "53fa02bbfccc6865f9c01cbd051b27f41d57eaadb4dafc39329905273cd95f80"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/fine-island-return.png",
+      "bytes": 98554,
+      "sha256": "014b14a281bbff5fb687d43d746cb43fd1b744d9278a3c8909a099b370339ad5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/fine-island-sculpted.png",
+      "bytes": 97093,
+      "sha256": "182421f74b55afd6e5e54f97ad66dd1162e51b550a88f7df63e9ebb1ef1aac81"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/fine-island-world-context.png",
+      "bytes": 91375,
+      "sha256": "72a37af4946965aa93f7f12f28e0605bdef3656005f2db6aa595b35866d5f09a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/fine-regeneration-world-frame-preview.png",
+      "bytes": 66697,
+      "sha256": "047a014e0da0d3317aadc183881e6aa160ec72c0df223901c79d6242e8e5d204"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/fine-ridge-world-frame-preview.png",
+      "bytes": 77088,
+      "sha256": "417085e4d56a3336a2454adf48612af74c2a0807cb9c43892707cf3453129faa"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/fine-valley-world-frame-preview.png",
+      "bytes": 75508,
+      "sha256": "81919d751457e80813513f3e4bf6027def7c81aa29ba12bbbc9d14dbea871b6d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/generated-preview-illustrated-fantasy.png",
+      "bytes": 127161,
+      "sha256": "02abf1966f0499767f326acef95483a5d37f7a0328106c1db7855fa2736d14c5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/generated-preview-topographic.png",
+      "bytes": 135257,
+      "sha256": "3dec5eadc1dada97442474b184b65dfc7aa68e473f26ac0ff41e354ffd70784a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/generation-phone.png",
+      "bytes": 251723,
+      "sha256": "9ecb214d67e19e14ed36a7b07f845cc1d9603474e6617f04a7c2763584bf2957"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/heavens-after-retirement.png",
+      "bytes": 1079438,
+      "sha256": "0b42cd7cdcc84fc664d2471f8990664185cab6d3b04c77ac1b07e8249a20d6e7"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/heightmap-16-preview.png",
+      "bytes": 752553,
+      "sha256": "d0c2de7fe1ddf317418bf2fbc5015e8502820a879fa6bdfe2379d7f849a88850"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-390-native.png",
+      "bytes": 187524,
+      "sha256": "136547f226d550f90818207792a3fee319eeba5e0efcc8baef5c9289fb3d5cb4"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-820-native.png",
+      "bytes": 288109,
+      "sha256": "ef58570387153d8d9aa281bb82de153a623099171ce294028d4868804d019317"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-admin-read-only.png",
+      "bytes": 117790,
+      "sha256": "2a37aab69f1797761b73aeca465494fd1ffff1bb6b655d8eb2d9b2061afca6b8"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-browser-core.json",
+      "bytes": 832,
+      "sha256": "8a90f70c0c44fc0474900a008755a650203c2f1d09f83bcbb783ed71a14e4630"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-browser.json",
+      "bytes": 832,
+      "sha256": "8a90f70c0c44fc0474900a008755a650203c2f1d09f83bcbb783ed71a14e4630"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-classic-elevation.png",
+      "bytes": 129786,
+      "sha256": "9a05438ac0e2a066d946ab3217c782b647fdad0b4b7cbf194c196219376183c7"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-close-up.png",
+      "bytes": 767580,
+      "sha256": "329106e8c65836205bb3d043b0d8265a08afba0cc22d70d363d7153f6c9af632"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-database.json",
+      "bytes": 711,
+      "sha256": "60450ed182dbc67ff6e8e74258ab7dba7d9e117783bfe163d7e722ac2e023421"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-devices.json",
+      "bytes": 522,
+      "sha256": "d0f7823f50b583c51b384b50713f28513e7517a81e4b31fde05580f31f69f157"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-fine-river-close-up.png",
+      "bytes": 165102,
+      "sha256": "4c16e5887f9250910fd0da2492ef3112554eb3fd92f0bcbb44203c54ee0047cb"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-illustrated-fantasy.png",
+      "bytes": 217732,
+      "sha256": "c1cbe5e4085bddf0ff987fc10f3bae13a30206688f8a4a97856dc107c6c633d3"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-imagery-water-hidden.png",
+      "bytes": 157401,
+      "sha256": "d83fad17b132adbaf8cb65c85228a21426a7c8c82a3991ad9868239bebe8144c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-migration.json",
+      "bytes": 362,
+      "sha256": "f0322d1d986cd9e9cdc5287bc2000e792127cc56cc740d7bb3c68fa2811bd792"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-million-km-fine-island.png",
+      "bytes": 81121,
+      "sha256": "cd2cd09f2abbbfcd357232f51af332cfe4a90f3a29c655bc9326ddf8c94cc718"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-million-km-world.png",
+      "bytes": 63030,
+      "sha256": "16e44929a8ee9f538fac9a8fc70c3ebb72df18249af9c92d9840d91d544b257b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-performance.json",
+      "bytes": 1312,
+      "sha256": "15b1cafe4b4f1ac3aa9816addbc2052e4ebbf0110b2cd06ae3882ad50d48db81"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-physical-relief.png",
+      "bytes": 134088,
+      "sha256": "ce6bb7f17f41eeaadd85460341c7b058558bd4f18ba861a4bbbe31785937464e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-realistic-terrain.png",
+      "bytes": 190282,
+      "sha256": "7f5dcbbd906ecda92b38bed5edf6ee24d37aa9d8de03850303d5f91b5b04e972"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-regional.png",
+      "bytes": 367118,
+      "sha256": "246a75403179ac06056d23f05f4c345cafa38c2c464285ecd915d0137125440c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-reopened-reviewed.png",
+      "bytes": 191446,
+      "sha256": "2326d5842bc91e4828092a50841116d88ab0d740f5fb6d0d5145954300939cac"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-topographic.png",
+      "bytes": 298599,
+      "sha256": "0edd0062fa7f51ae01db27076f7a36e615488de47c01aed1f87048145f83de8c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-workflows.json",
+      "bytes": 339,
+      "sha256": "edff5cc2baf37b11c8d88b8b23f6d6e5d74d88a88a251e75f8cca69d3fa69863"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-world-accepted.png",
+      "bytes": 129786,
+      "sha256": "9a05438ac0e2a066d946ab3217c782b647fdad0b4b7cbf194c196219376183c7"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/hydrology-world-suggestions.png",
+      "bytes": 691779,
+      "sha256": "d768973a5121c18dce74a9f8e07fb1221df21054591317948fcc6c8b3bc7e019"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/inherited-refinement-preview.png",
+      "bytes": 85770,
+      "sha256": "479d9240e6add7566f5473ce0f77c52c22192d8ff8a9942bc034c34382a63859"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/integrated-browser-progress.json",
+      "bytes": 398,
+      "sha256": "576f60179cf4bfb55ca1970cf27e919915f746ec74ead23055f2cabe574ce948"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/largest-generated-preview.png",
+      "bytes": 639331,
+      "sha256": "614c7a83129acf42a08fb35dbcf4172fe65c6855436aa5a17f7c1fc6cc9dc2e9"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/local-illustrated-fantasy.png",
+      "bytes": 324354,
+      "sha256": "e1c3319bbc8957c916a98abe6d140688ac66905f9b76adf20400f3ad86c2645f"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/local-topographic.png",
+      "bytes": 364941,
+      "sha256": "08cfdd445d6e95047c48b8726135f6f305737db23150ebaae001e66a088bdb4c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/long-path-desktop.png",
+      "bytes": 227005,
+      "sha256": "064dc2d425e4d629964ba602618bf266fff650adfdf963791486792b5517fbed"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/material-migration.json",
+      "bytes": 373,
+      "sha256": "4897de13537dded37a8a06568604dcddb801fa9153d0651579eb3d4b90c93ca1"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/material-persistence.json",
+      "bytes": 708,
+      "sha256": "2ecc51ea5f408a530c7b8f0f745d528521a72b17fa7ed189748fcc203908f468"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/measurement-grid-desktop.png",
+      "bytes": 147208,
+      "sha256": "4da76c0c6e851f8ed74f728c2d633de36ed01736993ff639c04b9f75978cd705"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/measurement-phone-expanded.png",
+      "bytes": 43327,
+      "sha256": "36fd91c840e04d86b93712a4a3b937bf2080d1c026a10fe0471b43c672eaeb13"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/measurement-tablet-expanded.png",
+      "bytes": 51859,
+      "sha256": "3ebb98bc6da6b46e77dd193a3e1979126bf8c637d77116b8c39124e066a580aa"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/migration-rehearsal.json",
+      "bytes": 430,
+      "sha256": "1683a947f9b9ce7622ec29365852f2c30756503bca4fe75aa30a5930f723c20e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/million-km-illustrated-fantasy.png",
+      "bytes": 112866,
+      "sha256": "717fee88be63ddba59ea030e3ea2b9508aa79b5a2f17f83748bd80fb8a99753d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/million-km-topographic.png",
+      "bytes": 119682,
+      "sha256": "b8a7f5f73810a2f6674e59036654e80fdb6f75f633c91cc5cb5c505013cfd493"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/overview-desktop.png",
+      "bytes": 765574,
+      "sha256": "8228e8473494d984ad96d2ac83589aeb94c457bf7087bc8a394ce6e43347c52d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/overview-phone.png",
+      "bytes": 288825,
+      "sha256": "3073c2a000cdda7114aaf86385982b0cc64d400c149fb38b8cd27151560a3108"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass2-results.json",
+      "bytes": 1188,
+      "sha256": "e8c90fd17b39916e2210b2878fa58a66348d8e91069585f4976c2c6a57535e24"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass3-results.json",
+      "bytes": 746,
+      "sha256": "76b76346a8d9dd43cc5da844d4c4be168ebf7e2e655fe775dc576984a6fde790"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass4-results.json",
+      "bytes": 1837,
+      "sha256": "0a8aa9dd8431d3fafaf007b47a3a4f2a515c6b52b014be6fc40f488b4cd5dcfa"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass5-results.json",
+      "bytes": 2358,
+      "sha256": "5f377bfd5f9f94cff66cfd982f6075952a6f2c89075feeaa2db1cddadeaa230a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass6-desktop-performance.json",
+      "bytes": 941,
+      "sha256": "3c7d6f5dbda726474a0b18f50cd4d8786d01e49ecfac89f1f670f0ba0b4ddeb5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass6-devices.json",
+      "bytes": 1880,
+      "sha256": "3e426d28818c4874c12afa42aeb6aff5dd746e41954bfe314f71f4b78d9688f5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass6-results.json",
+      "bytes": 1266,
+      "sha256": "ee63b61d7cd0e5f1d3ca876d906539141272c0270351adc17405a2f330e422b7"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass7-input-results.json",
+      "bytes": 844,
+      "sha256": "78d98d8e9915dad3a5ad7e918229cfa94d71622c3e8e07d7e63156b0f1a7ba88"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass7-performance-results.json",
+      "bytes": 833,
+      "sha256": "8e2427007793d279338cc2c95d73464c2176d8509f1033a6891d6159053847f2"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass7-recovery-results.json",
+      "bytes": 265,
+      "sha256": "552bde5c9f0e844c8c2ec05946bf2025f6592d644b63ac9c494a46bc7602c3d5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/pass7-tools-results.json",
+      "bytes": 336,
+      "sha256": "98812df76480b6b147c0ef946c8476fe17ab42d27c9a92f26f76122a58251ec0"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/persistence-foundation.json",
+      "bytes": 893,
+      "sha256": "5d93eb9e148146c9ddf2078451a2d74131f2edce57f297de4dd1c9601840f417"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-40000km-feedback.png",
+      "bytes": 95995,
+      "sha256": "b7963809608ff86103fbc1293ada93a011e243740fa1a7ec61f49f30bfc5e1cc"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-circle-unequal-spacing.png",
+      "bytes": 116815,
+      "sha256": "b63bcff1bf878760d9530c738790be4b6e116dc6403b19e2bf4a223672ef00b0"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-continent-10000km.png",
+      "bytes": 93500,
+      "sha256": "2622f0d08a272aea9d5699054bb61cce8ef9e8b7582b1915617d23c97a99fc81"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-continent-40000km.png",
+      "bytes": 52108,
+      "sha256": "d2d2ae4ae43c91da8201cc4fc65680fd8a12fad1bd00ca7c08dac91b54a6fdcb"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-controls-phone.png",
+      "bytes": 46963,
+      "sha256": "3440125be8a208c7a70c969689b7ed66fde780a13e2b109f206c7a1b31aa9006"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-controls-tablet.png",
+      "bytes": 64318,
+      "sha256": "25a4a2426379e2538b3767671ca219fa7640cfbf24a26cc42ba3603e86045c6a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-preset-archipelago.png",
+      "bytes": 54418,
+      "sha256": "42afbb8918f6f5dc17ff47ce1528c4b233226a71171d61d28589f864d6d127eb"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-preset-continent.png",
+      "bytes": 52108,
+      "sha256": "d2d2ae4ae43c91da8201cc4fc65680fd8a12fad1bd00ca7c08dac91b54a6fdcb"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-preset-continents.png",
+      "bytes": 65437,
+      "sha256": "a191e4fad72ea69df65ceea136d4c6eb22a133189cef5ea6553240fc522a35fd"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-preset-island.png",
+      "bytes": 47648,
+      "sha256": "c409ea83ea5fbe92a0d6c1c5a85fa59de1e8aa3505ebada70cb1659a97faeb1b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-preset-land.png",
+      "bytes": 115267,
+      "sha256": "b6229206306d9569b8fb33a73ab9d95be19c8649023138f8a8fa734d96e95234"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-preset-random.png",
+      "bytes": 52269,
+      "sha256": "d29fd3f33a610fde7cce82dacb2a801f699f3f8562cc432eff0e6c70fafaa0de"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-preview-phone.png",
+      "bytes": 48334,
+      "sha256": "c5557fd77610ac3dc129091e004b99cf19cd6c1782aaba2a730f257bb1363448"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-preview-tablet.png",
+      "bytes": 71592,
+      "sha256": "10fcb4e61b878022ed3d75fb867abfec39434eb73d369ec323984fc3c920ee2b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-rectangular-world.png",
+      "bytes": 94777,
+      "sha256": "ed189e1feeec0c7303f01b392aeea2ae0f99e3f47649868b665ee005fe54a936"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/physical-ridge-preview.png",
+      "bytes": 57424,
+      "sha256": "c64f48c13e3d52b900c291d5cfd3e73bda3411bd01c545162c786307caaf4912"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/plateau-and-transitions.png",
+      "bytes": 53541,
+      "sha256": "eb75a4895249b8d52cba9a74ababa4a046053182263aa4c4d5633121475b84c2"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/preset-archipelago.png",
+      "bytes": 299659,
+      "sha256": "50ce2d9a62372096c9c5087858bf43e1b78cb7a9c2e446d4bed39178b0269c34"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/preset-continent.png",
+      "bytes": 295030,
+      "sha256": "ab8ef67a18e2bb8e8ea34c259ffc5155a473997718eb09f339aebc5823daa69c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/preset-continents.png",
+      "bytes": 301132,
+      "sha256": "a9d7fdbbb6786abd39463826fd552df744c3ded8878fae50410471fb83b74e51"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/preset-island.png",
+      "bytes": 281227,
+      "sha256": "908837659b5f6a105364dbf6714aa505c2c303a8e662d0e730068f05f89c8490"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/preset-land.png",
+      "bytes": 324547,
+      "sha256": "d66b7f8108250156762fc865b4cdada441c94dfe9affa95b49e03f9b0f065112"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/preset-random.png",
+      "bytes": 310512,
+      "sha256": "b1ab47d97d64d86ae25abe7becf826204191b700c8ea731af3a50a5019b13a0b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-390-native.png",
+      "bytes": 510423,
+      "sha256": "4e68bb3d4cc563401d604e291fb739606c53c749ba75e934731a94c62bbca4fd"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-820-native.png",
+      "bytes": 1665978,
+      "sha256": "9f478c74728a7aa60a67151ab73a43449804c9f3a0eddeec7f7def4c6cc8ba05"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-adjacent-nested-wrapped.png",
+      "bytes": 59075,
+      "sha256": "bf05da70d4a726cf7873a2c10e980847087aba710e411571ef77b0ee62f84fd9"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-artwork-recovery.png",
+      "bytes": 67892,
+      "sha256": "ae56394e8ad7a9b2ada2831ccd0b11f110871bb538a96243903f857cc4bdaa2e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-coastline.png",
+      "bytes": 643590,
+      "sha256": "9c542de8f0e863e8727ebb24e9496b82b38f1c27e3b57a5f0c1f073942f4669c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-described-preview.png",
+      "bytes": 273882,
+      "sha256": "8e25aeafef57a997a2cc0176231c345020c012b1129c0e7d1d610c4688bd5bd8"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-generated-preview.png",
+      "bytes": 91004,
+      "sha256": "3baed9244a187c0afa19f3fb70cfa4b7c8950890d52955ffed8e036d0d64b047"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-island.png",
+      "bytes": 129941,
+      "sha256": "d49a18c6dfbc9ce1b8bb5bd6e21d7b58a49b3824e92586587d4fc24bbd71ee50"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-material-erased.png",
+      "bytes": 512934,
+      "sha256": "a2819d4ed7d6ac5b45f56d8f9223299bed636c3d55b3a49bab377d00b978d395"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-material-painting.png",
+      "bytes": 512930,
+      "sha256": "75c14e7ce37001981e7fd2330c72a3c3586746cf8c4fc55fa8d632ffc522dd6f"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-material-reopen.png",
+      "bytes": 516820,
+      "sha256": "b0368c554b189f4250bacdc9978111a7ffd9914b763ac85e8239bc088740bbf5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-million-km.png",
+      "bytes": 77633,
+      "sha256": "6d1be14f9804f52b29bd76f3c2eb9cc6fd2c4855dfa646248efbfceeb75c82dd"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-mountainside.png",
+      "bytes": 1480682,
+      "sha256": "1acab8e19096c5480920f713b17483529278fd38a3ac092acab93003ad81e20b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-refinement-20km.png",
+      "bytes": 78437,
+      "sha256": "f99376891ea1fee2beccc008de04b3227ba9b9268786fa2da6966c69b1ba3b5e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realistic-world.png",
+      "bytes": 204586,
+      "sha256": "23dc54ee920548796ecc7166f3e176b98ed523ee01073eb44402126c66d3c4a2"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/realm-retained-relationship.png",
+      "bytes": 969119,
+      "sha256": "bda380f050da95d22a8271e93996e299475d4cd18ec7e7461c07a893d7c6b845"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/refinement-390-settings-open.png",
+      "bytes": 54128,
+      "sha256": "36e5272282b3bff1b24989a1f613d3bce94ef757eb6cdabd2f11be7f5233d344"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/refinement-390-touch-settings-closed.png",
+      "bytes": 58154,
+      "sha256": "b5c0f74c0cd150e158566e702052fca4834d2dc89ee20bba4e534c5cef4c22cd"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/refinement-820-settings-open.png",
+      "bytes": 110060,
+      "sha256": "0d721c838dfbe388a487278e5a8321ff81f905791d16d4f6a85322363f0ebd66"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/refinement-820-touch-settings-closed.png",
+      "bytes": 89566,
+      "sha256": "44d9a755dba8770a7472c268297112e243cf2d405d355f4372a060e761fc13ae"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/refinement-boundaries.json",
+      "bytes": 274,
+      "sha256": "96163c7da985a3d937083256499225615c352df24890de522a60130405861c11"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/refinement-conflict-retains-draft.png",
+      "bytes": 141925,
+      "sha256": "b2e7474818028969ba58aed9f9227aa87ca4c5ca3b26fb41e9df7cbd9f2b1c18"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/refinement-protected-draft.json",
+      "bytes": 58225,
+      "sha256": "4db1c1f81e6165c80fdfefebb24f4449e06b9776acbcdc299631c9d817957fc8"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/regeneration-tablet.png",
+      "bytes": 431326,
+      "sha256": "6f320169e390a2c6037c08fa322d9908166c446fb722cedbbae0c41d169b38fc"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/regional-illustrated-fantasy.png",
+      "bytes": 367265,
+      "sha256": "d25818634858f378e55d13ed91b8db5faf3421d1654e4080d518e5297a9e5417"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/regional-topographic.png",
+      "bytes": 405473,
+      "sha256": "0a3ec078316e464e28075648d6f509f87e4dec8b847a1e18b45609956ed520e7"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/relief-classic.png",
+      "bytes": 60850,
+      "sha256": "2a588bd0a8dde7c62de6ca4b68f558daf486e998040456c51c07fef9718be916"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/relief-enhanced.png",
+      "bytes": 58959,
+      "sha256": "6bb7261e7630cb5f11b6374c3e9c7b2d7c286358e593e215a783192e272282d4"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/relief-natural.png",
+      "bytes": 50531,
+      "sha256": "7eb2d2bd1923f0673c64305d373aec49ec4b1abdce8661c25d61dd351e94d297"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/residents-directory-desktop.png",
+      "bytes": 235189,
+      "sha256": "75863551fcd63f45aa75beaf06e5e1b07e8471bc9c608f6a8b1e8e773b1acc39"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/residents-directory-phone.png",
+      "bytes": 324475,
+      "sha256": "f912fd2b87492c119eaf87916d6ba19f41ac2bacd94ba9a3d6c8c287087ff24d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/results.json",
+      "bytes": 3406,
+      "sha256": "67c53e834a931ca7f97103fe5f2ca28f9394c2b1452c88dc1aeef16fbc8c3461"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/ridge-preview.png",
+      "bytes": 205747,
+      "sha256": "a8bf978c10f0eca03a93bc4e09c18dbabc97770fca7923e83329442683e34822"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/ruler-100km.png",
+      "bytes": 146462,
+      "sha256": "0f58dd6cc055c35946d0400af30554738f94351f61a9260e445b5bfd93225973"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/run-build.json",
+      "bytes": 269,
+      "sha256": "46a007fce5701e7872ccb0ffb6b85992e9160e216147c85f1dcc2903559e0886"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/sculpted-island-and-bay.png",
+      "bytes": 45141,
+      "sha256": "dba13a6923cb6d0231ed41306f973cbb7417215fe47cc5379d91e67c21ff9c57"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/sculpted-mountains.png",
+      "bytes": 55518,
+      "sha256": "84b24f869024509b803617f96df700a3443a003ab62aaefad5117e788fe6d84d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/sculpted-valley.png",
+      "bytes": 58175,
+      "sha256": "15716e9772024cfc1ebc07ffdbff27db70a4fe07c9d11dc3c42c4a9d8c91b9e2"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/selected-area-preview.png",
+      "bytes": 704084,
+      "sha256": "8f04e8542df7d1a6813387c0ab14a3f4791fd72476db7cb794e5efa582503545"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/shop-workshop-desktop.png",
+      "bytes": 213027,
+      "sha256": "f463de02ef11156a959d4a99e59d35823d997f00c1d37923314d4a9bd0d7526b"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/shop-workshop-phone.png",
+      "bytes": 63475,
+      "sha256": "cd4656306853629bd7c6c3f67e6a06eb75b754f31b1448a768cd5ade11fac71c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/source-verification.json",
+      "bytes": 1658,
+      "sha256": "ea08633e852ba26e211935fe7a4fbe604ba3a4d7e0365b4c11dd832efdb288af"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/surface-artwork.json",
+      "bytes": 226,
+      "sha256": "7c88eaf76b546542a6c0acd84cbbef44c1dc13ee659acaa938033843b1c63c3e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/surface-browser-results.json",
+      "bytes": 2224,
+      "sha256": "7b967fb32300ba059aa56d629097e6e479ac8cb2e1c6c29d425a2db8dea69932"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/surface-devices.json",
+      "bytes": 679,
+      "sha256": "8fdb74f632246efa8bab15404bc886177d06b33ed241b7bfbe6f2735d1e863a1"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/surface-integration.json",
+      "bytes": 862,
+      "sha256": "da899a5bfecae9c19d8dd21dd3cb28f7b44f80b18da35e95e0631c229d14b3ea"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/surface-workflows-core.json",
+      "bytes": 535,
+      "sha256": "298068df289ed517b705ed79763c0bf1f8fc13ffc8f79bbff0e1d8895f4457a2"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/surface-workflows.json",
+      "bytes": 535,
+      "sha256": "298068df289ed517b705ed79763c0bf1f8fc13ffc8f79bbff0e1d8895f4457a2"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/terrain-autosave-desktop.png",
+      "bytes": 633448,
+      "sha256": "6c8c91c6ee0526ea36f799d880305c2f68fb57f09ee1847105d212673144cf86"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/terrain-autosave-phone.png",
+      "bytes": 334263,
+      "sha256": "362870f2b28f754913f99b4bfcae40e9914fd44e392ac43e0b78f22e534841ca"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/terrain-conflict.png",
+      "bytes": 659423,
+      "sha256": "36d9941419a2a72553bc35d343636618d9d577ef7d4c3badc944d37a464b3030"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/town-workshop-desktop.png",
+      "bytes": 249134,
+      "sha256": "c9d6188489770e29d50eec8fe999d9dcd31037b3c4869636e9112536bfe03f57"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/valley-preview.png",
+      "bytes": 186194,
+      "sha256": "b8a9a515dc394f4f02a7ef5c74fd69b6e89b2e268fcc5140fd974d1f0c1de198"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-390-native.png",
+      "bytes": 322554,
+      "sha256": "e219b065889c310d0a0730704a60d5711a068605f146ee6f57cb4906c8246fea"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-820-native.png",
+      "bytes": 561081,
+      "sha256": "028674a65256df88d0bd3627cec0e199cac8df11e7f3b0b863dc7a653c30ee0e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-closed-lake-watershed.png",
+      "bytes": 389380,
+      "sha256": "b5dee8974428cb575dc5b7eb2e3f5fb96eaf2eb7bd6437f7146f1345ce7db211"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-connected-mountain-network.png",
+      "bytes": 411108,
+      "sha256": "dac703b684d186b8bca208d4c8e621c1860e11c854ed1ee2747d52b8f396f4c2"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-edited-river-and-lake.png",
+      "bytes": 1205511,
+      "sha256": "56c7221feb97447dbd889eb80f1e55d82a5b61ff1606ef3590f823fe556ab0b1"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-final-reopened-network.png",
+      "bytes": 2010010,
+      "sha256": "358de581acd4841b8236ece08c0f4513c023b282a4a220c4f74319710d2a4d7c"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-fine-lake-shoreline.png",
+      "bytes": 580076,
+      "sha256": "166d73c7f6bf5ed52cb9cd6278db939bb8b2368a1ae3fd3b5b3cc1e4eec892c1"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-lake-inflows-and-outlet.png",
+      "bytes": 397865,
+      "sha256": "1e946834187fd3a2c138dc0f995c02457e1e125ebfe4c8b7a7f0eebc8770e46a"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-million-km-fine-lake.png",
+      "bytes": 125723,
+      "sha256": "a0193b463a9d209deda587e3c7f0147a4a3a21ec453ee4c518a8c0f091fa2463"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-million-km-overview.png",
+      "bytes": 62960,
+      "sha256": "cac85a372b8ea71ca1af83108a994b5fd880db6e7b8df96a63a393b5425c7429"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-realistic-terrain.png",
+      "bytes": 393220,
+      "sha256": "031c7cf82c271a1d639c53356e20d1bd52cd4a0d178bcd3dbd489e97b6ee6e91"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-rivers-lakes-suggestions.png",
+      "bytes": 1591258,
+      "sha256": "448bb68cf85f2fd4c54a2f9e08fb0d6aace86bea683390a67f2a6ff4975180de"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-spill-outlet-proposal.png",
+      "bytes": 386877,
+      "sha256": "5fc04c60a48447c476fe1941b150ad409a4b72e4f7316784480c09cf5f1e3cc6"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-system-backup.json",
+      "bytes": 347,
+      "sha256": "2717a81d41793c40466c29f1226e65ad5c84c518b6ec1e07bf652e8baf9ddc90"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-system-browser.json",
+      "bytes": 907,
+      "sha256": "546d6020c828c892e0a5d520058e475eac90b6a447e4344e53761c3bb9d23fb9"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-system-database.json",
+      "bytes": 646,
+      "sha256": "f49ac04147fdcf5a48477cd7f571a6c275f621b88d61f9f9c68ce01147dd7a0d"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-system-devices.json",
+      "bytes": 439,
+      "sha256": "ade3e90b516ab988b3c5af9058d166405bc8727e518429c25feda6eb053ce3df"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-system-performance.json",
+      "bytes": 2958,
+      "sha256": "e2e807e3a756f6413e98e6ad4d01cd6af1f92722eaa84cf27406609ee678d6c5"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-terrain-review-retained-lakes.png",
+      "bytes": 2012142,
+      "sha256": "80461c6560c5b3082d2ec9a048aa0a689795164b7914a9cd0817e51a9af4a613"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/water-topographic.png",
+      "bytes": 1140458,
+      "sha256": "75fbfecfad5088cabf86208f7e5cb8f6216db0af8b12157a8c1fb022e0c48212"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/world-classic-elevation.png",
+      "bytes": 202140,
+      "sha256": "21c4e861bacbc58bf94ee7a54bd5ea320d4985679bd77cd61b13d91b171eaeb8"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/world-illustrated-fantasy.png",
+      "bytes": 178932,
+      "sha256": "5f84ccbd54d9dc971a017f4c07f2fb5f480cef05772acef64046169db8b18279"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/world-physical-relief.png",
+      "bytes": 193472,
+      "sha256": "a21895e1a3973d3983fc126926662ada7d7c83d7ed0a022a03e5862cb57136d3"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/world-topographic.png",
+      "bytes": 208397,
+      "sha256": "ae7f18dd25a8700ff61572c66fd002475c0d913e6cbee3ec3de26da96ba8a85e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/worlds-towns-shops-desktop.png",
+      "bytes": 1310093,
+      "sha256": "1e11454634cec02c1b6edac1f7dd428c42362221bbb57860a4aa7ee4d1dfe0f4"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/worlds-towns-shops-phone.png",
+      "bytes": 549534,
+      "sha256": "866bd671d5585353c53509f7cfb7261768c0cc3fa005182262eb6a707d10ef5e"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/wrapped-area-and-perimeter.png",
+      "bytes": 173241,
+      "sha256": "607dde16459f484cef8c378cca27fdd10538b8f5801a13fd3112c39a47ad2dcd"
+    },
+    {
+      "path": "docs/screenshots/worlds-atlas-s33b/full-2/wrapped-refinement-and-ruler.png",
+      "bytes": 157234,
+      "sha256": "73253cc954e6d525bca0eed503bad22fafcc407932ce62933a0378630444b3e3"
+    }
+  ]
+}

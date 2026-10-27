@@ -1,0 +1,98 @@
+{
+  "passed": true,
+  "verifiedAtUtc": "2026-10-27T02:21:52.724Z",
+  "baseline": "7a875e49411eceaab29e5876f9a3c2a462ca4032",
+  "implementation": "2d42efb7bf1235ed9ad65c4ed8d65d2a2f7c209c",
+  "runtimeSourceSha256": "6bb12b790094f3e0c5d6e9492931e1f9725f5cfecfa56883902b761b87d93835",
+  "productionBuildId": "huJ0EDERHHEssVoMsY6tb",
+  "runtimeFiles": 1583,
+  "unit": {
+    "tests": 2420,
+    "passed": 2420,
+    "failed": 0,
+    "skipped": 0,
+    "files": 302
+  },
+  "typecheck": true,
+  "lint": {
+    "files": 1988,
+    "errors": 0,
+    "existingWarnings": 1,
+    "warning": "scripts/worlds-stories-checks.ts unused LoreFamily type",
+    "finalBrowserCheckErrorsOrWarnings": 0
+  },
+  "offlineDrizzleCheck": true,
+  "fullUnfilteredProductionChain": true,
+  "focusedFinalCorrectionChain": true,
+  "existingRuntimeTablesExact": 133,
+  "migrations": {
+    "historicalFilesPreserved": 142,
+    "new": 0,
+    "prerequisite": "0141_world_hydrology",
+    "disposableUpgradeAndBackupRestore": true,
+    "sharedDevStatus": "not inspected or changed",
+    "productionStatus": "not inspected or changed"
+  },
+  "gpuDisabled": true,
+  "physicalDeviceAcceptance": false,
+  "ownerVisualAcceptance": false,
+  "terrainArtisticQuality": "rejected and deferred",
+  "ownerRuntimeParity": "not established",
+  "independentEmberApproval": "not recorded",
+  "sharedDatabaseAccess": false,
+  "productionContact": false,
+  "deployment": false,
+  "pass3CStarted": false,
+  "actualScreenshotsInspected": [
+    "full-2/water-final-reopened-network.png",
+    "full-2/water-fine-lake-shoreline.png",
+    "focused-6/water-topographic.png",
+    "focused-6/water-390-native.png",
+    "focused-6/water-million-km-fine-lake.png",
+    "focused-6/water-fine-lake-shoreline.png",
+    "focused-5/water-lake-inflows-and-outlet.png",
+    "full-2/water-820-native.png"
+  ],
+  "logs": [
+    {
+      "path": "artifacts/hydrology-3b-unit-corrected.log",
+      "bytes": 442602,
+      "sha256": "80b542cf11be685c28e5d89fd2fec6bad4c7c2a90c4c110fcd19df324872a57e"
+    },
+    {
+      "path": "artifacts/hydrology-3b-types-published.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "artifacts/hydrology-3b-lint-corrected.json",
+      "bytes": 537417,
+      "sha256": "ecc2585864d1f8cf651544b10b546d5b7134ce9aff1210c557595213a7113bd2"
+    },
+    {
+      "path": "artifacts/hydrology-3b-browser-lint.json",
+      "bytes": 243,
+      "sha256": "ec57fc2a57aa90d173d5deddaed0cf6e43e0886ced813905f481386469ff4328"
+    },
+    {
+      "path": "artifacts/hydrology-3b-drizzle.log",
+      "bytes": 458,
+      "sha256": "6979c5a8f9a015bfb6ecd4aaf222efeff8a2c0f0028dbbade165162228e86944"
+    },
+    {
+      "path": "artifacts/hydrology-3b-focused-6.log",
+      "bytes": 1700,
+      "sha256": "0961d35274576af21ca7d28d2df7f2584e72f5b00c8f6c779597f21d1df8418c"
+    },
+    {
+      "path": "artifacts/hydrology-3b-full-2.log",
+      "bytes": 19780,
+      "sha256": "c2b525bb214b97f39b75cbb2bcae747275e9ee05b5ccf7be0e29378f52a6b047"
+    },
+    {
+      "path": "artifacts/hydrology-3b-source-check.log",
+      "bytes": 3020,
+      "sha256": "f31df914475dde7add9061053b6e342b01225a507bb110eb8c411f521f72108f"
+    }
+  ]
+}

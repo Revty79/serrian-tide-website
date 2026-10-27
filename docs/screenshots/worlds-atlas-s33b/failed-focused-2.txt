@@ -1,0 +1,14 @@
+PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials
+PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles
+PASS isolated production build and migration replay
+node : locator.waitFor: Timeout 120000ms exceeded.
+At line:2 char:287
+
+Call log:
+  - waiting for getByTestId('watershed-status') to be visible
+
+    at checkWaterBrowser (D:\serrian-tide-website\scripts\worlds-water-browser-checks.ts:16:348)
+    at async main (D:\serrian-tide-website\scripts\worlds-surface-disposable.test.ts:107:5) {
+  log: [ "  - waiting for getByTestId('watershed-status') to be visible" ],
+  name: 'TimeoutError'
+}

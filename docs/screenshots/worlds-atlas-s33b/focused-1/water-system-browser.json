@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "suggestionMs": 271.1003999999957,
+  "watershedRetained": true,
+  "connectedLakeSpillOutlet": true,
+  "shorelineUndoIdentity": true,
+  "manualLakeDrawing": true,
+  "safeLakeDeleteUndo": true,
+  "manualLakeConnectionAndFeedback": true,
+  "extendedLostResponseRecovery": true,
+  "extendedConflictExport": true,
+  "oldAndExtendedHistory": true,
+  "terrainExact": true,
+  "noNumericalWrites": true
+}

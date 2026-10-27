@@ -1,0 +1,390 @@
+{
+  "rawLogsRemainLocal": true,
+  "rawLogsIgnoredFromGit": true,
+  "logs": [
+    {
+      "path": "artifacts/hydrology-3b-core-current.log",
+      "bytes": 4268,
+      "sha256": "5dac9a2ae1dce7552dedaf92ee976443b56c64c773e60a3e2e8aca5abfa6245b",
+      "resultLines": [
+        "ℹ tests 19",
+        "ℹ pass 19",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-core-final-shapes.log",
+      "bytes": 5126,
+      "sha256": "69a6516c9264975096172f2ad2b697d1d1b7456155bef19c2f6052f1e39e5c4c",
+      "resultLines": [
+        "ℹ tests 23",
+        "ℹ pass 23",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-core-first.log",
+      "bytes": 4264,
+      "sha256": "c60fe105069870b693b87771e05ab57d257775c23c0d70f04eb73ff364597b9b",
+      "resultLines": [
+        "ℹ tests 19",
+        "ℹ pass 19",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-core-mountain-fixed.log",
+      "bytes": 4904,
+      "sha256": "428e330faaa983c71671fad53bb8612fab4dc122ddd3c03f6e3882c8a9a6579f",
+      "resultLines": [
+        "ℹ tests 22",
+        "ℹ pass 22",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-core-mountain.log",
+      "bytes": 6996,
+      "sha256": "d396f57215e15c45ef27f0e62ec2f6800d52ade77a7b06c009300b7e4fbde665",
+      "resultLines": [
+        "✖ lake deletion preserves unrelated rivers and explicit outlet changes remain undoable pure documents (62.7905ms)",
+        "ℹ tests 21",
+        "ℹ pass 20",
+        "ℹ fail 1",
+        "ℹ skipped 0",
+        "✖ failing tests:",
+        "✖ lake deletion preserves unrelated rivers and explicit outlet changes remain undoable pure documents (62.7905ms)"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-core-periodic.log",
+      "bytes": 4906,
+      "sha256": "81d60ce795ce5f8d4cb72be8ece420e432b2174744c07803e06773106987ee18",
+      "resultLines": [
+        "ℹ tests 22",
+        "ℹ pass 22",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-core-pooled.log",
+      "bytes": 5128,
+      "sha256": "b2f2707ba5aebef08786c44484cb4632141c630095643aacd987d20b0c4ea3f0",
+      "resultLines": [
+        "ℹ tests 23",
+        "ℹ pass 23",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-core-refinements-fixed.log",
+      "bytes": 4706,
+      "sha256": "059fcbc17271b3f6d743dc3139495d2df02d3d9ed9855a951d698027bf0a3c31",
+      "resultLines": [
+        "ℹ tests 21",
+        "ℹ pass 21",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-core-refinements.log",
+      "bytes": 6758,
+      "sha256": "95dd27b14789370c1824a3fada3b92fde34bcae9461e76072684c058214b8d11",
+      "resultLines": [
+        "✖ a single lake contour crosses adjacent and nested accepted refinements without duplicating its identity (99.1395ms)",
+        "ℹ tests 21",
+        "ℹ pass 20",
+        "ℹ fail 1",
+        "ℹ skipped 0",
+        "✖ failing tests:",
+        "✖ a single lake contour crosses adjacent and nested accepted refinements without duplicating its identity (99.1395ms)"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-corrections-core.log",
+      "bytes": 5610,
+      "sha256": "63eea465e192ac7cc83013eddf1909ebc734ffcb44dcaa2756e0257e090a0fe7",
+      "resultLines": [
+        "ℹ tests 25",
+        "ℹ pass 25",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-drizzle.log",
+      "bytes": 458,
+      "sha256": "6979c5a8f9a015bfb6ecd4aaf222efeff8a2c0f0028dbbade165162228e86944",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-existing-network-fix.log",
+      "bytes": 7656,
+      "sha256": "e271c78f499ed0c37f4c2e8d6285333d27b77b04a661a25c0f5b490b2b4e8cf9",
+      "resultLines": [
+        "✖ accepting lakes over an existing 3A network reconciles submerged unprotected courses and retains protected authoring (114.852ms)",
+        "ℹ tests 25",
+        "ℹ pass 24",
+        "ℹ fail 1",
+        "ℹ skipped 0",
+        "✖ failing tests:",
+        "✖ accepting lakes over an existing 3A network reconciles submerged unprotected courses and retains protected authoring (114.852ms)"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-existing-network-fixed.log",
+      "bytes": 5598,
+      "sha256": "6c712062b93cec52908dc488ef9b26ae464dde1ae9a649887fcc6e28522e3472",
+      "resultLines": [
+        "ℹ tests 25",
+        "ℹ pass 25",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-focused-1.log",
+      "bytes": 1188,
+      "sha256": "a87fc226f599a1e4af15b8795223ba473d5c0d86e5e1d1e242bc73f0865a916e",
+      "resultLines": [
+        "PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials",
+        "PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles",
+        "PASS isolated production build and migration replay",
+        "PASS actual lake proposals, spill outlets, watersheds, shoreline/drawing, connection feedback, extended recovery/conflicts/history and exact terrain",
+        "PASS focused Stage 3 cartography browser acceptance"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-focused-2.log",
+      "bytes": 2328,
+      "sha256": "d416b8ae5ad1b9014082fc8a4ad6e2d5fc2a8a53d030ff9a9786a7be92df37c3",
+      "resultLines": [
+        "PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials",
+        "PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles",
+        "PASS isolated production build and migration replay",
+        "node : locator.waitFor: Timeout 120000ms exceeded."
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-focused-3.log",
+      "bytes": 1700,
+      "sha256": "0961d35274576af21ca7d28d2df7f2584e72f5b00c8f6c779597f21d1df8418c",
+      "resultLines": [
+        "PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials",
+        "PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles",
+        "PASS isolated production build and migration replay",
+        "PASS native phone/tablet lake drawing and save, safe two-finger navigation, early cancellation and no numerical writes",
+        "PASS million-km local lake review with distant coarse context, measured 3A/3B CPU costs, responsive input and stable accepted geometry",
+        "PASS actual lake proposals, spill outlets, watersheds, shoreline/drawing, connection feedback, extended recovery/conflicts/history and exact terrain",
+        "PASS focused Stage 3 cartography browser acceptance"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-focused-4.log",
+      "bytes": 1700,
+      "sha256": "0961d35274576af21ca7d28d2df7f2584e72f5b00c8f6c779597f21d1df8418c",
+      "resultLines": [
+        "PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials",
+        "PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles",
+        "PASS isolated production build and migration replay",
+        "PASS native phone/tablet lake drawing and save, safe two-finger navigation, early cancellation and no numerical writes",
+        "PASS million-km local lake review with distant coarse context, measured 3A/3B CPU costs, responsive input and stable accepted geometry",
+        "PASS actual lake proposals, spill outlets, watersheds, shoreline/drawing, connection feedback, extended recovery/conflicts/history and exact terrain",
+        "PASS focused Stage 3 cartography browser acceptance"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-focused-5.log",
+      "bytes": 5266,
+      "sha256": "dc72d963cc945b0f62445806a9f298b26f556d38ea83c0a14075c67ddf3bc4bd",
+      "resultLines": [
+        "PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials",
+        "PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles",
+        "PASS isolated production build and migration replay",
+        "node : locator.selectOption: Timeout 120000ms exceeded."
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-focused-6.log",
+      "bytes": 1700,
+      "sha256": "0961d35274576af21ca7d28d2df7f2584e72f5b00c8f6c779597f21d1df8418c",
+      "resultLines": [
+        "PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials",
+        "PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles",
+        "PASS isolated production build and migration replay",
+        "PASS native phone/tablet lake drawing and save, safe two-finger navigation, early cancellation and no numerical writes",
+        "PASS million-km local lake review with distant coarse context, measured 3A/3B CPU costs, responsive input and stable accepted geometry",
+        "PASS actual lake proposals, spill outlets, watersheds, shoreline/drawing, connection feedback, extended recovery/conflicts/history and exact terrain",
+        "PASS focused Stage 3 cartography browser acceptance"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-full-1.log",
+      "bytes": 19778,
+      "sha256": "705194f905d3744dcef13ca62dad7828630f265bce4d49ec1a144fa9bebcf06f",
+      "resultLines": [
+        "PASS terrain database {\"fullGridSaveMs\":8585.083200000001,\"tiles\":240,\"samples\":245760,\"payloadBytes\":997213,\"immutableHistory\":true,\"unrelatedCellsExact\":true}",
+        "PASS World business PostgreSQL: complete baselines, places, inhabitants/staff, stock/prices/policies, retries, concurrency, lifecycle, catalog/privacy and independent identities",
+        "PASS Pass 2 database: shared identity, atomic retries, physical bounds/wrapping, separate revisions, associations, archive/restore and authorization",
+        "PASS Pass 3 database: accepted numerical tiles and provenance, exact retries, protected edits, selected bounds, unchanged head on rejection, immutable revisions and privacy",
+        "PASS Pass 5 database: v1 compatibility, physical source/acknowledgement, height bounds, no view-state writes, exact retry, immutable origin/history, protected regeneration and authorization",
+        "PASS Pass 6 database: physical samples use existing immutable/manual saves, protection, retry and exact undo; preferences/measurements rejected as authoritative payloads",
+        "PASS 0137/0138 fresh replay, populated upgrade, owned backup/restore and unchanged existing tables/private tiles",
+        "PASS adjacent/nested/wrapped refinements, concurrency, historical sea level and old-writer guard",
+        "PASS Pass 7 genuine million-km/20-km numerical persistence, overviews, exact retries, history, parent/boundary protection and authorization",
+        "PASS Pass 8 v3 structured/numerical persistence, original provenance, retry and strict physical-frame admission",
+        "PASS cartographic appearance independent persistence, exact retries, concurrency, privacy and unchanged numerical/relationship tables",
+        "PASS independently versioned physical materials, immutable history, retries/concurrency, roles and exact terrain/identity preservation",
+        "PASS 0141 populated forward upgrade, real missing-migration read, complete backup restoration and immutable water history",
+        "PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials",
+        "PASS complete connected-water backup/restore, exact 3A/extended history, real restored-service reads and repeat migration",
+        "PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles",
+        "PASS isolated production build and migration replay",
+        "PASS Pass 8 described World: reviewed physical plan, feature edits, seed variation, retained canvas and numerical save/restart"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-lint-corrected.json",
+      "bytes": 537417,
+      "sha256": "ecc2585864d1f8cf651544b10b546d5b7134ce9aff1210c557595213a7113bd2",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-lint-corrected.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-lint-current.json",
+      "bytes": 23135,
+      "sha256": "161f1a91ac699f3d1b5dafc9960e898f4a15ce742cb4e933a0efeb02ecf4e766",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-lint-final.json",
+      "bytes": 376687,
+      "sha256": "a2088c1e0b295696fb677c6a4eb0697137bb5f977537cd5c9f0d62785da406da",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-lint-first.json",
+      "bytes": 18379,
+      "sha256": "25bfde7f20b06e12f21ab63b0eb87058abdca3f9e674e94ebed449b050a2c250",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-outlet-edit-fix.log",
+      "bytes": 5356,
+      "sha256": "277c1520ed6cebbce5d943ca94d2955f2ddf7f5bc2c01e3d720eaac4bb136046",
+      "resultLines": [
+        "ℹ tests 24",
+        "ℹ pass 24",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-repo-lint.json",
+      "bytes": 537176,
+      "sha256": "8be60b59fe69915f1ef7c3cf733d57b00c9d12ac0f06c5be368bcd0a5e985cc9",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-types-checks.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-types-complete.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-types-corrected.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-types-devices.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-types-enhanced.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-types-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-types-first.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-types-ui.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultLines": []
+    },
+    {
+      "path": "artifacts/hydrology-3b-types-worker.log",
+      "bytes": 216,
+      "sha256": "0540ef4057e727b998c22a5673e9dd5b674971c57f609d748091a2a1c4d064e5",
+      "resultLines": [
+        "src/features/worlds/terrain-hydrology-worker.ts(24,94): error TS2304: Cannot find name 'EMPTY_HYDROLOGY'."
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-unit-corrected.log",
+      "bytes": 442602,
+      "sha256": "80b542cf11be685c28e5d89fd2fec6bad4c7c2a90c4c110fcd19df324872a57e",
+      "resultLines": [
+        "ℹ tests 2420",
+        "ℹ pass 2420",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-unit-final.log",
+      "bytes": 442104,
+      "sha256": "642fc1c2d7606be2de4e3a31bfe63a6d94394114425822b691788e75b025125e",
+      "resultLines": [
+        "ℹ tests 2418",
+        "ℹ pass 2418",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    },
+    {
+      "path": "artifacts/hydrology-3b-unit-frozen.log",
+      "bytes": 442056,
+      "sha256": "fa00cdabb45596d1bb985e86254f5060d97d1e39653a2df6eb39d83ad800448d",
+      "resultLines": [
+        "ℹ tests 2418",
+        "ℹ pass 2418",
+        "ℹ fail 0",
+        "ℹ skipped 0"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "mapId": "40b03416-fd70-4b42-a2a6-dcaea0b09849",
+  "world": "a2ec2241-cba5-4a6d-a977-8524ef918b9f",
+  "lakes": 2,
+  "channels": 353,
+  "revision": 6,
+  "sourceSha256": "c2dd75be11393acc724681d095eacdbb6b8f7bced5791a72dc0a8564ba2b02ca",
+  "old3ADocumentsExact": true,
+  "oldPendingRetryAfterV2": true,
+  "oldWriterDowngradeRejected": true,
+  "atomicLakeGraph": true,
+  "oneConcurrentWinner": true,
+  "uniformSurfaces": true,
+  "invalidGeometryRejected": true,
+  "oldAndExtendedHistoryRestore": true,
+  "ownerAndReviewPrivacy": true,
+  "numericalHeadExact": true,
+  "newSqlMigration": false,
+  "sharedDatabaseWrites": false
+}

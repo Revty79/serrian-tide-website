@@ -1,0 +1,97 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "worldKm": 1000000,
+  "fineNativeSpacingM": 19.53125,
+  "acceptedFineSources": 4,
+  "majorChannelMinimumAreaKm2": 5,
+  "before3ARiverReviewMs": 1903.8830000000016,
+  "before3AMetrics": "524,301 connected analysis cells; calculation 1528.2 ms, complete request 1854.1 ms; retained/working typed arrays 78.0 MiB. 1 closed basin(s), 280 coastal outlet(s), 0 fixed-edge exit(s). JavaScript and browser overhead are additional.",
+  "connectedLakeReviewMs": 1325.1346000000049,
+  "connectedLakeMetrics": "330,765 connected analysis cells; calculation 996.5 ms, complete request 1266.1 ms; retained/working typed arrays 54.6 MiB. 1 closed basin(s), 576 coastal outlet(s), 0 fixed-edge exit(s). JavaScript and browser overhead are additional.",
+  "inputMs": 14.123000000006869,
+  "pins": [
+    {
+      "id": "2f21e035-358b-46cb-8924-43602bbea791",
+      "revision": 1,
+      "lod": 0,
+      "contentHash": "422f5f51b10aa84545889281bbaf7d44157d6068d68684a23f48c48eca0bf133",
+      "spacingX": 3906250,
+      "spacingY": 3906250
+    },
+    {
+      "id": "0bbe8c1c-e873-446c-b33e-38ccb07e171c",
+      "revision": 2,
+      "lod": 1,
+      "contentHash": "2a1f8d297fb08ad58e96d1e396cb8190c9c345a5d634dc836dffbff33d7e1657",
+      "spacingX": 39.0625,
+      "spacingY": 39.0625
+    },
+    {
+      "id": "242ed78c-5368-4c0d-a063-6f6ba1ac7be2",
+      "revision": 1,
+      "lod": 5,
+      "contentHash": "49e14fa400d259a35581b97d963b43965b941bf74a82187e728bae580642f2c2",
+      "spacingX": 625,
+      "spacingY": 625
+    },
+    {
+      "id": "bcb3961c-25dc-4c33-a11b-7f2d3a0db75c",
+      "revision": 1,
+      "lod": 5,
+      "contentHash": "e1bbe7e7b9a7543c0191b49b5e499c80902afdffe88bef91bf93a6a1f36d56ea",
+      "spacingX": 625,
+      "spacingY": 625
+    },
+    {
+      "id": "c24d0ead-e94e-4442-926e-1d2d4552eff6",
+      "revision": 1,
+      "lod": 5,
+      "contentHash": "f3062a9ca9eeeaef78b4d2b012580cba39713e0b637b02ee0bd6514550b8242d",
+      "spacingX": 625,
+      "spacingY": 625
+    }
+  ],
+  "farContextLod": 5,
+  "analysisRequests": [
+    {
+      "lod": 1,
+      "refinement": "0bbe8c1c-e873-446c-b33e-38ccb07e171c",
+      "tiles": 64
+    },
+    {
+      "lod": 5,
+      "refinement": "242ed78c-5368-4c0d-a063-6f6ba1ac7be2",
+      "tiles": 1
+    },
+    {
+      "lod": 5,
+      "refinement": "bcb3961c-25dc-4c33-a11b-7f2d3a0db75c",
+      "tiles": 1
+    },
+    {
+      "lod": 1,
+      "refinement": "0bbe8c1c-e873-446c-b33e-38ccb07e171c",
+      "tiles": 64
+    },
+    {
+      "lod": 5,
+      "refinement": "c24d0ead-e94e-4442-926e-1d2d4552eff6",
+      "tiles": 1
+    },
+    {
+      "lod": 1,
+      "refinement": "0bbe8c1c-e873-446c-b33e-38ccb07e171c",
+      "tiles": 64
+    },
+    {
+      "lod": 1,
+      "refinement": "0bbe8c1c-e873-446c-b33e-38ccb07e171c",
+      "tiles": 64
+    }
+  ],
+  "acceptedGraphUnchangedAcrossZoom": true,
+  "numericalSourcesExact": true,
+  "noNumericalWrites": true
+}

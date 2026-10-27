@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "applicationCheckpoint": "b8ef5dae0ebf3cd151642370d14e04d0b3a26771",
+  "productionCopyMatchesCheckpoint": true,
+  "runtimeSourceSha256": "b32a250821a124143726541d8a0fa1dbf830dfd8de5ed54dc4783ff8783ef504",
+  "productionBuildId": "ftVhQesmLjzf1UdIqj-1m",
+  "runtimeFiles": 1583,
+  "subsequentFocusedCorrections": [
+    "Lake outlet point edits now flag shoreline review",
+    "Accepting a lake reconciles existing unprotected submerged 3A segments while preserving protected courses"
+  ],
+  "supersededBy": "full-2 final regression"
+}

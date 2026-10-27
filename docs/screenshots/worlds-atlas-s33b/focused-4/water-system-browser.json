@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "suggestionMs": 372.8871999999974,
+  "watershedRetained": true,
+  "connectedLakeSpillOutlet": true,
+  "shorelineUndoIdentity": true,
+  "manualLakeDrawing": true,
+  "safeLakeDeleteUndo": true,
+  "riverPointUndoAndPhysicalWidth": true,
+  "explicitDisconnectionUndo": true,
+  "manualLakeConnectionAndFeedback": true,
+  "extendedLostResponseRecovery": true,
+  "extendedConflictExport": true,
+  "oldAndExtendedHistory": true,
+  "terrainAutosavesWithUnacceptedWaterDraft": true,
+  "changedTerrainPreservesWaterIdentities": true,
+  "protectedShorelineNotReplaced": true,
+  "terrainExactDuringWaterAuthoring": true,
+  "deliberateTerrainEditForReconciliation": true
+}

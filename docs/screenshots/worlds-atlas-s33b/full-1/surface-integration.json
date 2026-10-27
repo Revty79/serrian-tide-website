@@ -1,0 +1,57 @@
+{
+  "passed": true,
+  "heightSculptAndExactUndo": {
+    "paintedOverridesPreserved": true,
+    "automaticImageUpdated": true,
+    "originalNumericalChecksum": "7aca10b239a10fd05f00ff81c39dcf1278d7df1ce86a913794f349575a02caf6"
+  },
+  "bothCreationPreviewsCancelWithoutWrites": true,
+  "adjacentNestedWrapped": {
+    "boundaryColors": [
+      [
+        16,
+        48,
+        67,
+        255
+      ],
+      [
+        16,
+        48,
+        67,
+        255
+      ],
+      [
+        16,
+        48,
+        67,
+        255
+      ],
+      [
+        16,
+        48,
+        67,
+        255
+      ],
+      [
+        16,
+        48,
+        67,
+        255
+      ],
+      [
+        16,
+        48,
+        67,
+        255
+      ],
+      [
+        16,
+        48,
+        67,
+        255
+      ]
+    ],
+    "submergedPaintMasked": true,
+    "metadataExact": true
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "generationMs": 4568,
+  "createMs": 8669,
+  "importPreviewMs": 305,
+  "largestBrushMetrics": "Brush batches: 9; mean 0.68 ms; maximum 2.30 ms. Changed tiles: 0.",
+  "largestGrid": [
+    1024,
+    1024
+  ],
+  "allSixPresetPreviews": true,
+  "cancelCreatesNothing": true,
+  "workerCancellation": true,
+  "tabletLayout": true,
+  "stalePreviewBlocked": true,
+  "numericalReopen": true,
+  "generatedSculptRestart": true,
+  "importSculptRestart": true,
+  "lostAcceptanceRecoveryReload": true,
+  "lostRegenerationRetainsNewerEdit": true,
+  "selectedAreaExactOutside": true,
+  "protectedManualEdits": true,
+  "regenerationUndoRedo": true,
+  "real16BitImport": true,
+  "damagedPngRejected": true,
+  "touchEmulation": true,
+  "physicalPhone": false
+}

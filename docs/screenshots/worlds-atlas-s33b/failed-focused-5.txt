@@ -1,0 +1,46 @@
+PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials
+PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles
+PASS isolated production build and migration replay
+node : locator.selectOption: Timeout 120000ms exceeded.
+At line:9 char:1
+
+Call log:
+  - waiting for getByLabel('Shoreline control point', { exact: true })
+    - locator resolved to <select class="st-control" aria-labelledby="_r_1p_-label"
+aria-describedby="_r_1p_-help">…</select>
+  - attempting select option action
+    2 × waiting for element to be visible and enabled
+      - element is not visible
+    - retrying select option action
+    - waiting 20ms
+    2 × waiting for element to be visible and enabled
+      - element is not visible
+    - retrying select option action
+      - waiting 100ms
+    235 × waiting for element to be visible and enabled
+        - element is not visible
+      - retrying select option action
+        - waiting 500ms
+
+    at checkWaterBrowser (D:\serrian-tide-website\scripts\worlds-water-browser-checks.ts:19:191)
+    at async main (D:\serrian-tide-website\scripts\worlds-surface-disposable.test.ts:107:5) {
+  log: [
+    "  - waiting for getByLabel('Shoreline control point', { exact: true })",
+    '    - locator resolved to <select class="st-control" aria-labelledby="_r_1p_-label"
+aria-describedby="_r_1p_-help">…</select>',
+    '  - attempting select option action',
+    '    2 × waiting for element to be visible and enabled',
+    '      - element is not visible',
+    '    - retrying select option action',
+    '    - waiting 20ms',
+    '    2 × waiting for element to be visible and enabled',
+    '      - element is not visible',
+    '    - retrying select option action',
+    '      - waiting 100ms',
+    '    235 × waiting for element to be visible and enabled',
+    '        - element is not visible',
+    '      - retrying select option action',
+    '        - waiting 500ms'
+  ],
+  name: 'TimeoutError'
+}

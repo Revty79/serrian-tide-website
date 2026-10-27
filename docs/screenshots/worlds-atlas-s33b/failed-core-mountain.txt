@@ -1,0 +1,50 @@
+✔ physical descent, coastal outlets and land-area accumulation are deterministic without terrain edits (45.725ms)
+✔ mountain valleys produce connected confluences with no cycles (18.9782ms)
+✔ flat plateaus route to lower exits, while an enclosed depression remains a potential lake basin (14.1339ms)
+✔ wrapped flow crosses the true seam over short physical distances and has no east/west boundary exits (19.5592ms)
+✔ unequal World axes choose the steepest physical slope rather than the largest raw height drop (9.4106ms)
+✔ clipped adjacent/nested coverage conserves area and joins coarse/fine neighbors bidirectionally (30.8922ms)
+✔ a refinement crossing wrapped longitude partitions the existing World exactly (14.4667ms)
+✔ analysis plans are bounded, deterministic and independent of viewport ordering (5.2523ms)
+✔ acceptance includes downstream connections, protects authoring and keeps previews unchanged (13.9088ms)
+✔ source placement follows saved drainage and manual junction edits keep connected endpoints coherent (6.767ms)
+✔ graph validation rejects false links, flow loops, unexplained exceptions and outside coordinates (9.858ms)
+✔ replacement retains protected and manual identities while dropping obsolete derived channels (7.1272ms)
+✔ priority flood resolves two impoundments without changing ground or original receivers (72.0314ms)
+✔ rivers connect through explicit lake ports and natural spill proposals retain one coherent surface (82.3411ms)
+✖ lake deletion preserves unrelated rivers and explicit outlet changes remain undoable pure documents (62.7905ms)
+✔ watersheds conserve actual contributing land area and report terminal/sub-basin relationships (19.7859ms)
+✔ shoreline and graph validation reject crossings, false ports, duplicate lakes and lake-mediated cycles (40.4034ms)
+✔ control insertion, removal and explicit junction joins preserve identities and validate cycles (30.6974ms)
+✔ 3A document decoding preserves exact shape without silently adding an extension (0.2664ms)
+✔ wrapped lake rings retain one identity and a coherent shoreline across the longitude seam (40.4854ms)
+✔ a single lake contour crosses adjacent and nested accepted refinements without duplicating its identity (128.1171ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 20
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 854.9816
+
+✖ failing tests:
+
+test at src\features\worlds\terrain-water.test.ts:2:4797
+✖ lake deletion preserves unrelated rivers and explicit outlet changes remain undoable pure documents (62.7905ms)
+  ZodError: [
+    {
+      "code": "custom",
+      "message": "Water must have a direction without a closed flow loop. Use a described exception for unusual geography, while retaining an outlet or sink.",
+      "path": []
+    }
+  ]
+      at checked (D:\serrian-tide-website\src\features\worlds\terrain-water-network.ts:6:60)
+      at connectWaterLake (D:\serrian-tide-website\src\features\worlds\terrain-water-network.ts:47:10)
+      at TestContext.<anonymous> (D:\serrian-tide-website\src\features\worlds\terrain-water.test.ts:22:139)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7)

@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "worldWidthKm": 1000000,
+  "worldHeightKm": 1000000,
+  "fineWidthKm": 20,
+  "fineNativeSpacingM": 19.53125,
+  "analysisPins": [
+    {
+      "id": "9b8bedb4-186d-442e-9d93-8af8e36039e4",
+      "revision": 1,
+      "lod": 0,
+      "contentHash": "d4addcb2610ef0af052ca2198e9b7206ca41d57da17bb12696416d1a178e73d0",
+      "spacingX": 3906250,
+      "spacingY": 3906250
+    },
+    {
+      "id": "89fe8077-5798-42cc-8021-857059fdb681",
+      "revision": 2,
+      "lod": 1,
+      "contentHash": "7370d9db18671a4a18d0897680fa9eb208fbe9ab92bdc1503cb4f01db6fa4e1f",
+      "spacingX": 39.0625,
+      "spacingY": 39.0625
+    }
+  ],
+  "completeRequestMs": 1245.796500000055,
+  "inputResponseMs": 38.83840000000782,
+  "workerPerformance": "327,684 connected analysis cells; calculation 886.3 ms, complete request 1185.6 ms; retained/working typed arrays 48.8 MiB. 0 closed basin(s), 76 coastal outlet(s), 0 fixed-edge exit(s). JavaScript and browser overhead are additional.",
+  "canonicalGraphChecksum": "db2abf0294b36bc0d859bf1143a3dacdf35701bf10bf67a6e4e831c65f4219de",
+  "networkUnchangedAcrossScales": true,
+  "networkRetainedAcrossEditingSources": true,
+  "numericalSourcesExact": true,
+  "noNumericalWrites": true,
+  "photographicCloseUp": true,
+  "physicalDevice": false
+}

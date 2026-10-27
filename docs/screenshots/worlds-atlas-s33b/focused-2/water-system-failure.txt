@@ -1,0 +1,523 @@
+?
+Help with this page
+SERRIAN TIDE
+WORLDS
+Worlds
+Crossroads
+Switch Path
+world-god
+Profile
+Log Out
+Worlds
+World registry
+Switch world
+Shores of Memory
+S
+SERRIAN TIDE · WORLDS
+
+A PRIVATE WORLD OF SERRIAN TIDE
+
+Shores of Memory
+
+A world taking shape, one story at a time.
+
+0
+historical eras
+1
+entries
+Edit identity
+Towns
+Atlas
+Overview
+History
+1
+Chronology
+Calendars
+Timelines
+Peoples
+Individuals
+Politics
+Organizations
+Cosmology
+Lore, Stories & Legends
+Campaigns
+
+Browsing history: Primary History.
+
+No Campaign selected for Worlds authoring.
+
+Choose or change this in Campaigns. Browsing and authoring selections do not move Characters or advance Campaign time.
+
+Atlas
+
+Shape the geography of this World. Begin with blank terrain, seeded geography or an imported heightmap, then sculpt and save it.
+
+Create flat world
+World terrain map
+Choose a map
+Hydrology valley and coastal drainage
+Connected mountain rivers and twin lakes
+?
+Connected mountain rivers and twin lakes
+
+Whole World base · numerical elevation in metres · accepted revision 2
+
+Exit expanded editor
+Save terrain
+Active terrain tool
+Refine bounds
+Pan
+Inspect
+Locations
+Measure
+Waterways
+Paint Surface Materials
+Raise
+Lower
+Smooth
+Level
+Sample level height
+Extend land
+Expand water / carve bay
+Smooth shoreline
+Undo
+Redo
+Landforms & map tools
+Show grid
+Touch controls: Off
+Hide settings
+Zoom in
+Zoom out
+Fit map
+Visible World: 105.60315 km × 64 km. Measurement grid hidden. Active height samples: 1 km × 1 km
+Map settings
+Close settings
+Tool
+Measure
+Terrain detail
+Water
+World
+Water & drainage
+
+Follow the saved land to suggest rivers, then choose what belongs in your World. Waterways have their own authoring and history; they never carve or repaint your terrain.
+
+Connected water, lakes & watersheds
+Suggest rivers & lakes
+Add lake
+Inspect watershed on map
+Review saved network
+
+Potential lakes are proposals, not a climate prediction. A closed proposal starts below its calculated spill. Choose its water level, wet/dry assumption and outlet deliberately. Terrain heights remain unchanged.
+
+ Show watershed shading Highlight connected water network
+
+Connected system: 140 channels, 1 lakes and 172 source/junction/outlet nodes.
+
+Lake name
+?
+Lake water level (m)
+?
+Lake list
+Choose a lake
+Draft: Potential lake 1
+Draft: Potential lake 2
+?
+
+potential; closed waterbody; 32 inflows. Surface 633.675 m; potential spill 671 m.
+
+Lake water assumption
+Potential water
+Standing water
+Intermittently wet
+Dry basin
+?
+ Preserve this lake shoreline during recalculation Deliberate lake flow exception
+Apply lake details
+Remove lake, retain rivers
+Remove lake outlet connection
+Review lake level & shoreline
+Inspect lake watershed
+ Show water overlay Show temporary river suggestions
+Geography to review
+Selected terrain source
+Current view
+Whole World
+?
+Suggest rivers
+Add river source
+Inspect waterway on map
+
+386 provisional channel segments and 2 potential lakes suggested. Review and accept the waterways you want; none were saved.
+
+This drainage wraps around the entire World. Choose a smaller tributary catchment.
+
+Dashed light-blue lines are suggestions. Blue lines are accepted/draft terrain-derived routes; teal is creator-positioned and purple marks a described fictional exception. Line weight shows contributing area, not measured river width or climate-informed discharge.
+
+Waterway list
+Suggestions (0)
+Authored draft (353)
+?
+Waterway
+Choose a waterway
+Waterway 1 · 10 km² upstream
+Waterway 2 · 10 km² upstream
+Waterway 3 · 15 km² upstream
+Waterway 4 · 15 km² upstream
+Waterway 5 · 21 km² upstream
+Waterway 6 · 21 km² upstream
+Waterway 7 · 28 km² upstream
+Waterway 8 · 28 km² upstream
+Waterway 9 · 8 km² upstream
+Waterway 10 · 8 km² upstream
+Waterway 11 · 8 km² upstream
+Waterway 12 · 8 km² upstream
+Waterway 13 · 8 km² upstream
+Waterway 14 · 8 km² upstream
+Waterway 15 · 8 km² upstream
+Waterway 16 · 8 km² upstream
+Waterway 17 · 8 km² upstream
+Waterway 18 · 8 km² upstream
+Waterway 19 · 8 km² upstream
+Waterway 20 · 8 km² upstream
+Waterway 21 · 8 km² upstream
+Waterway 22 · 8 km² upstream
+Waterway 23 · 8 km² upstream
+Waterway 24 · 8 km² upstream
+Waterway 25 · 8 km² upstream
+Waterway 26 · 8 km² upstream
+Waterway 27 · 8 km² upstream
+Waterway 28 · 8 km² upstream
+Waterway 29 · 8 km² upstream
+Waterway 30 · 8 km² upstream
+Waterway 31 · 8 km² upstream
+Waterway 32 · 8 km² upstream
+Waterway 33 · 36 km² upstream
+Waterway 34 · 36 km² upstream
+Waterway 35 · 8 km² upstream
+Waterway 36 · 8 km² upstream
+Waterway 37 · 8 km² upstream
+Waterway 38 · 8 km² upstream
+Waterway 39 · 8 km² upstream
+Waterway 40 · 8 km² upstream
+Waterway 41 · 8 km² upstream
+Waterway 42 · 8 km² upstream
+Waterway 43 · 8 km² upstream
+Waterway 44 · 8 km² upstream
+Waterway 45 · 8 km² upstream
+Waterway 46 · 8 km² upstream
+Waterway 47 · 8 km² upstream
+Waterway 48 · 8 km² upstream
+Waterway 49 · 8 km² upstream
+Waterway 50 · 8 km² upstream
+Waterway 51 · 8 km² upstream
+Waterway 52 · 8 km² upstream
+Waterway 53 · 8 km² upstream
+Waterway 54 · 8 km² upstream
+Waterway 55 · 8 km² upstream
+Waterway 56 · 8 km² upstream
+Waterway 57 · 8 km² upstream
+Waterway 58 · 8 km² upstream
+Waterway 59 · 8 km² upstream
+Waterway 60 · 45 km² upstream
+Waterway 61 · 45 km² upstream
+Waterway 62 · 8 km² upstream
+Waterway 63 · 8 km² upstream
+Waterway 64 · 55 km² upstream
+Waterway 65 · 55 km² upstream
+Waterway 66 · 8 km² upstream
+Waterway 67 · 8 km² upstream
+Waterway 68 · 66 km² upstream
+Waterway 69 · 66 km² upstream
+Waterway 70 · 8 km² upstream
+Waterway 71 · 8 km² upstream
+Waterway 72 · 78 km² upstream
+Waterway 73 · 78 km² upstream
+Waterway 74 · 8 km² upstream
+Waterway 75 · 8 km² upstream
+Waterway 76 · 91 km² upstream
+Waterway 77 · 91 km² upstream
+Waterway 78 · 8 km² upstream
+Waterway 79 · 8 km² upstream
+Waterway 80 · 105 km² upstream
+Waterway 81 · 105 km² upstream
+Waterway 82 · 8 km² upstream
+Waterway 83 · 8 km² upstream
+Waterway 84 · 120 km² upstream
+Waterway 85 · 120 km² upstream
+Waterway 86 · 8 km² upstream
+Waterway 87 · 8 km² upstream
+Waterway 88 · 136 km² upstream
+Waterway 89 · 136 km² upstream
+Waterway 90 · 8 km² upstream
+Waterway 91 · 8 km² upstream
+Waterway 92 · 153 km² upstream
+Waterway 93 · 153 km² upstream
+Waterway 94 · 8 km² upstream
+Waterway 95 · 8 km² upstream
+Waterway 96 · 171 km² upstream
+Waterway 97 · 171 km² upstream
+Waterway 98 · 8 km² upstream
+Waterway 99 · 8 km² upstream
+Waterway 100 · 190 km² upstream
+Waterway 101 · 190 km² upstream
+Waterway 102 · 8 km² upstream
+Waterway 103 · 8 km² upstream
+Waterway 104 · 210 km² upstream
+Waterway 105 · 210 km² upstream
+Waterway 106 · 8 km² upstream
+Waterway 107 · 8 km² upstream
+Waterway 108 · 231 km² upstream
+Waterway 109 · 231 km² upstream
+Waterway 110 · 8 km² upstream
+Waterway 111 · 8 km² upstream
+Waterway 112 · 253 km² upstream
+Waterway 113 · 253 km² upstream
+Waterway 114 · 8 km² upstream
+Waterway 115 · 8 km² upstream
+Waterway 116 · 276 km² upstream
+Waterway 117 · 276 km² upstream
+Waterway 118 · 8 km² upstream
+Waterway 119 · 8 km² upstream
+Waterway 120 · 300 km² upstream
+Waterway 121 · 300 km² upstream
+Waterway 122 · 8 km² upstream
+Waterway 123 · 8 km² upstream
+Waterway 124 · 325 km² upstream
+Waterway 125 · 325 km² upstream
+Waterway 126 · 8 km² upstream
+Waterway 127 · 8 km² upstream
+Waterway 130 · 8 km² upstream
+Waterway 131 · 8 km² upstream
+Waterway 132 · 47 km² upstream
+Waterway 133 · 72 km² upstream
+Waterway 134 · 98 km² upstream
+Waterway 135 · 125 km² upstream
+Waterway 136 · 152 km² upstream
+Waterway 137 · 179 km² upstream
+Waterway 140 · 179 km² upstream
+Waterway 141 · 152 km² upstream
+Waterway 142 · 125 km² upstream
+Waterway 143 · 98 km² upstream
+Waterway 144 · 72 km² upstream
+Waterway 145 · 47 km² upstream
+Waterway 146 · 8 km² upstream
+Waterway 147 · 8 km² upstream
+Waterway 148 · 45 km² upstream
+Waterway 155 · 45 km² upstream
+Waterway 156 · 8 km² upstream
+Waterway 157 · 8 km² upstream
+Waterway 159 · 8 km² upstream
+Waterway 160 · 8 km² upstream
+Waterway 161 · 43 km² upstream
+Waterway 164 · 43 km² upstream
+Waterway 165 · 8 km² upstream
+Waterway 166 · 8 km² upstream
+Waterway 171 · 8 km² upstream
+Waterway 172 · 8 km² upstream
+Waterway 177 · 8 km² upstream
+Waterway 178 · 8 km² upstream
+Waterway 179 · 8 km² upstream
+Waterway 182 · 8 km² upstream
+Waterway 183 · 8 km² upstream
+Waterway 184 · 8 km² upstream
+Waterway 185 · 8 km² upstream
+Waterway 188 · 8 km² upstream
+Waterway 189 · 8 km² upstream
+Waterway 190 · 8 km² upstream
+Waterway 193 · 8 km² upstream
+Waterway 194 · 8 km² upstream
+Waterway 195 · 8 km² upstream
+Waterway 196 · 8 km² upstream
+Waterway 197 · 8 km² upstream
+Waterway 198 · 8 km² upstream
+Waterway 199 · 8 km² upstream
+Waterway 200 · 8 km² upstream
+Waterway 201 · 8 km² upstream
+Waterway 202 · 8 km² upstream
+Waterway 203 · 8 km² upstream
+Waterway 204 · 8 km² upstream
+Waterway 205 · 14 km² upstream
+Waterway 206 · 14 km² upstream
+Waterway 207 · 8 km² upstream
+Waterway 208 · 8 km² upstream
+Waterway 209 · 8 km² upstream
+Waterway 210 · 8 km² upstream
+Waterway 211 · 26 km² upstream
+Waterway 212 · 18 km² upstream
+Waterway 213 · 18 km² upstream
+Waterway 214 · 8 km² upstream
+Waterway 215 · 8 km² upstream
+Waterway 216 · 39 km² upstream
+Waterway 217 · 20 km² upstream
+Waterway 218 · 20 km² upstream
+Waterway 219 · 8 km² upstream
+Waterway 220 · 8 km² upstream
+Waterway 221 · 52 km² upstream
+Waterway 222 · 24 km² upstream
+Waterway 223 · 24 km² upstream
+Waterway 224 · 8 km² upstream
+Waterway 225 · 13 km² upstream
+Waterway 226 · 21 km² upstream
+Waterway 227 · 30 km² upstream
+Waterway 228 · 40 km² upstream
+Waterway 229 · 51 km² upstream
+Waterway 230 · 63 km² upstream
+Waterway 232 · 22 km² upstream
+Waterway 233 · 29 km² upstream
+Waterway 234 · 29 km² upstream
+Waterway 235 · 8 km² upstream
+Waterway 236 · 11 km² upstream
+Waterway 238 · 36 km² upstream
+Waterway 239 · 36 km² upstream
+Waterway 240 · 8 km² upstream
+Waterway 241 · 8 km² upstream
+Waterway 242 · 28 km² upstream
+Waterway 244 · 68 km² upstream
+Waterway 245 · 68 km² upstream
+Waterway 246 · 8 km² upstream
+Waterway 247 · 8 km² upstream
+Waterway 248 · 16 km² upstream
+Waterway 249 · 100 km² upstream
+Waterway 250 · 100 km² upstream
+Waterway 251 · 8 km² upstream
+Waterway 252 · 132 km² upstream
+Waterway 253 · 132 km² upstream
+Waterway 254 · 8 km² upstream
+Waterway 255 · 8 km² upstream
+Waterway 256 · 8 km² upstream
+Waterway 257 · 164 km² upstream
+Waterway 258 · 164 km² upstream
+Waterway 259 · 8 km² upstream
+Waterway 260 · 8 km² upstream
+Waterway 261 · 8 km² upstream
+Waterway 262 · 196 km² upstream
+Waterway 263 · 196 km² upstream
+Waterway 264 · 8 km² upstream
+Waterway 265 · 8 km² upstream
+Waterway 266 · 228 km² upstream
+Waterway 267 · 228 km² upstream
+Waterway 268 · 8 km² upstream
+Waterway 269 · 8 km² upstream
+Waterway 270 · 8 km² upstream
+Waterway 271 · 260 km² upstream
+Waterway 272 · 260 km² upstream
+Waterway 273 · 8 km² upstream
+Waterway 274 · 8 km² upstream
+Waterway 275 · 8 km² upstream
+Waterway 276 · 8 km² upstream
+Waterway 277 · 292 km² upstream
+Waterway 278 · 292 km² upstream
+Waterway 279 · 8 km² upstream
+Waterway 280 · 8 km² upstream
+Waterway 281 · 8 km² upstream
+Waterway 282 · 8 km² upstream
+Waterway 283 · 8 km² upstream
+Waterway 284 · 8 km² upstream
+Waterway 285 · 324 km² upstream
+Waterway 286 · 324 km² upstream
+Waterway 287 · 8 km² upstream
+Waterway 288 · 8 km² upstream
+Waterway 289 · 356 km² upstream
+Waterway 290 · 356 km² upstream
+Waterway 291 · 8 km² upstream
+Waterway 292 · 8 km² upstream
+Waterway 293 · 388 km² upstream
+Waterway 294 · 388 km² upstream
+Waterway 295 · 8 km² upstream
+Waterway 296 · 8 km² upstream
+Waterway 297 · 8 km² upstream
+Waterway 298 · 404 km² upstream
+Waterway 299 · 420 km² upstream
+Waterway 300 · 8 km² upstream
+Waterway 301 · 8 km² upstream
+Waterway 302 · 8 km² upstream
+Waterway 303 · 8 km² upstream
+Waterway 304 · 420 km² upstream
+Waterway 305 · 452 km² upstream
+Waterway 306 · 8 km² upstream
+Waterway 307 · 8 km² upstream
+Waterway 308 · 8 km² upstream
+Waterway 309 · 8 km² upstream
+Waterway 310 · 8 km² upstream
+Waterway 311 · 8 km² upstream
+Waterway 312 · 8 km² upstream
+Waterway 313 · 436 km² upstream
+Waterway 314 · 484 km² upstream
+Waterway 315 · 8 km² upstream
+Waterway 316 · 8 km² upstream
+Waterway 317 · 452 km² upstream
+Waterway 318 · 516 km² upstream
+Waterway 319 · 8 km² upstream
+Waterway 320 · 8 km² upstream
+Waterway 321 · 468 km² upstream
+Waterway 322 · 548 km² upstream
+Waterway 323 · 8 km² upstream
+Waterway 324 · 8 km² upstream
+Waterway 325 · 8 km² upstream
+Waterway 326 · 10 km² upstream
+Waterway 327 · 15 km² upstream
+Waterway 328 · 21 km² upstream
+Waterway 329 · 28 km² upstream
+Waterway 330 · 36 km² upstream
+Waterway 331 · 45 km² upstream
+Waterway 332 · 55 km² upstream
+Waterway 333 · 66 km² upstream
+Waterway 334 · 78 km² upstream
+Waterway 335 · 91 km² upstream
+Waterway 336 · 105 km² upstream
+Waterway 337 · 120 km² upstream
+Waterway 338 · 136 km² upstream
+Waterway 339 · 153 km² upstream
+Waterway 340 · 171 km² upstream
+Waterway 341 · 190 km² upstream
+Waterway 342 · 203 km² upstream
+Waterway 343 · 215 km² upstream
+Waterway 344 · 227 km² upstream
+Waterway 345 · 239 km² upstream
+Waterway 346 · 251 km² upstream
+Waterway 347 · 263 km² upstream
+Waterway 348 · 281 km² upstream
+Waterway 349 · 294 km² upstream
+Waterway 350 · 316 km² upstream
+Waterway 351 · 330 km² upstream
+Waterway 352 · 347 km² upstream
+Waterway 353 · 364 km² upstream
+Waterway 354 · 496 km² upstream
+Waterway 355 · 465 km² upstream
+Waterway 356 · 435 km² upstream
+Waterway 357 · 406 km² upstream
+Waterway 358 · 378 km² upstream
+Waterway 359 · 351 km² upstream
+Waterway 360 · 325 km² upstream
+Waterway 361 · 300 km² upstream
+Waterway 362 · 276 km² upstream
+Waterway 363 · 253 km² upstream
+Waterway 364 · 231 km² upstream
+Waterway 365 · 210 km² upstream
+Waterway 366 · 190 km² upstream
+Waterway 367 · 171 km² upstream
+Waterway 368 · 153 km² upstream
+Waterway 369 · 136 km² upstream
+Waterway 370 · 120 km² upstream
+Waterway 371 · 105 km² upstream
+Waterway 372 · 91 km² upstream
+Waterway 373 · 78 km² upstream
+Waterway 374 · 66 km² upstream
+Waterway 375 · 55 km² upstream
+Waterway 376 · 45 km² upstream
+Waterway 377 · 36 km² upstream
+Waterway 378 · 28 km² upstream
+Waterway 379 · 21 km² upstream
+Waterway 380 · 15 km² upstream
+Waterway 381 · 10 km² upstream
+Waterway 382 · 8 km² upstream
+Waterway 383 · 8 km² upstream
+?
+Save waterways
+Export water draft
+Load saved waterways
+Accepted water history
+Drainage detail & assumptions
+Move over or tap the map to inspect elevation.
+
+Saved terrain loaded. Browser recovery is ready; completed edits autosave after a short pause.
