@@ -1,3 +1,4 @@
+import {adaptNaturalAcceptance} from "./terrain-water-acceptance";
 import {EMPTY_HYDROLOGY,hydroIdentity,hydroLayerSchema,pruneHydrology,acceptHydrology,type HydroEdge,type HydroLake,type HydroLayer,type HydroNode,type HydroPoint,type HydroSources} from "./terrain-hydrology";
 import {insideWaterRings,nearestWaterShore,waterDx,waterPoint} from "./terrain-water-geometry";
 import type {HydroGeometry} from "./terrain-hydrology";
@@ -39,9 +40,9 @@ export function riversIntoLakes(layer:HydroLayer,lakes:HydroLake[],world:HydroGe
 export function prepareWaterAcceptance(base:HydroLayer,preview:HydroLayer,world:HydroGeometry,selected?:string){
   const candidates=selected?waterNetwork(preview,selected).lakes:preview.lakes??[];if(!candidates.length||!base.edges.length)return base;
   const lakes=new Map((base.lakes??[]).map(l=>[l.id,l]));for(const proposal of candidates){const old=lakes.get(proposal.id);if(old?.protected)continue;lakes.set(proposal.id,{...proposal,inletNodeIds:[...new Set([...old?.inletNodeIds??[],...proposal.inletNodeIds])],...(old?.outletNodeId?{outletNodeId:old.outletNodeId,mode:"outlet" as const,review:true}:{} )});}
-  const analyses=new Map([...base.analyses,...preview.analyses].map(a=>[a.id,a]));return riversIntoLakes({...base,analyses:[...analyses.values()]},[...lakes.values()],world,true);
+  const analyses=new Map([...base.analyses,...preview.analyses].map(a=>[a.id,a]));return riversIntoLakes({...base,systemVersion:base.systemVersion===3||preview.systemVersion===3?3:2,analyses:[...analyses.values()]},[...lakes.values()],world,true);
 }
-export function acceptLake(base:HydroLayer,preview:HydroLayer,id:string,world?:HydroGeometry){const lake=preview.lakes?.find(l=>l.id===id);if(!lake)throw Error("Choose a suggested lake.");if(base.lakes?.find(l=>l.id===id)?.protected)throw Error("This lake is protected. Retain its shoreline or deliberately remove protection before accepting a replacement.");const network=waterNetwork(preview,id);const selected={...preview,lakes:[lake],edges:network.edges,nodes:network.nodes,catchments:[]};return acceptHydrology(world?prepareWaterAcceptance(base,selected,world):base,selected);}
+export function acceptLake(base:HydroLayer,preview:HydroLayer,id:string,world?:HydroGeometry){const lake=preview.lakes?.find(l=>l.id===id);if(!lake)throw Error("Choose a suggested lake.");if(base.lakes?.find(l=>l.id===id)?.protected)throw Error("This lake is protected. Retain its shoreline or deliberately remove protection before accepting a replacement.");const network=waterNetwork(preview,id);const selected={...preview,lakes:[lake],edges:network.edges,nodes:network.nodes,catchments:[]};const prepared=world?prepareWaterAcceptance(base,selected,world):base;return acceptHydrology(prepared,world?adaptNaturalAcceptance(prepared,selected,world):selected);}
 export function removeWaterLake(layer:HydroLayer,id:string){
   const ports=new Set(layer.nodes.filter(n=>n.lakeId===id).map(n=>n.id));return checked({...layer,lakes:layer.lakes?.filter(l=>l.id!==id),nodes:layer.nodes.map(n=>{if(!ports.has(n.id))return n;const copy:HydroNode={...n,kind:n.kind==="lake-outlet"?"source":"open-end",detached:true};delete copy.lakeId;return copy;}),edges:layer.edges.map(e=>ports.has(e.from)||ports.has(e.to)?{...e,flowKind:e.flowKind==="exception"?"exception":"manual",protected:true}:e)});
 }
