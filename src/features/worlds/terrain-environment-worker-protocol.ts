@@ -1,0 +1,9 @@
+import type {ClimateInput,calculateClimate} from "./terrain-climate";
+import type {SurfaceWorkerSource} from "./terrain-surface-worker-protocol";
+import type {EnvironmentLayer} from "./terrain-environment";
+import type {HydroLayer} from "./terrain-hydrology";
+import type {TerrainMaterials} from "./terrain-materials";
+export type EnvironmentArtSource={terrain:SurfaceWorkerSource;layer:EnvironmentLayer;water:HydroLayer;materials:TerrainMaterials;style:string;sea:number};
+export type EnvironmentArtJob={key:string;x:number;y:number;step:number;size:number};
+export type EnvironmentWorkerRequest={type:"analyse";input:ClimateInput}|{type:"source";source:EnvironmentArtSource}|{type:"paint";job:EnvironmentArtJob};
+export type EnvironmentWorkerReply={type:"proposal";result:ReturnType<typeof calculateClimate>}|{type:"progress";stage:string;value:number}|{type:"image";key:string;pixels:ArrayBuffer;width:number;height:number;ms:number}|{type:"failed";message:string};
