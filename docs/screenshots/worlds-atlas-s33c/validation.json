@@ -1,0 +1,757 @@
+{
+  "passed": true,
+  "generatedAt": "2026-10-27T06:09:47.756Z",
+  "startingCommit": "001efbf0e22c920ba34b206e53db4ea62e00ac22",
+  "finalApplicationAndTestCommit": "23ca9cd4d13e9a4b8fbd56cd43754867a2801f6b",
+  "publication": "Normal origin/main push authorized; exact final evidence commit is reported in the handoff. No deployment.",
+  "build": "kt50pg5mQ9dYRwDecTwbH",
+  "runtimeSourceSha256": "2bdda67bfe2c4e207b9c292e64e677fa0054f399a35f3d102a8fb362fdd67894",
+  "runtimeFiles": 1592,
+  "validationScriptsSha256": "1a24f9f71d61e17960b6de74de663cda23111276c618ea673c3da87cafb47ae8",
+  "validationScriptCount": 549,
+  "standaloneVerifierSha256": "88feed9fcb282b027b9ba2b4ae43721f63f10c62a2d573b4926c21759b0eca97",
+  "rootTypes": {
+    "passed": true
+  },
+  "unit": {
+    "passed": true,
+    "tests": 2438,
+    "files": 303,
+    "failed": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "passed": true,
+    "files": 2005,
+    "errors": 0,
+    "warnings": 1,
+    "existingWarning": "Unused LoreFamily in scripts/worlds-stories-checks.ts"
+  },
+  "offlineDrizzle": {
+    "passed": true
+  },
+  "productionBuild": {
+    "passed": true,
+    "bundler": "Turbopack",
+    "existingWarning": "Existing dynamic filesystem path warning in raster-storage.ts; unchanged from baseline."
+  },
+  "unfilteredDatabaseBrowser": {
+    "passed": true,
+    "path": "full-2/results.json",
+    "errors": [],
+    "mapRequests": [],
+    "runtimeTablesExact": 133,
+    "migrations": "142"
+  },
+  "numericalAndOriginalSourcesPreserved": {
+    "passed": true,
+    "validationScriptsByteExact": true,
+    "validationScriptCount": 549,
+    "validationScriptsSha256": "1a24f9f71d61e17960b6de74de663cda23111276c618ea673c3da87cafb47ae8",
+    "separatelyExecutedVerifier": "scripts/worlds-natural-source-check.mjs",
+    "verifierSha256": "88feed9fcb282b027b9ba2b4ae43721f63f10c62a2d573b4926c21759b0eca97",
+    "original3ADrainageBodyExact": true,
+    "original3BMeshExact": true,
+    "baseline": "001efbf0e22c920ba34b206e53db4ea62e00ac22",
+    "workspaceHead": "23ca9cd4d13e9a4b8fbd56cd43754867a2801f6b",
+    "runtimeFiles": 1592,
+    "runtimeSourceSha256": "2bdda67bfe2c4e207b9c292e64e677fa0054f399a35f3d102a8fb362fdd67894",
+    "productionBuildId": "kt50pg5mQ9dYRwDecTwbH",
+    "productionCopyByteExact": true,
+    "preservedImplementations": [
+      "src/features/worlds/terrain-generation-v1.ts",
+      "src/features/worlds/terrain-generation-v2.ts",
+      "src/features/worlds/terrain-generation-v3.ts",
+      "src/features/worlds/terrain-physical-noise.ts",
+      "src/features/worlds/terrain-renderer.ts",
+      "src/features/worlds/terrain-detail-renderer.ts",
+      "src/features/worlds/terrain-cartography.ts",
+      "src/features/worlds/terrain-cartography-painter.ts",
+      "src/features/worlds/terrain-material-service.ts",
+      "src/features/worlds/terrain-material-client.tsx",
+      "src/features/worlds/terrain-appearance.ts",
+      "src/features/worlds/terrain-appearance-service.ts",
+      "src/features/worlds/terrain-service.ts",
+      "src/features/worlds/terrain-refinement-service.ts"
+    ],
+    "allHistoricalMigrationsExact": 142,
+    "historicalJournalPrefixAndSnapshotsUnchanged": true,
+    "newMigrations": [],
+    "waterFormatExtension": 3,
+    "priorDatabaseSchemasUnchanged": true,
+    "originalArtworkFilesExact": 14,
+    "sharedDatabaseWrites": false,
+    "directProductionDatabaseConnection": false,
+    "manifestDefinition": "Sorted source/data/bundled-material files plus package, lock, Next and PostCSS configuration; path, NUL, raw bytes"
+  },
+  "waterEvidence": {
+    "natural-workflows": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "inputDuringNaturalMs": 9.164699999964796,
+      "naturalSuggestionMs": 950.1335999999428,
+      "naturalMetrics": "65,536 connected analysis cells; calculation 250.1 ms, complete request 438.0 ms; retained/working typed arrays 15.6 MiB. 31 closed basin(s), 89 coastal outlet(s), 0 fixed-edge exit(s). JavaScript and browser overhead are additional.",
+      "naturalAcceptanceReusesExistingIdentities": true,
+      "selection": {
+        "before": 754,
+        "after": 26,
+        "lakes": 2
+      },
+      "sameAcceptedGeographyAcrossFiveStyles": true,
+      "linkedSpringMoveUndo": true,
+      "featureReviewEndToEndMs": 235.94479999993928,
+      "featureReview": "Special-feature review: 127 samples, 8.9 ms worker time, approximately 0.0 MiB additional working collections. ",
+      "protectedFeatureReview": true,
+      "wetlandDrawingEditingUndo": true,
+      "manualRapidsAndException": true,
+      "safeFeatureDeleteUndo": true,
+      "v3InterruptedSaveRecovery": true,
+      "v3ConflictRetainsExport": true,
+      "v1V2V3HistoryRestoration": true,
+      "terrainAutosavesWithFeatureDraft": true,
+      "protectedFeatureGeometryRetained": true
+    },
+    "natural-devices": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "viewport390": {
+        "nativeInput": "touch",
+        "wetlandAndSpringSaved": true,
+        "twoFingerSafe": true,
+        "earlyCancellation": true,
+        "numericalWrites": 0,
+        "baselineRestoredExactly": true
+      },
+      "viewport820": {
+        "nativeInput": "pen",
+        "wetlandAndSpringSaved": true,
+        "twoFingerSafe": true,
+        "earlyCancellation": true,
+        "numericalWrites": 0,
+        "baselineRestoredExactly": true
+      }
+    },
+    "natural-performance": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "coldApplicationReadyMs": 939.6643999998923,
+      "warmNavigationTenKeysMs": 126.85980000009295,
+      "regionalReadyMs": 1074.3860000000568,
+      "closeReadyMs": 3907.9281999999657,
+      "repeatedPanZoomMs": 3731.2595999999903,
+      "inputDuringFeaturesMs": 16.533500000019558,
+      "world": {
+        "preparations": 2,
+        "hits": 55,
+        "bytes": 119072,
+        "entries": 2,
+        "drawnChannels": 11,
+        "drawnPaths": 11,
+        "reanchors": 0,
+        "hiddenChannels": 15,
+        "lastPaintMs": 0.3999999761581421,
+        "maxPaintMs": 2.3000000715255737
+      },
+      "warm": {
+        "preparations": 2,
+        "hits": 68,
+        "bytes": 119072,
+        "entries": 2,
+        "drawnChannels": 11,
+        "drawnPaths": 11,
+        "reanchors": 0,
+        "hiddenChannels": 15,
+        "lastPaintMs": 0.10000002384185791,
+        "maxPaintMs": 2.3000000715255737
+      },
+      "regional": {
+        "preparations": 2,
+        "hits": 106,
+        "bytes": 119072,
+        "entries": 2,
+        "drawnChannels": 5,
+        "drawnPaths": 5,
+        "reanchors": 0,
+        "hiddenChannels": 0,
+        "lastPaintMs": 0.10000002384185791,
+        "maxPaintMs": 2.3000000715255737
+      },
+      "close": {
+        "preparations": 2,
+        "hits": 134,
+        "bytes": 119072,
+        "entries": 2,
+        "drawnChannels": 1,
+        "drawnPaths": 1,
+        "reanchors": 0,
+        "hiddenChannels": 0,
+        "lastPaintMs": 0,
+        "maxPaintMs": 2.3000000715255737
+      },
+      "final": {
+        "preparations": 2,
+        "hits": 213,
+        "bytes": 119072,
+        "entries": 2,
+        "drawnChannels": 1,
+        "drawnPaths": 1,
+        "reanchors": 0,
+        "hiddenChannels": 0,
+        "lastPaintMs": 0,
+        "maxPaintMs": 2.3000000715255737
+      },
+      "specialColdMs": 294.34459999995306,
+      "specialWarmMs": 87.12509999994654,
+      "specialEvidence": "Special-feature review: 127 samples, 9.4 ms worker time, approximately 0.0 MiB additional working collections. ",
+      "featureDrainageMetrics": "16,384 connected analysis cells; calculation 64.1 ms, complete request 155.8 ms; retained/working typed arrays 2.4 MiB. 1 closed basin(s), 0 coastal outlet(s), 15 fixed-edge exit(s). JavaScript and browser overhead are additional.",
+      "firstNumericalReads": 0,
+      "warmNumericalReads": 0,
+      "noNumericalWrites": true,
+      "acceptedGeographyUnchanged": true,
+      "cacheEstimateLimitMiB": 32,
+      "cacheEstimateIsNotProcessRss": true
+    },
+    "natural-precision": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "v3HttpRolePrivacy": true,
+      "explicitAdminReadOnlyReview": true,
+      "csrfDenied": true,
+      "worldKm": 1000000,
+      "acceptedRefinementNativeSpacingM": 19.53125,
+      "fictionalFeatureCoordinates": {
+        "x": 593749223.1234,
+        "y": 582809089.3756
+      },
+      "creatorWidthM": 0.2,
+      "endpointPixelContinuity": true,
+      "covered": 18,
+      "worldMetresAcross": 32.20803838728614,
+      "stats": {
+        "preparations": 2,
+        "hits": 67,
+        "bytes": 592,
+        "entries": 2,
+        "drawnChannels": 1,
+        "drawnPaths": 1,
+        "reanchors": 2,
+        "hiddenChannels": 0,
+        "lastPaintMs": 0.10000002384185791,
+        "maxPaintMs": 0.8000000715255737
+      },
+      "featurePixel": {
+        "x": 706,
+        "y": 396.7306900024414
+      },
+      "darkSymbolPixels": 13,
+      "endpointSymbolAboveWrappedChannel": true,
+      "geometryAndNumericalSourcesExact": true,
+      "noNumericalWrites": true
+    },
+    "natural-database": {
+      "passed": true,
+      "mapId": "3c000000-0000-4000-8000-000000000003",
+      "revision": 7,
+      "waterfalls": 1,
+      "wetlands": 3,
+      "v1AndV2PendingRetriesExact": true,
+      "v3RetryExact": true,
+      "lowerFormatWriterRejected": true,
+      "oneConcurrentWinner": true,
+      "allThreeFormatsRestored": true,
+      "immutableHistory": true,
+      "rolesAndForeignWorldDenied": true,
+      "numericalHeadExact": true,
+      "newSqlMigration": false,
+      "sharedDatabaseWrites": false
+    },
+    "natural-backup": {
+      "passed": true,
+      "systemVersion": 3,
+      "allThreeFormatsExact": true,
+      "fullOwnedDatabaseBackupRestore": true,
+      "old3AAndConnectedWaterVersionsExact": true,
+      "currentHeadsExact": true,
+      "immutableHistoryAfterRestore": true,
+      "realServiceReadsBothFormats": true,
+      "repeatedCurrentMigration": true,
+      "newSqlMigration": false,
+      "sharedDatabaseWrites": false,
+      "productionContacted": false
+    },
+    "water-system-browser": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "suggestionMs": 285.4557999999961,
+      "watershedRetained": true,
+      "watershedUsesSharedMeasurementUnits": true,
+      "connectedLakeSpillOutlet": true,
+      "lakeToLakeConnectionAndExactUndo": true,
+      "outletPositionEditingAndReview": true,
+      "shorelineUndoIdentity": true,
+      "manualLakeDrawing": true,
+      "safeLakeDeleteUndo": true,
+      "riverPointUndoAndPhysicalWidth": true,
+      "explicitDisconnectionUndo": true,
+      "manualLakeConnectionAndFeedback": true,
+      "extendedLostResponseRecovery": true,
+      "extendedConflictExport": true,
+      "existing3ANetworkLakeAcceptance": true,
+      "oldAndExtendedHistory": true,
+      "terrainAutosavesWithUnacceptedWaterDraft": true,
+      "changedTerrainPreservesWaterIdentities": true,
+      "protectedShorelineNotReplaced": true,
+      "terrainExactDuringWaterAuthoring": true,
+      "deliberateTerrainEditForReconciliation": true
+    },
+    "water-system-performance": {
+      "passed": true,
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "worldKm": 1000000,
+      "fineNativeSpacingM": 19.53125,
+      "acceptedFineSources": 4,
+      "majorChannelMinimumAreaKm2": 5,
+      "before3ARiverReviewMs": 1822.7608000000473,
+      "before3AMetrics": "524,301 connected analysis cells; calculation 1451.5 ms, complete request 1761.3 ms; retained/working typed arrays 78.0 MiB. 1 closed basin(s), 280 coastal outlet(s), 0 fixed-edge exit(s). JavaScript and browser overhead are additional.",
+      "connectedLakeReviewMs": 1392.7185000000754,
+      "connectedLakeMetrics": "330,765 connected analysis cells; calculation 1028.6 ms, complete request 1328.2 ms; retained/working typed arrays 59.4 MiB. 1 closed basin(s), 576 coastal outlet(s), 0 fixed-edge exit(s). JavaScript and browser overhead are additional.",
+      "inputMs": 12.026300000026822,
+      "pins": [
+        {
+          "id": "896dbc53-ae55-4f20-91ea-67bb0f48c13d",
+          "revision": 1,
+          "lod": 0,
+          "contentHash": "23004ebc8391204c8935aafb02952201169ff94c65ff772acf73bd5a91b06304",
+          "spacingX": 3906250,
+          "spacingY": 3906250
+        },
+        {
+          "id": "4993bb4f-73c1-49bc-9bfd-3d354c870b7a",
+          "revision": 1,
+          "lod": 5,
+          "contentHash": "20dededf864c7d6a027e41a5243f2389fb29533d0c784c225ce652e674961455",
+          "spacingX": 625,
+          "spacingY": 625
+        },
+        {
+          "id": "6242d992-bd94-4517-a851-3d06c464931e",
+          "revision": 2,
+          "lod": 1,
+          "contentHash": "6f0871750c2b24c9ade22ebc2130828f59cd3704216f98dda6360ad9a6c724b5",
+          "spacingX": 39.0625,
+          "spacingY": 39.0625
+        },
+        {
+          "id": "6f2439b0-09be-4d97-9b0c-d5be5874f8de",
+          "revision": 1,
+          "lod": 5,
+          "contentHash": "68b2fc9e5b0844faeb0a6f798f1a22d8cc1b023b9510e09f6221f865e6b5631e",
+          "spacingX": 625,
+          "spacingY": 625
+        },
+        {
+          "id": "71f61eef-b2d3-4309-808a-5baac65f70d5",
+          "revision": 1,
+          "lod": 5,
+          "contentHash": "ad889f76452c65215083f2d802d1fe3fc5b08050470c9ac477d94f4d262897d6",
+          "spacingX": 625,
+          "spacingY": 625
+        }
+      ],
+      "farContextLod": 5,
+      "analysisRequests": [
+        {
+          "lod": 5,
+          "refinement": "4993bb4f-73c1-49bc-9bfd-3d354c870b7a",
+          "tiles": 1
+        },
+        {
+          "lod": 1,
+          "refinement": "6242d992-bd94-4517-a851-3d06c464931e",
+          "tiles": 64
+        },
+        {
+          "lod": 5,
+          "refinement": "6f2439b0-09be-4d97-9b0c-d5be5874f8de",
+          "tiles": 1
+        },
+        {
+          "lod": 1,
+          "refinement": "6242d992-bd94-4517-a851-3d06c464931e",
+          "tiles": 64
+        },
+        {
+          "lod": 5,
+          "refinement": "71f61eef-b2d3-4309-808a-5baac65f70d5",
+          "tiles": 1
+        },
+        {
+          "lod": 1,
+          "refinement": "6242d992-bd94-4517-a851-3d06c464931e",
+          "tiles": 64
+        },
+        {
+          "lod": 1,
+          "refinement": "6242d992-bd94-4517-a851-3d06c464931e",
+          "tiles": 64
+        }
+      ],
+      "acceptedGraphUnchangedAcrossZoom": true,
+      "numericalSourcesExact": true,
+      "noNumericalWrites": true
+    },
+    "water-system-backup": {
+      "passed": true,
+      "systemVersion": 2,
+      "allThreeFormatsExact": false,
+      "fullOwnedDatabaseBackupRestore": true,
+      "old3AAndConnectedWaterVersionsExact": true,
+      "currentHeadsExact": true,
+      "immutableHistoryAfterRestore": true,
+      "realServiceReadsBothFormats": true,
+      "repeatedCurrentMigration": true,
+      "newSqlMigration": false,
+      "sharedDatabaseWrites": false,
+      "productionContacted": false
+    },
+    "completed-visual-review": {
+      "passed": true,
+      "applicationCommit": "23ca9cd4d13e9a4b8fbd56cd43754867a2801f6b",
+      "build": "kt50pg5mQ9dYRwDecTwbH",
+      "scope": "Supplementary read-only captures after the full unfiltered run, resuming only its owned database/application. Historical revision loaded only into an unsaved browser draft.",
+      "gpuDisabled": true,
+      "physicalDevice": false,
+      "atLeastEightConsecutiveReadyFrames": true,
+      "matchedHistoricalNodesEdgesLakesSha256": "27c633885cafcbaf2079d3a8764af1fe6d855bef595c579b590727e5af7b57cd",
+      "matchedGeographySha256": "c5ef135f7d15400e04308bda34a7af8da5c9db047ceed007478cc6d67f9a9930",
+      "waterHeadsUnchanged": true,
+      "noWorldApiWrites": true,
+      "errors": [],
+      "captures": [
+        {
+          "file": "reviewed-natural-realistic-terrain.png",
+          "style": "realistic-terrain",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 26,
+          "features": 1,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-natural-illustrated-fantasy.png",
+          "style": "illustrated-fantasy",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 26,
+          "features": 1,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-natural-topographic.png",
+          "style": "topographic",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 26,
+          "features": 1,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-natural-physical-relief.png",
+          "style": "physical-relief",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 26,
+          "features": 1,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-natural-classic-elevation.png",
+          "style": "classic-elevation",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 26,
+          "features": 1,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-matched-realistic-terrain.png",
+          "style": "realistic-terrain",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 754,
+          "features": 0,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-matched-illustrated-fantasy.png",
+          "style": "illustrated-fantasy",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 754,
+          "features": 0,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-matched-topographic.png",
+          "style": "topographic",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 754,
+          "features": 0,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-matched-physical-relief.png",
+          "style": "physical-relief",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 754,
+          "features": 0,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-matched-classic-elevation.png",
+          "style": "classic-elevation",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 754,
+          "features": 0,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.009958125"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-features-realistic-terrain.png",
+          "style": "realistic-terrain",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 1,
+          "features": 6,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.15933"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-features-illustrated-fantasy.png",
+          "style": "illustrated-fantasy",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 1,
+          "features": 6,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.15933"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-features-topographic.png",
+          "style": "topographic",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 1,
+          "features": 6,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.15933"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-features-physical-relief.png",
+          "style": "physical-relief",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 1,
+          "features": 6,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.15933"
+          },
+          "stableFrames": 8
+        },
+        {
+          "file": "reviewed-features-classic-elevation.png",
+          "style": "classic-elevation",
+          "pending": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "channels": 1,
+          "features": 6,
+          "view": {
+            "x": "387.34",
+            "y": "66.40249999999997",
+            "scale": "0.15933"
+          },
+          "stableFrames": 8
+        }
+      ],
+      "ownedAppAndDatabaseResumedThenStopped": true
+    }
+  },
+  "migrations": {
+    "new": [],
+    "existingPrerequisite": "0141_world_hydrology.sql",
+    "historicalFilesExact": 142,
+    "sharedDevStatus": "Not inspected or changed",
+    "productionStatus": "Not inspected or changed",
+    "ownedDisposableFreshReplayPopulatedUpgradeAndRestore": true
+  },
+  "boundaries": {
+    "sharedDatabaseAccess": false,
+    "productionContacted": false,
+    "deployed": false,
+    "ownerServiceRestarted": false,
+    "stage3Pass4Started": false,
+    "ownerArtisticAcceptance": false,
+    "independentAcceptance": false,
+    "physicalDeviceCertification": false
+  },
+  "earlierFailures": "failures.json",
+  "sourceFileManifest": "final-run-files.json",
+  "logs": [
+    {
+      "file": "artifacts/hydrology-3c-unit-final2.log",
+      "sha256": "64f2ffce8270a09c45c9d6a9d998b03b2dec71e18f2b02ab6ee5c4f4bb9377b3"
+    },
+    {
+      "file": "artifacts/hydrology-3c-types-final2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "artifacts/hydrology-3c-drizzle.log",
+      "sha256": "bafc9fddce546fa43e5a47d60b5ff6bec596b3d1887851bbccae6222f1b85a0c"
+    },
+    {
+      "file": "artifacts/hydrology-3c-full-2.log",
+      "sha256": "d3542f777408b414821fd174ce5247f5a7d2dd0463f60d57d748e0a6ac4a80d2"
+    },
+    {
+      "file": "artifacts/hydrology-3c-lint-final2.json",
+      "sha256": "57fb3585e9abcc6a20ac68eb65864ea6291907faae515336a45882cc0e7422ce"
+    },
+    {
+      "file": "artifacts/hydrology-3c-production-final2.log",
+      "sha256": "9a8a573a369a6ba95e4808b5ce41b3a3f423c6055f5795951587d9de2c137e1c"
+    }
+  ]
+}

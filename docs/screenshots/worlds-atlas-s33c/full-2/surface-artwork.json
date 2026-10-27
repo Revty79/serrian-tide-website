@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "allArtworkBundled": true,
+  "runtimeExternalRequests": false,
+  "failureRetainsFunctionalMaterials": true,
+  "explicitRetry": true,
+  "decodedPixelBytes": 16777200,
+  "noTerrainOrMaterialWrites": true
+}

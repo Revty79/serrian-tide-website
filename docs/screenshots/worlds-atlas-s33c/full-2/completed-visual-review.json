@@ -1,0 +1,287 @@
+{
+  "passed": true,
+  "applicationCommit": "23ca9cd4d13e9a4b8fbd56cd43754867a2801f6b",
+  "build": "kt50pg5mQ9dYRwDecTwbH",
+  "scope": "Supplementary read-only captures after the full unfiltered run, resuming only its owned database/application. Historical revision loaded only into an unsaved browser draft.",
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "atLeastEightConsecutiveReadyFrames": true,
+  "matchedHistoricalNodesEdgesLakesSha256": "27c633885cafcbaf2079d3a8764af1fe6d855bef595c579b590727e5af7b57cd",
+  "matchedGeographySha256": "c5ef135f7d15400e04308bda34a7af8da5c9db047ceed007478cc6d67f9a9930",
+  "waterHeadsUnchanged": true,
+  "noWorldApiWrites": true,
+  "errors": [],
+  "captures": [
+    {
+      "file": "reviewed-natural-realistic-terrain.png",
+      "style": "realistic-terrain",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 26,
+      "features": 1,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-natural-illustrated-fantasy.png",
+      "style": "illustrated-fantasy",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 26,
+      "features": 1,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-natural-topographic.png",
+      "style": "topographic",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 26,
+      "features": 1,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-natural-physical-relief.png",
+      "style": "physical-relief",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 26,
+      "features": 1,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-natural-classic-elevation.png",
+      "style": "classic-elevation",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 26,
+      "features": 1,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-matched-realistic-terrain.png",
+      "style": "realistic-terrain",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 754,
+      "features": 0,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-matched-illustrated-fantasy.png",
+      "style": "illustrated-fantasy",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 754,
+      "features": 0,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-matched-topographic.png",
+      "style": "topographic",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 754,
+      "features": 0,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-matched-physical-relief.png",
+      "style": "physical-relief",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 754,
+      "features": 0,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-matched-classic-elevation.png",
+      "style": "classic-elevation",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 754,
+      "features": 0,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-features-realistic-terrain.png",
+      "style": "realistic-terrain",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 1,
+      "features": 6,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.15933"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-features-illustrated-fantasy.png",
+      "style": "illustrated-fantasy",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 1,
+      "features": 6,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.15933"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-features-topographic.png",
+      "style": "topographic",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 1,
+      "features": 6,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.15933"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-features-physical-relief.png",
+      "style": "physical-relief",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 1,
+      "features": 6,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.15933"
+      },
+      "stableFrames": 8
+    },
+    {
+      "file": "reviewed-features-classic-elevation.png",
+      "style": "classic-elevation",
+      "pending": [
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "channels": 1,
+      "features": 6,
+      "view": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.15933"
+      },
+      "stableFrames": 8
+    }
+  ],
+  "ownedAppAndDatabaseResumedThenStopped": true
+}

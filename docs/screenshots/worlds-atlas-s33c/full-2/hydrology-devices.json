@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "viewport390": {
+    "mapHeight": 479.65625,
+    "devicePixelRatio": 2,
+    "cancellationRetainsSaved": true,
+    "twoFingerNavigationWhileArmed": true,
+    "nativeSourcePlacement": "touch",
+    "noNumericalWrites": true
+  },
+  "viewport820": {
+    "mapHeight": 846.25,
+    "devicePixelRatio": 2,
+    "cancellationRetainsSaved": true,
+    "twoFingerNavigationWhileArmed": true,
+    "nativeSourcePlacement": "pen",
+    "noNumericalWrites": true
+  }
+}

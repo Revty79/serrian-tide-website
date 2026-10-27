@@ -1,0 +1,110 @@
+{
+  "passed": true,
+  "lostAppearanceResponseOriginalRetryAfterReload": true,
+  "newEndpointSecurity": true,
+  "regionalNumericalTerrainRetained": true,
+  "refinementAppearanceOnlyExact": {
+    "hash": "7aca10b239a10fd05f00ff81c39dcf1278d7df1ce86a913794f349575a02caf6",
+    "revision": 6
+  },
+  "cartographicPainting": {
+    "numericalUndoExact": true,
+    "repaintedTiles": 32
+  },
+  "creationPreviewsNoTerrainRecords": true,
+  "wrappedRulerMetres": 2000,
+  "adjacentNestedWrappedContinuity": {
+    "exactBoundaryColors": {
+      "topographic": [
+        [
+          162,
+          196,
+          211,
+          255
+        ],
+        [
+          162,
+          196,
+          211,
+          255
+        ],
+        [
+          162,
+          196,
+          211,
+          255
+        ],
+        [
+          162,
+          196,
+          211,
+          255
+        ],
+        [
+          162,
+          196,
+          211,
+          255
+        ],
+        [
+          162,
+          196,
+          211,
+          255
+        ],
+        [
+          162,
+          196,
+          211,
+          255
+        ]
+      ],
+      "illustrated-fantasy": [
+        [
+          169,
+          196,
+          200,
+          255
+        ],
+        [
+          169,
+          196,
+          200,
+          255
+        ],
+        [
+          169,
+          196,
+          200,
+          255
+        ],
+        [
+          169,
+          196,
+          200,
+          255
+        ],
+        [
+          169,
+          196,
+          200,
+          255
+        ],
+        [
+          169,
+          196,
+          200,
+          255
+        ],
+        [
+          169,
+          196,
+          200,
+          255
+        ]
+      ]
+    },
+    "refinementMetadataUnchanged": true
+  },
+  "firstAppearanceConcurrentRecovery": true
+}

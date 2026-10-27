@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "world": {
+    "mapId": "50964bd9-406b-4ce7-8676-4a9793cfa870",
+    "numericalChecksum": "c0574059a0eb9d2d801b7eb16b7cec51c891e3826b6823b18ea2d30a12d0045d",
+    "unchangedRevision": true,
+    "canvasAndPoseRetained": true,
+    "comparisons": {
+      "classic-elevation": {
+        "switchMs": 59.82999999995809,
+        "pixelHash": "62d5ac3a952634a6dd37298ca8be20d227ad87ed741a0d313ab20304fb4448f2"
+      },
+      "physical-relief": {
+        "switchMs": 85.54769999999553,
+        "pixelHash": "999f502db83621833ab41c039079ee41c1cbb64fcc281a4fc7932adac3d66991"
+      },
+      "topographic": {
+        "switchMs": 1029.5662000000011,
+        "pixelHash": "1d53874150c950add7d03192f4d86b792aae5f9a8e3b4a2fa9554cfa81a2290e"
+      },
+      "illustrated-fantasy": {
+        "switchMs": 1487.2621999999974,
+        "pixelHash": "a32d8af3156a0cad9d7f4d96629c29297aeec48c4b48081f2026a2c52341156b"
+      }
+    }
+  },
+  "mapDefaultCrossBrowser": true,
+  "genuineLocalDetail": true,
+  "cartographicNavigation": {
+    "cycles": 24,
+    "wallMs": 2509.0168000000995,
+    "retainedHeapBytes": -2622424,
+    "stationaryPointerNoRepaint": true,
+    "cacheHits": 4952,
+    "textureBytes": 46137344,
+    "maxBatchMs": 31.100000023841858
+  },
+  "extreme": {
+    "mapId": "bba052e7-7b04-4b98-8122-78c2e5d08021",
+    "physicalWidthM": 1000000000,
+    "numericalChecksum": "9f4059690e98f2507d6f040f3e54967fd1e7207f5213659bfc3c0eec5ea5a23a",
+    "unchangedRevision": true,
+    "timings": {
+      "topographic": 339.01290000008885,
+      "illustrated-fantasy": 351.17639999999665
+    },
+    "metrics": {
+      "textures": 128,
+      "bytes": 2097152,
+      "maxBatchMs": 7.5,
+      "painted": 128,
+      "hits": 490
+    }
+  }
+}

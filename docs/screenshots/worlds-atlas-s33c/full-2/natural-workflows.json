@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "inputDuringNaturalMs": 9.164699999964796,
+  "naturalSuggestionMs": 950.1335999999428,
+  "naturalMetrics": "65,536 connected analysis cells; calculation 250.1 ms, complete request 438.0 ms; retained/working typed arrays 15.6 MiB. 31 closed basin(s), 89 coastal outlet(s), 0 fixed-edge exit(s). JavaScript and browser overhead are additional.",
+  "naturalAcceptanceReusesExistingIdentities": true,
+  "selection": {
+    "before": 754,
+    "after": 26,
+    "lakes": 2
+  },
+  "sameAcceptedGeographyAcrossFiveStyles": true,
+  "linkedSpringMoveUndo": true,
+  "featureReviewEndToEndMs": 235.94479999993928,
+  "featureReview": "Special-feature review: 127 samples, 8.9 ms worker time, approximately 0.0 MiB additional working collections. ",
+  "protectedFeatureReview": true,
+  "wetlandDrawingEditingUndo": true,
+  "manualRapidsAndException": true,
+  "safeFeatureDeleteUndo": true,
+  "v3InterruptedSaveRecovery": true,
+  "v3ConflictRetainsExport": true,
+  "v1V2V3HistoryRestoration": true,
+  "terrainAutosavesWithFeatureDraft": true,
+  "protectedFeatureGeometryRetained": true
+}

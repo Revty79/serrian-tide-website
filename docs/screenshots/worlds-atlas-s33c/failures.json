@@ -1,0 +1,275 @@
+{
+  "earlierFailuresRetained": true,
+  "rawLogsRemainIgnoredLocally": true,
+  "full1ScriptsNote": "Full-1 ran the 6170317 application. A strengthened root precision test was imported later in that run after visual inspection. Its earlier source-verification snapshot predates that change. Full-2 freezes final application and scripts throughout.",
+  "failures": [
+    {
+      "log": "artifacts/hydrology-3c-types-core.log",
+      "sha256": "c35732450f5e2c4cd4cba5b5aa45ffe2bebb5476c3040c8ab311123256bf21ec",
+      "problem": "Browser option type incorrectly required a mapId from the underlying helper.",
+      "correction": "Use the existing complete browser option type.",
+      "followup": "Final root types and production build.",
+      "excerpt": [
+        "scripts/worlds-surface-disposable.test.ts(108,31): error TS2345: Argument of type '{ browser: Browser; god: BrowserContext; base: string; world: `${string}-${string}-${string}-${string}-${string}`; foreign: `${string}-${string}-${string}-${string}-${string}`; out: string; errors: string[]; restart: () => Promise<...>; }' is not assignable to parameter of type 'HydroBrowserOptions'.",
+        "  Property 'mapId' is missing in type '{ browser: Browser; god: BrowserContext; base: string; world: `${string}-${string}-${string}-${string}-${string}`; foreign: `${string}-${string}-${string}-${string}-${string}`; out: string; errors: string[]; restart: () => Promise<...>; }' but required in type '{ mapId: string; }'.",
+        ""
+      ]
+    },
+    {
+      "log": "artifacts/hydrology-3c-types-ui.log",
+      "sha256": "bb80b57e7850a3d1cb2cf41bbad10b799ca48e7ffab010e9d9ad72b6259cd24a",
+      "problem": "Save wrapper could return undefined instead of Promise<void>.",
+      "correction": "Keep an async wrapper and the original contract.",
+      "followup": "Final root types and production build.",
+      "excerpt": [
+        "src/features/worlds/terrain-hydrology-controls.tsx(32,26): error TS2322: Type '{ pick: (point: { x: number; y: number; }, tolerance: number) => void; overlay: { featurePreview: { version: 1; visible: boolean; opacity: number; analyses: { id: string; method: \"terrain-drainage-v1\" | \"terrain-water-v2\" | \"terrain-natural-v3\"; ... 8 more ...; lakeMinimumDepthM?: number | undefined; }[]; ... 6 more...' is not assignable to type '{ setSelection: (id: string | null, preview: boolean) => void; pick: (point: HydroPoint, tolerance: number) => void; overlay: { suggestions: { version: 1; visible: boolean; opacity: number; ... 7 more ...; catchments?: { ...; }[] | undefined; } | null; ... 13 more ...; analysisCount?: number; }; ... 50 more ...; exp...'.",
+        "  The types returned by 'save()' are incompatible between these types.",
+        "    Type 'Promise<void> | undefined' is not assignable to type 'Promise<void>'.",
+        "      Type 'undefined' is not assignable to type 'Promise<void>'.",
+        ""
+      ]
+    },
+    {
+      "log": "artifacts/hydrology-3c-display-1-production.log",
+      "sha256": "0733466bc4dc12bd12ba29ecd97428622ec276cac1886e9787a3020f2b488687",
+      "problem": "Early display production build exposed the optional Promise type.",
+      "correction": "Correct async save wrapper without weakening callers.",
+      "followup": "after-display-2 and final full-2.",
+      "excerpt": [
+        "  \t- include was updated to add '.next-terrain-pass1/dev/types/**/*.ts'",
+        "",
+        "src/features/worlds/terrain-hydrology-controls.tsx(32,26): error TS2322: Type '{ pick: (point: { x: number; y: number; }, tolerance: number) => void; overlay: { featurePreview: { version: 1; visible: boolean; opacity: number; analyses: { id: string; method: \"terrain-drainage-v1\" | \"terrain-water-v2\" | \"terrain-natural-v3\"; ... 8 more ...; lakeMinimumDepthM?: number | undefined; }[]; ... 6 more...' is not assignable to type '{ setSelection: (id: string | null, preview: boolean) => void; pick: (point: HydroPoint, tolerance: number) => void; overlay: { suggestions: { version: 1; visible: boolean; opacity: number; ... 7 more ...; catchments?: { ...; }[] | undefined; } | null; ... 13 more ...; analysisCount?: number; }; ... 50 more ...; exp...'.",
+        "  The types returned by 'save()' are incompatible between these types.",
+        "    Type 'Promise<void> | undefined' is not assignable to type 'Promise<void>'.",
+        "      Type 'undefined' is not assignable to type 'Promise<void>'.",
+        "Failed to type check.",
+        "",
+        "Turbopack build encountered 1 warning:",
+        "./src/features/worlds/raster-storage.ts:45:23",
+        "Warning: Dynamic filesystem access causes tracing of the whole project",
+        "  43 |     // Links stay inside this private bundle, never to the preparation directory.",
+        "  44 |     // A conservative 512-link group also supports Windows' per-file link limit.",
+        "> 45 |     if(anchor&&(await stat(anchor)).nlink>=512)anchor=undefined;",
+        "     |                       ^^^^^^^^^^^^",
+        "  46 |     await publishRasterFile(source,target,asset.sha256,asset.bytes,anchor,digest);",
+        "  47 |     if(categorical&&!anchor)anchors.set(asset.sha256,target);",
+        "  48 |   }",
+        "",
+        "Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.",
+        "This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.",
+        "This can slow down deployments or lead to failures when size limits are exceeded.",
+        "To resolve this, you can"
+      ]
+    },
+    {
+      "log": "artifacts/hydrology-3c-focused-1.log",
+      "sha256": "14139456e8a13ebcccf94623f37ab401abff30ae2b633e8d8b2ab7fc5abe3243",
+      "problem": "Discarded review closed the feature section, hiding the next review button.",
+      "correction": "Retain disclosure state and navigate the optional section explicitly.",
+      "followup": "focused-2, focused-4 and final full-2.",
+      "excerpt": [
+        "PASS water v3 feature persistence, all three histories/retries, downgrade rejection, concurrency, roles and exact terrain",
+        "PASS isolated production build and migration replay",
+        "node : locator.click: Timeout 120000ms exceeded.",
+        "At line:10 char:1",
+        "+ node --conditions=react-server --import tsx scripts/worlds-surface-di ...",
+        "+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+        "    + CategoryInfo          : NotSpecified: (locator.click: ...000ms exceeded.:String) [], RemoteException",
+        "    + FullyQualifiedErrorId : NativeCommandError",
+        " ",
+        "Call log:",
+        "  - waiting for getByRole('button', { name: 'Review steep reaches & wet areas', exact: true })",
+        "",
+        "    at Object.checkNaturalWorkflows (D:\\serrian-tide-website\\scripts\\worlds-natural-workflows.ts:20:1609)",
+        "    at async checkNaturalBrowser (D:\\serrian-tide-website\\scripts\\worlds-natural-browser-checks.ts:21:3)",
+        "    at async main (D:\\serrian-tide-website\\scripts\\worlds-surface-disposable.test.ts:108:5) {",
+        "  log: [",
+        "    \"  - waiting for getByRole('button', { name: 'Review steep reaches & wet areas', exact: true })\"",
+        "  ],",
+        "  name: 'TimeoutError'",
+        "}",
+        ""
+      ]
+    },
+    {
+      "log": "artifacts/hydrology-3c-types-freeze.log",
+      "sha256": "35a21fac9193edf1c26f8cb6065152ccee81306202f1c83d3c7746748a2f2510",
+      "problem": "Precision test Canvas element inferred HTMLElement/SVGElement.",
+      "correction": "Use an explicit HTMLCanvasElement in the real browser test.",
+      "followup": "Final root types and production build.",
+      "excerpt": [
+        "scripts/worlds-natural-precision.ts(23,299): error TS2339: Property 'getContext' does not exist on type 'SVGElement | HTMLElement'.",
+        "  Property 'getContext' does not exist on type 'SVGElement'.",
+        "scripts/worlds-natural-precision.ts(23,322): error TS2339: Property 'width' does not exist on type 'SVGElement | HTMLElement'.",
+        "  Property 'width' does not exist on type 'SVGElement'.",
+        "scripts/worlds-natural-precision.ts(23,341): error TS2339: Property 'height' does not exist on type 'SVGElement | HTMLElement'.",
+        "  Property 'height' does not exist on type 'SVGElement'.",
+        "scripts/worlds-natural-precision.ts(23,551): error TS2339: Property 'width' does not exist on type 'SVGElement | HTMLElement'.",
+        "  Property 'width' does not exist on type 'SVGElement'.",
+        "scripts/worlds-natural-precision.ts(23,564): error TS2339: Property 'height' does not exist on type 'SVGElement | HTMLElement'.",
+        "  Property 'height' does not exist on type 'SVGElement'.",
+        ""
+      ]
+    },
+    {
+      "log": "artifacts/hydrology-3c-focused-3-production.log",
+      "sha256": "cf2f5c83ae12bb368d96bf03d3961963f78e93cb24143b515a83634dc5be35e6",
+      "problem": "Production build copied the earlier precision test before its Canvas type correction.",
+      "correction": "Preserve failure; rebuild the corrected scripts.",
+      "followup": "focused-4 and final full-2.",
+      "excerpt": [
+        "  \t- include was updated to add '.next-terrain-pass1/dev/types/**/*.ts'",
+        "",
+        "scripts/worlds-natural-precision.ts(23,299): error TS2339: Property 'getContext' does not exist on type 'SVGElement | HTMLElement'.",
+        "  Property 'getContext' does not exist on type 'SVGElement'.",
+        "scripts/worlds-natural-precision.ts(23,322): error TS2339: Property 'width' does not exist on type 'SVGElement | HTMLElement'.",
+        "  Property 'width' does not exist on type 'SVGElement'.",
+        "scripts/worlds-natural-precision.ts(23,341): error TS2339: Property 'height' does not exist on type 'SVGElement | HTMLElement'.",
+        "  Property 'height' does not exist on type 'SVGElement'.",
+        "scripts/worlds-natural-precision.ts(23,551): error TS2339: Property 'width' does not exist on type 'SVGElement | HTMLElement'.",
+        "  Property 'width' does not exist on type 'SVGElement'.",
+        "scripts/worlds-natural-precision.ts(23,564): error TS2339: Property 'height' does not exist on type 'SVGElement | HTMLElement'.",
+        "  Property 'height' does not exist on type 'SVGElement'.",
+        "Failed to type check.",
+        "",
+        "Turbopack build encountered 1 warning:",
+        "./src/features/worlds/raster-storage.ts:45:23",
+        "Warning: Dynamic filesystem access causes tracing of the whole project",
+        "  43 |     // Links stay inside this private bundle, never to the preparation directory.",
+        "  44 |     // A conservative 512-link group also supports Windows' per-file link limit.",
+        "> 45 |     if(anchor&&(await stat(anchor)).nlink>=512)anchor=undefined;",
+        "     |                       ^^^^^^^^^^^^",
+        "  46 |     await publishRasterFile(source,target,asset.sha256,asset.bytes,anchor,digest);",
+        "  47 |     if(categorical&&!anchor)anchors.set(asset.sha256,target);"
+      ]
+    },
+    {
+      "log": "artifacts/hydrology-3c-unit-overlap-guard.log",
+      "sha256": "e6837bf86c9a052b7bbdbd8fd5a4eda3cfcfa8c2bd3f5ce4ce1deb0e5687f200",
+      "problem": "Safe rejection used a generic overlap explanation where the test required a protected-route explanation.",
+      "correction": "Check protected conflicts before the generic partial-overlap guard; retain the assertion.",
+      "followup": "42-test retry and final 2438-test suite.",
+      "excerpt": [
+        "test at src\\features\\worlds\\terrain-water-natural.test.ts:2:17086",
+        "✖ a protected modified path cannot acquire a competing natural route through acceptance (236.3042ms)",
+        "  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /protected/. Input:",
+        "  ",
+        "  'Error: This suggestion partly overlaps an accepted route. Use an explicit junction connection or deliberate replacement; the existing graph was retained.'",
+        "  ",
+        "      at TestContext.<anonymous> (D:\\serrian-tide-website\\src\\features\\worlds\\terrain-water-natural.test.ts:32:533)",
+        "      at Test.runInAsyncScope (node:async_hooks:227:14)",
+        "      at Test.run (node:internal/test_runner/test:1325:25)",
+        "      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)",
+        "      at Test.postRun (node:internal/test_runner/test:1465:19)",
+        "      at Test.run (node:internal/test_runner/test:1390:12)",
+        "      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {",
+        "    generatedMessage: true,",
+        "    code: 'ERR_ASSERTION',",
+        "    actual: Error: This suggestion partly overlaps an accepted route. Use an explicit junction connection or deliberate replacement; the existing graph was retained.",
+        "        at adaptNaturalAcceptance (D:\\serrian-tide-website\\src\\features\\worlds\\terrain-water-acceptance.ts:32:328)",
+        "        at <anonymous> (D:\\serrian-tide-website\\src\\features\\worlds\\terrain-water-natural.test.ts:32:544)",
+        "        at getActual (node:assert:611:5)",
+        "        at strict.throws (node:assert:759:24)",
+        "        at TestContext.<anonymous> (D:\\serrian-tide-website\\src\\features\\worlds\\terrain-water-natural.test.ts:32:533)",
+        "        at Test.runInAsyncScope (node:async_hooks:227:14)",
+        "        at Test.run (node:internal/test_runner/test:1325:25)"
+      ]
+    },
+    {
+      "log": "artifacts/hydrology-3c-full-1.log",
+      "sha256": "ae9d8c028ed43a31435420087d816cfe2a53c3e4c9765121142084461de5a912",
+      "problem": "Personal screenshot inspection found a later wrapped channel copy overpainting a point symbol; new actual-symbol pixel assertion reproduced darkSymbolPixels=0.",
+      "correction": "Paint every wrapped channel copy before point symbols at 23ca9cd; retain the stronger assertion.",
+      "followup": "Final unfiltered full-2; requires at least 12 actual dark symbol pixels.",
+      "excerpt": [
+        "PASS native phone/tablet special water creation, two-finger navigation, cancellation, exact cleanup and no numerical writes",
+        "PASS CPU water artwork caches across World/regional/close pan/zoom and bounded cold/warm feature review",
+        "node : AssertionError [ERR_ASSERTION]: The wrapped river must not paint over its endpoint symbol: ",
+        "{\"darkSymbolPixels\":0}",
+        "At line:15 char:1",
+        "+ node --conditions=react-server --import tsx scripts/worlds-surface-di ...",
+        "+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+        "    + CategoryInfo          : NotSpecified: (AssertionError ...ymbolPixels\":0}:String) [], RemoteException",
+        "    + FullyQualifiedErrorId : NativeCommandError",
+        " ",
+        "    at Object.checkNaturalPrecision (D:\\serrian-tide-website\\scripts\\worlds-natural-precision.ts:26:12)",
+        "    at async checkNaturalBrowser (D:\\serrian-tide-website\\scripts\\worlds-natural-browser-checks.ts:24:3)",
+        "    at async main (D:\\serrian-tide-website\\scripts\\worlds-surface-disposable.test.ts:108:5) {",
+        "  generatedMessage: false,",
+        "  code: 'ERR_ASSERTION',",
+        "  actual: false,",
+        "  expected: true,",
+        "  operator: '==',",
+        "  diff: 'simple'",
+        "}",
+        ""
+      ]
+    },
+    {
+      "log": "artifacts/hydrology-3c-completed-captures.log",
+      "sha256": "0944621eb9b55bc55f655e4032eef5b5b115283eb67725329441e3bcde321dea",
+      "problem": "A supplementary screenshot login after many test sign-ins received the owned app's rate limit, 429.",
+      "correction": "Resume only the finished run's owned database/app for visual inspection, preserving auth settings and shared services.",
+      "followup": "Fifteen completed captures pass; both owned processes stopped afterward.",
+      "excerpt": [
+        "+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+        "    + CategoryInfo          : NotSpecified: (node:internal/modules/run_main:107:String) [], RemoteException",
+        "    + FullyQualifiedErrorId : NativeCommandError",
+        " ",
+        "    triggerUncaughtException(",
+        "    ^",
+        "",
+        "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:",
+        "",
+        "429 !== 200",
+        "",
+        "    at file:///D:/serrian-tide-website/artifacts/hydrology-3c-completed-captures.mjs:11:10 {",
+        "  generatedMessage: true,",
+        "  code: 'ERR_ASSERTION',",
+        "  actual: 429,",
+        "  expected: 200,",
+        "  operator: 'strictEqual',",
+        "  diff: 'simple'",
+        "}",
+        "",
+        "Node.js v24.18.0",
+        ""
+      ]
+    },
+    {
+      "log": "artifacts/hydrology-3c-lint-final.json",
+      "sha256": "30524fdeabda31f45d363e880992e78859f0723a21120939bd2bd2d85e30b290",
+      "problem": "One verifier syntax error (extra comma) plus the pre-existing LoreFamily warning.",
+      "correction": "Correct verifier syntax; execute it separately and record its own hash. Original application/test scripts remain byte-verified.",
+      "followup": "Final whole-repository lint has zero errors and the same one pre-existing warning.",
+      "diagnostics": [
+        {
+          "file": "scripts/worlds-natural-source-check.mjs",
+          "errors": 1,
+          "warnings": 0,
+          "messages": [
+            {
+              "line": 21,
+              "column": 153,
+              "message": "Parsing error: Property assignment expected.",
+              "ruleId": null
+            }
+          ]
+        },
+        {
+          "file": "scripts/worlds-stories-checks.ts",
+          "errors": 0,
+          "warnings": 1,
+          "messages": [
+            {
+              "line": 6,
+              "column": 42,
+              "message": "'LoreFamily' is defined but never used.",
+              "ruleId": "@typescript-eslint/no-unused-vars"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

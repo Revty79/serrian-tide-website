@@ -8,9 +8,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Active Worlds direction - Stage 3 Pass 3C, natural waterways (2026-10-26)
+## Completed Worlds direction - Stage 3 Pass 3C, natural waterways (2026-10-26)
 
 The owner authorizes unattended [Pass 3C natural waterways and special features](docs/architecture/worlds-hydrology-s33c.md) from published `001efbf0e22c920ba34b206e53db4ea62e00ac22`. Complete meaningful terrain-grounded channel selection and scale-aware presentation, riverbanks/shoreline artwork, springs, stream classifications, waterfalls/rapids and provisional creator-editable wetlands in the existing water graph. Preserve numerical terrain, protected geometry, old v1/v2 documents, history/retries/recovery, World identities, styles/materials and gameplay. Work on main, validate in newly owned disposable targets, inspect matched before/after actual browser imagery, publish the complete verified pass to origin/main, then stop. No routine approval wait, shared DEV/Production access or migration, owner-service restart, deployment, historical SQL edits, climate/biomes/vegetation/erosion, Studio or Stage 3 Pass 4. Owner artistic acceptance remains outstanding.
+
+Pass 3C is technically complete at `23ca9cd4d13e9a4b8fbd56cd43754867a2801f6b`; see [delivery and evidence](docs/operations/worlds-hydrology-s33c-delivery.md). All 2,438 units, root checks and the full unfiltered production/database/browser chain pass against 1,592 byte-exact runtime files. Natural selection reuses the original numerical solver; special features extend the existing JSONB water head/history with explicit v3 compatibility. **No new SQL migration** is needed; existing 0141 remains required, with shared DEV/Production status unverified and untouched. All 142 historical migrations, original numerical/material sources and 133 gameplay tables remain preserved. Earlier failures and the screenshot-detected wrapped-symbol correction remain indexed. Publication is authorized; deployment, independent review, owner visual acceptance and Stage 3 Pass 4 remain separate and have not occurred.
 
 ## Completed Worlds direction - Stage 3 Pass 3B, connected hydrology (2026-10-26)
 

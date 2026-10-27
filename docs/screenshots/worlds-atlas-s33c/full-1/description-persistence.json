@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "v3StructuredPlanRoundTrip": true,
+  "numericalEquality": true,
+  "originalProvenanceRetainedAfterSculpt": true,
+  "exactRetry": true,
+  "unconfirmedRejected": true,
+  "foreignFrameRejected": true,
+  "newMigrationRequired": false,
+  "sharedDatabaseAccess": false
+}

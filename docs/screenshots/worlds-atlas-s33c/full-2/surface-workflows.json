@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "savedV2MapDefaultInCleanBrowser": true,
+  "lostResponseOriginalRetryAfterReload": true,
+  "conflictExportAndExplicitReload": true,
+  "acceptedHistoryRestoredAsNewRevision": true,
+  "authorizationCsrfBodyAndStrictValidation": true,
+  "navigation": {
+    "cycles": 12,
+    "revisitedArtworkChecksum": "50ba0cdcd8f5ee57b409e12541f5f147263eef0937b1c6deeac1b2337fdac162",
+    "wallMs": 1391.9426000000676,
+    "retainedHeapBytes": 116216,
+    "hits": 2726,
+    "bytes": 9005268,
+    "batchMs": 0.8000000715255737
+  }
+}
