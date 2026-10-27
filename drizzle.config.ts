@@ -31,7 +31,6 @@ export default defineConfig({
     "./src/db/world-terrain-material-schema.ts",
     "./src/db/world-hydrology-schema.ts",
     "./src/db/world-environment-schema.ts",
-    "./src/db/world-environment-schema.ts",
     "./src/db/world-town-schema.ts",
     "./src/db/world-town-commerce-schema.ts",
     "./src/db/catalog-preferences-schema.ts",
