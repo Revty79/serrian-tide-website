@@ -1,6 +1,7 @@
 "use client";
 import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import {ZodError} from "zod";
+import {prepareWaterAcceptance} from "./terrain-water-network";
 import {worldApi} from "./client-api";
 import {EMPTY_HYDROLOGY,acceptHydrology,hydroLayerSchema,hydroSaveSchema,makeHydroAnalysis,moveHydroPoint,removeHydroEdge,replaceUnprotectedHydrology,validateHydroFrame,type HydroAnalysis,type HydroCommand,type HydroEdge,type HydroLayer,type HydroPoint,type HydroSources} from "./terrain-hydrology";
 import {hydrologyUrl,loadHydrologyPatches} from "./terrain-hydrology-loader";
@@ -71,7 +72,7 @@ export function useTerrainHydrology(api:string,mapId:string,editable:boolean,sou
     if(mode==="move-point"&&selected&&!selectedPreview){try{const changed=change(moveHydroPoint(current.current,selected,pointIndex.current,point));if(changed)setNotice("Water position adjusted. This course is now creator-authored and protected; save waterways to accept it.");}catch(e){setError(message(e));}setMode("select");return;}
     const hit=previewShown&&preview?hitHydrology(preview,point,sources.world,tolerance):undefined,accepted=hit??hitHydrology(current.current,point,sources.world,tolerance);setSelected(accepted??null);setSelectedPreview(!!hit);
   }
-  function accept(id?:string){if(!preview)return;try{const next=acceptHydrology(current.current,preview,id);if(change(next)){setSelectedPreview(false);setSelected(id??next.edges[0]?.id??null);setNotice("Waterway and downstream connections accepted into the draft. Save waterways to keep this authoring.");}}catch(e){setError(message(e));}}
+  function accept(id?:string){if(!preview)return;try{const next=acceptHydrology(sources?prepareWaterAcceptance(current.current,preview,sources.world,id):current.current,preview,id);if(change(next)){setSelectedPreview(false);setSelected(id??next.edges[0]?.id??null);setNotice("Waterway and downstream connections accepted into the draft. Save waterways to keep this authoring.");}}catch(e){setError(message(e));}}
   function replaceUnprotected(){if(!preview)return;try{if(change(replaceUnprotectedHydrology(current.current,preview))){setSelectedPreview(false);setSelected(preview.edges[0]?.id??null);setNotice("Unprotected derived waterways replaced in the draft. Creator-positioned and protected courses were retained. Undo is available; save to accept this review.");}}catch(e){setError(message(e));}}
   function reject(id:string){if(preview){setPreview(removeHydroEdge(preview,id));setSelected(null);setNotice("Suggestion rejected. Saved waterways were not changed.");}}
   function editEdge(id:string,values:Pick<HydroEdge,"name"|"flowKind"|"exceptionReason"|"protected">){const next={...current.current,edges:current.current.edges.map(e=>e.id===id?{...e,...values}:e)};if(change(next))setNotice("Waterway details changed in the draft. Save waterways to accept them.");}
