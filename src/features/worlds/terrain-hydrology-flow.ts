@@ -3,7 +3,7 @@ import {HydroMesh,type HydroPatch} from "./terrain-hydrology-mesh";
 import type {TerrainFrame} from "./terrain-refinement";
 
 const EPS=1e-8;
-export type HydroFlow={mesh:HydroMesh;receiver:Int32Array;area:Float64Array;outlet:Int32Array;spill:Float64Array;seaLevel:number;metrics:{nodes:number;landAreaM2:number;seaOutlets:number;closedBasins:number;boundaryOutlets:number;workingBytes:number;analysisMs:number}};
+export type HydroFlow={mesh:HydroMesh;receiver:Int32Array;area:Float64Array;outlet:Int32Array;spill:Float64Array;seaLevel:number;metrics:{nodes:number;landAreaM2:number;seaOutlets:number;closedBasins:number;boundaryOutlets:number;workingBytes:number;analysisMs:number;naturalSelection?:{candidateBranches:number;retainedHeadwaters:number;selectedCells:number;bytes:number}}};
 export type HydroRequest={sources:HydroSources;patches:HydroPatch[];focus:TerrainFrame;minimumAreaM2:number};
 function distance(mesh:HydroMesh,a:number,b:number){const aa=a*4,bb=b*4;let x=(mesh.bounds[aa]+mesh.bounds[aa+2]-mesh.bounds[bb]-mesh.bounds[bb+2])/2;if(mesh.world.wrap)x-=Math.round(x/mesh.world.width)*mesh.world.width;const y=(mesh.bounds[aa+1]+mesh.bounds[aa+3]-mesh.bounds[bb+1]-mesh.bounds[bb+3])/2;return Math.hypot(x,y);}
 
@@ -40,14 +40,15 @@ export function calculateHydroFlow(input:HydroRequest,progress:(stage:string,val
 function inFocus(p:HydroPoint,focus:TerrainFrame,width:number,wrap:boolean){const x=wrap?((p.x-focus.x)%width+width)%width:p.x-focus.x;return x>=0&&x<focus.width&&p.y>=focus.y&&p.y<focus.y+focus.height;}
 function collinear(mesh:HydroMesh,a:number,b:number,c:number){const aa=mesh.point(a),bb=mesh.point(b),cc=mesh.point(c);let x=bb.x-aa.x,xx=cc.x-bb.x;if(mesh.world.wrap){x-=Math.round(x/mesh.world.width)*mesh.world.width;xx-=Math.round(xx/mesh.world.width)*mesh.world.width;}const y=bb.y-aa.y,yy=cc.y-bb.y;return x*xx+y*yy>=0&&Math.abs(x*yy-y*xx)<=1e-10*Math.max(1,Math.hypot(x,y)*Math.hypot(xx,yy));}
 
-export function hydroSuggestions(flow:HydroFlow,analysis:HydroAnalysis,sourcePoint?:HydroPoint):HydroLayer{
+export function hydroSuggestions(flow:HydroFlow,analysis:HydroAnalysis,sourcePoint?:HydroPoint,selectedMask?:Uint8Array):HydroLayer{
   const {mesh,receiver,area}=flow,n=mesh.count,selected=new Uint8Array(n),incoming=new Int32Array(n);
   const mark=(start:number)=>{let id=start;while(id>=0&&!selected[id]){selected[id]=1;id=receiver[id];}};
-  if(sourcePoint){const source=mesh.locate(sourcePoint);if(source<0||mesh.heights[source]<=flow.seaLevel)throw Error("Place a river source on saved land. Water already below sea level is not a river source.");mark(source);}
+  if(selectedMask)selected.set(selectedMask);
+  else if(sourcePoint){const source=mesh.locate(sourcePoint);if(source<0||mesh.heights[source]<=flow.seaLevel)throw Error("Place a river source on saved land. Water already below sea level is not a river source.");mark(source);}
   else for(let id=0;id<n;id++)if(mesh.heights[id]>flow.seaLevel&&area[id]>=Math.max(analysis.minimumAreaM2,mesh.cellArea(id)*4)&&inFocus(mesh.point(id),analysis.focus,mesh.world.width,mesh.world.wrap))mark(id);
   for(let id=0;id<n;id++)if(selected[id]&&receiver[id]>=0)incoming[receiver[id]]++;
   const globalIncoming=new Int32Array(n);for(let id=0;id<n;id++)if(receiver[id]>=0&&area[id]>0)globalIncoming[receiver[id]]++;
-  const junction=(id:number)=>incoming[id]!==1||globalIncoming[id]>1||receiver[id]<0;
+  const junction=(id:number)=>incoming[id]!==1||!selectedMask&&globalIncoming[id]>1||receiver[id]<0;
   const starts:number[]=[];for(let id=0;id<n;id++)if(selected[id]&&junction(id))starts.push(id);
   const nodes=new Map<number,HydroNode>(),edges:HydroLayer["edges"]=[],done=new Set<number>();let points=0;
   const node=(id:number)=>{
@@ -59,8 +60,8 @@ export function hydroSuggestions(flow:HydroFlow,analysis:HydroAnalysis,sourcePoi
     const start=starts[index];if(done.has(start)||receiver[start]<0)continue;done.add(start);const path=[start];let cursor=receiver[start];
     while(cursor>=0){if(path.length>=2&&collinear(mesh,path[path.length-2],path.at(-1)!,cursor))path.pop();path.push(cursor);if(junction(cursor))break;if(path.length>=512){starts.push(cursor);break;}cursor=receiver[cursor];}
     if(path.length<2)continue;const from=node(start),to=node(path.at(-1)!);points+=path.length;
-    edges.push({id:hydroIdentity("channel",from.id+"/"+to.id),from:from.id,to:to.id,name:`Waterway ${edges.length+1}`,points:path.map(id=>mesh.point(id)),drainageM2:area[start],flowKind:"derived",exceptionReason:"",protected:false,analysisId:analysis.id,...analysis.method==="terrain-water-v2"?{sourceIds:[...new Set(path.map(id=>mesh.patches[mesh.sourceIds[id]].source.id))]}:{}});
+    edges.push({id:hydroIdentity("channel",from.id+"/"+to.id),from:from.id,to:to.id,name:`Waterway ${edges.length+1}`,points:path.map(id=>mesh.point(id)),drainageM2:area[start],flowKind:"derived",exceptionReason:"",protected:false,analysisId:analysis.id,...analysis.method!=="terrain-drainage-v1"?{sourceIds:[...new Set(path.map(id=>mesh.patches[mesh.sourceIds[id]].source.id))]}:{}});
     if(edges.length>HYDROLOGY_LIMITS.edges||nodes.size>HYDROLOGY_LIMITS.nodes||points>HYDROLOGY_LIMITS.points)throw Error("Too many waterways for one review. Increase the minimum drainage area or analyse the current view. Saved waterways are retained.");
   }
-  return hydroLayerSchema.parse({...EMPTY_HYDROLOGY,analyses:edges.length?[analysis]:[],nodes:[...nodes.values()],edges});
+  return hydroLayerSchema.parse({...EMPTY_HYDROLOGY,...analysis.method==="terrain-natural-v3"?{systemVersion:3 as const}:{},analyses:edges.length?[analysis]:[],nodes:[...nodes.values()],edges});
 }

@@ -8,7 +8,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Active Worlds direction - Stage 3 Pass 3B, connected hydrology (2026-10-26)
+## Active Worlds direction - Stage 3 Pass 3C, natural waterways (2026-10-26)
+
+The owner authorizes unattended [Pass 3C natural waterways and special features](docs/architecture/worlds-hydrology-s33c.md) from published `001efbf0e22c920ba34b206e53db4ea62e00ac22`. Complete meaningful terrain-grounded channel selection and scale-aware presentation, riverbanks/shoreline artwork, springs, stream classifications, waterfalls/rapids and provisional creator-editable wetlands in the existing water graph. Preserve numerical terrain, protected geometry, old v1/v2 documents, history/retries/recovery, World identities, styles/materials and gameplay. Work on main, validate in newly owned disposable targets, inspect matched before/after actual browser imagery, publish the complete verified pass to origin/main, then stop. No routine approval wait, shared DEV/Production access or migration, owner-service restart, deployment, historical SQL edits, climate/biomes/vegetation/erosion, Studio or Stage 3 Pass 4. Owner artistic acceptance remains outstanding.
+
+## Completed Worlds direction - Stage 3 Pass 3B, connected hydrology (2026-10-26)
 
 The owner explicitly authorized unattended [Pass 3B connected water systems](docs/architecture/worlds-hydrology-s33b.md) after the technically completed published 3A checkpoint `7a875e49411eceaab29e5876f9a3c2a462ca4032`. Extend its exact drainage, graph, revisioned persistence and editor for lakes, river/lake connections, watersheds, manual network editing, imagery integration and targeted terrain review. Preserve original terrain/refinements/materials/styles/identities/history/gameplay and protected authoring. Keep main, test in newly owned disposable environments, publish the complete verified pass to origin/main and stop before 3C. No routine clarification/approval wait, shared DEV/Production operations, historical migration edits, deployment, owner-service restart, climate, erosion, vegetation, Studio or unrelated roadmap work. Owner terrain visual quality remains rejected/deferred; technical screenshots do not resolve owner acceptance.
 

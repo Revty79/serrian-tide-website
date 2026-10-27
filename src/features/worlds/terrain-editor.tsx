@@ -1,7 +1,7 @@
 "use client";
 /* Canvas buffers and history are intentionally mutable outside React; state carries UI counters only. */
 import {useTerrainMaterials,TerrainMaterialControls} from "./terrain-material-client";
-import {useTerrainWater} from "./terrain-water-client";
+import {useNaturalWater} from "./terrain-natural-water-client";
 import {TerrainHydrologyControls} from "./terrain-hydrology-controls";
 import type {SurfaceMaterial} from "./terrain-materials";
 import {appearanceRelief,visualAppearance} from "./terrain-appearance";
@@ -70,7 +70,7 @@ function Sculptor({ document: rootDocument, api:baseApi, editable, review, onDir
   const materialSizeChosen=useRef(false);
   const materials=useTerrainMaterials(baseApi,rootDocument.id,editable),[surfaceMaterial,setSurfaceMaterial]=useState<SurfaceMaterial>("rock"),[materialDiameter,setMaterialDiameter]=useState(Math.max(.25,Math.min(rootShape.displayWidth,rootShape.displayHeight)/100)),[materialStrength,setMaterialStrength]=useState(1);
   useEffect(()=>{materialDirtyNow.current=materials.dirty||!!materials.recovered;onDirty(materialDirtyNow.current||terrainDirtyNow.current||locationDirty.current||operationDirty.current||waterDirtyNow.current);},[materials.dirty,materials.recovered,onDirty]);
-  const water=useTerrainWater(baseApi,rootDocument.id,editable,String(rootAccepted.current.revision)+"/"+String(details.index?.rootRevision??rootDocument.revision)+"/"+(details.index?.refinements.map(m=>m.id+":"+m.revision).join("/")??""));
+  const water=useNaturalWater(baseApi,rootDocument.id,editable,String(rootAccepted.current.revision)+"/"+String(details.index?.rootRevision??rootDocument.revision)+"/"+(details.index?.refinements.map(m=>m.id+":"+m.revision).join("/")??""));
   useEffect(()=>{waterDirtyNow.current=water.dirty||!!water.recovered;onDirty(waterDirtyNow.current||materialDirtyNow.current||terrainDirtyNow.current||locationDirty.current||operationDirty.current);},[water.dirty,water.recovered,onDirty]);
   const baseline = useRef<Int16Array>(grid.slice()), revision = useRef(saved.revision), baselineSea = useRef(saved.seaLevel), changed = useRef(new Set<number>());
   const canvas = useRef<TerrainCanvasHandle>(null), undo = useRef<History[]>([]), redo = useRef<History[]>([]), pendingCommand = useRef<TerrainRecovery["pending"]>(undefined);

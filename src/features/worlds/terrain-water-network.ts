@@ -2,7 +2,7 @@ import {EMPTY_HYDROLOGY,hydroIdentity,hydroLayerSchema,pruneHydrology,acceptHydr
 import {insideWaterRings,nearestWaterShore,waterDx,waterPoint} from "./terrain-water-geometry";
 import type {HydroGeometry} from "./terrain-hydrology";
 
-export const connectedWater=(layer:HydroLayer):HydroLayer=>({...layer,systemVersion:2,lakes:layer.lakes??[],catchments:layer.catchments??[]});
+export const connectedWater=(layer:HydroLayer):HydroLayer=>({...layer,systemVersion:layer.systemVersion===3?3:2,lakes:layer.lakes??[],catchments:layer.catchments??[]});
 function checked(layer:HydroLayer){return hydroLayerSchema.parse(pruneHydrology(connectedWater(layer)));}
 export function waterNetwork(layer:HydroLayer,id:string){
   const links=new Map<string,Set<string>>(),join=(a:string,b:string)=>{if(!links.has(a))links.set(a,new Set());if(!links.has(b))links.set(b,new Set());links.get(a)!.add(b);links.get(b)!.add(a);};
@@ -34,7 +34,7 @@ export function riversIntoLakes(layer:HydroLayer,lakes:HydroLake[],world:HydroGe
   for(const edge of layer.edges){let result:HydroEdge|undefined=edge;for(const lake of updated){if(!result)continue;const from=nodes.get(result.from),to=nodes.get(result.to);if(to?.lakeId===lake.id&&!lake.inletNodeIds.includes(to.id))lake.inletNodeIds.push(to.id);if(from?.lakeId||to?.lakeId){if(to?.lakeId===lake.id&&nearestWaterShore(to.point,lake.rings,world).distance>1e-4)lake.review=true;continue;}if(preserveAuthoring&&(result.protected||result.flowKind!=="derived")){if(result.points.some(p=>insideWaterRings(p,lake.rings,world)))lake.review=true;continue;}if(insideWaterRings(result.points[0],lake.rings,world)){result=undefined;break;}
       for(let i=1;i<result.points.length;i++){const p=shoreEntry(result.points[i-1],result.points[i],lake,world);if(!p)continue;const id=hydroIdentity("lake-inlet",lake.id+"/"+p.x.toFixed(5)+"/"+p.y.toFixed(5));nodes.set(id,{id,point:p,kind:"lake-inlet",lakeId:lake.id,elevationM:lake.levelM,spillM:lake.spillM,drainageM2:edge.drainageM2});lake.inletNodeIds.push(id);result={...result,to:id,points:[...result.points.slice(0,i),p],...preserveAuthoring?{flowKind:"manual" as const,protected:true}:{}};break;}
     }if(result)edges.push(result);}
-  for(const lake of updated)lake.inletNodeIds=[...new Set(lake.inletNodeIds)];return checked({...layer,systemVersion:2,lakes:updated,nodes:[...nodes.values()],edges});
+  for(const lake of updated)lake.inletNodeIds=[...new Set(lake.inletNodeIds)];return checked({...layer,systemVersion:layer.systemVersion===3?3:2,lakes:updated,nodes:[...nodes.values()],edges});
 }
 export function prepareWaterAcceptance(base:HydroLayer,preview:HydroLayer,world:HydroGeometry,selected?:string){
   const candidates=selected?waterNetwork(preview,selected).lakes:preview.lakes??[];if(!candidates.length||!base.edges.length)return base;

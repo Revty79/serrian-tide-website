@@ -1,14 +1,15 @@
 "use client";
 import {useState} from "react";
 import {GuidedField} from "@/components/field-guidance";
-import type {useTerrainWater} from "./terrain-water-client";
+import type {useNaturalWater} from "./terrain-natural-water-client";
+import {NaturalWaterControls} from "./terrain-natural-water-controls";
 import {WaterSystemControls} from "./terrain-water-controls";
 import type {HydroEdge} from "./terrain-hydrology";
 import type {TerrainFrame,TerrainViewport} from "./terrain-refinement";
 import type {MeasurementPreferences} from "./terrain-units";
 import styles from "./terrain.module.css";
 
-type State=ReturnType<typeof useTerrainWater>;
+type State=ReturnType<typeof useNaturalWater>;
 function viewFrame(state:State,view:TerrainViewport|undefined,selected:TerrainFrame,scope:string):TerrainFrame{
   const world=state.sources?.world;if(!world)return selected;
   if(scope==="world")return {x:0,y:0,width:world.width,height:world.height};
@@ -27,6 +28,7 @@ export function TerrainHydrologyControls({state,editable,selectedFrame,viewport,
     <p>Follow the saved land to suggest rivers, then choose what belongs in your World. Waterways have their own authoring and history; they never carve or repaint your terrain.</p>
     {!state.remote&&<p role="status">Loading water authoring...</p>}
     {state.remote&&!state.remote.available&&<p role="alert"><strong>MIGRATION 0141 REQUIRED</strong> to save waterways. You can review temporary drainage; existing terrain and artwork remain available.</p>}
+    <NaturalWaterControls state={state} frame={frame} minimumArea={requestedArea} onMap={onMap}/>
     <WaterSystemControls state={state} frame={frame} minimumArea={requestedArea} onMap={onMap} preferences={preferences}/>
     {state.stale&&<p role="status">Terrain has changed since these waterways were analysed. Existing routes stay in place. Suggest rivers again and deliberately accept the changes you want.</p>}
     <label><input type="checkbox" checked={state.viewShown} onChange={e=>state.setViewShown(e.target.checked)}/> Show water overlay</label>
