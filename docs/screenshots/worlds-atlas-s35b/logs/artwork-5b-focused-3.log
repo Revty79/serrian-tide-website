@@ -1,0 +1,30 @@
+BUILD {"runtimeWorkspaceSha256":"979f9dc433d2318cd2829c39e099d0da732aecb2def9bb37d12e49e5c0b70a84","runtimeFiles":1688,"productionBuildId":"jCnLvqM6Ox6gfJwvy4VMj","resumedOwnedDisposable":true,"sharedDatabaseAccess":false}
+node : node:internal/modules/run_main:107
+At line:5 char:1
++ node --conditions=react-server --import tsx artifacts/artwork-5b-focu ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (node:internal/modules/run_main:107:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'seasonal'
+- 'deciduous'
+
+    at pair (D:\serrian-tide-website\scripts\worlds-artwork-visuals.ts:17:174)
+    at async Object.checkArtworkVisuals (D:\serrian-tide-website\scripts\worlds-artwork-visuals.ts:30:3)
+    at async Object.checkArtworkBrowser (D:\serrian-tide-website\scripts\worlds-artwork-browser-checks.ts:29:2)
+    at async <anonymous> (D:\serrian-tide-website\artifacts\artwork-5b-focus-resume.mjs:10:1) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'seasonal',
+  expected: 'deciduous',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

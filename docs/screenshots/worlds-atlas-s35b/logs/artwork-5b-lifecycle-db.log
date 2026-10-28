@@ -1,0 +1,14 @@
+✔ Admin account deletion is authorized, fail-closed, scoped, audited, and atomic (1449.6998ms)
+▶ geographic attribution previews block deletion and preserve immutable sources
+  ✔ World geographic import attribution (73.2893ms)
+  ✔ World geographic surface creation attribution (55.8927ms)
+  ✔ Immutable World geographic source authorship (56.7481ms)
+✔ geographic attribution previews block deletion and preserve immutable sources (255.3479ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6789.141

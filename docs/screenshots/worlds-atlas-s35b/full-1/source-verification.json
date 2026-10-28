@@ -1,0 +1,33 @@
+{
+  "passed": true,
+  "baseline": "0672add9d053de78b6bb4fd45ef1fc181b2b6027",
+  "workspaceHead": "94981da3cdcd27c7aef9721ce93f804932ff6c84",
+  "runtimeFiles": 1688,
+  "runtimeSourceSha256": "5a9718633efa2a0badc67a7734229ade87e8d7221311aadac641e1999355e4cd",
+  "productionBuildId": "-lvVqNTBimfvuUtELpdZX",
+  "productionCopyByteExact": true,
+  "validationScriptsByteExact": true,
+  "scriptFiles": 578,
+  "scriptsSha256": "3db5a7e68fee962518ad99c506242d7b4a7e1f83ab266cdd40d0cac4fa8172cc",
+  "separatelyExecutedVerifier": "scripts/worlds-artwork-source-check.mjs",
+  "protectedApprovedGitBlobsExact": 1895,
+  "protectionUsesGitLineEndingNormalization": true,
+  "explicitExistingFileAllowance": [
+    "src/features/worlds/terrain-canvas.tsx",
+    "src/features/worlds/terrain-editor.tsx",
+    "src/features/worlds/terrain-tools.tsx",
+    "src/features/worlds/terrain.module.css",
+    "src/features/lifecycle/admin-account-lifecycle.test.ts",
+    "src/features/lifecycle/user-account-delete-plan.ts"
+  ],
+  "all144HistoricalMigrationsAndSnapshotsUnchanged": true,
+  "frozen0143RawChecksumExact": true,
+  "newMigration": "0144_world_artwork",
+  "assetPacks": 2,
+  "originalVectorAssets": 58,
+  "assetManifestVersion": 1,
+  "geographicSolversMaterialsHydrologyClimateServicesExact": true,
+  "allGameplaySourcesExact": true,
+  "originalSurfaceAssetsExact": true,
+  "sharedDatabaseAccess": false
+}

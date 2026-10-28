@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "runtimeWorkspaceSha256": "5a9718633efa2a0badc67a7734229ade87e8d7221311aadac641e1999355e4cd",
+  "runtimeFiles": 1688,
+  "productionBuildId": "-lvVqNTBimfvuUtELpdZX",
+  "resumedOwnedDisposable": true,
+  "sharedDatabaseAccess": false,
+  "validationMode": "supplemental read-only library-card inspection",
+  "fullAggregate": false
+}

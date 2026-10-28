@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "runtimeWorkspaceSha256": "5a9718633efa2a0badc67a7734229ade87e8d7221311aadac641e1999355e4cd",
+  "runtimeFiles": 1688,
+  "productionBuildId": "-lvVqNTBimfvuUtELpdZX",
+  "resumedOwnedDisposable": true,
+  "sharedDatabaseAccess": false,
+  "widths": [
+    1440,
+    820,
+    390
+  ],
+  "readOnlySupplementalInspection": true,
+  "noWorldWrites": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "visibleAssetCardsAndControls": true
+}

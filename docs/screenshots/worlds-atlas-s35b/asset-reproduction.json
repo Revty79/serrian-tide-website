@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "files": 60,
+  "svgAssets": 58,
+  "sourceGenerator": "scripts/build-cartographic-artwork.ts",
+  "rawByteExact": true,
+  "sha256": "679a7a8cffada98693c6b782efabf0f98a9a61eb3e2bd5c8763802925162a3b6"
+}

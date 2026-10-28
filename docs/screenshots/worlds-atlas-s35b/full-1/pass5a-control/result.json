@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "baseline": "0672add9d053de78b6bb4fd45ef1fc181b2b6027",
+  "runtimeSha256": "22f72b1b2ed8e6a42df5bcdf200dd2dd9e7d92616d2b6dd7cc3da9399d485f31",
+  "approvedCanonicalSha256": "03b23ee740ce9da09d0e79939d4d465bcb34e880d390f6b668107e4f39b74538",
+  "allApprovedRuntimeBlobsMatchAfterLineEndingNormalization": true,
+  "historicalRawRuntimeSha256": "0b46f65a8474a344a593928d30252450abebd884a13b3ea2298884bad8fc8331",
+  "runtimeFiles": 1617,
+  "productionBuildId": "BDeYdB_tAt0snR34Aza6E",
+  "method": "Approved Pass 5A source; same current disposable database, dependencies, machine, installed Chrome, GPU-disabled flags and inherited camera/fallback sequence",
+  "sharedDatabaseAccess": false,
+  "browser": "134.0.6998.166",
+  "gpuDisabled": true,
+  "geographicWrites": false,
+  "inputs": {
+    "terrainGrid": "a26a70236bfe8a6991dfb8f42c7e1416f6da58a14e4e81e10a14e5e9e8e4ab77",
+    "physicalSettings": "cda2b3f23725220d6b4e7c4afbdbceee5fd56f78ad0052e907f787120bfbb335",
+    "climateFields": "3e861e3668fdda5d0e33b7506a18b8c350bb4633b0387bfd64307bd8cc50d234",
+    "environmentSettings": "dd0733585453ba573fee69e18f40dde5a2018ce06f6c78b537da3c45be2b439d",
+    "waterGeometry": "de3f1c8c33d1b856abb0cd83846aefe0cb2bb2089b811d1ddadab2b3e76be1bc"
+  }
+}

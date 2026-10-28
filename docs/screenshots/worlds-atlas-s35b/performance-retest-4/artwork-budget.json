@@ -1,0 +1,25 @@
+{
+  "passed": false,
+  "failures": [
+    "20-key navigation"
+  ],
+  "manualPlacements": 1024,
+  "navigation20KeysMs": 1645.5785000000033,
+  "navigationLimitMs": 1500,
+  "metrics": {
+    "candidates": 16,
+    "automatic": 10,
+    "manual": 1024,
+    "drawn": 2329,
+    "bytes": 841728,
+    "preparations": 70,
+    "plans": 28,
+    "maxPlanMs": 4.399999976158142,
+    "maxDrawMs": 62.299999952316284,
+    "level": 2
+  },
+  "preparationsBefore": 70,
+  "bitmapCapBytes": 8388608,
+  "estimatedBytesNotRSS": true,
+  "gpuDisabled": true
+}

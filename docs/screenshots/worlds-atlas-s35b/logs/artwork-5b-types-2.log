@@ -1,0 +1,32 @@
+src/features/worlds/terrain-artwork.test.ts(16,229): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(16,285): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(16,571): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(17,282): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(17,493): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(18,419): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(18,621): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(19,158): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(19,208): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(19,350): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(20,153): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(20,480): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(21,253): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(21,354): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(21,443): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height
+src/features/worlds/terrain-artwork.test.ts(21,523): error TS2345: Argument of type '{ left: number; right: number; top: number; bottom: number; }' is not assignable to parameter of type 'TerrainViewport'.
+  Type '{ left: number; right: number; top: number; bottom: number; }' is missing the following properties from type 'TerrainViewport': scale, width, height

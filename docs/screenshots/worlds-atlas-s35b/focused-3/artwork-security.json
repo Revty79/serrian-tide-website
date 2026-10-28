@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "anonymousPlayerForeignDenied": true,
+  "adminExplicitReadOnly": true,
+  "ordinaryDenied": true,
+  "csrfDenied": true,
+  "streamedBodyLimit": true,
+  "externalUnknownAssetsDenied": true,
+  "invalidRevisionDenied": true,
+  "unchangedSavedLayer": true
+}

@@ -1,0 +1,31 @@
+BUILD {"runtimeWorkspaceSha256":"222dd063f4cf30ab8050de8319a6c6468e7cb3f620199844333badca42766dcd","runtimeFiles":1688,"productionBuildId":"w-iGYE36WPUtCBwkmNBWI","resumedOwnedDisposable":true,"sharedDatabaseAccess":false}
+PASS CPU environment cold/warm navigation, background input, bounded artwork cache and actual main-thread fallback
+node : node:internal/modules/run_main:107
+At line:9 char:1
++ node --conditions=react-server --import tsx artifacts/artwork-5b-perf ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (node:internal/modules/run_main:107:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   '20-key navigation'
++ ]
+- []
+
+    at Object.checkArtworkPerformance (D:\serrian-tide-website\scripts\worlds-artwork-performance.ts:25:1817)
+    at async <anonymous> (D:\serrian-tide-website\artifacts\artwork-5b-performance-retest.mjs:10:1) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [ '20-key navigation' ],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

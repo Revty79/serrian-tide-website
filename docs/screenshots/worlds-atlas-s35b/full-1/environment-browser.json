@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "previewMs": 978.3600999999326,
+  "previewDidNotSave": true,
+  "acceptedSettingsReopened": true,
+  "protectedPriorRegionsRetained": true,
+  "brushUndoRedo": true,
+  "creatorVegetationSavedReopened": true,
+  "sameAcceptedDataAcrossFiveStyles": true,
+  "numericalAndWaterExact": true,
+  "noNumericalMaterialWaterWrites": true,
+  "errors": []
+}

@@ -1,0 +1,30 @@
+✔ the account plan classifies the current 129-FK User closure (11.9346ms)
+✔ only authentication, personal preferences, and membership associations are cleanup FKs (0.2958ms)
+✔ geographic import, surface and immutable source attribution block account deletion (0.1437ms)
+✔ account inputs require an exact User ID, reason, and DELETE-email confirmation (0.9969ms)
+✔ self deletion and deletion of the last administrator are prohibited (0.2501ms)
+✔ migration 0033 extends only the lifecycle audit entity-kind constraint (0.3801ms)
+✔ migration 0034 serializes User-bound verification writes and rejects deleted IDs (0.2389ms)
+✔ the server-only service reloads Admin authority and serializes destructive checks (0.381ms)
+✔ role mutation shares the account-deletion lock and reauthorizes after acquiring it (0.31ms)
+✔ permanent deletion gates twice, rechecks every dependency, audits, and cleans only allowlisted rows (0.549ms)
+✔ versioned bundles contain distinct original master silhouettes and complete manifest/license metadata (6.0108ms)
+✔ empty artwork maps remain valid and geography-free (1.4325ms)
+✔ placement validation rejects unknown assets, duplicate identities, unsafe numbers and excessive work (6.0372ms)
+✔ World coordinates normalize wrapping, preserve refinement-independent identities and bound extent (0.4789ms)
+✔ rotated artwork can be selected across a canonical wrapped entrance (0.2254ms)
+✔ automatic geographic decoration is deterministic and never mutates manual artwork (1.5532ms)
+✔ automatic land symbols never occupy accepted standing water, oceans or mixed shoreline footprints (0.345ms)
+✔ decoration responds to accepted desert, tundra, wetland and vegetation rather than unrelated random motifs (0.9883ms)
+✔ pan and canonical wrap copies retain overlapping geographic symbol positions (0.896ms)
+✔ extreme zoom-out and tall worlds retain fixed candidate and drawing budgets (2.4716ms)
+✔ style and visibility controls affect presentation without changing authoritative context (0.8033ms)
+✔ save contracts retain original request, restore revision and exact manual transforms (1.0342ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 409.2167

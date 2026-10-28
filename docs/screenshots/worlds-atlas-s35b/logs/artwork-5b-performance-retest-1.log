@@ -1,0 +1,27 @@
+BUILD {"runtimeWorkspaceSha256":"6c88bb60b503c3713d7d29536697bf6344aa80be1e6fa28f6c88ad3e03f6d630","runtimeFiles":1688,"productionBuildId":"H6MAlHKQPCa1oPHo8l7pg","resumedOwnedDisposable":true,"sharedDatabaseAccess":false}
+PASS CPU environment cold/warm navigation, background input, bounded artwork cache and actual main-thread fallback
+node : node:internal/modules/run_main:107
+At line:5 char:1
++ node --conditions=react-server --import tsx artifacts/artwork-5b-perf ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (node:internal/modules/run_main:107:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(navigation20KeysMs<1500)
+
+    at Object.checkArtworkPerformance (D:\serrian-tide-website\scripts\worlds-artwork-performance.ts:25:1336)
+    at async <anonymous> (D:\serrian-tide-website\artifacts\artwork-5b-performance-retest.mjs:10:1) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

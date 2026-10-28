@@ -1,0 +1,89 @@
+{
+  "passed": true,
+  "baseline": "0672add9d053de78b6bb4fd45ef1fc181b2b6027",
+  "sameSessionBaseline": true,
+  "baselineEvidence": "pass5a-control/environment-performance.json",
+  "focusedArchivalFallback": false,
+  "gpuDisabled": true,
+  "automaticArtworkEnabled": true,
+  "inputs": {
+    "terrainGrid": "a26a70236bfe8a6991dfb8f42c7e1416f6da58a14e4e81e10a14e5e9e8e4ab77",
+    "physicalSettings": "cda2b3f23725220d6b4e7c4afbdbceee5fd56f78ad0052e907f787120bfbb335",
+    "climateFields": "7a181fbc6a9f979971bf2abee03c08f4b6ce969ad218fda8f11f66557d9c54eb",
+    "environmentSettings": "b052d4e52be9a1b508deb6a38adc1c265e70467fa3555e68fed3c613180f8df4",
+    "waterGeometry": "6b4f373bf67e8ebeafde961e2f7477c3f91a1871d821913534379e664bf9b062"
+  },
+  "comparisons": {
+    "coldApplicationReadyMs": {
+      "before": 2438.097099999999,
+      "after": 2566.8269,
+      "changePercent": 5.279929170991626,
+      "limit": 3500,
+      "passed": true
+    },
+    "warmNavigationTenKeysMs": {
+      "before": 189.2443999999996,
+      "after": 292.3234000000084,
+      "changePercent": 54.46871875733657,
+      "limit": 500,
+      "passed": true
+    },
+    "regionalReadyMs": {
+      "before": 1830.7668000000012,
+      "after": 1768.9828000000125,
+      "changePercent": -3.3747607832952164,
+      "limit": 2288.4585000000015,
+      "passed": true
+    },
+    "closeReadyMs": {
+      "before": 4186.8645,
+      "after": 4270.898799999995,
+      "changePercent": 2.0070938526908444,
+      "limit": 5233.580625,
+      "passed": true
+    },
+    "repeatedPanZoomMs": {
+      "before": 5260.9859,
+      "after": 5452.335800000001,
+      "changePercent": 3.6371490750431557,
+      "limit": 6576.232375,
+      "passed": true
+    },
+    "fallbackNavigationReadyMs": {
+      "before": 4153.796999999999,
+      "after": 4130.252999999997,
+      "changePercent": -0.5668067072127414,
+      "limit": 5192.246249999998,
+      "passed": true
+    },
+    "farZoomReadyMs": {
+      "before": 287.0252999999939,
+      "after": 301.02390000000014,
+      "changePercent": 4.877131040367022,
+      "limit": 1000,
+      "passed": true
+    },
+    "inputDuringClimateMs": {
+      "before": 11.832900000001246,
+      "after": 23.687699999994948,
+      "changePercent": 100.18507719994636,
+      "limit": 100,
+      "passed": true
+    },
+    "climatePreviewMs": {
+      "before": 983.3100000000013,
+      "after": 1005.9618999999948,
+      "changePercent": 2.3036377134366015,
+      "limit": 1229.1375000000016,
+      "passed": true
+    }
+  },
+  "failures": [],
+  "remainingFallbackDiagnostic": {
+    "before": 1558.139099999993,
+    "after": 1853.3248999999923,
+    "excludedFromGateReason": "Timer begins after UI interaction and measures a variable amount of remaining work; whole-navigation readiness compares the complete same journey."
+  },
+  "method": "Inherited actual production Chrome sequence; same accepted geographic fixture and 25 percent artwork limit. No threshold increase.",
+  "prior5ACombinedReceiptRetained": true
+}

@@ -1,1 +1,2 @@
-* -text
+# Preserve captured bytes and diagnostic whitespace, including failed output.
+* -text -whitespace

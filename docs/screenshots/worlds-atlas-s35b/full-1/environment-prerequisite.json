@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "actualProductionBuild": true,
+  "actualThrough0141Target": true,
+  "environmentOnlyDisabled": true,
+  "terrainMaterialsAndWaterRemainReadable": true,
+  "appearanceNavigationFunctional": true,
+  "sharedDatabaseAccess": false
+}

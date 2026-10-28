@@ -1,0 +1,86 @@
+PASS terrain database {"fullGridSaveMs":1243.3480999999992,"tiles":240,"samples":245760,"payloadBytes":997213,"immutableHistory":true,"unrelatedCellsExact":true}
+PASS World business PostgreSQL: complete baselines, places, inhabitants/staff, stock/prices/policies, retries, concurrency, lifecycle, catalog/privacy and independent identities
+PASS Pass 2 database: shared identity, atomic retries, physical bounds/wrapping, separate revisions, associations, archive/restore and authorization
+PASS Pass 3 database: accepted numerical tiles and provenance, exact retries, protected edits, selected bounds, unchanged head on rejection, immutable revisions and privacy
+PASS Pass 5 database: v1 compatibility, physical source/acknowledgement, height bounds, no view-state writes, exact retry, immutable origin/history, protected regeneration and authorization
+PASS Pass 6 database: physical samples use existing immutable/manual saves, protection, retry and exact undo; preferences/measurements rejected as authoritative payloads
+PASS 0137/0138 fresh replay, populated upgrade, owned backup/restore and unchanged existing tables/private tiles
+PASS adjacent/nested/wrapped refinements, concurrency, historical sea level and old-writer guard
+PASS Pass 7 genuine million-km/20-km numerical persistence, overviews, exact retries, history, parent/boundary protection and authorization
+PASS Pass 8 v3 structured/numerical persistence, original provenance, retry and strict physical-frame admission
+PASS cartographic appearance independent persistence, exact retries, concurrency, privacy and unchanged numerical/relationship tables
+PASS independently versioned physical materials, immutable history, retries/concurrency, roles and exact terrain/identity preservation
+PASS 0141 populated forward upgrade, real missing-migration read, complete backup restoration and immutable water history
+PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials
+PASS complete connected-water backup/restore, exact 3A/extended history, real restored-service reads and repeat migration
+PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles
+PASS complete connected-water backup/restore, exact 3A/extended history, real restored-service reads and repeat migration
+PASS water v3 feature persistence, all three histories/retries, downgrade rejection, concurrency, roles and exact terrain
+PASS 0142 populated forward upgrade, real missing-migration read, complete backup restoration and immutable environmental history
+PASS independent environmental persistence, exact retries/history/conflicts, source provenance, role boundaries and unchanged terrain/water/materials
+PASS immutable World styles, explicit independent appearance save, exact geographical preservation and authorization
+PASS artwork coordinates, independent saves, original retries, conflicts, immutable history, exact restoration and permissions
+PASS isolated production build and migration replay
+PASS Pass 8 described World: reviewed physical plan, feature edits, seed variation, retained canvas and numerical save/restart
+PASS Pass 8 local described terrain, cancelled preview, protected heights, numerical bay, undo/redo, sculpt and same-World restart
+PASS Pass 8 phone/tablet description, explicit unsupported decisions, native navigation/touch/pen rulers and retained drafts
+PASS extreme typed metre ruler/scale/units and phone/tablet native touch/pen refinement authoring
+PASS fine-source ridge, valley, selected area and regeneration in the original World frame
+PASS fine-source lost response/reload recovery, exact undo/redo, conflict and retained scoped draft
+PASS bounded CPU viewport/cache/memory, no World repaint during navigation and wrapped editing/ruler alignment
+PASS integrated million-km World, genuine fine island, unchanged base, map-first workspace and restart/reopen
+PASS full Town/Shop workshops, retained parent drafts, related saves, exact retries, rich Individuals and owner-authorized Heavens Town/Shop retirement and Tabletop-link removal
+CHECK physical Atlas integration and completed-stroke autosaving
+PASS corrected Pass 2 desktop/touch journeys, persistence, autosave, physical Atlas and security
+PASS Pass 3 browser: six real previews, largest grid, accepted/reopen numerical equality, protected regeneration undo/redo, 16-bit import and phone workflow
+PASS Pass 4 sculpted island/coast/ridge/valley/plateau, selected outside equality, undo/redo, all origins/restarts, wrapping and native-touch safety
+PASS Pass 5 browser: physical sizes, extreme warnings/ack, six presets, v1 Classic, view-only relief, exact numerical reopen/retry, protected V2 regeneration, phone/tablet and cancellation
+PASS measurement grid, units, 100 km ruler, route, known area and no authoritative writes
+PASS unequal-axis physical circle, numerical persistence, undo/redo and restart
+PASS extreme measurement detail, unchanged coarse height samples and retained physical request
+PASS Pass 6 core browser measurements and physical-scale editing
+PASS Pass 6 native pen, touch, snapping, bounded long paths/area, retained memory, markers and read-only review
+PASS GPU-disabled phone/tablet cartographic controls, retained map visibility and native touch/pen input
+PASS appearance retry/reload/security, exact fine checksums, styled painting/undo, both creation previews and wrapped ruler alignment
+PASS four real cartographic comparisons, saved map default, genuine local and million-km wrapped terrain, exact samples and bounded CPU textures
+PASS Realistic Terrain World/local/million-km imagery and independently painted/saved/reopened materials with exact elevations
+PASS local surface artwork failure/retry, bounded decoded mipmaps and no data writes
+PASS material-preserving numerical sculpt/undo, both imagery previews and adjacent/nested/wrapped visual continuity
+PASS material lost-response/reload, conflict/export, endpoint security and bounded CPU navigation
+PASS GPU-disabled phone/tablet Realistic Terrain, native material touch/pen input and no numerical writes
+PASS water lost-response recovery, conflict/export, immutable historical restore, deliberate terrain review and full HTTP/role boundaries
+PASS bounded CPU million-km/fine-island hydrology, responsive navigation and exact water identities across scales
+PASS GPU-disabled phone/tablet water source touch/pen placement, safe two-finger navigation, cancellation and no numerical writes
+PASS real river suggestions, acceptance/rejection, stable source editing, independent save/undo/reopen, five appearances and unchanged numerical terrain
+PASS native phone/tablet lake drawing and save, safe two-finger navigation, early cancellation and no numerical writes
+PASS million-km local lake review with distant coarse context, measured 3A/3B CPU costs, responsive input and stable accepted geometry
+PASS actual lake proposals, spill outlets, watersheds, shoreline/drawing, connection feedback, extended recovery/conflicts/history and exact terrain
+PASS natural network, springs, fall/rapid/wetland authoring, v3 recovery/conflicts/history and protected terrain reconciliation
+PASS native phone/tablet special water creation, two-finger navigation, cancellation, exact cleanup and no numerical writes
+PASS CPU water artwork caches across World/regional/close pan/zoom and bounded cold/warm feature review
+PASS v3 HTTP/privacy/CSRF and subpixel protected water geometry across a wrapped million-km World
+PASS actual environment preview/accept/save, protected vegetation paint/undo/reopen, five appearances and independent terrain/water
+PASS environmental boundary editing, selected downscale, erase/undo, lost-response recovery, conflict export and exact history
+PASS actual terrain autosave/undo and water editing retain the pending environment and protected coverage
+PASS native touch/pen environment painting and polygon authoring, safe two-finger navigation and independent saves
+PASS completed actual climate/15-biome/close-canopy gallery and unchanged 3C geography/camera comparison
+PASS CPU environment cold/warm navigation, background input, bounded artwork cache and actual main-thread fallback
+PASS environmental HTTP privacy, CSRF, bounded request size and explicit Admin read-only GUI
+PASS actual pre-0142 production GUI prerequisite and retained terrain/materials/water
+PASS CPU environment cold/warm navigation, background input, bounded artwork cache and actual main-thread fallback
+PASS all twelve information destinations
+PASS World lifecycle
+CHECK creator species
+CHECK creator people
+CHECK creator culture
+CHECK creator civilization
+CHECK creator language
+CHECK creator population
+CHECK creator individual
+CHECK creator polity
+CHECK creator government
+CHECK creator organization
+CHECK creator realm
+CHECK creator celestial
+CHECK creator story
+PASS {"passed":true,"validationMode":"full","terrainBrowserSkipped":false,"runtimeWorkspaceSha256":"5a9718633efa2a0badc67a7734229ade87e8d7221311aadac641e1999355e4cd","productionBuildId":"-lvVqNTBimfvuUtELpdZX","migration0137Sha256":"3a639f83c22e879f4e08d1e699af9945bc41179e58fd2f738e06defaa5758fb9","migration0138Sha256":"020094861096f31e3a7d21284298a4bf8665d806365def097fd8f64be9aa9e80","migration0136Sha256":"4ef0c01a4c1484fec257bd1c1ad53fe5f173e483022157c02245b685c201867f","migration0134Sha256":"9f006922a5c5104ceb2f557d8ed31fa8ffee271afade14b82a94f63767818863","migration0135Sha256":"232f6601648d57c67b3e92aed9982ee169be724a6337f6888dde8ec1d9ed2f1a","buildBundler":"Turbopack","fontResponses":"Google Fonts download","groups":["fresh current migration replay and isolated production build","terrain database guards, incremental atomic saves, replay, conflict, immutable revisions and full desktop/phone acceptance journey","all twelve information destinations; clean overview without map panel or map requests","World created, edited, saved, reopened, archived and restored through real controls","thirteen creator families edited, persisted and reopened; all saved place relationships remain readable","History save, chronology, calendar, Campaign associations, alternate timeline and society-time relationship","old query and path bookmarks normalize safely while retaining timeline and knowledge context","every map-only endpoint rejects direct use and all methods; Realm map writes blocked; shared society-time writes work","G.O.D., Admin read-only review, foreign owner, Player, anonymous, ordinary/private filtering and CSRF boundaries","390px touch-emulated phone overview, navigation, cosmology, no horizontal overflow"],"errors":[],"mapRequests":[],"mapTables":["world_atlas_connection","world_atlas_drawing","world_atlas_dungeon_shape","world_atlas_feature","world_atlas_interior_shape","world_atlas_map","world_atlas_milestone_receipt","world_atlas_settlement_shape","world_dungeon_entity","world_dungeon_level","world_dungeon_site","world_geo_dataset","world_geo_feature","world_geo_head","world_geo_part","world_geo_surface","world_geo_version","world_geo_view","world_geography","world_interior_entity","world_interior_floor","world_map_connection_head","world_map_connection_history","world_map_connection_version","world_map_state","world_map_state_geography","world_map_state_head","world_map_state_object","world_map_state_version","world_map_territory","world_map_territory_boundary","world_map_territory_history","world_map_territory_lore","world_raster_asset","world_raster_head","world_raster_source","world_raster_version","world_raster_view","world_settlement_entity","world_settlement_membership"],"mapDataSha256":"59b4e0c66e2f83949d06cfe768a0ccfc46c9fe0e852d508656c11cdb95ef9689","legacyMapRowsUnchanged":true,"realmMapVersionsUnchanged":true,"runtimeTables":133,"runtimeRowsUnchanged":true,"migrations":"145","newMigrations":1,"replayedInheritedMigrations":7,"sharedDatabaseAccess":false,"localDevUsedForTests":false,"browser":"134.0.6998.166","physicalPhoneClaim":false}

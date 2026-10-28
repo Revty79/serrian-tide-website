@@ -1,0 +1,44 @@
+{
+  "reviewedBy": "Cody",
+  "runtimeSourceSha256": "5a9718633efa2a0badc67a7734229ade87e8d7221311aadac641e1999355e4cd",
+  "inspectedAllFinalAfterImages": [
+    "artwork-realistic-world-after.png",
+    "artwork-fantasy-world-after.png",
+    "artwork-mountains-natural-after.png",
+    "artwork-mountains-fantasy-after.png",
+    "artwork-natural-forest-after.png",
+    "artwork-traditional-forest-after.png",
+    "artwork-desert-close-after.png",
+    "artwork-desert-regional-after.png",
+    "artwork-tundra-close-after.png",
+    "artwork-snow-alpine-after.png",
+    "artwork-coastlines-after.png",
+    "artwork-wetland-close-after.png",
+    "artwork-classic-world-after.png",
+    "artwork-physical-world-after.png",
+    "artwork-topographic-regional-after.png",
+    "artwork-equivalent-fantasy-pack-after.png",
+    "artwork-antique-theme-after.png",
+    "artwork-dark-theme-after.png",
+    "artwork-colorful-theme-after.png",
+    "artwork-accepted-rivers-and-bank-after.png",
+    "artwork-confirmed-marsh-and-reeds-after.png"
+  ],
+  "criticalBeforeImages": [
+    "artwork-desert-close-before.png",
+    "artwork-tundra-close-before.png",
+    "artwork-mountains-fantasy-before.png"
+  ],
+  "workflowAndDeviceScreenshotsInspected": true,
+  "technicalPresentationReady": true,
+  "ownerArtisticAcceptance": "not recorded",
+  "independentArtReview": "not recorded",
+  "physicalDeviceAcceptance": "not recorded",
+  "knownLimits": [
+    "Simplified symbolic starter art, not photographic realism.",
+    "Automatic scale bands and restrained density remain visible choices.",
+    "Inherited numerical cells, authored water shapes and environmental override boundaries remain visible in some fixtures.",
+    "Dark artwork themes do not change the underlying map appearance automatically."
+  ],
+  "supplementalLibraryEvidence": "library-review-3"
+}

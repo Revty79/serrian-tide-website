@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "migration": "0140_world_terrain_materials",
+  "freshReplay": true,
+  "populated0139Upgrade": true,
+  "oldTablesExact": 341,
+  "pairedNumericalFixturesRetained": true,
+  "completeBackupRestore": true,
+  "immutableHistoryAfterRestore": true,
+  "repeatMigration": true,
+  "ledger": 145,
+  "sharedDatabaseWrites": false,
+  "productionContacted": false
+}

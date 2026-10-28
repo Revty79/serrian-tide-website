@@ -1,0 +1,85 @@
+{
+  "passed": false,
+  "baseline": "0672add9d053de78b6bb4fd45ef1fc181b2b6027",
+  "sameSessionBaseline": true,
+  "focusedArchivalFallback": false,
+  "gpuDisabled": true,
+  "automaticArtworkEnabled": true,
+  "inputs": {
+    "terrainGrid": "a26a70236bfe8a6991dfb8f42c7e1416f6da58a14e4e81e10a14e5e9e8e4ab77",
+    "physicalSettings": "cda2b3f23725220d6b4e7c4afbdbceee5fd56f78ad0052e907f787120bfbb335",
+    "climateFields": "7a181fbc6a9f979971bf2abee03c08f4b6ce969ad218fda8f11f66557d9c54eb",
+    "environmentSettings": "b052d4e52be9a1b508deb6a38adc1c265e70467fa3555e68fed3c613180f8df4",
+    "waterGeometry": "6b4f373bf67e8ebeafde961e2f7477c3f91a1871d821913534379e664bf9b062"
+  },
+  "comparisons": {
+    "coldApplicationReadyMs": {
+      "before": 2433.4645999999993,
+      "after": 2588.0002000000095,
+      "changePercent": 6.350435506643914,
+      "limit": 3500,
+      "passed": true
+    },
+    "warmNavigationTenKeysMs": {
+      "before": 199.08699999999953,
+      "after": 246.97370000003139,
+      "changePercent": 24.053152641825925,
+      "limit": 500,
+      "passed": true
+    },
+    "regionalReadyMs": {
+      "before": 1647.1013999999996,
+      "after": 1980.6575000000303,
+      "changePercent": 20.25109686629074,
+      "limit": 2058.8767499999994,
+      "passed": true
+    },
+    "closeReadyMs": {
+      "before": 4420.458600000002,
+      "after": 4064.9088999999803,
+      "changePercent": -8.043276324316695,
+      "limit": 5525.573250000002,
+      "passed": true
+    },
+    "repeatedPanZoomMs": {
+      "before": 5573.6415000000015,
+      "after": 5480.081999999995,
+      "changePercent": -1.6786063473943624,
+      "limit": 6967.051875000002,
+      "passed": true
+    },
+    "fallbackReadyMs": {
+      "before": 1585.2733999999982,
+      "after": 2293.645300000033,
+      "changePercent": 44.684525710204646,
+      "limit": 1981.5917499999978,
+      "passed": false
+    },
+    "farZoomReadyMs": {
+      "before": 296.31520000000455,
+      "after": 299.9515000000247,
+      "changePercent": 1.2271729563721578,
+      "limit": 1000,
+      "passed": true
+    },
+    "inputDuringClimateMs": {
+      "before": 20.793999999994412,
+      "after": 13.493900000001304,
+      "changePercent": -35.1067615658126,
+      "limit": 100,
+      "passed": true
+    },
+    "climatePreviewMs": {
+      "before": 982.9102000000021,
+      "after": 1033.706200000015,
+      "changePercent": 5.167918696948393,
+      "limit": 1228.6377500000026,
+      "passed": true
+    }
+  },
+  "failures": [
+    "fallbackReadyMs"
+  ],
+  "method": "Inherited actual production Chrome sequence; same accepted geographic fixture and 25 percent artwork limit. No threshold increase.",
+  "prior5ACombinedReceiptRetained": true
+}

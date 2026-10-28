@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "runtimeWorkspaceSha256": "418ea1567fb9fb4b3906183a811b2e682b27b05fafbc0626d1dd639a0b302210",
+  "runtimeFiles": 1688,
+  "productionBuildId": "sMHyWx5RWubbRv8Fxh28u",
+  "resumedOwnedDisposable": true,
+  "sharedDatabaseAccess": false,
+  "validationMode": "targeted artwork gallery and camera correction",
+  "fullAggregate": false,
+  "actualCoverage": "20 matched pairs; observed photographed biome and vegetation; source restoration",
+  "preFinalContrastRevision": true
+}

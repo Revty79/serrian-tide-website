@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "transientPreviewNotInLocalStorage": true,
+  "cancelRestores": true,
+  "explicitAcceptAndSave": true,
+  "defaultsCancelable": true,
+  "namedSaveDroppedResponseRetryExact": true,
+  "onePresetDespiteRetry": true,
+  "freshBrowserReopenExact": true,
+  "crossMapSelectionAndSave": true,
+  "desktopAndTouchWidths": [
+    390,
+    820
+  ],
+  "environmentTerrainWaterExact": true,
+  "noGeographicWrites": true
+}

@@ -1,0 +1,31 @@
+BUILD {"runtimeWorkspaceSha256":"7efd27bc4e02dc4f014d1736cc3541c60e30c5edd2e6ac3e2bae24236bc72bab","runtimeFiles":1688,"productionBuildId":"O0lji77bNmp9E5GQkdQ_a","resumedOwnedDisposable":true,"sharedDatabaseAccess":false}
+PASS CPU environment cold/warm navigation, background input, bounded artwork cache and actual main-thread fallback
+node : node:internal/modules/run_main:107
+At line:10 char:1
++ node --conditions=react-server --import tsx artifacts/artwork-5b-perf ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (node:internal/modules/run_main:107:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   'fallbackReadyMs'
++ ]
+- []
+
+    at Object.checkArtworkPerformance (D:\serrian-tide-website\scripts\worlds-artwork-performance.ts:21:555)
+    at async <anonymous> (D:\serrian-tide-website\artifacts\artwork-5b-performance-retest.mjs:10:1) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [ 'fallbackReadyMs' ],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

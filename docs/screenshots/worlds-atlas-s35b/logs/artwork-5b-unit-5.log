@@ -1,0 +1,23 @@
+✔ versioned bundles contain distinct original master silhouettes and complete manifest/license metadata (7.032ms)
+✔ empty artwork maps remain valid and geography-free (1.4381ms)
+✔ placement validation rejects unknown assets, duplicate identities, unsafe numbers and excessive work (5.9955ms)
+✔ World coordinates normalize wrapping, preserve refinement-independent identities and bound extent (0.4561ms)
+✔ rotated artwork can be selected across a canonical wrapped entrance (0.2481ms)
+✔ automatic geographic decoration is deterministic and never mutates manual artwork (1.5305ms)
+✔ automatic land symbols never occupy accepted standing water, oceans or mixed shoreline footprints (0.4366ms)
+✔ decoration responds to accepted desert, tundra, wetland and vegetation rather than unrelated random motifs (1.0285ms)
+✔ pan and canonical wrap copies retain overlapping geographic symbol positions (1.0045ms)
+✔ extreme zoom-out and tall worlds retain fixed candidate and drawing budgets (2.099ms)
+✔ style and visibility controls affect presentation without changing authoritative context (1.2412ms)
+✔ save contracts retain original request, restore revision and exact manual transforms (1.4096ms)
+✔ map picking respects the displayed size cap and does not select invisible artwork (0.4776ms)
+✔ accepted riverbank queries follow real wrapped segments and never bridge source bends (0.586ms)
+✔ automatic packs honor manual material authority and vary accepted conifer silhouettes (0.5549ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 376.4945

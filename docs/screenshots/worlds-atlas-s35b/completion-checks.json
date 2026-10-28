@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "reportLinksExist": true,
+  "fullReceiptsPassed": true,
+  "buildAndSourceAgree": true,
+  "ownedDisposablePortsChecked": 4,
+  "ownedDisposableListenersClosed": true,
+  "sharedTargetsProbed": false
+}

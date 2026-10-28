@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "results": [
+    {
+      "width": 390,
+      "nativeTouchPlacementSaved": true,
+      "twoFingerDoesNotPlace": true,
+      "noHorizontalOverflow": true,
+      "exactContentRestoration": true
+    },
+    {
+      "width": 820,
+      "nativeTouchPlacementSaved": true,
+      "twoFingerDoesNotPlace": true,
+      "noHorizontalOverflow": true,
+      "exactContentRestoration": true
+    }
+  ]
+}

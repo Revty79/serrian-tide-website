@@ -1,0 +1,15 @@
+{
+  "migrations": [
+    "0137_world_terrain_refinements",
+    "0138_world_terrain_wrapped_refinement"
+  ],
+  "freshReplay": true,
+  "populatedUpgrade": true,
+  "backupRestore": true,
+  "pairedPrivateObjectsVerified": 235,
+  "unchangedExistingTables": 337,
+  "existingRowsSha256": "6cb461bca1860f7213eddbd335300cda8c2fbc89de20ec6fa3d72c50e2086606",
+  "ledger": 145,
+  "sharedDevSchemaApplied": false,
+  "productionAccess": false
+}

@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "oneImmutableSnapshot": true,
+  "mapAppearanceIndependent": true,
+  "originalRetryAfterNewHead": true,
+  "conflictAndNonceMisuseDenied": true,
+  "ordinaryForeignPlayerDenied": true,
+  "adminExplicitReadOnly": true,
+  "geographicTablesExact": [
+    "world_terrain",
+    "world_terrain_version",
+    "world_terrain_tile",
+    "world_terrain_refinement",
+    "world_terrain_refinement_version",
+    "world_terrain_refinement_tile",
+    "world_terrain_material",
+    "world_terrain_material_version",
+    "world_hydrology",
+    "world_hydrology_version",
+    "world_environment",
+    "world_environment_version"
+  ],
+  "sharedDatabaseAccess": false
+}

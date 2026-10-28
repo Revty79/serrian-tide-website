@@ -1,0 +1,7 @@
+{
+  "migration": "0144_world_artwork",
+  "sha256": "d8590a543d9a9517c9e3470f3ed80514e506d509a3c3439c164235faf3595968",
+  "historicalMigration0143Unchanged": true,
+  "sharedDevAppliedByAgent": false,
+  "productionAppliedByAgent": false
+}

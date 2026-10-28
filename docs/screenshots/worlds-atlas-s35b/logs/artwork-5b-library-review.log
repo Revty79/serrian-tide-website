@@ -1,0 +1,27 @@
+BUILD {"runtimeWorkspaceSha256":"5a9718633efa2a0badc67a7734229ade87e8d7221311aadac641e1999355e4cd","runtimeFiles":1688,"productionBuildId":"-lvVqNTBimfvuUtELpdZX","resumedOwnedDisposable":true,"sharedDatabaseAccess":false}
+node : node:internal/modules/run_main:107
+At line:2 char:1
++ node --conditions=react-server --import tsx artifacts/artwork-5b-libr ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (node:internal/modules/run_main:107:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    triggerUncaughtException(
+    ^
+
+locator.scrollIntoViewIfNeeded: Timeout 60000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('region', { name: 'Artwork Library', exact: true }).locator('article').filter({ has: 
+getByRole('region', { name: 'Artwork Library', exact: true }).getByRole('button', { name: 'Place Wind-bent pines 
+(natural)', exact: true }) })[22m
+
+    at <anonymous> (D:\serrian-tide-website\artifacts\artwork-5b-library-review.mjs:9:1294) {
+  log: [
+    "  - waiting for getByRole('region', { name: 'Artwork Library', exact: true }).locator('article').filter({ has: 
+getByRole('region', { name: 'Artwork Library', exact: true }).getByRole('button', { name: 'Place Wind-bent pines 
+(natural)', exact: true }) })"
+  ],
+  name: 'TimeoutError'
+}
+
+Node.js v24.18.0

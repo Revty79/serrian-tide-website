@@ -10,5 +10,152 @@
     "run": "db-2",
     "passed": true,
     "coverage": "Full inherited database regressions, artwork saves/history/authorization, populated 0143 upgrade, backup restoration and real restored reads."
+  },
+  {
+    "run": "focused-1",
+    "passed": false,
+    "applicationCommit": "e4afe0f",
+    "build": "soiAlfd-_A057cfixS-B1",
+    "runtimeSha256": "55e9b1ad53b52789c4ee6bbe620553f122b8601729174c4ddc7cd33d990e093f",
+    "stage": "artwork transform undo",
+    "cause": "Undo restored the placement but cleared its selection, removing the transform controls.",
+    "correction": "Retain a selected identity when it exists in the restored layer; improve disabled-layer and sampler preparation cost and water footprint filtering."
+  },
+  {
+    "run": "focused-2",
+    "passed": false,
+    "build": "caL3FjwnhKl6SdT6Xb_BH",
+    "runtimeSha256": "8dd51dc35535191a491d7e41e6731dfcb9b60465bfef0a1eeb3349cad6760d12",
+    "functionalWorkflowsTouchAndSecurityPassed": true,
+    "stage": "approved baseline worker precondition",
+    "cause": "The focused database fixture had no accepted climate on the separate 3C benchmark map, so its baseline environment painter correctly stayed inactive/main-thread.",
+    "correction": "Prepare accepted benchmark climate through normal owned-fixture UI. Final full chain naturally creates this context.",
+    "visualReview": "Rejected provisional biome labels: older protected vegetation overrode the new biome-only fixture. Add explicit later vegetation overrides, assert observed biome and vegetation, replace legacy glyphs with pack artwork while retaining environmental ground, and vary conifer silhouettes."
+  },
+  {
+    "run": "focused-3",
+    "passed": false,
+    "stage": "visual fixture interpretation assertion",
+    "functionalWorkflowsTouchAndSecurityPassed": true,
+    "cause": "A polygon spanning almost the full wrapped World represented the short seam strip, so the requested central biome was not actually overridden.",
+    "correction": "Use a deliberately scoped circular creator override around each photographed location and retain strict checks of both biome and vegetation."
+  },
+  {
+    "run": "focused-4",
+    "passed": false,
+    "build": "dsRwdEnYLqkZu4ybBIu0O",
+    "runtimeSha256": "d5956ed9f9e5e44cdd5deb961c6ae2e3b21f61e5385a235a40030751a9be1476",
+    "functionalWorkflowsTouchSecurityAndCorrectedGalleryPassed": false,
+    "stage": "paired main-thread fallback performance",
+    "failure": "fallbackReadyMs was 44.7 percent slower than the matched approved 5A build; 25 percent limit retained.",
+    "diagnosis": "Artwork composition inherited the hydrology/label shadow blur from the parent canvas context, forcing a separate blurred shadow for every cached symbol on every frame.",
+    "correction": "Disable inherited shadows during artwork compositing; authored vector shading stays intact. Retest without raising limits.",
+    "functionalWorkflowsTouchAndSecurityPassed": true,
+    "galleryTechnicalAssertionsPassed": true,
+    "visualReview": "Rejected after personal inspection: requested biome assertions passed but close cameras photographed outside their intended small overrides. Later correction checks the actual photographed biome and vegetation."
+  },
+  {
+    "run": "performance-retest-1",
+    "passed": false,
+    "build": "H6MAlHKQPCa1oPHo8l7pg",
+    "pairedPerformancePassed": true,
+    "stage": "1024-manual-placement navigation stress",
+    "failure": "20 navigation keys exceeded the unchanged 1500 ms limit. The original failed assertion did not persist the exact elapsed value.",
+    "correction": "Prepare bounded 32/96/192-pixel symbol tiers once instead of repeatedly resampling oversized source bitmaps; all 58 assets at all three tiers fit in the existing 8 MiB cache. Persist stress metrics before every assertion.",
+    "visualReview": "Further inspection found fitted-view pointer rounding moved close cameras outside their intended tiny biome overrides. Correct the camera after zoom and assert the biome at its actual photographed centre."
+  },
+  {
+    "run": "performance-retest-2",
+    "passed": false,
+    "stage": "remaining-work fallback timing",
+    "cause": "The inherited fallback timer starts after opening editor controls, after a variable amount of rendering has already completed. Matched control remaining times ranged from 1278 to 1966 ms, while candidate remaining times stayed near 1871 to 1903 ms.",
+    "correction": "Retain remaining-work timings as diagnostics and additionally time the entire navigation-to-eight-stable-frames fallback journey in both approved control and candidate, with the same 25 percent limit. Keep per-run controls separately. No failed receipt is relabeled."
+  },
+  {
+    "run": "performance-retest-3",
+    "passed": false,
+    "stage": "1024-placement navigation stress",
+    "allPairedLimitsPassed": true,
+    "failedBudget": "20 keys: 1769.45 ms versus unchanged 1500 ms limit",
+    "bitmapBytes": 841728,
+    "unchangedPreparations": true,
+    "maxArtworkDrawMs": 57.9,
+    "correction": "Batch the parent canvas state and use one affine transform per visible sprite instead of repeated save/translate/rotate/scale/restore calls; preserve geographic ordering and exact rotation/mirroring."
+  },
+  {
+    "run": "performance-retest-4",
+    "passed": false,
+    "stage": "1024-placement navigation stress",
+    "allPairedLimitsPassed": true,
+    "navigation20KeysMs": 1645.5785,
+    "limitMs": 1500,
+    "correction": "Retain affine batching; prepare bounded small rotated sprite copies once rather than rotate and resample thousands of images on every CPU pan frame."
+  },
+  {
+    "run": "performance-retest-5",
+    "passed": true,
+    "coverage": "All paired GPU-disabled performance limits and 1024-placement stress",
+    "navigation20KeysMs": 1234.3684,
+    "limitMs": 1500,
+    "bitmapBytes": 1887556,
+    "bitmapCapBytes": 8388608,
+    "maxArtworkDrawMs": 84.8,
+    "noRepeatedPreparation": true,
+    "thresholdsUnchanged": true
+  },
+  {
+    "run": "focused-5",
+    "passed": true,
+    "fullAggregate": false,
+    "coverage": "Targeted 20-pair production gallery; actual camera centre and observed biome/vegetation assertions",
+    "runtimeSha256": "418ea1567fb9fb4b3906183a811b2e682b27b05fafbc0626d1dd639a0b302210",
+    "build": "sMHyWx5RWubbRv8Fxh28u",
+    "visualReview": "Correctly framed desert, tundra and diverse conifers. Artwork remained too subdued; automatic contrast strengthened for the subsequent full build without changing density or geography."
+  },
+  {
+    "run": "full-1",
+    "passed": true,
+    "validationMode": "full fresh uninterrupted aggregate",
+    "runtimeImplementation": "94981da3cdcd27c7aef9721ce93f804932ff6c84",
+    "runtimeSha256": "5a9718633efa2a0badc67a7734229ade87e8d7221311aadac641e1999355e4cd",
+    "build": "-lvVqNTBimfvuUtELpdZX",
+    "exitCode": 0,
+    "browserErrors": [],
+    "matchedArtworkPairs": 21,
+    "allPairedPerformanceLimitsPassed": true,
+    "navigation20KeysMs": 1138.275,
+    "bitmapBytes": 1680160,
+    "maxArtworkDrawMs": 64.9,
+    "thresholdsUnchanged": true,
+    "sharedDatabaseAccess": false
+  },
+  {
+    "run": "library-review",
+    "passed": false,
+    "supplementalOnly": true,
+    "fullAggregateUnaffected": true,
+    "cause": "Screenshot-only harness used a relative has locator scoped from the library root, so the card could not match inside itself.",
+    "correction": "Select the named asset button and its parent card. No application change."
+  },
+  {
+    "run": "library-review-2",
+    "passed": true,
+    "supplementalOnly": true,
+    "visualReview": "Visible card and no-write checks passed, but the desktop snapshot was taken during base tile preparation. Retain it as provisional UI evidence.",
+    "correction": "Wait for the existing eight-stable-frame renderer readiness before final supplementary captures."
+  },
+  {
+    "run": "library-review-3",
+    "passed": true,
+    "supplementalOnly": true,
+    "fullAggregateUnaffected": true,
+    "unchangedValidatedRuntime": true,
+    "widths": [
+      1440,
+      820,
+      390
+    ],
+    "rendererReadiness": "eight stable frames",
+    "noWorldWrites": true
   }
 ]

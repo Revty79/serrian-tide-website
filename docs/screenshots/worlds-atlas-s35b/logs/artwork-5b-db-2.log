@@ -1,0 +1,23 @@
+PASS terrain database {"fullGridSaveMs":1203.6414000000004,"tiles":240,"samples":245760,"payloadBytes":997213,"immutableHistory":true,"unrelatedCellsExact":true}
+PASS World business PostgreSQL: complete baselines, places, inhabitants/staff, stock/prices/policies, retries, concurrency, lifecycle, catalog/privacy and independent identities
+PASS Pass 2 database: shared identity, atomic retries, physical bounds/wrapping, separate revisions, associations, archive/restore and authorization
+PASS Pass 3 database: accepted numerical tiles and provenance, exact retries, protected edits, selected bounds, unchanged head on rejection, immutable revisions and privacy
+PASS Pass 5 database: v1 compatibility, physical source/acknowledgement, height bounds, no view-state writes, exact retry, immutable origin/history, protected regeneration and authorization
+PASS Pass 6 database: physical samples use existing immutable/manual saves, protection, retry and exact undo; preferences/measurements rejected as authoritative payloads
+PASS 0137/0138 fresh replay, populated upgrade, owned backup/restore and unchanged existing tables/private tiles
+PASS adjacent/nested/wrapped refinements, concurrency, historical sea level and old-writer guard
+PASS Pass 7 genuine million-km/20-km numerical persistence, overviews, exact retries, history, parent/boundary protection and authorization
+PASS Pass 8 v3 structured/numerical persistence, original provenance, retry and strict physical-frame admission
+PASS cartographic appearance independent persistence, exact retries, concurrency, privacy and unchanged numerical/relationship tables
+PASS independently versioned physical materials, immutable history, retries/concurrency, roles and exact terrain/identity preservation
+PASS 0141 populated forward upgrade, real missing-migration read, complete backup restoration and immutable water history
+PASS independent water persistence, complete connected drainage, exact retries/concurrency, stale-source rejection, immutable restore, privacy and unchanged terrain/materials
+PASS complete connected-water backup/restore, exact 3A/extended history, real restored-service reads and repeat migration
+PASS connected water JSON extension, 3A history/retry compatibility, downgrade rejection, lakes/ports, concurrent saves, exact numerical preservation and roles
+PASS complete connected-water backup/restore, exact 3A/extended history, real restored-service reads and repeat migration
+PASS water v3 feature persistence, all three histories/retries, downgrade rejection, concurrency, roles and exact terrain
+PASS 0142 populated forward upgrade, real missing-migration read, complete backup restoration and immutable environmental history
+PASS independent environmental persistence, exact retries/history/conflicts, source provenance, role boundaries and unchanged terrain/water/materials
+PASS immutable World styles, explicit independent appearance save, exact geographical preservation and authorization
+PASS artwork coordinates, independent saves, original retries, conflicts, immutable history, exact restoration and permissions
+PASS focused disposable database verification

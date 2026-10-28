@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "transientPreviewCancel": true,
+  "explicitAcceptAndSave": true,
+  "searchPackFavorites": true,
+  "physicalPlaceMoveRotateScaleOpacityMirrorReplaceDelete": true,
+  "undoRedo": true,
+  "originalDroppedResponseRetryAfterReload": true,
+  "freshContextReopen": true,
+  "conflictRetainsDraft": true,
+  "exactHistoryRestore": true,
+  "manualProtectedAcrossPackSettings": true,
+  "noGeographicWrites": true,
+  "gpuDisabled": true
+}

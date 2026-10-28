@@ -1,0 +1,1800 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "productionBrowser": true,
+  "matchedPairs": 20,
+  "camerasExact": true,
+  "geographicInputsExactWithinEachPair": true,
+  "creatorAuthoredBiomeCasesClearlyRecorded": true,
+  "manualArtExcludedFromAutomaticComparisons": true,
+  "waterAccentCasesExplicitlyIncludeManualArtwork": true,
+  "captures": [
+    {
+      "file": "artwork-realistic-world-before.png",
+      "name": "realistic-world",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "0.0000030485930437862407",
+        "y": "-109.05757778401238",
+        "scale": "0.0007059999969514071"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": true,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": true,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-realistic-world-after.png",
+      "name": "realistic-world",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "0.0000030485930437862407",
+        "y": "-109.05757778401238",
+        "scale": "0.0007059999969514071"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": true,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": true,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 48,
+        "automatic": 9,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 774144,
+        "preparations": 7,
+        "plans": 12,
+        "maxPlanMs": 2.5,
+        "maxDrawMs": 37.60000002384186,
+        "level": 3
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-fantasy-world-before.png",
+      "name": "fantasy-world",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "0.0000030485930437862407",
+        "y": "-109.05757778401238",
+        "scale": "0.0007059999969514071"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-fantasy-world-after.png",
+      "name": "fantasy-world",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "0.0000030485930437862407",
+        "y": "-109.05757778401238",
+        "scale": "0.0007059999969514071"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 48,
+        "automatic": 9,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 774144,
+        "preparations": 7,
+        "plans": 12,
+        "maxPlanMs": 1.100000023841858,
+        "maxDrawMs": 25.899999976158142,
+        "level": 3
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-mountains-natural-before.png",
+      "name": "mountains-natural",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-mountains-natural-after.png",
+      "name": "mountains-natural",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 70,
+        "automatic": 19,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 1548288,
+        "preparations": 14,
+        "plans": 12,
+        "maxPlanMs": 1.399999976158142,
+        "maxDrawMs": 23.799999952316284,
+        "level": 4
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-mountains-fantasy-before.png",
+      "name": "mountains-fantasy",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-mountains-fantasy-after.png",
+      "name": "mountains-fantasy",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 70,
+        "automatic": 19,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 1548288,
+        "preparations": 14,
+        "plans": 12,
+        "maxPlanMs": 1.100000023841858,
+        "maxDrawMs": 22.199999928474426,
+        "level": 4
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-natural-forest-before.png",
+      "name": "natural-forest",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": "deciduous",
+      "geographicInputSha256": "419027ea31a7f13f7b59b3a172e27dfaad34fe76c45d4246b0bde444b5cfd05f",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-natural-forest-after.png",
+      "name": "natural-forest",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": "deciduous",
+      "geographicInputSha256": "419027ea31a7f13f7b59b3a172e27dfaad34fe76c45d4246b0bde444b5cfd05f",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 135,
+        "automatic": 36,
+        "manual": 0,
+        "drawn": 25,
+        "bytes": 884736,
+        "preparations": 8,
+        "plans": 17,
+        "maxPlanMs": 1,
+        "maxDrawMs": 22.40000009536743,
+        "level": 17
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-traditional-forest-before.png",
+      "name": "traditional-forest",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": "boreal",
+      "geographicInputSha256": "c915dd80bb94fe66aef71fde56f04a0f18d0877bd760b7fed179a9d9ecd6b4de",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-traditional-forest-after.png",
+      "name": "traditional-forest",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": "boreal",
+      "geographicInputSha256": "c915dd80bb94fe66aef71fde56f04a0f18d0877bd760b7fed179a9d9ecd6b4de",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 135,
+        "automatic": 36,
+        "manual": 0,
+        "drawn": 25,
+        "bytes": 884736,
+        "preparations": 8,
+        "plans": 14,
+        "maxPlanMs": 1.4000000953674316,
+        "maxDrawMs": 25.700000047683716,
+        "level": 17
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-desert-close-before.png",
+      "name": "desert-close",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": "hotDesert",
+      "geographicInputSha256": "6e56d81b63ad01b56a2697ad0f0f6554305da73dd671f9f4f3ad2f4575ea5f94",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-desert-close-after.png",
+      "name": "desert-close",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": "hotDesert",
+      "geographicInputSha256": "6e56d81b63ad01b56a2697ad0f0f6554305da73dd671f9f4f3ad2f4575ea5f94",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 135,
+        "automatic": 36,
+        "manual": 0,
+        "drawn": 25,
+        "bytes": 884736,
+        "preparations": 8,
+        "plans": 14,
+        "maxPlanMs": 1.7999999523162842,
+        "maxDrawMs": 24.100000023841858,
+        "level": 17
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-desert-regional-before.png",
+      "name": "desert-regional",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": "hotDesert",
+      "geographicInputSha256": "d9ada2f14ca8424be22969e8071c674b4f300ceb7d5bbfb5631e1d5f45a8de71",
+      "camera": {
+        "x": "-2588.6668459688285",
+        "y": "-2907.832003217427",
+        "scale": "0.004706666981770207"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-desert-regional-after.png",
+      "name": "desert-regional",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": "hotDesert",
+      "geographicInputSha256": "d9ada2f14ca8424be22969e8071c674b4f300ceb7d5bbfb5631e1d5f45a8de71",
+      "camera": {
+        "x": "-2588.6668459688285",
+        "y": "-2907.832003217427",
+        "scale": "0.004706666981770207"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 117,
+        "automatic": 43,
+        "manual": 0,
+        "drawn": 31,
+        "bytes": 663552,
+        "preparations": 6,
+        "plans": 14,
+        "maxPlanMs": 1.6999999284744263,
+        "maxDrawMs": 30.899999976158142,
+        "level": 6
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-tundra-close-before.png",
+      "name": "tundra-close",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": "tundra",
+      "geographicInputSha256": "307300900c3c88ae9b8161c3112e0f6339245c75f79f204d23d504953c94b8a2",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-tundra-close-after.png",
+      "name": "tundra-close",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": "tundra",
+      "geographicInputSha256": "307300900c3c88ae9b8161c3112e0f6339245c75f79f204d23d504953c94b8a2",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 135,
+        "automatic": 36,
+        "manual": 0,
+        "drawn": 25,
+        "bytes": 884736,
+        "preparations": 8,
+        "plans": 12,
+        "maxPlanMs": 1.5,
+        "maxDrawMs": 34.299999952316284,
+        "level": 17
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-snow-alpine-before.png",
+      "name": "snow-alpine",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": "ice",
+      "geographicInputSha256": "2f0b94e0f5ccb6dd9f6b6b5089fe3168dad6b8e87cfe1dec2a3cbffb8b06cf6d",
+      "camera": {
+        "x": "-4000.666981770207",
+        "y": "-2907.832003217427",
+        "scale": "0.004706666981770207"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-snow-alpine-after.png",
+      "name": "snow-alpine",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": "ice",
+      "geographicInputSha256": "2f0b94e0f5ccb6dd9f6b6b5089fe3168dad6b8e87cfe1dec2a3cbffb8b06cf6d",
+      "camera": {
+        "x": "-4000.666981770207",
+        "y": "-2907.832003217427",
+        "scale": "0.004706666981770207"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 108,
+        "automatic": 26,
+        "manual": 0,
+        "drawn": 17,
+        "bytes": 663552,
+        "preparations": 6,
+        "plans": 12,
+        "maxPlanMs": 1.2000000476837158,
+        "maxDrawMs": 22.90000009536743,
+        "level": 6
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-coastlines-before.png",
+      "name": "coastlines",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "0.0000030485930437862407",
+        "y": "-109.05757778401238",
+        "scale": "0.0007059999969514071"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-coastlines-after.png",
+      "name": "coastlines",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "0.0000030485930437862407",
+        "y": "-109.05757778401238",
+        "scale": "0.0007059999969514071"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 48,
+        "automatic": 9,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 774144,
+        "preparations": 7,
+        "plans": 12,
+        "maxPlanMs": 12.899999976158142,
+        "maxDrawMs": 49.300000071525574,
+        "level": 3
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-wetland-close-before.png",
+      "name": "wetland-close",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": "wetland",
+      "geographicInputSha256": "7f8b83f551e057cb8543fd2561be7e23434db00e77e8bc2b857bbd26373ffe1c",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-wetland-close-after.png",
+      "name": "wetland-close",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": "wetland",
+      "geographicInputSha256": "7f8b83f551e057cb8543fd2561be7e23434db00e77e8bc2b857bbd26373ffe1c",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 135,
+        "automatic": 36,
+        "manual": 0,
+        "drawn": 25,
+        "bytes": 884736,
+        "preparations": 8,
+        "plans": 12,
+        "maxPlanMs": 17.800000071525574,
+        "maxDrawMs": 27.399999976158142,
+        "level": 17
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-classic-world-before.png",
+      "name": "classic-world",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "0.0000030485930437862407",
+        "y": "-109.05757778401238",
+        "scale": "0.0007059999969514071"
+      },
+      "style": "classic-elevation",
+      "appearance": {
+        "version": 1,
+        "style": "classic-elevation",
+        "relief": 1,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-classic-world-after.png",
+      "name": "classic-world",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "0.0000030485930437862407",
+        "y": "-109.05757778401238",
+        "scale": "0.0007059999969514071"
+      },
+      "style": "classic-elevation",
+      "appearance": {
+        "version": 1,
+        "style": "classic-elevation",
+        "relief": 1,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 48,
+        "automatic": 9,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 774144,
+        "preparations": 7,
+        "plans": 13,
+        "maxPlanMs": 3.700000047683716,
+        "maxDrawMs": 29,
+        "level": 3
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-physical-world-before.png",
+      "name": "physical-world",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "0.0000030485930437862407",
+        "y": "-109.05757778401238",
+        "scale": "0.0007059999969514071"
+      },
+      "style": "physical-relief",
+      "appearance": {
+        "version": 1,
+        "style": "physical-relief",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-physical-world-after.png",
+      "name": "physical-world",
+      "pack": "natural",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "0.0000030485930437862407",
+        "y": "-109.05757778401238",
+        "scale": "0.0007059999969514071"
+      },
+      "style": "physical-relief",
+      "appearance": {
+        "version": 1,
+        "style": "physical-relief",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 48,
+        "automatic": 9,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 774144,
+        "preparations": 7,
+        "plans": 12,
+        "maxPlanMs": 1.2000000476837158,
+        "maxDrawMs": 34.5,
+        "level": 3
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-topographic-regional-before.png",
+      "name": "topographic-regional",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "topographic",
+      "appearance": {
+        "version": 1,
+        "style": "topographic",
+        "relief": 20,
+        "contours": true,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": true,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-topographic-regional-after.png",
+      "name": "topographic-regional",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "topographic",
+      "appearance": {
+        "version": 1,
+        "style": "topographic",
+        "relief": 20,
+        "contours": true,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": true,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 70,
+        "automatic": 19,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 1548288,
+        "preparations": 14,
+        "plans": 12,
+        "maxPlanMs": 1.3000000715255737,
+        "maxDrawMs": 22.299999952316284,
+        "level": 4
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-equivalent-fantasy-pack-before.png",
+      "name": "equivalent-fantasy-pack",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": true,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": true,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-equivalent-fantasy-pack-after.png",
+      "name": "equivalent-fantasy-pack",
+      "pack": "fantasy",
+      "theme": "natural",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": true,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": true,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 70,
+        "automatic": 19,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 1548288,
+        "preparations": 14,
+        "plans": 12,
+        "maxPlanMs": 1.899999976158142,
+        "maxDrawMs": 52.200000047683716,
+        "level": 4
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-antique-theme-before.png",
+      "name": "antique-theme",
+      "pack": "fantasy",
+      "theme": "antique",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-antique-theme-after.png",
+      "name": "antique-theme",
+      "pack": "fantasy",
+      "theme": "antique",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 70,
+        "automatic": 19,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 1548288,
+        "preparations": 14,
+        "plans": 12,
+        "maxPlanMs": 1.399999976158142,
+        "maxDrawMs": 23.100000023841858,
+        "level": 4
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-dark-theme-before.png",
+      "name": "dark-theme",
+      "pack": "fantasy",
+      "theme": "night",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-dark-theme-after.png",
+      "name": "dark-theme",
+      "pack": "fantasy",
+      "theme": "night",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "illustrated-fantasy",
+      "appearance": {
+        "version": 1,
+        "style": "illustrated-fantasy",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 70,
+        "automatic": 19,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 1548288,
+        "preparations": 14,
+        "plans": 13,
+        "maxPlanMs": 1.5,
+        "maxDrawMs": 22.899999976158142,
+        "level": 4
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-colorful-theme-before.png",
+      "name": "colorful-theme",
+      "pack": "natural",
+      "theme": "vivid",
+      "enabled": false,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 0,
+        "automatic": 0,
+        "manual": 0,
+        "drawn": 0,
+        "bytes": 0,
+        "preparations": 0,
+        "plans": 0,
+        "maxPlanMs": 0,
+        "maxDrawMs": 0,
+        "level": 0
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-colorful-theme-after.png",
+      "name": "colorful-theme",
+      "pack": "natural",
+      "theme": "vivid",
+      "enabled": true,
+      "authoredBiome": null,
+      "geographicInputSha256": "68152b0e2aad3b35dd145a2f928df8b084d3205f177587efd20dce35a23a0403",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "realistic-terrain",
+      "appearance": {
+        "version": 2,
+        "style": "realistic-terrain",
+        "relief": 20,
+        "contours": false,
+        "intervalM": 0,
+        "coastline": 1,
+        "decoration": 0.7,
+        "bathymetry": false,
+        "contrast": 1,
+        "paper": "ivory"
+      },
+      "artwork": {
+        "candidates": 70,
+        "automatic": 19,
+        "manual": 0,
+        "drawn": 10,
+        "bytes": 1548288,
+        "preparations": 14,
+        "plans": 12,
+        "maxPlanMs": 3.600000023841858,
+        "maxDrawMs": 40.90000009536743,
+        "level": 4
+      },
+      "queues": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "file": "artwork-accepted-rivers-and-bank-before.png",
+      "name": "accepted-rivers-and-bank",
+      "enabled": false,
+      "pack": "natural",
+      "targetMap": "3c000000-0000-4000-8000-000000000001",
+      "camera": {
+        "x": "655.5994505304654",
+        "y": "384.6779795634205",
+        "scale": "0.0015688887943093642"
+      },
+      "acceptedRiverCount": 754,
+      "confirmedWetland": false,
+      "creatorPlacedWaterAccent": true,
+      "anchor": {
+        "x": 32125,
+        "y": 125
+      }
+    },
+    {
+      "file": "artwork-accepted-rivers-and-bank-after.png",
+      "name": "accepted-rivers-and-bank",
+      "enabled": true,
+      "pack": "natural",
+      "targetMap": "3c000000-0000-4000-8000-000000000001",
+      "camera": {
+        "x": "655.5994505304654",
+        "y": "384.6779795634205",
+        "scale": "0.0015688887943093642"
+      },
+      "acceptedRiverCount": 754,
+      "confirmedWetland": false,
+      "creatorPlacedWaterAccent": true,
+      "anchor": {
+        "x": 32125,
+        "y": 125
+      }
+    }
+  ],
+  "ownerArtisticAcceptance": "not recorded"
+}

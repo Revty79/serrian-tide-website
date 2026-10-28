@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "reopenedExact": true,
+  "lostResponseOriginalRetryAfterReload": true,
+  "conflictExportAndExplicitReload": true,
+  "immutableHistoryRestoredAsNewRevision": true,
+  "terrainChangesRetainRoutesAndFlagReview": true,
+  "deliberateRecalculationAndReplacement": true,
+  "authorizationCsrfBodyAndOrdinaryFiltering": true
+}

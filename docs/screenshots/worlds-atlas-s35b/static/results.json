@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "featureFiles": 306,
+  "featureTests": 2491,
+  "typescript": true,
+  "fullLint": true,
+  "preExistingLintWarning": "scripts/worlds-stories-checks.ts: unused LoreFamily",
+  "latestChangedScriptsLint": true,
+  "offlineDrizzleCheck": true,
+  "accountLifecycleDisposableTests": 5,
+  "earlierLintFailureRetainedAndCorrected": true,
+  "sharedDatabaseAccess": false
+}

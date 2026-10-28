@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "csrf": true,
+  "boundedBodyBytes": 5242880,
+  "oversizeStatus": 413,
+  "ordinaryDenied": true,
+  "foreignMapDenied": true,
+  "adminExplicitReadOnlyGui": true,
+  "statuses": {
+    "anonymous": 401,
+    "world-player": 403,
+    "other-god": 404,
+    "world-admin": 404
+  },
+  "noNewRevision": true
+}

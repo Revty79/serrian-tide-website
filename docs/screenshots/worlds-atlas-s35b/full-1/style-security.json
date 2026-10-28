@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "csrf": true,
+  "bodyLimitBytes": 8192,
+  "ordinaryForeignPlayerAnonymousDenied": true,
+  "adminExplicitReadOnly": true,
+  "noWrites": true
+}
