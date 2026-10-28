@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "emptyMapCompatible": true,
+  "exactPhysicalTransforms": true,
+  "independentLayer": true,
+  "originalRetryAfterNewHead": true,
+  "conflictAndNonceMisuseDenied": true,
+  "restoreExactAndAppendOnly": true,
+  "adminExplicitReadOnly": true,
+  "ordinaryForeignPlayerDenied": true,
+  "allOtherPublicTablesExact": 345,
+  "sharedDatabaseAccess": false
+}

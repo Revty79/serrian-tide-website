@@ -1,0 +1,15 @@
+import {z} from "zod";
+import {artworkAsset,type ArtworkPack} from "./terrain-artwork-assets";
+import type {HydroGeometry,HydroPoint} from "./terrain-hydrology";
+export const ARTWORK_LIMITS={placements:1024,bodyBytes:524288,automaticCandidates:2400,automaticDraws:450,bitmapBytes:8*1024*1024,history:32} as const;
+export const artworkPlacementSchema=z.object({id:z.string().uuid(),assetId:z.string().max(80).refine(id=>!!artworkAsset(id),"Choose an installed artwork asset."),assetVersion:z.literal(1),x:z.number().finite().min(0).max(1e12),y:z.number().finite().min(0).max(1e12),widthM:z.number().finite().min(.05).max(1e12),rotation:z.number().finite().min(-180).max(180),opacity:z.number().min(0).max(1),mirror:z.boolean()}).strict();
+export const artworkLayerSchema=z.object({version:z.literal(1),algorithm:z.literal("cartographic-art-1"),pack:z.enum(["auto","fantasy","natural"]),packVersion:z.literal(1),theme:z.enum(["natural","antique","vivid","night"]),automatic:z.boolean(),manual:z.boolean(),density:z.number().min(0).max(2),opacity:z.number().min(0).max(1),seed:z.string().min(1).max(80),placements:z.array(artworkPlacementSchema).max(ARTWORK_LIMITS.placements)}).strict().superRefine((l,c)=>{if(new Set(l.placements.map(p=>p.id)).size!==l.placements.length)c.addIssue({code:"custom",path:["placements"],message:"Artwork placement identities must be unique."});});
+export type ArtworkLayer=z.infer<typeof artworkLayerSchema>;
+export type ArtworkPlacement=z.infer<typeof artworkPlacementSchema>;
+export const EMPTY_ARTWORK:ArtworkLayer={version:1,algorithm:"cartographic-art-1",pack:"auto",packVersion:1,theme:"natural",automatic:false,manual:true,density:.7,opacity:.85,seed:"map-art",placements:[]};
+export const artworkSaveSchema=z.object({mapId:z.string().min(1).max(128),revision:z.number().int().nonnegative(),requestId:z.string().uuid(),restoreRevision:z.number().int().positive().optional(),layer:artworkLayerSchema}).strict();
+export type ArtworkCommand=z.infer<typeof artworkSaveSchema>;
+export function validateArtworkFrame(layer:ArtworkLayer,world:HydroGeometry){for(const p of layer.placements)if(p.x>=world.width||p.y>world.height||p.widthM>Math.max(world.width,world.height)*2)throw Error("Artwork must remain inside this map's physical extent; width cannot exceed twice its largest dimension.");}
+export function artworkPoint(p:HydroPoint,world:HydroGeometry){if(p.y<0||p.y>world.height||!world.wrap&&(p.x<0||p.x>=world.width))return null;return {x:world.wrap?((p.x%world.width)+world.width)%world.width:p.x,y:p.y};}
+export function artworkPack(layer:ArtworkLayer,style:string):ArtworkPack{return layer.pack==="auto"?(style==="illustrated-fantasy"?"fantasy":"natural"):layer.pack;}
+export function hitArtwork(layer:ArtworkLayer,point:HydroPoint,world:HydroGeometry,toleranceM:number){if(!layer.manual)return;return [...layer.placements].reverse().find(p=>{let dx=point.x-p.x;if(world.wrap)dx-=Math.round(dx/world.width)*world.width;const dy=point.y-p.y,a=-p.rotation*Math.PI/180,x=dx*Math.cos(a)-dy*Math.sin(a),y=dx*Math.sin(a)+dy*Math.cos(a);return Math.abs(x)<=p.widthM/2+toleranceM&&Math.abs(y)<=p.widthM*.375+toleranceM;});}

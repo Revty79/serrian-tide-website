@@ -24,6 +24,8 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "world_terrain_material_version", columnName: "created_by_user_id", constraintName: "world_terrain_material_version_author_fk", onDelete: "restrict", disposition: "block", label: "World terrain material history" },
   { tableName: "world_hydrology", columnName: "updated_by_user_id", constraintName: "world_hydrology_editor_fk", onDelete: "restrict", disposition: "block", label: "World waterway authorship" },
   { tableName: "world_hydrology_version", columnName: "created_by_user_id", constraintName: "world_hydrology_version_author_fk", onDelete: "restrict", disposition: "block", label: "World waterway history" },
+  { tableName: "world_artwork", columnName: "updated_by_user_id", constraintName: "world_artwork_editor_fk", onDelete: "restrict", disposition: "block", label: "World artwork authorship" },
+  { tableName: "world_artwork_version", columnName: "created_by_user_id", constraintName: "world_artwork_version_author_fk", onDelete: "restrict", disposition: "block", label: "World artwork history" },
   { tableName: "world_map_style", columnName: "created_by_user_id", constraintName: "world_map_style_author_fk", onDelete: "restrict", disposition: "block", label: "World named style provenance" },
   { tableName: "world_map_appearance", columnName: "updated_by_user_id", constraintName: "world_map_appearance_editor_fk", onDelete: "restrict", disposition: "block", label: "World map appearance authorship" },
   { tableName: "world_creation_operation", columnName: "author_id", constraintName: "world_creation_operation_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable World town building authorship" },
@@ -147,4 +149,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 127;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 129;

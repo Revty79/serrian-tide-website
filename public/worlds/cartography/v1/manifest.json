@@ -1,0 +1,1421 @@
+{
+  "version": 1,
+  "license": "CC0-1.0",
+  "source": "Original authored vector masters in terrain-artwork-assets.ts",
+  "packs": {
+    "fantasy": {
+      "name": "Classic Fantasy Cartography",
+      "description": "Fine ink, etched shadows and parchment-compatible silhouettes."
+    },
+    "natural": {
+      "name": "Natural Terrain Cartography",
+      "description": "Restrained colored landforms, layered foliage and subtle rock and water accents."
+    }
+  },
+  "assets": [
+    {
+      "key": "summit",
+      "name": "Broken summit",
+      "category": "landforms",
+      "keywords": "mountain peak snow ridge",
+      "habitat": "land",
+      "id": "fantasy.summit.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.summit.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "range",
+      "name": "Folded mountain range",
+      "category": "landforms",
+      "keywords": "mountains range alpine ridge",
+      "habitat": "land",
+      "id": "fantasy.range.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.range.svg",
+      "pathCount": 5
+    },
+    {
+      "key": "hills",
+      "name": "Rolling foothills",
+      "category": "landforms",
+      "keywords": "hill low ridge downs",
+      "habitat": "land",
+      "id": "fantasy.hills.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.hills.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "cliff",
+      "name": "Layered escarpment",
+      "category": "landforms",
+      "keywords": "cliff escarpment fault rock",
+      "habitat": "land",
+      "id": "fantasy.cliff.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.cliff.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "canyon",
+      "name": "Ribbon canyon",
+      "category": "landforms",
+      "keywords": "gorge canyon ravine",
+      "habitat": "land",
+      "id": "fantasy.canyon.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.canyon.svg",
+      "pathCount": 5
+    },
+    {
+      "key": "badlands",
+      "name": "Weathered badlands",
+      "category": "landforms",
+      "keywords": "badland erosion hoodoo dry",
+      "habitat": "land",
+      "id": "fantasy.badlands.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.badlands.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "volcano",
+      "name": "Volcanic caldera",
+      "category": "landforms",
+      "keywords": "volcano caldera crater lava",
+      "habitat": "land",
+      "id": "fantasy.volcano.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.volcano.svg",
+      "pathCount": 5
+    },
+    {
+      "key": "dunes",
+      "name": "Crescent dune field",
+      "category": "landforms",
+      "keywords": "sand desert dunes arid",
+      "habitat": "land",
+      "id": "fantasy.dunes.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.dunes.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "deciduous",
+      "name": "Broadleaf grove",
+      "category": "vegetation",
+      "keywords": "deciduous forest oak temperate",
+      "habitat": "land",
+      "id": "fantasy.deciduous.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.deciduous.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "conifer",
+      "name": "Irregular fir stand",
+      "category": "vegetation",
+      "keywords": "conifer boreal pine fir forest",
+      "habitat": "land",
+      "id": "fantasy.conifer.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.conifer.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "tropical",
+      "name": "Layered tropical canopy",
+      "category": "vegetation",
+      "keywords": "tropical rainforest jungle palm",
+      "habitat": "land",
+      "id": "fantasy.tropical.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.tropical.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "woodland",
+      "name": "Open woodland",
+      "category": "vegetation",
+      "keywords": "woodland coppice scattered trees",
+      "habitat": "land",
+      "id": "fantasy.woodland.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.woodland.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "meadow",
+      "name": "Flowering meadow",
+      "category": "vegetation",
+      "keywords": "grassland meadow flowers grass",
+      "habitat": "land",
+      "id": "fantasy.meadow.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.meadow.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "scrub",
+      "name": "Dry scrub clusters",
+      "category": "vegetation",
+      "keywords": "scrub shrub brush dry",
+      "habitat": "land",
+      "id": "fantasy.scrub.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.scrub.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "savanna",
+      "name": "Umbrella acacia",
+      "category": "vegetation",
+      "keywords": "savanna acacia grass dry trees",
+      "habitat": "land",
+      "id": "fantasy.savanna.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.savanna.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "alpine",
+      "name": "Alpine cushion plants",
+      "category": "vegetation",
+      "keywords": "alpine tundra lichen low vegetation",
+      "habitat": "land",
+      "id": "fantasy.alpine.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.alpine.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "coast",
+      "name": "Tidal shoreline strokes",
+      "category": "water",
+      "keywords": "coast shoreline beach tidal",
+      "habitat": "shore",
+      "id": "fantasy.coast.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.coast.svg",
+      "pathCount": 1
+    },
+    {
+      "key": "bank",
+      "name": "Riverbank rushes",
+      "category": "water",
+      "keywords": "riverbank shoreline sedge river",
+      "habitat": "shore",
+      "id": "fantasy.bank.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.bank.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "marsh",
+      "name": "Marsh grass island",
+      "category": "water",
+      "keywords": "marsh wetland sedge reeds",
+      "habitat": "wetland",
+      "id": "fantasy.marsh.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.marsh.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "reeds",
+      "name": "Cattail reeds",
+      "category": "water",
+      "keywords": "reeds cattail wetland pond",
+      "habitat": "wetland",
+      "id": "fantasy.reeds.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.reeds.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "waves",
+      "name": "Long ocean swells",
+      "category": "water",
+      "keywords": "ocean lake wave water sea",
+      "habitat": "water",
+      "id": "fantasy.waves.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.waves.svg",
+      "pathCount": 2
+    },
+    {
+      "key": "reef",
+      "name": "Coral shoal",
+      "category": "water",
+      "keywords": "reef shoal coast coral rocks",
+      "habitat": "water",
+      "id": "fantasy.reef.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.reef.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "snow",
+      "name": "Wind-sculpted snow",
+      "category": "landmarks",
+      "keywords": "snow drift alpine snowy",
+      "habitat": "land",
+      "id": "fantasy.snow.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.snow.svg",
+      "pathCount": 2
+    },
+    {
+      "key": "ice",
+      "name": "Fractured ice field",
+      "category": "landmarks",
+      "keywords": "ice glacier frozen crevasse",
+      "habitat": "land",
+      "id": "fantasy.ice.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.ice.svg",
+      "pathCount": 2
+    },
+    {
+      "key": "rocks",
+      "name": "Angular outcrops",
+      "category": "landmarks",
+      "keywords": "rocks boulder outcrop scree",
+      "habitat": "land",
+      "id": "fantasy.rocks.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.rocks.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "mesa",
+      "name": "Stepped mesa",
+      "category": "landmarks",
+      "keywords": "mesa butte plateau desert landmark",
+      "habitat": "land",
+      "id": "fantasy.mesa.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.mesa.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "arch",
+      "name": "Weathered stone arch",
+      "category": "landmarks",
+      "keywords": "natural landmark arch sandstone",
+      "habitat": "land",
+      "id": "fantasy.arch.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.arch.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "summit",
+      "name": "Broken summit",
+      "category": "landforms",
+      "keywords": "mountain peak snow ridge",
+      "habitat": "land",
+      "id": "natural.summit.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.summit.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "range",
+      "name": "Folded mountain range",
+      "category": "landforms",
+      "keywords": "mountains range alpine ridge",
+      "habitat": "land",
+      "id": "natural.range.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.range.svg",
+      "pathCount": 5
+    },
+    {
+      "key": "hills",
+      "name": "Rolling foothills",
+      "category": "landforms",
+      "keywords": "hill low ridge downs",
+      "habitat": "land",
+      "id": "natural.hills.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.hills.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "cliff",
+      "name": "Layered escarpment",
+      "category": "landforms",
+      "keywords": "cliff escarpment fault rock",
+      "habitat": "land",
+      "id": "natural.cliff.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.cliff.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "canyon",
+      "name": "Ribbon canyon",
+      "category": "landforms",
+      "keywords": "gorge canyon ravine",
+      "habitat": "land",
+      "id": "natural.canyon.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.canyon.svg",
+      "pathCount": 5
+    },
+    {
+      "key": "badlands",
+      "name": "Weathered badlands",
+      "category": "landforms",
+      "keywords": "badland erosion hoodoo dry",
+      "habitat": "land",
+      "id": "natural.badlands.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.badlands.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "volcano",
+      "name": "Volcanic caldera",
+      "category": "landforms",
+      "keywords": "volcano caldera crater lava",
+      "habitat": "land",
+      "id": "natural.volcano.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.volcano.svg",
+      "pathCount": 5
+    },
+    {
+      "key": "dunes",
+      "name": "Crescent dune field",
+      "category": "landforms",
+      "keywords": "sand desert dunes arid",
+      "habitat": "land",
+      "id": "natural.dunes.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.dunes.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "deciduous",
+      "name": "Broadleaf grove",
+      "category": "vegetation",
+      "keywords": "deciduous forest oak temperate",
+      "habitat": "land",
+      "id": "natural.deciduous.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.deciduous.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "conifer",
+      "name": "Irregular fir stand",
+      "category": "vegetation",
+      "keywords": "conifer boreal pine fir forest",
+      "habitat": "land",
+      "id": "natural.conifer.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.conifer.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "tropical",
+      "name": "Layered tropical canopy",
+      "category": "vegetation",
+      "keywords": "tropical rainforest jungle palm",
+      "habitat": "land",
+      "id": "natural.tropical.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.tropical.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "woodland",
+      "name": "Open woodland",
+      "category": "vegetation",
+      "keywords": "woodland coppice scattered trees",
+      "habitat": "land",
+      "id": "natural.woodland.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.woodland.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "meadow",
+      "name": "Flowering meadow",
+      "category": "vegetation",
+      "keywords": "grassland meadow flowers grass",
+      "habitat": "land",
+      "id": "natural.meadow.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.meadow.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "scrub",
+      "name": "Dry scrub clusters",
+      "category": "vegetation",
+      "keywords": "scrub shrub brush dry",
+      "habitat": "land",
+      "id": "natural.scrub.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.scrub.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "savanna",
+      "name": "Umbrella acacia",
+      "category": "vegetation",
+      "keywords": "savanna acacia grass dry trees",
+      "habitat": "land",
+      "id": "natural.savanna.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.savanna.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "alpine",
+      "name": "Alpine cushion plants",
+      "category": "vegetation",
+      "keywords": "alpine tundra lichen low vegetation",
+      "habitat": "land",
+      "id": "natural.alpine.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.alpine.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "coast",
+      "name": "Tidal shoreline strokes",
+      "category": "water",
+      "keywords": "coast shoreline beach tidal",
+      "habitat": "shore",
+      "id": "natural.coast.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.coast.svg",
+      "pathCount": 1
+    },
+    {
+      "key": "bank",
+      "name": "Riverbank rushes",
+      "category": "water",
+      "keywords": "riverbank shoreline sedge river",
+      "habitat": "shore",
+      "id": "natural.bank.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.bank.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "marsh",
+      "name": "Marsh grass island",
+      "category": "water",
+      "keywords": "marsh wetland sedge reeds",
+      "habitat": "wetland",
+      "id": "natural.marsh.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.marsh.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "reeds",
+      "name": "Cattail reeds",
+      "category": "water",
+      "keywords": "reeds cattail wetland pond",
+      "habitat": "wetland",
+      "id": "natural.reeds.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.reeds.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "waves",
+      "name": "Long ocean swells",
+      "category": "water",
+      "keywords": "ocean lake wave water sea",
+      "habitat": "water",
+      "id": "natural.waves.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.waves.svg",
+      "pathCount": 2
+    },
+    {
+      "key": "reef",
+      "name": "Coral shoal",
+      "category": "water",
+      "keywords": "reef shoal coast coral rocks",
+      "habitat": "water",
+      "id": "natural.reef.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.reef.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "snow",
+      "name": "Wind-sculpted snow",
+      "category": "landmarks",
+      "keywords": "snow drift alpine snowy",
+      "habitat": "land",
+      "id": "natural.snow.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.snow.svg",
+      "pathCount": 2
+    },
+    {
+      "key": "ice",
+      "name": "Fractured ice field",
+      "category": "landmarks",
+      "keywords": "ice glacier frozen crevasse",
+      "habitat": "land",
+      "id": "natural.ice.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.ice.svg",
+      "pathCount": 2
+    },
+    {
+      "key": "rocks",
+      "name": "Angular outcrops",
+      "category": "landmarks",
+      "keywords": "rocks boulder outcrop scree",
+      "habitat": "land",
+      "id": "natural.rocks.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.rocks.svg",
+      "pathCount": 3
+    },
+    {
+      "key": "mesa",
+      "name": "Stepped mesa",
+      "category": "landmarks",
+      "keywords": "mesa butte plateau desert landmark",
+      "habitat": "land",
+      "id": "natural.mesa.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.mesa.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "arch",
+      "name": "Weathered stone arch",
+      "category": "landmarks",
+      "keywords": "natural landmark arch sandstone",
+      "habitat": "land",
+      "id": "natural.arch.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 3,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.arch.svg",
+      "pathCount": 4
+    }
+  ]
+}

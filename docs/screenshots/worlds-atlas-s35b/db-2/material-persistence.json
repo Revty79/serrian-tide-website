@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "independentRevisions": true,
+  "immutableHistory": true,
+  "exactRetryAfterNewerSave": true,
+  "oneConcurrentWinner": true,
+  "frameValidated": true,
+  "ownerOnly": true,
+  "readOnlyAdmin": true,
+  "ordinaryHidden": true,
+  "appearanceV1AndV2": true,
+  "numericalAndIdentityTablesExact": [
+    "world_terrain",
+    "world_terrain_tile",
+    "world_terrain_version",
+    "world_terrain_refinement",
+    "world_terrain_refinement_version",
+    "world_terrain_refinement_tile",
+    "world_map_canvas",
+    "world_map_place",
+    "world_shop",
+    "world_shop_location"
+  ],
+  "sha256": "c48fb60f30cec9472b46842b45baa296fac6431e506caaf9754b495879a58c63",
+  "sharedDatabaseWrites": false
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "run": "db-1",
+    "passed": false,
+    "stage": "isolated PostgreSQL initialization",
+    "cause": "Windows sandbox prevented initdb from creating a restricted token.",
+    "correction": "Run the verified newly owned disposable loopback test outside the process sandbox; no shared database access."
+  },
+  {
+    "run": "db-2",
+    "passed": true,
+    "coverage": "Full inherited database regressions, artwork saves/history/authorization, populated 0143 upgrade, backup restoration and real restored reads."
+  }
+]

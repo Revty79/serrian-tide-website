@@ -1,0 +1,13 @@
+# Stage 3 Pass 5B: cartographic artwork
+
+Authorized starting checkpoint: `0672add9d053de78b6bb4fd45ef1fc181b2b6027`. Complete the pass on main, validate and publish; no deployment, shared database access, owner service restart, Studio or Pass 5C.
+
+The library is original versioned vector artwork, bundled locally with a provenance/license manifest. Classic Fantasy and Natural Terrain use coordinated distinct treatments of landform, vegetation, water and special landscape motifs. Compatible natural, antique, vivid and night themes remain map materials, independent of semantic application chrome. Asset IDs are immutable and include pack/version. No font or runtime asset service is required.
+
+Artwork has a separate head and append-only accepted versions, using the existing owner transaction, map identity, revision/conflict, original-request replay, recovery and explicit restore conventions. Additive migration 0144 is required; 0143 is frozen. An absent artwork head means an empty compatible map. Favorites and recents are local library preferences; authored placements and automatic settings save independently in PostgreSQL. Image binaries are never stored in records.
+
+Manual placements use canonical physical World metres, stable IDs, asset/pack versions, geographic width, rotation and opacity. They survive refinements, pack changes and automatic regeneration. Editing uses the existing map canvas tool and settings inspector, with select/place/move, inspector coordinates and transforms, replacement/delete, preview accept/cancel, undo/redo, save/reopen, recovery/export and revision restoration.
+
+Automatic decoration uses only accepted numerical, environmental and water data. Stable canonical geographic lattice cells and deterministic seed/cluster selection anchor bounded objects across seams. Water masks reject dry-land motifs in oceans/standing lakes; confirmed wetlands, biome/vegetation coverage, real relief and climate choose suitable motifs. Density and visibility do not change source data. The planner culls invisible cells, limits candidates and rendered placements, suppresses subpixel symbols, and reuses prepared symbol bitmaps. Whole-world views emphasize restrained masses; regional and close scales reveal appropriate detail. Geographic truth and visual scale remain distinct.
+
+Validation must bind actual production runtime bytes, independently rehearse upgrades/restoration and permissions, exercise all previous terrain/style and general Worlds workflows plus artwork, inspect matched production imagery and compare GPU-disabled timings against the approved 5A source. Failed aggregates remain visible. Technical completion never records owner artistic acceptance.

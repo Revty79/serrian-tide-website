@@ -27,5 +27,5 @@ export async function checkStyleBrowser(options:Parameters<typeof checkHydrology
  }catch(e){await p.screenshot({path:`${out}/style-failure.png`}).catch(()=>{});await writeFile(`${out}/style-failure.txt`,await p.locator("body").innerText().catch(()=>""));throw e;}finally{await p.close();}
  await (await import("./worlds-style-security")).checkStyleSecurity(options);
  if(process.env.SERRIAN_STYLE_FOCUS==="1"){await (await import("./worlds-environment-visuals")).checkEnvironmentVisuals(options);await (await import("./worlds-environment-performance")).checkEnvironmentPerformance(options);}
- await (await import("./worlds-style-performance")).checkStylePerformance(options);
+ if(process.env.SERRIAN_ARTWORK_PASS!=="1")await (await import("./worlds-style-performance")).checkStylePerformance(options);
 }

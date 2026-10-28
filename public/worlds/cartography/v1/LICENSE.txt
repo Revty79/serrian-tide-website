@@ -1,0 +1,5 @@
+CC0 1.0 Universal
+Original cartographic vector masters authored for Serrian Tide Atlas.
+To the extent possible under law, the authors waive copyright and related rights in these cartographic vector assets under CC0 1.0 Universal. No attribution is required.
+https://creativecommons.org/publicdomain/zero/1.0/
+The dedication applies only to the vector artwork in this directory, not the application, trademarks or other assets.
