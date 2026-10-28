@@ -11,3 +11,8 @@ drizzle/0137_world_terrain_refinements.sql text eol=lf
 drizzle/0138_world_terrain_wrapped_refinement.sql text eol=lf
 drizzle/0139_world_cartographic_appearance.sql text eol=lf
 drizzle/0140_world_terrain_materials.sql text eol=lf
+# Keep the accepted artwork migration bytes unchanged on every checkout.
+drizzle/0144_world_artwork.sql -text
+public/worlds/cartography/v1/* text eol=lf
+# Keep the accepted artwork migration bytes unchanged on every checkout.
+drizzle/0144_world_artwork.sql -text

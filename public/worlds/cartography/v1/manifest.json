@@ -26,7 +26,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -37,7 +37,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.summit.svg",
-      "pathCount": 4
+      "pathCount": 5
     },
     {
       "key": "range",
@@ -52,7 +52,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -63,7 +63,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.range.svg",
-      "pathCount": 5
+      "pathCount": 6
     },
     {
       "key": "hills",
@@ -78,7 +78,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -89,7 +89,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.hills.svg",
-      "pathCount": 3
+      "pathCount": 4
     },
     {
       "key": "cliff",
@@ -104,7 +104,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -115,7 +115,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.cliff.svg",
-      "pathCount": 4
+      "pathCount": 5
     },
     {
       "key": "canyon",
@@ -130,7 +130,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -156,7 +156,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -182,7 +182,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -193,7 +193,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.volcano.svg",
-      "pathCount": 5
+      "pathCount": 6
     },
     {
       "key": "dunes",
@@ -208,7 +208,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -219,7 +219,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.dunes.svg",
-      "pathCount": 3
+      "pathCount": 4
     },
     {
       "key": "deciduous",
@@ -234,7 +234,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -245,7 +245,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.deciduous.svg",
-      "pathCount": 3
+      "pathCount": 4
     },
     {
       "key": "conifer",
@@ -260,7 +260,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -271,7 +271,59 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.conifer.svg",
-      "pathCount": 4
+      "pathCount": 5
+    },
+    {
+      "key": "fir",
+      "name": "Highland spruce group",
+      "category": "vegetation",
+      "keywords": "conifer spruce fir forest evergreen",
+      "habitat": "land",
+      "id": "fantasy.fir.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 2,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.fir.svg",
+      "pathCount": 5
+    },
+    {
+      "key": "pine",
+      "name": "Wind-bent pines",
+      "category": "vegetation",
+      "keywords": "conifer pine forest evergreen windswept",
+      "habitat": "land",
+      "id": "fantasy.pine.v1",
+      "pack": "fantasy",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 2,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/fantasy.pine.svg",
+      "pathCount": 5
     },
     {
       "key": "tropical",
@@ -286,7 +338,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -297,7 +349,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.tropical.svg",
-      "pathCount": 4
+      "pathCount": 5
     },
     {
       "key": "woodland",
@@ -312,7 +364,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -323,7 +375,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.woodland.svg",
-      "pathCount": 3
+      "pathCount": 4
     },
     {
       "key": "meadow",
@@ -338,7 +390,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -364,7 +416,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -390,7 +442,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -416,7 +468,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -442,7 +494,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -468,7 +520,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -494,7 +546,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -520,7 +572,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -546,7 +598,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -572,7 +624,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -598,7 +650,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -624,7 +676,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -650,7 +702,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -661,7 +713,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.rocks.svg",
-      "pathCount": 3
+      "pathCount": 4
     },
     {
       "key": "mesa",
@@ -676,7 +728,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -687,7 +739,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.mesa.svg",
-      "pathCount": 4
+      "pathCount": 5
     },
     {
       "key": "arch",
@@ -702,7 +754,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -713,7 +765,7 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/fantasy.arch.svg",
-      "pathCount": 4
+      "pathCount": 5
     },
     {
       "key": "summit",
@@ -728,7 +780,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -754,7 +806,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -780,7 +832,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -806,7 +858,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -832,7 +884,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -858,7 +910,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -884,7 +936,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -910,7 +962,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -936,7 +988,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -962,7 +1014,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -973,6 +1025,58 @@
       "license": "CC0-1.0",
       "attribution": "No attribution required",
       "file": "/worlds/cartography/v1/natural.conifer.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "fir",
+      "name": "Highland spruce group",
+      "category": "vegetation",
+      "keywords": "conifer spruce fir forest evergreen",
+      "habitat": "land",
+      "id": "natural.fir.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 2,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.fir.svg",
+      "pathCount": 4
+    },
+    {
+      "key": "pine",
+      "name": "Wind-bent pines",
+      "category": "vegetation",
+      "keywords": "conifer pine forest evergreen windswept",
+      "habitat": "land",
+      "id": "natural.pine.v1",
+      "pack": "natural",
+      "version": 1,
+      "width": 128,
+      "height": 96,
+      "scale": {
+        "unit": "physical-metres",
+        "minScreenPixels": 2,
+        "maxScreenPixels": 320,
+        "anchor": [
+          0.5,
+          0.5
+        ]
+      },
+      "source": "Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",
+      "license": "CC0-1.0",
+      "attribution": "No attribution required",
+      "file": "/worlds/cartography/v1/natural.pine.svg",
       "pathCount": 4
     },
     {
@@ -988,7 +1092,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1014,7 +1118,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1040,7 +1144,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1066,7 +1170,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1092,7 +1196,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1118,7 +1222,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1144,7 +1248,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1170,7 +1274,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1196,7 +1300,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1222,7 +1326,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1248,7 +1352,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1274,7 +1378,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1300,7 +1404,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1326,7 +1430,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1352,7 +1456,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1378,7 +1482,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,
@@ -1404,7 +1508,7 @@
       "height": 96,
       "scale": {
         "unit": "physical-metres",
-        "minScreenPixels": 3,
+        "minScreenPixels": 2,
         "maxScreenPixels": 320,
         "anchor": [
           0.5,

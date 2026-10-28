@@ -17,6 +17,8 @@ export const ART_MASTERS:Master[]=[
  {key:"dunes",name:"Crescent dune field",category:"landforms",keywords:"sand desert dunes arid",habitat:"land",paths:[p("M6 45Q31 8 64 39Q45 37 32 57Q17 64 6 45ZM47 72Q80 28 122 61Q99 58 87 84Q66 91 47 72Z"),p("M6 45Q31 8 64 39Q31 25 23 56ZM47 72Q80 28 122 61Q82 46 65 85Z","light"),p("M14 70Q27 62 39 70M74 22Q88 13 105 24M96 88L120 83","ink",true)]},
  {key:"deciduous",name:"Broadleaf grove",category:"vegetation",keywords:"deciduous forest oak temperate",habitat:"land",paths:[p("M20 78L25 52 32 52 35 79M58 83L61 45 69 45 72 83M94 79L96 48 102 48 108 80","ink"),p("M7 50Q0 36 14 30Q10 15 25 13Q41 6 48 24Q66 28 54 45Q60 63 37 65Q18 70 7 50ZM42 44Q34 29 51 22Q50 3 68 7Q85 4 88 23Q104 34 89 49Q87 67 68 63Q48 68 42 44ZM81 49Q73 34 88 29Q84 14 101 17Q120 15 119 35Q134 47 115 59Q98 69 81 49Z","green"),p("M12 49Q24 59 42 47M50 47Q67 60 85 42M87 48Q103 59 116 44","shade",true,3)]},
  {key:"conifer",name:"Irregular fir stand",category:"vegetation",keywords:"conifer boreal pine fir forest",habitat:"land",paths:[p("M18 88L21 66 26 66 29 88M60 89L61 64 68 64 71 89M98 85L100 63 105 63 107 85","ink"),p("M4 72L14 55 9 55 19 36 15 37 24 8 35 34 31 34 43 55 36 54 49 74ZM39 77L51 56 47 56 58 35 54 37 65 3 77 33 73 33 86 56 79 54 91 78ZM80 72L90 55 86 56 96 35 93 37 103 13 112 35 109 35 120 54 114 53 125 72Z","green"),p("M24 8L24 68 49 74 36 54 43 55 31 34 35 34ZM65 3L66 73 91 78 79 54 86 56 73 33 77 33ZM103 13L103 68 125 72 114 53 120 54 109 35 112 35Z","shade"),p("M15 56L26 60M53 55L66 61M92 55L104 59","light",true)]},
+ {key:"fir",name:"Highland spruce group",category:"vegetation",keywords:"conifer spruce fir forest evergreen",habitat:"land",paths:[p("M33 90L34 58 40 58 42 90M85 88L88 51 94 51 96 88","ink"),p("M8 72Q19 61 24 53L15 56Q29 38 31 28L25 31 38 5Q42 27 49 33L44 31Q48 47 63 56L52 53Q61 68 70 73Q42 81 8 72ZM62 69Q76 52 80 37L73 42 91 9Q97 31 108 43L102 41Q111 61 123 69Q94 79 62 69Z","green"),p("M38 5L36 74 70 73Q61 68 52 53L63 56Q48 47 44 31L49 33ZM91 9L89 72 123 69Q111 61 102 41L108 43Z","shade"),p("M24 54L37 60 48 52M17 68L36 72M81 43L91 50 103 43M74 63L89 68 109 60","light",true)]},
+ {key:"pine",name:"Wind-bent pines",category:"vegetation",keywords:"conifer pine forest evergreen windswept",habitat:"land",paths:[p("M52 90Q64 67 60 36L67 35Q74 64 65 90ZM93 86Q97 67 93 51L98 48Q106 70 103 86Z","ink"),p("M12 36L29 22 39 23 49 6 66 14 78 9 91 29 112 35 99 43 75 40 57 47 38 40 23 44ZM27 58L43 43 59 45 74 37 89 54 104 58 88 65 68 61 53 69 38 63ZM73 52L87 35 102 39 113 35 126 52 117 61 95 57 84 62Z","green"),p("M12 36L38 33 57 39 80 32 112 35 99 43 75 40 57 47 38 40 23 44ZM27 58L51 56 72 51 104 58 88 65 68 61 53 69 38 63ZM73 52L94 48 112 51 126 52 117 61 95 57 84 62Z","shade"),p("M30 28L46 29 58 20 77 25M45 49L57 53 70 46M88 43L101 46 111 42","light",true)]},
  {key:"tropical",name:"Layered tropical canopy",category:"vegetation",keywords:"tropical rainforest jungle palm",habitat:"land",paths:[p("M17 84Q28 64 23 37L30 36Q37 63 30 85M62 89L63 33 71 32 73 89M103 82L99 38 105 38 115 82","ink"),p("M5 42Q-2 23 16 20Q18 4 34 14Q52 5 57 28Q63 45 43 52Q18 64 5 42ZM43 31Q35 12 55 9Q70-4 82 13Q103 12 98 33Q103 52 80 56Q49 61 43 31ZM81 45Q74 27 94 22Q108 7 120 26Q137 43 118 54Q98 67 81 45Z","green"),p("M7 39Q26 48 49 34M47 29Q68 42 94 27M88 44Q104 53 121 39","light",true,2),p("M35 69Q44 53 46 75M78 82Q88 61 87 82","green",true,3)]},
  {key:"woodland",name:"Open woodland",category:"vegetation",keywords:"woodland coppice scattered trees",habitat:"land",paths:[p("M22 84L27 48 32 48 35 84M85 85L90 47 97 47 99 85","ink"),p("M9 45Q3 29 20 24Q14 11 30 10Q47 4 49 23Q64 31 50 46Q48 61 28 58Q10 61 9 45ZM75 42Q68 28 82 23Q82 7 98 12Q114 6 117 28Q130 39 117 50Q99 65 83 53Z","green"),p("M49 82L52 75 56 80 60 70 64 81M9 86L12 79 16 85M108 87L112 80 117 84","ink",true)]},
  {key:"meadow",name:"Flowering meadow",category:"vegetation",keywords:"grassland meadow flowers grass",habitat:"land",paths:[p("M7 80Q15 62 20 51L20 78Q28 55 35 49L30 81M42 78Q45 53 43 35L51 76Q56 54 65 47L58 82M72 82L74 56 83 75Q85 49 94 38L89 81M102 81L108 55 111 78 120 64","green",true,2),p("M19 51L14 48 20 44 25 49ZM44 37L39 32 45 27 50 33ZM93 39L88 35 94 30 99 35Z","light"),p("M8 87L37 85M54 88L70 86M94 89L123 87","ink",true)]},
@@ -38,11 +40,34 @@ export const ART_MASTERS:Master[]=[
 export const ART_PACKS={fantasy:{name:"Classic Fantasy Cartography",description:"Fine ink, etched shadows and parchment-compatible silhouettes."},natural:{name:"Natural Terrain Cartography",description:"Restrained colored landforms, layered foliage and subtle rock and water accents."}} as const;
 export const ART_CATEGORIES={landforms:"Landforms",vegetation:"Vegetation",water:"Water & wetlands",landmarks:"Special landscapes"} as const;
 export const ART_THEMES={natural:"Natural",antique:"Antique",vivid:"Colorful",night:"Dark atlas"} as const;
-export const ART_ASSETS=(["fantasy","natural"] as const).flatMap(pack=>ART_MASTERS.map(m=>({...m,id:`${pack}.${m.key}.v1`,pack,version:1 as const,width:128,height:96,scale:{unit:"physical-metres",minScreenPixels:3,maxScreenPixels:320,anchor:[.5,.5]},source:"Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",license:"CC0-1.0",attribution:"No attribution required",file:`/worlds/cartography/v1/${pack}.${m.key}.svg`})));
+const etched:Record<string,string>={
+ summit:"M73 22L85 42M73 33L93 64M76 48L96 78M87 49L104 76M94 47L111 75M25 61L19 72M30 58L24 73M50 58L43 75M56 54L48 76",
+ range:"M58 30L68 47M59 42L75 67M61 55L75 77M96 40L106 56M98 54L114 77M20 56L14 70M24 59L19 73M44 61L40 75M85 59L81 75",
+ hills:"M46 53Q54 61 58 73M50 51Q60 63 64 77M55 49Q66 63 70 78M91 59Q103 62 108 74M93 55Q107 58 115 75",
+ cliff:"M17 45L18 65M22 48L23 70M39 49L37 71M45 47L44 75M65 45L65 70M70 49L70 74M92 49L93 74M97 47L98 73M105 43L104 69",
+ volcano:"M69 34L77 53M73 45L87 69M80 54L99 77M46 47L34 69M48 55L42 73M53 64L49 78M89 63L108 80",
+ dunes:"M11 45Q22 28 39 30M14 48Q24 34 36 34M18 51Q26 39 34 38M53 72Q69 52 89 52M57 76Q73 58 86 57M62 79Q74 64 83 62",
+ rocks:"M17 57L13 70M21 59L17 74M35 58L42 70M60 38L56 58M65 37L61 61M80 43L88 60M101 63L98 73M117 65L122 74",
+ mesa:"M40 45L37 61M44 46L42 65M57 44L57 63M62 44L64 65M88 43L91 65M94 43L97 66M18 77L30 73M94 80L114 83",
+ arch:"M20 42L18 51M24 35L21 45M30 30L26 40M36 26L33 34M88 28L98 37M92 35L104 46M100 55L112 64M103 66L117 78",
+ conifer:"M20 39L25 43M16 49L25 53M10 65L24 69M60 36L67 40M54 47L66 53M47 68L66 73M98 40L104 44M93 50L104 55M87 65L103 69",
+ fir:"M31 32L37 38M26 44L37 49M21 57L35 64M16 68L31 73M86 33L93 39M81 46L91 52M76 60L89 65M101 55L112 64",
+ pine:"M29 26L38 29M49 16L56 22M72 18L80 25M37 52L48 55M67 44L74 50M91 40L99 44M109 43L117 51",
+ deciduous:"M12 35Q22 28 30 33M24 22Q34 17 40 27M51 30Q61 23 70 29M67 15Q77 16 80 24M89 36Q101 29 112 37",
+ woodland:"M15 35Q25 28 33 33M29 19Q39 17 44 27M80 35Q93 27 104 35M96 21Q107 19 112 29",
+ tropical:"M12 29Q24 22 34 29M26 20Q39 16 48 27M49 23Q62 14 75 22M72 14Q82 17 87 25M87 35Q101 28 114 35",
+};
+export const ART_ASSETS=(["fantasy","natural"] as const).flatMap(pack=>ART_MASTERS.map(m=>({...m,paths:pack==="fantasy"&&etched[m.key]?[...m.paths,p(etched[m.key],"ink",true,.65)]:m.paths,id:`${pack}.${m.key}.v1`,pack,version:1 as const,width:128,height:96,scale:{unit:"physical-metres",minScreenPixels:2,maxScreenPixels:320,anchor:[.5,.5]},source:"Original Atlas vector masters; src/features/worlds/terrain-artwork-assets.ts",license:"CC0-1.0",attribution:"No attribution required",file:`/worlds/cartography/v1/${pack}.${m.key}.svg`})));
 export type ArtworkAsset=typeof ART_ASSETS[number];
 const byId=new Map(ART_ASSETS.map(a=>[a.id,a]));
 export const artworkAsset=(id:string)=>byId.get(id);
-export function assetColors(pack:ArtworkPack,theme:ArtworkTheme){
+export function assetColors(pack:ArtworkPack,theme:ArtworkTheme,key?:string){
  const colors=theme==="night"?{body:"#828d94",shade:"#3a444f",light:"#d7dfd3",ink:"#b9c9c4",water:"#769ba7",green:"#788d7c"}:theme==="antique"?{body:"#bda374",shade:"#816b4c",light:"#e5d5af",ink:"#594c38",water:"#7f9490",green:"#8e9270"}:theme==="vivid"?{body:"#b9a57e",shade:"#715e56",light:"#ece3c2",ink:"#454b40",water:"#5997ad",green:"#629658"}:{body:"#aa9e83",shade:"#6a6e60",light:"#e0dfbd",ink:"#4b5346",water:"#688f98",green:"#6c8356"};
+ if(pack==="natural"&&theme==="natural"){
+  if(["dunes","canyon","badlands","mesa","arch"].includes(key??""))Object.assign(colors,{body:"#c7a66f",shade:"#93764f",light:"#ead8aa"});
+  if(["conifer","fir","pine"].includes(key??""))Object.assign(colors,{green:"#557565",shade:"#374e46",light:"#a0b295"});
+  if(key==="tropical")Object.assign(colors,{green:"#4e8756",shade:"#315b3d",light:"#9cb680"});
+  if(["snow","ice"].includes(key??""))Object.assign(colors,{light:"#edf1ed",shade:"#aabfc4",water:"#729caa"});
+ }
  return pack==="fantasy"?{...colors,body:theme==="night"?"#8e948b":"#d0c7a2",shade:theme==="night"?"#626c6a":"#969779",green:theme==="night"?"#7e8b80":"#929a76"}:colors;
 }
