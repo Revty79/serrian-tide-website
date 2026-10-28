@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {DEFAULT_TERRAIN_STYLE,terrainStyleSchema,styleColor,artLight} from "./terrain-style";
 import {DEFAULT_MAP_APPEARANCE,mapAppearanceSchema} from "./terrain-appearance";
-import {stylePresetSaveSchema} from "./terrain-style-preset";
+import {stylePresetSaveSchema,captureStyleSpec} from "./terrain-style-preset";
 import {surfacePixel} from "./terrain-surface-art";
 import {surfaceFieldWork} from "./terrain-surface-field";
 import {EMPTY_TERRAIN_MATERIALS} from "./terrain-materials";
@@ -15,6 +15,7 @@ test("historical appearance documents retain their exact optional-field shape",(
 test("style parameter bounds reject NaN, unsupported algorithms, malformed colors and hidden properties",()=>{for(const patch of [{version:2},{relief:NaN},{detail:0},{detail:3},{brightness:0},{water:"red"},{land:"#123"},{blend:2},{ink:3},{arbitrary:true}])assert.equal(terrainStyleSchema.safeParse({...DEFAULT_TERRAIN_STYLE,...patch}).success,false);});
 test("named snapshots require an identified source and preserve the captured draft exactly",()=>{const value={requestId:"55000000-0000-4000-8000-000000000001",mapId:"55000000-0000-4000-8000-000000000002",appearanceRevision:0,name:"  Coast ink  ",spec:{...DEFAULT_MAP_APPEARANCE,art:{...DEFAULT_TERRAIN_STYLE,water:"#123456",tint:.4}}};const saved=stylePresetSaveSchema.parse(value);assert.equal(saved.name,"Coast ink");assert.deepEqual(saved.spec,value.spec);assert.equal(stylePresetSaveSchema.safeParse({...value,appearanceRevision:-1}).success,false);});
 test("neutral color transform retains pixels and can safely write in place",()=>{const rgb=[76,147,210];assert.deepEqual(styleColor(rgb,false,DEFAULT_TERRAIN_STYLE),rgb);assert.deepEqual(styleColor(rgb,false,DEFAULT_TERRAIN_STYLE,rgb),rgb);assert.deepEqual(styleColor(rgb,true,{...DEFAULT_TERRAIN_STYLE,tint:1,water:"#123456"}),[18,52,86]);});
+test("named legacy-style captures pin complete versioned defaults without editing their source",()=>{const before=structuredClone(DEFAULT_MAP_APPEARANCE),snapshot=captureStyleSpec(DEFAULT_MAP_APPEARANCE);assert.deepEqual(snapshot.art,DEFAULT_TERRAIN_STYLE);snapshot.art.brightness=1.2;assert.deepEqual(DEFAULT_MAP_APPEARANCE,before);assert.equal(DEFAULT_TERRAIN_STYLE.brightness,1);});
 test("desaturation, brightness and palette choices have separate bounded visible effects",()=>{const rgb=[45,140,77],gray=styleColor(rgb,false,{...DEFAULT_TERRAIN_STYLE,saturation:0});assert.equal(gray[0],gray[1]);assert.equal(gray[1],gray[2]);assert.ok(styleColor(rgb,false,{...DEFAULT_TERRAIN_STYLE,brightness:1.3})[1]>rgb[1]);assert.notDeepEqual(styleColor(rgb,false,{...DEFAULT_TERRAIN_STYLE,palette:"ochre"}),rgb);});
 test("directional illumination reads actual opposite slopes without numerical modification",()=>{assert.ok(artLight(.04,.03,2000,20)<artLight(-.04,-.03,2000,20));assert.equal(artLight(.2,.3,2000,20,0),artLight(0,0,2000,20));});
 test("illustrated summit artwork requires a distinct accepted numerical peak above the coast",()=>{assert.equal(cartographicSummit(()=>800,0,0,0),0);assert.equal(cartographicSummit((x)=>800+x*30,0,0,0),0);assert.equal(cartographicSummit((x,y)=>300-x*x-y*y,0,0,0),0);assert.ok(cartographicSummit((x,y)=>1800-120*(x*x+y*y),0,0,0)>0);});
