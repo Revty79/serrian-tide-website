@@ -1,0 +1,46 @@
+"use client";
+import {useEffect,useState} from "react";
+import {GuidedField} from "@/components/field-guidance";
+import {worldApi} from "./client-api";
+import {appearanceRelief,DEFAULT_MAP_APPEARANCE,mapAppearanceNames,type MapAppearance} from "./terrain-appearance";
+import {DEFAULT_TERRAIN_STYLE,terrainStyle,type TerrainStyle} from "./terrain-style";
+import type {StylePreset} from "./terrain-style-preset";
+import {stylePresetSaveSchema} from "./terrain-style-preset";
+import type {useMapAppearance} from "./terrain-appearance-preference";
+import styles from "./terrain.module.css";
+const ranges:[keyof TerrainStyle,string,number,number,number,string][]=[
+ ["tint","Land and water tint",0,1,.05,"0 keeps the material palette; 1 uses your chosen land and water colors. Default 0."],
+ ["saturation","Environmental saturation",0,2,.05,"0 is grayscale; 1 keeps natural color; 2 doubles color strength. Default 1."],
+ ["brightness","Brightness",.6,1.4,.05,"Overall lightness, from 0.6 to 1.4. Default 1."],
+ ["contrast","Style contrast",.5,1.5,.05,"Separation between light and dark, from 0.5 to 1.5. Default 1."],
+ ["relief","Terrain shading strength",0,2,.1,"0 removes artistic directional shading; 2 strengthens saved slopes. Default 1. Adds no elevation."],
+ ["texture","Texture intensity",0,2,.1,"Strength of geographic surface grain, from 0 to 2. Default 1."],
+ ["detail","Surface detail density",.25,2,.05,"0.25 uses sparse, broad artwork; 2 uses denser artwork. Default 1. Does not add height samples."],
+ ["vegetation","Vegetation artwork strength",0,2,.1,"0 hides vegetation artwork; 2 strengthens it. Default 1. Saved classification is unchanged."],
+ ["blend","Biome color blending",0,1,.05,"0 uses local interpreted colors; 1 uses the smoothed environmental transition palette. Default 0.8. Boundaries stay unchanged."],
+ ["ink","Illustration ink strength",0,2,.1,"0 hides decorative pen strokes; 2 emphasizes them. Default 1. Sea-level coast and contour controls remain separate."],
+ ["scale","Scale emphasis",.5,2,.1,"0.5 favors broad, quiet artwork; 2 emphasizes surface detail. Default 1. Overview detail stays bounded."],
+];
+type State=ReturnType<typeof useMapAppearance>[2];
+export function TerrainStyleWorkshop({state,onEditing}:{state:State;onEditing:(open:boolean)=>void}){
+ const [draft,setDraft]=useState<MapAppearance>(),[preview,setPreview]=useState(false),[presets,setPresets]=useState<StylePreset[]>([]),[available,setAvailable]=useState(false),[notice,setNotice]=useState(""),[name,setName]=useState(""),[busy,setBusy]=useState(false),[pending,setPending]=useState<ReturnType<typeof import("./terrain-style-preset").stylePresetSaveSchema.parse>>();
+ const recoveryKey="st:named-terrain-style:"+state.stylesBase;
+ useEffect(()=>{try{const raw=localStorage.getItem(recoveryKey);if(raw){const command=stylePresetSaveSchema.parse(JSON.parse(raw));if(command.mapId===state.mapId){setPending(command);setName(command.name);}}}catch{/* A malformed browser draft never becomes a server command. */}},[recoveryKey,state.mapId]);
+ async function load(){try{const result=await worldApi<{available:boolean;presets:StylePreset[]}>(state.stylesBase,"GET");setPresets(result.presets);setAvailable(result.available);setNotice(result.available?"Named styles are immutable snapshots available to this World's terrain maps.":"MIGRATION 0143 REQUIRED for named styles. Preview and map appearance saves remain available.");}catch(e){setNotice((e as Error).message);}}
+ function begin(){setDraft(state.spec);setPreview(false);onEditing(true);void load();}
+ function update(next:MapAppearance){setDraft(next);if(preview)state.preview(next);}
+ function close(accept:boolean){state.preview(undefined);if(accept&&draft)state.setValue(appearanceRelief(draft));setDraft(undefined);setPreview(false);onEditing(false);}
+ async function savePreset(){if(!draft||!state.remote)return;const command=pending??{requestId:crypto.randomUUID(),mapId:state.mapId,appearanceRevision:state.remote.revision,name:name.trim(),spec:draft};setPending(command);try{localStorage.setItem(recoveryKey,JSON.stringify(command));}catch{/* This tab still retains the original request. */}setBusy(true);try{await worldApi(state.stylesBase,"POST",command);setPending(undefined);try{localStorage.removeItem(recoveryKey);}catch{}setName("");await load();setNotice("Named style saved. Accept the candidate, then Save map appearance to change this map's default.");}catch(e){setNotice((e as Error).message+" Retry retains the original snapshot.");}finally{setBusy(false);}}
+ if(!draft)return <button type="button" className="st-button is-secondary" disabled={state.saving||state.pending} onClick={begin}>Open style settings</button>;
+ const art=terrainStyle(draft.art),artistic=draft.style==="realistic-terrain"||draft.style==="illustrated-fantasy";
+ const change=(key:keyof TerrainStyle,value:string|number)=>update({...draft,art:{...art,[key]:value}});
+ return <fieldset className={styles.styleWorkshop} aria-label="Terrain style workshop" disabled={busy}>
+  <legend>Style settings · {mapAppearanceNames[draft.style]}</legend><p>Try visual choices, preview them on the map, then accept or cancel. Your terrain, water and environment stay unchanged. Accepting keeps a browser draft; saving the map appearance is a separate step.</p>
+  <GuidedField label="Terrain palette" help="A coordinated geographic palette. Website controls keep your normal theme." controlClassName="st-control"><select value={art.palette} onChange={e=>change("palette",e.target.value)}><option value="natural">Natural</option><option value="verdant">Verdant</option><option value="ochre">Warm ochre</option><option value="muted">Muted atlas</option></select></GuidedField>
+  <div className={styles.controls}>{(["land","water"] as const).map(key=><GuidedField key={key} label={key==="land"?"Land color":"Water color"} help="Used by the tint control; default tint is zero." controlClassName="st-control"><input type="color" value={art[key]} onChange={e=>change(key,e.target.value)}/></GuidedField>)}</div>
+  <details><summary>Fine style adjustments</summary>{ranges.filter(([key])=>artistic||["tint","saturation","brightness","contrast"].includes(key)).filter(([key])=>key!=="ink"||draft.style==="illustrated-fantasy").map(([key,label,min,max,step,help])=><GuidedField key={key} label={`${label} (${art[key]})`} help={help} controlClassName="st-control"><input aria-label={label} type="range" min={min} max={max} step={step} value={art[key] as number} onChange={e=>change(key,Number(e.target.value))}/></GuidedField>)}</details>
+  <div className={styles.controls}><button type="button" className="st-button is-secondary" onClick={()=>{setPreview(!preview);state.preview(preview?undefined:draft);}}>{preview?"Hide style preview":"Preview style"}</button><button type="button" className="st-button is-secondary" onClick={()=>update({...DEFAULT_MAP_APPEARANCE,version:draft.style==="realistic-terrain"?2:1,style:draft.style,contours:draft.style!=="illustrated-fantasy",bathymetry:draft.style!=="illustrated-fantasy",art:{...DEFAULT_TERRAIN_STYLE}})}>Restore style defaults</button><button type="button" className="st-button" onClick={()=>close(true)}>Accept style</button><button type="button" className="st-button is-secondary" onClick={()=>close(false)}>Cancel style changes</button></div>
+  <p role="status">{preview?"Style preview is visible; the saved appearance is unchanged.":"Adjustments are waiting for Preview or Accept."}</p>
+  <details><summary>Named custom styles</summary><p>{notice}</p><GuidedField label="Saved style" help="Loading prepares a candidate. It never changes the saved map. Each version records its source map, author and capture time." controlClassName="st-control"><select value="" onChange={e=>{const preset=presets.find(p=>p.id===e.target.value);if(preset){update(preset.spec);setNotice(`Loaded ${preset.name} · snapshot v${preset.version} · source appearance revision ${preset.sourceAppearanceRevision} · ${preset.createdAt}. Accept and save explicitly.`);}}}><option value="">Choose a named style</option>{presets.map(p=><option key={p.id} value={p.id}>{p.name} · {mapAppearanceNames[p.spec.style]} · {p.createdAt}</option>)}</select></GuidedField><GuidedField label="Custom style name" help="1–80 characters. Saving creates a new immutable snapshot of these choices, including unsaved style adjustments; it never replaces an existing preset." controlClassName="st-control"><input maxLength={80} value={name} disabled={!!pending} onChange={e=>setName(e.target.value)}/></GuidedField><button type="button" className="st-button is-secondary" disabled={!available||!state.remote||!name.trim()&&!pending} onClick={()=>void savePreset()}>{pending?"Retry named style save":"Save named style"}</button>{pending&&<button type="button" className="st-button is-secondary" onClick={()=>{setPending(undefined);try{localStorage.removeItem(recoveryKey);}catch{}setNotice("Original retry released. A saved snapshot, if accepted by the server, remains in the list.");void load();}}>Release style retry</button>}</details>
+ </fieldset>;
+}

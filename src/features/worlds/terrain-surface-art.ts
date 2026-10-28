@@ -1,4 +1,5 @@
 import type {TerrainSurfaceProfile} from "./terrain-surface-profile";
+import {terrainStyle,styleColor,artLight,type TerrainStyle} from "./terrain-style";
 import type {SurfaceField} from "./terrain-surface-field";
 import {paintMaterialWeights,type TerrainMaterials,type MaterialStroke} from "./terrain-materials";
 import {shadeSurfaceTextures,surfaceLightingScale} from "./terrain-surface-texture-shading";
@@ -25,14 +26,23 @@ export function automaticSurface(field:SurfaceField,sea:number,out:number[]=[0,0
 }
 /** Original procedural surface artwork. Texture normals affect light only and are
  * never exposed as measured relief. Snow is explicit paint, never a climate inference. */
-export function surfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null,textures?:SurfaceTextureSet,profile?:TerrainSurfaceProfile,work?:SurfacePixelWork):[number,number,number]{
+export function surfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null,textures?:SurfaceTextureSet,profile?:TerrainSurfaceProfile,work?:SurfacePixelWork,art?:TerrainStyle):[number,number,number]{
+ const style=terrainStyle(art),rgb=baseSurfacePixel(field,x,y,footprint,sea,Math.max(1,relief*style.relief),layer,strokes,period,textures,profile,work,style),land=field.waterHeight>sea;
+ if(land){const band=(size:number)=>smooth(size/(footprint*2)-.35),grain=(size:number)=> (surfaceNoise(x,y,size,period)-.5)*band(size),detail=style.detail*style.scale;
+  const texture=(grain(18000/detail)*.20+grain(2700/detail)*.22+grain(320/detail)*.16+grain(24/detail)*.12)*style.texture;
+  const light=artLight(field.gx,field.gy,footprint,relief,style.relief),gain=(.53+.54*light)*(1+texture);
+  for(let c=0;c<3;c++)rgb[c]*=gain;
+ }
+ return styleColor(rgb,!land,style,rgb) as [number,number,number];
+}
+function baseSurfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null,textures?:SurfaceTextureSet,profile?:TerrainSurfaceProfile,work?:SurfacePixelWork,style?:TerrainStyle):[number,number,number]{
  const band=(scale:number)=>smooth(scale/(footprint*2)-.4),n=(scale:number,ox=0,oy=0)=>{const weight=band(scale);return weight ? .5+(surfaceNoise(x+ox,y+oy,scale,period)-.5)*weight:.5;},slope=Math.hypot(field.gx,field.gy),depth=sea-field.waterHeight,water=work?.water??[0,0,0],landFraction=slope<1e-6?(depth>=0?0:1):clamp(.5-depth/(slope*footprint));
  if(landFraction<1){const shallow=Math.exp(-Math.max(0,depth)/45),shelf=Math.exp(-Math.max(0,depth)/700),ripple=Math.sin(n(4)*6+n(320)*5)*band(5)*.25;water[0]=12+shallow*56+shelf*9+ripple;water[1]=39+shallow*94+shelf*22+ripple*2;water[2]=57+shallow*74+shelf*24+ripple*2;}else water[0]=water[1]=water[2]=0;
  if(landFraction===0)return water as [number,number,number];
  const broad=.5+(n(9000)-.5)*.65+(n(240000)-.5)*.35;
  const timed=profile?.sampling,classificationStart=timed?performance.now():0;
  const coverage=layer.visible?layer.opacity:0,weights=layer.automatic?automaticSurface(field,sea,work?.weights):(work?.weights??[0,0,0,0,0,0]);if(!layer.automatic){weights.fill(0);weights[2]=1;}if(layer.automatic){const mineral=weights[0]+weights[1],ground=weights[2]+weights[3],shift=(n(80)-.5)*.5*Math.min(mineral,ground);if(mineral>0&&ground>0){weights[0]+=shift*weights[0]/mineral;weights[1]+=shift*weights[1]/mineral;weights[2]-=shift*weights[2]/ground;weights[3]-=shift*weights[3]/ground;}}if(timed)profile!.record("classification",performance.now()-classificationStart);const strokeStart=timed?performance.now():0;if(strokes.length)paintMaterialWeights(weights,OPAQUE_MATERIAL,strokes,x,y,period,work?.original);if(timed)profile!.record("strokes",performance.now()-strokeStart);for(let i=0;i<6;i++)weights[i]=weights[i]*coverage+(i===2?1-coverage:0);
- if(textures){if(work&&(work.lighting.footprint!==footprint||work.lighting.relief!==relief)){work.lighting.footprint=footprint;work.lighting.relief=relief;work.lighting.scale=surfaceLightingScale(relief,footprint);}return shadeSurfaceTextures(textures,field,weights,x,y,footprint,relief,period,broad,water,landFraction,profile,work?.texture,work?.rgb,work?.lighting.scale);}
+ if(textures){if(work&&(work.lighting.footprint!==footprint||work.lighting.relief!==relief)){work.lighting.footprint=footprint;work.lighting.relief=relief;work.lighting.scale=surfaceLightingScale(relief,footprint);}return shadeSurfaceTextures(textures,field,weights,x,y,footprint,relief,period,broad,water,landFraction,profile,work?.texture,work?.rgb,work?.lighting.scale,style?.texture);}
  // Warped, stratified stone: connected ridges, mineral faces and narrow joints.
  const meso=n(320),grain=n(5),detail=band(20);
  const warp=n(65)*3,periodicX=period?Math.sin(2*Math.PI*x/period)*period/(2*Math.PI):x,axis=(periodicX*.72+y*.43)/17+warp+field.height*.012,vein=Math.abs(Math.sin(axis)),joints=smooth((.12-vein)/.12),facets=Math.abs(n(28)-.5)*2;

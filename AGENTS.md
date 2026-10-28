@@ -1,3 +1,7 @@
+## Active Atlas Stage 3 Pass 5A
+
+The owner authorizes terrain art direction and creator styles from `bc4806d284f7bf94881f9c191640f2d80adb3cf9`; see [Pass 5A](docs/architecture/worlds-terrain-style-5a.md). Reuse numerical terrain, material, hydrology and environmental authority. Preserve all five appearances, protection, recovery, history and gameplay. Additive style persistence may be rehearsed only in newly owned disposable databases. Complete production/browser/GPU-disabled validation, commit and push the finished pass on main. No shared DEV/Production access or mutation, deployment, owner server restart, or Pass 5B. This explicit authorization supersedes earlier pass stop/publication boundaries for this pass only.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

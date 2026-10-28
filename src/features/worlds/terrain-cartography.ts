@@ -1,6 +1,8 @@
 import type {TerrainGeometry} from "./terrain";
 import {physicalReliefShade} from "./terrain-relief";
 import type {MapAppearance} from "./terrain-appearance";
+import {terrainStyle,styleColor,artLight} from "./terrain-style";
+import {surfaceNoise} from "./terrain-surface-art";
 
 export type HeightSampler=(x:number,y:number)=>number;
 export type ContourSegment={a:[number,number];b:[number,number];height:number;major:boolean};
@@ -49,16 +51,20 @@ export function drawCartographicTile(canvas:HTMLCanvasElement,sample:HeightSampl
  const halo=new Float64Array(64*64);for(let y=-16;y<48;y++)for(let x=-16;x<48;x++)halo[(y+16)*64+x+16]=sample(x0+x,y0+y);
  const at=(x:number,y:number)=>halo[(Math.max(-16,Math.min(47,y))+16)*64+Math.max(-16,Math.min(47,x))+16];
  const interpolate=(x:number,y:number)=>{const a=Math.floor(x),b=Math.floor(y),u=x-a,v=y-b;return (at(a,b)*(1-u)+at(a+1,b)*u)*(1-v)+(at(a,b+1)*(1-u)+at(a+1,b+1)*u)*v;};
- const image=ctx.createImageData(size,size),illustrated=spec.style==="illustrated-fantasy";
+ const image=ctx.createImageData(size,size),illustrated=spec.style==="illustrated-fantasy",art=terrainStyle(spec.art);
  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
   const gx=(x+.5)/factor-.5,gy=(y+.5)/factor-.5,z=interpolate(gx,gy),rgb=cartographicColor(z-sea,spec),spanX=shape.wrap?2:Math.min(shape.width-1,x0+gx+1)-Math.max(0,x0+gx-1),spanY=Math.min(shape.height-1,y0+gy+1)-Math.max(0,y0+gy-1),gradientX=(interpolate(gx+1,gy)-interpolate(gx-1,gy))/(Math.max(.25,spanX)*dx),gradientY=(interpolate(gx,gy+1)-interpolate(gx,gy-1))/(Math.max(.25,spanY)*dy),light=z>sea?physicalReliefShade(gradientX,gradientY,spec.relief):1,shade=illustrated?.86+.14*light:.42+.58*light,p=(y*size+x)*4;
-  for(let c=0;c<3;c++)image.data[p+c]=rgb[c]*shade;image.data[p+3]=255;
+  let tone=shade;
+  if(illustrated){const px=origin.x+(x0+gx)*dx,py=origin.y+(y0+gy)*dy,footprint=Math.max(dx,dy)/factor,light=artLight(gradientX,gradientY,footprint,spec.relief,art.relief),grain=surfaceNoise(px,py,Math.max(80,1200/art.detail),periodX)-.5;
+   tone=(z>sea?.63+.39*light:1)*(1+grain*.095*art.texture);}
+  const painted=[rgb[0]*tone,rgb[1]*tone,rgb[2]*tone];if(spec.art)styleColor(painted,z<=sea,art,painted);
+  for(let c=0;c<3;c++)image.data[p+c]=painted[c];image.data[p+3]=255;
  }ctx.putImageData(image,0,0);ctx.scale(factor,factor);ctx.lineCap="round";ctx.lineJoin="round";
  const segments=tileContours((x,y)=>at(x-x0,y-y0),x0,y0,sea,interval,spec.bathymetry),coasts=new Path2D(),major=new Path2D(),minor=new Path2D(),depth=new Path2D();
  for(const s of segments){if(s.height<0&&Math.abs(s.height/Math.max(500,interval*5)-Math.round(s.height/Math.max(500,interval*5)))>1e-7)continue;const path=s.height===0?coasts:s.height<0?depth:s.major?major:minor;path.moveTo(...s.a);path.lineTo(...s.b);}
  if(spec.contours){ctx.strokeStyle=illustrated?"rgba(102,81,56,.19)":"rgba(117,83,59,.32)";ctx.lineWidth=illustrated?.16:.18;ctx.stroke(minor);ctx.strokeStyle=illustrated?"rgba(92,69,46,.32)":"rgba(104,70,47,.55)";ctx.lineWidth=.3;ctx.stroke(major);}
  if(spec.bathymetry&&spec.decoration>0){ctx.strokeStyle=illustrated?"rgba(63,102,117,.21)":"rgba(65,117,146,.2)";ctx.lineWidth=.18;ctx.stroke(depth);}
- if(illustrated&&spec.decoration>0){
+ if(illustrated&&spec.decoration>0&&art.ink>0){
   // Continuous numerical ridge/valley axes and curved, tapered slope hachures.
   // The halo includes stroke origins outside a tile, so pen lines cross its edge.
   const fields=new Map<number,ReturnType<typeof terrainInkField>>(),field=(x:number,y:number)=>{const key=(y+12)*57+x+12;if(!fields.has(key))fields.set(key,terrainInkField(at,x,y,sea));return fields.get(key)!;},ridges=new Path2D(),valleys=new Path2D(),hatches=[new Path2D(),new Path2D(),new Path2D()],spacing=Math.max(dx*1.25,dy*1.25,4/Math.max(1e-9,scale));let strokes=0;
@@ -77,7 +83,7 @@ export function drawCartographicTile(canvas:HTMLCanvasElement,sample:HeightSampl
     }
    }
   }
-  const penWidth=Math.max(.055,.6/Math.max(.01,Math.max(dx,dy)*scale));for(let n=0;n<3;n++){ctx.strokeStyle=`rgba(67,49,32,${[.18,.33,.53][n]*spec.decoration*spec.contrast})`;ctx.lineWidth=penWidth*(n===0?.6:1);ctx.stroke(hatches[n]);}ctx.strokeStyle="rgba(255,248,222,.58)";ctx.lineWidth=penWidth*1.35;ctx.stroke(ridges);ctx.strokeStyle=`rgba(105,85,60,${.18*spec.decoration})`;ctx.lineWidth=penWidth*.6;ctx.stroke(valleys);
+  const penWidth=Math.max(.055,.85/Math.max(.01,Math.max(dx,dy)*scale))*art.ink;for(let n=0;n<3;n++){ctx.strokeStyle=`rgba(67,49,32,${Math.min(.9,[.22,.42,.64][n]*spec.decoration*spec.contrast)})`;ctx.lineWidth=penWidth*(n===0?.6:1);ctx.stroke(hatches[n]);}ctx.strokeStyle="rgba(255,248,222,.68)";ctx.lineWidth=penWidth*1.6;ctx.stroke(ridges);ctx.strokeStyle=`rgba(105,85,60,${.25*spec.decoration})`;ctx.lineWidth=penWidth*.7;ctx.stroke(valleys);
  }
  if(spec.coastline>0){ctx.strokeStyle=illustrated?"rgba(251,244,221,.9)":"rgba(246,244,223,.85)";ctx.lineWidth=1.05*spec.coastline;ctx.stroke(coasts);ctx.strokeStyle=illustrated?"#4e625b":"#426b70";ctx.lineWidth=.36*spec.coastline;ctx.stroke(coasts);}
  return {segments:segments.length};

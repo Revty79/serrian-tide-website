@@ -1,3 +1,4 @@
+import {styleColor,type TerrainStyle} from "./terrain-style";
 import type {HydroEdge,HydroGeometry,HydroLayer,HydroPoint,WaterFeature} from "./terrain-hydrology";
 import type {HydroOverlay} from "./terrain-hydrology-overlay";
 import type {TerrainView} from "./terrain";
@@ -72,8 +73,8 @@ function pointFeature(ctx:CanvasRenderingContext2D,f:Exclude<WaterFeature,{kind:
 }
 /** Paths are prepared in World metres, reused through pan and zoom. The cache
  * estimate bounds our preparations; opaque browser Path2D overhead is extra. */
-export function paintWaterArtwork(ctx:CanvasRenderingContext2D,view:TerrainView,world:HydroGeometry,overlay:HydroOverlay,style="physical-relief"){
-  const started=performance.now(),p=palette(style),dpr=ctx.getTransform().a||1,width=ctx.canvas.width/dpr,height=ctx.canvas.height/dpr,copies=world.wrap?[-world.width,0,world.width]:[0],drawn=new Set<string>(),pathsDrawn=new Set<string>();waterArtworkStats.drawnChannels=0;waterArtworkStats.hiddenChannels=0;
+export function paintWaterArtwork(ctx:CanvasRenderingContext2D,view:TerrainView,world:HydroGeometry,overlay:HydroOverlay,style="physical-relief",art?:TerrainStyle){
+  const started=performance.now(),p=palette(style);if(art){for(const key of ["water","light","edge","wet","wetEdge"] as const){const hex=p[key],rgb=styleColor([1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)),true,art);p[key]=`rgb(${rgb.map(Math.round).join(",")})`;}}const dpr=ctx.getTransform().a||1,width=ctx.canvas.width/dpr,height=ctx.canvas.height/dpr,copies=world.wrap?[-world.width,0,world.width]:[0],drawn=new Set<string>(),pathsDrawn=new Set<string>();waterArtworkStats.drawnChannels=0;waterArtworkStats.hiddenChannels=0;
   const local=(path:CachedPath,offset:number,paint:()=>void)=>{const original={path:path.path,outline:path.outline,origin:path.origin},resolved=anchored(path,view,offset);Object.assign(path,resolved);ctx.save();try{ctx.translate(view.x+(path.origin.x+offset)*view.scale,view.y+path.origin.y*view.scale);ctx.scale(view.scale,view.scale);paint();}finally{ctx.restore();Object.assign(path,original);}};
   const basin=(path:CachedPath,offset:number)=>local(path,offset,()=>{ctx.fillStyle="rgba(177,145,233,.15)";ctx.fill(path.path,"evenodd");ctx.strokeStyle="#ad9ac8";ctx.lineWidth=1/view.scale;ctx.setLineDash([8/view.scale,5/view.scale]);ctx.stroke(path.outline??path.path);});
   const layers:[HydroLayer,boolean,boolean][]=[[overlay.layer,false,false],...overlay.suggestions?[[overlay.suggestions,true,false] as [HydroLayer,boolean,boolean]]:[],...overlay.featurePreview?[[overlay.featurePreview,true,true] as [HydroLayer,boolean,boolean]]:[]];

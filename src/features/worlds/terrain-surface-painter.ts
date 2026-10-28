@@ -1,3 +1,4 @@
+import type {TerrainStyle} from "./terrain-style";
 import {TerrainSurfaceProfile} from "./terrain-surface-profile";
 import type {SurfaceWorkerRequest,SurfaceWorkerReply,SurfaceWorkerSource} from "./terrain-surface-worker-protocol";
 import type {TerrainGeometry,TerrainView} from "./terrain";
@@ -21,6 +22,7 @@ export class TerrainSurfacePainter{
  readonly profile=new TerrainSurfaceProfile(typeof window!=="undefined"&&new URLSearchParams(window.location.search).has("terrainProfile"));
  readonly metrics={painted:0,hits:0,maxBatchMs:0,maxTextures:0,visualMetres:0,workerTiles:0,workerMaxMs:0,workerSourceBytes:0};
  private worker?:Worker;private workerUnavailable=false;private workerBusy?:string;private workerDesired="";private workerSent="";private workerSource?:SurfaceWorkerSource;private workerAssetBytes=0;private workerProfile?:unknown;private watchdog?:ReturnType<typeof setTimeout>;
+ private art?:TerrainStyle;private artKey="";
  private textures=cachedSurfaceTextures()??MEAN_SURFACE_TEXTURES;private disposed=false;private fineArtwork=false;
  assetState:"unloaded"|"loading"|"ready"|"error"=cachedSurfaceTextures()?"ready":"unloaded";
  constructor(private readonly onArtworkChange:()=>void=()=>{},readonly limit=1024){}
@@ -48,7 +50,7 @@ export class TerrainSurfacePainter{
   if(!this.worker||this.workerBusy||!this.jobs.length||!this.workerSource)return;
   const job=this.jobs[0],send=(message:SurfaceWorkerRequest)=>this.worker!.postMessage(message);
   try{if(this.workerSent!==this.workerDesired){send({type:"source",source:this.workerSource,profile:this.profile.enabled});this.workerSent=this.workerDesired;}this.workerBusy=job.key;
-   send({type:"paint",key:job.key,frame:job.frame,resolution:job.resolution,height:job.height,step:job.step,originX:job.originX,originY:job.originY,pixelX:job.pixelX,pixelY:job.pixelY,sea:this.sea,relief:this.relief,layer:{visible:this.layer.visible,opacity:this.layer.opacity,automatic:this.layer.automatic},strokes:job.strokes,fine:this.fineArtwork});this.watchdog=setTimeout(()=>{if(this.workerBusy===job.key)this.workerFailure();},45000);
+   send({type:"paint",key:job.key,frame:job.frame,resolution:job.resolution,height:job.height,step:job.step,originX:job.originX,originY:job.originY,pixelX:job.pixelX,pixelY:job.pixelY,sea:this.sea,relief:this.relief,layer:{visible:this.layer.visible,opacity:this.layer.opacity,automatic:this.layer.automatic},strokes:job.strokes,fine:this.fineArtwork,art:this.art});this.watchdog=setTimeout(()=>{if(this.workerBusy===job.key)this.workerFailure();},45000);
   }catch{this.workerFailure();}
  }
  get waitingForAssets(){return this.fineArtwork&&this.assetState==="loading";}
@@ -58,7 +60,8 @@ export class TerrainSurfacePainter{
  invalidate(){this.stamp++;this.signature="";}
  get pending(){return this.jobs.length;}
  get bytes(){let n=0;for(const i of this.images.values())n+=i.canvas.width*i.canvas.height*4;return n;}
- sync(root:Int16Array,world:TerrainGeometry,scene:TerrainDetailScene|undefined,view:TerrainViewport,sea:number,relief:number,layer=EMPTY_TERRAIN_MATERIALS,dpr=1){
+ sync(root:Int16Array,world:TerrainGeometry,scene:TerrainDetailScene|undefined,view:TerrainViewport,sea:number,relief:number,layer=EMPTY_TERRAIN_MATERIALS,dpr=1,art?:TerrainStyle){
+  const artKey=JSON.stringify(art);if(artKey!==this.artKey){this.artKey=artKey;this.art=art;this.invalidate();}
   this.ensureWorker();
   if(root!==this.root){this.root=root;this.invalidate();}
   const level=Math.max(0,Math.min(48,Math.floor(Math.log2(world.displayWidth*view.scale*dpr/128)))),size=world.displayWidth/2**level;
@@ -83,7 +86,7 @@ export class TerrainSurfacePainter{
   for(const job of jobs.slice(1))if(job.pixels){job.pixels=undefined;job.row=0;job.col=0;}this.wanted=wanted;this.jobs=jobs;
  }
  paint(budget=4){const start=performance.now();if(this.worker){this.dispatchWorker();this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);return;}if(!this.sample||!this.world)return;while(this.jobs.length){const j=this.jobs[0],edge=j.resolution+2,edgeY=j.height+2,pixels=j.pixels??(j.pixels=new ImageData(edge,edgeY)),step=j.step,period=this.world.wrap?this.world.displayWidth:null;
-   while(j.row<edgeY){const row=j.row;while(j.col<edge){const col=j.col++;let x=j.originX+(col+j.pixelX-.5)*step;const y=j.originY+(row+j.pixelY-.5)*step;if(period)x=((x%period)+period)%period;const measured=this.profile.beginPixel(),started=measured?performance.now():0,fieldStart=started,field=this.sample(x,y,this.profile,this.fieldWork);if(measured)this.profile.record("field",performance.now()-fieldStart);const rgb=surfacePixel(field,x,y,step,this.sea,this.relief,this.layer,j.strokes,period,this.textures,this.profile,this.pixelWork),i=(row*edge+col)*4;pixels.data[i]=rgb[0];pixels.data[i+1]=rgb[1];pixels.data[i+2]=rgb[2];pixels.data[i+3]=255;if(measured)this.profile.record("pixels",performance.now()-started);if(j.col%8===0&&performance.now()-start>=budget){this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);return;}}j.row++;j.col=0;if(performance.now()-start>=budget){this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);return;}}
+   while(j.row<edgeY){const row=j.row;while(j.col<edge){const col=j.col++;let x=j.originX+(col+j.pixelX-.5)*step;const y=j.originY+(row+j.pixelY-.5)*step;if(period)x=((x%period)+period)%period;const measured=this.profile.beginPixel(),started=measured?performance.now():0,fieldStart=started,field=this.sample(x,y,this.profile,this.fieldWork);if(measured)this.profile.record("field",performance.now()-fieldStart);const rgb=surfacePixel(field,x,y,step,this.sea,this.relief,this.layer,j.strokes,period,this.textures,this.profile,this.pixelWork,this.art),i=(row*edge+col)*4;pixels.data[i]=rgb[0];pixels.data[i+1]=rgb[1];pixels.data[i+2]=rgb[2];pixels.data[i+3]=255;if(measured)this.profile.record("pixels",performance.now()-started);if(j.col%8===0&&performance.now()-start>=budget){this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);return;}}j.row++;j.col=0;if(performance.now()-start>=budget){this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);return;}}
    const uploadStart=this.profile.enabled?performance.now():0,canvas=document.createElement("canvas");canvas.width=edge;canvas.height=edgeY;canvas.getContext("2d")!.putImageData(pixels,0,0);this.images.set(j.key,{canvas,frame:j.frame,baseKey:j.baseKey});this.fallback.set(j.baseKey,j.key);this.jobs.shift();this.metrics.painted++;if(this.profile.enabled){this.profile.allocations++;this.profile.record("upload",performance.now()-uploadStart);}const evictionStart=this.profile.enabled?performance.now():0;
    while(this.images.size>this.limit||this.bytes>64*1024*1024){const key=this.images.keys().next().value!,old=this.images.get(key)!;this.images.delete(key);if(this.profile.enabled)this.profile.evictions++;if(this.fallback.get(old.baseKey)===key)this.fallback.delete(old.baseKey);}if(this.profile.enabled)this.profile.record("cache",performance.now()-evictionStart);this.metrics.maxTextures=Math.max(this.metrics.maxTextures,this.images.size);if(performance.now()-start>=budget)break;
   }this.metrics.maxBatchMs=Math.max(this.metrics.maxBatchMs,performance.now()-start);}

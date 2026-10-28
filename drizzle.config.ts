@@ -28,6 +28,7 @@ export default defineConfig({
     "./src/db/world-terrain-schema.ts",
     "./src/db/world-terrain-refinement-schema.ts",
     "./src/db/world-map-appearance-schema.ts",
+    "./src/db/world-map-style-schema.ts",
     "./src/db/world-terrain-material-schema.ts",
     "./src/db/world-hydrology-schema.ts",
     "./src/db/world-environment-schema.ts",

@@ -1,4 +1,5 @@
 import { elevationColor } from "./raster";
+import {styleColor} from "./terrain-style";
 import { TERRAIN, type TerrainGeometry } from "./terrain";
 import {CLASSIC_RELIEF,physicalGradient,physicalReliefShade,type TerrainRelief} from "./terrain-relief";
 // Scientific elevation encoding is shared with retained numerical rasters.
@@ -16,6 +17,7 @@ export function paintTerrainTile(grid: Int16Array, seaLevel: number, key: number
     const gradient=relief.mode==="physical"&&!water?physicalGradient(west,east,north,south,gx,gy,shape):null;
     const shade = water ? 1 : gradient?physicalReliefShade(gradient.x,gradient.y,relief.exaggeration):Math.max(.6, Math.min(1.25, 1 + (west - east + north - south) / 1600)), p = (y * size + x) * 4;
     for (let c = 0; c < 3; c++) pixels[p + c] = colors[color + c] * shade;
+    if(relief.appearance?.art){const rgb=styleColor([pixels[p],pixels[p+1],pixels[p+2]],water,relief.appearance.art);for(let c=0;c<3;c++)pixels[p+c]=rgb[c];}
     pixels[p + 3] = 255;
   }
   return new ImageData(pixels, size, size);

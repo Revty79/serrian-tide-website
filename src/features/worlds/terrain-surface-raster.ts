@@ -12,7 +12,7 @@ export function rasterSurfaceJob(message:Extract<SurfaceWorkerRequest,{type:"pai
  for(let row=0;row<height;row++)for(let col=0;col<width;col++){
   let x=message.originX+(col+message.pixelX-.5)*message.step;const y=message.originY+(row+message.pixelY-.5)*message.step;if(period)x=((x%period)+period)%period;
   const measured=profile.beginPixel(),start=measured?performance.now():0,f=sample(x,y,profile,field);if(measured)profile.record("field",performance.now()-start);
-  const rgb=surfacePixel(f,x,y,message.step,message.sea,message.relief,layer,message.strokes,period,textures,profile,work),i=(row*width+col)*4;pixels[i]=rgb[0];pixels[i+1]=rgb[1];pixels[i+2]=rgb[2];pixels[i+3]=255;if(measured)profile.record("pixels",performance.now()-start);
+  const rgb=surfacePixel(f,x,y,message.step,message.sea,message.relief,layer,message.strokes,period,textures,profile,work,message.art),i=(row*width+col)*4;pixels[i]=rgb[0];pixels[i+1]=rgb[1];pixels[i+2]=rgb[2];pixels[i+3]=255;if(measured)profile.record("pixels",performance.now()-start);
  }
  return {pixels,width,height,ms:performance.now()-started};
 }
