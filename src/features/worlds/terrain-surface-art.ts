@@ -1,5 +1,5 @@
 import type {TerrainSurfaceProfile} from "./terrain-surface-profile";
-import {terrainStyle,styleColor,artLight,type TerrainStyle} from "./terrain-style";
+import {terrainStyle,styleColor,type TerrainStyle} from "./terrain-style";
 import type {SurfaceField} from "./terrain-surface-field";
 import {paintMaterialWeights,type TerrainMaterials,type MaterialStroke} from "./terrain-materials";
 import {shadeSurfaceTextures,surfaceLightingScale} from "./terrain-surface-texture-shading";
@@ -27,22 +27,14 @@ export function automaticSurface(field:SurfaceField,sea:number,out:number[]=[0,0
 /** Original procedural surface artwork. Texture normals affect light only and are
  * never exposed as measured relief. Snow is explicit paint, never a climate inference. */
 export function surfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null,textures?:SurfaceTextureSet,profile?:TerrainSurfaceProfile,work?:SurfacePixelWork,art?:TerrainStyle):[number,number,number]{
- const style=terrainStyle(art),rgb=baseSurfacePixel(field,x,y,footprint,sea,Math.max(1,relief*style.relief),layer,strokes,period,textures,profile,work,style),land=field.waterHeight>sea;
- if(land){const band=(size:number)=>smooth(size/(footprint*2)-.35),grain=(size:number)=> (surfaceNoise(x,y,size,period)-.5)*band(size),detail=style.detail*style.scale;
-  const texture=(grain(18000/detail)*.20+grain(2700/detail)*.22+grain(320/detail)*.16+grain(24/detail)*.12)*style.texture;
-  const light=artLight(field.gx,field.gy,footprint,relief,style.relief),gain=(.53+.54*light)*(1+texture);
-  for(let c=0;c<3;c++)rgb[c]*=gain;
- }
- return styleColor(rgb,!land,style,rgb) as [number,number,number];
-}
-function baseSurfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null,textures?:SurfaceTextureSet,profile?:TerrainSurfaceProfile,work?:SurfacePixelWork,style?:TerrainStyle):[number,number,number]{
+ const style=terrainStyle(art);relief=Math.max(1,relief*style.relief);
  const band=(scale:number)=>smooth(scale/(footprint*2)-.4),n=(scale:number,ox=0,oy=0)=>{const weight=band(scale);return weight ? .5+(surfaceNoise(x+ox,y+oy,scale,period)-.5)*weight:.5;},slope=Math.hypot(field.gx,field.gy),depth=sea-field.waterHeight,water=work?.water??[0,0,0],landFraction=slope<1e-6?(depth>=0?0:1):clamp(.5-depth/(slope*footprint));
  if(landFraction<1){const shallow=Math.exp(-Math.max(0,depth)/45),shelf=Math.exp(-Math.max(0,depth)/700),ripple=Math.sin(n(4)*6+n(320)*5)*band(5)*.25;water[0]=12+shallow*56+shelf*9+ripple;water[1]=39+shallow*94+shelf*22+ripple*2;water[2]=57+shallow*74+shelf*24+ripple*2;}else water[0]=water[1]=water[2]=0;
- if(landFraction===0)return water as [number,number,number];
- const broad=.5+(n(9000)-.5)*.65+(n(240000)-.5)*.35;
+ if(landFraction===0)return (art?styleColor(water,true,style,water):water) as [number,number,number];
+ const density=(style?.detail??1)*(style?.scale??1),broad=style?.texture===0?.5:.5+(n(2700/density)-.5)*.6+(n(320/density)-.5)*.4;
  const timed=profile?.sampling,classificationStart=timed?performance.now():0;
  const coverage=layer.visible?layer.opacity:0,weights=layer.automatic?automaticSurface(field,sea,work?.weights):(work?.weights??[0,0,0,0,0,0]);if(!layer.automatic){weights.fill(0);weights[2]=1;}if(layer.automatic){const mineral=weights[0]+weights[1],ground=weights[2]+weights[3],shift=(n(80)-.5)*.5*Math.min(mineral,ground);if(mineral>0&&ground>0){weights[0]+=shift*weights[0]/mineral;weights[1]+=shift*weights[1]/mineral;weights[2]-=shift*weights[2]/ground;weights[3]-=shift*weights[3]/ground;}}if(timed)profile!.record("classification",performance.now()-classificationStart);const strokeStart=timed?performance.now():0;if(strokes.length)paintMaterialWeights(weights,OPAQUE_MATERIAL,strokes,x,y,period,work?.original);if(timed)profile!.record("strokes",performance.now()-strokeStart);for(let i=0;i<6;i++)weights[i]=weights[i]*coverage+(i===2?1-coverage:0);
- if(textures){if(work&&(work.lighting.footprint!==footprint||work.lighting.relief!==relief)){work.lighting.footprint=footprint;work.lighting.relief=relief;work.lighting.scale=surfaceLightingScale(relief,footprint);}return shadeSurfaceTextures(textures,field,weights,x,y,footprint,relief,period,broad,water,landFraction,profile,work?.texture,work?.rgb,work?.lighting.scale,style?.texture);}
+ if(textures){if(work&&(work.lighting.footprint!==footprint||work.lighting.relief!==relief)){work.lighting.footprint=footprint;work.lighting.relief=relief;work.lighting.scale=surfaceLightingScale(relief,footprint);}const rgb=shadeSurfaceTextures(textures,field,weights,x,y,footprint,relief,period,broad,water,landFraction,profile,work?.texture,work?.rgb,work?.lighting.scale,style.texture);return art?styleColor(rgb,false,style,rgb) as [number,number,number]:rgb;}
  // Warped, stratified stone: connected ridges, mineral faces and narrow joints.
  const meso=n(320),grain=n(5),detail=band(20);
  const warp=n(65)*3,periodicX=period?Math.sin(2*Math.PI*x/period)*period/(2*Math.PI):x,axis=(periodicX*.72+y*.43)/17+warp+field.height*.012,vein=Math.abs(Math.sin(axis)),joints=smooth((.12-vein)/.12),facets=Math.abs(n(28)-.5)*2;
@@ -52,5 +44,5 @@ function baseSurfacePixel(field:SurfaceField,x:number,y:number,footprint:number,
  const materials=[[65+rockTone*62,65+rockTone*59,59+rockTone*56],[99+gravel*36+meso*15,95+gravel*34+meso*13,80+gravel*30+meso*12],[102+soilClods*32+meso*18,77+soilClods*24+meso*13,49+soilClods*18+meso*11],[46+grassPatch*38+grain*detail*7,66+grassPatch*36+grain*detail*9,30+grassPatch*23],[188+meso*24+sandRipple*6,171+meso*22+sandRipple*5,128+meso*19+sandRipple*3],[217+meso*21,225+meso*18,224+meso*20]];
  const micro=weights[0]*(detail*.13*(n(12,3,0)-n(12,-3,0))+plateNormal)+weights[1]*gravel*.15,exaggeration=Math.sqrt(relief)*.35,gx=Math.atan(field.gx*exaggeration)+micro,gy=Math.atan(field.gy*exaggeration)+weights[0]*detail*.13*(n(12,0,3)-n(12,0,-3)),light=clamp((.82-.48*gx-.35*gy)/Math.hypot(gx,gy,1),.10,1.28),ambient=.66+light*.42;
  const occlusion=1-clamp(field.rough*.15,0,.18),coastalWet=1-(1-smooth(depth/-2))*.13;
- return [0,1,2].map(k=>clamp(materials.reduce((s,c,i)=>s+c[k]*weights[i],0)*ambient*occlusion*coastalWet,0,255)*landFraction+water[k]*(1-landFraction)) as [number,number,number];
+ const rgb=[0,1,2].map(k=>clamp(materials.reduce((s,c,i)=>s+c[k]*weights[i],0)*ambient*occlusion*coastalWet,0,255)*landFraction+water[k]*(1-landFraction)) as [number,number,number];return art?styleColor(rgb,false,style,rgb) as [number,number,number]:rgb;
 }

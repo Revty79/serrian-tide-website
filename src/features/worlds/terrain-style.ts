@@ -18,7 +18,9 @@ export function styleColor(rgb:readonly number[],water:boolean,style:TerrainStyl
  for(let c=0;c<3;c++){const value=(gray+(rgb[c]-gray)*config.saturation)*config.palette[c],color=value+(tint[c]-value)*style.tint;out[c]=Math.max(0,Math.min(255,((color-128)*style.contrast+128)*style.brightness));}return out;
 }
 /** Scale-aware directional lighting from saved physical gradients; no invented heights. */
+let lightFootprint=NaN,lightRelief=NaN,lightEmphasis=NaN,lightGain=1;
 export function artLight(gx:number,gy:number,footprint:number,relief:number,emphasis=1){
- const gain=Math.sqrt(Math.max(1,relief))*.35*(1+Math.min(9000,footprint/6))*emphasis,x=gx*gain,y=gy*gain,length=Math.hypot(x,y,1),diffuse=(-x*.52-y*.62+.59)/length;
+ if(footprint!==lightFootprint||relief!==lightRelief||emphasis!==lightEmphasis){lightFootprint=footprint;lightRelief=relief;lightEmphasis=emphasis;lightGain=Math.sqrt(Math.max(1,relief))*.35*(1+Math.min(9000,footprint/6))*emphasis;}
+ const x=gx*lightGain,y=gy*lightGain,length=Math.sqrt(x*x+y*y+1),diffuse=(-x*.52-y*.62+.59)/length;
  return Math.max(.38,Math.min(1.3,.56+Math.max(0,diffuse)*.73));
 }

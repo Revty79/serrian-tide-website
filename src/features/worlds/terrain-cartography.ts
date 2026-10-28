@@ -36,10 +36,11 @@ export function tileContours(sample:HeightSampler,x0:number,y0:number,sea:number
  }return out;
 }
 export const CARTOGRAPHIC_TILE_PIXELS=96;
+const summitNeighbors=[[-2,0],[2,0],[0,-2],[0,2],[-1,-1],[1,-1],[-1,1],[1,1]] as const;
 /** An ink summit is permitted only at a distinct local maximum of saved relief. */
 export function cartographicSummit(sample:HeightSampler,x:number,y:number,sea:number){
  const z=sample(x,y);if(z<=sea+450)return 0;let highest=-Infinity,lowest=Infinity;
- for(const [dx,dy] of [[-2,0],[2,0],[0,-2],[0,2],[-1,-1],[1,-1],[-1,1],[1,1]]){const n=sample(x+dx,y+dy);highest=Math.max(highest,n);lowest=Math.min(lowest,n);}
+ for(const [dx,dy] of summitNeighbors){const n=sample(x+dx,y+dy);highest=Math.max(highest,n);lowest=Math.min(lowest,n);}
  return z>highest+3?Math.min(1,(z-lowest)/180):0;
 }
 /** A smoothed numerical principal-curvature crease, not an invented mountain symbol. */
@@ -62,7 +63,7 @@ export function drawCartographicTile(canvas:HTMLCanvasElement,sample:HeightSampl
   const gx=(x+.5)/factor-.5,gy=(y+.5)/factor-.5,z=interpolate(gx,gy),rgb=cartographicColor(z-sea,spec),spanX=shape.wrap?2:Math.min(shape.width-1,x0+gx+1)-Math.max(0,x0+gx-1),spanY=Math.min(shape.height-1,y0+gy+1)-Math.max(0,y0+gy-1),gradientX=(interpolate(gx+1,gy)-interpolate(gx-1,gy))/(Math.max(.25,spanX)*dx),gradientY=(interpolate(gx,gy+1)-interpolate(gx,gy-1))/(Math.max(.25,spanY)*dy),light=z>sea?physicalReliefShade(gradientX,gradientY,spec.relief):1,shade=illustrated?.86+.14*light:.42+.58*light,p=(y*size+x)*4;
   let tone=shade;
   if(illustrated){const px=origin.x+(x0+gx)*dx,py=origin.y+(y0+gy)*dy,footprint=Math.max(dx,dy)/factor,light=artLight(gradientX,gradientY,footprint,spec.relief,art.relief),grain=surfaceNoise(px,py,Math.max(80,1200/art.detail),periodX)-.5;
-   tone=(z>sea?.63+.39*light:1)*(1+grain*.095*art.texture);}
+   tone=z>sea?(.63+.39*light)*(1+grain*.095*art.texture):1;}
   const painted=[rgb[0]*tone,rgb[1]*tone,rgb[2]*tone];if(spec.art)styleColor(painted,z<=sea,art,painted);
   for(let c=0;c<3;c++)image.data[p+c]=painted[c];image.data[p+3]=255;
  }ctx.putImageData(image,0,0);ctx.scale(factor,factor);ctx.lineCap="round";ctx.lineJoin="round";
