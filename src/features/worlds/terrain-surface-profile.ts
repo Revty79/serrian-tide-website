@@ -10,4 +10,4 @@ export class TerrainSurfaceProfile {
  input(event:Event){if(!this.enabled)return;this.inputEvents++;this.maxInputLagMs=Math.max(this.maxInputLagMs,Math.max(0,performance.now()-event.timeStamp));}
  snapshot(){return {enabled:this.enabled,stride:this.stride,pixels:this.pixels,stages:this.stages,neighborhoodHits:this.hits,neighborhoodMisses:this.misses,allocations:this.allocations,evictions:this.evictions,inputEvents:this.inputEvents,maxInputLagMs:this.maxInputLagMs,timingSemantics:"Sampled pixel stages; nested stages are inclusive. Upload/composition/cache are full batch timings."};}
 }
-export const SURFACE_RENDERER_VERSION="stage3-2f-1";
+export const SURFACE_RENDERER_VERSION="stage3-5a-terrain-art-1";

@@ -36,6 +36,12 @@ export function tileContours(sample:HeightSampler,x0:number,y0:number,sea:number
  }return out;
 }
 export const CARTOGRAPHIC_TILE_PIXELS=96;
+/** An ink summit is permitted only at a distinct local maximum of saved relief. */
+export function cartographicSummit(sample:HeightSampler,x:number,y:number,sea:number){
+ const z=sample(x,y);if(z<=sea+450)return 0;let highest=-Infinity,lowest=Infinity;
+ for(const [dx,dy] of [[-2,0],[2,0],[0,-2],[0,2],[-1,-1],[1,-1],[-1,1],[1,1]]){const n=sample(x+dx,y+dy);highest=Math.max(highest,n);lowest=Math.min(lowest,n);}
+ return z>highest+3?Math.min(1,(z-lowest)/180):0;
+}
 /** A smoothed numerical principal-curvature crease, not an invented mountain symbol. */
 export function terrainInkField(sample:HeightSampler,x:number,y:number,sea:number){
  const smooth=(x:number,y:number)=>(4*sample(x,y)+2*(sample(x-1,y)+sample(x+1,y)+sample(x,y-1)+sample(x,y+1))+sample(x-1,y-1)+sample(x+1,y-1)+sample(x-1,y+1)+sample(x+1,y+1))/16;
@@ -84,6 +90,14 @@ export function drawCartographicTile(canvas:HTMLCanvasElement,sample:HeightSampl
    }
   }
   const penWidth=Math.max(.055,.85/Math.max(.01,Math.max(dx,dy)*scale))*art.ink;for(let n=0;n<3;n++){ctx.strokeStyle=`rgba(67,49,32,${Math.min(.9,[.22,.42,.64][n]*spec.decoration*spec.contrast)})`;ctx.lineWidth=penWidth*(n===0?.6:1);ctx.stroke(hatches[n]);}ctx.strokeStyle="rgba(255,248,222,.68)";ctx.lineWidth=penWidth*1.6;ctx.stroke(ridges);ctx.strokeStyle=`rgba(105,85,60,${.25*spec.decoration})`;ctx.lineWidth=penWidth*.7;ctx.stroke(valleys);
+ }
+ if(illustrated&&spec.decoration>0&&art.ink>0){
+  // Bounded summit silhouettes complement continuous terrain-following hachures.
+  // Their tips are numerical maxima; the pen footprint is artwork, never elevation.
+  let count=0;const pen=Math.max(.035,.7/Math.max(.01,Math.max(dx,dy)*scale))*art.ink;
+  for(let y=-3;y<35&&count<96;y++)for(let x=-3;x<35&&count<96;x++){const strength=cartographicSummit(at,x,y,sea);if(!strength)continue;const r=Math.min(1.8,12/Math.max(.01,Math.max(dx,dy)*scale))*Math.sqrt(strength)*Math.min(1.3,art.detail),rise=r*1.15,px=x+.5,py=y+.5;if(interpolate(x-r,y+rise)<=sea+30||interpolate(x+r,y+rise)<=sea+30)continue;count++;ctx.globalAlpha=spec.decoration;
+   ctx.beginPath();ctx.moveTo(px-r,py+rise);ctx.lineTo(px,py);ctx.lineTo(px+r,py+rise);ctx.lineTo(px+.12*r,py+.55*rise);ctx.closePath();ctx.fillStyle="rgba(241,227,190,.82)";ctx.fill();ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+r,py+rise);ctx.lineTo(px+.12*r,py+.55*rise);ctx.closePath();ctx.fillStyle="rgba(111,94,67,.3)";ctx.fill();ctx.beginPath();ctx.moveTo(px-r,py+rise);ctx.lineTo(px,py);ctx.lineTo(px+r,py+rise);ctx.moveTo(px,py);ctx.lineTo(px+.12*r,py+.55*rise);ctx.strokeStyle="rgba(78,60,39,.75)";ctx.lineWidth=pen;ctx.stroke();ctx.globalAlpha=1;
+  }
  }
  if(spec.coastline>0){ctx.strokeStyle=illustrated?"rgba(251,244,221,.9)":"rgba(246,244,223,.85)";ctx.lineWidth=1.05*spec.coastline;ctx.stroke(coasts);ctx.strokeStyle=illustrated?"#4e625b":"#426b70";ctx.lineWidth=.36*spec.coastline;ctx.stroke(coasts);}
  return {segments:segments.length};

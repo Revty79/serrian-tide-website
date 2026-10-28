@@ -10,6 +10,7 @@ import {surfaceNoise} from "./terrain-surface-art";
 
 /** Geographic render materials, deliberately independent of interface colors. */
 export const environmentalPalette:Record<Biome,[number,number,number]>={water:[35,91,105],rainforest:[34,76,43],seasonal:[76,103,48],deciduous:[66,103,50],conifer:[49,82,65],boreal:[57,82,69],savanna:[145,144,72],grassland:[110,137,67],scrub:[125,126,79],steppe:[154,145,100],hotDesert:[206,178,123],coldDesert:[163,157,128],tundra:[125,139,117],alpine:[143,151,134],ice:[228,235,232],wetland:[67,111,91]};
+const biomeIndex=Object.fromEntries(biomeKeys.map((key,i)=>[key,i])) as Record<Biome,number>;
 const clamp=(n:number,a=0,b=1)=>Math.max(a,Math.min(b,n)),smooth=(n:number)=>{n=clamp(n);return n*n*(3-2*n);};
 function hash(x:number,y:number,seed:number){let n=Math.imul(x|0,374761393)^Math.imul(y|0,668265263)^seed;n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967295;}
 function seedCode(text:string){let n=2166136261;for(const c of text)n=Math.imul(n^c.charCodeAt(0),16777619);return n|0;}
@@ -20,9 +21,9 @@ export function illustratedConiferMask(x:number,y:number){let result=0;for(let t
  * trees or new terrain. The same physical cells are used by every image tile. */
 function canopy(x:number,y:number,scale:number,seed:number,kind:Vegetation,illustrated:boolean,period:number|null,out:{coverage:number;shade:number;edge:number}){
   const count=period?Math.max(1,Math.round(period/scale)):0;if(period)scale=period/count;const randomAt=(x:number,y:number)=>hash(count?((x%count)+count)%count:x,y,seed),ix=Math.floor(x/scale),iy=Math.floor(y/scale);let coverage=0,shade=1,edge=0,highest=-1;
-  for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){const cx=ix+ox,cy=iy+oy,random=randomAt(cx,cy),dx=x/scale-(cx+.12+random*.76),dy=y/scale-(cy+.12+randomAt(cx+409,cy-817)*.76),radius=.35+randomAt(cx-29,cy+71)*.25;
+  for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){const cx=ix+ox,cy=iy+oy,random=randomAt(cx,cy),dx=x/scale-(cx-.05+random*1.1),dy=y/scale-(cy-.05+randomAt(cx+409,cy-817)*1.1),radius=(kind==="tropical"?.48:.35)+randomAt(cx-29,cy+71)*(kind==="tropical"?.32:.25);
     if(kind==="conifer"&&illustrated){const size=radius/.48,mask=illustratedConiferMask((dx+(random-.5)*dy*.18)/size,dy/size);if(mask){coverage=1;shade=.7+clamp(-dx)*.34+(random-.5)*.1;edge=mask===2?1:0;}continue;}
-    const angle=Math.atan2(dy,dx),elongation=.78+randomAt(cx+43,cy+89)*.56,d=Math.sqrt(dx*dx*elongation+dy*dy/elongation),lobes=1+.09*Math.sin(angle*(kind==="conifer"?9:5)+random*17)+.045*Math.sin(angle*11+random*31),r=radius*lobes,height=1-(d/r)**2;if(d<r&&height>highest){highest=height;coverage=1;shade=.57+clamp(height)*.43+(-dx-dy)*.31+(random-.5)*.17;edge=d>r-.035?1:0;}else if((dx-.15)**2+(dy-.22)**2<radius*radius*1.05&&coverage===0){coverage=.4;shade=.42;}}
+    const angle=Math.atan2(dy,dx),elongation=.7+randomAt(cx+43,cy+89)*.7,d=Math.sqrt(dx*dx*elongation+dy*dy/elongation),lobes=1+.10*Math.sin(angle*(kind==="conifer"?9:4+Math.floor(random*4))+random*17)+.055*Math.sin(angle*11+random*31),r=radius*lobes,height=1-(d/r)**2;if(d<r&&height>highest){highest=height;coverage=1;shade=.61+clamp(height)*.48+(-dx-dy)*.27+(random-.5)*.29;edge=d>r-.028?1:0;}else if((dx-.15)**2+(dy-.22)**2<radius*radius*.75&&coverage===0){coverage=.4;shade=.42;}}
   out.coverage=coverage;out.shade=shade;out.edge=edge;return out;
 }
 export function createEnvironmentArtist(layer:EnvironmentLayer,world:HydroGeometry,water:HydroLayer,materials:TerrainMaterials,style:string,sea=0,art?:TerrainStyle,relief=20){
@@ -37,12 +38,13 @@ export function createEnvironmentArtist(layer:EnvironmentLayer,world:HydroGeomet
     if(layer.climateView!=="none"){const t=layer.climateView==="moisture"?e.moisture:clamp((e.temperature+30)/70);r=layer.climateView==="moisture"?182-145*t:49+176*t;g=layer.climateView==="moisture"?151-40*t:127-57*Math.abs(t-.5)*2;b=layer.climateView==="moisture"?91+81*t:210-153*t;alpha=.58;}
     else if(layer.biomes){alpha=.46;}
     else{
-      const detail=realistic||illustrated?styleSpec.texture:1,grain=(n(1800)-.5)*band(1800)+(n(190)-.5)*band(190)*.65+(n(17)-.5)*band(17)*.45,variation=.89+(broad-.5)*.12+((ground-.5)*.12+(clumps-.5)*.19+grain*.32)*detail;r*=variation*light;g*=variation*light;b*=variation*light;
+      const artistic=realistic||illustrated,detail=artistic?styleSpec.texture:1,grain=artistic?(n(1800)-.5)*band(1800)+(n(190)-.5)*band(190)*.65+(n(17)-.5)*band(17)*.45:0,variation=artistic?.89+(broad-.5)*.12+((ground-.5)*.12+(clumps-.5)*.19+grain*.32)*detail:.84+broad*.18+(ground-.5)*.12+(clumps-.5)*.13;r*=variation*light;g*=variation*light;b*=variation*light;
       if(layer.vegetation&&forest){const canopyTone=.65+clumps*.35+(ground-.5)*.09,green=treeKind==="conifer"?[38,69,58]:treeKind==="tropical"?[34,78,42]:[55,91,42];r=r*(1-cover*.5)+green[0]*cover*.5*canopyTone;g=g*(1-cover*.5)+green[1]*cover*.5*canopyTone;b=b*(1-cover*.5)+green[2]*cover*.5*canopyTone;alpha=Math.max(alpha,cover*(realistic?.78:illustrated?.42:.22));
         const dapple=1+((n(2.2)-.5)*.22*band(2.2)+(n(13)-.5)*.16*band(13))*e.woody;r*=dapple;g*=dapple;b*=dapple;
         if(layer.artwork&&resolved>0){const artistic=canopy(period?((x%period)+period)%period:x,y,scale,seed,treeKind,illustrated,period,canopyWork),threshold=n(scale*5);const density=e.vegetation==="savanna"?cover*.35:cover;if(threshold<density){const amount=artistic.coverage*resolved,ink=illustrated&&artistic.edge?.64:1,foliage=1+(n(.85)-.5)*.32*band(.85)+(n(.22)-.5)*.18*band(.22),shade=artistic.shade*light*ink*foliage;r+=(green[0]*shade-r)*amount;g+=(green[1]*shade-g)*amount;b+=(green[2]*shade-b)*amount;alpha=Math.max(alpha,amount*(realistic?.94:illustrated?.88:.28));}}
       }else if(layer.vegetation&&layer.artwork&&["grass","scrub","tundra","alpine","wetland"].includes(e.vegetation)){const grain=(n(4)-.5)*band(4),tufts=(n(11)-.5)*Math.min(1,15/footprint),shade=1+grain*.15+tufts*.16;r*=shade;g*=shade;b*=shade;alpha=Math.max(alpha,e.density*(realistic?.57:.22));}
-      if(e.biome==="hotDesert"||e.biome==="coldDesert"){const periodicX=period?Math.sin(2*Math.PI*x/period)*period/(2*Math.PI):x,wave=periodicX/16+y/46+(n(180)-.5)*4,dune=Math.sin(wave)*band(90),crest=Math.max(0,Math.cos(wave))**4*band(90),grain=(n(1.2)-.5)*band(1.2);r+=dune*21+crest*9+grain*10;g+=dune*17+crest*7+grain*8;b+=dune*11+crest*4+grain*6;alpha=Math.max(alpha,realistic?(e.biome==="hotDesert"?.88:.79):illustrated?.3:.14);}
+      const hot=artistic?e.weights[biomeIndex.hotDesert]:Number(e.biome==="hotDesert"),cold=artistic?e.weights[biomeIndex.coldDesert]:Number(e.biome==="coldDesert"),desert=hot+cold,tundra=artistic?e.weights[biomeIndex.tundra]:Number(e.biome==="tundra"),ice=artistic?e.weights[biomeIndex.ice]:Number(e.biome==="ice");
+      if(desert>0){const periodicX=period?Math.sin(2*Math.PI*x/period)*period/(2*Math.PI):x,wave=periodicX/16+y/46+(n(180)-.5)*4,dune=Math.sin(wave)*band(90),crest=Math.max(0,Math.cos(wave))**4*band(90),grain=(n(1.2)-.5)*band(1.2);r+=(dune*21+crest*9+grain*10)*desert;g+=(dune*17+crest*7+grain*8)*desert;b+=(dune*11+crest*4+grain*6)*desert;alpha=Math.max(alpha,realistic?hot*.88+cold*.79:(illustrated?.3:.14)*desert);}
       if((realistic||illustrated)&&layer.vegetation){
         const patch=(n(1700)-.5)*band(1700)+(n(210)-.5)*band(210)*.6,canopyShade=1+patch*.34*styleSpec.texture*e.woody;r*=canopyShade;g*=canopyShade;b*=canopyShade;
         if(illustrated&&layer.artwork){
@@ -51,7 +53,7 @@ export function createEnvironmentArtist(layer:EnvironmentLayer,world:HydroGeomet
           else {const pen=surfaceNoise(x,y,penScale/5,period),stipple=smooth((pen-.67)*9)*fade*styleSpec.ink*styleSpec.texture;if(e.vegetation==="wetland"){r-=stipple*48;g-=stipple*30;b-=stipple*32;}else{r-=stipple*25;g-=stipple*21;b-=stipple*15;}}
         }
       }
-      if(e.biome==="tundra"){const moss=smooth((n(12)-.32)*1.6),gravel=n(1.5)*band(1.5);r+=(moss-.5)*19+gravel*5;g+=(moss-.5)*25+gravel*5;b-=(moss-.5)*7;alpha=Math.max(alpha,realistic?.73:.2);}if(e.biome==="ice")alpha=Math.max(alpha,realistic?.82:.22);if(slope>1.2){alpha*=.4;}
+      if(tundra>0){const moss=smooth((n(12)-.32)*1.6),gravel=n(1.5)*band(1.5);r+=((moss-.5)*19+gravel*5)*tundra;g+=((moss-.5)*25+gravel*5)*tundra;b-=(moss-.5)*7*tundra;alpha=Math.max(alpha,(realistic?.73:.2)*tundra);}if(ice>0)alpha=Math.max(alpha,(realistic?.82:.22)*ice);if(artistic)alpha*=1-smooth((slope-.8)/.8)*.6;else if(slope>1.2){alpha*=.4;}
     }
     if((realistic||illustrated||art)&&layer.climateView==="none"&&!layer.biomes){
       if(illustrated){const gray=r*.25+g*.6+b*.15;r=r*.48+gray*.52+45;g=g*.48+gray*.52+34;b=b*.48+gray*.52+13;alpha*=.92;}
