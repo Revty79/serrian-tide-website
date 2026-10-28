@@ -1,0 +1,23 @@
+{
+  "390": {
+    "nativeInput": "touch",
+    "brushAndPolygonSaved": true,
+    "twoFingerSafe": true,
+    "noHorizontalOverflow": true,
+    "mapHeightOver300": true,
+    "exactCleanup": true,
+    "noNumericalWrites": true
+  },
+  "820": {
+    "nativeInput": "pen",
+    "brushAndPolygonSaved": true,
+    "twoFingerSafe": true,
+    "noHorizontalOverflow": true,
+    "mapHeightOver300": true,
+    "exactCleanup": true,
+    "noNumericalWrites": true
+  },
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false
+}

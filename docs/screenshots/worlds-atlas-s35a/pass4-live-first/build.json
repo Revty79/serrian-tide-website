@@ -1,0 +1,8 @@
+{
+  "baseline": "bc4806d284f7bf94881f9c191640f2d80adb3cf9",
+  "runtimeSha256": "ef0c87b97399feb9021e7414249a79d588cf5901cc4f05f73ef02dea25ad1d42",
+  "runtimeFiles": 1610,
+  "productionBuildId": "JmmjwRnrAHuOZtISuN8Gq",
+  "method": "Approved Pass 4 source; same installed dependencies, owned database, machine, Chrome flags and performance sequence as the candidate",
+  "sharedDatabaseAccess": false
+}

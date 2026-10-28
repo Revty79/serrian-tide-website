@@ -1,0 +1,129 @@
+[
+  {
+    "run": "focused-1",
+    "passed": false,
+    "stage": "inherited cartography upgrade rehearsal",
+    "cause": "New style table data was included while restoring a pre-0139 schema.",
+    "correction": "Exclude new style table from historical upgrade snapshots and pg_dump filters; preserve coverage of every older table.",
+    "sharedDatabaseAccess": false
+  },
+  {
+    "run": "focused-2",
+    "passed": false,
+    "stage": "new style UI workflow",
+    "databaseChecksPassed": true,
+    "productionBuildPassed": true,
+    "cause": "The shared field component derives accessible slider names from the label including its changing numeric value.",
+    "correction": "Keep field names stable and show the live numerical value in an output beside the slider; retry original browser flow.",
+    "sharedDatabaseAccess": false
+  },
+  {
+    "run": "focused-3",
+    "passed": false,
+    "stage": "lost-response test interception",
+    "cause": "Test removed its route as soon as the pending label appeared, before the intercepted server response completed.",
+    "correction": "Wait until the retry is enabled after the simulated dropped response; keep the route handler until then.",
+    "productionBuildPassed": true,
+    "sharedDatabaseAccess": false
+  },
+  {
+    "run": "focused-4",
+    "passed": false,
+    "stage": "owned runner restart",
+    "cause": "Uncaught interception test error left its owned process running.",
+    "correction": "Verify and stop that owned target before restart."
+  },
+  {
+    "run": "focused-5",
+    "passed": false,
+    "stage": "lost-response test interception",
+    "cause": "A disabled ancestor fieldset does not change button.disabled, so the test still advanced early.",
+    "correction": "Await completion of the response-drop handler explicitly and check the disabled pseudo-class."
+  },
+  {
+    "run": "focused-6",
+    "passed": true,
+    "runtimeSha256": "f4013055775f78f14a33afa90f3fdfab65e8a99dad31b73509841893d07d57c7",
+    "build": "ZSDAwhGWQJduWZAzwGpzT",
+    "coverage": "Production style workflow, lost-response recovery, roles/CSRF/body bounds, desktop/touch, 42-view gallery and GPU-disabled performance.",
+    "status": "Provisional artwork; final crown/transition/summit refinements require the fresh full run."
+  },
+  {
+    "run": "full-1",
+    "passed": false,
+    "runtimeSha256": "07ccd42d4b806fec6757b2856fefa563e297cceffdb7d14c17df89076ed70449",
+    "build": "Mv6M1cljFcD_v3xhUGqps",
+    "stage": "inherited uniform-water cartography calibration",
+    "cause": "New illustrated paper grain varied a uniform water pixel by one RGB level.",
+    "correction": "Apply paper grain to land only; preserve uniform water and the original strict seam test.",
+    "databaseAndBuildPassed": true,
+    "earlierInheritedBrowserStagesPassed": true
+  },
+  {
+    "run": "full-2",
+    "passed": false,
+    "status": "Superseded during validation",
+    "cause": "Final review identified that unadjusted named styles should capture explicit algorithm-1 defaults, rather than rely on implicit defaults.",
+    "correction": "Pin defaults in named snapshots without normalizing or rewriting accepted map appearances; restart complete validation with that final implementation.",
+    "sharedDatabaseAccess": false
+  },
+  {
+    "run": "full-3",
+    "passed": false,
+    "applicationCommit": "811dc89d6c328371b52ff23522a442d3f9873ba5",
+    "build": "OhOPE1KTFw-6xu42dpQXo",
+    "stage": "archival Pass 4 performance gate",
+    "failures": [
+      "closeReadyMs",
+      "repeatedPanZoomMs",
+      "fallbackReadyMs"
+    ],
+    "functionalChecksThroughClimateStylesPassed": true,
+    "correction": "Same-session production Pass 4 rebuild to control machine conditions; retain archival comparison. Continuous ground/forest opacity and hue also corrected after visual review."
+  },
+  {
+    "run": "pass4-live-first",
+    "passed": true,
+    "baseline": "bc4806d284f7bf94881f9c191640f2d80adb3cf9",
+    "build": "JmmjwRnrAHuOZtISuN8Gq",
+    "note": "Same-session approved Pass 4 rebuild; first timing sample retained. A repeat uses the same verified compiled build and canonical input hashes."
+  },
+  {
+    "run": "pass4-live",
+    "passed": true,
+    "baseline": "bc4806d284f7bf94881f9c191640f2d80adb3cf9",
+    "build": "JmmjwRnrAHuOZtISuN8Gq",
+    "note": "Repeat timing sample on the verified same compiled baseline; canonical geographic input hashes retained. Final paired gate uses the mean of both live samples with a 25 percent artwork limit; archival evidence remains separate."
+  },
+  {
+    "run": "full-4",
+    "passed": false,
+    "applicationCommit": "758531eb76531149f2affa53230b7599840d7872",
+    "build": "hXGMqV6x-X8kRZL1ExAw9",
+    "stage": "benchmark input identity guard",
+    "allTerrainHydrologyEnvironmentStyleFunctionalChecksPassed": true,
+    "allPairedTimingLimitsPassed": true,
+    "cause": "Opaque hashed from/to node references differed between independently seeded databases; numeric water topology was identical.",
+    "correction": "Resolve node references to physical coordinates and kinds before comparing; retain failed aggregate and finish paired retest plus remaining information-site checks."
+  },
+  {
+    "run": "paired-final",
+    "passed": true,
+    "build": "hXGMqV6x-X8kRZL1ExAw9",
+    "runtimeSha256": "0b46f65a8474a344a593928d30252450abebd884a13b3ea2298884bad8fc8331",
+    "noApplicationChangesAfterFull4": true,
+    "allPhysicalInputHashesMatch": true,
+    "allTimingAndMemoryLimitsPassed": true
+  },
+  {
+    "run": "information-final",
+    "passed": true,
+    "validationMode": "information-site tail",
+    "terrainBrowserSkipped": true,
+    "applicationCommit": "758531eb76531149f2affa53230b7599840d7872",
+    "validationCommit": "459dc51847106ab14e12760dbcf36ba49f755dfa",
+    "build": "hXGMqV6x-X8kRZL1ExAw9",
+    "runtimeSha256": "0b46f65a8474a344a593928d30252450abebd884a13b3ea2298884bad8fc8331",
+    "coverage": "Fresh complete database regressions and remaining general Worlds/History/creator/role/security/phone checks; terrain and styles retain full-4 receipts."
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "extreme": {
+    "exactDistances": {
+      "1": 1,
+      "2": 2,
+      "10": 10,
+      "100": 100
+    },
+    "scaleBarMetres": 2,
+    "scaleBarPixels": 100,
+    "fractionalGridM": 0.25,
+    "unitsPreserved": true,
+    "resizePreserved": true,
+    "noHeightSave": true
+  },
+  "native390": {
+    "defaultNavigation": true,
+    "explicitArming": true,
+    "pinchRollback": true,
+    "paintSave": true,
+    "offHidesFingerUi": true,
+    "rearmingRequired": true,
+    "penIndependent": true,
+    "canvasHeight": 513.109375
+  },
+  "native820": {
+    "defaultNavigation": true,
+    "explicitArming": true,
+    "pinchRollback": true,
+    "paintSave": true,
+    "offHidesFingerUi": true,
+    "rearmingRequired": true,
+    "penIndependent": true,
+    "canvasHeight": 883.4375
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "viewport390": {
+    "mapHeight": 482.421875,
+    "devicePixelRatio": 2,
+    "nativePanPinch": true,
+    "nativeMaterialInput": "touch",
+    "noNumericalWrites": true,
+    "canvasRetained": true,
+    "materialRevision": 11,
+    "metrics": {
+      "bytes": 6476876,
+      "batchMs": 0.7999999523162842
+    }
+  },
+  "viewport820": {
+    "mapHeight": 883.4375,
+    "devicePixelRatio": 2,
+    "nativePanPinch": true,
+    "nativeMaterialInput": "pen",
+    "noNumericalWrites": true,
+    "canvasRetained": true,
+    "materialRevision": 12,
+    "metrics": {
+      "bytes": 22687180,
+      "batchMs": 0.7000000476837158
+    }
+  }
+}

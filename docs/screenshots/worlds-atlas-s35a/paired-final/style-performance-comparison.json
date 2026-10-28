@@ -1,0 +1,106 @@
+{
+  "passed": true,
+  "baseline": "bc4806d284f7bf94881f9c191640f2d80adb3cf9",
+  "baselineEvidence": "pass4-live/environment-performance.json",
+  "sameSessionBaseline": true,
+  "baselineSamples": 2,
+  "browser": "134.0.6998.166",
+  "gpuDisabled": true,
+  "method": "Inherited production Chrome sequence; same accepted fixture, viewport, camera moves, eight stable frames, main-thread fallback and extreme wrap zoom",
+  "comparisons": {
+    "coldApplicationReadyMs": {
+      "before": 2330.6941500000003,
+      "after": 2349.6776,
+      "changePercent": 0.8144976894544298,
+      "limit": 3500,
+      "passed": true
+    },
+    "warmNavigationTenKeysMs": {
+      "before": 247.36495000000286,
+      "after": 208.60750000000007,
+      "changePercent": -15.668125172948855,
+      "limit": 500,
+      "passed": true
+    },
+    "regionalReadyMs": {
+      "before": 2153.1298000000043,
+      "after": 2230.2281999999996,
+      "changePercent": 3.580759506463349,
+      "limit": 2691.4122500000053,
+      "passed": true
+    },
+    "closeReadyMs": {
+      "before": 6706.156149999993,
+      "after": 6465.042599999999,
+      "changePercent": -3.5954061403714044,
+      "limit": 8382.695187499992,
+      "passed": true
+    },
+    "repeatedPanZoomMs": {
+      "before": 7765.064949999998,
+      "after": 7443.018699999997,
+      "changePercent": -4.147373551588918,
+      "limit": 9706.331187499998,
+      "passed": true
+    },
+    "fallbackReadyMs": {
+      "before": 3948.6310999999987,
+      "after": 3829.8803000000007,
+      "changePercent": -3.00739159958493,
+      "limit": 4935.788874999998,
+      "passed": true
+    },
+    "farZoomReadyMs": {
+      "before": 324.3819499999918,
+      "after": 320.2739999999976,
+      "changePercent": -1.266392905028857,
+      "limit": 1000,
+      "passed": true
+    },
+    "inputDuringClimateMs": {
+      "before": 15.773000000004686,
+      "after": 17.1887999999999,
+      "changePercent": 8.976098395960141,
+      "limit": 100,
+      "passed": true
+    },
+    "climatePreviewMs": {
+      "before": 1088.060300000001,
+      "after": 1030.368599999998,
+      "changePercent": -5.302252090256665,
+      "limit": 1360.0753750000013,
+      "passed": true
+    }
+  },
+  "archivalPass4": {
+    "coldApplicationReadyMs": 1977.6829999999609,
+    "warmNavigationTenKeysMs": 148.93229999998584,
+    "regionalReadyMs": 1582.8774999999441,
+    "closeReadyMs": 4267.040700000012,
+    "repeatedPanZoomMs": 5364.13459999999,
+    "fallbackReadyMs": 1445.3174000000581,
+    "farZoomReadyMs": 307.07159999990836,
+    "inputDuringClimateMs": 10.879799999995157,
+    "climatePreviewMs": 963.4428000000771
+  },
+  "inputs": {
+    "terrainGrid": "a26a70236bfe8a6991dfb8f42c7e1416f6da58a14e4e81e10a14e5e9e8e4ab77",
+    "physicalSettings": "cda2b3f23725220d6b4e7c4afbdbceee5fd56f78ad0052e907f787120bfbb335",
+    "climateFields": "3e861e3668fdda5d0e33b7506a18b8c350bb4633b0387bfd64307bd8cc50d234",
+    "environmentSettings": "dd0733585453ba573fee69e18f40dde5a2018ce06f6c78b537da3c45be2b439d",
+    "waterGeometry": "de3f1c8c33d1b856abb0cd83846aefe0cb2bb2089b811d1ddadab2b3e76be1bc"
+  },
+  "baselineInputs": {
+    "terrainGrid": "a26a70236bfe8a6991dfb8f42c7e1416f6da58a14e4e81e10a14e5e9e8e4ab77",
+    "physicalSettings": "cda2b3f23725220d6b4e7c4afbdbceee5fd56f78ad0052e907f787120bfbb335",
+    "climateFields": "3e861e3668fdda5d0e33b7506a18b8c350bb4633b0387bfd64307bd8cc50d234",
+    "environmentSettings": "dd0733585453ba573fee69e18f40dde5a2018ce06f6c78b537da3c45be2b439d",
+    "waterGeometry": "de3f1c8c33d1b856abb0cd83846aefe0cb2bb2089b811d1ddadab2b3e76be1bc"
+  },
+  "failures": [],
+  "notes": "Wall-clock timings include OS scheduling. Substantial artwork stages allow at most 25 percent over the same-session rebuilt Pass 4 renderer. Cold/navigation/short operations use explicit interactive limits. Both archival and live evidence are retained.",
+  "sourceBytes": 2686978,
+  "bitmapBytes": 7318080,
+  "bitmapLimitBytes": 33554432,
+  "workerMaxMs": 24.5
+}

@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "mapId": "4c000000-0000-4000-8000-000000000001",
+  "revision": 5,
+  "algorithm": "climate-v1",
+  "fieldCells": 45824,
+  "settingsAndFieldsExact": true,
+  "protectedAuthoredGeometryExact": true,
+  "idempotentOldRetriesExact": true,
+  "staleProvenanceDenied": true,
+  "oneConcurrentWinner": true,
+  "exactHistoricalRestoration": true,
+  "historyImmutable": true,
+  "rolePrivacy": true,
+  "terrainWaterMaterialsExact": true,
+  "newMigration": "0142_world_environment",
+  "sharedDatabaseAccess": false
+}

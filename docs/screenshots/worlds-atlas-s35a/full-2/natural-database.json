@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "mapId": "3c000000-0000-4000-8000-000000000003",
+  "revision": 7,
+  "waterfalls": 1,
+  "wetlands": 3,
+  "v1AndV2PendingRetriesExact": true,
+  "v3RetryExact": true,
+  "lowerFormatWriterRejected": true,
+  "oneConcurrentWinner": true,
+  "allThreeFormatsRestored": true,
+  "immutableHistory": true,
+  "rolesAndForeignWorldDenied": true,
+  "numericalHeadExact": true,
+  "newSqlMigration": false,
+  "sharedDatabaseWrites": false
+}

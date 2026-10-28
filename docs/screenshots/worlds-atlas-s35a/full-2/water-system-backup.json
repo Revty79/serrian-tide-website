@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "systemVersion": 2,
+  "allThreeFormatsExact": false,
+  "fullOwnedDatabaseBackupRestore": true,
+  "old3AAndConnectedWaterVersionsExact": true,
+  "currentHeadsExact": true,
+  "immutableHistoryAfterRestore": true,
+  "realServiceReadsBothFormats": true,
+  "repeatedCurrentMigration": true,
+  "newSqlMigration": false,
+  "sharedDatabaseWrites": false,
+  "productionContacted": false
+}

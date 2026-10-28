@@ -1,6 +1,8 @@
-## Active Atlas Stage 3 Pass 5A
+## Completed Atlas Stage 3 Pass 5A
 
 The owner authorizes terrain art direction and creator styles from `bc4806d284f7bf94881f9c191640f2d80adb3cf9`; see [Pass 5A](docs/architecture/worlds-terrain-style-5a.md). Reuse numerical terrain, material, hydrology and environmental authority. Preserve all five appearances, protection, recovery, history and gameplay. Additive style persistence may be rehearsed only in newly owned disposable databases. Complete production/browser/GPU-disabled validation, commit and push the finished pass on main. No shared DEV/Production access or mutation, deployment, owner server restart, or Pass 5B. This explicit authorization supersedes earlier pass stop/publication boundaries for this pass only.
+
+Pass 5A application implementation is complete at `758531eb76531149f2affa53230b7599840d7872`; validation-only correction `459dc51847106ab14e12760dbcf36ba49f755dfa` resolves disposable node references before comparing physical water topology. See [delivery and evidence](docs/operations/worlds-terrain-style-5a-delivery.md). All 2,476 units, TypeScript, production build, lint without errors, disposable migrations and relevant browser scopes are verified. The failed full-4 aggregate is retained alongside the successful corrected paired benchmark and remaining information-site continuation; they use the identical application runtime. **0143 is the only new migration, and the owner reports it successfully applied. No migration after 0143 is required.** Its SQL is frozen; the owner's target was not independently inspected. Numerical/climate/water services, historical migrations, original material assets and gameplay remain preserved. Normal main publication is authorized. Deployment, independent review, owner artistic acceptance and Pass 5B remain separate and have not occurred.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

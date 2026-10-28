@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "coordinatesWidthsAndPhysicalConnectivityExact": true,
+  "onlyDisposableNodeReferenceLabelsDiffer": true,
+  "changedGeometryDetectedByRegression": true,
+  "noMutation": true,
+  "waterGeometrySha256": "de3f1c8c33d1b856abb0cd83846aefe0cb2bb2089b811d1ddadab2b3e76be1bc",
+  "nodes": 32,
+  "edges": 26,
+  "lakes": 2
+}

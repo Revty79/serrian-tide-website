@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "mapId": "e17a8ab2-0126-4921-8077-447ba71f63dd",
+  "physicalDevice": false,
+  "inputResponseMs": 27.567600000067614,
+  "completeSuggestionMs": 398.5810000000056,
+  "performance": "24,720 connected analysis cells; calculation 124.2 ms, complete request 294.4 ms; retained/working typed arrays 3.7 MiB. 0 closed basin(s), 72 coastal outlet(s), 0 fixed-edge exit(s). JavaScript and browser overhead are additional.",
+  "selectedAcceptanceAndDownstreamClosure": true,
+  "acceptedNetwork": {
+    "nodes": 537,
+    "channels": 465
+  },
+  "removeAndUndoExact": true,
+  "numericalAndMaterialsExact": true,
+  "previewNeverAutosaved": true,
+  "independentUndoRedo": true,
+  "stableIdentityDuringSourceAdjustment": true,
+  "explicitFictionalException": true,
+  "allFiveStylesRetainNetwork": true
+}

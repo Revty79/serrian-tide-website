@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "strictVersionedSpec": true,
+  "legacyMapsUnchanged": true,
+  "ownRevision": true,
+  "exactRetry": true,
+  "concurrentSaveProtected": true,
+  "ownerOnly": true,
+  "ordinaryHidden": true,
+  "readOnlyAdmin": true,
+  "numericalAndRelationshipTablesExact": [
+    "world_terrain",
+    "world_terrain_tile",
+    "world_terrain_version",
+    "world_terrain_refinement",
+    "world_terrain_refinement_version",
+    "world_terrain_refinement_tile",
+    "world_map_canvas",
+    "world_map_place",
+    "world_shop",
+    "world_shop_location"
+  ],
+  "sha256": "3ebf7f5c9c7dc07ca39672e4833d9d8e66862aebe5296c15938d1ec9c8cf590a",
+  "sharedDatabaseWrites": false
+}

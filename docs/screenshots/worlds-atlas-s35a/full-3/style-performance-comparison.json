@@ -1,0 +1,83 @@
+{
+  "passed": false,
+  "baseline": "bc4806d284f7bf94881f9c191640f2d80adb3cf9",
+  "baselineEvidence": "before-pass4/environment-performance.json",
+  "browser": "134.0.6998.166",
+  "gpuDisabled": true,
+  "method": "Inherited production Chrome sequence; same accepted fixture, viewport, camera moves, eight stable frames, main-thread fallback and extreme wrap zoom",
+  "comparisons": {
+    "coldApplicationReadyMs": {
+      "before": 1977.6829999999609,
+      "after": 2521.2415000000037,
+      "changePercent": 27.484612043489953,
+      "limit": 3500,
+      "passed": true
+    },
+    "warmNavigationTenKeysMs": {
+      "before": 148.93229999998584,
+      "after": 252.83889999985695,
+      "changePercent": 69.76767296273607,
+      "limit": 500,
+      "passed": true
+    },
+    "regionalReadyMs": {
+      "before": 1582.8774999999441,
+      "after": 2164.023199999938,
+      "changePercent": 36.71450886123622,
+      "limit": 2374.316249999916,
+      "passed": true
+    },
+    "closeReadyMs": {
+      "before": 4267.040700000012,
+      "after": 7392.169500000076,
+      "changePercent": 73.23878584050195,
+      "limit": 6400.561050000018,
+      "passed": false
+    },
+    "repeatedPanZoomMs": {
+      "before": 5364.13459999999,
+      "after": 8554.845399999991,
+      "changePercent": 59.482303072708255,
+      "limit": 8046.2018999999855,
+      "passed": false
+    },
+    "fallbackReadyMs": {
+      "before": 1445.3174000000581,
+      "after": 3426.937200000044,
+      "changePercent": 137.10620241615482,
+      "limit": 2167.976100000087,
+      "passed": false
+    },
+    "farZoomReadyMs": {
+      "before": 307.07159999990836,
+      "after": 326.7450999999419,
+      "changePercent": 6.406811961783321,
+      "limit": 1000,
+      "passed": true
+    },
+    "inputDuringClimateMs": {
+      "before": 10.879799999995157,
+      "after": 14.802900000009686,
+      "changePercent": 36.0585672532241,
+      "limit": 100,
+      "passed": true
+    },
+    "climatePreviewMs": {
+      "before": 963.4428000000771,
+      "after": 1094.9128999998793,
+      "changePercent": 13.645864601384904,
+      "limit": 1445.1642000001157,
+      "passed": true
+    }
+  },
+  "failures": [
+    "closeReadyMs",
+    "repeatedPanZoomMs",
+    "fallbackReadyMs"
+  ],
+  "notes": "Individual wall-clock runs include browser and OS scheduling. Navigation/cold/very-short operations use explicit interactive limits; substantial artwork stages allow at most 50 percent over the recorded Pass 4 run.",
+  "sourceBytes": 2686978,
+  "bitmapBytes": 7318080,
+  "bitmapLimitBytes": 33554432,
+  "workerMaxMs": 38
+}

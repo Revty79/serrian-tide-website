@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "migration": "0141_world_hydrology",
+  "freshReplay": true,
+  "populated0140Upgrade": true,
+  "oldTablesExact": 343,
+  "realServiceBeforeMigration": true,
+  "completeBackupRestore": true,
+  "immutableHistoryAfterRestore": true,
+  "repeatedMigration": true,
+  "ledger": 144,
+  "sharedDatabaseWrites": false,
+  "productionContacted": false
+}

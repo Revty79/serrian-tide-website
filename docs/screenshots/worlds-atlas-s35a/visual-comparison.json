@@ -1,0 +1,440 @@
+{
+  "passed": true,
+  "productionScreenshots": true,
+  "gpuDisabled": true,
+  "captureCount": 42,
+  "terrainAndHistoricalWaterGeometryExact": true,
+  "climateAndAuthoredGallerySettingsExact": true,
+  "allCamerasAndStylesExact": true,
+  "eightStableFrames": true,
+  "excludedFromInputComparison": [
+    "metrics.analysisMs: elapsed measurement, retained in original receipts"
+  ],
+  "baseline": "bc4806d284f7bf94881f9c191640f2d80adb3cf9",
+  "applicationCommit": "758531eb76531149f2affa53230b7599840d7872",
+  "sourceBefore": "before-pass4/environment-visuals.json",
+  "sourceAfter": "full-4/environment-visuals.json",
+  "ownerArtisticAcceptance": "not recorded",
+  "pairs": [
+    {
+      "file": "matched-after-realistic-terrain.png",
+      "camera": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "matched-after-illustrated-fantasy.png",
+      "camera": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "style": "illustrated-fantasy",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "matched-after-topographic.png",
+      "camera": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "style": "topographic",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "matched-after-physical-relief.png",
+      "camera": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "style": "physical-relief",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "matched-after-classic-elevation.png",
+      "camera": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.009958125"
+      },
+      "style": "classic-elevation",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "climate-mixed-world.png",
+      "camera": {
+        "x": "309.50359375",
+        "y": "107.51501562499999",
+        "scale": "0.00039649640625"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "climate-tropical-world.png",
+      "camera": {
+        "x": "309.50359375",
+        "y": "107.51501562499999",
+        "scale": "0.00039649640625"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "climate-tropical-windward-mountains-regional.png",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "climate-tropical-windward-mountains-illustrated.png",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "illustrated-fantasy",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "climate-temperate-world.png",
+      "camera": {
+        "x": "309.50359375",
+        "y": "107.51501562499999",
+        "scale": "0.00039649640625"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "climate-temperate-windward-mountains-regional.png",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "climate-temperate-windward-mountains-illustrated.png",
+      "camera": {
+        "x": "-862.8888251546891",
+        "y": "-712.7147163391066",
+        "scale": "0.0015688888251546894"
+      },
+      "style": "illustrated-fantasy",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "climate-arid-world.png",
+      "camera": {
+        "x": "309.50359375",
+        "y": "107.51501562499999",
+        "scale": "0.00039649640625"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "climate-polar-world.png",
+      "camera": {
+        "x": "309.50359375",
+        "y": "107.51501562499999",
+        "scale": "0.00039649640625"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "climate-exotic-world.png",
+      "camera": {
+        "x": "309.50359375",
+        "y": "107.51501562499999",
+        "scale": "0.00039649640625"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-rainforest-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-rainforest-close.png",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-rainforest-close-illustrated.png",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "illustrated-fantasy",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-seasonal-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-deciduous-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-deciduous-close.png",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-conifer-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-boreal-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-boreal-close.png",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-boreal-close-illustrated.png",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "illustrated-fantasy",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-savanna-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-grassland-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-scrub-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-steppe-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-hotDesert-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-hotDesert-close.png",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-coldDesert-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-tundra-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-tundra-close.png",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-alpine-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-ice-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-wetland-regional.png",
+      "camera": {
+        "x": "-5414.925370188114",
+        "y": "-5745.665800350053",
+        "scale": "0.008763411566424548"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-wetland-close.png",
+      "camera": {
+        "x": "-5490403.227906922",
+        "y": "-5487405.8975566095",
+        "scale": "7.844441852415365"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "authored-meadow-woodland-transition.png",
+      "camera": {
+        "x": "-2633.05213001272",
+        "y": "-2959.0703472571554",
+        "scale": "0.004780042382506392"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "accepted-water-and-wetland-environment.png",
+      "camera": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.15933"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "accepted-water-and-wetland-illustrated.png",
+      "camera": {
+        "x": "387.34",
+        "y": "66.40249999999997",
+        "scale": "0.15933"
+      },
+      "style": "illustrated-fantasy",
+      "allArtworkQueuesEmpty": true
+    },
+    {
+      "file": "accepted-marsh-environment-regional.png",
+      "camera": {
+        "x": "-827.3438063424205",
+        "y": "-2610.1769225151006",
+        "scale": "0.8825000159831162"
+      },
+      "style": "realistic-terrain",
+      "allArtworkQueuesEmpty": true
+    }
+  ]
+}

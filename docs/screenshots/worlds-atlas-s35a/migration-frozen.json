@@ -1,0 +1,7 @@
+{
+  "migration": "0143_world_map_style.sql",
+  "sha256": "5cb0af590efe75342fe3888d62a85bbef3a3e69b0ce7978bbb1a92cfa87d41b5",
+  "ownerConfirmedApplied": true,
+  "frozen": true,
+  "agentSharedDatabaseAccess": false
+}

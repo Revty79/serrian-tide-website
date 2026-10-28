@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "method": "Resolve opaque node references to unchanged physical coordinates and kinds before comparing topology.",
+  "inputs": {
+    "terrainGrid": "a26a70236bfe8a6991dfb8f42c7e1416f6da58a14e4e81e10a14e5e9e8e4ab77",
+    "physicalSettings": "cda2b3f23725220d6b4e7c4afbdbceee5fd56f78ad0052e907f787120bfbb335",
+    "climateFields": "3e861e3668fdda5d0e33b7506a18b8c350bb4633b0387bfd64307bd8cc50d234",
+    "environmentSettings": "dd0733585453ba573fee69e18f40dde5a2018ce06f6c78b537da3c45be2b439d",
+    "waterGeometry": "de3f1c8c33d1b856abb0cd83846aefe0cb2bb2089b811d1ddadab2b3e76be1bc"
+  },
+  "originalResultRetained": true
+}

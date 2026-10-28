@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "gpuDisabled": true,
+  "physicalDevice": false,
+  "v3HttpRolePrivacy": true,
+  "explicitAdminReadOnlyReview": true,
+  "csrfDenied": true,
+  "worldKm": 1000000,
+  "acceptedRefinementNativeSpacingM": 19.53125,
+  "fictionalFeatureCoordinates": {
+    "x": 593749223.1234,
+    "y": 582809089.3756
+  },
+  "creatorWidthM": 0.2,
+  "endpointPixelContinuity": true,
+  "covered": 18,
+  "worldMetresAcross": 32.20803838728614,
+  "stats": {
+    "preparations": 2,
+    "hits": 76,
+    "bytes": 592,
+    "entries": 2,
+    "drawnChannels": 1,
+    "drawnPaths": 1,
+    "reanchors": 2,
+    "hiddenChannels": 0,
+    "lastPaintMs": 0.10000002384185791,
+    "maxPaintMs": 1.100000023841858
+  },
+  "featurePixel": {
+    "x": 706,
+    "y": 396.7306900024414
+  },
+  "darkSymbolPixels": 13,
+  "endpointSymbolAboveWrappedChannel": true,
+  "geometryAndNumericalSourcesExact": true,
+  "noNumericalWrites": true
+}

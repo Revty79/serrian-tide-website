@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "baseline": "bc4806d284f7bf94881f9c191640f2d80adb3cf9",
+  "runtimeSha256": "ef0c87b97399feb9021e7414249a79d588cf5901cc4f05f73ef02dea25ad1d42",
+  "runtimeFiles": 1610,
+  "productionBuildId": "JmmjwRnrAHuOZtISuN8Gq",
+  "method": "Approved Pass 4 source; same installed dependencies, owned database, machine, Chrome flags and performance sequence as the candidate",
+  "sharedDatabaseAccess": false,
+  "browser": "134.0.6998.166",
+  "gpuDisabled": true,
+  "geographicWrites": false,
+  "inputs": {
+    "terrainGrid": "a26a70236bfe8a6991dfb8f42c7e1416f6da58a14e4e81e10a14e5e9e8e4ab77",
+    "physicalSettings": "cda2b3f23725220d6b4e7c4afbdbceee5fd56f78ad0052e907f787120bfbb335",
+    "climateFields": "3e861e3668fdda5d0e33b7506a18b8c350bb4633b0387bfd64307bd8cc50d234",
+    "environmentSettings": "dd0733585453ba573fee69e18f40dde5a2018ce06f6c78b537da3c45be2b439d",
+    "waterGeometry": "8afdd0f6416dee0b87723d6cc013005b063d6721580ab7c3cb6c8086268108f8"
+  }
+}

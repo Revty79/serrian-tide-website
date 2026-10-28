@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "earlyCancelNoSave": true,
+  "polygonCreateSelectNameAndBiome": true,
+  "moveInsertRemoveBoundaryPoints": true,
+  "selectedDownscale": true,
+  "globalContextRetained": true,
+  "protectedOverridesExact": true,
+  "independentBiomeEraserUndo": true,
+  "acceptedLostResponseRecoveredExact": true,
+  "conflictRetainedExported": true,
+  "exactHistoricalRestoration": true,
+  "noNumericalMaterialWaterWrites": true,
+  "physicalDevice": false
+}

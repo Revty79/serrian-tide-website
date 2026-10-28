@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "migration": "0142_world_environment",
+  "freshReplay": true,
+  "populated0141Upgrade": true,
+  "oldTablesExact": 345,
+  "realServiceBeforeMigration": true,
+  "completeBackupRestore": true,
+  "allEnvironmentalVersionsRestored": 5,
+  "realRestoredServiceEveryVersion": true,
+  "immutableHistoryAfterRestore": true,
+  "repeatedMigration": true,
+  "ledger": 144,
+  "sharedDatabaseWrites": false,
+  "productionContacted": false
+}

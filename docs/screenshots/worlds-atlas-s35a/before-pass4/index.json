@@ -1,0 +1,73 @@
+{
+  "baseline": "bc4806d284f7bf94881f9c191640f2d80adb3cf9",
+  "validatedRuntimeCommit": "f68c72013ff5c1c1c4dbe8889ec89f1c58b22df6",
+  "runtimeUnchangedBetweenThoseCommits": true,
+  "origin": "docs/screenshots/worlds-atlas-s34/full-3",
+  "originalProductionCaptures": true,
+  "files": [
+    {
+      "file": "matched-after-realistic-terrain.png",
+      "sha256": "df070a8bea7a03981cc4939df61b22f23ddb8a378cf5c4fc222b377c94eda3e7"
+    },
+    {
+      "file": "matched-after-illustrated-fantasy.png",
+      "sha256": "76cf68ca2831d3bd429230ff6c16c8ac741afeb1c2482f83b0e525f9c015a032"
+    },
+    {
+      "file": "climate-temperate-world.png",
+      "sha256": "ea844b72bfc186231bf325390457b378e0746cd4aea10520977137079d92c940"
+    },
+    {
+      "file": "climate-temperate-windward-mountains-regional.png",
+      "sha256": "ea85bbfb9f6707f880118cb6d5c318b2117b66659b793f93401b4fee480e3265"
+    },
+    {
+      "file": "climate-temperate-windward-mountains-illustrated.png",
+      "sha256": "180b3b34b8500f4f0fb8a75daf56b96c2175b8aa98953cc140ab63474339c547"
+    },
+    {
+      "file": "climate-tropical-world.png",
+      "sha256": "4dc45d43c41474d7b9582b694920ca744bda2f6c43570118e152fccb2c4bcfbd"
+    },
+    {
+      "file": "authored-rainforest-close.png",
+      "sha256": "28e3bbe9c842258a7a9cc352e17248c489650a916a59304c8d36927ed82fa452"
+    },
+    {
+      "file": "authored-boreal-close-illustrated.png",
+      "sha256": "adbc572062773d58aad1c330bc65b9425d83eb5b9360392956a81b27c8490561"
+    },
+    {
+      "file": "authored-hotDesert-regional.png",
+      "sha256": "2384e8a340abfb9185d7f55693dfafc1503bb0bdf3d73e1484c8ae9bf0d577be"
+    },
+    {
+      "file": "authored-hotDesert-close.png",
+      "sha256": "52f4f3bbe99afde3330333f7267fe91415e2eecd337799ca7891a2f9cb8be26a"
+    },
+    {
+      "file": "authored-tundra-close.png",
+      "sha256": "3e11fa1b77ad6df98b2a8a0b4d13dd702ccb3323582ffbc13a68eb57c78d86cd"
+    },
+    {
+      "file": "authored-alpine-regional.png",
+      "sha256": "583cfb0e28663519cc0304b97aa68756dcd5b285fc61e87f78dae56b421f3ba9"
+    },
+    {
+      "file": "accepted-marsh-environment-regional.png",
+      "sha256": "fd49deb744ef5a55fe71d2e41d30fef920b91ba84d773302f570438efef16607"
+    },
+    {
+      "file": "environment-performance.json",
+      "sha256": "c3100d587cd740786bdca51254032879539e1a626f46a4ffc94594fe9d01cc83"
+    },
+    {
+      "file": "environment-visuals.json",
+      "sha256": "a1229c66920017b07a199d42ec153f6fe44456dbe2496c4d994836d95418393e"
+    },
+    {
+      "file": "source-verification.json",
+      "sha256": "6245f3bfbc359cbefb10d1dcfef787fb4453c78ee3a4071954b853694c532306"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "migration": "0143_world_map_style",
+  "freshReplay": true,
+  "populated0142Upgrade": true,
+  "oldTablesExact": 347,
+  "missingMigrationRealService": true,
+  "backupRestoreAllTables": true,
+  "immutableAfterRestore": true,
+  "restoredServiceReads": true,
+  "presets": 1,
+  "repeatedMigration": true,
+  "ledger": 144,
+  "sharedDatabaseAccess": false
+}

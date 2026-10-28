@@ -1,0 +1,200 @@
+?
+Help with this page
+SERRIAN TIDE
+WORLDS
+Worlds
+Crossroads
+Switch Path
+world-god
+Profile
+Log Out
+Worlds
+World registry
+Switch world
+Shores of Memory
+S
+SERRIAN TIDE · WORLDS
+
+A PRIVATE WORLD OF SERRIAN TIDE
+
+Shores of Memory
+
+A world taking shape, one story at a time.
+
+0
+historical eras
+1
+entries
+Edit identity
+Towns
+Atlas
+Overview
+History
+1
+Chronology
+Calendars
+Timelines
+Peoples
+Individuals
+Politics
+Organizations
+Cosmology
+Lore, Stories & Legends
+Campaigns
+
+Browsing history: Primary History.
+
+No Campaign selected for Worlds authoring.
+
+Choose or change this in Campaigns. Browsing and authoring selections do not move Characters or advance Campaign time.
+
+Atlas
+
+Shape the geography of this World. Begin with blank terrain, seeded geography or an imported heightmap, then sculpt and save it.
+
+Create flat world
+World terrain map
+Choose a map
+Database terrain preservation
+Placement frame false
+Placement frame true
+Numerical generated identity
+Numerical import identity
+Physical source identity
+Physical brush persistence
+Adjacent, nested and wrapped numerical coverage
+Million-km persistence foundation
+Pass 8 confirmed authored World
+Hydrology valley and coastal drainage
+Connected mountain rivers and twin lakes
+Winding mountain catchments
+Fine cascades and a low floodplain
+Climate mountains, coasts and interiors
+Style workshop isolation
+Pass 8 described geography
+Pass 7 browser million-km World
+Pass 7 wrapped World viewport
+Makers Ocean
+Makers Land
+Pass 3 generated acceptance
+Temporary geography
+Pass 4 sculpted ocean
+Pass 4 editable generated
+Pass 4 editable imported
+Pass 4 seam false
+Pass 4 seam true
+Pass 5 familiar 10000 km
+Pass 5 familiar 40000 km
+Pass 5 extreme familiar
+Pass 6 measured World
+Pass 6 wrapped measurements
+Pass 6 physical brush
+Pass 6 extreme resolution
+Pass 6 unit-invariant creation
+Pass 6 device measurements
+Pass 6 physical touch painting
+Cartographic three-continent comparison
+Cartographic million-km wrapped World
+?
+Adjacent, nested and wrapped numerical coverage
+
+Whole World base · numerical elevation in metres · accepted revision 2
+
+Exit expanded editor
+Save terrain
+Active terrain tool
+Refine bounds
+Pan
+Inspect
+Locations
+Measure
+Waterways
+Climate & Biomes
+Paint Surface Materials
+Raise
+Lower
+Smooth
+Level
+Sample level height
+Extend land
+Expand water / carve bay
+Smooth shoreline
+Undo
+Redo
+Landforms & map tools
+Show grid
+Touch controls: Off
+Hide settings
+Zoom in
+Zoom out
+Fit map
+Visible World: 106,382.98 m × 50,000 m. Measurement grid hidden. Active height samples: 1,562.5 m × 781.25 m. Visible refined areas: 5; display spacing varies by area. Sample brush: 75,000 m east/west by 37,500 m north/south
+Illustrated Fantasy | Base overview 1,562.5 m
+Map settings
+Close settings
+Tool
+Measure
+Terrain detail
+Water
+Climate & Biomes
+World
+Sea level & generation
+Map Appearance
+Classic Elevation
+Physical Relief
+Topographic
+Illustrated Fantasy
+Realistic Terrain
+?
+Cartographic appearance settings
+Visual relief
+Classic relief (original)
+Natural physical relief (1x)
+Enhanced physical relief (20x)
+Dramatic physical relief (80x)
+Custom physical relief
+?
+Visual relief exaggeration
+?
+
+Appearance changes preview in this browser. Save them to set this map's default.
+
+Save map appearance Load saved appearance
+Open style settings
+Sea level (m)
+?
+Apply sea level
+Regenerate selected area
+
+Save first. Regeneration prepares a new seeded proposal and protects manual heights by default.
+
+Download draft
+Locations
+
+Choose Locations above, then tap a marker to select it or tap the map to choose a point. Positions use this map’s physical coordinate frame in your selected units.
+
+Choose point on map
+Unplaced Locations
+Choose an existing settlement
+Atlas-founded village
+Atomic new town
+Comprehensive database town
+Harbour of Makers Renamed
+Pass 6 unchanged marker
+Renamed database settlement
+Second magical entrance town
+
+Unplaced means not represented on this map. A settlement can appear on other maps too.
+
+Create new settlement at a point
+East/west position (m)
+North/south position (m)
+
+Origin: north-west corner. East increases across the map; south increases downward. East and west join at the same seam. Enter a position or choose a point on the canvas.
+
+Place settlement
+Terrain origin and accepted recipe
+Elevation colours, precise inspection and editor details
+Move over or tap the map to inspect elevation.
+
+Saved terrain loaded. Browser recovery is ready; completed edits autosave after a short pause.

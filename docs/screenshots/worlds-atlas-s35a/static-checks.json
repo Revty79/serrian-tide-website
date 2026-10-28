@@ -1,0 +1,79 @@
+{
+  "passed": true,
+  "applicationCommit": "758531eb76531149f2affa53230b7599840d7872",
+  "validationCommit": "459dc51847106ab14e12760dbcf36ba49f755dfa",
+  "units": {
+    "passed": 2476,
+    "files": 305,
+    "failed": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "files": 2049,
+    "errors": 0,
+    "warnings": 1,
+    "preExistingWarning": "scripts/worlds-stories-checks.ts:6 unused LoreFamily"
+  },
+  "rootTypeScript": {
+    "passed": true,
+    "exitCode": 0,
+    "logEmpty": true
+  },
+  "productionBuild": {
+    "passed": true,
+    "buildId": "hXGMqV6x-X8kRZL1ExAw9",
+    "runtimeSha256": "0b46f65a8474a344a593928d30252450abebd884a13b3ea2298884bad8fc8331"
+  },
+  "offlineDrizzleConsistency": {
+    "passed": true,
+    "ownerConfigNotExecuted": true
+  },
+  "disposableLifecycle": {
+    "passed": 5,
+    "failed": 0
+  },
+  "logHashes": [
+    {
+      "path": "artifacts/style-5a-unit-final-4.log",
+      "sha256": "5dab8143adbeae74c0a58bddd54b90b068f5e7cf2579eabf2ee4cb7e6f8fecca",
+      "bytes": 453862
+    },
+    {
+      "path": "artifacts/style-5a-lint-delivery.json",
+      "sha256": "a9455217be95c8a4a94867fac6dec0d6edb12a2f4058d26316e222a57c0ac520",
+      "bytes": 552554
+    },
+    {
+      "path": "artifacts/style-5a-types-delivery.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "artifacts/style-5a-lifecycle.log",
+      "sha256": "76037052faf8a98cf4d38897df60b2ae93748f2a41d22b58ad11a5978e3ab244",
+      "bytes": 1112
+    },
+    {
+      "path": "artifacts/style-5a-drizzle-check.log",
+      "sha256": "9e256078adf147a6d1ac34896ebb279c5bd51a05bb4eeae27333c49ba1b172ea",
+      "bytes": 218
+    },
+    {
+      "path": "artifacts/style-5a-full-4.log",
+      "sha256": "acde837b21724d09683cc95fbddbeeef05260077e123eecc696b407f68be40b5",
+      "bytes": 18818
+    },
+    {
+      "path": "artifacts/style-5a-paired-final.log",
+      "sha256": "f09a8152e5c1de0302bccbd2f0b7acf5b8ff77d08671983a7d5687fabfe99d70",
+      "bytes": 956
+    },
+    {
+      "path": "artifacts/style-5a-information-final.log",
+      "sha256": "86914f5de406ba0dc13704eba8c23fc02ff69c6345af9e933033735e9f2d0d8d",
+      "bytes": 13062
+    }
+  ],
+  "rawLogsInIgnoredArtifacts": true,
+  "sharedDatabaseAccess": false
+}

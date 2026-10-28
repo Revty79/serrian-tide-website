@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "actualTerrainAutosave": true,
+  "exactTerrainUndoSaved": true,
+  "actualIndependentWaterEdit": true,
+  "pendingEnvironmentRetained": true,
+  "protectedIdentitiesAndPointsExact": true,
+  "acceptedFieldsNeverSilentlyRegenerated": true,
+  "staleReviewVisible": true,
+  "explicitEnvironmentSaveAfterSourceChange": true,
+  "sharedDatabaseAccess": false
+}
