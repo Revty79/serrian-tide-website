@@ -136,6 +136,13 @@
 .mapColumn>.viewport { height:100%; min-height:0; max-height:none; }
 .editorInspector { display:flex; flex-direction:column; min-width:0; min-height:0; background:var(--st-surface-raised); border:1px solid var(--st-border); border-radius:.6rem; }
 .editorInspector[hidden],.inspectorBody section[hidden] { display:none; }
+.labelsInspector textarea { width:100%; max-width:100%; min-height:4rem; }
+.presentationPreview .viewportControls,.presentationPreview .cartographyLegend { display:none; }
+.presentationPreview .viewportControls,.presentationPreview .cartographyLegend { display:none; }
+@media(max-width:1050px) {
+ .editorInspector.labelsInspector { height:min(24rem,45%); max-height:45%; }
+ .labelsInspector .inspectorHeading { padding:.2rem .5rem; }
+}
 .inspectorHeading { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.5rem; color:var(--st-text-strong); }
 .inspectorHeading,.inspectorTabs { flex-shrink:0; }
 .inspectorTabs { display:flex; flex-wrap:nowrap; overflow-x:auto; gap:.3rem; padding:0 .5rem .5rem; border-bottom:1px solid var(--st-border); }

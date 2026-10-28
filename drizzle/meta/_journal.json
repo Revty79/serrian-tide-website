@@ -1016,6 +1016,13 @@
       "when": 1793190385112,
       "tag": "0144_world_artwork",
       "breakpoints": true
+    },
+    {
+      "idx": 145,
+      "version": "7",
+      "when": 1793203379615,
+      "tag": "0145_world_labels",
+      "breakpoints": true
     }
   ]
 }

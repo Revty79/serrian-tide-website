@@ -30,6 +30,7 @@ export default defineConfig({
     "./src/db/world-map-appearance-schema.ts",
     "./src/db/world-map-style-schema.ts",
     "./src/db/world-artwork-schema.ts",
+    "./src/db/world-labels-schema.ts",
     "./src/db/world-terrain-material-schema.ts",
     "./src/db/world-hydrology-schema.ts",
     "./src/db/world-environment-schema.ts",
