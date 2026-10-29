@@ -122,3 +122,5 @@ next-env.d.ts
 
 /artifacts/artwork-5b-*
 /artifacts/labels-5c-*
+
+/artifacts/engraved-5d-*

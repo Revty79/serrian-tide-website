@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import {randomUUID,createHash} from "node:crypto";
+import {writeFile} from "node:fs/promises";
+import type {checkHydrologyBrowser} from "./worlds-hydrology-browser-checks";
+import {environmentFixtureId} from "./worlds-environment-fixture";
+import {environmentCamera} from "./worlds-environment-visuals";
+import {environmentReady,environmentPhoto} from "./worlds-environment-browser-checks";
+import {terrainPanel} from "./worlds-terrain-browser-ui";
+import {labelsPanel} from "./worlds-labels-browser-checks";
+import {EMPTY_LABELS,newMapLabel} from "../src/features/worlds/terrain-labels";
+import {DEFAULT_MAP_APPEARANCE,type MapAppearance} from "../src/features/worlds/terrain-appearance";
+import {DEFAULT_ENGRAVING,type EngravingStyle} from "../src/features/worlds/terrain-engraving";
+export async function checkEngravedVisuals({god,base,world,out,errors}:Parameters<typeof checkHydrologyBrowser>[0]){
+ const map=environmentFixtureId,api=`${base}/api/worlds/${world}/terrain`,url=(kind:string)=>`${api}/${kind}?terrainMap=${map}`,read=async(kind:string)=>(await(await god.request.get(url(kind))).json()),original={labels:await read("labels"),appearance:await read("appearance"),environment:await read("environment")},numeric=(await(await god.request.get(`${api}/hydrology?terrainMap=${map}&sources=1`)).json()).sources.fingerprint,p=await god.newPage();p.setDefaultTimeout(180000);p.on("pageerror",e=>errors.push(e.message));p.on("dialog",d=>d.accept());const captures=[];
+ async function appearance(spec:MapAppearance){const head=await read("appearance"),r=await god.request.post(url("appearance"),{headers:{Origin:base},data:{mapId:map,revision:head.revision,requestId:randomUUID(),spec}});assert.equal(r.status(),200,await r.text());}
+ async function labels(layer:unknown){const head=await read("labels");assert.equal((await god.request.post(url("labels"),{headers:{Origin:base},data:{mapId:map,revision:head.headRevision,requestId:randomUUID(),layer}})).status(),200);}
+ try{
+  const layer={...EMPTY_LABELS,labels:[{...newMapLabel(randomUUID(),"The high country",{x:1000000,y:700000},"mountain"),mode:"area" as const,sizePx:23,spacing:1.5,force:true},{...newMapLabel(randomUUID(),"A woodland study",{x:850000,y:550000},"forest"),mode:"area" as const,sizePx:21,force:true}],composition:{...EMPTY_LABELS.composition,title:{...EMPTY_LABELS.composition.title,visible:true,text:"AN ATLAS OF THE HIGHLANDS",subtitle:"Original geographic engraving · cartographer’s study",sizePx:27},scale:{...EMPTY_LABELS.composition.scale,visible:true},north:{...EMPTY_LABELS.composition.north,visible:true},frame:{...EMPTY_LABELS.composition.frame,visible:true,insetPx:12},notes:{...EMPTY_LABELS.composition.notes,visible:true,text:"A creator-authored disposable rendering study",attribution:"Saved terrain and vegetation remain authoritative"}}};await labels(layer);
+  const cases:{name:string;span:number;point:{x:number;y:number};engraving?:Partial<EngravingStyle>;style?:MapAppearance["style"];biome?:"hotDesert"|"tundra"|"wetland"|"rainforest"|"savanna"}[]=[
+   {name:"whole-world-sepia",span:2600000,point:{x:1000000,y:700000}},
+   {name:"connected-mountain-range",span:900000,point:{x:1000000,y:700000},engraving:{detail:"elaborate",border:"botanical",cartouche:"ornate"}},
+   {name:"woodland-region",span:140000,point:{x:850000,y:550000},engraving:{detail:"elaborate",palette:"ink",border:"double",cartouche:"plaque"}},
+   {name:"woodland-close",span:400,point:{x:850000,y:550000},engraving:{detail:"elaborate",palette:"monochrome",border:"botanical",cartouche:"illuminated"}},
+   {name:"monochrome-atlas",span:2600000,point:{x:1000000,y:700000},engraving:{detail:"elaborate",palette:"monochrome",compass:"mariner"}},
+   {name:"muted-color-region",span:900000,point:{x:1000000,y:700000},engraving:{palette:"colored",border:"ornamental"}},
+   {name:"prior-illustrated-same-geography",span:900000,point:{x:1000000,y:700000},style:"illustrated-fantasy"},
+   {name:"authored-desert-dunes",span:90000,point:{x:700000,y:700000},biome:"hotDesert",engraving:{detail:"elaborate",palette:"sepia",cartouche:"plaque"}},
+   {name:"authored-tundra-and-ice",span:90000,point:{x:700000,y:700000},biome:"tundra",engraving:{detail:"elaborate",palette:"monochrome",border:"neatline"}},
+   {name:"authored-wetland-reeds",span:90000,point:{x:700000,y:700000},biome:"wetland",engraving:{detail:"elaborate",palette:"colored",border:"none",cartouche:"none",compass:"simple"}},
+   {name:"authored-tropical-canopy",span:350,point:{x:700000,y:700000},biome:"rainforest",engraving:{detail:"elaborate",palette:"ink"}},
+   {name:"authored-savanna-open-woodland",span:350,point:{x:700000,y:700000},biome:"savanna",engraving:{detail:"high",palette:"colored"}},
+  ];
+  for(const [i,c]of cases.entries()){
+   if(process.env.SERRIAN_ENGRAVED_EARLY==="1"&&i>=3)break;
+   if(c.biome){const head=await read("environment"),region={id:randomUUID(),name:`Explicit disposable ${c.biome} illustration study`,kind:"biome",shape:"brush",points:[c.point],radiusM:300000,strength:1,biome:c.biome,vegetation:c.biome==="rainforest"?"tropical":c.biome==="savanna"?"savanna":"bare",density:.8,scaleM:10,clustering:.7,protected:true};const r=await god.request.post(url("environment"),{headers:{Origin:base},data:{mapId:map,revision:head.revision,requestId:randomUUID(),layer:{...original.environment.layer,regions:[region]}}});assert.equal(r.status(),200,await r.text());}
+   await appearance({...DEFAULT_MAP_APPEARANCE,version:c.style?1:3,style:c.style??"engraved-fantasy",...!c.style?{engraving:{...DEFAULT_ENGRAVING,...c.engraving}}:{}});
+   await p.goto(`${base}/worlds/${world}?tab=atlas&terrainMap=${map}`);const canvas=p.getByLabel("Terrain map canvas",{exact:true});await canvas.waitFor();await p.getByRole("button",{name:"Expand editor",exact:true}).click();await terrainPanel(p,"World");await p.getByRole("button",{name:"Load saved appearance",exact:true}).click();await p.getByText("The saved map appearance is loaded. Numerical terrain is unchanged.",{exact:true}).waitFor();assert.equal(await p.getByLabel("Map Appearance",{exact:true}).inputValue(),c.style??"engraved-fantasy");await p.getByRole("button",{name:"Hide settings",exact:true}).click();await environmentCamera(p,c.point,c.span);await labelsPanel(p);await p.getByRole("button",{name:"Preview map presentation",exact:true}).click();await p.getByRole("button",{name:"Hide settings",exact:true}).click();await environmentReady(p);await environmentPhoto(p,out,"engraved-"+c.name);const stats=JSON.parse((await canvas.getAttribute("data-engraving-stats"))!);if(!c.style){assert.ok(stats.painted>0);assert.equal(await canvas.getAttribute("data-engraving-pending"),"0");}captures.push({name:c.name,spanMetres:c.span,style:c.style??"engraved-fantasy",backend:await canvas.getAttribute("data-engraving-backend"),stats});
+  }
+  if(process.env.SERRIAN_ENGRAVED_EARLY!=="1")for(const waterMap of ["3c000000-0000-4000-8000-000000000001","3c000000-0000-4000-8000-000000000003"]){
+   const envUrl=`${api}/environment?terrainMap=${waterMap}`,before=await(await god.request.get(envUrl)).json();await p.goto(`${base}/worlds/${world}?tab=atlas&terrainMap=${waterMap}`);await p.getByLabel("Terrain map canvas",{exact:true}).waitFor();await p.getByRole("button",{name:"Expand editor",exact:true}).click();await terrainPanel(p,"World");await p.getByLabel("Map Appearance",{exact:true}).selectOption("engraved-fantasy");await p.getByRole("button",{name:"Hide settings",exact:true}).click();await p.getByRole("button",{name:"Fit map",exact:true}).click();await environmentPhoto(p,out,"engraved-accepted-water-"+waterMap.slice(-1));assert.deepEqual(await(await god.request.get(envUrl)).json(),before);captures.push({name:"accepted-rivers-lakes-and-marsh-"+waterMap.slice(-1),savedWaterUnchanged:true});
+  }
+  assert.equal((await(await god.request.get(`${api}/hydrology?terrainMap=${map}&sources=1`)).json()).sources.fingerprint,numeric);assert.deepEqual((await read("labels")).layer,layer);await writeFile(out+"/engraved-visuals.json",JSON.stringify({passed:true,early:process.env.SERRIAN_ENGRAVED_EARLY==="1",gpuDisabled:true,localImagesOnly:true,geographicFingerprint:numeric,labelsSha256:createHash("sha256").update(JSON.stringify(layer)).digest("hex"),captures,ownerArtisticAcceptance:false},null,2)+"\n");
+ }catch(e){await p.screenshot({path:out+"/engraved-visual-failure.png"}).catch(()=>{});await writeFile(out+"/engraved-visual-failure.txt",await p.locator("body").innerText().catch(()=>""));throw e;}finally{await p.close();await labels(original.labels.layer);await appearance(original.appearance.spec??DEFAULT_MAP_APPEARANCE);const head=await read("environment");assert.equal((await god.request.post(url("environment"),{headers:{Origin:base},data:{mapId:map,revision:head.revision,requestId:randomUUID(),layer:original.environment.layer}})).status(),200);}
+}

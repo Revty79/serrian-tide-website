@@ -6,7 +6,7 @@ import {worldMapAppearance} from "@/db/world-map-appearance-schema";
 import {WorldError,worldReadAccess,worldWriteTransaction} from "./world-service";
 import {mapAppearanceSchema} from "./terrain-appearance";
 import {stylePresetSaveSchema,captureStyleSpec} from "./terrain-style-preset";
-import {requireAppearanceMap} from "./terrain-appearance-service";
+import {requireAppearanceMap,requireEngravedPersistence} from "./terrain-appearance-service";
 type Connection=Pick<typeof db,"execute"|"select">;
 async function available(tx:Connection){return !!(await tx.execute<{present:boolean}>(sql`select to_regclass('public.world_map_style') is not null as present`)).rows[0].present;}
 export async function getMapStyles(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean}={}){
@@ -17,6 +17,7 @@ export async function saveMapStyle(userId:string,worldId:string,raw:unknown){
  const c=stylePresetSaveSchema.parse(raw),snapshot=captureStyleSpec(c.spec);
  return worldWriteTransaction(userId,worldId,async tx=>{
   await requireAppearanceMap(tx,worldId,c.mapId);if(!await available(tx))throw new WorldError("MIGRATION 0143 REQUIRED to save named styles. Your appearance preview is retained.",409);
+  await requireEngravedPersistence(tx,c.spec);
   const [used]=await tx.select().from(worldMapStyle).where(eq(worldMapStyle.id,c.requestId));
   if(used){if(used.worldId!==worldId||used.sourceMapId!==c.mapId||used.sourceAppearanceRevision!==c.appearanceRevision||used.name!==c.name||JSON.stringify(captureStyleSpec(mapAppearanceSchema.parse(used.spec)))!==JSON.stringify(snapshot))throw new WorldError("This style request already contains different choices. Keep the original retry or use a fresh request.",409);return used;}
   const [head]=await tx.select({revision:worldMapAppearance.revision}).from(worldMapAppearance).where(and(eq(worldMapAppearance.worldId,worldId),eq(worldMapAppearance.mapId,c.mapId)));

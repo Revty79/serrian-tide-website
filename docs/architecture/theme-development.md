@@ -37,6 +37,8 @@ Confirmation overlays should use the native `dialog` element and `showModal()` s
 
 ## Intentional exceptions
 
+Stage 3 Pass 5D engraving inks, paper, water washes and ornaments are versioned map-presentation colors in `terrain-engraving.ts`. Geographic artwork, manually placed symbols and automatic map-text inks use this coordinated palette only in Engraved Fantasy Atlas. Inspector controls, status, selection and editing overlays retain shared semantic interface colors. The five prior map appearances retain their existing palettes.
+
 Stage 3 Pass 5C label and composition inks are cartographic presentation data in `terrain-labels-painter.ts`. Coordinated ink/halo defaults follow the map appearance; custom map-text colors remain label data. Composition outside the geographic paper uses shared semantic foreground/surface contrast. All inspector fields, status, selection and editing chrome retain the shared interface theme. Fonts use existing installed serif/sans/monospace families; this pass adds no font or artwork dependency.
 
 Stage 3 Pass 5B bundles original versioned geographic SVG artwork in `public/worlds/cartography/v1`, generated from `terrain-artwork-assets.ts`. Its coordinated fantasy/natural material colors and natural/antique/vivid/night variants belong to the map, including library thumbnails. The existing map style transforms these colors. Library cards, fields, feedback, focus and placement selection continue to use shared semantic interface colors. These asset colors must not become a separate interface palette.

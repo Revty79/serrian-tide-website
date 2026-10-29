@@ -6,6 +6,7 @@ import {worldMapCanvas} from "@/db/world-terrain-schema";
 import {worldAtlasMap} from "@/db/world-atlas-schema";
 import {WorldError,worldReadAccess,worldWriteTransaction} from "./world-service";
 import {appearanceSaveSchema,mapAppearanceSchema} from "./terrain-appearance";
+export async function requireEngravedPersistence(tx:Pick<typeof db,"execute">,spec:{style:string}){if(spec.style!=="engraved-fantasy")return;const r=await tx.execute<{n:number}>(sql`select count(*)::int n from pg_constraint where conname in ('world_map_appearance_valid','world_map_style_valid') and pg_get_constraintdef(oid) like '%engraved-fantasy%'`);if(r.rows[0].n!==2)throw new WorldError("MIGRATION 0146 REQUIRED before saving Engraved Fantasy Atlas appearances or named styles. Your preview and original request are retained.",409);}
 type Connection=Pick<typeof db,"execute"|"select">;
 const missing=()=>new WorldError("This terrain map is unavailable.",404);
 async function available(tx:Connection){return !!(await tx.execute<{present:boolean}>(sql`select to_regclass('public.world_map_appearance') is not null as present`)).rows[0].present;}
@@ -20,6 +21,7 @@ export async function saveMapAppearance(userId:string,worldId:string,raw:unknown
  return worldWriteTransaction(userId,worldId,async tx=>{
   await requireAppearanceMap(tx,worldId,command.mapId);if(!await available(tx))throw new WorldError("Apply migration 0139 before saving map appearances. The visual preview and numerical terrain remain available.",409);
   if(command.spec.version===2&&!(await tx.execute<{present:boolean}>(sql`select to_regclass('public.world_terrain_material_version') is not null as present`)).rows[0].present)throw new WorldError("MIGRATION 0140 REQUIRED before saving Realistic Terrain appearances. Your local preview is retained.",409);
+  await requireEngravedPersistence(tx,command.spec);
   const [row]=await tx.select().from(worldMapAppearance).where(and(eq(worldMapAppearance.worldId,worldId),eq(worldMapAppearance.mapId,command.mapId))).for("update");
   if(row?.requestId===command.requestId){if(JSON.stringify(mapAppearanceSchema.parse(row.spec))!==JSON.stringify(command.spec))throw new WorldError("This appearance request was already used with different choices.",409);return {revision:row.revision,spec:mapAppearanceSchema.parse(row.spec)};}
   if((row?.revision??0)!==command.revision)throw new WorldError("Another tab saved a newer map appearance. Your view is retained; load the saved appearance before saving again.",409);
