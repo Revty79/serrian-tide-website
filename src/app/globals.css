@@ -1,4 +1,5 @@
-@import "tailwindcss";
+/* Scan application sources only; migrations, receipts and artifacts are not UI templates. */
+@import "tailwindcss" source("../");
 
 @theme inline {
   --color-slate-50: var(--st-text-strong);

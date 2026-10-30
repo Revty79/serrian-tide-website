@@ -42,7 +42,7 @@ export async function stageRasterBundle(directory:string,parse:(value:unknown)=>
     const target=bundlePath(bundle,asset.key);await mkdir(path.dirname(target),{recursive:true});const resolved=await realpath(path.dirname(target)),root=await realpath(rasterRoot());if(!resolved.startsWith(root+path.sep))throw new Error("Raster staging cannot traverse a link outside private storage.");let anchor=categorical?anchors.get(asset.sha256):undefined;
     // Links stay inside this private bundle, never to the preparation directory.
     // A conservative 512-link group also supports Windows' per-file link limit.
-    if(anchor&&(await stat(anchor)).nlink>=512)anchor=undefined;
+    if(anchor&&(await stat(/* turbopackIgnore: true */ anchor)).nlink>=512)anchor=undefined;
     await publishRasterFile(source,target,asset.sha256,asset.bytes,anchor,digest);
     if(categorical&&!anchor)anchors.set(asset.sha256,target);
   }
