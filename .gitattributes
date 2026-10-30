@@ -13,6 +13,8 @@ drizzle/0139_world_cartographic_appearance.sql text eol=lf
 drizzle/0140_world_terrain_materials.sql text eol=lf
 # Keep the accepted artwork migration bytes unchanged on every checkout.
 drizzle/0144_world_artwork.sql -text
+# Preserve the exact DEV-applied linked-region migration on every checkout.
+drizzle/0147_world_map_regions.sql -text
 public/worlds/cartography/v1/* text eol=lf
 # Keep the accepted artwork migration bytes unchanged on every checkout.
 drizzle/0144_world_artwork.sql -text

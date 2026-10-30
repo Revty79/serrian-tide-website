@@ -19,9 +19,10 @@ export const worldMapCanvas = pgTable("world_map_canvas", {
   mapId: text("map_id").primaryKey(), worldId: text("world_id").notNull(), terrainId: text("terrain_id").notNull(),
   topology: text("topology").notNull().default("plane"), purpose: text("purpose").notNull().default("world"), rendering: jsonb("rendering").$type<{ version: 1; style: "elevation-relief" }>().notNull().default({ version: 1, style: "elevation-relief" }),
 }, t => [unique("world_map_canvas_world_uq").on(t.mapId, t.worldId),
+  unique("world_map_canvas_source_purpose_uq").on(t.mapId,t.worldId,t.terrainId,t.purpose),
   foreignKey({ name: "world_map_canvas_identity_fk", columns: [t.mapId, t.worldId], foreignColumns: [worldAtlasMap.id, worldAtlasMap.worldId] }).onDelete("restrict"),
   foreignKey({ name: "world_map_canvas_terrain_fk", columns: [t.terrainId, t.worldId], foreignColumns: [worldTerrain.id, worldTerrain.worldId] }).onDelete("restrict"),
-  check("world_map_canvas_valid", sql`${t.topology}='plane' AND ${t.purpose}='world' AND ${t.rendering}='{"version":1,"style":"elevation-relief"}'::jsonb`)]);
+  check("world_map_canvas_valid", sql`${t.topology}='plane' AND ${t.purpose} IN ('world','regional') AND ${t.rendering}='{"version":1,"style":"elevation-relief"}'::jsonb`)]);
 
 export const worldTerrainVersion = pgTable("world_terrain_version", {
   terrainId: text("terrain_id").notNull(), worldId: text("world_id").notNull(), revision: integer("revision").notNull(), previousRevision: integer("previous_revision"),

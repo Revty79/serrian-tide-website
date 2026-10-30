@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
 import {TerrainDetailCache,numericalChecksum,type DetailPlan,type DetailBatch} from "./terrain-refinement-cache";
 import type {RefinementMeta} from "./terrain-refinement";
+import {sharedTerrainDetails} from "./terrain-shared-detail-cache";
 const meta:RefinementMeta={id:randomUUID(),worldId:randomUUID(),terrainId:randomUUID(),mapId:randomUUID(),name:"Known frame",parentId:null,parentRevision:1,level:1,revision:2,frame:{x:593739223,y:582799089,width:20000,height:20000},gridWidth:1024,gridHeight:1024,overviewLevels:5,updatedAt:new Date().toISOString()};
 async function batch(plan:DetailPlan):Promise<DetailBatch>{const samples=Array(1024).fill(17),sha256=await numericalChecksum(samples),columns=plan.meta.gridWidth/2**plan.lod/32;return {refinement:plan.meta,headRevision:2,lod:plan.lod,tiles:plan.keys.map(key=>({x:key%columns,y:Math.floor(key/columns),samples:[...samples],sha256,mask:"0".repeat(256)})),source:{kind:"manual"},acceptedRequestId:randomUUID(),rootRevision:1,seaLevel:0,canEdit:true};}
 const settle=async()=>{await new Promise<void>(r=>setTimeout(r,0));};
@@ -24,4 +25,13 @@ test("immutable cache hits avoid requests and Strict Mode effect replay can resu
  let calls=0;const cache=new TerrainDetailCache(async p=>{calls++;return batch(p);}),plan={meta,lod:0,keys:[0]};
  await cache.accept(plan,await batch(plan));cache.schedule([plan]);assert.equal(calls,0);assert.equal(cache.metrics.cacheHits,1);
  cache.dispose();const unsubscribe=cache.subscribe(()=>{});cache.schedule([plan]);await settle();await settle();assert.equal(calls,1);assert.equal(cache.size,1);unsubscribe();cache.dispose();
+});
+test("linked views reuse verified immutable tiles while new revisions and other terrains remain separate",async()=>{
+ const shared=sharedTerrainDetails(meta.worldId,meta.terrainId),plan={meta,lod:0,keys:[0]},first=new TerrainDetailCache(batch,2048,2,shared);
+ await first.accept(plan,await batch(plan));first.dispose();
+ let calls=0;const next=new TerrainDetailCache(async p=>{calls++;return batch(p);},2048,2,sharedTerrainDetails(meta.worldId,meta.terrainId));
+ next.schedule([{...plan,meta:{...meta,mapId:randomUUID()}}]);assert.equal(calls,0);assert.equal(next.peek(meta.id,2,0,0)?.samples[0],17);
+ next.schedule([{...plan,meta:{...meta,revision:3}}]);assert.equal(calls,1);await settle();await settle();next.dispose();
+ assert.equal(sharedTerrainDetails(meta.worldId,randomUUID()).size,0);
+ const evicted=sharedTerrainDetails("cache-world","first");sharedTerrainDetails("cache-world","second");sharedTerrainDetails("cache-world","third");assert.notEqual(sharedTerrainDetails("cache-world","first"),evicted);
 });

@@ -1,20 +1,20 @@
+import {terrainMapContext} from "./terrain-map-context";
 import "server-only";
 import {and,eq,sql} from "drizzle-orm";
 import {db} from "@/db";
 import {worldMapAppearance} from "@/db/world-map-appearance-schema";
-import {worldMapCanvas} from "@/db/world-terrain-schema";
-import {worldAtlasMap} from "@/db/world-atlas-schema";
 import {WorldError,worldReadAccess,worldWriteTransaction} from "./world-service";
 import {appearanceSaveSchema,mapAppearanceSchema} from "./terrain-appearance";
 export async function requireEngravedPersistence(tx:Pick<typeof db,"execute">,spec:{style:string}){if(spec.style!=="engraved-fantasy")return;const r=await tx.execute<{n:number}>(sql`select count(*)::int n from pg_constraint where conname in ('world_map_appearance_valid','world_map_style_valid') and pg_get_constraintdef(oid) like '%engraved-fantasy%'`);if(r.rows[0].n!==2)throw new WorldError("MIGRATION 0146 REQUIRED before saving Engraved Fantasy Atlas appearances or named styles. Your preview and original request are retained.",409);}
 type Connection=Pick<typeof db,"execute"|"select">;
 const missing=()=>new WorldError("This terrain map is unavailable.",404);
 async function available(tx:Connection){return !!(await tx.execute<{present:boolean}>(sql`select to_regclass('public.world_map_appearance') is not null as present`)).rows[0].present;}
-export async function requireAppearanceMap(tx:Connection,worldId:string,mapId:string){const [map]=await tx.select({id:worldMapCanvas.mapId}).from(worldMapCanvas).innerJoin(worldAtlasMap,and(eq(worldAtlasMap.id,worldMapCanvas.mapId),eq(worldAtlasMap.worldId,worldId))).where(and(eq(worldMapCanvas.worldId,worldId),eq(worldMapCanvas.mapId,mapId),sql`${worldAtlasMap.archivedAt} IS NULL`));if(!map)throw missing();}
+export async function requireAppearanceMap(tx:Connection,worldId:string,mapId:string){await terrainMapContext(tx,worldId,mapId);}
+
 export async function getMapAppearance(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean}={}){
  await worldReadAccess(userId,worldId,options.review??false);
  if(options.ordinary)throw missing();
- return db.transaction(async tx=>{await requireAppearanceMap(tx,worldId,mapId);if(!await available(tx))return {available:false,revision:0,spec:null};const [row]=await tx.select().from(worldMapAppearance).where(and(eq(worldMapAppearance.worldId,worldId),eq(worldMapAppearance.mapId,mapId)));return {available:true,revision:row?.revision??0,spec:row?mapAppearanceSchema.parse(row.spec):null};},{accessMode:"read only",isolationLevel:"repeatable read"});
+ return db.transaction(async tx=>{const context=await terrainMapContext(tx,worldId,mapId);if(!await available(tx))return {available:false,revision:0,spec:null};const [row]=await tx.select().from(worldMapAppearance).where(and(eq(worldMapAppearance.worldId,worldId),eq(worldMapAppearance.mapId,mapId)));const [inherited]=!row&&context.region?await tx.select().from(worldMapAppearance).where(and(eq(worldMapAppearance.worldId,worldId),eq(worldMapAppearance.mapId,context.sourceMapId))):[];return {available:true,revision:row?.revision??0,spec:row?mapAppearanceSchema.parse(row.spec):inherited?mapAppearanceSchema.parse(inherited.spec):null};},{accessMode:"read only",isolationLevel:"repeatable read"});
 }
 export async function saveMapAppearance(userId:string,worldId:string,raw:unknown){
  const command=appearanceSaveSchema.parse(raw);

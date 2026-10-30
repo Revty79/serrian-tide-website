@@ -9,6 +9,8 @@ import {getWorld,worldReadAccess,worldWriteTransaction,WorldError} from "./world
 import {peoplesReferencesInTransaction} from "./peoples-service";
 import {selectedTimeline} from "./history-version-service";
 import {townCommandSchema,normalizePlacePoint,type TownBundle,type TownDraft,type TownRecord,type TownReferences,type TownResult} from "./world-towns";
+import {terrainMapContext,requireWorldGeographyWrite} from "./terrain-map-context";
+import {regionContainsPoint} from "./terrain-regions";
 type Tx=Parameters<Parameters<typeof db.transaction>[0]>[0];
 const missing=()=>new WorldError("This settlement or map appearance is unavailable.",404);
 const conflict=()=>new WorldError("A newer town or marker revision was saved. Your draft is retained. Load the saved record before trying again.",409);
@@ -27,10 +29,11 @@ export async function getWorldTowns(userId:string,worldId:string,options:{review
   // Reuse normal Worlds initialization so a sparse new World also works by API.
   await getWorld(userId,worldId,!!options.review);
   return db.transaction(async tx=>{
-    if(options.mapId)await mapFrame(tx,worldId,options.mapId);
+    const context=options.mapId?await terrainMapContext(tx,worldId,options.mapId):undefined;
+    const sourceMapId=context?.sourceMapId;
     const towns=await tx.select({id:worldGeography.id,name:worldGeography.name,description:worldGeography.description,locationNotes:worldSettlementProfile.locationNotes,category:worldSettlementProfile.category,revision:worldSettlementProfile.revision,geographyRevision:worldGeography.revision,archived:sql<boolean>`${worldGeography.archivedAt} IS NOT NULL`}).from(worldSettlementProfile).innerJoin(worldGeography,eq(worldGeography.id,worldSettlementProfile.geographyId)).where(eq(worldSettlementProfile.worldId,worldId)).orderBy(asc(worldGeography.name),asc(worldGeography.id));
-    const placements=await tx.select({id:worldMapPlace.id,mapId:worldMapPlace.mapId,townId:worldMapPlace.geographyId,name:worldGeography.name,category:worldSettlementProfile.category,revision:worldMapPlace.revision,x:worldMapPlace.x,y:worldMapPlace.y,removed:sql<boolean>`${worldMapPlace.removedAt} IS NOT NULL`,archived:sql<boolean>`${worldGeography.archivedAt} IS NOT NULL`,mapName:worldAtlasMap.name}).from(worldMapPlace).innerJoin(worldGeography,eq(worldGeography.id,worldMapPlace.geographyId)).innerJoin(worldSettlementProfile,eq(worldSettlementProfile.geographyId,worldMapPlace.geographyId)).innerJoin(worldAtlasMap,eq(worldAtlasMap.id,worldMapPlace.mapId)).where(and(eq(worldMapPlace.worldId,worldId),options.mapId?eq(worldMapPlace.mapId,options.mapId):undefined)).orderBy(asc(worldMapPlace.id));
-    return {towns,town:options.townId?await townRecord(tx,worldId,options.townId):null,placements,references:await references(tx,worldId),canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.review};
+    const placements=await tx.select({id:worldMapPlace.id,mapId:worldMapPlace.mapId,townId:worldMapPlace.geographyId,name:worldGeography.name,category:worldSettlementProfile.category,revision:worldMapPlace.revision,x:worldMapPlace.x,y:worldMapPlace.y,removed:sql<boolean>`${worldMapPlace.removedAt} IS NOT NULL`,archived:sql<boolean>`${worldGeography.archivedAt} IS NOT NULL`,mapName:worldAtlasMap.name}).from(worldMapPlace).innerJoin(worldGeography,eq(worldGeography.id,worldMapPlace.geographyId)).innerJoin(worldSettlementProfile,eq(worldSettlementProfile.geographyId,worldMapPlace.geographyId)).innerJoin(worldAtlasMap,eq(worldAtlasMap.id,worldMapPlace.mapId)).where(and(eq(worldMapPlace.worldId,worldId),sourceMapId?eq(worldMapPlace.mapId,sourceMapId):undefined)).orderBy(asc(worldMapPlace.id));
+    return {towns,town:options.townId?await townRecord(tx,worldId,options.townId):null,placements:context?.region?placements.filter(p=>regionContainsPoint(context.region!.frame,p,{displayWidth:context.terrain.widthMetres,displayHeight:context.terrain.heightMetres,wrap:context.terrain.wrap})):placements,references:await references(tx,worldId),canEdit:!context?.region&&parent.ownerId===userId&&!parent.archivedAt&&!options.review};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 async function saveTown(tx:Tx,worldId:string,id:string,draft:TownDraft,current:TownRecord|null){
@@ -55,7 +58,7 @@ export async function changeWorldTown(userId:string,worldId:string,input:unknown
       town=await townRecord(tx,worldId,c.id);if(town.revision!==c.revision||town.geographyRevision!==c.geographyRevision)throw conflict();if(town.archived===(c.action==="archive"))throw new WorldError(`This settlement is already ${town.archived?"archived":"active"}.`,400);
       await tx.update(worldGeography).set({archivedAt:c.action==="archive"?new Date():null,revision:town.geographyRevision+1,updatedAt:new Date()}).where(eq(worldGeography.id,town.id));await tx.update(worldSettlementProfile).set({revision:town.revision+1,archiveReason:c.action==="archive"?c.reason:""}).where(eq(worldSettlementProfile.geographyId,town.id));town=await townRecord(tx,worldId,town.id);result={townId:town.id,revision:town.revision};
     }else{
-      mapId=c.mapId;const frame=await mapFrame(tx,worldId,mapId);
+      mapId=c.mapId;await requireWorldGeographyWrite(tx,worldId,mapId);const frame=await mapFrame(tx,worldId,mapId);
       town=c.action==="place-new"?await saveTown(tx,worldId,c.requestId,c.draft,null):await townRecord(tx,worldId,c.townId);
       const [old]=await tx.select().from(worldMapPlace).where(and(eq(worldMapPlace.worldId,worldId),eq(worldMapPlace.mapId,mapId),eq(worldMapPlace.geographyId,town.id)));
       if(c.action!=="place-new"&&(old?old.revision!==c.revision:c.revision!==null))throw conflict();

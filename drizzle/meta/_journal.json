@@ -1030,6 +1030,13 @@
       "when": 1793233310954,
       "tag": "0146_world_engraved_appearance",
       "breakpoints": true
+    },
+    {
+      "idx": 147,
+      "version": "7",
+      "when": 1793308870044,
+      "tag": "0147_world_map_regions",
+      "breakpoints": true
     }
   ]
 }

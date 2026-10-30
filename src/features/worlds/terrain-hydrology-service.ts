@@ -1,4 +1,5 @@
 import "server-only";
+import {geographicSourceMap,requireWorldGeographyWrite} from "./terrain-map-context";
 import {createHash} from "node:crypto";
 import {and,asc,desc,eq,sql} from "drizzle-orm";
 import {db} from "@/db";
@@ -12,6 +13,7 @@ import {EMPTY_HYDROLOGY,hydroLayerSchema,hydroSaveSchema,makeHydroAnalysis,valid
 type Connection=Pick<typeof db,"select"|"execute">;
 const unavailable=()=>new WorldError("This terrain map is unavailable.",404);
 export async function sourceIndex(tx:Connection,worldId:string,mapId:string):Promise<HydroSources>{
+  mapId=await geographicSourceMap(tx,worldId,mapId);
   const [root]=await tx.select({terrain:worldTerrain,hash:worldTerrainVersion.contentHash}).from(worldMapCanvas)
     .innerJoin(worldAtlasMap,and(eq(worldAtlasMap.id,worldMapCanvas.mapId),eq(worldAtlasMap.worldId,worldId)))
     .innerJoin(worldTerrain,eq(worldTerrain.id,worldMapCanvas.terrainId))
@@ -33,6 +35,7 @@ export async function getHydrologySources(userId:string,worldId:string,mapId:str
 export async function getTerrainHydrology(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean;revision?:number}={}){
   await worldReadAccess(userId,worldId,options.review??false);if(options.ordinary)throw unavailable();
   return db.transaction(async tx=>{
+    mapId=await geographicSourceMap(tx,worldId,mapId);
     const sources=await sourceIndex(tx,worldId,mapId);
     if(!await available(tx))return {available:false,revision:0,headRevision:0,layer:EMPTY_HYDROLOGY,history:[],sources};
     const [head]=await tx.select().from(worldHydrology).where(eq(worldHydrology.mapId,mapId));let layer=head?.layer,revision=head?.revision??0;
@@ -63,6 +66,7 @@ function checkProvenance(layer:HydroLayer,previous:HydroLayer,sources:HydroSourc
 export async function saveTerrainHydrology(userId:string,worldId:string,raw:unknown){
   const command=hydroSaveSchema.parse(raw);
   return worldWriteTransaction(userId,worldId,async tx=>{
+    await requireWorldGeographyWrite(tx,worldId,command.mapId);
     const sources=await sourceIndex(tx,worldId,command.mapId);if(!await available(tx))throw new WorldError("MIGRATION 0141 REQUIRED before saving waterways. Your draft is retained.",409);
     try{validateHydroFrame(command.layer,sources.world);}catch(e){throw new WorldError((e as Error).message,400);}
     const [original]=await tx.select().from(worldHydrologyVersion).where(eq(worldHydrologyVersion.requestId,command.requestId));

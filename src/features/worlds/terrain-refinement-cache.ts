@@ -22,7 +22,7 @@ export class TerrainDetailCache {
  private lastPlan:DetailPlan[]=[];
  error="";
  readonly metrics={requests:0,cancelled:0,cacheHits:0,loadedTiles:0,maxEntries:0,maxConcurrent:0};
- constructor(private fetcher:DetailFetcher,readonly limit=2048,readonly concurrency=2){}
+ constructor(private fetcher:DetailFetcher,readonly limit=2048,readonly concurrency=2,private shared?:Map<string,CachedDetailTile>){if(shared)this.entries=shared;}
  subscribe(listener:()=>void){this.stopped=false;this.listeners.add(listener);return ()=>{this.listeners.delete(listener);};}
  private notify(){for(const listener of this.listeners)listener();}
  peek(id:string,revision:number,lod:number,key:number){return this.entries.get(detailTileKey(id,revision,lod,key));}
@@ -53,5 +53,5 @@ export class TerrainDetailCache {
   }
  }
  retry(){this.error="";this.schedule(this.lastPlan);}
- dispose(){this.stopped=true;for(const controller of this.running.keys()){controller.abort();this.metrics.cancelled++;}this.running.clear();this.queue=[];this.entries.clear();this.listeners.clear();}
+ dispose(){this.stopped=true;for(const controller of this.running.keys()){controller.abort();this.metrics.cancelled++;}this.running.clear();this.queue=[];if(!this.shared)this.entries.clear();this.listeners.clear();}
 }

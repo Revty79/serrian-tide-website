@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request, context: { params: Promise<{ worldId: string }> }) {
   return worldRequest(request, false, async userId => {
     const q = new URL(request.url).searchParams;
-    return getTerrain(userId, (await context.params).worldId, { review: q.get("review") === "1", ordinary: ordinaryKnowledge(q), mapId: q.get("terrainMap") ?? undefined });
+    return getTerrain(userId, (await context.params).worldId, { review: q.get("review") === "1", ordinary: ordinaryKnowledge(q), mapId: q.get("terrainMap") ?? undefined,knownTerrainId:q.get("knownTerrain")??undefined,knownRevision:q.has("knownRevision")?Number(q.get("knownRevision")):undefined });
   });
 }
 export async function POST(request: Request, context: { params: Promise<{ worldId: string }> }) {

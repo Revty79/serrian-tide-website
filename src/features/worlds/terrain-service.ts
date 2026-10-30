@@ -1,6 +1,6 @@
 ﻿import "server-only";
 import { createHash, randomUUID } from "node:crypto";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { worldAtlasMap } from "@/db/world-atlas-schema";
 import { worldMapCanvas, worldTerrain, worldTerrainTile, worldTerrainVersion } from "@/db/world-terrain-schema";
@@ -11,33 +11,40 @@ import {EMPTY_PROTECTION,isProtected,protectSamples} from "./terrain-source";
 import {getRefinementEditMask} from "./terrain-refinement-service";
 import {rootFrame} from "./terrain-refinement";
 import { readTerrainTile, stageTerrainTiles, type TerrainObject } from "./terrain-storage";
+import {regionsAvailable,terrainMapContext,requireWorldGeographyWrite} from "./terrain-map-context";
+import {worldMapRegion} from "@/db/world-map-region-schema";
 const unavailable = () => new WorldError("This terrain map is unavailable.", 404);
 const conflict = () => new WorldError("Another tab saved a newer terrain revision. Your local draft is retained. Load the saved map to compare; it will not be overwritten.", 409);
 const hash = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
-const summary = (m: typeof worldAtlasMap.$inferSelect, t: typeof worldTerrain.$inferSelect): TerrainSummary => ({ id: m.id, name: m.name, revision: t.revision, seaLevel: t.seaLevel, updatedAt: t.updatedAt.toISOString() });
-export async function getTerrain(userId: string, worldId: string, options: { review?: boolean; ordinary?: boolean; mapId?: string } = {}): Promise<{ maps: TerrainSummary[]; document: TerrainDocument | null; canEdit: boolean }> {
+const summary = (m: typeof worldAtlasMap.$inferSelect, t: typeof worldTerrain.$inferSelect): TerrainSummary => ({ id: m.id, name: m.name, revision: t.revision, seaLevel: t.seaLevel, updatedAt: t.updatedAt.toISOString(),mapRevision:m.revision });
+export async function getTerrain(userId: string, worldId: string, options: { review?: boolean; ordinary?: boolean; mapId?: string;knownTerrainId?:string;knownRevision?:number } = {}): Promise<{ maps: TerrainSummary[]; document: TerrainDocument | null; canEdit: boolean }> {
   const parent = await worldReadAccess(userId, worldId, !!options.review);
   if (options.ordinary) throw unavailable();
   return db.transaction(async tx => {
-    const rows = await tx.select({ m: worldAtlasMap, t: worldTerrain }).from(worldMapCanvas)
+    const rows = await tx.select({ m: worldAtlasMap, t: worldTerrain,c:worldMapCanvas }).from(worldMapCanvas)
       .innerJoin(worldAtlasMap, and(eq(worldAtlasMap.id, worldMapCanvas.mapId), eq(worldAtlasMap.worldId, worldMapCanvas.worldId)))
       .innerJoin(worldTerrain, and(eq(worldTerrain.id, worldMapCanvas.terrainId), eq(worldTerrain.worldId, worldMapCanvas.worldId)))
       .where(and(eq(worldMapCanvas.worldId, worldId), sql`${worldAtlasMap.archivedAt} IS NULL`)).orderBy(asc(worldAtlasMap.createdAt), asc(worldAtlasMap.id));
+    const linked=await regionsAvailable(tx)?await tx.select().from(worldMapRegion).where(eq(worldMapRegion.worldId,worldId)):[];
+    const parents=linked.length?await tx.select({id:worldAtlasMap.id,name:worldAtlasMap.name,archivedAt:worldAtlasMap.archivedAt}).from(worldAtlasMap).where(and(eq(worldAtlasMap.worldId,worldId),inArray(worldAtlasMap.id,[...new Set(linked.map(l=>l.parentMapId))]))):[];
+    const maps=rows.map(({m,t,c})=>{const link=linked.find(r=>r.mapId===m.id),source=link?parents.find(p=>p.id===link.parentMapId):undefined;return {...summary(m,t),purpose:c.purpose as "world"|"regional",...link?{parentMapId:link.parentMapId,parentName:source?.name??"Unavailable World map",frame:{x:link.x,y:link.y,width:link.width,height:link.height},sourceAvailable:!!source&&!source.archivedAt}:c.purpose==="regional"?{sourceAvailable:false}:{}};});
     const canEdit = parent.ownerId === userId && !parent.archivedAt && !options.review;
     const row = options.mapId ? rows.find(r => r.m.id === options.mapId) : undefined;
     if (options.mapId && !row) throw unavailable();
     let document: TerrainDocument | null = null;
     if (row) {
+      const context=await terrainMapContext(tx,worldId,row.m.id);
       const [accepted] = await tx.select({ requestId: worldTerrainVersion.requestId,source:worldTerrainVersion.source }).from(worldTerrainVersion).where(and(eq(worldTerrainVersion.terrainId, row.t.id), eq(worldTerrainVersion.revision, row.t.revision)));
       if (!accepted) throw new WorldError("The terrain revision is incomplete. Retain your draft and ask the administrator to restore the accepted data.", 500);
       const references = (await tx.execute<TerrainObject & { x: number; y: number;mask:string }>(sql`SELECT DISTINCT ON (detail_level,tile_x,tile_y) tile_x AS x,tile_y AS y,sha256,bytes,encoding,manual_protection AS mask FROM world_terrain_tile WHERE terrain_id=${row.t.id} AND world_id=${worldId} AND revision<=${row.t.revision} AND detail_level=0 ORDER BY detail_level,tile_x,tile_y,revision DESC`)).rows;
+      const tilesUnchanged=options.knownTerrainId===row.t.id&&options.knownRevision===row.t.revision;
       const tiles = []; // Bounded batches avoid opening a whole world's files at once.
-      for (let i = 0; i < references.length; i += 16) tiles.push(...await Promise.all(references.slice(i, i + 16).map(async ref => ({ x: ref.x, y: ref.y, samples: await readTerrainTile(ref) }))));
+      for (let i = 0; i < (tilesUnchanged?0:references.length); i += 16) tiles.push(...await Promise.all(references.slice(i, i + 16).map(async ref => ({ x: ref.x, y: ref.y, samples: await readTerrainTile(ref) }))));
       const [origin]=row.t.revision===1?[accepted]:await tx.select({source:worldTerrainVersion.source}).from(worldTerrainVersion).where(and(eq(worldTerrainVersion.terrainId,row.t.id),eq(worldTerrainVersion.revision,1)));
-      document = { ...summary(row.m, row.t), terrainId: row.t.id, worldId, format: 1, width: row.t.gridWidth, height: row.t.gridHeight, tileSize: row.t.tileSize, baseElevation: row.t.baseElevation, tiles, canEdit, acceptedRequestId: accepted.requestId,source:accepted.source,origin:origin?.source??{kind:"legacy"},protection:references.filter(r=>r.mask!==EMPTY_PROTECTION).map(r=>({x:r.x,y:r.y,mask:r.mask})),
+      document = { ...summary(row.m, row.t),purpose:row.c.purpose as "world"|"regional",region:context.region,sourceMapId:context.sourceMapId, terrainId: row.t.id, worldId, format: 1, width: row.t.gridWidth, height: row.t.gridHeight, tileSize: row.t.tileSize, baseElevation: row.t.baseElevation, tiles,tilesUnchanged, canEdit:canEdit&&!context.region, acceptedRequestId: accepted.requestId,source:accepted.source,origin:origin?.source??{kind:"legacy"},protection:references.filter(r=>r.mask!==EMPTY_PROTECTION).map(r=>({x:r.x,y:r.y,mask:r.mask})),
         settings: { gridWidth: row.t.gridWidth, gridHeight: row.t.gridHeight, widthKm: row.t.widthMetres / 1000, heightKm: row.t.heightMetres / 1000, wrap: row.t.wrap, minElevation: row.t.minElevation, maxElevation: row.t.maxElevation } };
     }
-    return { maps: rows.map(({ m, t }) => summary(m, t)), document, canEdit };
+    return { maps, document, canEdit };
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export async function changeTerrain(userId: string, worldId: string, raw: unknown) {
@@ -61,6 +68,7 @@ export async function changeTerrain(userId: string, worldId: string, raw: unknow
       await tx.insert(worldMapCanvas).values({ mapId: command.requestId, worldId, terrainId });
       return { id: command.requestId, revision: 1 };
     }
+    await requireWorldGeographyWrite(tx,worldId,command.mapId);
     const [row] = await tx.select({ t: worldTerrain, m: worldAtlasMap }).from(worldMapCanvas).innerJoin(worldAtlasMap, eq(worldAtlasMap.id, worldMapCanvas.mapId)).innerJoin(worldTerrain, eq(worldTerrain.id, worldMapCanvas.terrainId)).where(and(eq(worldMapCanvas.mapId, command.mapId), eq(worldMapCanvas.worldId, worldId))).for("update");
     if (!row || row.m.archivedAt) throw unavailable();
     const tiles = [...command.tiles].sort((a, b) => a.y - b.y || a.x - b.x), contentHash = hash({ ...command, tiles });

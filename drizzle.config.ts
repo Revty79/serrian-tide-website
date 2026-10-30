@@ -10,6 +10,7 @@ if (!process.env.DATABASE_URL) {
 
 export default defineConfig({
   schema: [
+    "./src/db/world-map-region-schema.ts",
     "./src/db/auth-schema.ts",
     "./src/db/password-recovery-schema.ts",
     "./src/db/world-schema.ts",
