@@ -35,6 +35,9 @@ export function validateRefinement(frame:TerrainFrame,width:number,height:number
  if(frame.width/width>parent.displayWidth/parent.width/2||frame.height/height>parent.displayHeight/parent.height/2)throw Error("Choose at least twice the parent's numerical detail on both axes, or select a smaller physical area.");
 }
 export function overviewLevels(width:number,height:number){return Math.log2(Math.min(width,height)/32);}
+/** Logical uncompressed Int16 payload, including every accepted overview.
+ * CAS reuse and filesystem/database allocation are intentionally not predicted. */
+export function refinementLogicalBytes(width:number,height:number){let bytes=0;for(let lod=0;lod<=overviewLevels(width,height);lod++)bytes+=width*height*2/4**lod;return bytes;}
 export function lodGeometry(shape:TerrainGeometry,lod:number):TerrainGeometry{return {...shape,width:shape.width/2**lod,height:shape.height/2**lod};}
 export function chooseTerrainLod(shape:TerrainGeometry,scale:number,previous?:number){
  const density=Math.max(shape.displayWidth/shape.width,shape.displayHeight/shape.height)*scale,max=overviewLevels(shape.width,shape.height);

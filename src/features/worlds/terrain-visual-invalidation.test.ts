@@ -1,0 +1,7 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {TerrainVisualInvalidation,terrainDirtyFrames} from "./terrain-visual-invalidation";
+const world={wrap:true,displayWidth:1000};
+test("local geographic invalidation preserves unrelated caches and includes wrapped ink halos",()=>{const v=new TerrainVisualInvalidation();assert.equal(v.invalidate([{x:990,y:10,width:20,height:20}]),false);assert.equal(v.token({x:0,y:0,width:20,height:40},world),1);assert.equal(v.token({x:400,y:0,width:20,height:40},world),0);assert.equal(v.token({x:30,y:0,width:20,height:40},world,24),1);});
+test("descriptor memory is bounded and global changes always reset its epoch",()=>{const v=new TerrainVisualInvalidation();for(let n=0;n<64;n++)assert.equal(v.invalidate([{x:n,y:0,width:1,height:1}]),false);assert.equal(v.invalidate([{x:65,y:0,width:1,height:1}]),true);assert.equal(v.token({x:0,y:0,width:100,height:100},world),0);assert.equal(v.invalidate(),true);assert.equal(v.invalidate([]),false);});
+test("fine invalidation uses its own anisotropic spacing and exact World origin",()=>{const shape={width:1024,height:512,tileSize:32,displayWidth:20000,displayHeight:20000,min:-100,max:100,wrap:false},frames=terrainDirtyFrames([0,0],shape,{x:5e8,y:4e8})!;assert.equal(frames.length,1);assert.deepEqual(frames[0],{x:5e8-4*20000/1024,y:4e8-4*20000/512,width:40*20000/1024,height:40*20000/512});});

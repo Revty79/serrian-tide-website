@@ -71,15 +71,20 @@ export async function getRefinementTiles(userId:string,worldId:string,mapId:stri
 
 /** Only modified tiles and their numerical overview ancestors are published. */
 async function publishPyramid(tx:Tx,root:Root,meta:RefinementMeta,requestId:string,revision:number,tiles:TerrainTile[],masks:Map<string,string>,previousRevision:number){
- const pending:{lod:number;tile:TerrainTile;mask:string}[]=[],read=tileReader();let changed=new Map(tiles.map(t=>[coordinate(t.x,t.y),t]));
+ const pending:{lod:number;tile:TerrainTile;mask:string;previous?:TileReference}[]=[],read=tileReader();let changed=new Map(tiles.map(t=>[coordinate(t.x,t.y),t]));
  for(let lod=0;lod<=meta.overviewLevels;lod++){
-  for(const tile of changed.values())pending.push({lod,tile,mask:lod===0?masks.get(coordinate(tile.x,tile.y))??EMPTY_PROTECTION:EMPTY_PROTECTION});
+  const previous=new Map((previousRevision?await references(tx,root.terrain.id,meta.id,previousRevision,lod):[]).map(r=>[coordinate(r.x,r.y),r]));
+  for(const tile of changed.values())pending.push({lod,tile,mask:lod===0?masks.get(coordinate(tile.x,tile.y))??EMPTY_PROTECTION:EMPTY_PROTECTION,previous:previous.get(coordinate(tile.x,tile.y))});
   if(lod===meta.overviewLevels)break;
-  const previous=new Map((previousRevision?await references(tx,root.terrain.id,meta.id,previousRevision,lod):[]).map(r=>[coordinate(r.x,r.y),r])),parents=new Set([...changed.values()].map(t=>coordinate(Math.floor(t.x/2),Math.floor(t.y/2)))),next=new Map<string,TerrainTile>();
+  const parents=new Set([...changed.values()].map(t=>coordinate(Math.floor(t.x/2),Math.floor(t.y/2)))),next=new Map<string,TerrainTile>();
   for(const parent of parents){const [x,y]=parent.split(":").map(Number),children=new Map<string,number[]>();await Promise.all([0,1,2,3].map(async n=>{const key=coordinate(x*2+n%2,y*2+Math.floor(n/2)),tile=changed.get(key),ref=previous.get(key);if(!tile&&!ref)throw new WorldError("The overview's accepted source tile is missing.",500);children.set(key,tile?.samples??await read(ref!));}));next.set(parent,overviewTile(x,y,children));}changed=next;
  }
  const objects=await stageTerrainTiles(requestId,root.terrain.worldId,meta.id,pending.map(p=>p.tile));
- for(let offset=0;offset<objects.length;offset+=128)await tx.insert(tileRows).values(objects.slice(offset,offset+128).map((object,n)=>({refinementId:meta.id,terrainId:root.terrain.id,worldId:root.terrain.worldId,revision,...object,lod:pending[offset+n].lod,manualProtection:pending[offset+n].mask})));
+ // Stage/verify every calculated overview, then reuse the existing immutable
+ // reference when both numerical bytes and its protection mask are unchanged.
+ // Historical reads already resolve the latest row at or before each revision.
+ const rows=objects.flatMap((object,n)=>{const p=pending[n],old=p.previous;return old&&old.sha256===object.sha256&&old.bytes===object.bytes&&old.encoding===object.encoding&&old.mask===p.mask?[]:[{refinementId:meta.id,terrainId:root.terrain.id,worldId:root.terrain.worldId,revision,...object,lod:p.lod,manualProtection:p.mask}];});
+ for(let offset=0;offset<rows.length;offset+=128)await tx.insert(tileRows).values(rows.slice(offset,offset+128));
 }
 
 export async function createRefinement(userId:string,worldId:string,raw:unknown){

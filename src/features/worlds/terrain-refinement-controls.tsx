@@ -4,7 +4,7 @@ import {GuidedField} from "@/components/field-guidance";
 import {worldApi} from "./client-api";
 import type {TerrainDocument,TerrainGeometry} from "./terrain";
 import {regionContainsFrame} from "./terrain-regions";
-import {frameGeometry,normalizeTerrainX,overviewLevels,refinementSizes,rootFrame,validateRefinement,type RefinementMeta,type TerrainFrame,type RefinementCreate} from "./terrain-refinement";
+import {frameGeometry,normalizeTerrainX,overviewLevels,refinementLogicalBytes,refinementSizes,rootFrame,validateRefinement,type RefinementMeta,type TerrainFrame,type RefinementCreate} from "./terrain-refinement";
 import {refinementRecovery} from "./terrain-refinement-recovery";
 import {numericalChecksum} from "./terrain-refinement-cache";
 import type {RefinementIndex} from "./terrain-refinement-client";
@@ -55,6 +55,7 @@ export function TerrainRefinementControls(p:Props){
    <GuidedField label="Detail resolution" controlClassName="st-control"><select value={custom?"custom":columns} onChange={e=>{setFormEdited(true);const custom=e.target.value==="custom";setCustom(custom);if(!custom){setColumns(Number(e.target.value));setRows(Number(e.target.value));}}}><option value={256}>Regional · 256 × 256</option><option value={512}>Local · 512 × 512</option><option value={1024}>Fine · 1024 × 1024</option><option value="custom">Custom dimensions</option></select></GuidedField>
    {custom&&([["Sample columns",columns,setColumns],["Sample rows",rows,setRows]] as const).map(([label,value,change])=><GuidedField key={label} label={label} controlClassName="st-control"><select value={value} onChange={e=>{change(Number(e.target.value));setFormEdited(true);}}>{refinementSizes.map(n=><option key={n} value={n}>{n}</option>)}</select></GuidedField>)}
    <p>Proposed numerical spacing: {formatDistance(width/columns,p.preferences.distance)} × {formatDistance(height/rows,p.preferences.distance)}. Inherited interpolation supplies the starting heights; your brushes add the actual fine terrain.</p>
+   <p>Logical numerical payload: {(refinementLogicalBytes(columns,rows)/1048576).toFixed(2)} MiB for this grid and its overviews. Newly allocated private storage varies with checksum reuse; later edits retain immutable history. Database metadata and allocation are separate.</p>
    <button type="button" className="st-button is-secondary" onClick={()=>void prepare()}>Preview refined terrain</button>
   </fieldset>}
   {(formEdited||drawnFrame)&&!preview&&!attempt&&<button type="button" className="st-button is-secondary" disabled={busy} onClick={cancel}>Cancel detail proposal</button>}

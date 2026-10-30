@@ -10,14 +10,16 @@ export class TerrainStroke{
  private workspace:SculptWorkspace={halo:new Int16Array(0)};
  readonly spacing:number;
  private metric:{x:number;y:number}|null;
- constructor(private grid:Int16Array,private shape:TerrainGeometry,private brush:Brush,start:TerrainPathPoint,blocked?:Uint8Array){this.workspace.blocked=blocked;if(brush.radiusMetres!==undefined&&!physicalBrushGeometry(shape,brush.radiusMetres))throw Error("Choose a supported physical brush radius before starting a stroke.");this.position={...start};this.metric=brush.radiusMetres===undefined?null:{x:shape.displayWidth/shape.width,y:shape.displayHeight/shape.height};this.spacing=this.metric?Math.max(Math.min(this.metric.x,this.metric.y)/4,brush.radiusMetres!/3):Math.max(1,brushRadius(shape,brush.radius)/3);this.targets.push({...start});}
+ constructor(private grid:Int16Array,private shape:TerrainGeometry,private brush:Brush,start:TerrainPathPoint,blocked?:Uint8Array){this.workspace.blocked=blocked;const fine=brush.precision==="fine"||brush.precision==="single";if(fine){this.workspace.residuals=new Map();this.workspace.visited=new Set();}this.workspace.unsupported=brush.precision!=="single"&&brush.radiusMetres!==undefined&&!physicalBrushGeometry(shape,brush.radiusMetres);if(this.workspace.unsupported&&!fine)throw Error("Choose a supported physical brush radius before starting a stroke.");this.position={...start};this.metric=brush.precision==="single"||brush.radiusMetres===undefined?null:{x:shape.displayWidth/shape.width,y:shape.displayHeight/shape.height};this.spacing=brush.precision==="single"?.5:this.metric?Math.max(Math.min(this.metric.x,this.metric.y)/4,brush.radiusMetres!/3):Math.max(fine?.25:1,brushRadius(shape,brush.radius)/3);if(!this.workspace.unsupported)this.targets.push({...start});}
+ get noChangeReason(){return this.workspace.unsupported?"Choose a supported physical footprint; this brush is below the source resolution or above its work limit.":!this.workspace.eligible&&this.blockedCount?"Protected terrain was retained. Choose its finer editing source or paint inside the permitted extent.":this.workspace.outside&&!this.workspace.eligible?"The stroke is outside the permitted numerical source extent.":this.brush.precision==="single"?"No whole-metre change. Single sample applies once per sample; check the level target or increase strength. Choose Fine stroke for accumulated weighted influence.":this.brush.tool==="level"?"No whole-metre change; terrain already matches or approaches the level target. A longer gentle stroke may accumulate a metre.":this.brush.tool.includes("smooth")?"Smoothing produced no whole-metre change in this terrain.":"No whole-metre change. Use a longer gentle stroke or increase strength; zoom adds no numerical samples.";}
+ get residualCount(){return this.workspace.residuals?.size??0;}
  get blockedCount(){return this.workspace.blockedHits??0;}
  get pending(){return this.targets.length>0;}
  enqueue(point:TerrainPathPoint){
   if(!Number.isFinite(point.x)||!Number.isFinite(point.y))return;
   const previous=this.targets.at(-1)??this.position,x=this.shape.wrap?point.x+Math.round((previous.x-point.x)/this.shape.width)*this.shape.width:point.x;
   if(Math.hypot(x-previous.x,point.y-previous.y)>Math.hypot(this.shape.width,this.shape.height)*2)return;
-  const next={x,y:point.y};if(this.targets.length&&next.x===previous.x&&next.y===previous.y)return;
+  const next={x,y:point.y};if((this.targets.length||this.brush.precision==="fine"||this.brush.precision==="single")&&next.x===previous.x&&next.y===previous.y)return;
   this.targets.push(next);
  }
  advance(budgetMs=5){
@@ -30,6 +32,6 @@ export class TerrainStroke{
   }
   return this.touched;
  }
- finish(){if(this.pending)throw Error("Finish queued brush samples before recording the gesture.");let count=0;this.before.forEach((value,index)=>{if(this.grid[index]!==value)count++;});const indices=new Uint32Array(count),before=new Int16Array(count),after=new Int16Array(count);let n=0;this.before.forEach((value,index)=>{if(this.grid[index]!==value){indices[n]=index;before[n]=value;after[n]=this.grid[index];n++;}});this.before.clear();return {indices,before,after};}
- cancel(){this.targets=[];this.touched.clear();for(const [i,value] of this.before){this.grid[i]=value;this.touched.add(tileKey(Math.floor(i%this.shape.width/32),Math.floor(i/this.shape.width/32),this.shape));}this.before.clear();return this.touched;}
+ finish(){if(this.pending)throw Error("Finish queued brush samples before recording the gesture.");let count=0;this.before.forEach((value,index)=>{if(this.grid[index]!==value)count++;});const indices=new Uint32Array(count),before=new Int16Array(count),after=new Int16Array(count);let n=0;this.before.forEach((value,index)=>{if(this.grid[index]!==value){indices[n]=index;before[n]=value;after[n]=this.grid[index];n++;}});this.before.clear();this.workspace.residuals?.clear();this.workspace.visited?.clear();return {indices,before,after};}
+ cancel(){this.targets=[];this.touched.clear();for(const [i,value] of this.before){this.grid[i]=value;this.touched.add(tileKey(Math.floor(i%this.shape.width/32),Math.floor(i/this.shape.width/32),this.shape));}this.before.clear();this.workspace.residuals?.clear();this.workspace.visited?.clear();return this.touched;}
 }

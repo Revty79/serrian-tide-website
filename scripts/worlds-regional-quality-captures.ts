@@ -1,0 +1,48 @@
+import assert from "node:assert/strict";
+import {readFile,writeFile} from "node:fs/promises";
+import {randomUUID} from "node:crypto";
+import {tmpdir} from "node:os";
+import path from "node:path";
+import {DEFAULT_MAP_APPEARANCE,type MapAppearance} from "../src/features/worlds/terrain-appearance";
+import type {checkHydrologyBrowser} from "./worlds-hydrology-browser-checks";
+import type {createRegionalQualityFixture} from "./worlds-regional-quality-fixture";
+import type {Page} from "playwright-core";
+import {environmentReady} from "./worlds-environment-browser-checks";
+import {terrainPanel} from "./worlds-terrain-browser-ui";
+
+async function camera(p:Page,point:{x:number;y:number},span:number,fine=false){
+ const c=p.getByLabel("Terrain map canvas",{exact:true});if(fine){await terrainPanel(p,"Terrain detail");await p.getByRole("button",{name:"Go to active terrain",exact:true}).click();await terrainPanel(p,"World");}else await p.getByRole("button",{name:"Fit map",exact:true}).click();await environmentReady(p);
+ const b=(await c.boundingBox())!,v=await c.evaluate(c=>({x:Number(c.dataset.viewX),y:Number(c.dataset.viewY),scale:Number(c.dataset.zoom)}));
+ if(!fine){await p.mouse.move(b.x+v.x+point.x*v.scale,b.y+v.y+point.y*v.scale);await p.mouse.down({button:"middle"});await p.mouse.move(b.x+b.width/2,b.y+b.height/2,{steps:2});await p.mouse.up({button:"middle"});}
+ const target=Math.max(1e-9,Math.min(100,b.width/span));
+ for(let i=0;i<12;i++){const scale=Number(await c.getAttribute("data-zoom"));if(Math.abs(scale/target-1)<.01)return;await p.mouse.move(b.x+b.width/2,b.y+b.height/2);await p.mouse.wheel(0,-Math.log(target/scale)/.0015);await p.waitForTimeout(200);}
+ const actual=Number(await c.getAttribute("data-zoom"));assert.ok(Math.abs(actual/target-1)<.01,JSON.stringify({target,actual,span,b,dpr:await p.evaluate(()=>devicePixelRatio)}));
+}
+
+/** Explicit owned-fixture appearance setup, then a read-only gallery of accepted
+ * numerical sources. Previous tint/security exercises must not change the
+ * appearance inputs of matched before/after visual comparisons. */
+export async function captureRegionalQuality({browser,god,base,world,out,errors}:Parameters<typeof checkHydrologyBrowser>[0],fixture?:Awaited<ReturnType<typeof createRegionalQualityFixture>>,initialAppearance?:MapAppearance){
+ const api=`${base}/api/worlds/${world}/terrain`,maps=(await(await god.request.get(api)).json()).maps;
+ await writeFile(out+"/saved-map-inventory.json",JSON.stringify(maps,null,2));
+ const cases:{map:string;world?:string;name:string;point:{x:number;y:number};spans:number[]}[]=[{map:"3c000000-0000-4000-8000-000000000001",name:"catchments",point:{x:32000,y:32000},spans:[64000,32000,8000,1000,40]},
+ {map:"4e000000-0000-4000-8000-000000000001",name:"highlands",point:{x:850000,y:550000},spans:[2600000,900000,140000,4000,400]}];
+ // Resolve the saved environment fixture by identity, never create substitute geography.
+ const {environmentFixtureId}=await import("./worlds-environment-fixture");cases[1].map=environmentFixtureId;
+ const fine=fixture?undefined:maps.find((m:{name:string})=>m.name==="S42 accepted fine island World")??maps.find((m:{name:string})=>m.name==="Pass 7 browser million-km World"||m.name==="Million-km persistence foundation");
+ if(fine){const index=await(await god.request.get(`${api}/refinements?terrainMap=${fine.id}`)).json(),m=index.refinements.find((m:{name:string})=>m.name==="Island workshop")??index.refinements[0];if(m)cases.push({map:fine.id,name:"accepted-fine-source",point:{x:m.frame.x+m.frame.width/2,y:m.frame.y+m.frame.height/2},spans:[m.frame.width*2,m.frame.width,m.frame.width/4,m.frame.width/16,m.frame.width/64]});}
+ const region=maps.find((m:{parentMapId?:string;frame?:unknown})=>m.parentMapId===cases[0].map&&m.frame);if(region){const f=region.frame;cases.push({map:region.id,name:"linked-region",point:{x:f.x+f.width/2,y:f.y+f.height/2},spans:[f.width*1.2,f.width,f.width/4,f.width/16,f.width/64]});}
+ if(fixture)cases.push({map:fixture.map,world:fixture.world,name:"accepted-fine-source",point:fixture.point,spans:[40000,20000,5000,1250,312.5]});
+ if(process.env.SERRIAN_S42_SCENES){const requested=process.env.SERRIAN_S42_SCENES.split(",");assert.ok(requested.every(name=>cases.some(scene=>scene.name===name)));for(let i=cases.length-1;i>=0;i--)if(!requested.includes(cases[i].name))cases.splice(i,1);}
+ assert.equal(new URL(base).hostname,"127.0.0.1");assert.notEqual(new URL(base).port,"3000");
+ const owned=JSON.parse(await readFile(process.env.SERRIAN_S42_ENVIRONMENT??process.env.SERRIAN_BASELINE_ENVIRONMENT??"artifacts/worlds-atlas-s32/environment.json","utf8")),database=new URL(owned.databaseUrl);assert.equal(database.hostname,"127.0.0.1");assert.notEqual(database.port,"5432");assert.equal(database.pathname,"/serrian_atlas_s32");assert.ok(path.resolve(owned.root).startsWith(path.join(tmpdir(),"serrian-atlas-s32-")));assert.equal(world,owned.world);
+ const canonical=initialAppearance??{...DEFAULT_MAP_APPEARANCE,version:2,style:"realistic-terrain"};
+ for(const scene of cases){const sceneApi=`${base}/api/worlds/${scene.world??world}/terrain`,url=`${sceneApi}/appearance?terrainMap=${scene.map}`,source=await(await god.request.get(`${sceneApi}?terrainMap=${scene.map}`)).json(),head=await(await god.request.get(url)).json(),saved=await god.request.post(url,{headers:{Origin:base},data:{mapId:scene.map,revision:head.revision,requestId:randomUUID(),spec:canonical}});assert.equal(saved.status(),200,await saved.text());assert.deepEqual((await(await god.request.get(`${sceneApi}?terrainMap=${scene.map}`)).json()).document,source.document,"Fixture appearance setup cannot change accepted numerical geography");}
+ await writeFile(out+"/capture-appearance-fixture.json",JSON.stringify({ownedFixturesOnly:true,canonical,acceptedNumericalDocumentsExact:true,scenes:cases.map(s=>s.name)},null,2));
+ const records:unknown[]=[];
+ for(const dpr of process.env.SERRIAN_S42_DPR2_ONLY==="1"?[2]:[1,2]){const context=await browser.newContext({storageState:{cookies:(await god.storageState()).cookies,origins:[]},viewport:{width:1440,height:1000},deviceScaleFactor:dpr}),p=await context.newPage();p.setDefaultTimeout(180000);p.on("dialog",d=>d.accept());p.on("pageerror",e=>errors.push(e.message));const writes:string[]=[];p.on("request",r=>{if(r.method()==="POST"&&r.url().includes("/api/worlds/"))writes.push(r.url());});
+ try{for(const scene of process.env.SERRIAN_S42_FINE_ONLY==="1"?cases.filter(s=>s.name==="accepted-fine-source"):cases){const sceneApi=`${base}/api/worlds/${scene.world??world}/terrain`,doc=await(await god.request.get(`${sceneApi}?terrainMap=${scene.map}`)).json();assert.ok(doc.document,scene.name+" saved source exists");await p.goto(`${base}/worlds/${scene.world??world}?tab=atlas&terrainMap=${scene.map}`);const c=p.getByLabel("Terrain map canvas",{exact:true});await c.waitFor();await p.getByRole("button",{name:"Expand editor",exact:true}).click();await terrainPanel(p,"World");await p.getByLabel("Active terrain tool",{exact:true}).selectOption("pan");await environmentReady(p);if(scene.name==="accepted-fine-source"){const idx=await(await god.request.get(`${sceneApi}/refinements?terrainMap=${scene.map}`)).json();await terrainPanel(p,"Terrain detail");await p.getByLabel("Editing terrain source",{exact:true}).selectOption(idx.refinements[0].id);await p.getByTestId("terrain-active-detail").filter({hasText:idx.refinements[0].name}).waitFor();await terrainPanel(p,"World");await environmentReady(p);}
+ for(const style of ["realistic-terrain","illustrated-fantasy","engraved-fantasy","classic-elevation","physical-relief","topographic"].filter(style=>(!process.env.SERRIAN_S42_STYLE||process.env.SERRIAN_S42_STYLE.split(",").includes(style))&&(process.env.SERRIAN_S42_EXTRA_STYLES_ONLY!=="1"||["classic-elevation","physical-relief","topographic"].includes(style)))){await p.getByLabel("Map Appearance",{exact:true}).selectOption(style);for(const [i,span]of scene.spans.entries()){if(["classic-elevation","physical-relief","topographic"].includes(style)&&![0,1,4].includes(i))continue;console.log("CAPTURE",scene.name,style,i,"DPR",dpr);const start=performance.now();await camera(p,scene.point,span,scene.name==="accepted-fine-source");await environmentReady(p);assert.ok(Number(await c.getAttribute("data-detail-bytes")??0)<=8*1048576);const state=await c.evaluate(el=>{const c=el as HTMLCanvasElement;return {css:{width:c.clientWidth,height:c.clientHeight},backing:{width:c.width,height:c.height},data:{...c.dataset},dpr:devicePixelRatio};});const capturedSpec=JSON.parse(state.data.artworkAppearance!);assert.equal(capturedSpec.style,style);assert.equal(capturedSpec.art,undefined,"Gallery captures must not inherit recovery-draft tint overrides");if(style==="engraved-fantasy")assert.equal(capturedSpec.engraving.palette,"sepia");await c.screenshot({path:`${out}/${scene.name}-${style}-${i}-dpr${dpr}.png`});records.push({scene:scene.name,style,span,point:scene.point,readyMs:performance.now()-start,state});await writeFile(out+"/capture-progress.json",JSON.stringify(records,null,2));}}
+ }assert.deepEqual(writes,[]);}catch(e){await p.screenshot({path:out+"/capture-failure-dpr"+dpr+".png"}).catch(()=>{});await writeFile(out+"/capture-failure-dpr"+dpr+".json",JSON.stringify({canvas:await p.getByLabel("Terrain map canvas",{exact:true}).evaluate(c=>({...c.dataset})),body:await p.locator("body").innerText()},null,2));throw e;}finally{await context.close();}}
+ await writeFile(out+"/visual-baseline.json",JSON.stringify({passed:true,realSavedGeography:true,canonicalFixtureAppearances:true,geographicWrites:false,records},null,2));assert.deepEqual(errors,[]);
+}

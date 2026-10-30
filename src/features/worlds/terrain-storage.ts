@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, readFile, realpath, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, realpath, stat, lstat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { publishRasterFile } from "./raster-storage";
 import type { TerrainTile } from "./terrain";
@@ -8,7 +8,8 @@ export type TerrainObject = { sha256: string; bytes: number; encoding: string };
 export const terrainRoot = () => path.resolve(/* turbopackIgnore: true */ process.env.SERRIAN_TERRAIN_ROOT?.trim() || "storage/world-terrain");
 export function terrainObjectPath(root: string, sha256: string) { if (!/^[a-f0-9]{64}$/.test(sha256)) throw new Error("Invalid terrain object checksum."); return path.join(root, "objects", sha256.slice(0, 2), `${sha256}.i16`); }
 async function privateDirectory(directory: string, root: string) { await mkdir(directory, { recursive: true }); const [actual, anchor] = await Promise.all([realpath(directory), realpath(root)]); if (actual !== anchor && !actual.startsWith(anchor + path.sep)) throw new Error("Terrain storage cannot traverse a link outside its private root."); }
-export async function stageTerrainTiles(requestId: string, worldId: string, terrainId: string, tiles: TerrainTile[]) {
+export type TerrainStagingMetrics={writtenObjects:number;writtenBytes:number;reusedObjects:number;reusedBytes:number;duplicateReferences:number};
+export async function stageTerrainTiles(requestId: string, worldId: string, terrainId: string, tiles: TerrainTile[],metrics?:TerrainStagingMetrics) {
   if (!/^[a-f0-9-]{36}$/i.test(requestId)) throw new Error("Invalid terrain save identity.");
   const root = terrainRoot(), staging = path.join(root, "staging", requestId); await mkdir(root, { recursive: true }); await privateDirectory(staging, root);
   const objects: (TerrainObject & { x: number; y: number })[] = [];
@@ -22,12 +23,15 @@ export async function stageTerrainTiles(requestId: string, worldId: string, terr
     let published = staged.get(sha256);
     if (!published) { published = (async () => {
     await privateDirectory(path.dirname(target), root);
-    // Identical retries reuse an already verified immutable object. Fsync the
-    // authored bytes before linking them into their content-addressed location.
+    // Verify retained bytes before reuse, rather than writing/fsyncing another
+    // temporary copy. Never overwrite a corrupt or linked immutable key.
+    try {const existing=await lstat(target);if(!existing.isFile()||existing.isSymbolicLink()||existing.size!==bytes.length||!bytes.equals(await readFile(target)))throw Error("A retained terrain object differs from its immutable checksum.");if(metrics){metrics.reusedObjects++;metrics.reusedBytes+=bytes.length;}return;}catch(e){if((e as NodeJS.ErrnoException).code!=="ENOENT")throw e;}
+    // New objects still reach durable staging before immutable publication.
     const file = await open(temporary, "wx"); try { await file.writeFile(bytes); await file.sync(); } finally { await file.close(); }
     await publishRasterFile(temporary, target, sha256, bytes.length);
     await unlink(temporary);
-    })(); staged.set(sha256, published); }
+    if(metrics){metrics.writtenObjects++;metrics.writtenBytes+=bytes.length;}
+    })(); staged.set(sha256, published); }else if(metrics)metrics.duplicateReferences++;
     await published;
     return { x: tile.x, y: tile.y, sha256, bytes: bytes.length, encoding: "i16le-v1" };
     }));

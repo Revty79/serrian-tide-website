@@ -46,34 +46,41 @@ export function readTile(grid: Int16Array, key: number, shape: TerrainGeometry =
 }
 export type BrushTool = "raise" | "lower" | "smooth" | "level" | "coast-land" | "coast-water" | "coast-smooth";
 export type TerrainPatch = { indices: number[] | Uint32Array; before: number[] | Int16Array; after: number[] | Int16Array };
-export type Brush = { radiusMetres?:number; tool: BrushTool; radius: number; strength: number; hardness?:number; target?:number; seaLevel?:number; coastHeight?:number; coastBand?:number };
-export type SculptWorkspace={halo:Int16Array;blocked?:Uint8Array;blockedHits?:number};
+export type Brush = { precision?:"original"|"fine"|"single";radiusMetres?:number; tool: BrushTool; radius: number; strength: number; hardness?:number; target?:number; seaLevel?:number; coastHeight?:number; coastBand?:number };
+export type SculptWorkspace={halo:Int16Array|Float64Array;blocked?:Uint8Array;blockedHits?:number;residuals?:Map<number,number>;visited?:Set<number>;eligible?:number;outside?:boolean;unsupported?:boolean};
 export const brushRadius=(shape:TerrainGeometry,radius:number)=>Math.max(1,Math.min(64,shape.width/2,radius));
 export function brushWeight(distance:number,hardness=0){if(distance>=1)return 0;if(hardness===0)return (1-distance*distance)**2;const firm=Math.max(0,Math.min(1,hardness));if(distance<=firm)return 1;const edge=(distance-firm)/(1-firm);return (1-edge*edge)**2;}
 /** Only the brush rectangle is visited. Smoothing reads a stable one-cell halo. */
 export function sculpt(grid: Int16Array, cx: number, cy: number, brush: Brush, before: Map<number, number>, shape: TerrainGeometry = TERRAIN, workspace?:SculptWorkspace, touched=new Set<number>()) {
   if(!Number.isFinite(brush.radius)||!Number.isFinite(brush.strength)||!Number.isFinite(brush.hardness??0)||(brush.tool==="level"&&!Number.isFinite(brush.target??0))||(brush.tool.startsWith("coast-")&&![brush.seaLevel??0,brush.coastHeight??150,brush.coastBand??500].every(Number.isFinite)))return touched;
-  if (!Number.isFinite(cx) || !Number.isFinite(cy) || cy < 0 || cy >= shape.height || (!shape.wrap && (cx < 0 || cx >= shape.width))) return touched;
+  if (!Number.isFinite(cx) || !Number.isFinite(cy) || cy < 0 || cy >= shape.height || (!shape.wrap && (cx < 0 || cx >= shape.width))) {if(workspace)workspace.outside=true;return touched;}
   if (shape.wrap) cx = (cx % shape.width + shape.width) % shape.width;
-  const physical=brush.radiusMetres===undefined?null:physicalBrushGeometry(shape,brush.radiusMetres);if(brush.radiusMetres!==undefined&&!physical)return touched;
-  const radius = physical?.x??brushRadius(shape,brush.radius),radiusY=physical?.y??radius, strength = Math.max(1, Math.min(1000, brush.strength));
+  const single=brush.precision==="single",fine=single||brush.precision==="fine";
+  if(single){cx=shape.wrap?Math.round(cx):Math.min(shape.width-1,Math.round(cx));cy=Math.min(shape.height-1,Math.round(cy));if(shape.wrap)cx=(cx%shape.width+shape.width)%shape.width;if(cx>=shape.width||cy>=shape.height){if(workspace)workspace.outside=true;return touched;}}
+  const physical=single||brush.radiusMetres===undefined?null:physicalBrushGeometry(shape,brush.radiusMetres);if(!single&&brush.radiusMetres!==undefined&&!physical){if(workspace)workspace.unsupported=true;return touched;}
+  const radius = single?.49:physical?.x??brushRadius(shape,brush.radius),radiusY=single?.49:physical?.y??radius, strength = Math.max(fine?.01:1, Math.min(1000, brush.strength));
   const left = shape.wrap ? Math.floor(cx - radius) : Math.max(0, Math.floor(cx - radius)), right = shape.wrap ? Math.ceil(cx + radius) : Math.min(shape.width - 1, Math.ceil(cx + radius));
   const top = Math.max(0, Math.floor(cy - radiusY)), bottom = Math.min(shape.height - 1, Math.ceil(cy + radiusY)), haloWidth = right - left + 3;
   const smoothing=brush.tool==="smooth"||brush.tool==="coast-smooth",needed=haloWidth*(bottom-top+3);
-  if(smoothing&&workspace&&workspace.halo.length<needed)workspace.halo=new Int16Array(needed);
+  if(smoothing&&workspace&&(workspace.halo.length<needed||fine&&!(workspace.halo instanceof Float64Array)))workspace.halo=fine?new Float64Array(needed):new Int16Array(needed);
   const source=smoothing?(workspace?.halo??new Int16Array(needed)):null;
   const indexOf = (x: number, y: number) => Math.max(0, Math.min(shape.height - 1, y)) * shape.width + (shape.wrap ? (x % shape.width + shape.width) % shape.width : Math.max(0, Math.min(shape.width - 1, x)));
-  if (source) for (let y = top - 1; y <= bottom + 1; y++) for (let x = left - 1; x <= right + 1; x++) source[(y - top + 1) * haloWidth + x - left + 1] = grid[indexOf(x, y)];
+  if (source) for (let y = top - 1; y <= bottom + 1; y++) for (let x = left - 1; x <= right + 1; x++){const i=indexOf(x,y);source[(y - top + 1) * haloWidth + x - left + 1] = grid[i]+(fine?workspace?.residuals?.get(i)??0:0);}
   for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) {
     const distance = physical?Math.hypot((x-cx)*physical.spacing.x,(y-cy)*physical.spacing.y)/physical.metres:Math.hypot(x - cx, y - cy) / radius; if (distance >= 1) continue;
-    const index = indexOf(x, y), value = grid[index], weight = brushWeight(distance,brush.hardness);
+    const index = indexOf(x, y), stored=grid[index], value = stored+(fine?workspace?.residuals?.get(index)??0:0), weight = brushWeight(distance,brush.hardness);
     if(workspace?.blocked?.[index]){workspace.blockedHits=(workspace.blockedHits??0)+1;continue;}
+    if(single&&workspace?.visited?.has(index))continue;
+    if(single)workspace?.visited?.add(index);
+    if(workspace)workspace.eligible=(workspace.eligible??0)+1;
     let next = value + (brush.tool === "lower" ? -strength : strength) * weight;
     if(brush.tool==="level")next=value+((brush.target??0)-value)*weight*Math.min(1,strength/250);
     if(brush.tool==="coast-land"||brush.tool==="coast-water"){const sea=brush.seaLevel??0,height=Math.max(1,brush.coastHeight??150),target=brush.tool==="coast-land"?Math.min(shape.max,sea+height):Math.max(shape.min,sea-height);next=value+(brush.tool==="coast-land"?Math.max(0,target-value):Math.min(0,target-value))*weight*Math.min(1,strength/250);}
     if (source) { let sum = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) sum += source[(y - top + 1 + j) * haloWidth + x - left + 1 + i]; const nearCoast=brush.tool==="coast-smooth"?Math.max(0,1-Math.abs(value-(brush.seaLevel??0))/Math.max(1,brush.coastBand??500)):1;next = value + (sum / 9 - value) * weight * Math.min(1, strength / 250)*nearCoast; }
-    next = Math.round(Math.max(shape.min, Math.min(shape.max, next))); if (next === value) continue;
-    if (!before.has(index)) before.set(index, value); grid[index] = next;
+    next=Math.max(shape.min,Math.min(shape.max,next));const rounded=Math.round(next);
+    if(fine&&workspace?.residuals){const residual=next-rounded;if(residual)workspace.residuals.set(index,residual);else workspace.residuals.delete(index);}
+    next = rounded; if (next === stored) continue;
+    if (!before.has(index)) before.set(index, stored); grid[index] = next;
     touched.add(tileKey(Math.floor(index % shape.width / shape.tileSize), Math.floor(y / shape.tileSize), shape));
   }
   return touched;
