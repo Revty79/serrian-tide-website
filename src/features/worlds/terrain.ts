@@ -1,3 +1,4 @@
+import type {RegionFootprint} from "./terrain-region-geometry";
 import type {RefinementMeta} from "./terrain-refinement";
 import {terrainSourceSchema,type TerrainSource,type ProtectedTile} from "./terrain-source";
 import { z } from "zod";
@@ -19,7 +20,7 @@ export const terrainSettingsSchema = z.object({
 }).strict();
 export type TerrainSettings = z.infer<typeof terrainSettingsSchema>;
 export function terrainGeometry(s: TerrainSettings): TerrainGeometry { return { width: s.gridWidth, height: s.gridHeight, tileSize: 32, displayWidth: s.widthKm * 1000, displayHeight: s.heightKm * 1000, min: s.minElevation, max: s.maxElevation, wrap: s.wrap }; }
-export type TerrainSummary = { id: string; name: string; revision: number; seaLevel: number; updatedAt: string;mapRevision?:number;purpose?:"world"|"regional";parentMapId?:string;parentName?:string;frame?:import("./terrain-refinement").TerrainFrame;sourceAvailable?:boolean };
+export type TerrainSummary = { id: string; name: string; revision: number; seaLevel: number; updatedAt: string;mapRevision?:number;purpose?:"world"|"regional";footprint?:RegionFootprint;parentMapId?:string;parentName?:string;frame?:import("./terrain-refinement").TerrainFrame;sourceAvailable?:boolean };
 export type TerrainDocument = TerrainSummary & { region?:import("./terrain-regions").TerrainRegion;sourceMapId?:string;tilesUnchanged?:boolean;refinement?:RefinementMeta; terrainId: string; settings: TerrainSettings; worldId: string; format: 1; width: number; height: number; tileSize: number; baseElevation: number; tiles: TerrainTile[]; canEdit: boolean; acceptedRequestId: string;protection?:ProtectedTile[];source?:TerrainSource;origin?:TerrainSource };
 export const elevationSchema = z.number().int().min(-30000).max(30000);
 export const tileSchema = z.object({ x: z.number().int().min(0).max(31), y: z.number().int().min(0).max(31), samples: z.array(elevationSchema).length(TERRAIN.tileSize ** 2) }).strict();

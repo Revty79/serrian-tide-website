@@ -23,7 +23,7 @@ export async function regionalAuthoringContext(tx:ReadConnection,worldId:string,
 }
 export function regionalScope(context:Awaited<ReturnType<typeof regionalAuthoringContext>>):RegionalScope{
  if(!context.region)throw new WorldError("Choose a linked region for bounded geographic editing.",400);
- return {frame:context.region.frame,world:{width:context.terrain.widthMetres,height:context.terrain.heightMetres,wrap:context.terrain.wrap}};
+ return {frame:context.region.frame,footprint:context.region.footprint,world:{width:context.terrain.widthMetres,height:context.terrain.heightMetres,wrap:context.terrain.wrap}};
 }
 export function requireRegionalAuthoringPin(context:Awaited<ReturnType<typeof regionalAuthoringContext>>,regional:RegionalAuthoring|undefined){
  if(!context.region){if(regional)throw new WorldError("This regional authoring request does not belong to the requested map.",400);return;}

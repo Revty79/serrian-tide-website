@@ -1,0 +1,20 @@
+"use client";
+import type {Brush,TerrainGeometry} from "./terrain";
+import type {TerrainCanvasTool} from "./terrain-canvas";
+import {distanceEditUnit,fromMetres,toMetres,toStoredHeight,inputDistance,type MeasurementPreferences} from "./terrain-units";
+import styles from "./terrain.module.css";
+type Props={tool:TerrainCanvasTool;choose:(tool:TerrainCanvasTool)=>void;brush:Brush;shape:TerrainGeometry;active:boolean;working:boolean;preferences:MeasurementPreferences;sizeMode:"samples"|"physical";onSizeMode:(mode:"samples"|"physical")=>void;diameter:number;onDiameter:(value:number)=>void;onRadius:(value:number)=>void;onStrength:(value:number)=>void;onTarget:(value:number)=>void;onPrecision:(value:NonNullable<Brush["precision"]>)=>void;onRefine:()=>void};
+export function TerrainQuickSculpt(p:Props){
+ if(!["raise","lower","smooth","level","sample","coast-land","coast-water","coast-smooth"].includes(p.tool))return null;
+ const unit=distanceEditUnit(p.preferences.distance),disabled=!p.active||p.working;
+ return <section className={styles.quickSculpt} aria-label="Sculpt Terrain">
+  <p>{p.tool==="sample"?<>Tap or click to copy land height into Flatten ground. Sampling keeps the terrain unchanged.{!p.active&&" Select a contained detail area first."}</>:<>Shape mountains, valleys, plains and coastlines by changing land height. Drag to sculpt; changes save automatically. {p.active?"Undo can reverse a stroke.":"This map needs a contained detail area before you can sculpt here."}</>}</p>
+  <div className={styles.controls}>
+   <label>Sculpt tool<select className="st-control" aria-label="Sculpt tool" value={p.tool} onChange={e=>p.choose(e.target.value as TerrainCanvasTool)}>{([["raise","Raise mountains"],["lower","Carve valleys"],["smooth","Smooth land"],["level","Flatten ground"],["sample","Sample a height"],["coast-land","Extend land"],["coast-water","Carve a bay"],["coast-smooth","Smooth shoreline"]] as const).map(([id,name])=><option value={id} key={id}>{name}</option>)}</select></label>
+   <label>Precision<select className="st-control" aria-label="Sculpt precision" value={p.brush.precision??"original"} disabled={disabled} onChange={e=>p.onPrecision(e.target.value as NonNullable<Brush["precision"]>)}><option value="original">Original</option><option value="fine">Fine</option><option value="single">Single Sample</option></select></label>
+   {p.brush.precision!=="single"&&<label>Brush Size<div className={styles.quickSize}><select className="st-control" aria-label="Sculpt size mode" value={p.sizeMode} disabled={disabled} onChange={e=>p.onSizeMode(e.target.value as Props["sizeMode"])}><option value="samples">Samples</option><option value="physical">Physical size</option></select>{p.sizeMode==="physical"?<input aria-label={`Sculpt brush size (${unit})`} type="number" min={fromMetres(.25,unit)} max={fromMetres(Math.max(p.shape.displayWidth,p.shape.displayHeight)*2,unit)} step="any" value={Number(fromMetres(p.diameter,unit).toPrecision(10))} disabled={disabled} onChange={e=>{const metres=toMetres(Number(e.target.value),unit);if(Number.isFinite(metres)&&metres>=.25)p.onDiameter(metres);}}/>:<input aria-label="Sculpt sample radius" type="range" min={1} max={Math.min(64,p.shape.width/2)} value={p.brush.radius} disabled={disabled} onChange={e=>p.onRadius(Number(e.target.value))}/>}</div></label>}
+   <label>Strength<input aria-label="Sculpt strength" type="range" min={p.brush.precision&&p.brush.precision!=="original"?.01:1} max={1000} step={p.brush.precision&&p.brush.precision!=="original"?.01:1} value={p.brush.strength} disabled={disabled} onChange={e=>p.onStrength(Number(e.target.value))}/></label>
+   {(p.tool==="level"||p.tool==="sample")&&<label>Target height ({p.preferences.height})<input aria-label="Sculpt target height" type="number" step="any" value={inputDistance(p.brush.target??0,p.preferences.height)} disabled={disabled} onChange={e=>p.onTarget(toStoredHeight(Number(e.target.value),p.preferences.height))}/></label>}
+  </div>{!p.active&&<button type="button" className="st-button is-secondary" onClick={p.onRefine}>Add terrain detail</button>}
+ </section>;
+}

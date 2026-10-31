@@ -14,7 +14,7 @@ import {DEFAULT_ENGRAVING} from "../src/features/worlds/terrain-engraving";
 type Options=Parameters<typeof checkHydrologyBrowser>[0];
 
 export async function checkRegionsPerformance(options:Options){
- const quality=process.env.SERRIAN_REGIONAL_QUALITY_PASS==="1",expectedBaseline=process.env.SERRIAN_REGIONAL_EDITING_PASS==="1"?"e1dd2196c3309069296822c84e7fc520a11e4ec7":quality?"4cdfbaa0ca1a1119906cea470a92c8344a78a0fe":"9863861b642a99b18985a49e0e4fb16dc04cd11c";
+ const quality=process.env.SERRIAN_REGIONAL_QUALITY_PASS==="1",expectedBaseline=process.env.SERRIAN_FREEFORM_PASS==="1"?"5037da8ede9a41326a8f8c7e6b793f7d916c9525":process.env.SERRIAN_REGIONAL_EDITING_PASS==="1"?"e1dd2196c3309069296822c84e7fc520a11e4ec7":quality?"4cdfbaa0ca1a1119906cea470a92c8344a78a0fe":"9863861b642a99b18985a49e0e4fb16dc04cd11c";
  const intentionalArtworkChanges=quality&&process.env.SERRIAN_REGIONAL_EDITING_PASS!=="1";
  const {god,browser,base,world,out}=options,parent="3c000000-0000-4000-8000-000000000001",api=`${base}/api/worlds/${world}/terrain`,environmentUrl=`${api}/environment?terrainMap=${parent}`,read=async(url:string)=>{const r=await god.request.get(url);assert.equal(r.status(),200,await r.text());return r.json();},original=await read(environmentUrl),candidateOut=out+"/pass5d-candidate",controlOut=out+"/pass5d-control";
  await mkdir(candidateOut,{recursive:true});

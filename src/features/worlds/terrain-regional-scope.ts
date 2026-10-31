@@ -1,5 +1,6 @@
 import {z} from "zod";
 import type {TerrainFrame} from "./terrain-refinement";
+import {regionAreaContainsPath,regionAreaContainsFrame,regionCanonicalX,type RegionFootprint} from "./terrain-region-geometry";
 
 /** A retained request pins accepted identities; bounds are always resolved by the server. */
 export const regionalAuthoringSchema=z.object({
@@ -7,7 +8,7 @@ export const regionalAuthoringSchema=z.object({
  sourceState:z.string().min(2).max(8192),compositionRevision:z.number().int().nonnegative().optional(),
 }).strict();
 export type RegionalAuthoring=z.infer<typeof regionalAuthoringSchema>;
-export type RegionalScope={frame:TerrainFrame;world:{width:number;height:number;wrap:boolean}};
+export type RegionalScope={frame:TerrainFrame;footprint?:RegionFootprint;world:{width:number;height:number;wrap:boolean}};
 export type RegionalPoint={x:number;y:number};
 export const regionalEqual=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
 export function regionalDeltaX(a:number,b:number,world:RegionalScope["world"]){let dx=b-a;if(world.wrap)dx-=Math.round(dx/world.width)*world.width;return dx;}
@@ -23,12 +24,15 @@ export function requireRegionalPath(points:readonly RegionalPoint[],radius:numbe
   if(!fullWidth&&(x-radius<0||x+radius>frame.width)||point.y-radius<frame.y||point.y+radius>frame.y+frame.height)throw outside(name);
   previous=point;previousX=x;
  }
+ if(scope.footprint&&!regionAreaContainsPath(scope,points,world,radius,closed))throw outside(name);
 }
 export function requireRegionalFrame(frame:TerrainFrame,scope:RegionalScope,name="This edit"){
  const x=localX(frame.x,scope),fullWidth=scope.world.wrap&&scope.frame.width===scope.world.width;
  if(![frame.x,frame.y,frame.width,frame.height].every(Number.isFinite)||frame.width<=0||frame.height<=0||frame.width>scope.world.width||!fullWidth&&(x<0||x+frame.width>scope.frame.width)||frame.y<scope.frame.y||frame.y+frame.height>scope.frame.y+scope.frame.height)throw outside(name);
+ if(scope.footprint&&!regionAreaContainsFrame(scope,frame,scope.world))throw outside(name);
 }
 export function requireRegionalArtwork(placement:{x:number;y:number;widthM:number;rotation:number},scope:RegionalScope){
+ if(scope.footprint){const angle=placement.rotation*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle),w=placement.widthM/2,h=placement.widthM*.75/2,corners=[[-w,-h],[w,-h],[w,h],[-w,h]].map(([x,y])=>({x:regionCanonicalX(placement.x+x*cos-y*sin,scope.world),y:placement.y+x*sin+y*cos}));if(!regionAreaContainsPath(scope,corners,scope.world,0,true))throw outside("The rotated artwork");return;}
  const radians=placement.rotation*Math.PI/180,cos=Math.abs(Math.cos(radians)),sin=Math.abs(Math.sin(radians));
  const halfWidth=placement.widthM*(cos+.75*sin)/2,halfHeight=placement.widthM*(sin+.75*cos)/2;
  requireRegionalPath([{x:placement.x,y:placement.y-halfHeight},{x:placement.x,y:placement.y+halfHeight}],0,scope,"The rotated artwork");

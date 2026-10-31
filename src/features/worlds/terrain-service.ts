@@ -12,7 +12,10 @@ import {getRefinementEditMask} from "./terrain-refinement-service";
 import {rootFrame} from "./terrain-refinement";
 import { readTerrainTile, stageTerrainTiles, type TerrainObject } from "./terrain-storage";
 import {regionsAvailable,terrainMapContext,requireWorldGeographyWrite} from "./terrain-map-context";
-import {worldMapRegion} from "@/db/world-map-region-schema";
+import {worldMapRegion,legacyRegionColumns} from "@/db/world-map-region-schema";
+import {worldMapRegionFootprint} from "@/db/world-map-region-footprint-schema";
+import {regionFootprintsAvailable} from "./terrain-region-footprint-service";
+import {regionFootprintSchema,validateRegionFootprint} from "./terrain-region-geometry";
 const unavailable = () => new WorldError("This terrain map is unavailable.", 404);
 const conflict = () => new WorldError("Another tab saved a newer terrain revision. Your local draft is retained. Load the saved map to compare; it will not be overwritten.", 409);
 const hash = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
@@ -25,9 +28,10 @@ export async function getTerrain(userId: string, worldId: string, options: { rev
       .innerJoin(worldAtlasMap, and(eq(worldAtlasMap.id, worldMapCanvas.mapId), eq(worldAtlasMap.worldId, worldMapCanvas.worldId)))
       .innerJoin(worldTerrain, and(eq(worldTerrain.id, worldMapCanvas.terrainId), eq(worldTerrain.worldId, worldMapCanvas.worldId)))
       .where(and(eq(worldMapCanvas.worldId, worldId), sql`${worldAtlasMap.archivedAt} IS NULL`)).orderBy(asc(worldAtlasMap.createdAt), asc(worldAtlasMap.id));
-    const linked=await regionsAvailable(tx)?await tx.select().from(worldMapRegion).where(eq(worldMapRegion.worldId,worldId)):[];
+    const linked=await regionsAvailable(tx)?await tx.select(legacyRegionColumns).from(worldMapRegion).where(eq(worldMapRegion.worldId,worldId)):[];
     const parents=linked.length?await tx.select({id:worldAtlasMap.id,name:worldAtlasMap.name,archivedAt:worldAtlasMap.archivedAt}).from(worldAtlasMap).where(and(eq(worldAtlasMap.worldId,worldId),inArray(worldAtlasMap.id,[...new Set(linked.map(l=>l.parentMapId))]))):[];
-    const maps=rows.map(({m,t,c})=>{const link=linked.find(r=>r.mapId===m.id),source=link?parents.find(p=>p.id===link.parentMapId):undefined;return {...summary(m,t),purpose:c.purpose as "world"|"regional",...link?{parentMapId:link.parentMapId,parentName:source?.name??"Unavailable World map",frame:{x:link.x,y:link.y,width:link.width,height:link.height},sourceAvailable:!!source&&!source.archivedAt}:c.purpose==="regional"?{sourceAvailable:false}:{}};});
+    const footprints=linked.length&&await regionFootprintsAvailable(tx)?await tx.select().from(worldMapRegionFootprint).where(eq(worldMapRegionFootprint.worldId,worldId)):[],kinds=linked.length?(await tx.execute<{map_id:string;kind:string}>(sql`select map_id,coalesce(to_jsonb(r)->>'footprint_kind','rectangle') kind from world_map_region r where world_id=${worldId}`)).rows:[];
+    const maps=rows.map(({m,t,c})=>{const link=linked.find(r=>r.mapId===m.id),source=link?parents.find(p=>p.id===link.parentMapId):undefined;let footprint,validFootprint=true;if(link&&kinds.find(k=>k.map_id===m.id)?.kind==="polygon"){try{footprint=regionFootprintSchema.parse(footprints.find(p=>p.mapId===m.id)?.footprint);validateRegionFootprint(footprint,{width:t.widthMetres,height:t.heightMetres,wrap:t.wrap},{x:link.x,y:link.y,width:link.width,height:link.height});}catch{validFootprint=false;}}return {...summary(m,t),purpose:c.purpose as "world"|"regional",...link?{parentMapId:link.parentMapId,parentName:source?.name??"Unavailable World map",frame:{x:link.x,y:link.y,width:link.width,height:link.height},...footprint?{footprint}:{},sourceAvailable:!!source&&!source.archivedAt&&validFootprint}:c.purpose==="regional"?{sourceAvailable:false}:{}};});
     const canEdit = parent.ownerId === userId && !parent.archivedAt && !options.review;
     const row = options.mapId ? rows.find(r => r.m.id === options.mapId) : undefined;
     if (options.mapId && !row) throw unavailable();

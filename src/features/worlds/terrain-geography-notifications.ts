@@ -9,7 +9,7 @@ export function geographyChannel(){
  return channel;
 }
 export function notifyWorldGeography(worldId:string){if(typeof window==="undefined")return;window.dispatchEvent(new CustomEvent(GEOGRAPHY_CHANGED,{detail:{worldId}}));geographyChannel()?.postMessage({worldId});}
-export type GeographyRevisions={worldId:string;mapId:string;sourceMapId:string;sourceState:string;rootRevision:number;regionalAvailable:boolean;heads:{materials:number;water:number;environment:number;artwork:number;labels:number;composition:number;towns:string}};
+export type GeographyRevisions={worldId:string;mapId:string;sourceMapId:string;sourceState:string;rootRevision:number;regionalAvailable:boolean;freeformAvailable?:boolean;heads:{materials:number;water:number;environment:number;artwork:number;labels:number;composition:number;towns:string}};
 /** A late own acknowledgement may reconcile only the exact observed full vector. */
 export function numericalAcknowledgementMatches(state:string|undefined,observed:Pick<GeographyRevisions,"sourceState"|"rootRevision">|undefined,rootRevision:number,detail?:{id:string;revision:number}){
  const root=advanceTerrainSourceState(state,null,rootRevision),accepted=detail?advanceTerrainSourceState(root,detail.id,detail.revision):root;

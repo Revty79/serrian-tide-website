@@ -20,3 +20,5 @@ drizzle/0148_world_regional_authoring.sql text eol=lf
 public/worlds/cartography/v1/* text eol=lf
 # Keep the accepted artwork migration bytes unchanged on every checkout.
 drizzle/0144_world_artwork.sql -text
+
+drizzle/0149_world_region_footprints.sql text eol=lf

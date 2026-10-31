@@ -12,6 +12,7 @@ export default defineConfig({
   schema: [
     "./src/db/world-regional-authoring-schema.ts",
     "./src/db/world-map-region-schema.ts",
+    "./src/db/world-map-region-footprint-schema.ts",
     "./src/db/auth-schema.ts",
     "./src/db/password-recovery-schema.ts",
     "./src/db/world-schema.ts",

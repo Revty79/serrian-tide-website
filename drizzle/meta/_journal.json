@@ -1044,6 +1044,13 @@
       "when": 1793396107320,
       "tag": "0148_world_regional_authoring",
       "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1793413762878,
+      "tag": "0149_world_region_footprints",
+      "breakpoints": true
     }
   ]
 }

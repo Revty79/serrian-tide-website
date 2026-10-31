@@ -127,3 +127,5 @@ next-env.d.ts
 /artifacts/regions-s41-*
 /artifacts/regions-s42-*
 /artifacts/regions-s43-*
+
+/artifacts/regions-s4c-*
