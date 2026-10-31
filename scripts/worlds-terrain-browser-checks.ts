@@ -1,3 +1,4 @@
+import {chooseTerrainMap} from "./worlds-terrain-browser-ui";
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 const imageHash=(bytes:Buffer)=>createHash("sha256").update(bytes).digest("hex");
@@ -55,7 +56,7 @@ export async function checkTerrainBrowser({ browser, god, base, world, foreign, 
   await sculpt(p, "Raise", [.6, .5], [.65, .5]); await p.getByRole("button", { name: "Save terrain", exact: true }).click(); await p.getByRole("alert").filter({ hasText: "newer terrain revision" }).waitFor(); assert.equal((await get()).revision, 6); await p.screenshot({ path: `${out}/terrain-conflict.png`, fullPage: true });
   p.once("dialog", d => d.accept()); await p.getByRole("button", { name: "Load saved map", exact: true }).click(); await rendered(p); await p.getByTestId("terrain-revision").filter({ hasText: "6" }).waitFor(); await other.close();
   await p.getByRole("button", { name: "Create flat world", exact: true }).click(); dialog = p.getByRole("dialog", { name: "Create flat world", exact: true }); await dialog.getByLabel("Map name", { exact: true }).fill("The Level Plain"); await dialog.getByLabel("Starting surface", { exact: true }).selectOption("land"); await dialog.getByRole("button", { name: "Create map", exact: true }).click(); await rendered(p); const landId = new URL(p.url()).searchParams.get("terrainMap")!; assert.equal((await get(landId)).baseElevation, 500); assert.notEqual(mapId, landId);
-  await p.getByLabel("World terrain map", { exact: true }).selectOption(mapId); await rendered(p); assert.equal((await get()).revision, 6);
+  await chooseTerrainMap(p,mapId); await rendered(p); assert.equal((await get()).revision, 6);
   const metrics = await p.getByTestId("terrain-performance").textContent();
   console.log("CHECK terrain phone and authorization");
   // Browser without WebGL/GPU: this editor uses ordinary CPU Canvas2D.

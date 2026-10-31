@@ -52,7 +52,7 @@ async function main(){
    await openStudioSection(page,"Artwork");await page.getByRole("button",{name:"Paint broadleaf grove",exact:true}).click();if(await dismiss.isVisible())await dismiss.click();
    if(touch)await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{...origin,id:0}]});
    const brushStart=performance.now();for(let i=0;i<100;i++){const point={x:origin.x-40+i*.8,y:origin.y+Math.sin(i*.2)*12};if(touch)await cdp.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{...point,id:0}]});else await page.mouse.move(point.x,point.y);await pause(Math.max(0,brushStart+(i+1)*50-performance.now()));}
-   if(touch){await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});await page.getByRole("button",{name:"Undo",exact:true}).click();}
+   if(touch){await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});await page.getByRole("button",{name:/^(Undo|Undo change)$/}).click();}
   }
   const cacheStates=await canvas.locator('[data-terrain-cache-ready]').evaluateAll(nodes=>nodes.map(node=>({id:node.closest('[data-drawing]')?.getAttribute('data-drawing'),ready:node.getAttribute('data-terrain-cache-ready')})));
   await openStudioSection(page,"Export");

@@ -1,4 +1,5 @@
 .workspace { min-width: 0; padding-block: 1rem; }
+.heading[hidden] {display:none;}
 .intentStage {height:100%;min-height:0;position:relative;overflow:hidden;border:1px solid var(--st-border-strong);border-radius:.5rem;background:var(--st-surface-deep);}
 .intentStage>canvas {width:100%;height:100%;display:block;}
 .intentMapActions {position:absolute;right:.4rem;top:.4rem;display:flex;gap:.25rem;z-index:2;background:var(--st-surface-raised);padding:.25rem;border-radius:.4rem;}
@@ -233,3 +234,107 @@
 .regionDrawingDock .outlineAdjust,.regionDrawingDock .outlineTips{display:inline-block;vertical-align:top;max-width:100%;margin-right:.75rem}.regionDrawingDock details[open]{display:block;width:100%}
 
 @media(min-width:641px){.editor.expanded{overflow:auto}.expanded .editorMain{min-height:max(502px,calc(50dvh + 2px));flex:1 0 max(502px,calc(50dvh + 2px))}}
+
+/* One stable workspace. Panels own their overflow; the canvas never follows controls down the page. */
+.editor.mapWorkspace {display:flex;flex-direction:column;box-sizing:border-box;height:max(594px,var(--atlas-workspace-height,calc(100dvh - 5rem)));min-height:594px;padding:.3rem;gap:.2rem;overflow:hidden;scroll-margin-top:4.5rem;}
+.mapWorkspace .editorHeader {position:static;display:flex;align-items:center;flex-wrap:nowrap;gap:.5rem;margin:0;padding:0;flex:0 0 44px;height:44px;min-width:0;}
+.workspaceIdentity {flex:1 1 10rem;min-width:0;overflow:hidden;}
+.mapWorkspace .editorHeader h3 {font-size:1rem;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.workspaceIdentity>span {display:block;font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--st-text-secondary);}
+.workspaceHeaderActions {display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-end;gap:.25rem;max-width:85%;overflow-x:auto;}
+.workspaceHeaderActions button {font-size:.75rem;line-height:1.2;min-height:36px;padding:.3rem .5rem;}
+.workspaceHeaderActions {height:40px;overflow-y:hidden;scrollbar-width:none;}
+.workspaceHeaderActions button {flex-shrink:0;height:36px;}
+.mapWorkspace,.mapWorkspace .editorMain,.mapWorkspace .inspectorBody {overflow-anchor:none;}
+.workspaceHeaderActions button[aria-controls="terrain-inspector"] {order:-1;}
+.mapWorkspace .editorMain {position:relative;display:grid;grid-template-columns:172px minmax(0,1fr) 300px;gap:.4rem;flex:1 1 0;height:auto;min-height:502px;}
+.mapWorkspace .editorMain[data-tools="closed"] {grid-template-columns:minmax(0,1fr) 300px;}
+.mapWorkspace .editorMain[data-inspector="closed"] {grid-template-columns:172px minmax(0,1fr);}
+.mapWorkspace .editorMain[data-tools="closed"][data-inspector="closed"] {grid-template-columns:minmax(0,1fr);}
+.workspaceTools,.mapWorkspace .editorInspector {position:relative;inset:auto;display:flex;flex-direction:column;min-width:0;min-height:0;height:auto;max-height:none;overflow:hidden;background:var(--st-surface-raised);border:1px solid var(--st-border);border-radius:.5rem;box-shadow:none;}
+.workspaceTools[hidden],.mapWorkspace .editorInspector[hidden],.mapWorkspace [hidden] {display:none!important;}
+.mapWorkspace .inspectorBody {overflow:auto;min-height:0;overscroll-behavior:contain;scrollbar-gutter:stable;padding:.5rem;}
+.mapWorkspace .inspectorHeading {padding:.35rem .4rem;font-size:.8rem;}
+.mapWorkspace .inspectorHeading button {min-height:32px;font-size:.72rem;padding:.25rem .4rem;}
+.workspaceToolList {font-size:.8rem;}
+.workspaceFamilies {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.25rem;padding-bottom:.5rem;border-bottom:1px solid var(--st-border);}
+.workspaceFamilies button {min-height:38px;padding:.25rem;font-size:.75rem;line-height:1.2;}
+.workspaceSubtools {display:flex;flex-direction:column;gap:.25rem;padding-top:.5rem;}
+.workspaceSubtools h4 {font-size:.85rem;margin:.1rem 0 .3rem;color:var(--st-text-strong);}
+.workspaceSubtools button {width:100%;text-align:left;min-height:36px;padding:.35rem .5rem;font-size:.8rem;line-height:1.25;}
+.workspaceSubtools p {font-size:.75rem;line-height:1.35;}
+.mapWorkspace .mapColumn {min-width:0;min-height:0;}
+.mapWorkspace .mapColumn>.viewport {height:100%;min-height:500px;max-height:none;}
+.workspaceOptionsMenu {flex:0 0 auto;border-bottom:1px solid var(--st-border);padding:.25rem .5rem;font-size:.75rem;}
+.workspaceOptionsMenu summary,.workspaceHelp summary {cursor:pointer;min-height:28px;}
+.workspaceOptionsMenu .inspectorTabs {flex-wrap:wrap;max-height:12rem;overflow:auto;padding:0;border:0;}
+.workspaceOptionsMenu .inspectorTabs button {font-size:.72rem;min-height:32px;}
+.mapWorkspace .controls,.mapWorkspace .primaryTools .controls {grid-template-columns:minmax(0,1fr);gap:.55rem;}
+.mapWorkspace .primaryTools {border:0;padding:0;gap:.45rem;background:none;}
+.mapWorkspace .primaryGroup {gap:.3rem;}
+.mapWorkspace .primaryGroup button {font-size:.78rem;min-height:36px;}
+.mapWorkspace .regionDrawingDock {max-height:none;overflow:visible;flex:none;border:0;padding:0;}
+.mapWorkspace .regionDrawingDock fieldset {display:grid;grid-template-columns:minmax(0,1fr);}
+.mapWorkspace .regionDrawingDock fieldset>div:first-child>label {display:grid;grid-template-columns:minmax(0,1fr);}
+.mapWorkspace .regionDrawingDock .primaryGroup {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.2rem;}
+.mapWorkspace .regionDrawingDock .primaryGroup button {padding:.3rem .2rem;font-size:.72rem;white-space:normal;min-height:40px;}
+.mapWorkspace .regionDrawingDock .actions button {min-height:36px;font-size:.76rem;}
+.mapWorkspace .details,.mapWorkspace .styleWorkshop {padding:.5rem;}
+.workspaceTouch {font-size:.75rem;margin-bottom:.45rem;padding-bottom:.35rem;border-bottom:1px solid var(--st-border);}
+.workspaceTouch button {font-size:.72rem;min-height:32px;}
+.workspaceTouch label {display:block;margin-top:.3rem;}
+.workspaceHelp {margin-top:.75rem;font-size:.75rem;}
+.mapWorkspace .workspaceHelp .canvasHelp {display:block;}
+.mapWorkspace>.inspection {flex:0 0 1.6rem;display:block;min-height:0;max-height:1.6rem;padding:.2rem .4rem;font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;margin:0;}
+.mapWorkspace>.saveStatus {position:static;flex:0 0 1.8rem;min-height:0;max-height:1.8rem;height:1.8rem;margin:0;padding:.2rem .4rem;font-size:.72rem;line-height:1.35;overflow:auto;}
+.workspaceStatus {display:flex;align-items:center;gap:.5rem;flex:0 0 30px;min-height:0;overflow:hidden;}
+.workspaceStatus>button {flex-shrink:0;min-height:28px;height:28px;padding:.1rem .4rem;font-size:.7rem;}
+.mapWorkspace .workspaceStatus>.inspection {flex:1;min-width:0;min-height:0;max-height:28px;padding:.2rem .3rem;font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
+.mapWorkspace .workspaceStatus>.saveStatus {position:static;flex:1.5;min-width:0;min-height:0;height:28px;max-height:28px;padding:.1rem .3rem;font-size:.7rem;line-height:1.3;overflow:auto;margin:0;}
+.pendingWork h4 {font-size:1rem;margin:.2rem 0;}
+.pendingWork p,.pendingWork li {font-size:.8rem;line-height:1.4;}
+.pendingWork ul {list-style:none;padding:0;margin:.5rem 0;}
+.pendingWork li {padding:.6rem 0;border-top:1px solid var(--st-border);}
+.pendingWork h5 {font-size:.9rem;margin:0;}
+.pendingWork .actions {gap:.3rem;}
+.pendingWork button {font-size:.75rem;min-height:36px;}
+.pendingDestination {font-size:.8rem;border:1px solid var(--st-border-strong);background:var(--st-surface-deep);padding:.4rem;margin-bottom:.4rem;}
+.pendingDestination button {display:block;margin-top:.4rem;}
+.saveAction:not(:disabled) {background:var(--st-text-strong)!important;color:var(--st-surface-deep)!important;border:2px solid var(--st-primary)!important;font-weight:800;box-shadow:0 0 0 1px var(--st-primary-border);}
+.regionSaveCard {position:sticky;top:0;z-index:2;background:var(--st-surface-deep);border:2px solid var(--st-primary);border-radius:.5rem;padding:.65rem;margin-bottom:.6rem;box-shadow:0 .25rem .6rem var(--st-shadow);}
+.regionSaveCard>strong {display:block;font-size:1rem;color:var(--st-text-strong);}
+.regionSaveCard>button {display:block;width:100%;min-height:42px;margin-top:.4rem;}
+.regionSaveCard p {font-size:.8rem;line-height:1.4;}
+.editor.mapWorkspace.expanded {height:var(--atlas-workspace-height,100dvh);min-height:0;max-height:100dvh;overflow:hidden;margin:0;padding:.4rem;}
+@media(max-width:1100px) {
+ .mapWorkspace .editorMain,.mapWorkspace .editorMain[data-tools="closed"],.mapWorkspace .editorMain[data-inspector="closed"] {grid-template-columns:minmax(0,1fr);}
+ .workspaceTools {position:absolute;left:0;top:0;bottom:0;width:180px;z-index:8;box-shadow:.4rem 0 1rem var(--st-shadow);}
+ .mapWorkspace .editorInspector {position:absolute;left:auto;right:0;top:0;bottom:0;width:300px;z-index:8;box-shadow:-.4rem 0 1rem var(--st-shadow);}
+ .mapWorkspace .editorInspector.labelsInspector {height:auto;max-height:none;}
+ .workspaceHeaderActions {max-width:calc(100% - 5rem);}
+}
+@media(max-width:700px) {
+ .editor.mapWorkspace {height:max(calc(50dvh + 156px),var(--atlas-workspace-height,90dvh));min-height:calc(50dvh + 156px);scroll-margin-top:4rem;padding:.25rem;gap:.25rem;}
+ .mapWorkspace .editorHeader {display:flex;flex-wrap:wrap;gap:.2rem;height:132px;flex-basis:132px;}
+ .workspaceIdentity {flex:1 0 100%;}
+ .mapWorkspace .editorHeader h3 {font-size:.85rem;}
+ .workspaceIdentity>span {font-size:.65rem;}
+ .workspaceHeaderActions {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.2rem;max-width:100%;width:100%;}
+ .workspaceHeaderActions {height:auto;overflow:visible;}
+ .workspaceHeaderActions button {min-height:36px;font-size:.65rem;padding:.2rem;white-space:normal;}
+ .mapWorkspace .editorMain,.expanded.mapWorkspace .editorMain {min-height:calc(50dvh + 2px);flex:1 1 0;}
+ .mapWorkspace .mapColumn>.viewport {min-height:50dvh;}
+ .workspaceTools,.mapWorkspace .editorInspector {top:auto;bottom:0;left:0;right:0;width:100%;height:42%;max-height:42%;border-radius:.6rem .6rem 0 0;box-shadow:0 -.4rem 1rem var(--st-shadow);}
+ .mapWorkspace .editorInspector.labelsInspector {height:42%;max-height:42%;}
+ .mapWorkspace .regionSaveCard {position:relative;}
+ .mapWorkspace[data-keyboard="1"] .editorInspector {top:var(--atlas-input-sheet-offset);bottom:auto;height:var(--atlas-input-sheet-height);max-height:var(--atlas-input-sheet-height);}
+ .workspaceFamilies {grid-template-columns:repeat(3,minmax(0,1fr));}
+ .workspaceSubtools {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
+ .workspaceSubtools h4,.workspaceSubtools p {grid-column:1/-1;}
+ .mapWorkspace .inspectorHeading {padding:.2rem .4rem;}
+ .mapWorkspace>.saveStatus {font-size:.68rem;}
+ .workspaceStatus>.inspection {display:none;}
+ .mapWorkspace .viewportControls {max-width:52%;font-size:.7rem;}
+ .mapWorkspace .viewportControls select {max-width:100%;font-size:.7rem;}
+ .mapWorkspace .viewportControls button {min-width:30px;min-height:32px;}
+}

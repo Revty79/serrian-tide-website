@@ -1,3 +1,4 @@
+import {chooseTerrainMap} from "./worlds-terrain-browser-ui";
 import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
 import {execFileSync} from "node:child_process";
@@ -14,7 +15,7 @@ import {DEFAULT_ENGRAVING} from "../src/features/worlds/terrain-engraving";
 type Options=Parameters<typeof checkHydrologyBrowser>[0];
 
 export async function checkRegionsPerformance(options:Options){
- const quality=process.env.SERRIAN_REGIONAL_QUALITY_PASS==="1",expectedBaseline=process.env.SERRIAN_FREEFORM_PASS==="1"?"5037da8ede9a41326a8f8c7e6b793f7d916c9525":process.env.SERRIAN_REGIONAL_EDITING_PASS==="1"?"e1dd2196c3309069296822c84e7fc520a11e4ec7":quality?"4cdfbaa0ca1a1119906cea470a92c8344a78a0fe":"9863861b642a99b18985a49e0e4fb16dc04cd11c";
+ const quality=process.env.SERRIAN_REGIONAL_QUALITY_PASS==="1",expectedBaseline=process.env.SERRIAN_WORKSPACE_CPU==="1"?"ec33f121e9275e3b900fe941eb753f89da6ffaa9":process.env.SERRIAN_FREEFORM_PASS==="1"?"5037da8ede9a41326a8f8c7e6b793f7d916c9525":process.env.SERRIAN_REGIONAL_EDITING_PASS==="1"?"e1dd2196c3309069296822c84e7fc520a11e4ec7":quality?"4cdfbaa0ca1a1119906cea470a92c8344a78a0fe":"9863861b642a99b18985a49e0e4fb16dc04cd11c";
  const intentionalArtworkChanges=quality&&process.env.SERRIAN_REGIONAL_EDITING_PASS!=="1";
  const {god,browser,base,world,out}=options,parent="3c000000-0000-4000-8000-000000000001",api=`${base}/api/worlds/${world}/terrain`,environmentUrl=`${api}/environment?terrainMap=${parent}`,read=async(url:string)=>{const r=await god.request.get(url);assert.equal(r.status(),200,await r.text());return r.json();},original=await read(environmentUrl),candidateOut=out+"/pass5d-candidate",controlOut=out+"/pass5d-control";
  await mkdir(candidateOut,{recursive:true});
@@ -33,8 +34,8 @@ export async function checkRegionsPerformance(options:Options){
   p.on("response",async response=>{if(response.request().method()==="GET"&&new URL(response.url()).pathname.endsWith("/terrain")){const body=await response.json().catch(()=>null);if(body?.document)requests.push({url:response.url(),reuse:!!body.document.tilesUnchanged,tileCount:body.document.tiles.length});}});
   try{
    let t=performance.now();await p.goto(`${base}/worlds/${world}?tab=atlas&terrainMap=${parent}`);await p.getByLabel("Terrain map canvas",{exact:true}).waitFor();await p.getByRole("button",{name:"Expand editor",exact:true}).click();await environmentReady(p);const coldWorldReadyMs=performance.now()-t;
-   t=performance.now();await p.getByLabel("World terrain map",{exact:true}).selectOption(region);await p.getByRole("button",{name:"Return to World Map",exact:true}).waitFor();await environmentReady(p);const firstRegionalReadyMs=performance.now()-t;
-   for(let i=0;i<5;i++){t=performance.now();await p.getByRole("button",{name:"Return to World Map",exact:true}).click();await p.getByRole("heading",{name:"Winding mountain catchments",exact:true}).waitFor();await environmentReady(p);await p.getByLabel("World terrain map",{exact:true}).selectOption(region);await p.getByRole("button",{name:"Return to World Map",exact:true}).waitFor();await environmentReady(p);switches.push(performance.now()-t);}
+   t=performance.now();await chooseTerrainMap(p,region);await p.getByRole("button",{name:"Return to World Map",exact:true}).waitFor();await environmentReady(p);const firstRegionalReadyMs=performance.now()-t;
+   for(let i=0;i<5;i++){t=performance.now();await p.getByRole("button",{name:"Return to World Map",exact:true}).click();await p.getByRole("heading",{name:"Winding mountain catchments",exact:true}).waitFor();await environmentReady(p);await chooseTerrainMap(p,region);await p.getByRole("button",{name:"Return to World Map",exact:true}).waitFor();await environmentReady(p);switches.push(performance.now()-t);}
    const c=p.getByLabel("Terrain map canvas",{exact:true});await c.focus();t=performance.now();for(let i=0;i<10;i++)await p.keyboard.press(i%2?"ArrowLeft":"ArrowRight");await environmentReady(p);const panTenKeysMs=performance.now()-t;
    const box=(await c.boundingBox())!;await p.mouse.move(box.x+box.width/2,box.y+box.height/2);t=performance.now();await p.mouse.wheel(0,-600);await environmentReady(p);const regionalZoomReadyMs=performance.now()-t;
    t=performance.now();await p.reload();await c.waitFor();await environmentReady(p);const reopenReadyMs=performance.now()-t,stats=JSON.parse((await c.getAttribute("data-engraving-stats"))!);assert.ok(stats.bytes<=24*1048576);assert.ok(requests.filter(r=>r.reuse).length>=8,"Compatible map switches reuse the authorized pinned numerical grid");assert.ok(firstRegionalReadyMs<30000&&Math.max(...switches)<30000&&regionalZoomReadyMs<30000&&reopenReadyMs<30000);assert.ok(panTenKeysMs<1500);assert.deepEqual(await stylePerformanceInputs(options),sourceBefore);assert.deepEqual(await engravedPerformanceDocuments(options),documentsBefore);

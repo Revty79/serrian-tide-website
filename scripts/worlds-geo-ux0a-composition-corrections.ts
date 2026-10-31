@@ -64,7 +64,7 @@ export async function correctIslandComposition(page:Page,branch:"manual"|"genera
   const ids=await page.getByLabel("Drawing point",{exact:true}).locator("option").evaluateAll(options=>options.map(o=>(o as HTMLOptionElement).value).filter(Boolean));
   for(let i=0;i<ids.length;i++){const t=ids.length===1?0:i/(ids.length-1);await page.getByLabel("Drawing point",{exact:true}).selectOption(ids[i]);await position(transform([s.a[0]+(s.b[0]-s.a[0])*t,s.a[1]+(s.b[1]-s.a[1])*t+Math.sin(t*Math.PI*2)*18]));}
  }
- await page.getByRole("button",{name:"Undo",exact:true}).click();await page.getByRole("button",{name:"Redo",exact:true}).click();
+ await page.getByRole("button",{name:/^(Undo|Undo change)$/}).click();await page.getByRole("button",{name:/^(Redo|Redo change)$/}).click();
  const rotation=Math.round(angle)*Math.PI/180,scale=branch==="manual"?.6:.4;
  const harborPoint=(x:number,y:number)=>({x:harbor.x+scale*(x*Math.cos(rotation)-y*Math.sin(rotation)),y:harbor.y+scale*(x*Math.sin(rotation)+y*Math.cos(rotation))});
  const samples=[{name:"river outlet",point:mouth,land:false},{name:"harbor buildings",point:harborPoint(-42,-60),land:true},{name:"harbor boat",point:harborPoint(31,44),land:false},{name:"central pier end",point:harborPoint(-10,67),land:false},...Object.entries(labels).map(([name,p])=>({name:`${name} label anchor`,point:transform(p),land:true}))];

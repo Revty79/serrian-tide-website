@@ -10,7 +10,7 @@ import {environmentReady,environmentPhoto} from "./worlds-environment-browser-ch
 import {closeTerrainSettings,terrainPanel} from "./worlds-terrain-browser-ui";
 import {stylePerformanceInputs} from "./worlds-style-performance";
 export async function checkArtworkPerformance(options:Parameters<typeof checkHydrologyBrowser>[0]){
- const quality=process.env.SERRIAN_REGIONAL_QUALITY_PASS==="1",expectedBaseline=process.env.SERRIAN_FREEFORM_PASS==="1"?"5037da8ede9a41326a8f8c7e6b793f7d916c9525":process.env.SERRIAN_REGIONAL_EDITING_PASS==="1"?"e1dd2196c3309069296822c84e7fc520a11e4ec7":quality?"4cdfbaa0ca1a1119906cea470a92c8344a78a0fe":"0672add9d053de78b6bb4fd45ef1fc181b2b6027";
+ const quality=process.env.SERRIAN_REGIONAL_QUALITY_PASS==="1",expectedBaseline=process.env.SERRIAN_WORKSPACE_CPU==="1"?"ec33f121e9275e3b900fe941eb753f89da6ffaa9":process.env.SERRIAN_FREEFORM_PASS==="1"?"5037da8ede9a41326a8f8c7e6b793f7d916c9525":process.env.SERRIAN_REGIONAL_EDITING_PASS==="1"?"e1dd2196c3309069296822c84e7fc520a11e4ec7":quality?"4cdfbaa0ca1a1119906cea470a92c8344a78a0fe":"0672add9d053de78b6bb4fd45ef1fc181b2b6027";
  const {god,base,world,out,errors}=options,map="3c000000-0000-4000-8000-000000000001",endpoint=`${base}/api/worlds/${world}/terrain/artwork?terrainMap=${map}`,read=async()=>(await(await god.request.get(endpoint)).json()),original=await read();
  const update=async(layer:unknown)=>{const head=await read(),r=await god.request.post(endpoint,{headers:{Origin:base},data:{mapId:map,revision:head.headRevision,requestId:randomUUID(),layer}});assert.equal(r.status(),200);};
  try{

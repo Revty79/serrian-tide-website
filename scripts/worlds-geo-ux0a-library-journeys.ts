@@ -55,14 +55,14 @@ async function journey(branch:"manual"|"generated"){
    await choose(asset.name,"Paint");await page.getByLabel("Pattern seed",{exact:true}).fill("80421");await page.getByLabel("Brush size",{exact:true}).fill("22");await page.getByLabel("Mark spacing",{exact:true}).fill("65");await page.getByLabel("Brush density",{exact:true}).fill("1");
    const target=targetAt(targets[asset.id]),p=await land(target[0]-45,target[1]+90),a=await at(p.x-60,p.y),b=await at(p.x+65,p.y+25);await page.mouse.move(a.x,a.y);await page.mouse.down();await page.mouse.move(b.x,b.y,{steps:12});await page.mouse.up();await nameDrawing(`${asset.name} painted terrain`);
    if(asset.family==="Hills"||asset.family==="Wetland"){
-    assert.equal(await page.getByLabel("Linked place",{exact:true}).count(),0);await page.getByRole("button",{name:"Archive drawing",exact:true}).click();await page.getByRole("button",{name:"Restore drawing",exact:true}).click();await page.getByRole("button",{name:"Undo",exact:true}).click();await page.getByRole("button",{name:"Redo",exact:true}).click();
+    assert.equal(await page.getByLabel("Linked place",{exact:true}).count(),0);await page.getByRole("button",{name:"Archive drawing",exact:true}).click();await page.getByRole("button",{name:"Restore drawing",exact:true}).click();await page.getByRole("button",{name:/^(Undo|Undo change)$/}).click();await page.getByRole("button",{name:/^(Redo|Redo change)$/}).click();
    }
   }
   for(const asset of latestIslandAssets){
    await choose(asset.name,"Place");await page.getByLabel("Symbol scale",{exact:true}).fill(String(branch==="generated"?.4:asset.defaultScale));
    if(asset.role==="place")await page.getByLabel(`${asset.name} name`,{exact:true}).fill(({"settlement-city":"Wrenhaven","settlement-village":"Ashmere","settlement-port":"South Quay","settlement-castle":"Crownwatch"} as Record<string,string>)[asset.id]);
    const target=targetAt(targets[asset.id]),box=asset.viewBox.split(" ").map(Number),scale=branch==="generated"?.4:asset.defaultScale,p=await land(target[0],target[1],[box[0]*scale,box[1]*scale,(box[0]+box[2])*scale,(box[1]+box[3])*scale]);await tap(p.x,p.y);if(await page.getByRole("dialog").filter({hasText:"outside known land"}).count())await page.getByRole("button",{name:"Place here anyway",exact:true}).click();await nameDrawing(`${asset.name} placed subject`);
-   if(asset.family==="Hills"||asset.family==="Wetland"){assert.equal(await page.getByLabel("Linked place",{exact:true}).count(),0);await page.getByRole("button",{name:"Undo",exact:true}).click();await page.getByRole("button",{name:"Redo",exact:true}).click();}
+   if(asset.family==="Hills"||asset.family==="Wetland"){assert.equal(await page.getByLabel("Linked place",{exact:true}).count(),0);await page.getByRole("button",{name:/^(Undo|Undo change)$/}).click();await page.getByRole("button",{name:/^(Redo|Redo change)$/}).click();}
   }
   await tools("Artwork");await page.getByRole("button",{name:"Draw an illustrated river",exact:true}).click();await page.getByLabel("Path width",{exact:true}).fill("5");
   for(const [x,y] of [[1000,430],[1040,490],[1090,610],[1050,720],[1090,830],[1130,960]]){const p=await land(...targetAt([x,y]));await tap(p.x,p.y);}await page.getByRole("button",{name:"Complete path",exact:true}).click();await nameDrawing("The Wrenwater");await save();
