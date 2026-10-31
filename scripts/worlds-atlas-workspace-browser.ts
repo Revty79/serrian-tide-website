@@ -7,6 +7,7 @@ import {stable} from "./worlds-regional-editing-browser-checks";
 import {chooseTerrainMap} from "./worlds-terrain-browser-ui";
 type Options={f:RegionalFixture;browser:Browser;context:BrowserContext;page:Page;base:string;errors:string[];groups:string[]};
 export async function workspaceBrowser(options:Options){
+ if(process.env.SERRIAN_WORKSPACE_REGION_REPAIR==="1"){await(await import("./worlds-atlas-region-save-browser")).checkRegionSaveRepair(options);if(process.env.SERRIAN_WORKSPACE_REPAIR_FULL==="1")return workspaceCandidate(options);return;}
  if(process.env.SERRIAN_WORKSPACE_KEYBOARD==="1")return workspaceKeyboard(options);
  if(process.env.SERRIAN_WORKSPACE_BASELINE!=="1")return workspaceCandidate(options).catch(async error=>{await options.page.screenshot({path:`${options.f.out}/workspace-failure.png`}).catch(()=>{});await writeFile(`${options.f.out}/workspace-failure.json`,JSON.stringify(await options.page.evaluate(()=>({scrollY,body:document.body.innerText,rects:[...document.querySelectorAll('[aria-label="Heightmap editor"],canvas[aria-label="Terrain map canvas"],.authenticated-navigation')].map(e=>({tag:e.tagName,rect:e.getBoundingClientRect().toJSON(),height:getComputedStyle(e).height,classes:e.className}))})),null,2));throw error;});
  const {f,page:p,base,groups}=options;

@@ -305,6 +305,11 @@
 .regionSaveCard>strong {display:block;font-size:1rem;color:var(--st-text-strong);}
 .regionSaveCard>button {display:block;width:100%;min-height:42px;margin-top:.4rem;}
 .regionSaveCard p {font-size:.8rem;line-height:1.4;}
+.regionSaveStart {display:block;width:100%;min-height:42px;margin:.5rem 0;}
+.regionAreaList {list-style:none;padding:0;margin:.5rem 0;border:1px solid var(--st-border);border-radius:.4rem;}
+.regionAreaList li {padding:.5rem;border-bottom:1px solid var(--st-border);}
+.regionAreaList li:last-child {border-bottom:0;}
+.regionAreaList span {display:block;font-size:.8rem;margin:.2rem 0;}
 .editor.mapWorkspace.expanded {height:var(--atlas-workspace-height,100dvh);min-height:0;max-height:100dvh;overflow:hidden;margin:0;padding:.4rem;}
 @media(max-width:1100px) {
  .mapWorkspace .editorMain,.mapWorkspace .editorMain[data-tools="closed"],.mapWorkspace .editorMain[data-inspector="closed"] {grid-template-columns:minmax(0,1fr);}
