@@ -1,0 +1,71 @@
+/** Owned loopback-only regional authoring fixtures. Never loads .env files or shared targets. */
+import assert from "node:assert/strict";
+import {execFileSync} from "node:child_process";
+import {randomUUID,createHash} from "node:crypto";
+import {mkdir,mkdtemp,readFile,writeFile,copyFile,cp} from "node:fs/promises";
+import path from "node:path";
+import {tmpdir} from "node:os";
+import {createServer} from "node:net";
+import pg from "pg";
+import {drizzle} from "drizzle-orm/node-postgres";
+import {migrate} from "drizzle-orm/node-postgres/migrator";
+import {hashPassword} from "better-auth/crypto";
+import {createGrid,readTile,terrainGeometry} from "../src/features/worlds/terrain";
+import {initializeRefinement,rootFrame} from "../src/features/worlds/terrain-refinement";
+import {EMPTY_HYDROLOGY,hydroLayerSchema} from "../src/features/worlds/terrain-hydrology";
+import {EMPTY_ENVIRONMENT} from "../src/features/worlds/terrain-environment";
+import {EMPTY_TERRAIN_MATERIALS} from "../src/features/worlds/terrain-materials";
+import {EMPTY_ARTWORK} from "../src/features/worlds/terrain-artwork";
+import {EMPTY_LABELS,newMapLabel} from "../src/features/worlds/terrain-labels";
+import {emptyTown} from "../src/features/worlds/world-towns";
+export const regionalFixtureIds={parent:"43000000-0000-4000-8000-000000000001",a:"43000000-0000-4000-8000-000000000002",b:"43000000-0000-4000-8000-000000000003",separate:"43000000-0000-4000-8000-000000000004"};
+export const gridDigest=(grid:Int16Array)=>createHash("sha256").update(new Uint8Array(grid.buffer,grid.byteOffset,grid.byteLength)).digest("hex");
+export async function ownedFreePort(){const server=createServer();await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));const address=server.address();assert.ok(address&&typeof address==="object");await new Promise<void>(resolve=>server.close(()=>resolve()));assert.notEqual(address.port,5432);return address.port;}
+export type RegionalFixture={root:string;data:string;databaseUrl:string;restoredUrl:string;terrainRoot:string;restoredTerrainRoot:string;pool:pg.Pool;world:string;foreign:string;out:string;fine:string;partial:string;town:string;outsideTown:string;unplacedTown:string;runPostgres:(name:string,args:string[])=>void};
+export async function withRegionalEditingFixture(run:(fixture:RegionalFixture)=>Promise<void>){
+ const out=path.resolve(process.env.SERRIAN_REGIONAL_EDIT_EVIDENCE??"artifacts/regions-s43-database-1");assert.ok(out.startsWith(path.resolve("artifacts")+path.sep)&&path.basename(out).startsWith("regions-s43-"));await mkdir(out,{recursive:true});
+ const root=await mkdtemp(path.join(tmpdir(),"serrian-regional-editing-")),data=path.join(root,"data"),dbPort=await ownedFreePort(),databaseUrl=`postgresql://postgres@127.0.0.1:${dbPort}/serrian_regional_editing`,restoredUrl=`postgresql://postgres@127.0.0.1:${dbPort}/serrian_regional_editing_restored`,terrainRoot=path.join(root,"terrain"),restoredTerrainRoot=path.join(root,"restored-terrain");
+ const bin=process.env.SERRIAN_TEST_POSTGRES_BIN??"C:/Program Files/PostgreSQL/18/bin",exe=(name:string)=>path.join(bin,name+(process.platform==="win32"?".exe":""));
+ const runPostgres=(name:string,args:string[])=>{execFileSync(exe(name),args,{windowsHide:true,stdio:name==="pg_ctl"?"ignore":"pipe",maxBuffer:16*1024*1024});};
+ let started=false,pool:pg.Pool|undefined,appPool:pg.Pool|undefined;
+ try{
+  runPostgres("initdb",["-D",data,"-U","postgres","-A","trust","--encoding=UTF8","--locale=C"]);runPostgres("pg_ctl",["-D",data,"-l",path.join(root,"postgres.log"),"-o",`-h 127.0.0.1 -p ${dbPort}`,"-w","start"]);started=true;
+  const admin=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await admin.query("create database serrian_regional_editing");await admin.query("create database serrian_regional_editing_restored");await admin.end();
+  pool=new pg.Pool({connectionString:databaseUrl});const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8"));assert.equal(journal.entries.at(-1).tag,"0148_world_regional_authoring");
+  const before=path.join(root,"through-0147");await mkdir(path.join(before,"meta"),{recursive:true});const old=journal.entries.filter((entry:{idx:number})=>entry.idx<=147);assert.equal(old.length,148);await writeFile(path.join(before,"meta/_journal.json"),JSON.stringify({...journal,entries:old}));for(const entry of old)await copyFile(`drizzle/${entry.tag}.sql`,path.join(before,entry.tag+".sql"));await migrate(drizzle(pool),{migrationsFolder:before});
+  const password=await hashPassword("Regional-Editing-Only-Password!");for(const [id,role] of [["world-god","god"],["other-god","god"],["world-admin","admin"],["world-player","player"]]){
+   await pool.query('insert into "user" (id,name,email,email_verified,username,display_username) values ($1,$1,$2,true,$1,$1)',[id,`${id}@example.invalid`]);await pool.query("insert into account (id,issuer,account_id,provider_id,user_id,password,updated_at) values ($1,'local:credential',$2,'credential',$2,$3,now())",[id+"-credential",id,password]);await pool.query("insert into user_role(user_id,role) values($1,$2)",[id,role]);
+  }
+  process.env.DATABASE_URL=databaseUrl;process.env.SERRIAN_TERRAIN_ROOT=terrainRoot;process.env.BETTER_AUTH_SECRET="regional-editing-disposable-only-secret";
+  appPool=(await import("../src/db")).pool;const worlds=await import("../src/features/worlds/world-service"),terrain=await import("../src/features/worlds/terrain-service"),refinements=await import("../src/features/worlds/terrain-refinement-service"),regions=await import("../src/features/worlds/terrain-region-service"),towns=await import("../src/features/worlds/world-town-service");
+  const world=await worlds.createWorld("world-god",{name:"Shared geographic authoring fixture"}),foreign=await worlds.createWorld("other-god",{name:"Foreign private authoring fixture"});
+  const id=regionalFixtureIds;await terrain.changeTerrain("world-god",world,{action:"create",requestId:id.parent,name:"Regional editing parent World",initial:"land",settings:{widthKm:200,heightKm:120,gridWidth:128,gridHeight:128,minElevation:-20000,maxElevation:20000}});
+  let document=(await terrain.getTerrain("world-god",world,{mapId:id.parent})).document!;const shape=terrainGeometry(document.settings),grid=createGrid(document.baseElevation,document.tiles,shape);
+  for(let y=0;y<shape.height;y++)for(let x=0;x<shape.width;x++)grid[y*shape.width+x]=Math.round(x<18+6*Math.sin(y/15)?-200:250+1300*Math.exp(-((x-60)**2+(y-50)**2)/450)+x*2-y);
+  await terrain.changeTerrain("world-god",world,{action:"save",requestId:randomUUID(),mapId:id.parent,revision:document.revision,seaLevel:0,tiles:Array.from({length:16},(_,key)=>readTile(grid,key,shape))});document=(await terrain.getTerrain("world-god",world,{mapId:id.parent})).document!;
+  const fineFrame={x:70000,y:40000,width:16000,height:16000},initial=initializeRefinement(grid,shape,rootFrame(shape),fineFrame,256,256,shape);
+  const fine=(await refinements.createRefinement("world-god",world,{action:"create",requestId:randomUUID(),mapId:id.parent,parentId:null,parentRevision:document.revision,name:"Shared contained numerical detail",frame:fineFrame,gridWidth:256,gridHeight:256,previewHash:gridDigest(initial)})).refinementId;
+  const partialFrame={x:30000,y:30000,width:20000,height:20000},partialGrid=initializeRefinement(grid,shape,rootFrame(shape),partialFrame,128,128,shape),partial=(await refinements.createRefinement("world-god",world,{action:"create",requestId:randomUUID(),mapId:id.parent,parentId:null,parentRevision:document.revision,name:"Partially overlapping protected detail",frame:partialFrame,gridWidth:128,gridHeight:128,previewHash:gridDigest(partialGrid)})).refinementId;
+  const index=await refinements.getRefinements("world-god",world,id.parent);
+  for(const [mapId,name,frame] of [[id.a,"Region A",{x:40000,y:20000,width:80000,height:70000}],[id.b,"Region B overlapping A",{x:60000,y:30000,width:80000,height:70000}],[id.separate,"Separate regional view",{x:145000,y:20000,width:30000,height:70000}]] as const)await regions.createRegionalMap("world-god",world,{action:"create-region",requestId:mapId,parentMapId:id.parent,terrainId:document.terrainId,parentRevision:document.mapRevision!,sourceRevision:document.revision,sourceState:index.sourceState,name,frame});
+  const materials=await import("../src/features/worlds/terrain-material-service"),environment=await import("../src/features/worlds/terrain-environment-service"),water=await import("../src/features/worlds/terrain-hydrology-service"),artwork=await import("../src/features/worlds/terrain-artwork-service"),labels=await import("../src/features/worlds/terrain-labels-service");
+  await materials.saveTerrainMaterials("world-god",world,{mapId:id.parent,revision:0,requestId:randomUUID(),layer:{...EMPTY_TERRAIN_MATERIALS,strokes:[{id:randomUUID(),material:"snow",radiusM:500,strength:1,points:[{x:160000,y:50000}]}]}});
+  await environment.saveTerrainEnvironment("world-god",world,{mapId:id.parent,revision:0,requestId:randomUUID(),layer:{...EMPTY_ENVIRONMENT,regions:[{id:randomUUID(),name:"Outside protected forest",kind:"vegetation",shape:"brush",points:[{x:160000,y:50000}],radiusM:1000,strength:1,biome:"conifer",vegetation:"conifer",density:.9,scaleM:20,clustering:.7,protected:true}]}});
+  await water.saveTerrainHydrology("world-god",world,{mapId:id.parent,revision:0,requestId:randomUUID(),layer:hydroLayerSchema.parse(EMPTY_HYDROLOGY)});
+  await artwork.saveTerrainArtwork("world-god",world,{mapId:id.parent,revision:0,requestId:randomUUID(),layer:EMPTY_ARTWORK});
+  await labels.saveTerrainLabels("world-god",world,{mapId:id.parent,revision:0,requestId:randomUUID(),layer:{...EMPTY_LABELS,labels:[newMapLabel(randomUUID(),"Outside retained caption",{x:160000,y:50000})],composition:{...EMPTY_LABELS.composition,title:{...EMPTY_LABELS.composition.title,visible:true,text:"Parent World title"}}}});
+  const town=(await towns.changeWorldTown("world-god",world,{action:"place-new",requestId:randomUUID(),mapId:id.parent,draft:{...emptyTown,name:"One permanent shared Town"},x:80000,y:50000})).townId;
+  const outsideTown=(await towns.changeWorldTown("world-god",world,{action:"place-new",requestId:randomUUID(),mapId:id.parent,draft:{...emptyTown,name:"Outside retained Town"},x:160000,y:50000})).townId;
+  const unplacedTown=(await towns.changeWorldTown("world-god",world,{action:"save",requestId:randomUUID(),id:null,revision:null,geographyRevision:null,draft:{...emptyTown,name:"Eligible unplaced Town"}})).townId;
+  runPostgres("pg_dump",["-Fc","-f",path.join(out,"before-0148.dump"),"--dbname",databaseUrl]);await cp(terrainRoot,path.join(out,"before-0148-terrain"),{recursive:true});
+  const beforeColumns=(await pool.query("select table_name,column_name,data_type,is_nullable,column_default from information_schema.columns where table_schema='public' order by table_name,ordinal_position")).rows;
+  const unsupported=await materials.getTerrainMaterials("world-god",world,id.a);assert.equal(unsupported.regional,undefined);await assert.rejects(materials.saveTerrainMaterials("world-god",world,{mapId:id.a,revision:unsupported.revision,requestId:randomUUID(),layer:unsupported.layer}),/0148 REQUIRED/);
+  await migrate(drizzle(pool),{migrationsFolder:"drizzle"});assert.equal((await pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,149);const publishedSql=await readFile("drizzle/0148_world_regional_authoring.sql");assert.ok(!publishedSql.includes(13),"New 0148 must retain canonical LF bytes");const migrationSqlSha256=createHash("sha256").update(publishedSql).digest("hex");assert.equal((await pool.query("select hash from drizzle.__drizzle_migrations order by created_at desc limit 1")).rows[0].hash,migrationSqlSha256);
+  assert.deepEqual((await pool.query("select table_name,column_name,data_type,is_nullable,column_default from information_schema.columns where table_schema='public' and table_name<>'world_regional_edit' order by table_name,ordinal_position")).rows,beforeColumns);
+  const maintenance=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/postgres`});await maintenance.query("create database serrian_regional_editing_fresh");await maintenance.end();const fresh=new pg.Pool({connectionString:`postgresql://postgres@127.0.0.1:${dbPort}/serrian_regional_editing_fresh`});try{await migrate(drizzle(fresh),{migrationsFolder:"drizzle"});assert.equal((await fresh.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,149);assert.equal((await fresh.query("select hash from drizzle.__drizzle_migrations order by created_at desc limit 1")).rows[0].hash,migrationSqlSha256);assert.deepEqual((await fresh.query("select table_name,column_name,data_type,is_nullable,column_default from information_schema.columns where table_schema='public' order by table_name,ordinal_position")).rows,(await pool.query("select table_name,column_name,data_type,is_nullable,column_default from information_schema.columns where table_schema='public' order by table_name,ordinal_position")).rows);}finally{await fresh.end();}
+  await writeFile(path.join(out,"migration-results.json"),JSON.stringify({passed:true,fresh149Replay:true,populated0147Upgrade:true,existingColumnsExact:true,missingMigrationActualServiceRejects:true,migrationSqlSha256,canonicalLfBytes:true,sharedDatabaseAccess:false},null,2));
+  const fixture:RegionalFixture={root,data,databaseUrl,restoredUrl,terrainRoot,restoredTerrainRoot,pool,world,foreign,out,fine,partial,town,outsideTown,unplacedTown,runPostgres};
+  await writeFile(path.join(out,"environment.json"),JSON.stringify({...fixture,pool:undefined,runPostgres:undefined},null,2));await run(fixture);
+ }catch(error){await writeFile(path.join(out,"failure.txt"),error instanceof Error?error.stack??error.message:String(error));throw error;}
+ finally{await appPool?.end();await pool?.end();if(started)runPostgres("pg_ctl",["-D",data,"-m","immediate","-w","stop"]);}
+}

@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {regionalAuthoringSchema} from "./terrain-regional-scope";
 import type {HydroGeometry,HydroPoint} from "./terrain-hydrology";
 
 export const LABEL_LIMITS={labels:512,bodyBytes:524288,pathPoints:512,totalPoints:8192,candidates:128,draws:200,glyphs:2400,measurements:4096,measurementBytes:1048576,history:24} as const;
@@ -26,7 +27,7 @@ export type LabelCandidate={key:string;source:LabelSource;anchor:HydroPoint;path
 export type LabelSourceState={id:string;state:"resolved"|"stale"|"unresolved";message:string};
 export const EMPTY_LABELS:LabelsLayer={version:1,algorithm:"cartographic-labels-1",visible:true,suggestions:false,labels:[],composition:{title:{visible:false,x:.5,y:.06,text:"",subtitle:"",sizePx:30},scale:{visible:false,x:.1,y:.9,widthPx:130},north:{visible:false,x:.94,y:.12},legend:{visible:false,x:.84,y:.66,maxItems:6},notes:{visible:false,x:.5,y:.94,text:"",attribution:""},frame:{visible:false,insetPx:12}}};
 export function newMapLabel(id:string,text:string,anchor:HydroPoint,kind:MapLabel["kind"]="annotation"):MapLabel{return {id,text,displayName:"",kind,mode:kind==="annotation"?"annotation":"point",anchor,path:[],preset:"auto",family:"auto",sizePx:["world","continent","sea"].includes(kind)?28:18,weight:kind==="town"?600:400,italic:["river","lake","sea"].includes(kind),color:"auto",spacing:["continent","region","territory","sea"].includes(kind)?2:0,rotation:0,align:"center",opacity:1,halo:"auto",haloPx:2,background:"none",maxWidthPx:300,minMpp:0,maxMpp:1e12,priority:kind==="continent"||kind==="world"?90:kind==="river"?65:kind==="town"?50:40,visible:true,force:false,protected:true,source:null};}
-export const labelsSaveSchema=z.object({mapId:z.string().min(1).max(128),revision:z.number().int().nonnegative(),requestId:z.string().uuid(),restoreRevision:z.number().int().positive().optional(),layer:labelsLayerSchema}).strict();
+export const labelsSaveSchema=z.object({mapId:z.string().min(1).max(128),revision:z.number().int().nonnegative(),requestId:z.string().uuid(),restoreRevision:z.number().int().positive().optional(),layer:labelsLayerSchema,regional:regionalAuthoringSchema.optional()}).strict();
 export type LabelsCommand=z.infer<typeof labelsSaveSchema>;
 export function labelPoint(p:HydroPoint,w:HydroGeometry){if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||p.y<0||p.y>w.height||!w.wrap&&(p.x<0||p.x>w.width))return null;return {x:w.wrap?(p.x%w.width+w.width)%w.width:p.x,y:p.y};}
 export function validateLabelsFrame(l:LabelsLayer,w:HydroGeometry){for(const v of l.labels)for(const p of [v.anchor,...v.path])if(p.x>w.width||p.y>w.height)throw Error("Label anchors and path points must stay within this map's physical World extent.");}

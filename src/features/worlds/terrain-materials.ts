@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {regionalAuthoringSchema} from "./terrain-regional-scope";
 import type {TerrainGeometry} from "./terrain";
 
 export const materialNames={rock:"Exposed rock",scree:"Gravel and scree",soil:"Soil and earth",grass:"Grassland ground cover",sand:"Sand and beach",snow:"Snow / pale highland",automatic:"Erase to automatic"} as const;
@@ -9,7 +10,7 @@ export const terrainMaterialsSchema=z.object({version:z.literal(1),visible:z.boo
 export type MaterialStroke=z.infer<typeof materialStrokeSchema>;
 export type TerrainMaterials=z.infer<typeof terrainMaterialsSchema>;
 export const EMPTY_TERRAIN_MATERIALS:TerrainMaterials={version:1,visible:true,opacity:1,locked:false,automatic:true,strokes:[]};
-export const materialSaveSchema=z.object({mapId:z.string().uuid(),revision:z.number().int().min(0),requestId:z.string().uuid(),layer:terrainMaterialsSchema}).strict();
+export const materialSaveSchema=z.object({mapId:z.string().uuid(),revision:z.number().int().min(0),requestId:z.string().uuid(),layer:terrainMaterialsSchema,regional:regionalAuthoringSchema.optional()}).strict();
 export type MaterialCommand=z.infer<typeof materialSaveSchema>;
 export function validateMaterialFrame(layer:TerrainMaterials,shape:Pick<TerrainGeometry,"displayWidth"|"displayHeight">){for(const s of layer.strokes){if(s.radiusM>Math.max(shape.displayWidth,shape.displayHeight))throw new Error("Material brush exceeds this World's physical dimensions.");for(const p of s.points)if(p.x>=shape.displayWidth||p.y>=shape.displayHeight)throw new Error("A material point is outside this map's physical frame.");}}
 const smooth=(t:number)=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};

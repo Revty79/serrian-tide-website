@@ -1037,6 +1037,13 @@
       "when": 1793308870044,
       "tag": "0147_world_map_regions",
       "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1793396107320,
+      "tag": "0148_world_regional_authoring",
+      "breakpoints": true
     }
   ]
 }

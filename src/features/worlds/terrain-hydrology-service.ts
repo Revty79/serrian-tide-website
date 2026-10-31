@@ -1,5 +1,7 @@
 import "server-only";
-import {geographicSourceMap,requireWorldGeographyWrite} from "./terrain-map-context";
+import {beginRegionalEdit,boundedRegionalLayer,finishRegionalEdit,regionalAuthoringContext,regionalScope,regionalRetryLayer} from "./terrain-regional-authoring-service";
+import {regionalHydrology} from "./terrain-regional-layers";
+import {regionalEqual} from "./terrain-regional-scope";
 import {createHash} from "node:crypto";
 import {and,asc,desc,eq,sql} from "drizzle-orm";
 import {db} from "@/db";
@@ -13,7 +15,7 @@ import {EMPTY_HYDROLOGY,hydroLayerSchema,hydroSaveSchema,makeHydroAnalysis,valid
 type Connection=Pick<typeof db,"select"|"execute">;
 const unavailable=()=>new WorldError("This terrain map is unavailable.",404);
 export async function sourceIndex(tx:Connection,worldId:string,mapId:string):Promise<HydroSources>{
-  mapId=await geographicSourceMap(tx,worldId,mapId);
+  const context=await regionalAuthoringContext(tx,worldId,mapId);mapId=context.sourceMapId;
   const [root]=await tx.select({terrain:worldTerrain,hash:worldTerrainVersion.contentHash}).from(worldMapCanvas)
     .innerJoin(worldAtlasMap,and(eq(worldAtlasMap.id,worldMapCanvas.mapId),eq(worldAtlasMap.worldId,worldId)))
     .innerJoin(worldTerrain,eq(worldTerrain.id,worldMapCanvas.terrainId))
@@ -35,13 +37,13 @@ export async function getHydrologySources(userId:string,worldId:string,mapId:str
 export async function getTerrainHydrology(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean;revision?:number}={}){
   await worldReadAccess(userId,worldId,options.review??false);if(options.ordinary)throw unavailable();
   return db.transaction(async tx=>{
-    mapId=await geographicSourceMap(tx,worldId,mapId);
+    const context=await regionalAuthoringContext(tx,worldId,mapId);mapId=context.sourceMapId;
     const sources=await sourceIndex(tx,worldId,mapId);
     if(!await available(tx))return {available:false,revision:0,headRevision:0,layer:EMPTY_HYDROLOGY,history:[],sources};
     const [head]=await tx.select().from(worldHydrology).where(eq(worldHydrology.mapId,mapId));let layer=head?.layer,revision=head?.revision??0;
     if(options.revision!==undefined){const [old]=await tx.select().from(worldHydrologyVersion).where(and(eq(worldHydrologyVersion.mapId,mapId),eq(worldHydrologyVersion.revision,options.revision)));if(!old)throw new WorldError("This water revision is unavailable.",404);layer=old.layer;revision=old.revision;}
     const history=await tx.select({revision:worldHydrologyVersion.revision,createdAt:worldHydrologyVersion.createdAt,restoredFromRevision:worldHydrologyVersion.restoredFromRevision}).from(worldHydrologyVersion).where(eq(worldHydrologyVersion.mapId,mapId)).orderBy(desc(worldHydrologyVersion.revision)).limit(60);
-    return {available:true,revision,headRevision:head?.revision??0,layer:hydroLayerSchema.parse(layer??EMPTY_HYDROLOGY),history,sources};
+    return {...context.regional?{regional:context.regional}:{},available:true,revision,headRevision:head?.revision??0,layer:hydroLayerSchema.parse(layer??EMPTY_HYDROLOGY),history,sources};
   },{accessMode:"read only",isolationLevel:"repeatable read"});
 }
 function checkProvenance(layer:HydroLayer,previous:HydroLayer,sources:HydroSources){
@@ -66,18 +68,19 @@ function checkProvenance(layer:HydroLayer,previous:HydroLayer,sources:HydroSourc
 export async function saveTerrainHydrology(userId:string,worldId:string,raw:unknown){
   const command=hydroSaveSchema.parse(raw);
   return worldWriteTransaction(userId,worldId,async tx=>{
-    await requireWorldGeographyWrite(tx,worldId,command.mapId);
+    const regionalAccess=await beginRegionalEdit(tx,userId,worldId,"water",command);if(regionalAccess.retry)return {revision:regionalAccess.retry.revision,layer:await regionalRetryLayer(tx,"water",regionalAccess.context.sourceMapId,regionalAccess.retry.revision,EMPTY_HYDROLOGY,value=>hydroLayerSchema.parse(value)),regional:command.regional};command.mapId=regionalAccess.context.sourceMapId;
     const sources=await sourceIndex(tx,worldId,command.mapId);if(!await available(tx))throw new WorldError("MIGRATION 0141 REQUIRED before saving waterways. Your draft is retained.",409);
     try{validateHydroFrame(command.layer,sources.world);}catch(e){throw new WorldError((e as Error).message,400);}
     const [original]=await tx.select().from(worldHydrologyVersion).where(eq(worldHydrologyVersion.requestId,command.requestId));
-    if(original){if(original.mapId!==command.mapId||original.worldId!==worldId||original.revision!==command.revision+1||(original.restoredFromRevision??undefined)!==command.restoreRevision||JSON.stringify(hydroLayerSchema.parse(original.layer))!==JSON.stringify(command.layer))throw new WorldError("This water request was already used for different authoring.",409);return {revision:original.revision,layer:hydroLayerSchema.parse(original.layer)};}
+    if(original){if(regionalAccess.context.region)throw new WorldError("This regional request was already used outside its retained scope. Keep the exact original retry.",409);if(original.mapId!==command.mapId||original.worldId!==worldId||original.revision!==command.revision+1||(original.restoredFromRevision??undefined)!==command.restoreRevision||JSON.stringify(hydroLayerSchema.parse(original.layer))!==JSON.stringify(command.layer))throw new WorldError("This water request was already used for different authoring.",409);return {revision:original.revision,layer:hydroLayerSchema.parse(original.layer)};}
     const [head]=await tx.select().from(worldHydrology).where(eq(worldHydrology.mapId,command.mapId)).for("update");
     if((head?.revision??0)!==command.revision)throw new WorldError("Another tab saved newer waterways. Your draft is retained; export it before loading the saved network.",409);
-    if(command.restoreRevision!==undefined){const [restored]=await tx.select().from(worldHydrologyVersion).where(and(eq(worldHydrologyVersion.mapId,command.mapId),eq(worldHydrologyVersion.revision,command.restoreRevision)));if(!restored||JSON.stringify(hydroLayerSchema.parse(restored.layer))!==JSON.stringify(command.layer))throw new WorldError("Restore the exact retained water revision before editing it. Your draft is preserved.",400);}
+    const acceptedLayer=hydroLayerSchema.parse(head?.layer??EMPTY_HYDROLOGY);if(regionalAccess.context.region){command.layer=boundedRegionalLayer(()=>regionalHydrology(acceptedLayer,command.layer,regionalScope(regionalAccess.context)));if(regionalEqual(acceptedLayer,command.layer)){await finishRegionalEdit(tx,userId,worldId,"water",command,regionalAccess,{revision:command.revision,geographyChanged:false});return {revision:command.revision,layer:command.layer,regional:command.regional};}}
+ if(command.restoreRevision!==undefined){const [restored]=await tx.select().from(worldHydrologyVersion).where(and(eq(worldHydrologyVersion.mapId,command.mapId),eq(worldHydrologyVersion.revision,command.restoreRevision)));if(!restored||JSON.stringify(hydroLayerSchema.parse(restored.layer))!==JSON.stringify(command.layer))throw new WorldError("Restore the exact retained water revision before editing it. Your draft is preserved.",400);}
     else {if(((head?.layer as HydroLayer|undefined)?.systemVersion??1)>(command.layer.systemVersion??1))throw new WorldError("This map has connected lake or special-feature authoring. Reload it before editing; an older writer cannot discard its lake relationships.",409);checkProvenance(command.layer,hydroLayerSchema.parse(head?.layer??EMPTY_HYDROLOGY),sources);}
     const revision=command.revision+1;
     await tx.insert(worldHydrology).values({mapId:command.mapId,worldId,revision,layer:command.layer,updatedBy:userId}).onConflictDoUpdate({target:worldHydrology.mapId,set:{revision,layer:command.layer,updatedBy:userId,updatedAt:new Date()}});
     await tx.insert(worldHydrologyVersion).values({mapId:command.mapId,worldId,revision,previousRevision:revision===1?null:revision-1,restoredFromRevision:command.restoreRevision??null,layer:command.layer,requestId:command.requestId,createdBy:userId});
-    return {revision,layer:command.layer};
+    await finishRegionalEdit(tx,userId,worldId,"water",command,regionalAccess,{revision,geographyChanged:true});return {revision,layer:command.layer,...command.regional?{regional:command.regional}:{}};
   });
 }

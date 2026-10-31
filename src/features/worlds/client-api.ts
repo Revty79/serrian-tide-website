@@ -1,4 +1,5 @@
 import type { EntryDraft, EntryRecord, EraDraft, EraRecord, WorldDraft, WorldRecord } from "./history";
+import {notifyWorldGeography} from "./terrain-geography-notifications";
 export class SaveError extends Error { constructor(message: string, public status: number) { super(message); } }
 export async function worldApi<T>(url: string, method = "GET", body?: unknown, signal?: AbortSignal): Promise<T> {
   let response: Response;
@@ -6,6 +7,8 @@ export async function worldApi<T>(url: string, method = "GET", body?: unknown, s
   catch { throw new SaveError("The connection failed. Your draft is still here; try again when connected.", 0); }
   const data = await response.json().catch(() => ({ error: "The server response could not be read. Your draft is still here." }));
   if (!response.ok || data?.error) throw new SaveError(data?.error ?? "The request failed. Your draft is still here.", response.status);
+  const geography=method!=="GET"&&url.match(/\/api\/worlds\/([^/?]+)\/(?:terrain(?:\?|$|\/(?:refinements|hydrology|environment|materials|artwork|labels)(?:\?|$))|towns(?:\?|$))/);
+  if(geography)notifyWorldGeography(geography[1]);
   return data as T;
 }
 export function worldDraftOf(world?: WorldRecord): WorldDraft { return { name: world?.name ?? "", description: world?.description ?? "", introduction: world?.introduction ?? "", historicalOverview: world?.historicalOverview ?? "", tone: world?.tone ?? "primary", tagIds: world?.tagIds ?? [] }; }

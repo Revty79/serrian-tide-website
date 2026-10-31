@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {regionalAuthoringSchema} from "./terrain-regional-scope";
 import {hydroPinSchema,type HydroSources,type HydroGeometry} from "./terrain-hydrology";
 import {validateWaterRings,insideWaterRings,waterDx,waterBounds} from "./terrain-water-geometry";
 import {materialCoverage} from "./terrain-materials";
@@ -23,7 +24,7 @@ export type EnvironmentField=z.infer<typeof environmentFieldSchema>;
 export const environmentLayerSchema=z.object({version:z.literal(1),settings:climateSettingsSchema,fields:z.array(environmentFieldSchema).max(ENVIRONMENT_LIMITS.fields),regions:z.array(environmentRegionSchema).max(ENVIRONMENT_LIMITS.regions),visible:z.boolean(),biomes:z.boolean(),vegetation:z.boolean(),artwork:z.boolean(),climateView:z.enum(["none","temperature","moisture"]),opacity:z.number().min(0).max(1)}).strict().superRefine((v,c)=>{if(v.fields.reduce((n,f)=>n+f.width*f.height,0)>ENVIRONMENT_LIMITS.cells)c.addIssue({code:"custom",message:"Environmental fields exceed their 262,144-cell budget."});if(v.regions.reduce((n,r)=>n+r.points.length,0)>ENVIRONMENT_LIMITS.points)c.addIssue({code:"custom",message:"Environmental boundaries exceed their 32,768-point budget."});for(const list of [v.fields,v.regions])if(new Set(list.map(v=>v.id)).size!==list.length)c.addIssue({code:"custom",message:"Environmental identities must be unique."});if(v.fields.length&&v.fields.some(f=>JSON.stringify(f.settings)!==JSON.stringify(v.settings)))c.addIssue({code:"custom",message:"Local fields must share the accepted global climate settings. Preview the whole World to change climate assumptions."});});
 export type EnvironmentLayer=z.infer<typeof environmentLayerSchema>;
 export const EMPTY_ENVIRONMENT:EnvironmentLayer={version:1,settings:climatePreset("mixed"),fields:[],regions:[],visible:true,biomes:false,vegetation:true,artwork:true,climateView:"none",opacity:1};
-export const environmentSaveSchema=z.object({mapId:z.string().uuid(),revision:z.number().int().min(0),requestId:z.string().uuid(),restoreRevision:z.number().int().positive().optional(),layer:environmentLayerSchema}).strict();
+export const environmentSaveSchema=z.object({mapId:z.string().uuid(),revision:z.number().int().min(0),requestId:z.string().uuid(),restoreRevision:z.number().int().positive().optional(),layer:environmentLayerSchema,regional:regionalAuthoringSchema.optional()}).strict();
 export type EnvironmentCommand=z.infer<typeof environmentSaveSchema>;
 export function encodeEnvironment(bytes:Uint8Array){let text="";for(let i=0;i<bytes.length;i+=8192)text+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(text);}
 export function decodeEnvironment(data:string){const text=atob(data);return Uint8Array.from(text,c=>c.charCodeAt(0));}

@@ -41,7 +41,7 @@ export async function checkRegionsBrowser(options:Options){
  }catch(e){await p.screenshot({path:out+"/regions-browser-failure.png"}).catch(()=>{});await writeFile(out+"/regions-browser-failure.txt",await p.locator("body").innerText().catch(()=>""));throw e;}finally{await p.close();}
  await checkRegionProjection(options);
  await checkRegionSecurityTouch(options);
- if(process.env.SERRIAN_REGIONS_SKIP_CPU!=="1")await(await import("./worlds-regions-performance")).checkRegionsPerformance(options);
+ if(process.env.SERRIAN_REGIONS_SKIP_CPU!=="1"||process.env.SERRIAN_REGIONAL_EDITING_PASS==="1")await(await import("./worlds-regions-performance")).checkRegionsPerformance(options);
 }
 
 export async function checkRegionProjection({god,base,world,out,errors}:Options){

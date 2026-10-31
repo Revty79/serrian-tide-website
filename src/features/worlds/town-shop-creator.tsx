@@ -15,7 +15,7 @@ import {hasCreatorWorkshop} from "./creator-composition";
 import type {WorldBundle} from "./history";
 import styles from "./creator-workshop.module.css";
 
-type Props={initialPlacement?:{mapId:string;x:number;y:number};worldId:string;target:CreationTarget;towns:TownBundle;business:BusinessBundle;onClose:()=>void;onDirty:(dirty:boolean)=>void;onSaved:(result:{id:string;kind:string})=>void};
+type Props={initialPlacement?:{mapId:string;x:number;y:number;regional?:import("./terrain-regional-scope").RegionalAuthoring};worldId:string;target:CreationTarget;towns:TownBundle;business:BusinessBundle;onClose:()=>void;onDirty:(dirty:boolean)=>void;onSaved:(result:{id:string;kind:string})=>void};
 const equal=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
 const labels={town:"Town",shop:"Shop",place:"place",person:"association",offering:"offering",location:"entrance"};
 function commandFor(frame:CreationFrame){const d=frame.draft,common={requestId:frame.requestId,id:frame.id,revision:frame.revision};

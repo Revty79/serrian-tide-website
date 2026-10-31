@@ -29,5 +29,5 @@ export async function checkEngravedBrowser(options:Parameters<typeof checkHydrol
  await(await import("./worlds-engraved-render-checks")).checkEngravedRender(options);
  await(await import("./worlds-engraved-devices-security")).checkEngravedDevicesSecurity(options);
  if(process.env.SERRIAN_ENGRAVED_FOCUS!=="1")await(await import("./worlds-engraved-refinement")).checkEngravedRefinement(options);
- if(process.env.SERRIAN_ENGRAVED_SKIP_CPU!=="1")await(await import("./worlds-engraved-performance")).checkEngravedPerformance(options);
+ if(process.env.SERRIAN_ENGRAVED_SKIP_CPU!=="1"||process.env.SERRIAN_REGIONAL_EDITING_PASS==="1")await(await import("./worlds-engraved-performance")).checkEngravedPerformance(options);
 }

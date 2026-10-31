@@ -1,5 +1,6 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
+import type {RegionalScope} from "./terrain-regional-scope";
+import {useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import {useTerrainHydrology} from "./terrain-hydrology-client";
 import {type HydroAnalysis,type HydroCatchment,type HydroLake,type HydroLayer,type HydroPoint} from "./terrain-hydrology";
 import {acceptLake,affectedWater,alignWaterPorts,closeWaterLake,connectWaterLake,connectedWater,disconnectWater,editWaterLake,insertWaterControl,joinWaterRivers,removeWaterControl,removeWaterLake,waterNetwork} from "./terrain-water-network";
@@ -9,13 +10,16 @@ import type {TerrainFrame} from "./terrain-refinement";
 import type {HydroWorkerRequest} from "./terrain-hydrology-worker";
 
 type Mode="select"|"draw-lake"|"move-shore"|"insert-shore"|"insert-control"|"join-river"|"watershed";
-export function useTerrainWater(api:string,mapId:string,editable:boolean,sourceEpoch:string){
-  const base=useTerrainHydrology(api,mapId,editable,sourceEpoch),[lakeId,setLakeId]=useState<string|null>(null),[lakePreview,setLakePreview]=useState(false),[mode,setMode]=useState<Mode>("select"),[drawing,setDrawing]=useState<HydroPoint[]>([]),[ringIndex,setRingIndex]=useState(0),[vertex,setVertex]=useState(0),[review,setReview]=useState<HydroLayer|null>(null),[watershed,setWatershed]=useState<{data:HydroCatchment;analysis:HydroAnalysis}>(),[watershedShown,setWatershedShown]=useState(true),[networkShown,setNetworkShown]=useState(false),[issues,setIssues]=useState<{id:string;message:string}[]>([]),[frame,setFrame]=useState<TerrainFrame>();
+export function useTerrainWater(api:string,mapId:string,editable:boolean,sourceEpoch:string,scope?:RegionalScope,isInteracting?:()=>boolean){
+  const transient=useRef(false);
+  const base=useTerrainHydrology(api,mapId,editable,sourceEpoch,scope,()=>!!isInteracting?.()||transient.current),[lakeId,setLakeId]=useState<string|null>(null),[lakePreview,setLakePreview]=useState(false),[mode,setMode]=useState<Mode>("select"),[drawing,setDrawing]=useState<HydroPoint[]>([]),[ringIndex,setRingIndex]=useState(0),[vertex,setVertex]=useState(0),[review,setReview]=useState<HydroLayer|null>(null),[watershed,setWatershed]=useState<{data:HydroCatchment;analysis:HydroAnalysis}>(),[watershedKept,setWatershedKept]=useState(false),[watershedShown,setWatershedShown]=useState(true),[networkShown,setNetworkShown]=useState(false),[issues,setIssues]=useState<{id:string;message:string}[]>([]),[frame,setFrame]=useState<TerrainFrame>();
   const layer=base.layer,sources=base.sources,lake=(lakePreview?base.preview?.lakes:layer.lakes)?.find(l=>l.id===lakeId),world=sources?.world;
-  useEffect(()=>{const before=(event:BeforeUnloadEvent)=>{if(drawing.length)event.preventDefault();};window.addEventListener("beforeunload",before);return()=>window.removeEventListener("beforeunload",before);},[drawing.length]);
+  const transientDraft=drawing.length>0||!!review||lakePreview||!!watershed&&!watershedKept;
+  useLayoutEffect(()=>{transient.current=transientDraft;},[transientDraft]);
+  useEffect(()=>{const before=(event:BeforeUnloadEvent)=>{if(transientDraft)event.preventDefault();};window.addEventListener("beforeunload",before);return()=>window.removeEventListener("beforeunload",before);},[transientDraft]);
   const {onExtra,reportNotice}=base;
   useEffect(()=>onExtra(value=>{
-    if(value.type==="watershed"){setWatershed({data:value.catchment,analysis:value.analysis});setWatershedShown(true);reportNotice("Provisional watershed reviewed. Its shading is separate from terrain; keep it in the draft only if wanted.");}
+    if(value.type==="watershed"){setWatershed({data:value.catchment,analysis:value.analysis});setWatershedKept(false);setWatershedShown(true);reportNotice("Provisional watershed reviewed. Its shading is separate from terrain; keep it in the draft only if wanted.");}
     else if(value.type==="lake-review"){setReview(value.layer);reportNotice("Lake level and outlet proposal prepared. Existing shoreline and rivers remain unchanged until you accept it.");}
     else if(value.type==="review"){setIssues(value.issues);reportNotice(value.issues.length?value.issues.length+" water connections need review. Existing authoring was retained.":"No uphill sampled paths or detached endpoints were found in this review. Sampling remains provisional.");}
   }),[onExtra,reportNotice]);
@@ -46,7 +50,7 @@ export function useTerrainWater(api:string,mapId:string,editable:boolean,sourceE
   }
   const selectedLayer=lakePreview?base.preview:layer,selectedIdentity=lakeId??base.selected,network=useMemo(()=>networkShown&&selectedIdentity&&selectedLayer?waterNetwork(selectedLayer,selectedIdentity):undefined,[networkShown,selectedIdentity,selectedLayer]);
   const overlay=useMemo(()=>({...base.overlay,suggestions:review??base.overlay.suggestions,watershed:watershedShown?watershed?.data:null,showCatchments:watershedShown,drawing,selectedLake:lakeId,selectedLakePreview:lakePreview,networkEdges:network?.edges.map(e=>e.id)}),[base.overlay,review,watershedShown,watershed,drawing,lakeId,lakePreview,network]);
-  return {...base,setSelection:(id:string|null,preview:boolean)=>{setLakeId(null);setMode("select");base.setSelection(id,preview);},pick,overlay,dirty:base.dirty||drawing.length>0,system:{mode,drawing,lake,lakeId,lakePreview,selectLake,begin,finishLake,cancelDrawing:()=>{setDrawing([]);setMode("select");},ringIndex,vertex,network,networkShown,setNetworkShown,issues,review,acceptReview,discardReview:()=>setReview(null),watershed,watershedShown,setWatershedShown,affected:sources?affectedWater(layer,sources):{edges:[],lakes:[],catchments:[]},
+  return {...base,setSelection:(id:string|null,preview:boolean)=>{setLakeId(null);setMode("select");base.setSelection(id,preview);},pick,overlay,dirty:base.dirty||transientDraft,system:{mode,drawing,lake,lakeId,lakePreview,selectLake,begin,finishLake,cancelDrawing:()=>{setDrawing([]);setMode("select");},ringIndex,vertex,network,networkShown,setNetworkShown,issues,review,acceptReview,discardReview:()=>setReview(null),watershed,watershedKept,watershedShown,setWatershedShown,affected:sources?affectedWater(layer,sources):{edges:[],lakes:[],catchments:[]},
     suggest:(f:TerrainFrame,minArea:number,lakeArea:number,depth:number)=>{setFrame(f);void base.suggest(f,minArea,{lakeMinimumAreaM2:lakeArea,lakeMinimumDepthM:depth});},
     acceptLake:()=>lake&&base.preview&&perform(()=>acceptLake(layer,base.preview!,lake.id,world!),"Lake and its connected river network accepted into the draft. Save waterways to retain them."),
     rejectLake:()=>{if(lake&&base.preview){base.changePreview(removeWaterLake(base.preview,lake.id));setLakeId(null);}},
@@ -60,7 +64,7 @@ export function useTerrainWater(api:string,mapId:string,editable:boolean,sourceE
     connectLake:(id:string,outlet:boolean)=>base.selected&&world&&perform(()=>connectWaterLake(layer,base.selected!,id,outlet,world),outlet?"Waterway connected as this lake's outlet.":"Waterway connected to this lake through an explicit inlet."),
     width:(value:number|null)=>base.selected&&perform(()=>({...connectedWater(layer),edges:layer.edges.map(e=>e.id===base.selected?{...e,widthM:value}:e)}),"River width changed in the draft. Automatic estimates remain separate from physical overrides."),
     lakeLevel,inspectWatershed:()=>{const point=lake?.seed??layer.nodes.find(n=>n.id===layer.edges.find(e=>e.id===base.selected)?.to)?.point;if(point){const source=lake&&sources?.sources.filter(s=>lake.sourceIds.includes(s.id)).sort((a,b)=>b.level-a.level)[0];request(analysis=>({type:"watershed",analysis,point}),frame??source?.frame);}else begin("watershed");},
-    keepWatershed:()=>watershed&&perform(()=>({...connectedWater(layer),analyses:[...layer.analyses.filter(a=>a.id!==watershed.analysis.id),watershed.analysis],catchments:[...layer.catchments?.filter(c=>c.id!==watershed.data.id)??[],watershed.data]}),"Watershed retained in the water draft; its area and boundary remain provisional."),
+    keepWatershed:()=>{if(watershed&&perform(()=>({...connectedWater(layer),analyses:[...layer.analyses.filter(a=>a.id!==watershed.analysis.id),watershed.analysis],catchments:[...layer.catchments?.filter(c=>c.id!==watershed.data.id)??[],watershed.data]}),"Watershed retained in the water draft; its area and boundary remain provisional."))setWatershedKept(true);},discardWatershed:()=>{setWatershed(undefined);setWatershedKept(false);},
     reviewNetwork:()=>request(()=>({type:"review",layer})),
   }};
 }

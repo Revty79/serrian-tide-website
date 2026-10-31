@@ -55,3 +55,20 @@ test("inherited Town captions stay inside a wrapped regional extent without over
  assert.ok(first.y+first.height<=second.y||second.y+second.height<=first.y||first.x+first.width<=second.x||second.x+second.width<=first.x);
  assert.equal(regionalTownCaption({x:5000,y:30000},{x:2050,y:300},view,{...frame,width:1},200000,true,viewport,130,[]),null);
 });
+
+test("refreshing a regional source preserves accepted nonoverlapping source pins",()=>{
+ const accepted=terrainSourceState(2,[{id:"overlapping",revision:8},{id:"outside",revision:3}]);
+ assert.equal(advanceTerrainSourceState(accepted,null,2),accepted);
+ assert.equal(advanceTerrainSourceState(advanceTerrainSourceState(accepted,null,4),"overlapping",9),terrainSourceState(4,[{id:"overlapping",revision:9},{id:"outside",revision:3}]));
+});
+
+
+test("a late own numerical acknowledgement clears only an exact complete observed source vector",async()=>{
+ const {numericalAcknowledgementMatches}=await import("./terrain-geography-notifications");
+ const state=terrainSourceState(2,[{id:"local",revision:3},{id:"outside",revision:7}]);
+ assert.equal(numericalAcknowledgementMatches(state,{rootRevision:4,sourceState:advanceTerrainSourceState(state,null,4)!},4),true);
+ assert.equal(numericalAcknowledgementMatches(state,{rootRevision:2,sourceState:advanceTerrainSourceState(state,"local",4)!},2,{id:"local",revision:4}),true);
+ assert.equal(numericalAcknowledgementMatches(state,{rootRevision:5,sourceState:advanceTerrainSourceState(state,null,5)!},4),false);
+ assert.equal(numericalAcknowledgementMatches(state,{rootRevision:4,sourceState:advanceTerrainSourceState(advanceTerrainSourceState(state,null,4),"outside",8)!},4),false);
+ assert.equal(numericalAcknowledgementMatches(undefined,{rootRevision:4,sourceState:"4;"},4),false);
+});

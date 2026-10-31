@@ -34,6 +34,6 @@ export const regionOverlaps=(region:TerrainFrame,detail:TerrainFrame,world:World
 export function terrainSourceState(rootRevision:number,details:readonly {id:string;revision:number}[]){
   return `${rootRevision};${[...details].sort((a,b)=>a.id.localeCompare(b.id)).map(s=>`${s.id}:${s.revision}`).join(";")}`;
 }
-export function advanceTerrainSourceState(state:string|undefined,id:string,revision:number){
-  return state?.split(";").map(part=>part.startsWith(id+":")?id+":"+revision:part).join(";");
+export function advanceTerrainSourceState(state:string|undefined,id:string|null,revision:number){
+  return state?.split(";").map((part,index)=>id===null?(index===0?String(revision):part):part.startsWith(id+":")?id+":"+revision:part).join(";");
 }

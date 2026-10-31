@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {regionalAuthoringSchema} from "./terrain-regional-scope";
 import {waterFeatureSchema,waterPresentationSchema,lakeArtworkSchema,courseKindSchema,naturalDetailSchema,type NaturalDetail} from "./terrain-water-feature-schema";
 export type {WaterFeature,WaterPresentation,NaturalDetail} from "./terrain-water-feature-schema";
 import {validateWaterRings,nearestWaterShore,waterBodiesOverlap,waterDx} from "./terrain-water-geometry";
@@ -62,7 +63,7 @@ export const hydroLayerSchema=z.object({version:z.literal(1),visible:z.boolean()
 });
 export type HydroLayer=z.infer<typeof hydroLayerSchema>;
 export const EMPTY_HYDROLOGY:HydroLayer={version:1,visible:true,opacity:1,analyses:[],nodes:[],edges:[]};
-export const hydroSaveSchema=z.object({mapId:z.string().uuid(),revision:z.number().int().min(0),requestId:z.string().uuid(),layer:hydroLayerSchema,restoreRevision:z.number().int().positive().optional()}).strict();
+export const hydroSaveSchema=z.object({mapId:z.string().uuid(),revision:z.number().int().min(0),requestId:z.string().uuid(),layer:hydroLayerSchema,restoreRevision:z.number().int().positive().optional(),regional:regionalAuthoringSchema.optional()}).strict();
 export type HydroCommand=z.infer<typeof hydroSaveSchema>;
 export type HydroGeometry={width:number;height:number;wrap:boolean};
 export type HydroSource={id:string;parentId:string|null;level:number;revision:number;gridWidth:number;gridHeight:number;frame:TerrainFrame;contentHash:string};

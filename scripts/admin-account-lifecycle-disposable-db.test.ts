@@ -122,7 +122,8 @@ async function main(): Promise<void> {
     }
     assert.equal(path.dirname(path.resolve(temporaryCluster)), path.resolve(tmpdir()));
     assert.ok(path.basename(temporaryCluster).startsWith("serrian-account-lifecycle-postgres-"));
-    await rm(temporaryCluster, { recursive: true, force: true });
+    if(process.env.SERRIAN_TEST_KEEP_DISPOSABLE==="1")console.log("Retained owned account-lifecycle fixture:",temporaryCluster);
+    else await rm(temporaryCluster, { recursive: true, force: true });
   }
 }
 

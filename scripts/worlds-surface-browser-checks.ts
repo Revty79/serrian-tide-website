@@ -7,6 +7,10 @@ import {terrainPanel,terrainTool,terrainUnits} from "./worlds-terrain-browser-ui
 import type {TerrainDocument} from "../src/features/worlds/terrain";
 import type {TerrainMaterials} from "../src/features/worlds/terrain-materials";
 export async function checkSurfaceBrowser(options:Parameters<typeof checkCartographyBrowser>[0]){
+ if(process.env.SERRIAN_S43_SURFACE_CONTINUATION==="1"){
+  assert.equal(process.env.SERRIAN_REGIONAL_EDITING_PASS,"1");const {god,base,world,out}=options,api=`${base}/api/worlds/${world}/terrain`,carto=JSON.parse(await readFile(out+"/cartography-browser-results.json","utf8")),maps=(await(await god.request.get(api)).json()).maps,local=maps.find((map:{name:string})=>map.name==="Pass 8 described geography").id,index=await(await god.request.get(`${api}/refinements?terrainMap=${local}`)).json(),fine=index.refinements.find((meta:{name:string})=>meta.name==="Pass 8 described local terrain");
+  await(await import("./worlds-surface-workflow-checks")).checkSurfaceWorkflows({...options,mapId:carto.world.mapId,local,fine,extreme:carto.extreme.mapId});await(await import("./worlds-surface-device-checks")).checkSurfaceDevices({...options,local,fineId:fine.id});return;
+ }
  await (await import("./worlds-cartography-browser-checks")).checkCartographyBrowser(options);
  const {god,base,world,out,errors}=options,p=await god.newPage();p.setDefaultTimeout(90000);p.on("pageerror",e=>errors.push(e.message));p.on("dialog",d=>void d.accept());const endpoint=`${base}/api/worlds/${world}/terrain`,c=p.getByLabel("Terrain map canvas",{exact:true}),zoomRedraws:{wheelDelta:number;wallMs:number}[]=[],paintRedraws:{material:string;wallMs:number}[]=[],results:Record<string,unknown>={gpuDisabled:true,synchronousFrameBudgetMs:8,zoomRedraws,paintRedraws};
  const ready=async(page:Page=p)=>{await page.waitForFunction(()=>{const c=document.querySelector<HTMLCanvasElement>('canvas[aria-label="Terrain map canvas"]');return c&&c.dataset.renderPending==="0"&&c.dataset.cartographyPending==="0"&&c.dataset.detailPending==="0"&&c.dataset.surfacePending==="0";});};
