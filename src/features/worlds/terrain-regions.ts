@@ -14,7 +14,8 @@ export const regionCreateSchema=z.object({
   action:z.literal("create-region"),requestId:z.uuid(),parentMapId:z.uuid(),terrainId:z.uuid(),
   parentRevision:z.number().int().positive(),sourceRevision:z.number().int().positive(),sourceState:z.string().min(2).max(8192),
   geographyState:z.string().min(2).max(8192).optional(),name:z.string().trim().min(1).max(160),frame:regionFrameSchema,footprint:regionFootprintSchema.optional(),
-}).strict();
+  organizingParentId:z.uuid().nullable().optional(),organizingParentRevision:z.number().int().nonnegative().optional(),
+}).strict().superRefine((value,ctx)=>{if(value.organizingParentId&&value.organizingParentRevision===undefined)ctx.addIssue({code:"custom",message:"Review the organizing parent's current revision before creating its subregion."});if(!value.organizingParentId&&value.organizingParentRevision!==undefined)ctx.addIssue({code:"custom",message:"An organizing parent revision requires a selected parent region."});});
 export type RegionCreate=z.infer<typeof regionCreateSchema>;
 export type TerrainRegion={
   version:1;revision:number;mapId:string;parentMapId:string;parentName:string;terrainId:string;

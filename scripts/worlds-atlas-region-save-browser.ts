@@ -11,7 +11,7 @@ type Options={f:RegionalFixture;browser:Browser;context:BrowserContext;page:Page
 export async function checkRegionSaveRepair({f,page:p,base,groups}:Options){
  const api=`${base}/api/worlds/${f.world}/terrain`,url=(id:string)=>`${base}/worlds/${f.world}?tab=atlas&terrainMap=${id}`,key=(id:string)=>`st:region-create:${f.world}:${id}`;
  const points=Array.from({length:65},(_,i)=>{const angle=i*2*Math.PI/65,r=1+.08*Math.sin(angle*3);return {x:90000+14000*r*Math.cos(angle),y:65000+18000*r*Math.sin(angle)};}),footprint={version:1 as const,kind:"polygon" as const,parts:[points]},frame=regionFootprintFrame(footprint,{width:200000,height:120000,wrap:true});
- const seed={name:"Regional map 2",frame,method:"freehand",areas:[{points:[{x:35000,y:25000},{x:40000,y:30000}],closed:false},{points,closed:true}],activePart:1,vertex:0,operation:"append",tolerance:.01};
+ const seed={name:"Regional map 2",frame,organizingParentId:null,method:"freehand",areas:[{points:[{x:35000,y:25000},{x:40000,y:30000}],closed:false},{points,closed:true}],activePart:1,vertex:0,operation:"append",tolerance:.01};
  const open=async(expanded=false,id=ids.parent)=>{await p.goto(url(id));await p.getByLabel("Terrain map canvas",{exact:true}).waitFor();if(expanded)await p.getByRole("button",{name:"Expand editor",exact:true}).click();await stable(p);};
  const install=async(draft:unknown,id=ids.parent)=>{await p.evaluate(({key,draft})=>localStorage.setItem(key,JSON.stringify(draft)),{key:key(id),draft});await p.reload();await p.getByLabel("Terrain map canvas",{exact:true}).waitFor();await stable(p);};
  const draft=()=>p.evaluate(key=>JSON.parse(localStorage.getItem(key)!),key(ids.parent));

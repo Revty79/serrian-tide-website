@@ -12,6 +12,7 @@ import {validateRegionFootprint} from "./terrain-region-geometry";
 import {worldWriteTransaction,WorldError} from "./world-service";
 import {regionsAvailable,terrainMapContext} from "./terrain-map-context";
 import {regionCreateSchema,validateRegionFrame,terrainSourceState} from "./terrain-regions";
+import {recordCreatedRegionHierarchy} from "./terrain-region-hierarchy-service";
 
 export async function createRegionalMap(userId:string,worldId:string,raw:unknown){
   const command=regionCreateSchema.parse(raw),creationHash=createHash("sha256").update(JSON.stringify(command)).digest("hex");
@@ -34,6 +35,7 @@ export async function createRegionalMap(userId:string,worldId:string,raw:unknown
     const f=command.frame,values={mapId:command.requestId,worldId,terrainId:source.terrain.id,parentMapId:source.map.id,x:f.x,y:f.y,width:f.width,height:f.height,initialSourceRevision:source.terrain.revision,initialSourceState:command.sourceState,initialParentRevision:source.map.revision,creationHash,createdBy:userId};
     if(command.footprint){await tx.insert(worldMapRegion).values({...values,footprintKind:"polygon"});await tx.insert(worldMapRegionFootprint).values({mapId:command.requestId,worldId,footprint:command.footprint,createdBy:userId});}
     else await tx.execute(sql`insert into world_map_region (map_id,world_id,terrain_id,parent_map_id,x_metres,y_metres,width_metres,height_metres,initial_source_revision,initial_source_state,initial_parent_revision,creation_hash,created_by_user_id) values (${values.mapId},${worldId},${values.terrainId},${values.parentMapId},${f.x},${f.y},${f.width},${f.height},${values.initialSourceRevision},${values.initialSourceState},${values.initialParentRevision},${creationHash},${userId})`);
+    await recordCreatedRegionHierarchy(tx,userId,worldId,command,creationHash);
     return {id:command.requestId,parentMapId:source.map.id,terrainId:source.terrain.id,revision:1};
   });
 }

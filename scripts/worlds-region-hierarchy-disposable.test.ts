@@ -1,0 +1,2 @@
+import {withRegionalEditingFixture} from "./worlds-regional-editing-fixture";
+withRegionalEditingFixture(async f=>{if(process.env.SERRIAN_HIERARCHY_DATABASE!=="0")await(await import("./worlds-region-hierarchy-db")).hierarchyDatabase(f);if(process.env.SERRIAN_REGIONAL_EDIT_BROWSER)await(await import("./worlds-regional-editing-browser-checks")).regionalEditingBrowser(f);},async f=>{await(await import("./worlds-region-hierarchy-db")).hierarchyBeforeUpgrade(f);}).catch(error=>{console.error(error);process.exitCode=1;});

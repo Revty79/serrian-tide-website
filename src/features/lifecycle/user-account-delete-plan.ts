@@ -18,6 +18,8 @@ export type UserAccountForeignKeyPlanEntry = {
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "world_region_hierarchy", columnName: "updated_by_user_id", constraintName: "world_region_hierarchy_editor_fk", onDelete: "restrict", disposition: "block", label: "Regional map organization authorship" },
+  { tableName: "world_region_hierarchy_change", columnName: "created_by_user_id", constraintName: "world_region_hierarchy_change_author_fk", onDelete: "restrict", disposition: "block", label: "Immutable regional map organization history" },
   { tableName: "world_map_region_footprint", columnName: "created_by_user_id", constraintName: "world_region_footprint_author_fk", onDelete: "restrict", disposition: "block", label: "Immutable accepted regional boundaries" },
   { tableName: "world_regional_edit", columnName: "created_by_user_id", constraintName: "world_regional_edit_author_fk", onDelete: "restrict", disposition: "block", label: "Immutable regional geographic authoring receipts" },
   { tableName: "world_map_region", columnName: "created_by_user_id", constraintName: "world_map_region_author_fk", onDelete: "restrict", disposition: "block", label: "Immutable linked regional map authorship" },
@@ -154,4 +156,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 134;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 136;
