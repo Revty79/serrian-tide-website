@@ -69,7 +69,7 @@ function byConstraint<T extends { constraintName: string }>(
   return left.constraintName.localeCompare(right.constraintName);
 }
 
-test("the account plan classifies the current 137-FK User closure", () => {
+test("the account plan classifies the current 138-FK User closure", () => {
   const actual = Object.values(snapshot.tables).flatMap((table) => (
     Object.values(table.foreignKeys ?? {})
       .filter(({ tableTo }) => tableTo === "user")
@@ -88,7 +88,7 @@ test("the account plan classifies the current 137-FK User closure", () => {
   })).sort(byConstraint);
 
   assert.equal(USER_ACCOUNT_FOREIGN_KEY_PLAN.length, USER_ACCOUNT_FOREIGN_KEY_COUNT);
-  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 137);
+  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 138);
   assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, USER_ACCOUNT_FOREIGN_KEY_COUNT);
   assert.deepEqual(planned, actual);
   assert.equal(Number(currentMigrationPrefix), currentMigration.idx, "inspect the latest journal snapshot, including type-only migrations");
@@ -112,11 +112,16 @@ test("only authentication, personal preferences, and membership associations are
   );
   assert.equal(
     USER_ACCOUNT_FOREIGN_KEY_PLAN.filter(({ disposition }) => disposition === "block").length,
-    130,
+    131,
   );
   for (const constraint of ["world_region_footprint_author_fk", "world_regional_edit_author_fk", "world_map_region_author_fk", "world_hydrology_editor_fk", "world_hydrology_version_author_fk", "world_environment_editor_fk", "world_environment_version_author_fk"]) {
     assert.equal(USER_ACCOUNT_FOREIGN_KEY_PLAN.find(entry => entry.constraintName === constraint)?.disposition, "block", "waterway attribution and accepted history remain protected");
   }
+  assert.equal(
+    USER_ACCOUNT_FOREIGN_KEY_PLAN.find(entry => entry.constraintName === "world_building_floor_operation_author_id_user_id_fk")?.disposition,
+    "block",
+    "immutable interior authorship must remain a deletion blocker",
+  );
   assert.ok(
     USER_ACCOUNT_FOREIGN_KEY_PLAN
       .filter(({ onDelete }) => onDelete === "set null")

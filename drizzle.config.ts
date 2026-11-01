@@ -10,6 +10,7 @@ if (!process.env.DATABASE_URL) {
 
 export default defineConfig({
   schema: [
+    "./src/db/world-building-floor-schema.ts",
     "./src/db/world-town-map-schema.ts",
     "./src/db/world-region-hierarchy-schema.ts",
     "./src/db/world-regional-authoring-schema.ts",

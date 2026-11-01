@@ -133,3 +133,5 @@ next-env.d.ts
 /artifacts/regions-s45-*
 # Town / city builder captures, profiles, disposable data and local build receipts.
 /artifacts/towns-s5a-*/
+# Stage 5B disposable interiors, private backups, captures and build receipts.
+/artifacts/interiors-s5b-*/
