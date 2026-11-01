@@ -1,6 +1,6 @@
 # Atlas Stage 5A — Town and City Maps
 
-Status: technically verified on 2026-10-31; publication receipt is recorded below. Starting checkpoint: `88cfa27c682b5b339e7f672d8c98b1f0289b2191`. Stage 5B is not authorized.
+Status: Stage 5A usability and creative-quality correction technically verified on 2026-10-31; current receipt follows the retained original delivery below. The owner rejected the original experience as too complicated. Owner usability/artistic acceptance remains pending. Starting checkpoint: `88cfa27c682b5b339e7f672d8c98b1f0289b2191`; correction starts at `f373dbcfbbc5a96ad3cf74517c842b25728e5ac3`. Stage 5B is not authorized.
 
 ## What changed
 
@@ -97,3 +97,52 @@ No new configuration or assets are required. For a separately authorized release
 Application commit [`2f183ecd321a9e8774679e75524b8c211b312941`](https://github.com/Revty79/serrian-tide-website/commit/2f183ecd321a9e8774679e75524b8c211b312941) is published to `origin/main`. [GitHub validation](https://github.com/Revty79/serrian-tide-website/actions/runs/41267138135) passed TypeScript, ESLint, all 2,600 units and portable raster regressions on Linux. The existing LoreFamily lint warning and GitHub action/runtime-image notices remain separate from application failures.
 
 `towns-s5a-workbench/source-publication.json` verifies the 1,799-file application snapshot and runtime manifest against the tested production checkout. Application and asset bytes are exact; the isolated Next build added only its two generated-type include paths to its own TypeScript configuration. New migration bytes match the rehearsed SHA-256 in the committed Git object. Captures, databases, private objects and large diagnostics are absent from the publication. A following documentation-only receipt commit records this result without changing the tested application. Stop at Stage 5A; owner usability/artistic acceptance, physical-device certification, shared migration and deployment remain separate.
+
+## Stage 5A owner correction: approachable creation and original town artwork
+
+This corrects the existing Stage 5A, following the owner's usability and creative-quality supplement. The original delivery and its receipts above remain historical. The current application snapshot is `23d6380c6c8121c7d4b548a3a1f0876c71219afa685c30e0d5664af4eb92f232`, runtime manifest `59fcaf86de30f8abbc0105a27e8aa4eff8ac7608862a12f856f1b44665b70219`, production build `aZsYPSkROE6ygP2ZLzj9k`.
+
+**Creation and guidance.** A visible **Town Maps** action on World/regional maps opens the actual Town inventory and **Create Town Map**. Creation reuses the Town's sole placement and presents **Generate a Town** or **Draw My Own**. Blank creation saves and opens directly. Generated layouts have a retained preview and prominent **Save & Open Town Map**; changing settings offers **Update Preview**. Alternate names are unique. Missing placement/schema, invalid input, read-only access and retained work have specific explanations or recovery actions.
+
+The compact tools use Roads, Buildings, Public Spaces and Trees. The active tool, a short instruction and its immediate choices sit beside the canvas. After a road, **Add Buildings Along It** is an optional next action. Drawing remains free-order; advanced controls and additional drawing tools stay accessible. **Save Changes** can finish a valid unfinished road/outline before saving; incomplete input stays recoverable. Save, map switching and return navigation remain visible. Phone users see **Start Drawing/Start Editing** in the active-tool instructions, preserving explicit touch arming and two-finger rollback. The final 390 x 844 DPR-2 building workflow retains a 423.3-pixel visible canvas and 44-pixel header targets; the inherited 400-pixel minimum was not reduced.
+
+**Recognizable pieces and direct editing.** Thirteen original illustrated choices cover Cottage, House, Large Home, Courtyard Home, Shop, Tavern/Inn, Workshop, Barn/Warehouse, Stables, Town Hall, Temple, Tower and Castle/Keep. Select a piece and place it repeatedly, with immediate size, building look and turn controls. Optional street-facing placement aligns near a road while keeping buildings off its centreline. Custom outlines remain available. Body dragging moves the selected object; **Reshape Corners** reveals direct corner handles. Resize and rotation handles remain on the map. Point symbols resize, new gates use editable line geometry, and legacy gate symbols remain readable. Locked pieces explain their state and offer Unlock.
+
+**Art and settlement generation.** The original Canvas2D painter adds roof planes/eaves, bounded shingles/thatch/slate, awnings, inn signs, workshop chimneys, distinct temple/tower/keep treatment, walls/gates, clustered trees, gardens, market stalls/fountain, fields, road edging and water marks. There are no downloaded images, fonts or dependencies. This is a cohesive starter kit for plan-view fantasy settlements; a comprehensive historical/industrial asset library and interiors are outside this pass.
+
+Organic generation now uses bounded connected irregular streets around a market, short non-crossing extra links, varied street-facing parcels, open areas, fields and tree groups. Planned, radial and fortified patterns retain distinct layouts. Terrain checks omit unsuitable wet/steep/crowded sites; manual shapes, names, links and locked layers remain protected. Timber/stone choices affect appearance without creating permanent buildings or businesses. While generation is pending or a proposal is open, shape editing is frozen and Cancel is visible on the map; cancellation retains the exact manual draft. Accepting a proposal remains explicit.
+
+### Current correction evidence
+
+All large evidence is ignored under `artifacts/towns-s5a-*`. These are separate Town, root and World CPU receipts, not a single uninterrupted all-World aggregate.
+
+| Coverage | Current evidence |
+| --- | --- |
+| 2,606/2,606 units in 321 files; production build/type check; ESLint zero errors and the one pre-existing LoreFamily warning; credential-free Drizzle check | `towns-s5a-usability-workbench/units-release.log`, `lint-release.log`, `drizzle-release.log`; production build in browser-8 |
+| Complete headed production manual village, contextual road-to-building choices, repeated cottages, tavern/rotation/resize/direct movement, shop, market, trees, save/reopen; generated preindustrial timber village plus Temple; delayed-generation cancellation | `towns-s5a-usability-browser-8/browser-results.json`, `town-creative.json` |
+| Original Town regression journey: direct vertices, exact Undo/Save/Redo/Save, permanent place/Shop links, lost accepted acknowledgment/reload/exact retry, named Pending Work, protected regeneration, regional/sibling return and switching | Same receipt, `town-browser.json` |
+| Standard/expanded desktop/tablet/phone layouts and native DPR-2 touch with explicit arming and exact two-finger rollback | Same receipt, `town-browser.json`, `town-native-inputs.json` |
+| Actual CSRF/preview aliases/chunked oversized requests/malformed geometry/concurrent saves/role and foreign-World boundaries; 68-map inventory; fresh/populated migration and paired SQL/private-storage restored-service reads | Same receipt, `town-http-security.json`, database receipts, `town-restored.json` |
+| Same actual canonical geometry through old/new Town painters, and old/new generators using identical World/frame/recipe | Same receipt, `creative-comparison.json` and ignored before/after captures |
+| All four unchanged nine-limit World CPU suites, geographic/source comparisons, artwork/cache budgets and regional switching/reuse | `towns-s5a-usability-cpu-1/results.json`, four comparison receipts; all 36 limits pass against accepted `88cfa27` on the current runtime |
+| Original assets, frozen migrations, original Town service/HTTP/schema, numerical/render/climate/water/geographic/gameplay sources and original World editing functions | `towns-s5a-usability-workbench/preservation.json`, `source-publication.json` |
+
+The normal-browser workflow uses public roles/labels and visible canvas input, without hidden selectors or implementation data for ordinary actions. Installed headed Chrome 134.0.6998.166 runs with GPU disabled. Computer-use initialization remained unavailable; the existing isolated browser harness supplied native input and personally inspected captures. Final manual, generated-neighbourhood, palette and phone captures were inspected, including same-geometry old/new artwork. Technical comparison calibration uses public wheel/drag at similar geographic scale, reports actual canvas dimensions separately, and claims neither pixel equality nor owner approval. The new image is not credited merely for canvas size: its comparison canvas is smaller.
+
+Current GPU-disabled Town measurements (`browser-8/town-performance.json`):
+
+| Case | Features / buildings | Generation | Open | Render | Ten navigation keys |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Organic village | 130 / 44 | 64 ms | 473 ms | 1.7 ms | 193 ms |
+| Organic town | 507 / 271 | 117 ms | 540 ms | 4.3 ms | 291 ms |
+| Dense planned-city stress case | 3,686 / 2,381 | 157 ms | 822 ms | 23.4 ms | 608 ms |
+
+All retain the original 15-second open, 100-ms render and 1,500-ms ten-key budgets. Each measured backing surface uses 2,971,200 RGBA bytes. Extra decorative work is capped at 9,000 marks per frame, clipped to the visible area and simplified at city scale; the measured city adds zero decorative marks. Existing limits remain 4,000 features, 64,000 points, 2.5 million backing pixels, 30 history states and a 12-MiB serialized-history estimate. Richer rendering costs more CPU than the original simple painter; original/new Town timing rows also have different designs and do not constitute an identical-workload speed comparison. Surface estimates are not process RSS or physical-device certification.
+
+The current 68-map storage fixture retains 70 versions: logical head/version JSON payloads are 186,779/188,232 bytes and PostgreSQL allocations are 253,952/204,800 bytes. All 125 original private files (265,748 bytes) retain their exact hashes. Town Maps create no terrain grids/private terrain objects; immutable versions still grow. No storage cleanup or redesign occurred.
+
+All 10,010 protected baseline Git blobs and 108 original public assets remain exact. All 304 SQL/snapshots and 152 journal entries through 0151 are frozen; **this correction adds no migration**. Existing 0151 remains required for the initial Town Map feature, with the unchanged SHA-256 above. Only newly owned disposable targets were exercised; shared DEV/Production were not accessed or migrated.
+
+Earlier failed or rejected correction attempts remain retained: interrupted development HTTP inspection, personally rejected initial generated layout and crowded phone views, a small-building drag that selected a corner before direct movement was separated from Reshape Corners, a stale browser-helper build reference, raw CSS art colours rejected by the semantic-token unit guard, and browser-7's actual 388.3-pixel phone failure against the unchanged 400-pixel gate. Browser-8 passes the corrected complete journey. Historical World/six-appearance/full-lifecycle receipts above remain historical; unchanged engine/source proof and fresh CPU checks do not convert them into a new uninterrupted aggregate.
+
+No shared database operation, deployment, owner-service restart, cleanup/GC, commerce redesign, new hierarchy, interiors or Stage 5B/5C occurred. This correction stops for owner review. Technical readiness, owner usability/artistic acceptance and physical-device certification remain distinct.
