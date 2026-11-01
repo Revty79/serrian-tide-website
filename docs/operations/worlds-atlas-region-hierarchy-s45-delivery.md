@@ -1,6 +1,6 @@
 # Atlas Stage 4 Pass 5 — nested regions and map switching
 
-Technically verified on 2026-10-31. Starting application: `526dcda299d9e3a83d4aa6e8e93cc47a666bede5`. Main publication is authorized under the owner's requested workflow.
+Technically verified on 2026-10-31 and published to `origin/main` as application commit `78d3fae362d051fe78580fab54c034af88f58f57`. Starting application: `526dcda299d9e3a83d4aa6e8e93cc47a666bede5`. This publication receipt is a documentation-only follow-up.
 
 Final application snapshot: `ff8ab56e4d93a288b1caef5166b85e6f76c329a63d72398a8c68c29fd0440a96`; production build `w1kfSkbqYQzKhaRcLQNYS`. The numerical/rendering runtime manifest is `5a7bfcaa76aef03f556840517d13307b9f3a6872fffa36142577354fe4f946e9`.
 
