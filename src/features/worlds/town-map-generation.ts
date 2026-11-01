@@ -1,5 +1,6 @@
 import {townFeature,townBounds,townRound,townLayer,townWaterAt,townWaterCrosses,validateTownDesign,TOWN_MAP_LIMITS,type TownBackdrop,type TownDesign,type TownFeature,type TownFrame,type TownGeneration,type TownPoint} from "./town-map";
 import {makeTownStamp,defaultTownBrush,townPreset} from "./town-map-presets";
+import {nearestTownRoad,sampleTownRoad,townRoadAtDistance,townRoadCategory,townRoadStyle} from "./town-road";
 
 /** Street-front parcels around a market, connected irregular lanes, and protected infill. */
 export function generateOrganicTown(config:TownGeneration,f:TownFrame,b:TownBackdrop,existing:TownDesign) {
@@ -31,10 +32,9 @@ export function generateOrganicTown(config:TownGeneration,f:TownFrame,b:TownBack
  }));
  const roads:TownFeature[]=[];
  const connect=(a:TownPoint,end:TownPoint,main=false)=>{
-  const midpoint={x:townRound((a.x+end.x)/2),y:townRound((a.y+end.y)/2)},water=[a,midpoint,end].filter(wet).length;
-  if(water>=2||grade(midpoint)>.35){skipped++;return;}
-  const bridge=!!water||townWaterCrosses([a,end],false,b),s=townFeature("road","line",[a,midpoint,end],uuid());
-  s.width=(main?12:config.category==="city"?6:4)*(config.era==="modern"?1.4:1);s.category=bridge?"bridge":main?"main":"lane";
+  const distance=Math.hypot(end.x-a.x,end.y-a.y),bend=radial?0:(random()-.5)*Math.min(18,distance*.2),midpoint={x:townRound((a.x+end.x)/2-(end.y-a.y)/Math.max(1,distance)*bend),y:townRound((a.y+end.y)/2+(end.x-a.x)/Math.max(1,distance)*bend)},s=townFeature("road","line",[a,midpoint,end],uuid());
+  s.width=(main?12:config.category==="city"?6:4)*(config.era==="modern"?1.4:1);s.category=townRoadCategory(main?"main":"lane",!radial);const path=sampleTownRoad(s),water=path.filter(wet).length;
+  if(water>path.length*.6||path.some(p=>grade(p)>.35)){skipped++;return;}const bridge=!!water||townWaterCrosses(path,false,b);if(bridge)s.category=townRoadCategory("bridge",!radial);
   if(add(s)){roads.push(s);if(bridge)crossings++;}
  };
  if(radial)for(let r=0;r<rings;r++)for(let j=0;j<spokes;j++){
@@ -66,21 +66,21 @@ export function generateOrganicTown(config:TownGeneration,f:TownFrame,b:TownBack
  if(d.features.includes(market)||d.features.some(s=>s.id===market.id))occupy(market);
  for(const s of kept.filter(s=>s.kind==="building"||s.kind==="square"))occupy(s);
  const collides=(s:TownFeature)=>{const q=townBounds(s);return keys(q).some(key=>occupied.get(key)?.some(a=>q.x<a.x+a.width+1.2&&q.x+q.width>a.x-1.2&&q.y<a.y+a.height+1.2&&q.y+q.height>a.y-1.2));};
- const distanceToRoad=(p:TownPoint,road:TownFeature)=>{const a=road.points[0],e=road.points.at(-1)!,dx=e.x-a.x,dy=e.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);};
- let buildings=0;
+ const distanceToRoad=(p:TownPoint,road:TownFeature)=>nearestTownRoad(p,road,64,.1)?.distance??Infinity;
+ let buildings=0,plotSequence=0;
  for(const road of roads){
-  if(road.category==="bridge")continue;
-  const a=road.points[0],end=road.points.at(-1)!,length=Math.hypot(end.x-a.x,end.y-a.y),ux=(end.x-a.x)/length,uy=(end.y-a.y)/length;
+  if(townRoadStyle(road)==="bridge")continue;
+  const path=sampleTownRoad(road),length=path.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-path[i].x,p.y-path[i].y),0);
   const spacing=config.category==="city"?15:config.category==="town"?26:32,plots=Math.max(1,Math.min(24,Math.floor(length/spacing)));
   for(let k=0;k<plots;k++)for(const side of [-1,1]){
    if(random()>.58+config.density*.4||d.features.length>=4000)continue;
-   const t=(k+.5)/plots,along={x:a.x+(end.x-a.x)*t,y:a.y+(end.y-a.y)*t},nearCenter=Math.hypot((along.x-center.x)/Math.max(1,rx),(along.y-center.y)/Math.max(1,ry))<.35;
+   const t=(k+.5)/plots,at=townRoadAtDistance(path,length*t),along=at.point,ux=Math.cos(at.angle),uy=Math.sin(at.angle),nearCenter=Math.hypot((along.x-center.x)/Math.max(1,rx),(along.y-center.y)/Math.max(1,ry))<.35;
    const chance=random(),baseCategory=nearCenter?(chance<.22?"shop":chance<.3?"inn":chance<.34?"public":chance<.38?"temple":"house"):(chance<.48?"cottage":chance<.7?"house":chance<.8?"townhouse":chance<.88?"workshop":chance<.94?"barn":"stable");
-   const category=config.culture==="courtyard"&&["cottage","house","townhouse"].includes(baseCategory)?"courtyard":baseCategory;
+   const sequence=plotSequence++%13,variedCategory=sequence===3?"townhouse":sequence===9?"workshop":baseCategory;const category=config.culture==="courtyard"&&["cottage","house","townhouse"].includes(variedCategory)?"courtyard":variedCategory;
    const preset=townPreset(category),size=(config.category==="city"?.65:.85)+random()*.28,offset=road.width/2+preset.height*size/2+3+(config.category==="village"?random()*6:random()*2),p={x:along.x-uy*offset*side,y:along.y+ux*offset*side};
-   const brush={...defaultTownBrush(),category,size,rotation:Math.atan2(uy,ux)*180/Math.PI+(radial?0:(random()-.5)*10),architecture:config.culture==="stone"?"stone" as const:config.culture==="local"?"local" as const:"timber" as const};
+   const brush={...defaultTownBrush(),category,size,rotation:at.angle*180/Math.PI+(side===1?180:0)+(radial?0:(random()-.5)*7),architecture:config.culture==="stone"?"stone" as const:config.culture==="local"?"local" as const:"timber" as const};
    const s=makeTownStamp("building",p,brush,uuid());
-   if(!safe(s)||wet(p)||protectedAt(p)||collides(s)||Math.hypot(p.x-center.x,p.y-center.y)<30||roads.some(other=>other.id!==road.id&&distanceToRoad(p,other)<other.width/2+Math.min(preset.width,preset.height)*size*.35)){skipped++;continue;}
+   if(!safe(s)||wet(p)||protectedAt(p)||collides(s)||s.points.some(q=>!!nearestTownRoad(q,road,road.width/2+.8,.08))||Math.hypot(p.x-center.x,p.y-center.y)<30||roads.some(other=>other.id!==road.id&&distanceToRoad(p,other)<other.width/2+Math.min(preset.width,preset.height)*size*.35)){skipped++;continue;}
    if(add(s)){occupy(s);buildings++;}
   }
  }

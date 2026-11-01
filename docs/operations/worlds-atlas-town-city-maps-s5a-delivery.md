@@ -171,3 +171,64 @@ Unchanged Town CPU limits pass on village/town/dense-city fixtures: open **520/5
 Earlier interrupted/failed checks remain retained: fractional synthetic cursor coordinates were rounded by native Chrome and amplified by 100x zoom; the test now uses integer native coordinates without relaxing its 0.75-pixel gate. A reciprocal zoom pair correctly returned to its starting scale and required a nonzero-net input in the reload test. An initial combined continuation omitted its required Town database fixture; browser-4 supplies it. The initial new-test lint failure was corrected. These are separate retained receipts. Actual final screenshots were inspected through installed headed Chrome 134 with GPU disabled; unavailable native computer-use initialization, owner acceptance and physical-device certification remain distinct.
 
 No shared DEV/Production access or mutation, deployment, owner-service restart, cleanup/GC or Stage 5B occurred. The owner subsequently authorized the roads/neighborhood/artwork supplement, explicitly after completing this zoom correction. Stage 5A remains in owner testing, not accepted.
+
+Zoom checkpoint `61e0cbbbfb1067962aec76d1cb5faec5edbc243c` is published to origin/main; [GitHub validation](https://github.com/Revty79/serrian-tide-website/actions/runs/41316079371) passed TypeScript, lint, all units and Linux raster checks. The local tree was clean at this checkpoint before work began on the separately authorized roads supplement. Its successful browser/source/CI receipts remain ignored under `towns-s5a-wheel-*`.
+
+## Stage 5A roads, neighborhoods and fantasy artwork supplement (2026-11-01)
+
+The zoom checkpoint above was completed and published first. This supplement builds on it without replacing the creative workspace. Stage 5A remains subject to owner human testing; technical evidence does not establish owner artistic/usability acceptance.
+
+Current application snapshot: `fe6c880f286eddf3f9554e4b2642ab031bfd56509aca62e8f96622e5cbbe1c1f`; runtime manifest `6fc8dc3ab5f103181956bda7d16b0f707afe537932f7ef4fc63c2ed8cde22b6c`; production build `0U8r42FrNp44Oi77EZt7m`.
+
+### Roads and optional street population
+
+Road creation offers Straight/Curved beside the existing styles and physical width. Selected roads expose **Populate Along Road**, **Curve/Straight Road**, **Adjust Road Shape**, **Extend Road** and **Connect Roads**. Additional bends sit with the selected road's width/style settings. Visible bend dots and a faint guide support direct reshaping; a larger end dot shows where drawing continues. Extension supports either end, cancellation and draft recovery, preserves the road's identity/name, and saves through the original exact-retry/history machinery.
+
+Curves retain centimetre-rounded local-metre bend points and an explicit `curve:<style>` category in the existing version-one document. Native quadratic paths stay within their control hull; rendering, hit detection, snapping and street-front placement use the same geometry. Untagged saved paths retain their original straight segments and coordinates. All road borders render before street surfaces, clearing interior doubled outlines at crossings and forks. Main roads, lanes, trails, bridges and docks retain distinct widths/treatments; visible detail is clipped before enumeration.
+
+**Populate Along Road** previews selected building mixtures on either/both sides, with Sparse/Normal/Dense spacing, small/mixed sizes, street-facing orientation, variation/reroll and optional custom types/gaps/setback. Settings changes retain the preview and require Update before acceptance. Accept adds independently editable visual features in one undoable action; cancellation leaves existing work exact. Existing features, names, places and Shop links are never rewritten. Accepted water vectors, sampled wet/steep ground, street surfaces, occupied bounds, map edges, layer locks and retained capacity exclude unsuitable sites with visible reasons. Manual single-piece placement remains immediately available.
+
+Connections are geometric, using snapped shared positions and continuous drawing; this is not a transportation simulator. Moving a street later can require reconnecting its neighbors. Population uses conservative occupied bounds and the existing bounded terrain sample, so some possible sites are omitted; it is not precise civil engineering. New curve styles and extension drafts require this updated client for faithful editing. Older clients retain the data but show new curve tags as straight control paths and unfamiliar decorative styles generically. Existing untagged saved maps/drafts remain supported. **No migration is added.**
+
+### Artwork and contextual workspace
+
+The illustrated building collection grows from thirteen to **fifteen** pieces with Outbuilding and Market Stall. Timber, slate/stone, explicit thatch/plaster and local treatments gain varied roof colors, hip planes/ridges, bounded shingles, chimneys and street-facing awnings. Existing towers, keeps, temples, workshops, courtyards and attached silhouettes retain their distinct plan-view geometry. The compact illustrated details gallery groups greenery, town life and edges/paths: tree groups, shrubs, flower gardens, orchards, fences, hedges, enclosed yards, courtyards, stalls, wells, fountains, fields, walls/gates and docks.
+
+Organic generation uses gentle editable bends, shared junction painting and actual curve tangents for parcels, keeping its market-centered street graph, varied buildings, trees/open spaces and protected infill. Planned/radial/fortified modes retain their separate structure. No permanent buildings, businesses, population or lore are created by decorative generation.
+
+Road drawing and selected-road editing show their own controls. Population settings appear beside the map; on narrow screens, preview/update/accept/cancel returns to the canvas, with Adjust Buildings immediately available. Phone road selection leaves the property drawer closed so the road actions remain visible. Hit detection now prefers actual visible shapes before nearby targets, allowing street selection between dense houses; marker centering and body dragging match visible handles. The viewport gate stays **400 px**. Final measured selected-road workflows retain **547.1 px at 820 x 1000** and **453.7 px at 390 x 844 DPR 2**, without horizontal page overflow. The original phone building workflow and expanded editor also pass.
+
+### Current evidence and limits
+
+All large evidence remains ignored under `artifacts/towns-s5a-*`.
+
+| Coverage | Evidence |
+| --- | --- |
+| Complete combined **production**, headed Chrome 134, GPU-disabled Town acceptance, no page errors | `towns-s5a-neighborhood-browser-9/browser-results.json` |
+| Native mouse/high-resolution/rapid/ctrl-wheel, cursor anchor, both limits, page/panel scrolling, pan/buttons/keys, embedded/expanded/tablet/phone/native pinch and unchanged saved work | Same receipt, `town-wheel.json`; committed wheel/viewport source is exact |
+| Winding main road and snapped branch; population preview/update/cancel/accept; exact one-step Undo/Redo/save; manual inn/market; same-ID extension/cancel/reload recovery; endpoint connection; direct bend movement and straight/curve round trips | Same receipt, `town-neighborhood.json` and captures |
+| Decorative well movement/recovery, size retained, other objects exact, removal/Undo; fence/hedge/garden/tree-group/yard/fountain/stall saves; explicit thatch save; narrow accepted river and steep-ground exclusions | Same receipt, `town-neighborhood.json` |
+| Generated preindustrial timber settlement and additive population along an extended street, preserving every accepted generated/manual feature | Same receipt, generated/infill captures |
+| Actual old/new production painters on identical saved designs, matched 1/2 px-per-metre scale/center; fresh old/new generators with identical World/frame/recipe | Same receipt, `neighborhood-comparison.json`; ten actual before/after captures |
+| Original creative journeys, generation cancellation, exact lost-ack/reload/retry, native corner editing/history, permanent Town/place/Shop links and nonzero commerce, Pending Work, switching/sibling return and desktop/tablet/phone/expanded layouts | Same receipt, `town-creative.json`, `town-browser.json`, `town-native-inputs.json` |
+| Actual HTTP role/privacy/CSRF/malformed/chunked/concurrent-save safeguards; owned fresh/populated upgrade and paired SQL/private-storage restored-service reads | Same receipt, `town-http-security.json`, database/storage/restore receipts |
+| **2,613/2,613 units in 323 files**, production build, standalone TypeScript and ESLint zero errors/one pre-existing LoreFamily warning | `towns-s5a-neighborhood-workbench/units-release.log`, `types-release.log`, `lint-release.log`; browser production build |
+| All 1,810 application/asset files match the tested build; 10,022 protected Git blobs, original server authority/history/privacy/HTTP/World engines/gameplay and committed zoom remain exact | `towns-s5a-neighborhood-workbench/verification.json` |
+
+Actual final manual, generated, matched old/new, desktop/tablet/phone and population-preview images were personally inspected. Ordinary creation uses public controls and native canvas input; exact snapping/handle checks and comparison calibration also read the observed camera. Comparison reports actual canvas sizes separately; improvement is not attributed to a larger canvas or pixel equality. The older painter does not understand the newly introduced curve/decorative styles. The unavailable native computer-use helper, owner acceptance and physical-device certification remain separate from installed headed-Chrome evidence.
+
+Current GPU-disabled Town measurements (`browser-9/town-performance.json`):
+
+| Case | Features / buildings | Generation | Open | Render | Ten navigation keys |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Organic village | 121 / 31 | 91 ms | 1,082 ms | 1.8 ms | 206 ms |
+| Organic town | 529 / 294 | 226 ms | 631 ms | 5.7 ms | 331 ms |
+| Dense planned-city stress | 3,686 / 2,381 | 197 ms | 979 ms | 31.2 ms | 758 ms |
+
+Original 15-second open, 100-ms render and 1,500-ms ten-key limits remain unchanged. Extra artwork costs more CPU than the earlier simple painter; historical timing rows are not a same-run paired speed comparison. Backing allocation remains 2,971,200 RGBA bytes per measured surface, under the 2.5-million-pixel cap. Extra feature detail shares the existing 9,000-mark budget. Population is bounded to 200 additions/800 candidate sites, at most 2,048 sampled segments per road and 32,768 cached sample points per proposal. Existing 4,000-feature/64,000-point and 30-state/12-MiB history limits remain unchanged. These are explicit bounds/estimates, not process RSS. Previous 36-limit World CPU receipts remain historical; their numerical/rendering sources are exact. This is a complete final Town aggregate plus separate root/source checks, not a new uninterrupted all-World aggregate.
+
+The cold 68-map fixture retains 70 immutable versions: logical head/version JSON is 197,391/198,844 bytes; relation allocations are 262,144/212,992 bytes. All 125 original private files (265,748 bytes) retain exact hashes. No Town terrain grids/private objects are created; immutable versions still grow. All 108 original public assets, **304 SQL/snapshots and 152 journal entries through 0151 are frozen**. Existing 0151 remains required, with the unchanged SHA-256 above. Shared DEV/Production were not accessed or migrated.
+
+Failed/partial rehearsals remain retained: scrolling down an already-bottomed longer tool panel; an incorrectly capitalized recovery-button test; extension cancellation retaining drawing mode; selecting a house moved over the street; small-screen building proximity targets masking streets; the actual **382.4-pixel tablet failure** against the unchanged 400-pixel gate; and a marker drag exposing invisible resize targets/offset centering. Production browser-9 passes after the real input/layout fixes. Earlier development-only or partial receipts are not substituted for final production proof. No captured images, databases, dumps or large diagnostics are committed.
+
+No shared database operation, deployment, owner-service restart, destructive cleanup/GC, new hierarchy, commerce redesign, interiors or Stage 5B occurred. The completed correction is published under the authorized main workflow; exact commit/CI/remote-parity receipt is retained in ignored `towns-s5a-neighborhood-workbench/publication.json`. Stop for owner human testing.
