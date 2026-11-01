@@ -1,8 +1,9 @@
 "use client";
 import {useCallback,useEffect,useRef,useState} from "react";
-import {useSearchParams} from "next/navigation";
+import {useRouter,useSearchParams} from "next/navigation";
 import {worldApi} from "./client-api";
 import {matchesCreationSearch,townPeopleDirectory} from "./town-shop-directory";
+import {TownMarkerMaps} from "./town-map-browser";
 import {TownShopCreator} from "./town-shop-creator";
 import type {CreationTarget} from "./town-shop-creator-model";
 import type {BusinessBundle,BusinessPlace,BusinessShop} from "./world-business";
@@ -11,7 +12,7 @@ import styles from "./terrain.module.css";
 import workshop from "./creator-workshop.module.css";
 
 export function TownShopLibrary({worldId,review,ordinary,canEdit,onDirty}:{worldId:string;review:boolean;ordinary:boolean;canEdit:boolean;onDirty:(v:boolean)=>void}){
- const params=useSearchParams();
+ const params=useSearchParams(),router=useRouter();
  const [towns,setTowns]=useState<TownBundle>(),[business,setBusiness]=useState<BusinessBundle>(),[selected,setSelected]=useState(()=>params.get("town")??""),[editor,setEditor]=useState<CreationTarget|null>(null),[section,setSection]=useState(()=>["shops","places","buildings","people"].includes(params.get("townSection")??"")?params.get("townSection")!:"towns"),[archived,setArchived]=useState(false),[search,setSearch]=useState(""),[error,setError]=useState(""),[notice,setNotice]=useState(""),[pending,setPending]=useState(false);
  const generation=useRef(0),api=`/api/worlds/${worldId}`,query=review?"?review=1":"";
  const dirtyChanged=useCallback((value:boolean)=>onDirty(value),[onDirty]);
@@ -26,6 +27,7 @@ export function TownShopLibrary({worldId,review,ordinary,canEdit,onDirty}:{world
  if(ordinary)return <section className={styles.workspace}><h2>Towns</h2><p>Town authoring and private notes are unavailable in ordinary-knowledge views.</p></section>;
  return <section className={styles.workspace} aria-label="World towns">
   <header className={styles.heading}><div><h2>Towns</h2><p>Bring your World’s communities to life: their stories, places, buildings, businesses and inhabitants.</p></div>{editable&&<button className="st-button is-primary" onClick={()=>setEditor({kind:"town"})}>Create Town</button>}</header>
+  {selected&&<TownMarkerMaps canCreate={editable&&!town?.archived} worldId={worldId} townId={selected} review={review} onChoose={id=>{const [kind,map]=id.split(":");router.push(`/worlds/${worldId}?tab=atlas&${kind==="town"?"townMap":"townMapCreate"}=${map}${review?"&review=1":""}`);}}/>}
   <nav className={styles.actions} aria-label="Town building sections">{[["towns","Towns"],["shops","Shops"],["places","Places of interest"],["buildings","Buildings & facilities"],["people","Residents & associations"]].map(([id,label])=><button key={id} className={`st-button ${section===id?"is-primary":"is-secondary"}`} aria-current={section===id?"page":undefined} onClick={()=>{setSection(id);const url=new URL(window.location.href);url.searchParams.set("townSection",id);window.history.replaceState(null,"",url.pathname+url.search);}}>{label}</button>)}</nav>
   {review&&<p>Administrator review is read-only.</p>}{error&&<p role="alert">{error} <button className="st-button is-secondary" onClick={()=>void reload().then(()=>setError("")).catch(e=>setError(e.message))}>Refresh saved creations</button></p>}{notice&&<p role="status">{notice}</p>}
   {!towns||!business?<p role="status">Loading your World’s creations...</p>:<>

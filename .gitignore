@@ -131,3 +131,5 @@ next-env.d.ts
 /artifacts/regions-s4c-*
 /artifacts/regions-s44-*
 /artifacts/regions-s45-*
+# Town / city builder captures, profiles, disposable data and local build receipts.
+/artifacts/towns-s5a-*/

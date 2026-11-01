@@ -1,0 +1,7 @@
+import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
+import {getTownMaps,changeTownMap} from "../src/features/worlds/town-map-service";
+import {getTerrain} from "../src/features/worlds/terrain-service";
+import {pool} from "../src/db";
+async function main(){const target=new URL(process.env.DATABASE_URL!);assert.equal(target.hostname,"127.0.0.1");assert.notEqual(target.port,"5432");assert.equal(target.pathname,"/serrian_town_maps_restored");try{const f=JSON.parse(await readFile(process.argv[2],"utf8")),map=(await getTownMaps("world-god",f.world,{mapId:f.blank})).document!;assert.equal(map.revision,3);assert.equal(map.townId,f.townId);assert.equal(map.design.features[1].placeId,f.place);assert.equal(map.design.features[1].shopLocationId,f.entrance);assert.ok(map.design.features.every((x:{archived:boolean})=>x.archived));assert.equal((await changeTownMap("world-god",f.world,f.command)).revision,1);assert.equal((await changeTownMap("world-god",f.world,f.save)).revision,2);assert.equal((await getTownMaps("world-god",f.world,{mapId:f.blank})).document!.revision,3);assert.ok((await getTerrain("world-god",f.world,{mapId:map.sourceMapId})).document!.tiles.length);console.log("PASS restored Town Map identity, geometry, place links, numerical sources and historical exact retries");}finally{await pool.end();}}
+void main().catch(e=>{console.error(e);process.exitCode=1;});
