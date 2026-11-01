@@ -6,7 +6,7 @@ Status: technically verified on 2026-10-31; publication receipt is recorded belo
 
 Town markers and the existing Worlds Town Builder now expose **Create Town Map** and existing alternate maps. Creation offers **Start Blank**, three small starting layouts, and **Generate Town**, followed by a real canvas preview and **Save & Open Town Map**. Roads, districts, rectangular or irregular footprints, walls, public spaces, water areas, landmarks and labels remain editable geometry. The header keeps Current Map, Switch Map, Save Changes, Undo/Redo and source navigation visible. Independently collapsible tools and contextual settings preserve the canvas; phone drawers open separately.
 
-The final production application snapshot is `0c7b08ada7adb8c2e8a4c5b26dea33500e726f895e07f2c41c34e0fe378e1214`, build `-lttx1cqfWVp2qA5P6BCV`, runtime manifest `6ae420d43bfd4518904de93901036d526bf9fc358a965ffdff1200bbe027cc43`. Publication identifiers are recorded below after the checks finish.
+The final production application snapshot is `0c7b08ada7adb8c2e8a4c5b26dea33500e726f895e07f2c41c34e0fe378e1214`, build `-lttx1cqfWVp2qA5P6BCV`, runtime manifest `6ae420d43bfd4518904de93901036d526bf9fc358a965ffdff1200bbe027cc43`. Application commit: `2f183ecd321a9e8774679e75524b8c211b312941`.
 
 ## Existing-code audit and reuse
 
@@ -91,3 +91,9 @@ The 68-map fixture retained 70 versions: head/version logical JSON payloads were
 5. Try the phone drawers, expanded canvas, drawing arming, visible Save Changes and Switch Map.
 
 No new configuration or assets are required. For a separately authorized release, take a verified paired database/private-storage backup and rehearse the exact target's forward sequence through 0151 before starting the compatible application. This pass does **not** apply shared migrations, deploy or restart owner services. Reverting application code does not reverse 0151 or erase Town Map history; preserve the tables/data and use the verified paired restore only under a separate recovery decision. No Stage 5B/5C work, interiors, floors, dungeons, publishing/VTT or commerce redesign was started.
+
+## Publication receipt
+
+Application commit [`2f183ecd321a9e8774679e75524b8c211b312941`](https://github.com/Revty79/serrian-tide-website/commit/2f183ecd321a9e8774679e75524b8c211b312941) is published to `origin/main`. [GitHub validation](https://github.com/Revty79/serrian-tide-website/actions/runs/41267138135) passed TypeScript, ESLint, all 2,600 units and portable raster regressions on Linux. The existing LoreFamily lint warning and GitHub action/runtime-image notices remain separate from application failures.
+
+`towns-s5a-workbench/source-publication.json` verifies the 1,799-file application snapshot and runtime manifest against the tested production checkout. Application and asset bytes are exact; the isolated Next build added only its two generated-type include paths to its own TypeScript configuration. New migration bytes match the rehearsed SHA-256 in the committed Git object. Captures, databases, private objects and large diagnostics are absent from the publication. A following documentation-only receipt commit records this result without changing the tested application. Stop at Stage 5A; owner usability/artistic acceptance, physical-device certification, shared migration and deployment remain separate.
