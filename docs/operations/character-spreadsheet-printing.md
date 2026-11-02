@@ -1,6 +1,34 @@
 # Original spreadsheet Character printing
 
-## Current release: full US Legal correction
+## Current release: standalone tabletop PDF sheets
+
+Application commit: `cdf0154368dc05bb9bbd4704eb34b3800a069781`, based on `5b5bfacba1712d35689fc9dbad75812d2bceee4f`. The owner rejected the remaining webpage pagination and directed that the spreadsheet become a visual example for a proper PDF. Commit and origin/main sync remain authorized. Atlas stays paused.
+
+**Tabletop PDF Sheets → Create PDF** now creates the PDF directly from the authorized saved Character snapshot. Preview, **Open PDF to print** and **Download PDF** operate on that file. The front and seven independent backs allocate exactly one US Legal page each (612 × 1008 points), with 24-point page insets, vector grid rules and embedded fonts. The old spreadsheet cell template, HTML renderer and browser pagination were removed. Other print options retain their existing printing path.
+
+The content stays concise: skill name and percentage, numeric durability, no repeated race/Initiative in status, Derived Abilities in front status and no uninitialized-ammunition diagnostic. Long armor coverage and excess equipment use status space. Actual anatomy pools and hit-location names remain authoritative. Body Shot Bob uses the same shared vector paths and target positions as the live sheet. Backs add blank writing rows and flow crowded ordinary skills across three columns. Text is measured and wrapped; a record beyond legible capacity fails visibly instead of creating a continuation or cropped PDF.
+
+### Current verification
+
+| Check | Actual result |
+| --- | --- |
+| Full feature suite | 2,634/2,634 pass across 326 files; five new PDF tests replace the nine retired spreadsheet tests |
+| Owned disposable actions | Existing 14 authorization/state tests pass |
+| Final headed Chrome journey | All eight and each individual choice download actual PDFs; one-page independent backs, old print options, saved snapshot/unsaved draft, font failure/retry, stale download retirement, desktop/tablet/phone and unchanged database fingerprints pass |
+| Actual PDF files | Regular, crowded and browser packets each contain exactly eight Legal pages; the saved-record front/back example contains exactly two |
+| PDF text and layout | Every sample model field/table/status/quick-roll value is present on its corresponding page; all 65 ordinary skills survive the crowded and saved-fixture backs; text remains in page bounds, fonts are embedded, vector rules remain visible and the complete front includes Bob and bottom quick rolls |
+| Native ET-2800 PDF preview | Exactly two sheets for the two-page PDF on full-size Legal with Default scaling and on Letter with **Fit to printable area**; both complete fronts were visually inspected |
+| TypeScript / ESLint / production | Pass; zero lint errors, one pre-existing unused `LoreFamily` warning |
+
+Use **Legal paper** for the full-size layout. A Legal PDF can be cropped by the printer's Default scaling on Letter paper; **Fit to printable area** keeps the whole page on smaller paper. Page count alone did not prove this: the initial default-Letter capture showed cropping and is superseded by the explicit Fit capture. The app explains these settings; it cannot rewrite a hardware printer's saved settings. No physical job was submitted, and owner paper acceptance remains separate.
+
+Final isolated production build: `A1XspkVxmRiJHz81Jx3ZO`. All 1,817 files under `src/` and `public/` match the build source. Manifest SHA-256: `fbf0544421362c3f7010bfeef35af55f87a156af88d46c97e425326b614dae05`.
+
+Evidence is ignored under `artifacts/character-spreadsheet-print/direct-pdf/`: `browser-final-spacing.log`, `pdf-receipt.json`, `source-parity.json`, `native-pdf-legal.png`, `native-pdf-letter.png`, regular/crowded page renders and validation logs. Earlier failed capacity receipts remain retained. They exposed narrow point/rank columns in the real 82-allocation fixture; the final minimal skill-and-percentage layout passes. The initial diagnostic timeout and the abandoned raw Flight-response replay are retained as failed QA attempts, not passing evidence.
+
+PDF generation lazy-loads pinned `pdf-lib` 1.17.1 and `@pdf-lib/fontkit` 1.1.1. Local Noto Sans Regular/Bold and the retained Lobster title font are embedded, with OFL licenses. The Google workbook and external services receive no Character data. Snapshot authorization, unsaved-edit protection and existing print choices stay intact. This requires no migration, environment change, shared DEV/Production access, deployment or owner-service restart; all test writes were confined to newly owned disposable targets. The unrelated local Atlas report edit remains untouched. Recovery is a code rollback; no data rollback is required.
+
+## Historical Legal HTML attempt — superseded after owner rejection
 
 Application commit: `64ea2bc77863630187ba954db2814956eb4ad49c`. The owner rejected the earlier 8 × 10 printed result and authorized this correction and publication to `origin/main`. Atlas work remains paused.
 
