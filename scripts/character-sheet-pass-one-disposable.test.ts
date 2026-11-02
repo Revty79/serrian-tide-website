@@ -138,6 +138,12 @@ test("Shared character sheet: real actions, owner controls, player totals, print
       assert.deepEqual(errors,[]);
       return;
     }
+    if (process.env.SERRIAN_CREATION_AUTOSAVE_ONLY === "true") {
+      const { rehearseCharacterCreationAutosave } = await import("./character-creation-autosave-browser");
+      await rehearseCharacterCreationAutosave(pool, login, baseUrl, characters);
+      assert.deepEqual(errors, []);
+      return;
+    }
     if (process.env.SERRIAN_SPREADSHEET_PRINT_ONLY === "true") {
       const { rehearseTabletopPdf } = await import("./character-tabletop-pdf-browser");
       await rehearseTabletopPdf(pool, login, baseUrl, characters);

@@ -41,6 +41,6 @@ export default async function PlayerCharacterPage({
   if (!weaponGovernance) redirect("/realms");
 
   return <>
-    <CharacterEditor initialAggregate={aggregate} initialActiveHealth={activeHealth} initialActiveMana={activeMana} initialActiveEffects={activeEffects} initialEquipmentState={equipmentState} initialChargeState={chargeState} equipmentContent={<PlayerWeaponGovernancePanel view={weaponGovernance} showLiveStatus />} godMode={false} canOperateRuntime itemUseTimingBlocked={itemUseTimingBlocked} />
+    <CharacterEditor key={`${access.user.id}:${aggregate.campaign.id}:${aggregate.character.id}:${aggregate.sheetAccess?.canAccessPrivateGod ? "owner" : "player"}`} viewerUserId={access.user.id} initialAggregate={aggregate} initialActiveHealth={activeHealth} initialActiveMana={activeMana} initialActiveEffects={activeEffects} initialEquipmentState={equipmentState} initialChargeState={chargeState} equipmentContent={<PlayerWeaponGovernancePanel view={weaponGovernance} showLiveStatus />} godMode={false} canOperateRuntime itemUseTimingBlocked={itemUseTimingBlocked} />
   </>;
 }

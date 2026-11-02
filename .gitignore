@@ -136,3 +136,4 @@ next-env.d.ts
 # Stage 5B disposable interiors, private backups, captures and build receipts.
 /artifacts/interiors-s5b-*/
 /artifacts/character-spreadsheet-print/
+/artifacts/character-creation-autosave/

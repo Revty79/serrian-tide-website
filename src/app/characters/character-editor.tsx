@@ -30,6 +30,8 @@ import { getCharacterItemChargeState } from "./item-charge-actions";
 import { CharacterFormPreviewViewer } from "./character-form-preview";
 import { CharacterSheet } from "./character-sheet";
 import { CharacterPrintCenter } from "./character-print-center";
+import { useCharacterCreationRecovery } from "./use-character-creation-recovery";
+import type { StoredCreationAutosave } from "@/features/characters/character-creation-autosave";
 import { ActiveHealthPanel } from "./active-health-panel";
 import { ActiveManaPanel } from "./active-mana-panel";
 import { ActiveEffectsPanel } from "./active-effects-panel";
@@ -403,6 +405,7 @@ function SkillBranch({
 
 export function CharacterEditor({
   initialAggregate,
+  viewerUserId,
   initialActiveHealth,
   initialActiveMana,
   initialActiveEffects,
@@ -416,6 +419,7 @@ export function CharacterEditor({
   backLabel = "Back",
 }: {
   initialAggregate: CharacterAggregate;
+  viewerUserId: string;
   initialActiveHealth: ActiveHealthView;
   initialActiveMana: ActiveManaView;
   initialActiveEffects: ActiveEffectsView;
@@ -491,6 +495,33 @@ export function CharacterEditor({
   const enforceCampaignTierLimits = !godMode && !aggregate.profile.creationCompletedAt;
   const isNpc = aggregate.character.isNpc;
   const archivedNpc = isNpc && aggregate.character.archivedAt !== null;
+  const creationAutosaveEnabled = !isNpc && !aggregate.profile.creationCompletedAt && !archivedNpc;
+  const creationBase = useMemo(() => characterAggregateToDraft(aggregate), [aggregate]);
+  const recoveryScope = useMemo(() => ({ viewerId: viewerUserId, characterId: aggregate.character.id, campaignId: aggregate.campaign.id,
+    access: canAccessPrivateGod ? "owner" as const : accessAsManager ? "manager" as const : "player" as const }),
+  [viewerUserId, aggregate.character.id, aggregate.campaign.id, canAccessPrivateGod, accessAsManager]);
+  const creationRecovery = useCharacterCreationRecovery({ scope: recoveryScope, enabled: creationAutosaveEnabled,
+    base: creationBase, draft, dirty, tab: activeTab, onRestore: restoreCreationDraft });
+  const recoveryBusy = !creationRecovery.ready || creationRecovery.restoring;
+  const editorDisabled = playerLocked || archivedNpc || saving || recoveryBusy;
+
+  async function restoreCreationDraft(entry: StoredCreationAutosave, isCurrent: () => boolean) {
+    try {
+      const recovered = entry.value.draft;
+      const race = recovered.profile.raceId === null ? null : recovered.profile.raceId === aggregate.profile.raceId ? aggregate.selectedRace
+        : await getAllowedRaceForCharacter(aggregate.character.id, recovered.profile.raceId, accessAsManager);
+      if (!isCurrent()) return false;
+      nextDraftId.current = Math.min(-1_000_000, ...recovered.skillAllocations.map(row => row.draftId - 1));
+      nextItemInstanceDraftId.current = Math.min(-2_000_000, ...recovered.itemInstances.map(row => row.draftId - 1));
+      setSelectedRace(race); setDraft(recovered); setDirty(true);
+      setActiveTab(entry.value.tab === "god" && !canAccessPrivateGod ? "identity" : entry.value.tab);
+      setFeedback({ kind: "success", message: "Recovered your autosaved creation draft from this device. Save Character updates the saved record." });
+      return true;
+    } catch (error) {
+      if (isCurrent()) setFeedback({ kind: "error", message: error instanceof Error ? `Your draft is retained. ${error.message}` : "Your draft is retained, but its Race could not be loaded." });
+      return false;
+    }
+  }
   const returnHref = backHref ?? (accessAsManager ? "/heavens" : "/realms");
   const tabletopHref = `/realms/tabletop?character=${aggregate.character.id}`;
   function confirmNavigation(event: MouseEvent<HTMLAnchorElement>, destination: string) {
@@ -572,14 +603,14 @@ export function CharacterEditor({
   }, [aggregate, draft.skillAllocations]);
 
   function change(updater: (current: CharacterDraft) => CharacterDraft) {
-    if (playerLocked || archivedNpc) return;
+    if (editorDisabled) return;
     setDraft((current) => updater(current));
     setDirty(true);
     setFeedback(null);
   }
 
   async function chooseRace(value: string) {
-    if (playerLocked || archivedNpc) return;
+    if (editorDisabled) return;
     await preserveScroll(async () => {
       if (!value) {
         setSelectedRace(null);
@@ -769,7 +800,7 @@ export function CharacterEditor({
   }
 
   async function persist(completeCreation = false) {
-    if (saving || playerLocked) return;
+    if (saving || playerLocked || !creationRecovery.ready || creationRecovery.restoring || raceLoading) return;
     await preserveScroll(async () => {
       setSaving(true);
       setFeedback(null);
@@ -795,6 +826,7 @@ export function CharacterEditor({
           skillAllocations: reconcileRacialSkillAnchors(savedDraft.skillAllocations, saved.selectedRace, saved.skillRelationships, () => nextDraftId.current--, characterCampaignSkillAccess(saved)),
         });
         setDirty(false);
+        creationRecovery.clearSaved();
         setConfirmCompletion(false);
         if (completeCreation) setActiveTab("identity");
         setFeedback({
@@ -867,16 +899,30 @@ export function CharacterEditor({
         <div><span>Equipment</span><strong>{readiness.equipmentComplete ? "✓" : "—"}</strong></div>
         </> : null}
         <div><span>{aggregate.profile.creationCompletedAt || godMode ? "Current Funds" : "Starting Funds"}</span><strong>{statusPurse.formatted}</strong></div>
-        <div className="character-status-strip__state"><span>Status</span><strong>{godMode ? canAccessPrivateGod ? "Campaign Owner" : "Admin Record Access" : playerLocked ? "Creation Complete" : readiness.ready ? "Character Ready" : "Character Draft"}</strong><small>{dirty ? "Unsaved changes" : "Saved record"}</small></div>
-        {!playerLocked ? <div className="character-status-strip__actions"><button type="button" disabled={saving || !dirty || archivedNpc} onClick={() => void persist(false)}>{saving ? "Saving…" : isNpc ? "Save NPC" : "Save Character"}</button>{!isNpc && readiness.ready && !aggregate.profile.creationCompletedAt ? <button type="button" className="is-primary" disabled={saving} onClick={() => void preserveScroll(() => setConfirmCompletion(true))}>Complete Character</button> : null}</div> : null}
+        <div className="character-status-strip__state"><span>Status</span><strong>{godMode ? canAccessPrivateGod ? "Campaign Owner" : "Admin Record Access" : playerLocked ? "Creation Complete" : readiness.ready ? "Character Ready" : "Character Draft"}</strong><small>{dirty ? creationAutosaveEnabled && creationRecovery.savedAt ? "Draft autosaved on this device" : "Unsaved changes" : "Saved record"}</small></div>
+        {!playerLocked ? <div className="character-status-strip__actions"><button type="button" disabled={saving || !dirty || archivedNpc || !creationRecovery.ready || creationRecovery.restoring || raceLoading} onClick={() => void persist(false)}>{saving ? "Saving…" : isNpc ? "Save NPC" : "Save Character"}</button>{!isNpc && readiness.ready && !aggregate.profile.creationCompletedAt ? <button type="button" className="is-primary" disabled={editorDisabled || raceLoading} onClick={() => void preserveScroll(() => setConfirmCompletion(true))}>Complete Character</button> : null}</div> : null}
       </section>
 
       {feedback ? <p className={`character-feedback is-${feedback.kind}`}>{feedback.message}</p> : null}
+      {creationAutosaveEnabled ? <p className="character-creation-autosave" role="status">
+        {creationRecovery.restoring ? "Recovering your creation draft…" : !creationRecovery.ready ? "Checking your device for a creation draft…"
+          : dirty && !creationRecovery.savedAt && creationRecovery.error ? "Device draft backup is unavailable. Use Save Character before leaving."
+          : dirty && creationRecovery.savedAt ? "Draft autosaved on this device. Save Character updates the saved record."
+          : "Creation drafts autosave on this device as you edit. Save Character updates the saved record."}
+      </p> : null}
+      {creationRecovery.error ? <p className="character-feedback is-error" role="alert">{creationRecovery.error}</p> : null}
+      {creationRecovery.candidates.length ? <section className="character-draft-recovery" aria-label="Recover Character draft">
+        <h2>Recover a creation draft</h2>
+        <p>The saved Character has changed or several drafts are available. Choose the work you want to continue. Other drafts remain on this device.</p>
+        <div>{creationRecovery.candidates.map(entry => <button key={entry.key} type="button" disabled={creationRecovery.restoring} onClick={() => void creationRecovery.restore(entry)}>
+          Recover {entry.value.draft.name || "unnamed Character"} · {new Date(entry.value.savedAt).toLocaleString()}
+        </button>)}<button type="button" disabled={creationRecovery.restoring} onClick={() => creationRecovery.useSaved()}>Discard listed drafts and use saved Character</button></div>
+      </section> : null}
       {archivedNpc ? <p className="character-feedback is-error">This NPC is archived and read-only. Restore it from the NPC Master Sheet before saving changes.</p> : null}
 
       {<CharacterFormPreviewViewer key={`${aggregate.character.id}:${draft.profile.raceId}`} aggregate={aggregate} draft={draft} race={selectedRace} />}
 
-      <CurrentFormPanel characterId={aggregate.character.id} disabled={dirty || saving || raceLoading || archivedNpc} onChanged={refreshAfterRuntimeMutation} />
+      <CurrentFormPanel characterId={aggregate.character.id} disabled={dirty || saving || recoveryBusy || raceLoading || archivedNpc} onChanged={refreshAfterRuntimeMutation} />
 
       <div className="character-workspace">
         <nav className="character-tabs" role="tablist" aria-label="Character sheet sections" onKeyDown={(event) => {
@@ -893,24 +939,24 @@ export function CharacterEditor({
         </nav>
         <section className="character-editor" role="tabpanel" id={`character-panel-${activeTab}`} aria-labelledby={`character-tab-${activeTab}`} tabIndex={0}>
           {godMode ? canOperateRuntime ? <aside className="character-admin-notice"><strong>G.O.D. administrative access is active.</strong><span>You may edit the full record even after Player creation is complete.</span></aside> : <aside className="character-admin-notice is-locked"><strong>Administrator record access is active.</strong><span>Live Campaign state is read-only. Only a G.O.D. who owns this Campaign can operate Health, Mana, effects, Equipment State, Item Charges, Items, or Abilities.</span></aside> : playerLocked ? <aside className="character-admin-notice is-locked"><strong>Character creation is complete.</strong><span>Identity, Attributes, starting Skills, Story, and starting Equipment are read-only.</span></aside> : null}
-          {activeTab === "identity" ? <IdentityTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} raceLoading={raceLoading} onChange={change} onChooseRace={chooseRace} /> : null}
-          {activeTab === "attributes" && !playerLocked ? <AttributesTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} onSetAttribute={setAttribute} /> : null}
-          {activeTab === "skills" && !playerLocked ? <SkillsTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={playerLocked || archivedNpc} godMode={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} ranks={ranks} manaProfiles={manaProfiles} childrenByParent={childrenByParent} skillGroups={skillGroups} activeSkillGroup={activeSkillGroup} onSelectSkillGroup={(group) => void preserveScroll(() => setActiveSkillGroup(group))} onSetSkillPoints={setSkillPoints} onShowDescription={(skill) => void preserveScroll(() => setDescribedSkill(skill))} /> : null}
-          {activeTab === "story" ? <StoryTab draft={draft} disabled={playerLocked || archivedNpc} onChange={change} /> : null}
-          {activeTab === "equipment" && !aggregate.profile.creationCompletedAt ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={playerLocked || archivedNpc} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={(filter) => void preserveScroll(() => setEquipmentFilter(filter))} onSearch={setEquipmentSearch} onQuantityChange={(itemId, quantity) => void preserveScroll(() => changeItemQuantity(itemId, quantity))} onRemoveInstance={(draftId) => void preserveScroll(() => removeItemInstance(draftId))} campaignMoney={campaignMoney} /> : null}
-          {activeTab === "god" && canAccessPrivateGod ? <>{canOperateRuntime ? <IndividualEvolutionPanel characterId={aggregate.character.id} disabled={dirty || saving || raceLoading} onChanged={refreshAfterRuntimeMutation} /> : null}<GodControlsTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} />
-            <ActiveHealthPanel health={activeHealth} disabled={dirty || saving || archivedNpc} onHealthChange={setActiveHealth} />
-            <ActiveManaPanel mana={activeMana} disabled={dirty || saving || archivedNpc} onManaChange={setActiveMana} />
-            <ActiveEffectsPanel state={activeEffects} godMode={canOperateRuntime} disabled={dirty || saving || archivedNpc} skillOptions={aggregate.skillCatalog.filter(({ archived }) => !archived).map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={setActiveEffects} />
+          {activeTab === "identity" ? <IdentityTab draft={draft} aggregate={aggregate} selectedRace={selectedRace} disabled={editorDisabled} godMode={godMode} raceLoading={raceLoading} onChange={change} onChooseRace={chooseRace} /> : null}
+          {activeTab === "attributes" && !playerLocked ? <AttributesTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={editorDisabled} godMode={godMode} onSetAttribute={setAttribute} /> : null}
+          {activeTab === "skills" && !playerLocked ? <SkillsTab draft={draft} aggregate={aggregate} race={selectedRace} disabled={editorDisabled} godMode={godMode} enforceCampaignTierLimits={enforceCampaignTierLimits} ranks={ranks} manaProfiles={manaProfiles} childrenByParent={childrenByParent} skillGroups={skillGroups} activeSkillGroup={activeSkillGroup} onSelectSkillGroup={(group) => void preserveScroll(() => setActiveSkillGroup(group))} onSetSkillPoints={setSkillPoints} onShowDescription={(skill) => void preserveScroll(() => setDescribedSkill(skill))} /> : null}
+          {activeTab === "story" ? <StoryTab draft={draft} disabled={editorDisabled} onChange={change} /> : null}
+          {activeTab === "equipment" && !aggregate.profile.creationCompletedAt ? <EquipmentTab draft={draft} aggregate={aggregate} disabled={editorDisabled} godMode={godMode} filter={equipmentFilter} search={equipmentSearch} purse={characterPurse()} onFilter={(filter) => void preserveScroll(() => setEquipmentFilter(filter))} onSearch={setEquipmentSearch} onQuantityChange={(itemId, quantity) => void preserveScroll(() => changeItemQuantity(itemId, quantity))} onRemoveInstance={(draftId) => void preserveScroll(() => removeItemInstance(draftId))} campaignMoney={campaignMoney} /> : null}
+          {activeTab === "god" && canAccessPrivateGod ? <>{canOperateRuntime ? <IndividualEvolutionPanel characterId={aggregate.character.id} disabled={dirty || saving || recoveryBusy || raceLoading} onChanged={refreshAfterRuntimeMutation} /> : null}<GodControlsTab disabled={editorDisabled} draft={draft} aggregate={aggregate} selectedRace={selectedRace} purse={characterPurse(draft.profile.creditsRemaining)} onNumberChange={changeAdministrativeNumber} onCurrencyChange={changeCurrency} />
+            <ActiveHealthPanel health={activeHealth} disabled={dirty || saving || recoveryBusy || archivedNpc} onHealthChange={setActiveHealth} />
+            <ActiveManaPanel mana={activeMana} disabled={dirty || saving || recoveryBusy || archivedNpc} onManaChange={setActiveMana} />
+            <ActiveEffectsPanel state={activeEffects} godMode={canOperateRuntime} disabled={dirty || saving || recoveryBusy || archivedNpc} skillOptions={aggregate.skillCatalog.filter(({ archived }) => !archived).map(({ id, name }) => ({ id, name }))} movementModes={selectedRace?.movementModes.map(({ movementMode }) => movementMode) ?? []} onChange={setActiveEffects} />
           </> : null}
-          {activeTab === "attributes" || activeTab === "skills" || activeTab === "equipment" ? <CharacterSheet onInventoryVersionChange={(version) => { setAggregate(current => ({ ...current, profile: { ...current.profile, commerceVersion: version } })); setDraft(current => ({ ...current, expectedCommerceVersion: version })); }} section={activeTab} showAttributeTable={playerLocked} showSkillTable={playerLocked} aggregate={aggregate} draft={draft} selectedRace={selectedRace} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving} itemUseDisabled={dirty || saving || itemUseTimingBlocked || !canOperateRuntime} itemUseDisabledReason={!canOperateRuntime ? "Live Campaign state is read-only for administrators who do not own this Campaign as a G.O.D." : itemUseTimingBlocked ? "G.O.D. TIMING RULING REQUIRED: direct Item use is unavailable while Initiative is active." : undefined} onItemUseComplete={refreshAfterRuntimeMutation} onDerivedAbilityChange={refreshAfterRuntimeMutation} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving} godMode={godMode} canOperateRuntime={canOperateRuntime} /> : null}
+          {activeTab === "attributes" || activeTab === "skills" || activeTab === "equipment" ? <CharacterSheet onInventoryVersionChange={(version) => { setAggregate(current => ({ ...current, profile: { ...current.profile, commerceVersion: version } })); setDraft(current => ({ ...current, expectedCommerceVersion: version })); }} section={activeTab} showAttributeTable={playerLocked} showSkillTable={playerLocked} aggregate={aggregate} draft={draft} selectedRace={selectedRace} activeHealth={activeHealth} onActiveHealthChange={setActiveHealth} activeMana={activeMana} onActiveManaChange={setActiveMana} activeManaDisabled={dirty || saving || recoveryBusy} itemUseDisabled={dirty || saving || recoveryBusy || itemUseTimingBlocked || !canOperateRuntime} itemUseDisabledReason={!canOperateRuntime ? "Live Campaign state is read-only for administrators who do not own this Campaign as a G.O.D." : itemUseTimingBlocked ? "G.O.D. TIMING RULING REQUIRED: direct Item use is unavailable while Initiative is active." : undefined} onItemUseComplete={refreshAfterRuntimeMutation} onDerivedAbilityChange={refreshAfterRuntimeMutation} activeEffects={activeEffects} onActiveEffectsChange={setActiveEffects} equipmentState={equipmentState} onEquipmentStateChange={setEquipmentState} equipmentStateDisabled={dirty || saving || recoveryBusy} chargeState={chargeState} onChargeStateChange={acceptChargeState} chargeStateDisabled={dirty || saving || recoveryBusy} godMode={godMode} canOperateRuntime={canOperateRuntime} /> : null}
           {activeTab === "equipment" && equipmentContent ? <details className="character-equipment-disclosure"><summary>Weapon Checks</summary>{equipmentContent}</details> : null}
           {!godMode && !playerLocked && !readiness.ready && readiness.issues.length ? <aside className="character-issues"><h3>Before this Character is ready</h3><ul>{readiness.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul></aside> : null}
         </section>
       </div>
 
-      {confirmCompletion ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="complete-character-title"><h2 id="complete-character-title">Complete this Character?</h2><p>This permanently locks Player Character creation. Later changes use their controlled workflows.</p><div><button type="button" onClick={() => void preserveScroll(() => setConfirmCompletion(false))}>Keep Editing</button><button type="button" className="is-primary" disabled={saving} onClick={() => void persist(true)}>Complete Character</button></div></section></div> : null}
-      {exitHref ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="exit-character-title"><h2 id="exit-character-title">Unsaved changes</h2><p>Leave this Character and discard the changes you have not saved?</p><div><button type="button" onClick={() => void preserveScroll(() => setExitHref(null))}>Keep Editing</button><Link href={exitHref}>Discard Changes</Link></div></section></div> : null}
+      {confirmCompletion ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="complete-character-title"><h2 id="complete-character-title">Complete this Character?</h2><p>This permanently locks Player Character creation. Later changes use their controlled workflows.</p><div><button type="button" onClick={() => void preserveScroll(() => setConfirmCompletion(false))}>Keep Editing</button><button type="button" className="is-primary" disabled={editorDisabled || raceLoading} onClick={() => void persist(true)}>Complete Character</button></div></section></div> : null}
+      {exitHref ? <div className="character-dialog-backdrop" role="presentation"><section role="alertdialog" aria-modal="true" aria-labelledby="exit-character-title"><h2 id="exit-character-title">Unsaved changes</h2><p>{creationAutosaveEnabled && creationRecovery.savedAt ? "Your creation draft is saved on this device. You can leave and recover it when you return." : "Leave this Character and discard the changes you have not saved?"}</p><div><button type="button" onClick={() => void preserveScroll(() => setExitHref(null))}>Keep Editing</button>{creationAutosaveEnabled && creationRecovery.savedAt ? <Link href={exitHref}>Leave and Keep Draft</Link> : null}<Link href={exitHref} onClick={() => creationRecovery.discard()}>Discard Changes</Link></div></section></div> : null}
       {describedSkill ? <div className="character-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) void preserveScroll(() => setDescribedSkill(null)); }}><section className="character-skill-description" role="dialog" aria-modal="true" aria-labelledby="skill-description-title"><header><div><p>SKILL DESCRIPTION</p><h2 id="skill-description-title">{describedSkill.name}</h2></div><button type="button" aria-label="Close Skill description" onClick={() => void preserveScroll(() => setDescribedSkill(null))}>×</button></header><div className="character-skill-description__facts"><span>{getSkillTierLabel(describedSkill)}</span>{describedSkill.primaryAttribute ? <span>Primary: {normalizeSkillAttributeKey(describedSkill.primaryAttribute) ?? describedSkill.primaryAttribute}</span> : null}{describedSkill.secondaryAttribute ? <span>Secondary: {normalizeSkillAttributeKey(describedSkill.secondaryAttribute) ?? describedSkill.secondaryAttribute}</span> : null}{describedSkill.spellLevel ? <span>Spell Level: {describedSkill.spellLevel}</span> : null}{describedSkill.manaCost !== null ? <span>Mana Cost: {displayNumber(describedSkill.manaCost)}</span> : null}</div><p>{describedSkill.definition.trim() || "No description is currently recorded for this Skill."}</p><footer><button type="button" onClick={() => void preserveScroll(() => setDescribedSkill(null))}>Close</button></footer></section></div> : null}
     </main>
   );
@@ -1103,7 +1149,7 @@ function EquipmentTab({ draft, aggregate, disabled, godMode, filter, search, pur
   })}{!available.length ? <p className="character-notice">No Campaign-authorized Items match this search.</p> : null}</div></div>;
 }
 
-function GodControlsTab({ draft, aggregate, selectedRace, purse, onNumberChange, onCurrencyChange }: { draft: CharacterDraft; aggregate: CharacterAggregate; selectedRace: CharacterRaceAggregate | null; purse: ReturnType<typeof getCampaignMoneyBreakdown>; onNumberChange: (field: "fame" | "experience" | "totalExperience" | "quintessence" | "totalQuintessence" | "hpMultiplierSteps" | "baseMovementSteps" | "baseMagicSteps" | "creditsRemaining", value: number) => void; onCurrencyChange: (currencyId: number, quantity: number) => void }) {
+function GodControlsTab({ disabled, draft, aggregate, selectedRace, purse, onNumberChange, onCurrencyChange }: { disabled: boolean; draft: CharacterDraft; aggregate: CharacterAggregate; selectedRace: CharacterRaceAggregate | null; purse: ReturnType<typeof getCampaignMoneyBreakdown>; onNumberChange: (field: "fame" | "experience" | "totalExperience" | "quintessence" | "totalQuintessence" | "hpMultiplierSteps" | "baseMovementSteps" | "baseMagicSteps" | "creditsRemaining", value: number) => void; onCurrencyChange: (currencyId: number, quantity: number) => void }) {
   const fields = [["fame", "Fame"], ["experience", "Available Experience"], ["totalExperience", "Lifetime Experience"], ["quintessence", "Available Quintessence"], ["totalQuintessence", "Lifetime Quintessence"], ["hpMultiplierSteps", "HP Multiplier Steps"], ["baseMovementSteps", "Base Movement Steps"], ["baseMagicSteps", "Base Magic Steps"]] as const;
   const hpMultiplier = getCharacterHpMultiplier(draft.profile.hpMultiplierSteps);
   const hp = getCharacterHp(draft.attributes.CON, draft.profile.hpMultiplierSteps);
@@ -1111,5 +1157,5 @@ function GodControlsTab({ draft, aggregate, selectedRace, purse, onNumberChange,
   const movementSummary = (selectedRace?.movementModes ?? [])
     .map((mode) => `${mode.movementMode} ${displayNumber(getCharacterMovementBaseValue(mode.baseValue, draft.profile.baseMovementSteps))}`)
     .join(" · ");
-  return <div className="character-section"><SectionHeading eyebrow="ADMINISTRATIVE OVERRIDE" title="G.O.D. Controls" detail="Changes apply to the permanent Character record." /><p className="character-notice">Identity, Attributes, Skills, and Story remain editable from their tabs after creation. Equipment shows the Character&apos;s owned items; the starting store is available during creation.</p><div className="character-god-grid">{fields.map(([field, label]) => <Field key={field} label={label}><input type="number" min={0} step={1} value={draft.profile[field]} onChange={(event) => onNumberChange(field, numericValue(event.target.value))} /></Field>)}</div><p className="character-notice">Effective HP Multiplier: ×{hpMultiplier.toFixed(2)} · Total HP: {displayNumber(hp)} · Effective Base Magic: {displayNumber(baseMagic)}</p><p className="character-notice">Effective Base Movement: {movementSummary || "No racial movement modes recorded."}</p><section className="character-god-currency"><header><div><p>CURRENT CAMPAIGN MONEY</p><h3>{purse.formatted}</h3></div><span>Saved independently from inventory changes.</span></header>{aggregate.campaign.currencySystem === "Credits" ? <Field label="Current Credits"><input type="number" min={0} step="0.01" value={draft.profile.creditsRemaining} onChange={(event) => onNumberChange("creditsRemaining", numericValue(event.target.value))} /></Field> : purse.entries.length ? <div className="character-god-grid">{purse.entries.map((currency) => <Field key={currency.id} label={currency.name}><input type="number" min={0} step={1} value={currency.quantity} onChange={(event) => onCurrencyChange(currency.id, numericValue(event.target.value))} /><small>{currency.description || "Campaign currency"}</small></Field>)}</div> : <p className="character-notice">This Campaign has no usable derived Currency denominations.</p>}{!purse.fullyRepresented ? <p className="character-notice">The configured denominations do not exactly represent the stored balance.</p> : null}</section></div>;
+  return <div className="character-section"><SectionHeading eyebrow="ADMINISTRATIVE OVERRIDE" title="G.O.D. Controls" detail="Changes apply to the permanent Character record." /><p className="character-notice">Identity, Attributes, Skills, and Story remain editable from their tabs after creation. Equipment shows the Character&apos;s owned items; the starting store is available during creation.</p><div className="character-god-grid">{fields.map(([field, label]) => <Field key={field} label={label}><input disabled={disabled} type="number" min={0} step={1} value={draft.profile[field]} onChange={(event) => onNumberChange(field, numericValue(event.target.value))} /></Field>)}</div><p className="character-notice">Effective HP Multiplier: ×{hpMultiplier.toFixed(2)} · Total HP: {displayNumber(hp)} · Effective Base Magic: {displayNumber(baseMagic)}</p><p className="character-notice">Effective Base Movement: {movementSummary || "No racial movement modes recorded."}</p><section className="character-god-currency"><header><div><p>CURRENT CAMPAIGN MONEY</p><h3>{purse.formatted}</h3></div><span>Saved independently from inventory changes.</span></header>{aggregate.campaign.currencySystem === "Credits" ? <Field label="Current Credits"><input disabled={disabled} type="number" min={0} step="0.01" value={draft.profile.creditsRemaining} onChange={(event) => onNumberChange("creditsRemaining", numericValue(event.target.value))} /></Field> : purse.entries.length ? <div className="character-god-grid">{purse.entries.map((currency) => <Field key={currency.id} label={currency.name}><input disabled={disabled} type="number" min={0} step={1} value={currency.quantity} onChange={(event) => onCurrencyChange(currency.id, numericValue(event.target.value))} /><small>{currency.description || "Campaign currency"}</small></Field>)}</div> : <p className="character-notice">This Campaign has no usable derived Currency denominations.</p>}{!purse.fullyRepresented ? <p className="character-notice">The configured denominations do not exactly represent the stored balance.</p> : null}</section></div>;
 }

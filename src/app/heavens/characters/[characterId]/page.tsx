@@ -19,7 +19,7 @@ export default async function GodCharacterPage({
   params: Promise<{ characterId: string }>;
   searchParams: Promise<{ source?: string }>;
 }) {
-  await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
+  const { session } = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
   const { characterId } = await params;
   const id = Number(characterId);
   if (!Number.isInteger(id) || id <= 0) redirect("/heavens");
@@ -50,6 +50,8 @@ export default async function GodCharacterPage({
 
   return (
     <CharacterEditor
+      key={`${session.user.id}:${aggregate.campaign.id}:${aggregate.character.id}:${aggregate.sheetAccess?.canAccessPrivateGod ? "owner" : "manager"}`}
+      viewerUserId={session.user.id}
       initialAggregate={aggregate}
       initialActiveHealth={activeHealth}
       initialActiveMana={activeMana}
