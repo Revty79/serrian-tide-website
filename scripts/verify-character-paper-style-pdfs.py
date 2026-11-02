@@ -56,12 +56,16 @@ for index, theme in enumerate(themes):
     contact.paste(picture, (index % 4 * 306, index // 4 * 528))
     ImageDraw.Draw(contact).text((index % 4 * 306 + 5, index // 4 * 528 + 400), theme, fill="black")
     reports.append({"theme": theme, "pages": 8, "pagePoints": [612, 792], "allTextPresent": True, "artwork": theme != "plain"})
-old = pymupdf.open("artifacts/character-spreadsheet-print/range-correction/sample.pdf")
+old = pymupdf.open("artifacts/character-spreadsheet-print/weapon-correction/original.pdf")
 original = pymupdf.open(OUT / "original.pdf")
-for a, b in zip(list(old)[1:], list(original)[1:]):
-    assert a.get_pixmap().samples == b.get_pixmap().samples, "The seven original backs must remain pixel-identical"
+assert old[0].get_pixmap().samples == original[0].get_pixmap().samples, "The accepted five-weapon front must remain pixel-identical"
 weapon_rows(original[0])
-assert old[0].get_pixmap(clip=pymupdf.Rect(0, 0, 612, 250)).samples == original[0].get_pixmap(clip=pymupdf.Rect(0, 0, 612, 250)).samples, "Original title, identity and summary must remain unchanged"
+for theme in themes:
+    pdf = pymupdf.open(OUT / f"{theme}.pdf")
+    for page in list(pdf)[1:]:
+        text = page.get_text()
+        assert "Rank" in text and "#" in text and "%" in text
+        assert "Beacon Sense" in text and "95%" in text
 browser_reports = []
 browser_baseline = OUT / "browser-original-after-style.pdf"
 if browser_baseline.exists():
@@ -87,5 +91,5 @@ if browser_baseline.exists():
     assert len(saved) == 2 and "Rowan Draft" in saved[0].get_text()
     assert "UNSAVED NAME" not in "".join(page.get_text() for page in saved)
 contact.crop((0, 0, 1224, 1056)).save(OUT / "themes-contact.png")
-(OUT / "pdf-receipt.json").write_text(json.dumps({"passed": True, "themes": reports, "browserThemes": browser_reports, "fiveWeaponRows": True, "realWeaponsFirst": True, "authoredDamageTypes": True, "originalBacksAndUpperFrontPixelIdentical": True}, indent=2) + "\n")
+(OUT / "pdf-receipt.json").write_text(json.dumps({"passed": True, "themes": reports, "browserThemes": browser_reports, "fiveWeaponRows": True, "realWeaponsFirst": True, "authoredDamageTypes": True, "skillPointsRankTarget": True, "abilityScoreTarget": True, "originalFrontPixelIdentical": True}, indent=2) + "\n")
 print(json.dumps(reports))

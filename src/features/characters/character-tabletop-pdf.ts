@@ -4,6 +4,8 @@ import { paperNumber, type PaperCharacterData } from "./paper-character";
 import { BODY_SHOT_BOB_PATHS, BODY_SHOT_BOB_TARGETS } from "./body-shot-bob";
 import { TABLETOP_PDF_PAPER, TABLETOP_PDF_SHEETS, type TabletopPdfSheet } from "./character-tabletop-pdf-options";
 import type { CharacterMagicSystem } from "./character-rules";
+import { getSpecialAbilityRollTarget } from "./character-rules";
+import { validSpecialAbilityScore } from "@/features/special-abilities/score";
 import { printPresentationHeading, type PrintTheme, type PrintHeadings } from "./character-print-options";
 import { PAPER_SHEET_STYLES } from "./character-paper-theme";
 
@@ -29,8 +31,9 @@ export function buildTabletopPdfPages(data: PaperCharacterData, requested: reado
   const improvised = (type: string) => type.split("/").some(part => /^(improvised|tool)$/i.test(part.trim()));
   const weapons = [...data.tabletop.weapons].sort((a, b) => Number(improvised(a.type)) - Number(improvised(b.type)));
   const skills = (title: string, rows: PaperCharacterData["skills"]): Table => ({
-    title, columns: ["Skill", "%"], widths: [.76, .24], split: true,
-    rows: rows.map(skill => [leaf(skill.name), skill.hasRoll ? number(skill.target) + "%" : "—"]),
+    title, columns: ["Skill", "#", "Rank", "%"], widths: [.55, .15, .15, .15], split: true,
+    // The saved print projection's points already include racial points.
+    rows: rows.map(skill => [leaf(skill.name), number(skill.points), number(skill.rank), skill.hasRoll ? number(skill.target) + "%" : "—"]),
   });
   const ordinary = data.skills.filter(skill => !skill.special && !skill.systems.length);
   const special = data.skills.filter(skill => skill.special);
@@ -80,10 +83,14 @@ export function buildTabletopPdfPages(data: PaperCharacterData, requested: reado
       if (!system) table.rows.forEach((row, index) => { const label = rows[index].systems.join(" / "); if (row[0] !== label) row[0] = `${label} - ${row[0]}`; });
       if (rows.length || system) page.tables.push(table);
     }
-    const specialRows = special.map(skill => [leaf(skill.name), skill.hasRoll ? number(skill.target) + "%" : "—"]);
-    const grantIds = new Set(special.map(skill => skill.skillId));
-    for (const ability of data.specialAbilityMechanics?.abilities ?? []) if (!grantIds.has(ability.mechanics.source.id)) specialRows.push([ability.mechanics.source.name, "—"]);
-    page.tables.push({ ...skills("Special Abilities", []), rows: specialRows });
+    const abilityScores = new Map<number, { name: string; score: number | null }>();
+    for (const skill of special) abilityScores.set(skill.skillId, { name: leaf(skill.name), score: Math.max(abilityScores.get(skill.skillId)?.score ?? 0, skill.points) });
+    for (const ability of data.specialAbilityMechanics?.abilities ?? []) abilityScores.set(ability.mechanics.source.id, { name: ability.mechanics.source.name, score: ability.mechanics.progression.value });
+    const specialRows = [...abilityScores.values()].map(({ name, score }) => {
+      const known = score !== null && validSpecialAbilityScore(score);
+      return [name, known ? number(score) : "—", known ? number(getSpecialAbilityRollTarget(score)) + "%" : "—"];
+    });
+    page.tables.push({ title: "Special Abilities", columns: ["Ability", "#", "%"], widths: [.66, .17, .17], split: true, rows: specialRows });
     const powers = data.spells.filter(spell => (system ? spell.system === system : title === "Skills Back") && !data.skills.some(skill => spell.key === `catalog:${skill.id}`));
     if (powers.length) page.tables.push({ title: "Personal Powers", columns: ["Power", "Mana", "%"], widths: [.70, .15, .15], split: true, rows: powers.map(spell => [spell.name, number(spell.manaCost), spell.target == null ? "—" : number(spell.target) + "%"]) });
     page.tables.push({ title: "Inventory", columns: ["Item", "Qty", "Charges / Ammunition"], widths: [.54, .10, .36], split: true, rows: data.inventory.map(item => [item.name, number(item.quantity), item.status.split(/;\s*/).filter(part => !/^ammunition state not initialized\b/i.test(part.trim())).join("; ")]) });
@@ -158,13 +165,13 @@ class Painter {
 }
 
 type TableLayout = { heights: number[]; height: number; groups: string[][][]; fontSize: number; columns: number; headingHeight: number; columnHeight: number };
-function tableLayout(table: Table, width: number, font: PDFFont, fontSize: number, minimumRows = 1, headingHeight = 16, columnHeight = 16): TableLayout {
+function tableLayout(table: Table, width: number, font: PDFFont, fontSize: number, minimumRows = 1, headingHeight = 14, columnHeight = 14): TableLayout {
   const split = !!table.split;
   const columns = split ? table.title === "Ordinary Skills" && table.rows.length > 48 ? 3 : 2 : 1;
   const count = Math.max(minimumRows, Math.ceil(table.rows.length / columns));
   const groups = Array.from({ length: columns }, (_, index) => table.rows.slice(index * count, (index + 1) * count));
   const tableWidth = (width - (columns - 1) * 8) / columns;
-  const heights = Array.from({ length: count }, (_, i) => Math.max(split ? fontSize * 1.2 + 4 : 18, ...groups.map(rows => Math.max(1, ...table.columns.map((_, col) => wrap(rows[i]?.[col] ?? "", font, fontSize, tableWidth * table.widths[col] - 4).length)) * fontSize * 1.2 + (split ? 4 : 5))));
+  const heights = Array.from({ length: count }, (_, i) => Math.max(split ? fontSize * 1.2 + 2 : 18, ...groups.map(rows => Math.max(1, ...table.columns.map((_, col) => wrap(rows[i]?.[col] ?? "", font, fontSize, tableWidth * table.widths[col] - 4).length)) * fontSize * 1.2 + (split ? 2 : 5))));
   return { heights, height: headingHeight + columnHeight + heights.reduce((a, b) => a + b, 0), groups, fontSize, columns, headingHeight, columnHeight };
 }
 

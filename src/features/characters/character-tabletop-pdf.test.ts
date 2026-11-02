@@ -42,7 +42,7 @@ test("tabletop data stays brief and places Derived Abilities in front status; am
   assert.doesNotMatch(JSON.stringify(back), /Eidetic Memory|not initialized/i);
   assert.match(JSON.stringify(back), /2\/5 charges/);
   assert.match(JSON.stringify(back), /4\/5 charges/);
-  assert.equal(back.tables.find(table => table.title === "Special Abilities")!.rows[0][1], "—");
+  assert.deepEqual(back.tables.find(table => table.title === "Special Abilities")!.rows[0], ["Beacon Sense", "5", "95%"]);
   const supernatural = back.tables.find(table => table.title === "Supernatural Skills")!;
   assert.ok(supernatural.rows.some(row => row[0] === "Spellcraft - Fire"));
   assert.ok(supernatural.rows.some(row => row[0] === "Faith - Fire"));
@@ -78,6 +78,33 @@ test("custom anatomy retains actual pools and hit locations rather than replacin
   data.health.tracks = [{ name: "Tail", maximumHp: 20, remainingHp: 15 }] as typeof data.health.tracks;
   const front = buildTabletopPdfPages(data, ["Character Front"])[0];
   assert.deepEqual(front.tables[1].rows[1], ["Tail", "20", ""]);
+});
+
+test("every back shows saved effective points, Rank and target for ordinary and system skills", () => {
+  const data = tabletopPdfFixture();
+  data.skills[0] = { ...data.skills[0], points: 11, racialPoints: 7, rank: 28, target: 47 };
+  for (const page of buildTabletopPdfPages(data, TABLETOP_PDF_SHEETS.filter(title => title !== "Character Front"))) {
+    const ordinary = page.tables.find(table => table.title === "Ordinary Skills")!;
+    assert.deepEqual(ordinary.columns, ["Skill", "#", "Rank", "%"]);
+    assert.deepEqual(ordinary.rows[0], ["Route 01", "11", "28", "47%"], "Effective points must not add racial points a second time");
+    for (const table of page.tables.filter(table => ["Supernatural Skills", "Spellcraft", "Talismanism", "Faith", "Psyonics", "Bardic Resonance"].includes(table.title))) assert.deepEqual(table.columns, ["Skill", "#", "Rank", "%"]);
+  }
+});
+
+test("Special Abilities show their canonical score and roll target without Attribute or parent Rank", () => {
+  const data = tabletopPdfFixture();
+  const ability = data.skills.find(row => row.special)!;
+  ability.rank = 80; ability.target = 10; ability.hasRoll = false;
+  let table = buildTabletopPdfPages(data, ["Special Abilities Back"])[0].tables.find(table => table.title === "Special Abilities")!;
+  assert.deepEqual(table.columns, ["Ability", "#", "%"]);
+  assert.deepEqual(table.rows[0], ["Beacon Sense", "5", "95%"]);
+  data.specialAbilityMechanics = { abilities: [
+    { mechanics: { source: { id: ability.skillId, name: "Beacon Sense" }, progression: { value: 12 } } },
+    { mechanics: { source: { id: 999, name: "Assigned Gift" }, progression: { value: 0 } } },
+    { mechanics: { source: { id: 1000, name: "Unresolved Gift" }, progression: { value: null } } },
+  ] } as unknown as NonNullable<typeof data.specialAbilityMechanics>;
+  table = buildTabletopPdfPages(data, ["Skills Back"])[0].tables.find(table => table.title === "Special Abilities")!;
+  assert.deepEqual(table.rows, [["Beacon Sense", "12", "88%"], ["Assigned Gift", "0", "100%"], ["Unresolved Gift", "—", "—"]]);
 });
 
 test("hybrid weapon modifiers retain both signed amounts without repeating attribute names", () => {

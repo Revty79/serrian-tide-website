@@ -2,7 +2,7 @@ import type { PaperCharacterData } from "./paper-character";
 
 export function tabletopPdfFixture(crowded = false): PaperCharacterData {
   const skill = (id: number, name: string, system: string | null = null, special = false) => ({
-    id, skillId: id, name, points: id + 10, racialPoints: 0, rank: id, target: 70 - id % 50, depth: name.split(" → ").length - 1,
+    id, skillId: id, name, points: special ? 5 : id + 10, racialPoints: 0, rank: id, target: 70 - id % 50, depth: name.split(" → ").length - 1,
     parentId: null, special, hasRoll: !special, systems: system ? [system] : [], system, reference: `SK${id}`, definition: "", spellLevel: null, manaCost: null, spellDocumentJson: null,
   });
   return {

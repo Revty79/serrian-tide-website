@@ -24,6 +24,8 @@ The shared Realms / G.O.D. character editor uses the same authorized saved-recor
 
 Both compact PDF appearances provide five fixed weapon rows. Purpose-built weapons retain saved order ahead of authored Improvised / Tool profiles. Type shows the canonical damage type or types, including linked-ammunition damage types where applicable, rather than the weapon category. A wider Type column and enlarged weapon block use space from armor and blank quick rolls; unusually long cells retain their full text in status without displacing a weapon row. The Letter frame, upper summary and back layouts remain unchanged.
 
+Every compact back shows ordinary and system skills as **Skill / # / Rank / %**. The saved projection already includes racial points in #. Special Abilities use **Ability / # / %**, with the canonical saved Special Ability score and its `100 - score` target, including zero-score assigned abilities; they do not acquire an Attribute/parent Rank. Unresolved scores remain dashed. The front's quick-roll labels remain name plus percentage.
+
 ## Data and permissions
 
 `getPaperCharacterSheet` uses the existing authorized character reader and read-only runtime readers. `buildPaperCharacter` converts that saved aggregate for the existing character calculations; the editor draft is never passed into the print center. The Print button refreshes the snapshot. Unsaved changes require an explicit choice between returning to edit and printing the saved record. Neither option saves or changes gameplay state.
