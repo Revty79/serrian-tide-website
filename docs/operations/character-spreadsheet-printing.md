@@ -1,6 +1,35 @@
 # Original spreadsheet Character printing
 
-## Current release: standalone tabletop PDF sheets
+## Current release: original front layout, Letter only
+
+Application commit: `6cdaffa31abf00c7fa61e25af02947ab96ef663b`, based on `052acc0a213d46fd0b7df5f33a8e6d6394b1a7a6`. On 2026-11-02 the owner clarified **Letter only**, minimum practical margins, the original design, separate Initiative, blank handwritten HP/mana tracking, numeric weapon modifiers and no large embedded builder preview. Commit/main sync remains authorized; Atlas stays paused.
+
+Every PDF page is now **612 × 792 points (Letter)** with **9-point / ⅛-inch margins**. There is no Legal option. The colored frame is `[9, 9, 603, 783]`, using 97.06% of the paper width and 97.73% of its height. This resolves the large side margins caused by fitting the previous tall Legal PDF onto Letter paper. The current ET-2800 Letter imageable edge is approximately 8.4 points, leaving a small allowance inside its printable area.
+
+The front restores the original compact inline identity rows, yellow paper/blue title, original 60-row section proportions, five adjacent Attributes / Hit Points / Mana / Initiative / Resources blocks, single weapon and armor headers, status beside hit locations and the wide quick-roll area. Body Shot Bob retains the same vectors. Initiative and T Initiative use their own block. HP shows maximum values with blank **Damage** cells; mana shows maximum values with blank **Spent** cells. Weapon modifiers are numeric, including signed hybrid amounts such as `-3 / +2`. Derived Abilities remain in status, quick rolls remain concise and the ammunition initialization diagnostic remains omitted. No saved resource values or mechanical calculations are changed.
+
+**Print / Save as PDF** opens the finished file in a separate tab after the print click or saved-record confirmation. The builder retains only compact Open PDF to print / Download PDF controls; the embedded iframe is removed. The reserved tab closes if generation fails or is cancelled. Existing saved-record authorization, unsaved edits, font-failure retry and other print presets remain intact.
+
+### Current verification
+
+| Check | Actual result |
+| --- | --- |
+| Full feature suite | 2,635/2,635 pass across 326 files |
+| Focused PDF regressions | 6/6 pass, including separate summary blocks, Letter bounds, blank tracking fields, numeric/hybrid modifiers and input preservation |
+| Owned disposable actions | Existing 14 authorization/state tests pass |
+| Headed Chrome journey | All eight and each individual Letter PDF, automatic PDF opening, no embedded preview, compact phone/tablet controls, font failure/retry, stale download retirement, saved-record/unsaved-draft protection, existing printing and unchanged database fingerprints pass |
+| Actual PDF pages | Regular, crowded and browser packets each contain eight pages; front/back contains two; all are Letter |
+| Contents and layout | All sample model values and all 65 ordinary skills are present; font/text bounds, blank Damage/Spent rectangles, visible rules, Bob and the complete bottom quick-roll section pass; rendered pages were visually reviewed |
+| ET-2800 native preview | Letter at **Default / full-size scaling**, exactly two sheets; the complete front is visible. Three screenshot bands independently measure **97.22% form-to-paper width**, each above the unchanged 95% coverage threshold |
+| TypeScript / ESLint / production | Pass; zero lint errors and one existing unused `LoreFamily` warning |
+
+The browser receipt covers the standard weapon modifier; the final hybrid-name cleanup additionally passes its focused signed-amount regression. The first single-scanline screenshot check landed on a horizontal grid rule; bounded neighboring scanlines correct that measurement without lowering the 95% threshold. Earlier rejected Legal receipts remain historical below. No physical job was submitted; owner paper/usability acceptance remains separate.
+
+Final production build: `0K3b6Rf-OWGCY_ZDJg1dP`. All 1,817 `src/` and `public/` files match its isolated source copy. Manifest SHA-256: `dd48c7ffcc3864b571187354c8b6f2beababfb27352751453616ddb586566af0`.
+
+Evidence is ignored under `artifacts/character-spreadsheet-print/letter-layout-correction/`: `browser-attempt-1.log`, `pdf-receipt.json`, `source-parity.json`, `native-pdf-letter.png`, sample/crowded/browser renders and validation logs. Tests use newly owned disposable PostgreSQL and a separate test server; production builds use an isolated source copy with an unreachable dummy database. No migration, shared DEV/Production access, deployment or owner-service restart occurred. The unrelated local Atlas report remains untouched. Recovery requires only a code rollback.
+
+## Historical standalone Legal PDF — superseded after owner rejection
 
 Application commit: `cdf0154368dc05bb9bbd4704eb34b3800a069781`, based on `5b5bfacba1712d35689fc9dbad75812d2bceee4f`. The owner rejected the remaining webpage pagination and directed that the spreadsheet become a visual example for a proper PDF. Commit and origin/main sync remain authorized. Atlas stays paused.
 
