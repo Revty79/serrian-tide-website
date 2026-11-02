@@ -91,6 +91,8 @@ No shared database operation, deployment, owner-service restart, destructive cle
 
 ## Final recovery and data-protection correction (2026-11-01)
 
+Correction application checkpoint: [`90e5f1489873fc6f172188b9825d59c35f6632b5`](https://github.com/Revty79/serrian-tide-website/commit/90e5f1489873fc6f172188b9825d59c35f6632b5). The final main/CI receipt is retained at `artifacts/interiors-s5b-correction-workbench/publication.json`.
+
 This correction continues from `1c78ca14ee2f0d718ef08e83c7257e4ad38e82fa`. It supersedes the earlier recovery/arrival behavior and runtime references above; the original receipts remain historical evidence.
 
 - **Complete floor recovery:** another-tab comparison includes name, order, elevation and the complete design, including layers and appearance. Metadata-only edits remain recoverable. After an explicit recovery and acknowledged save, an unchanged original packet is retired; a newer other-tab packet is preserved byte-for-byte.
