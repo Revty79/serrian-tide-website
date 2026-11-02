@@ -1,6 +1,26 @@
 # Original spreadsheet Character printing
 
-## Current: styled Paper Character Sheet for table play
+## Current: weapon priority, damage types and five rows
+
+Application commit: `92fc49c6a47042416fec966c7544a4af20467dc5`, from styled-sheet publication `c366dcc7141e1f3eb1e12d3e74e3c36062d54609`. On 2026-11-02 the owner reported that early inventory tools displaced actual weapons, the Type column showed weapon categories, and wrapped content reduced the visible weapon rows. This correction applies to both compact Paper and original Tabletop PDFs.
+
+Purpose-built weapons now precede authored Improvised / Tool profiles, preserving saved order within each group. Type uses the existing canonical weapon-damage reader's damage type or types, including linked-ammunition types where applicable; unknown types remain blank/dashed rather than inferred. The Type column is wider. The weapon block grows from seven to ten layout units and provides five fixed rows, including blank writing rows for sparse records. Armor gives one unit and the blank quick-roll area gives two; status and Bob retain their full heights, and the Letter frame and upper summary remain exact. Excess weapons/tools and unusually long cell values retain concise information in status without displacing a weapon row.
+
+| Check | Actual result |
+| --- | --- |
+| Full feature suite | 2,644/2,644 pass across 328 files; 11/11 focused PDF/style checks pass |
+| Actual PDFs | All eight crowded styles retain five ruled weapon rows, complete single/multiple damage types, all five real weapon names and Letter bounds; seven original backs and the original upper front remain pixel-identical |
+| Final headed Chrome / owned actions | Existing 14 action checks and the saved-character journey pass with early-sorting tools, five actual weapons, all eight styles, independent pages, failure/retry, unsaved edits and unchanged database fingerprints |
+| Actual browser downloads | All eight themed front/back packets match the original table content/positions; every real weapon remains in the weapon block, with tools after them and authored damage types in Type |
+| TypeScript / lint / isolated production | Pass; zero lint errors and one pre-existing unused `LoreFamily` warning |
+
+The first focused check expected an unwrapped range line; it now verifies the full preserved range across wrapped lines. The row-measurement adapter was corrected to inspect the PDF's four-edge cell paths. The first isolated build could not fetch existing Google app fonts under restricted networking; its retained repeat with network access passes. These earlier attempts remain separate from final passing evidence. No physical job or owner acceptance is claimed.
+
+Final production build: `JaNC-a_y3ZQKsdaFVNssb`. All 1,822 `src/` and `public/` files match its isolated source copy; manifest SHA-256 `47621e4c594cfea6aa40144e0c23700460772370501048b0c6f8876f089c801f`. Evidence is ignored under `artifacts/character-spreadsheet-print/weapon-correction/`, including `units.log`, `focused.log`, `browser-final.log`, `pdf-validation-final.log`, `pdf-receipt.json`, `source-parity.json`, builds, downloads and renders. QA scripts accept `SERRIAN_PRINT_QA_OUTPUT` to preserve earlier receipts.
+
+No migration, shared database access, deployment, owner-service restart or Atlas change occurred. The unrelated Atlas report edit remains local and untouched. Main publication is authorized. The separately requested character-creation autosave work follows this publication.
+
+## Accepted: styled Paper Character Sheet for table play
 
 Application commit: `7d710cc80fd483636f32b42e96568c3b2f8e343b`, based on accepted currency/range publication `790661b53a182e20a38d2a4c61c5852b599f13b4`. On 2026-11-02 the owner requested the approved compact layout with the existing selectable Paper styles, and reiterated that it must contain only the information needed at the table. Commit and origin/main sync are authorized; Atlas remains paused.
 
