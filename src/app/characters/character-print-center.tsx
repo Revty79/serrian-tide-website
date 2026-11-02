@@ -22,8 +22,14 @@ const PRESETS: Array<{id: UnifiedPrintPreset; label: string; description: string
   {id: "complete", label: "Complete Character Record", description: "The full mechanical packet plus saved story and profile."},
   {id: "custom", label: "Custom Print", description: "Select the front, any backs, books and references independently."},
   {id: "paper", label: "Paper Character Sheet", description: "Choose a core sheet and add only the backs, books and references you want."},
-  {id: "pdf", label: "Tabletop PDF Sheets", description: "Create a ready-to-print PDF inspired by your original sheets. One complete Legal page per sheet."},
+  {id: "pdf", label: "Tabletop PDF Sheets", description: "Your original sheet layout in a Letter-size PDF. One complete page per sheet."},
 ];
+
+function reservePdfWindow() {
+  const tab = window.open("", "_blank");
+  if (tab) { tab.opener = null; tab.document.title = "Preparing Character PDF"; tab.document.body.textContent = "Preparing your Character PDF…"; }
+  return tab;
+}
 
 export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}: Props) {
   const [preset, setPreset] = useState<UnifiedPrintPreset>("quick");
@@ -62,7 +68,7 @@ export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}
     return () => { active = false; };
   }, [aggregate.character.id, aggregate.profile.raceId, godMode]);
 
-  async function prepare(print = false) {
+  async function prepare(print = false, pdfWindow: Window | null = null) {
     const request = ++requestId.current;
     setLoading(true); setError("");
     if (preset === "pdf" && print) setPdf(null);
@@ -83,7 +89,10 @@ export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}
         if (request !== requestId.current) return;
         const result = await renderer.createCharacterTabletopPdf(snapshot, pdfSheets, { regular: fonts[0], bold: fonts[1], title: fonts[2] });
         if (request !== requestId.current) return;
-        setPdf({ url: URL.createObjectURL(new Blob([new Uint8Array(result.bytes)], { type: "application/pdf" })), filename: tabletopPdfFilename(snapshot.name), characterId: snapshot.characterId, raceId: snapshot.raceId, sheets: pdfSheets.join("|") });
+        const url = URL.createObjectURL(new Blob([new Uint8Array(result.bytes)], { type: "application/pdf" }));
+        setPdf({ url, filename: tabletopPdfFilename(snapshot.name), characterId: snapshot.characterId, raceId: snapshot.raceId, sheets: pdfSheets.join("|") });
+        if (pdfWindow && !pdfWindow.closed) pdfWindow.location.replace(url);
+        pdfWindow = null;
       } else if (print) {
         await document.fonts.ready;
         await Promise.all(Array.from(document.querySelectorAll<SVGImageElement>(".paper-masthead-art image")).map(element => new Promise<void>((resolve, reject) => {
@@ -98,8 +107,14 @@ export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}
     } catch (problem) {
       if (request === requestId.current) { setPaper(null); setError(problem instanceof Error ? problem.message : "The saved Character could not be loaded for printing."); }
     } finally {
+      pdfWindow?.close();
       if (request === requestId.current) setLoading(false);
     }
+  }
+  function beginPrint(confirmed = false) {
+    if (dirty && !confirmed) { dialog.current?.showModal(); return; }
+    dialog.current?.close();
+    void prepare(true, preset === "pdf" ? reservePdfWindow() : null);
   }
   function toggle<K extends "backs" | "books" | "references">(key: K, value: UnifiedPrintSelection[K][number]) {
     setCustom(current => {
@@ -110,14 +125,14 @@ export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}
   return <>
     <section className="character-print-center" aria-labelledby="print-center-title">
       <header><div><p>PRINT / EXPORT</p><h2 id="print-center-title">Print Character Sheet</h2><span>Print or save a PDF of the saved Character and current recorded resources.</span></div>
-        <button type="button" className="is-primary" disabled={!labels.length || loading} onClick={() => dirty ? dialog.current?.showModal() : void prepare(true)}>{preset === "pdf" ? loading ? "Creating PDF…" : "Create PDF" : "Print / Save as PDF"}</button>
+        <button type="button" className="is-primary" disabled={!labels.length || loading} onClick={() => beginPrint()}>{preset === "pdf" && loading ? "Preparing PDF…" : "Print / Save as PDF"}</button>
       </header>
       <details ref={options} className="character-print-center__options" onToggle={event => {if (event.currentTarget.open && !currentPaper && !loading && !error) void prepare();}}>
         <summary>Print options</summary>
         <div className="character-print-center__presets">{PRESETS.map(option => <button type="button" key={option.id} aria-pressed={preset === option.id} className={preset === option.id ? "is-active" : undefined} disabled={loading} onClick={() => { setPreset(option.id); setPdf(null); }}><strong>{option.label}</strong><span>{option.description}</span></button>)}</div>
         {preset === "pdf" ? <div className="paper-selection-controls">
           <fieldset className="character-print-center__custom"><legend>PDF pages</legend>{TABLETOP_PDF_SHEETS.map(title => <label key={title}><input type="checkbox" disabled={loading} checked={pdfSheets.includes(title)} onChange={event => { setPdf(null); setPdfSheets(current => event.target.checked ? TABLETOP_PDF_SHEETS.filter(sheet => sheet === title || current.includes(sheet)) : current.filter(sheet => sheet !== title)); }} />{title}</label>)}</fieldset>
-          <p>One complete page per selected sheet. Create the PDF, then open it to print. Use Legal paper (8.5 × 14 inches) for full size, or Fit to print the complete page on smaller paper.</p>
+          <p>Letter paper (8.5 × 11 inches), with ⅛-inch margins. Print / Save as PDF opens the finished PDF when you’re ready to print.</p>
           <button type="button" className="st-button" disabled={loading} onClick={() => { setPdf(null); setPdfSheets([...TABLETOP_PDF_SHEETS]); }}>Select all eight sheets</button>
         </div> : <div className="paper-appearance-controls">
           <GuidedField label="Print theme" help="Changes the ornament and paper styling. Character values and rules stay the same. Plain uses minimal ink."><select className="st-control" value={theme} onChange={event => setTheme(event.target.value as PrintTheme)}>{PRINT_THEMES.map(value => <option key={value}>{value}</option>)}</select></GuidedField>
@@ -138,19 +153,18 @@ export function CharacterPrintCenter({aggregate, dirty = false, godMode = false}
         <div className="paper-print-status" aria-live="polite">
           <p><strong>Prints the last saved Character and current recorded resources.</strong> Unsaved editor changes are not included.</p>
           {dirty ? <p>You have unsaved edits. Print the saved record, or return to editing and save your changes first.</p> : null}
-          {loading ? <p>Preparing saved Character and recorded resources…</p> : paper ? <p>Ready: {paper.name}. Snapshot: {new Date(paper.recordedAt).toLocaleString()}. {preset === "pdf" ? "Create PDF" : "The Print button"} refreshes this snapshot.</p> : null}
-          {error ? <><p role="alert">{error}</p><button type="button" className="st-button" onClick={() => preset === "pdf" && dirty ? dialog.current?.showModal() : void prepare(preset === "pdf")}>{preset === "pdf" ? "Retry creating PDF" : "Retry loading saved record"}</button></> : null}
+          {loading ? <p>Preparing saved Character and recorded resources…</p> : paper ? <p>Ready: {paper.name}. Snapshot: {new Date(paper.recordedAt).toLocaleString()}. The Print button refreshes this snapshot.</p> : null}
+          {error ? <><p role="alert">{error}</p><button type="button" className="st-button" onClick={() => preset === "pdf" ? beginPrint() : void prepare()}>{preset === "pdf" ? "Retry creating PDF" : "Retry loading saved record"}</button></> : null}
         </div>
         <footer aria-live="polite"><span>Selected:</span><strong>{labels.join(" · ") || "No printable sections"}</strong></footer>
       </details>
     </section>
     {preset === "pdf" ? currentPdf ? <section className="character-pdf-preview" aria-label="Generated Character PDF">
       <div className="character-pdf-actions"><strong>PDF ready · {pdfSheets.length} {pdfSheets.length === 1 ? "page" : "pages"}</strong><a className="st-button is-primary" href={currentPdf.url} target="_blank" rel="noopener">Open PDF to print</a><a className="st-button" href={currentPdf.url} download={currentPdf.filename}>Download PDF</a></div>
-      <iframe src={currentPdf.url} title="Character tabletop PDF preview" />
     </section> : null : currentPaper?.characterId === aggregate.character.id ? <PaperCharacterSheet data={currentPaper} selection={selection} theme={theme} headings={headings} /> : <div className="paper-character-sheet"><p>Use Print / Save as PDF to load the saved Character before printing.</p></div>}
     <dialog ref={dialog} className="paper-print-dialog" aria-labelledby="paper-print-confirm-title">
       <h2 id="paper-print-confirm-title">Print the last saved record?</h2><p>Your unsaved edits will stay in the editor. This printout uses the saved Character and current recorded HP, mana and equipment. To include edits, return to the sheet and save them first.</p>
-      <div><button type="button" className="st-button" onClick={() => dialog.current?.close()}>Return to editing</button><button type="button" className="st-button is-primary" onClick={() => {dialog.current?.close(); void prepare(true);}}>Print saved record</button></div>
+      <div><button type="button" className="st-button" onClick={() => dialog.current?.close()}>Return to editing</button><button type="button" className="st-button is-primary" onClick={() => beginPrint(true)}>Print saved record</button></div>
     </dialog>
   </>;
 }

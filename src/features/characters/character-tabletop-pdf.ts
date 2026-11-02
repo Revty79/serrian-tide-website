@@ -2,19 +2,20 @@ import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { paperNumber, type PaperCharacterData } from "./paper-character";
 import { BODY_SHOT_BOB_PATHS, BODY_SHOT_BOB_TARGETS } from "./body-shot-bob";
-import { TABLETOP_PDF_SHEETS, type TabletopPdfSheet } from "./character-tabletop-pdf-options";
+import { TABLETOP_PDF_PAPER, TABLETOP_PDF_SHEETS, type TabletopPdfSheet } from "./character-tabletop-pdf-options";
 import type { CharacterMagicSystem } from "./character-rules";
 
-const WIDTH = 612, HEIGHT = 1008, MARGIN = 24, INNER = WIDTH - MARGIN * 2, BOTTOM = 968;
-const INK = rgb(0, 0, 0), PAPER = rgb(1, .96, .82), BLUE = rgb(.81, .89, .95), WHITE = rgb(1, 1, 1);
+const WIDTH = TABLETOP_PDF_PAPER.width, MARGIN = TABLETOP_PDF_PAPER.margin, INNER = WIDTH - MARGIN * 2;
+const INK = rgb(0, 0, 0), PAPER = rgb(1, 229 / 255, .6), BLUE = rgb(207 / 255, 226 / 255, 243 / 255), WHITE = rgb(1, 1, 1);
 const number = (value: number | null | undefined) => value == null ? "—" : paperNumber(value);
 const leaf = (name: string) => name.split(" → ").at(-1)!.trim();
 const short = (text: string, limit = 160) => text.length <= limit ? text : text.slice(0, limit - 1).replace(/\s+\S*$/, "") + "…";
 type Table = { title: string; columns: string[]; widths: number[]; rows: string[][]; split?: boolean };
 type Field = { label: string; value: string };
-export type TabletopPdfPage = { title: TabletopPdfSheet; tables: Table[]; fields: Field[][]; status: string[]; quick: string[] };
+export type TabletopPdfPage = { title: TabletopPdfSheet; tables: Table[]; fields: Field[][]; status: string[]; quick: string[]; marks: string; initiative?: { base: string; turn: string }; resources: Field[] };
 export type TabletopPdfFonts = { regular: Uint8Array; bold: Uint8Array; title: Uint8Array };
-export type PdfTextPlacement = { page: number; text: string; x: number; top: number; width: number; height: number; fontSize: number };
+export type PdfTextPlacement = { page: number; block: string; text: string; x: number; top: number; width: number; height: number; fontSize: number };
+export type PdfRegion = { page: number; title: string; x: number; top: number; width: number; height: number };
 
 /** A concise saved-record view. No spreadsheet cells, formulas or browser print layout. */
 export function buildTabletopPdfPages(data: PaperCharacterData, requested: readonly TabletopPdfSheet[]): TabletopPdfPage[] {
@@ -29,28 +30,33 @@ export function buildTabletopPdfPages(data: PaperCharacterData, requested: reado
     "Psyonics Back": "Psyonics", "Bardic Resonance Back": "Bardic Resonance",
   };
   return TABLETOP_PDF_SHEETS.filter(title => requested.includes(title)).map(title => {
-    const page: TabletopPdfPage = { title, tables: [], fields: [], status: [], quick: [] };
+    const page: TabletopPdfPage = { title, tables: [], fields: [], status: [], quick: [], marks: "", resources: [] };
     if (title === "Character Front") {
       const p = data.tabletop.profile;
       const total = (name: string) => number(data.totals.find(row => row.name === name)?.value);
       page.fields = [
-        [{ label: "Player", value: data.player }, { label: "Character", value: data.name }],
+        [{ label: "Player Name", value: data.player }, { label: "Character Name", value: data.name }],
         [{ label: "Campaign", value: data.campaign }, { label: "Race", value: data.race }, { label: "Age", value: number(p.age) }, { label: "Sex", value: p.sex }],
         [{ label: "Height", value: p.heightFeet == null ? "—" : `${p.heightFeet} ft ${p.heightInches ?? 0} in` }, { label: "Weight", value: number(p.weight) }, { label: "Skin", value: p.skinColor }, { label: "Hair", value: p.hairColor }, { label: "Eyes", value: p.eyeColor }],
         [{ label: "Deity", value: p.deity }, { label: "Base Magic", value: number(data.tabletop.baseMagic) }, { label: "Base Movement", value: number(data.movement[0]?.base) }, { label: "Fate", value: total("Fate") }],
-        [{ label: "Fame", value: total("Fame") }, { label: "XP", value: total("XP") }, { label: "Total XP", value: total("Total XP") }, { label: "Quintessence", value: total("Quintessence") }, { label: "Total Quint.", value: total("Total Quintessence") }],
-        [{ label: "Defining marks & quirks", value: short(p.definingMarks) }],
+        [{ label: "Fame", value: total("Fame") }, { label: "Experience", value: total("XP") }, { label: "Quintessence", value: total("Quintessence") }, { label: "Total Experience", value: total("Total XP") }],
+        [{ label: "Total Quintessence", value: total("Total Quintessence") }, { label: "Defining Marks & Character Quirks", value: "" }],
       ];
+      page.marks = short(p.definingMarks);
+      page.initiative = { base: number(data.initiative), turn: number(data.movement[0]?.value) };
+      page.resources = [...data.currency.map(row => ({ label: row.name, value: number(row.quantity) })), { label: "Quintessence", value: total("Quintessence") }, { label: "Fate", value: total("Fate") }];
       page.tables = [
         { title: "Attributes", columns: ["Attribute", "#", "Mod", "%"], widths: [.43, .19, .19, .19], rows: data.attributes.map(row => [({ STR: "Strength", DEX: "Dexterity", CON: "Constitution", INT: "Intelligence", WIS: "Wisdom", CHR: "Charisma" })[row.key], number(row.score), number(row.modifier), number(row.target)]) },
-        { title: "Hit Points", columns: ["Pool", "Max", "Left"], widths: [.54, .23, .23], rows: [["Total HP", number(data.health.total.maximumHp), number(data.health.total.remainingHp)], ...data.health.tracks.map(row => [row.name, number(row.maximumHp), number(row.remainingHp)])] },
-        { title: "Mana", columns: ["System", "Max", "Left"], widths: [.55, .225, .225], rows: data.mana.filter(row => row.maximumMana > 0 || row.currentMana > 0).map(row => [row.system === "Talismanism" ? "Talisman" : row.system === "Bardic Resonance" ? "Bardic" : row.system, number(row.maximumMana), number(row.currentMana)]) },
-        { title: "Weapons", columns: ["Weapon", "Type", "Range", "Dur.", "%", "Dmg", "Mod", "Total"], widths: [.30, .12, .15, .075, .075, .07, .13, .08], rows: data.tabletop.weapons.slice(0, 6).map(item => [item.name + (item.quantity === 1 ? "" : ` ×${number(item.quantity)}`) + (item.weapon?.mode ? ` (${item.weapon.mode})` : ""), item.type, item.weapon?.range === "Range/reach not recorded" ? "—" : item.weapon?.range || "—", number(item.durability), item.weapon?.target == null ? "—" : number(item.weapon.target) + "%", item.baseDamage, item.damageSummary?.modifier ?? "—", item.damageSummary?.totalDamage ?? "—"]) },
-        { title: "Armor", columns: ["Armor", "Area Covered", "Special Properties", "Dur.", "Soak"], widths: [.30, .29, .25, .08, .08], rows: data.tabletop.armor.slice(0, 6).map(item => [item.name + (item.quantity === 1 ? "" : ` ×${number(item.quantity)}`), item.coverage.length > 65 ? "See status" : item.coverage, item.properties, number(item.durability), number(item.soak)]) },
+        { title: "Hit Points", columns: ["Pool", "Max", "Damage"], widths: [.48, .23, .29], rows: [["Total HP", number(data.health.total.maximumHp), ""], ...data.health.tracks.map(row => [row.name, number(row.maximumHp), ""])] },
+        { title: "Mana", columns: ["System", "Max", "Spent"], widths: [.55, .225, .225], rows: data.mana.filter(row => row.maximumMana > 0 || row.currentMana > 0).map(row => [row.system === "Talismanism" ? "Talisman" : row.system === "Bardic Resonance" ? "Bardic" : row.system, number(row.maximumMana), ""]) },
+        { title: "Weapons", columns: ["Weapon", "Type", "Range", "Durability", "%", "Damage", "Mod", "T Damage"], widths: [3 / 11, 1 / 11, 2 / 11, 1 / 11, 1 / 11, 1 / 11, 1 / 11, 1 / 11], rows: data.tabletop.weapons.slice(0, 6).map(item => [item.name + (item.quantity === 1 ? "" : ` ×${number(item.quantity)}`) + (item.weapon?.mode ? ` (${item.weapon.mode})` : ""), item.type, item.weapon?.range === "Range/reach not recorded" ? "—" : item.weapon?.range || "—", number(item.durability), item.weapon?.target == null ? "—" : number(item.weapon.target) + "%", item.baseDamage, item.damageSummary?.modifier.replace(/\b(?:STR|DEX|CON|INT|WIS|CHR|CHA)\s+/g, "") ?? "—", item.damageSummary?.totalDamage ?? "—"]) },
+        { title: "Armor", columns: ["Armor", "Area Covered", "Special Properties", "Durability", "Soaks"], widths: [3 / 11, 2 / 11, 4 / 11, 1 / 11, 1 / 11], rows: data.tabletop.armor.slice(0, 6).map(item => [item.name + (item.quantity === 1 ? "" : ` ×${number(item.quantity)}`), short(item.coverage, 40), item.properties, number(item.durability), number(item.soak)]) },
       ];
       page.status = [...(data.tabletop.effects ?? data.effects), ...(data.tabletop.protectionNotes ?? []),
         ...(data.abilities.length ? ["Derived Abilities: " + data.abilities.map(ability => ability.name).join(", ")] : []),
-        ...data.tabletop.armor.slice(0, 6).filter(item => item.coverage.length > 65).map(item => `${item.name}: ${item.coverage}`),
+        ...data.tabletop.armor.slice(0, 6).filter(item => item.coverage.length > 40).map(item => `${item.name}: ${item.coverage}`),
+        ...data.health.tracks.slice(6).map(row => `${row.name}: ${number(row.maximumHp)} HP; Damage: ______`),
+        ...data.mana.filter(row => row.maximumMana > 0 || row.currentMana > 0).slice(2).map(row => `${row.system}: ${number(row.maximumMana)} mana; Spent: ______`),
         ...data.tabletop.weapons.slice(6).map(item => `${item.name}: ${item.type}; durability ${number(item.durability)}; ${item.weapon?.target == null ? "" : number(item.weapon.target) + "%; "}damage ${item.damageSummary?.totalDamage ?? item.baseDamage}`),
         ...data.tabletop.armor.slice(6).map(item => `${item.name}: ${item.coverage}; ${item.properties}; durability ${number(item.durability)}; soak ${number(item.soak)}`),
       ].filter(Boolean);
@@ -101,60 +107,64 @@ function wrap(text: string, font: PDFFont, size: number, width: number): string[
 
 function fitted(text: string, font: PDFFont, box: Box, preferred = 10, minimum = 8): Wrapped {
   for (let size = preferred; size >= minimum; size -= .25) {
-    const lines = wrap(text, font, size, box.width - 8), lineHeight = size * 1.2;
-    if (lines.length * lineHeight <= box.height - 4) return { lines, size, lineHeight };
+    const lines = wrap(text, font, size, box.width - 4), lineHeight = size * 1.2;
+    if (lines.length * lineHeight <= box.height - 2) return { lines, size, lineHeight };
   }
   throw new Error(`The PDF needs more room for “${short(text, 70)}”. Choose the detailed Character print option for this record.`);
 }
 
 class Painter {
-  constructor(readonly page: PDFPage, readonly fonts: Fonts, readonly index: number, readonly placements: PdfTextPlacement[]) {}
-  rect(box: Box, fill = WHITE, stroke = true) { this.page.drawRectangle({ x: box.x, y: HEIGHT - box.top - box.height, width: box.width, height: box.height, color: fill, borderColor: INK, borderWidth: stroke ? .65 : 0 }); }
-  line(x: number, top: number, toX: number, toTop: number, thickness = .6) { this.page.drawLine({ start: { x, y: HEIGHT - top }, end: { x: toX, y: HEIGHT - toTop }, color: INK, thickness }); }
+  currentBlock = "";
+  constructor(readonly page: PDFPage, readonly fonts: Fonts, readonly index: number, readonly placements: PdfTextPlacement[], readonly regions: PdfRegion[]) {}
+  get height() { return this.page.getHeight(); }
+  get bottom() { return this.height - MARGIN - 11; }
+  region(title: string, box: Box) { this.currentBlock = title; this.regions.push({ page: this.index, title, ...box }); }
+  rect(box: Box, fill = WHITE, stroke = true) { this.page.drawRectangle({ x: box.x, y: this.height - box.top - box.height, width: box.width, height: box.height, color: fill, borderColor: INK, borderWidth: stroke ? .65 : 0 }); }
+  line(x: number, top: number, toX: number, toTop: number, thickness = .6) { this.page.drawLine({ start: { x, y: this.height - top }, end: { x: toX, y: this.height - toTop }, color: INK, thickness }); }
   text(text: string, box: Box, preferred = 10, bold = false, align: "left" | "center" = "left", minimum = 8, title = false) {
     if (!text.trim()) return;
     const font = title ? this.fonts.title : bold ? this.fonts.bold : this.fonts.regular;
     const fit = fitted(text, font, box, preferred, minimum);
     fit.lines.forEach((line, i) => {
       if (!line) return;
-      const width = font.widthOfTextAtSize(line, fit.size), top = box.top + 3 + i * fit.lineHeight;
-      const x = align === "center" ? box.x + (box.width - width) / 2 : box.x + 4;
+      const width = font.widthOfTextAtSize(line, fit.size), top = box.top + 1 + i * fit.lineHeight;
+      const x = align === "center" ? box.x + (box.width - width) / 2 : box.x + 2;
       const glyphHeight = font.heightAtSize(fit.size, { descender: false });
-      this.page.drawText(line, { x, y: HEIGHT - top - glyphHeight, size: fit.size, font, color: title ? rgb(.75, .05, .02) : INK });
-      this.placements.push({ page: this.index, text: line, x, top, width, height: fit.lineHeight, fontSize: fit.size });
+      this.page.drawText(line, { x, y: this.height - top - glyphHeight, size: fit.size, font, color: title ? rgb(1, 0, 0) : INK });
+      this.placements.push({ page: this.index, block: this.currentBlock, text: line, x, top, width, height: fit.lineHeight, fontSize: fit.size });
     });
   }
-  heading(title: string, box: Box) { this.rect(box, BLUE); this.text(title, box, 10, true); }
-  panel(title: string, box: Box, values: string[], preferred = 10) {
-    this.rect(box, PAPER); this.heading(title, { ...box, height: 22 });
-    const content = { ...box, top: box.top + 24, height: box.height - 24 };
+  heading(title: string, box: Box) { this.rect(box, PAPER); this.text(title, box, Math.min(10, box.height / 1.4), true, "center", 7); }
+  panel(title: string, box: Box, values: string[], preferred = 10, headingHeight = 22) {
+    this.region(title, box); this.rect(box, PAPER); this.heading(title, { ...box, height: headingHeight });
+    const content = { ...box, top: box.top + headingHeight + 2, height: box.height - headingHeight - 2 };
     if (values.length) this.text(values.join("\n"), content, preferred);
     else for (let top = content.top + 22; top < box.top + box.height - 8; top += 22) this.line(box.x + 5, top, box.x + box.width - 5, top, .25);
   }
 }
 
-type TableLayout = { heights: number[]; height: number; groups: string[][][]; fontSize: number; columns: number };
-function tableLayout(table: Table, width: number, font: PDFFont, fontSize: number, minimumRows = 1): TableLayout {
+type TableLayout = { heights: number[]; height: number; groups: string[][][]; fontSize: number; columns: number; headingHeight: number; columnHeight: number };
+function tableLayout(table: Table, width: number, font: PDFFont, fontSize: number, minimumRows = 1, headingHeight = 16, columnHeight = 16): TableLayout {
   const split = !!table.split;
   const columns = split ? table.title === "Ordinary Skills" && table.rows.length > 48 ? 3 : 2 : 1;
   const count = Math.max(minimumRows, Math.ceil(table.rows.length / columns));
   const groups = Array.from({ length: columns }, (_, index) => table.rows.slice(index * count, (index + 1) * count));
   const tableWidth = (width - (columns - 1) * 8) / columns;
-  const heights = Array.from({ length: count }, (_, i) => Math.max(split ? fontSize * 1.2 + 5 : 18, ...groups.map(rows => Math.max(1, ...table.columns.map((_, col) => wrap(rows[i]?.[col] ?? "", font, fontSize, tableWidth * table.widths[col] - 8).length)) * fontSize * 1.2 + (split ? 5 : 7))));
-  return { heights, height: 42 + heights.reduce((a, b) => a + b, 0), groups, fontSize, columns };
+  const heights = Array.from({ length: count }, (_, i) => Math.max(split ? fontSize * 1.2 + 4 : 18, ...groups.map(rows => Math.max(1, ...table.columns.map((_, col) => wrap(rows[i]?.[col] ?? "", font, fontSize, tableWidth * table.widths[col] - 4).length)) * fontSize * 1.2 + (split ? 4 : 5))));
+  return { heights, height: headingHeight + columnHeight + heights.reduce((a, b) => a + b, 0), groups, fontSize, columns, headingHeight, columnHeight };
 }
 
 function drawTable(p: Painter, table: Table, box: Box, layout: TableLayout) {
-  p.heading(table.title, { ...box, height: 22 });
+  p.region(table.title, box); p.heading(table.title, { ...box, height: layout.headingHeight });
   const width = (box.width - (layout.columns - 1) * 8) / layout.columns;
   layout.groups.forEach((rows, group) => {
     const x = box.x + group * (width + 8);
     let colX = x;
     table.columns.forEach((column, col) => {
-      const cell = { x: colX, top: box.top + 22, width: width * table.widths[col], height: 20 };
+      const cell = { x: colX, top: box.top + layout.headingHeight, width: width * table.widths[col], height: layout.columnHeight };
       p.rect(cell, PAPER); p.text(column, cell, 8, true, col ? "center" : "left"); colX += cell.width;
     });
-    let top = box.top + 42;
+    let top = box.top + layout.headingHeight + layout.columnHeight;
     layout.heights.forEach((height, row) => {
       let colX = x;
       table.columns.forEach((_, col) => {
@@ -166,72 +176,126 @@ function drawTable(p: Painter, table: Table, box: Box, layout: TableLayout) {
   });
 }
 
-function drawBob(p: Painter, data: PaperCharacterData, box: Box) {
-  p.rect(box, PAPER); p.heading("Hit Locations", { ...box, height: 22 });
-  const scale = Math.min((box.width * .53) / 420, (box.height - 45) / 610);
-  const x = box.x + 4, top = box.top + 28;
-  const circle = (cx: number, cy: number, radius: number, fill?: ReturnType<typeof rgb>) => p.page.drawCircle({ x: x + cx * scale, y: HEIGHT - top - cy * scale, size: radius * scale, color: fill, borderColor: INK, borderWidth: .75 });
+function drawBob(p: Painter, data: PaperCharacterData, box: Box, headingHeight: number) {
+  p.region("Hit Locations", box); p.rect(box, PAPER); p.heading("Hit Locations", { ...box, height: headingHeight });
+  const scale = Math.min((box.width * .57) / 420, (box.height - headingHeight - 20) / 610);
+  const x = box.x + 2, top = box.top + headingHeight + 4;
+  const circle = (cx: number, cy: number, radius: number, fill?: ReturnType<typeof rgb>) => p.page.drawCircle({ x: x + cx * scale, y: p.height - top - cy * scale, size: radius * scale, color: fill, borderColor: INK, borderWidth: .75 });
   circle(210, 62, 46);
-  for (const path of BODY_SHOT_BOB_PATHS) p.page.drawSvgPath(path, { x, y: HEIGHT - top, scale, borderColor: INK, borderWidth: 5 });
+  for (const path of BODY_SHOT_BOB_PATHS) p.page.drawSvgPath(path, { x, y: p.height - top, scale, borderColor: INK, borderWidth: 5 });
   for (const [result, target] of Object.entries(BODY_SHOT_BOB_TARGETS)) {
     circle(target.x, target.y, 25, PAPER);
     const size = 36 * scale, textWidth = p.fonts.regular.widthOfTextAtSize(result, size);
-    p.page.drawText(result, { x: x + target.x * scale - textWidth / 2, y: HEIGHT - top - (target.y + 12) * scale, size, font: p.fonts.regular, color: INK });
+    p.page.drawText(result, { x: x + target.x * scale - textWidth / 2, y: p.height - top - (target.y + 12) * scale, size, font: p.fonts.regular, color: INK });
   }
-  const keyBox = { x: box.x + box.width * .55, top: top - 2, width: box.width * .45 - 4, height: box.height - 30 };
-  p.text(data.health.anatomy.hitLocations.map(hit => `${hit.result} - ${hit.name}`).join("\n"), keyBox, 8.5);
-  p.text(data.health.anatomy.kind === "humanoid" ? "Body Shot Bob" : "Body Shot Bob\nHumanoid reference", { x, top: box.top + box.height - (data.health.anatomy.kind === "humanoid" ? 17 : 27), width: box.width * .54, height: 28 }, 8, false, "center");
+  const keyBox = { x: box.x + box.width * .59, top: top - 2, width: box.width * .41 - 2, height: box.height - headingHeight - 8 };
+  p.text(data.health.anatomy.hitLocations.map(hit => `${hit.result} - ${hit.name}`).join("\n"), keyBox, 7.5, false, "left", 7.5);
+  p.text(data.health.anatomy.kind === "humanoid" ? "Body Shot Bob" : "Body Shot Bob\nHumanoid reference", { x, top: box.top + box.height - (data.health.anatomy.kind === "humanoid" ? 12 : 23), width: box.width * .59, height: 24 }, 7.5, false, "center", 7.5);
+}
+
+/** Preserve the owner's 60-row front proportions as PDF sections, without spreadsheet cells. */
+export function tabletopPdfFrontGeometry() {
+  const row = (TABLETOP_PDF_PAPER.height - MARGIN * 2 - 11) / 60;
+  const box = (first: number, count: number): Box => ({ x: MARGIN, top: MARGIN + first * row, width: INNER, height: count * row });
+  const stats = box(11, 8);
+  let x = MARGIN;
+  const summary = [4, 3, 1, 1, 2].map((columns, index) => { const result = { title: ["Attributes", "Hit Points", "Mana", "Initiative", "Resources"][index], x, top: stats.top, width: INNER * columns / 11, height: stats.height }; x += result.width; return result; });
+  return { row, title: box(0, 3), identity: box(3, 8), summary, weapons: box(19, 7), armor: box(26, 7), status: { ...box(33, 15), width: INNER * 8 / 11 }, bob: { ...box(33, 15), x: MARGIN + INNER * 8 / 11, width: INNER * 3 / 11 }, quick: box(48, 12) };
+}
+
+function compactCell(p: Painter, value: string, box: Box, centered = false, header = false) {
+  p.rect(box, PAPER); p.text(value, box, header ? 7.5 : 8.5, header, centered ? "center" : "left", header ? 7.5 : 8);
+}
+
+function drawEquipment(p: Painter, table: Table, box: Box, rowHeight: number) {
+  p.region(table.title, box); p.rect(box, PAPER);
+  let x = box.x;
+  table.columns.forEach((name, i) => { const width = box.width * table.widths[i]; compactCell(p, name, { x, top: box.top, width, height: rowHeight }, true, true); x += width; });
+  let top = box.top + rowHeight;
+  const extra: string[] = [];
+  for (const values of table.rows) {
+    const height = Math.max(rowHeight, ...values.map((value, i) => wrap(value, p.fonts.regular, 8.5, box.width * table.widths[i] - 4).length * 8.5 * 1.2 + 2));
+    if (top + height > box.top + box.height + .01) { extra.push(table.columns.map((name, i) => `${name}: ${values[i]}`).join("; ")); continue; }
+    let x = box.x;
+    values.forEach((value, i) => { const width = box.width * table.widths[i]; compactCell(p, value, { x, top, width, height }, i >= 3); x += width; });
+    top += height;
+  }
+  while (top < box.top + box.height - .01) {
+    const remaining = box.top + box.height - top, height = remaining < rowHeight * 2 ? remaining : rowHeight;
+    let x = box.x;
+    table.widths.forEach(fraction => { const width = box.width * fraction; p.rect({ x, top, width, height }, PAPER); x += width; });
+    top += height;
+  }
+  return extra;
 }
 
 function drawFront(p: Painter, model: TabletopPdfPage, data: PaperCharacterData) {
-  let top = 60;
+  const layout = tabletopPdfFrontGeometry(), r = layout.row;
+  p.region("Identity", layout.identity);
+  const weights = [[5 / 11, 6 / 11], [.36, .30, .14, .20], [.22, .18, .20, .20, .20], [.27, .20, .30, .23], [.18, .25, .28, .29], [4 / 11, 7 / 11]];
   model.fields.forEach((fields, row) => {
-    const height = row === 5 ? 40 : row === 0 ? 27 : 25;
     let x = MARGIN;
-    const weights = row === 1 ? [.33, .37, .12, .18] : fields.map(() => 1 / fields.length);
-    fields.forEach((field, col) => {
-      const box = { x, top, width: INNER * weights[col], height };
-      p.rect(box, PAPER); p.text(field.label, { ...box, height: 14 }, 7.5, true, "left", 7.5);
-      p.text(field.value, { ...box, top: top + 9, height: height - 9 }, row === 0 ? 10 : 9, false, "left", 8); x += box.width;
+    fields.forEach((field, column) => {
+      const box = { x, top: layout.identity.top + row * r, width: INNER * weights[row][column], height: r };
+      p.rect(box, PAPER);
+      const labelWidth = Math.min(box.width - 12, p.fonts.regular.widthOfTextAtSize(field.label + ":", 7.5) + 5);
+      p.text(field.label + (field.value ? ":" : ""), { ...box, width: field.value ? labelWidth : box.width }, 7.5, false, "left", 7.5);
+      if (field.value) p.text(field.value, { ...box, x: x + labelWidth, width: box.width - labelWidth }, 8.5, false, "left", 8);
+      x += box.width;
     });
-    top += height;
   });
-  top += 8;
-  const statsHeight = 186;
-  const statsWidths = [180, 154, 118];
-  let x = MARGIN;
-  model.tables.slice(0, 3).forEach((table, index) => {
-    const width = statsWidths[index] - 6;
-    const layout = tableLayout(table, width, p.fonts.regular, 8.5, index === 0 ? 6 : 1);
-    if (layout.height > statsHeight) throw new Error("The Character's health or mana pools need the detailed Character sheet to fit legibly.");
-    // Keep the summary frame aligned while retaining writable empty rows.
-    let spare = statsHeight - layout.height;
-    while (spare >= 18) { layout.heights.push(18); spare -= 18; }
-    layout.heights[layout.heights.length - 1] += spare;
-    drawTable(p, table, { x, top, width, height: statsHeight }, layout); x += statsWidths[index];
+  compactCell(p, model.marks, { x: MARGIN, top: layout.identity.top + 6 * r, width: INNER, height: 2 * r });
+
+  layout.summary.forEach((box, index) => {
+    p.region(box.title, box); p.rect(box, PAPER);
+    if (index === 0) {
+      p.heading("Attributes", { ...box, height: r });
+      let x = box.x;
+      const table = model.tables[0];
+      table.widths.forEach((fraction, col) => { const width = box.width * fraction; compactCell(p, col ? table.columns[col] : "", { x, top: box.top + r, width, height: r }, true, true); x += width; });
+      table.rows.forEach((values, row) => { let x = box.x; table.widths.forEach((fraction, col) => { const width = box.width * fraction; compactCell(p, values[col], { x, top: box.top + (2 + row) * r, width, height: r }, col > 0); x += width; }); });
+    } else if (index === 1) {
+      const table = model.tables[1];
+      let x = box.x;
+      table.widths.forEach((fraction, col) => { const width = box.width * fraction; compactCell(p, col ? table.columns[col] : "Hit Points", { x, top: box.top, width, height: r }, true, true); x += width; });
+      for (let row = 0; row < 7; row++) { let x = box.x; table.widths.forEach((fraction, col) => { const width = box.width * fraction; compactCell(p, table.rows[row]?.[col] ?? "", { x, top: box.top + (1 + row) * r, width, height: r }, col > 0); x += width; }); }
+    } else if (index === 2) {
+      p.heading("Mana", { ...box, height: r });
+      compactCell(p, "Max", { x: box.x, top: box.top + r, width: box.width / 2, height: r }, true, true);
+      compactCell(p, "Spent", { x: box.x + box.width / 2, top: box.top + r, width: box.width / 2, height: r }, true, true);
+      for (let pool = 0; pool < 3; pool++) {
+        const values = pool < 2 ? model.tables[2].rows[pool] : undefined;
+        compactCell(p, values?.[0] ?? "", { x: box.x, top: box.top + (2 + pool * 2) * r, width: box.width, height: r }, true);
+        compactCell(p, values?.[1] ?? "", { x: box.x, top: box.top + (3 + pool * 2) * r, width: box.width / 2, height: r }, true);
+        compactCell(p, "", { x: box.x + box.width / 2, top: box.top + (3 + pool * 2) * r, width: box.width / 2, height: r }, true);
+      }
+    } else if (index === 3) {
+      p.heading("Initiative", { ...box, height: r });
+      p.text(model.initiative!.base, { ...box, top: box.top + r + 6, height: 3 * r - 6 }, 16, true, "center");
+      p.heading("T Initiative", { ...box, top: box.top + 4 * r, height: r });
+      p.text(model.initiative!.turn, { ...box, top: box.top + 5 * r + 6, height: 3 * r - 6 }, 16, true, "center");
+    } else {
+      p.heading("Resources", { ...box, height: r });
+      model.resources.forEach((field, row) => {
+        if (row >= 7) throw new Error("The Character's currencies need more room than this tabletop Resources block.");
+        const top = box.top + (row + 1) * r;
+        compactCell(p, field.label, { x: box.x, top, width: box.width * .64, height: r }, false, true);
+        compactCell(p, field.value, { x: box.x + box.width * .64, top, width: box.width * .36, height: r }, true);
+      });
+    }
   });
-  const resources = { x, top, width: MARGIN + INNER - x, height: statsHeight };
-  p.rect(resources, PAPER); p.heading("Resources", { ...resources, height: 22 });
-  p.text([`Initiative: ${number(data.initiative)}`, ...data.movement.map(row => `${row.name}: ${number(row.value)}`), ...data.currency.map(row => `${number(row.quantity)} ${row.name}`)].join("\n\n"), { ...resources, top: top + 25, height: statsHeight - 25 }, 9);
-  top += statsHeight + 8;
-  for (const table of model.tables.slice(3)) {
-    const layout = tableLayout(table, INNER, p.fonts.regular, 9, 3);
-    drawTable(p, table, { x: MARGIN, top, width: INNER, height: layout.height }, layout);
-    top += layout.height + 8;
-  }
-  const quickHeight = 104, statusHeight = BOTTOM - top - quickHeight - 8;
-  if (statusHeight < 168) throw new Error("The equipment on this Character needs the detailed Character sheet to fit legibly on one PDF page.");
-  const statusWidth = 354;
-  p.panel("Status Effects & Special Effects", { x: MARGIN, top, width: statusWidth, height: statusHeight }, model.status, 10);
-  drawBob(p, data, { x: MARGIN + statusWidth + 8, top, width: INNER - statusWidth - 8, height: statusHeight });
-  top += statusHeight + 8;
-  p.panel("Most Common Used Skills & Rolls", { x: MARGIN, top, width: INNER, height: quickHeight }, model.quick, 11);
+  const extra = [...drawEquipment(p, model.tables[3], layout.weapons, r), ...drawEquipment(p, model.tables[4], layout.armor, r)];
+  p.panel("Status Effects & Special Effects", layout.status, [...model.status, ...extra], 9, r);
+  drawBob(p, data, layout.bob, r);
+  p.panel("Most Common Used Skills & Rolls", layout.quick, model.quick, 10, r);
 }
 
 function drawBack(p: Painter, model: TabletopPdfPage, data: PaperCharacterData) {
-  p.rect({ x: MARGIN, top: 60, width: INNER, height: 30 }, PAPER);
-  p.text(`${data.name}   |   ${data.campaign}   |   ${data.player}`, { x: MARGIN, top: 65, width: INNER, height: 22 }, 10, true);
-  const available = BOTTOM - 98 - Math.max(0, model.tables.length - 1) * 7;
+  const nameTop = tabletopPdfFrontGeometry().title.top + tabletopPdfFrontGeometry().title.height;
+  p.rect({ x: MARGIN, top: nameTop, width: INNER, height: 22 }, PAPER);
+  p.text(`${data.name}   |   ${data.campaign}   |   ${data.player}`, { x: MARGIN, top: nameTop + 2, width: INNER, height: 20 }, 10, true);
+  const firstTop = nameTop + 27;
+  const available = p.bottom - firstTop - Math.max(0, model.tables.length - 1) * 7;
   let layouts: TableLayout[] = [];
   for (let size = 10; size >= 8; size -= .25) {
     layouts = model.tables.map(table => tableLayout(table, INNER, p.fonts.regular, size, table.title === "Inventory" ? 3 : 2));
@@ -247,7 +311,7 @@ function drawBack(p: Painter, model: TabletopPdfPage, data: PaperCharacterData) 
     layouts[index].heights.push(20); layouts[index].height += 20; spare -= 20;
   }
   const last = layouts.at(-1)!; last.heights[last.heights.length - 1] += spare; last.height += spare;
-  let top = 98;
+  let top = firstTop;
   model.tables.forEach((table, index) => {
     const layout = layouts[index];
     drawTable(p, table, { x: MARGIN, top, width: INNER, height: layout.height }, layout);
@@ -265,16 +329,19 @@ export async function createCharacterTabletopPdf(data: PaperCharacterData, reque
   document.setTitle(`${data.name} - Tabletop Character Sheets`);
   document.setAuthor("Serrian Tide"); document.setSubject("Saved Character tabletop reference");
   document.catalog.getOrCreateViewerPreferences().setPickTrayByPDFSize(true);
-  const placements: PdfTextPlacement[] = [];
+  const placements: PdfTextPlacement[] = [], regions: PdfRegion[] = [];
   models.forEach((model, index) => {
-    const page = document.addPage([WIDTH, HEIGHT]);
-    const p = new Painter(page, fonts, index + 1, placements);
-    p.rect({ x: MARGIN, top: MARGIN, width: INNER, height: 944 }, PAPER);
-    p.rect({ x: MARGIN, top: MARGIN, width: INNER, height: 36 }, BLUE);
-    p.text(model.title === "Character Front" ? "Character Record Sheet" : model.title, { x: MARGIN, top: 25, width: INNER, height: 34 }, 26, false, "center", 20, true);
+    const page = document.addPage([WIDTH, TABLETOP_PDF_PAPER.height]);
+    const p = new Painter(page, fonts, index + 1, placements, regions);
+    p.rect({ x: MARGIN, top: MARGIN, width: INNER, height: TABLETOP_PDF_PAPER.height - MARGIN * 2 }, PAPER);
+    const title = tabletopPdfFrontGeometry().title;
+    p.region("Title", title); p.rect(title, BLUE);
+    p.text(model.title === "Character Front" ? "Character Record Sheet" : model.title, title, 30, false, "center", 20, true);
     if (model.title === "Character Front") drawFront(p, model, data); else drawBack(p, model, data);
-    p.text(`${data.name} · ${model.title} · Saved ${data.recordedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC")} · ${index + 1}/${models.length}`, { x: MARGIN, top: 978, width: INNER, height: 16 }, 7.5, false, "left", 7.5);
+    const footer = { x: MARGIN, top: p.bottom, width: INNER, height: 11 };
+    p.region("Footer", footer); p.rect(footer, PAPER);
+    p.text(`${data.name} · ${model.title} · Saved ${data.recordedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC")} · ${index + 1}/${models.length}`, footer, 7, false, "left", 7);
   });
-  for (const entry of placements) if (entry.x < MARGIN || entry.x + entry.width > WIDTH - MARGIN + .1 || entry.top < MARGIN || entry.top + entry.height > HEIGHT - 12) throw new Error("The PDF layout exceeded its page boundary. Please retry or use the detailed Character sheet.");
-  return { bytes: await document.save(), pages: models.map(model => model.title), placements };
+  for (const entry of placements) if (entry.x < MARGIN || entry.x + entry.width > WIDTH - MARGIN + .1 || entry.top < MARGIN || entry.top + entry.height > TABLETOP_PDF_PAPER.height - MARGIN + .1) throw new Error("The PDF layout exceeded its page boundary. Please retry or use the detailed Character sheet.");
+  return { bytes: await document.save(), pages: models.map(model => model.title), placements, regions };
 }

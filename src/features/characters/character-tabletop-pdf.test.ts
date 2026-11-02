@@ -28,6 +28,11 @@ test("tabletop data stays brief and places Derived Abilities in front status; am
   const [front, back] = buildTabletopPdfPages(data, ["Character Front", "Skills Back"]);
   assert.equal(front.quick[1], "Blink Step 68%");
   assert.equal(front.tables[3].rows[0][3], "60");
+  assert.equal(front.tables[3].rows[0][6], "+2");
+  assert.equal(front.tables[1].columns[2], "Damage");
+  assert.ok(front.tables[1].rows.every(row => row[2] === ""));
+  assert.equal(front.tables[2].columns[2], "Spent");
+  assert.ok(front.tables[2].rows.every(row => row[2] === ""));
   assert.match(front.status.join("\n"), /Derived Abilities: Eidetic Memory/);
   assert.doesNotMatch(front.status.join("\n"), /Initiative|Scholarly Human/);
   assert.doesNotMatch(JSON.stringify(back), /Eidetic Memory|not initialized/i);
@@ -39,13 +44,22 @@ test("tabletop data stays brief and places Derived Abilities in front status; am
   assert.ok(supernatural.rows.some(row => row[0] === "Faith - Fire"));
 });
 
-test("actual PDFs have exactly one complete Legal page per selection, embedded fonts and in-bounds text, even with 65 skills", async () => {
+test("actual PDFs fill Letter with nine-point margins and the original five separate summary blocks, even with 65 skills", async () => {
   const data = tabletopPdfFixture(true), before = structuredClone(data);
   const result = await createCharacterTabletopPdf(data, TABLETOP_PDF_SHEETS, fonts);
   const document = await PDFDocument.load(result.bytes);
   assert.equal(document.getPageCount(), 8);
-  for (const page of document.getPages()) assert.deepEqual(page.getSize(), { width: 612, height: 1008 });
-  assert.ok(result.placements.every(entry => entry.fontSize >= 7.5 && entry.top + entry.height < 996));
+  for (const page of document.getPages()) assert.deepEqual(page.getSize(), { width: 612, height: 792 });
+  assert.ok(result.placements.every(entry => entry.fontSize >= 7 && entry.top + entry.height <= 783));
+  const summary = result.regions.filter(region => region.page === 1 && ["Attributes", "Hit Points", "Mana", "Initiative", "Resources"].includes(region.title));
+  assert.deepEqual(summary.map(region => region.title), ["Attributes", "Hit Points", "Mana", "Initiative", "Resources"]);
+  assert.equal(summary[0].x, 9);
+  assert.equal(summary[4].x + summary[4].width, 603);
+  assert.ok(summary.every(region => region.top === summary[0].top && region.height === summary[0].height));
+  assert.ok(result.placements.filter(entry => entry.page === 1 && entry.block === "Resources").every(entry => !/Initiative|Land/.test(entry.text)));
+  assert.ok(result.placements.some(entry => entry.block === "Initiative" && entry.text === "16"));
+  assert.ok(result.placements.some(entry => entry.block === "Weapons" && entry.text === "+2"));
+  assert.ok(result.placements.filter(entry => entry.block === "Weapons").every(entry => !/DEX|STR/.test(entry.text)));
   assert.ok(result.placements.some(entry => entry.text.includes("Blink Step") && entry.page === 1));
   assert.ok(result.placements.some(entry => entry.text.includes("Eidetic Memory") && entry.page === 1));
   for (let i = 1; i <= 65; i++) assert.ok(result.placements.some(entry => entry.page === 2 && entry.text === `Route ${String(i).padStart(2, "0")}`));
@@ -58,7 +72,14 @@ test("custom anatomy retains actual pools and hit locations rather than replacin
   const data = tabletopPdfFixture();
   data.health.tracks = [{ name: "Tail", maximumHp: 20, remainingHp: 15 }] as typeof data.health.tracks;
   const front = buildTabletopPdfPages(data, ["Character Front"])[0];
-  assert.deepEqual(front.tables[1].rows[1], ["Tail", "20", "15"]);
+  assert.deepEqual(front.tables[1].rows[1], ["Tail", "20", ""]);
+});
+
+test("hybrid weapon modifiers retain both signed amounts without repeating attribute names", () => {
+  const data = tabletopPdfFixture();
+  data.tabletop.weapons[0].damageSummary!.modifier = "STR -3 / DEX +2";
+  assert.equal(buildTabletopPdfPages(data, ["Character Front"])[0].tables[3].rows[0][6], "-3 / +2");
+  assert.equal(data.tabletop.weapons[0].damageSummary!.modifier, "STR -3 / DEX +2");
 });
 
 test("a record beyond one-page capacity fails visibly instead of creating cropped or continuation pages", async () => {

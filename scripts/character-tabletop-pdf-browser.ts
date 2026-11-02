@@ -47,14 +47,14 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
     return (await pool.query(`select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) value from "${table}" r`)).rows[0].value;
   }));
   const before = await snapshot();
-  const out = path.resolve("artifacts/character-spreadsheet-print/direct-pdf");
+  const out = path.resolve("artifacts/character-spreadsheet-print/letter-layout-correction");
   await mkdir(out, { recursive: true });
   const page = await login("sheet-player");
   page.on("response", response => {
     if (response.request().method() === "POST") void response.text().then(text => text.includes('"tabletop":') ? writeFile(path.join(out, "owned-saved-snapshot.rsc"), text) : undefined).catch(() => undefined);
   });
   await page.addInitScript(() => { window.print = () => { document.documentElement.dataset.normalPrintCalls = String(Number(document.documentElement.dataset.normalPrintCalls ?? "0") + 1); }; });
-  const create = () => page.getByRole("button", { name: "Create PDF", exact: true }).click();
+  const create = () => page.getByRole("button", { name: "Print / Save as PDF", exact: true }).click();
   const ready = async () => {
     await page.waitForFunction(() => !!document.querySelector('.character-pdf-actions a[download], .character-print-center [role="alert"]'));
     const error = page.locator('.character-print-center [role="alert"]');
@@ -73,7 +73,8 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
     const { readFile } = await import("node:fs/promises");
     const pdf = await PDFDocument.load(await readFile(target));
     assert.equal(pdf.getPageCount(), count);
-    for (const pdfPage of pdf.getPages()) assert.deepEqual(pdfPage.getSize(), { width: 612, height: 1008 });
+    for (const pdfPage of pdf.getPages()) assert.deepEqual(pdfPage.getSize(), { width: 612, height: 792 });
+    for (const tab of page.context().pages()) if (tab !== page && !tab.isClosed()) await tab.close();
   };
   await page.goto(`${baseUrl}/realms/characters/${characterId}`);
   await page.getByText("Print options", { exact: true }).click();
@@ -85,7 +86,10 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
   assert.equal(await page.locator(".paper-character-sheet").count(), 0);
   assert.equal(await page.locator(".spreadsheet-character-sheet").count(), 0);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.normalPrintCalls), undefined, "PDF creation must never print the editor webpage");
-  assert.equal(await page.getByTitle("Character tabletop PDF preview").count(), 1);
+  assert.equal(await page.getByTitle("Character tabletop PDF preview").count(), 0);
+  assert.equal(await page.locator(".character-pdf-preview iframe").count(), 0, "The builder keeps compact export controls instead of a tall embedded preview");
+  const automatic = page.context().pages().find(tab => tab !== page && tab.url().startsWith("blob:"));
+  assert.ok(automatic, "The print action opens the actual PDF for preview/printing");
   await download("browser-all", 8);
   // Each choice is an independent actual PDF, including backs without a front.
   for (const title of TABLETOP_PDF_SHEETS) {
@@ -95,7 +99,7 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
     await download("single-" + title.toLowerCase().replaceAll(" ", "-"), 1);
   }
   await page.getByLabel("Special Abilities Back", { exact: true }).uncheck();
-  assert.equal(await page.getByRole("button", { name: "Create PDF", exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole("button", { name: "Print / Save as PDF", exact: true }).isDisabled(), true);
   await page.getByLabel("Character Front", { exact: true }).check();
   await page.route("**/tabletop/NotoSans-Regular.ttf", route => route.abort());
   await create(); await page.getByRole("alert").waitFor();
@@ -106,6 +110,7 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
     await page.setViewportSize(viewport);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "PDF controls cannot widen the phone or tablet");
     await page.locator(".character-pdf-preview").scrollIntoViewIfNeeded();
+    assert.ok((await page.locator(".character-pdf-preview").boundingBox())!.height < 220, "Export controls must remain compact");
     await page.screenshot({ path: path.join(out, `pdf-preview-${viewport.width}.png`) });
   }
   await page.getByRole("button", { name: /^Tabletop Quick Reference/ }).click();
@@ -130,6 +135,6 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
     const { inspectNativePdfPreview } = await import("./character-tabletop-pdf-native-preview");
     await inspectNativePdfPreview(viewer, out);
   }
-  await writeFile(path.join(out, "browser-receipt.json"), JSON.stringify({ passed: true, pages: TABLETOP_PDF_SHEETS, checks: ["actual PDF downloads", "Legal media boxes", "eight pages for eight choices", "one-page individual backs", "font failure and retry", "stale download retired", "desktop/tablet/phone", "saved snapshot and unsaved draft", "existing printing unchanged", "no database mutations", "explicit PDF viewer"] }, null, 2));
+  await writeFile(path.join(out, "browser-receipt.json"), JSON.stringify({ passed: true, pages: TABLETOP_PDF_SHEETS, checks: ["actual PDF downloads", "Letter media boxes only", "eight pages for eight choices", "one-page individual backs", "font failure and retry", "stale download retired", "desktop/tablet/phone", "saved snapshot and unsaved draft", "existing printing unchanged", "no database mutations", "PDF viewer opens on Print", "no embedded preview"] }, null, 2));
   console.log("PASS: standalone tabletop PDFs, all eight and independent selections, explicit PDF viewer, failed font retry, responsive controls, saved snapshot and unchanged database.");
 }
