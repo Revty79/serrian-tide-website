@@ -1,6 +1,20 @@
 # Original spreadsheet Character printing
 
-## Current: weapon priority, damage types and five rows
+## Current: skill numbers and Rank on backs
+
+Application commit: `86ea83b3cd2d18addfa9437ddf805c5feb9943f2`, from weapon publication `d9ba05471b28e90d0f200e2d8bf1a728885ee730`. The owner requested #, Rank and % for skills on the backs, and # and % for Special Abilities, in both Paper and Tabletop sheets.
+
+All ordinary and system Skill tables now show **Skill / # / Rank / %**. # reads the existing effective points, which already include racial points; Rank and % retain the saved skill calculations. Special Abilities show **Ability / # / %** using the canonical saved score and `100 - score`, without an Attribute/parent Rank. The mechanics projection takes precedence; assigned zero-score abilities show 0 / 100%, and unresolved scores stay dashed. Repeated allocations do not duplicate the same Special Ability. Front quick rolls remain name plus percentage.
+
+Back-table headings and row padding are tighter so the requested columns and all entries fit one Letter page per selection at the unchanged 8pt minimum body size. The accepted five-weapon front remains pixel-identical.
+
+Verification: 2,646/2,646 tracked feature tests across 328 files, 13/13 focused PDF/style checks, existing 14 owned action checks, the final headed saved-character journey, all eight crowded styles and actual themed browser downloads pass. The real fixture includes 65 ordinary skills, multiple supernatural systems, Special Abilities and full owned inventory; all requested numbers survive, as do visible rules, page bounds and independent backs. Production/type/lint pass, with zero lint errors and the existing unused `LoreFamily` warning. The first real browser run exposed a crowded-back capacity failure and is retained; tighter padding resolves it without dropping data or shrinking below the minimum font. An isolated unit attempt lacked repository SQL fixtures and was invalid; the complete tracked suite passed from the main workspace. Unfinished device-autosave files were excluded from this print build/publication.
+
+Final production build: `wj5c4Xl6LfYrPyPGGCWWz`. All 1,822 tracked application/asset files match the isolated build; manifest SHA-256 `5b8d9e86d7aab47cd7b44b7f0c5f36f4086d31675c9ca8e66a17198ef6f3c745`. Evidence is ignored under `artifacts/character-spreadsheet-print/skill-columns/`: `browser.log`, retained failed attempts, `units.log`, `pdf-receipt.json`, `source-parity.json`, actual PDFs, native Letter preview and `browser-skills-back.png`.
+
+No shared database access, migration, deployment, owner-service restart, physical print job or Atlas change occurred. The unrelated Atlas report remains untouched. Main sync is authorized; the selected device-only character-creation autosave work resumes after this publication.
+
+## Accepted: weapon priority, damage types and five rows
 
 Application commit: `92fc49c6a47042416fec966c7544a4af20467dc5`, from styled-sheet publication `c366dcc7141e1f3eb1e12d3e74e3c36062d54609`. On 2026-11-02 the owner reported that early inventory tools displaced actual weapons, the Type column showed weapon categories, and wrapped content reduced the visible weapon rows. This correction applies to both compact Paper and original Tabletop PDFs.
 
