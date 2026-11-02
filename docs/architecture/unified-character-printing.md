@@ -1,5 +1,15 @@
 # Unified character printing
 
+## Original spreadsheet option
+
+Print Options also offers **Original Spreadsheet Sheets**, independently of the existing presets. It uses the eight requested layouts from the owner's Google workbook: Sheet front filled, Skills Back, Spellcraft Back, Talisman Back, Faith Back, Psyonics Back, Bardic Resonance Back and Special Abilities Back. The front plus Skills Back are initially selected; any page or all eight can be selected.
+
+Each selected layout occupies one **8 × 10 inch page**, with printer-safe margins and Body Shot Bob in the front's hit-locations area. This is a compact tabletop reference: quick rolls show the named skill and percentage, durability shows the number, and active status information avoids repeating race and Initiative. Longer relevant fields and excess skill rows use the same sheet's open information area. The existing full-reference presets remain available separately.
+
+The option refreshes the same authorized saved-record snapshot and retains the existing unsaved-edit choice. It performs no saves or gameplay actions. Google Sheets is a read-only design source: the shipped template contains labels, formatting and dimensions, with no spreadsheet formulas, cached Character data or live Google dependency. The Lobster title font is bundled with its OFL license. `scripts/capture-character-spreadsheet-template.py` reproduces the design capture from a workbook export.
+
+See [the spreadsheet printing delivery receipt](../operations/character-spreadsheet-printing.md) for the actual PDF, native printer-preview and validation results.
+
 The shared Realms / G.O.D. character editor now uses one saved-record print path for Quick Reference, Full Tabletop Character, Complete Character Record, Custom Print and Paper Character Sheet. Quick Reference remains the default: the standard front plus General back. No books are implicitly added to that default.
 
 ## Data and permissions

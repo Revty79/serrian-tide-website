@@ -1,7 +1,7 @@
 import { buildCharacterPrintData, selectCharacterQuickRolls } from "./character-print";
 import { armorLocationLabel } from "@/features/items/armor-coverage";
 import { CHARACTER_ATTRIBUTE_KEYS, type CharacterAggregate } from "./models";
-import { characterAggregateToDraft, getAttributeModifier, getAttributeRollTarget, getBaseInitiative, getCharacterMovementBaseValue, getMovementInitiative, getNamedSupernaturalSkillSystems, normalizeSkillAttributeKey } from "./character-rules";
+import { characterAggregateToDraft, getAttributeModifier, getAttributeRollTarget, getBaseInitiative, getCharacterBaseMagic, getCharacterMovementBaseValue, getMovementInitiative, getNamedSupernaturalSkillSystems, normalizeSkillAttributeKey } from "./character-rules";
 import { getCharacterAttributeCardDetails } from "./character-attribute-card";
 import { PRINT_SYSTEMS } from "./character-print-options";
 import type { ActiveHealthView } from "@/features/active-state/models";
@@ -14,6 +14,7 @@ import { getDerivedAbilityRequirementSummary } from "@/features/derived-abilitie
 import { buildPaperSpells } from "./paper-spells";
 import { getStoredCampaignMoneyBreakdown } from "./currency-rules";
 import { buildCharacterFormReferences } from "./character-form-print";
+import { getCharacterWeaponDamage, getCharacterWeaponDamageSummary } from "./character-sheet-rules";
 
 export const paperNumber = (value: number | null | undefined) => value == null ? "Not recorded" : String(Number(value.toFixed(2)));
 export const paperSigned = (value: number) => `${value > 0 ? "+" : ""}${paperNumber(value)}`;
@@ -109,6 +110,26 @@ export function buildPaperCharacter(aggregate: CharacterAggregate, runtime: Pape
   const invalidSpells = [...data.skills.filter((row) => row.spellDocumentJson && !data.spells.some((spell) => spell.key === `catalog:${row.id}`)).map((row) => row.name),
     ...aggregate.personalSpellbook.filter((row) => !data.spells.some((spell) => spell.key === `personal:${row.id}`)).map((row) => row.name)];
   return {
+    spreadsheet: {
+      profile: { age: profile.age, sex: profile.sex, heightFeet: profile.heightFeet, heightInches: profile.heightInches, weight: profile.weight,
+        skinColor: profile.skinColor, hairColor: profile.hairColor, eyeColor: profile.eyeColor, deity: profile.deity, definingMarks: profile.definingMarks },
+      baseMagic: getCharacterBaseMagic(aggregate.selectedRace?.race.baseMagic, profile.baseMagicSteps),
+      weapons: data.ownedItems.filter(row => row.isWeapon && row.item?.recordType.toLowerCase() !== "ammunition" && row.item?.weaponType?.toLowerCase() !== "cartridge" && !row.item?.isMagazine).flatMap(row => (runtime.weapons[row.owned.itemId] ?? [null]).map(weapon => ({
+        name: row.displayName, quantity: row.owned.quantity, type: row.item?.weaponType ?? "", durability: row.item?.durability ?? null,
+        baseDamage: row.item ? getCharacterWeaponDamage(row.item).damage ?? "" : "", weapon,
+        damageSummary: row.item ? getCharacterWeaponDamageSummary(row.item, draft.attributes) : null,
+      }))),
+      armor: data.ownedItems.filter(row => row.isArmor).map(row => ({ name: row.displayName, quantity: row.owned.quantity,
+        coverage: row.item?.coverage ?? "", properties: (runtime.protection.worn.find(entry => entry.itemId === row.owned.itemId)?.damageModifiers ?? []).map(entry => entry.modifierText || `${entry.damageType} ${entry.modifier}`).join("; "),
+        durability: row.item?.durability ?? null, soak: row.item?.baseSoak ?? null })),
+      protectionNotes: [...runtime.protection.natural.map(entry => `${entry.name}: soak ${paperNumber(entry.soak)}${entry.armor == null ? "" : `; armor ${paperNumber(entry.armor)}`}`)],
+      effects: [
+        ...runtime.effects.conditions.filter(entry => !entry.resolvedAt).map(entry => `${entry.name}${entry.duration.label ? ` (${entry.duration.label})` : ""}`),
+        ...runtime.effects.modifiers.filter(entry => !entry.endedAt).map(entry => `${entry.label}: ${paperSigned(entry.amount)} ${entry.targetKey}${entry.duration.label ? ` (${entry.duration.label})` : ""}`),
+        ...runtime.health.injuries.filter(entry => !entry.resolved).map(entry => `${entry.name} — ${entry.poolNameSnapshot}`),
+        ...runtime.equipment.activeManualPassives.map(entry => `${entry.itemName}: ${entry.title}`),
+      ],
+    },
     raceId: aggregate.profile.raceId, formReferences: buildCharacterFormReferences(aggregate), specialAbilityMechanics: aggregate.specialAbilityMechanics,
     characterId: aggregate.character.id, name: aggregate.character.name, player: aggregate.character.playerUsername, campaign: aggregate.campaign.name,
     recordedAt, race: aggregate.selectedRace?.race.name ?? "Not recorded", identity: [profile.age != null ? `Age ${profile.age}` : "", profile.sex,

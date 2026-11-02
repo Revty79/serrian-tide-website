@@ -135,3 +135,4 @@ next-env.d.ts
 /artifacts/towns-s5a-*/
 # Stage 5B disposable interiors, private backups, captures and build receipts.
 /artifacts/interiors-s5b-*/
+/artifacts/character-spreadsheet-print/

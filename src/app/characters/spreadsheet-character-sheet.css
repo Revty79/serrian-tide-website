@@ -1,0 +1,34 @@
+@font-face { font-family: "Spreadsheet Lobster"; src: url("/print/serrian-tide/spreadsheet/Lobster-Regular.ttf") format("truetype"); font-display: block; }
+.spreadsheet-preview-window { position: fixed; left: -20000px; top: 0; visibility: hidden; pointer-events: none; }
+.spreadsheet-preview-window.is-preview { position: relative; left: auto; top: auto; visibility: visible; pointer-events: auto; overflow: auto; max-height: 38rem; max-width: 100%; border: 1px solid var(--st-border); border-radius: .5rem; background: var(--st-surface-soft); }
+.spreadsheet-character-sheet { width: 7.3in; font: 10pt/1.1 Arial, sans-serif; }
+.spreadsheet-sheet-page { position: relative; width: 7.3in; height: 9.2in; overflow: hidden; }
+.spreadsheet-canvas { position: absolute; left: 0; top: 0; }
+.spreadsheet-cell { position: absolute; box-sizing: border-box; display: flex; padding: 0 2px; line-height: 1; overflow: hidden; }
+.spreadsheet-cell > span { display: block; width: 100%; min-width: 0; overflow-wrap: anywhere; }
+.spreadsheet-sheet-page > footer { position: absolute; bottom: 0; left: 0; width: 100%; padding-bottom: 3pt; font: 7pt Arial, sans-serif; }
+.spreadsheet-information { padding: 2pt; }
+.spreadsheet-information-text { width: 100%; column-gap: 6pt; column-fill: auto; font: 10pt/1.08 Arial, sans-serif; white-space: normal; overflow-wrap: anywhere; }
+.spreadsheet-information-text p { margin: 0; font: inherit; line-height: inherit; white-space: pre-wrap; break-inside: avoid; }
+.spreadsheet-bob { display: block; padding: 1pt; white-space: normal; }
+.spreadsheet-bob figure { position: absolute; left: 1pt; top: 1pt; width: 59%; margin: 0; height: calc(100% - 2pt); min-height: 0; display: flex; flex-direction: column; }
+.spreadsheet-bob svg { width: 100%; height: calc(100% - 14pt); min-height: 0; }
+.spreadsheet-bob figcaption { text-align: center; font: 6.5pt/1.05 Arial, sans-serif; }
+.spreadsheet-bob .character-hit-chart__silhouette { fill: none; stroke: currentColor; stroke-width: 5; }
+.spreadsheet-bob .character-hit-chart__target circle { fill: var(--spreadsheet-paper); stroke: currentColor; stroke-width: 3; }
+.spreadsheet-bob .character-hit-chart__target-number { fill: currentColor; stroke: none; font: bold 36px Arial, sans-serif; }
+.spreadsheet-hit-key { position: absolute; right: 2pt; top: 3pt; bottom: 3pt; width: 40%; font: 6.5pt/1.1 Arial, sans-serif; overflow-wrap: anywhere; }
+.spreadsheet-hit-key p { margin: 0 0 2pt; font: inherit; line-height: inherit; }
+.spreadsheet-selection-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: .5rem 0; }
+@media print {
+  @page spreadsheet-character { size: 8in 10in; margin: .4in .35in; }
+  .spreadsheet-preview-window, .spreadsheet-preview-window.is-preview { position: static; visibility: visible; overflow: visible; width: 7.3in; max-width: 7.3in; max-height: none; border: 0; border-radius: 0; background: #fff; page: spreadsheet-character; }
+  .spreadsheet-character-sheet { display: block; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .spreadsheet-sheet-page { page: spreadsheet-character; break-before: page; break-after: page; break-inside: avoid; }
+  .spreadsheet-sheet-page:last-child { break-after: auto; }
+  html:has(.spreadsheet-character-sheet), body:has(.spreadsheet-character-sheet) { color-scheme: light; background: #fff !important; }
+  html:has(.spreadsheet-character-sheet) { height: auto !important; min-height: 0 !important; }
+  body:has(.spreadsheet-character-sheet) { display: block !important; height: auto !important; min-height: 0 !important; page: spreadsheet-character; }
+  .character-page:has(.spreadsheet-character-sheet) { width: 7.3in !important; max-width: 7.3in !important; min-width: 0 !important; margin: 0 !important; }
+  body:has(.spreadsheet-character-sheet)::before, body:has(.spreadsheet-character-sheet)::after { display: none !important; }
+}

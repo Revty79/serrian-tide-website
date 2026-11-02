@@ -15,10 +15,10 @@ function filesBelow(directory: string): string[] {
   });
 }
 
-// Both files also contain screen UI, which must keep using semantic colors.
+// These files also contain screen UI, which must keep using semantic colors.
 function withoutCurrentPrintRules(path: string, css: string): string {
   const root = postcss.parse(css);
-  if (path === join("src", "app", "characters", "paper-character-sheet.css")) {
+  if (["paper-character-sheet.css", "spreadsheet-character-sheet.css"].some(name => path === join("src", "app", "characters", name))) {
     root.walkAtRules("media", (rule) => {
       if (rule.params.trim() === "print") rule.remove();
     });
@@ -43,6 +43,9 @@ test("fixed print ink exceptions retain screen rules and do not exempt other sty
   const paperCss = ".paper-print-dialog { color: #123; } @media print { @page { @top-left { color: #456; } } .paper-character-sheet { color: #789; } }";
   assert.match(withoutCurrentPrintRules(paperPath, paperCss), /#123/);
   assert.doesNotMatch(withoutCurrentPrintRules(paperPath, paperCss), /#456|#789/);
+  const spreadsheetPath = join("src", "app", "characters", "spreadsheet-character-sheet.css");
+  assert.match(withoutCurrentPrintRules(spreadsheetPath, paperCss), /#123/);
+  assert.doesNotMatch(withoutCurrentPrintRules(spreadsheetPath, paperCss), /#456|#789/);
   const referenceCss = ".special-ability-reference--print { color: #000; } .special-ability-reference { color: #123; } .special-ability-reference--printer { color: #456; } .special-ability-reference--print p, .screen { color: #789; } .special-ability-reference--print + .screen { color: #abc; }";
   const screened = withoutCurrentPrintRules(referencePath, referenceCss);
   assert.doesNotMatch(screened, /#000/);

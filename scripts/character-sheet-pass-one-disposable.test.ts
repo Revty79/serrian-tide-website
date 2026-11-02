@@ -117,7 +117,7 @@ test("Shared character sheet: real actions, owner controls, player totals, print
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
     assert.ok(ready, "The test app must become ready");
-    browser = await chromium.launch({ executablePath: process.env.SERRIAN_TEST_CHROME ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true });
+    browser = await chromium.launch({ executablePath: process.env.SERRIAN_TEST_CHROME ?? "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: process.env.SERRIAN_SPREADSHEET_HEADED !== "true" });
     const artifacts = path.resolve("artifacts/character-sheet-pass-one");
     await mkdir(artifacts, {recursive:true});
     const errors: string[] = [];
@@ -136,6 +136,12 @@ test("Shared character sheet: real actions, owner controls, player totals, print
       const {reviewSavedPaperCharacter}=await import("./character-paper-review");
       await reviewSavedPaperCharacter(pool,login,baseUrl,localPaperReview);
       assert.deepEqual(errors,[]);
+      return;
+    }
+    if (process.env.SERRIAN_SPREADSHEET_PRINT_ONLY === "true") {
+      const { rehearseSpreadsheetPrinting } = await import("./character-spreadsheet-print-browser");
+      await rehearseSpreadsheetPrinting(pool, login, baseUrl, characters);
+      assert.deepEqual(errors, []);
       return;
     }
     if (process.env.SERRIAN_SPECIAL_ABILITY_READ_ONLY === "true") {
