@@ -1,0 +1,2 @@
+.workspace{min-height:600px}.workspace button{touch-action:manipulation}.workspace textarea{min-height:85px}.workspace :global([aria-label="Underground map canvas"]){background:var(--st-map-paper)}
+@media(max-width:700px){.workspace{min-height:650px}.workspace header>div:last-child{grid-template-columns:repeat(6,minmax(0,1fr))}}

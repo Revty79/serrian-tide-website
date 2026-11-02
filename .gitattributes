@@ -22,3 +22,4 @@ public/worlds/cartography/v1/* text eol=lf
 drizzle/0144_world_artwork.sql -text
 
 drizzle/0149_world_region_footprints.sql text eol=lf
+drizzle/0153_world_underground_maps.sql text eol=lf
