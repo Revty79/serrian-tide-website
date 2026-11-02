@@ -1,9 +1,11 @@
-import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, rgb, pushGraphicsState, popGraphicsState, rectangle, clip, endPath, type PDFFont, type PDFPage, type PDFImage, type RGB } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { paperNumber, type PaperCharacterData } from "./paper-character";
 import { BODY_SHOT_BOB_PATHS, BODY_SHOT_BOB_TARGETS } from "./body-shot-bob";
 import { TABLETOP_PDF_PAPER, TABLETOP_PDF_SHEETS, type TabletopPdfSheet } from "./character-tabletop-pdf-options";
 import type { CharacterMagicSystem } from "./character-rules";
+import { printPresentationHeading, type PrintTheme, type PrintHeadings } from "./character-print-options";
+import { PAPER_SHEET_STYLES } from "./character-paper-theme";
 
 const WIDTH = TABLETOP_PDF_PAPER.width, MARGIN = TABLETOP_PDF_PAPER.margin, INNER = WIDTH - MARGIN * 2;
 const INK = rgb(0, 0, 0), PAPER = rgb(1, 229 / 255, .6), BLUE = rgb(207 / 255, 226 / 255, 243 / 255), WHITE = rgb(1, 1, 1);
@@ -13,9 +15,11 @@ const short = (text: string, limit = 160) => text.length <= limit ? text : text.
 type Table = { title: string; columns: string[]; widths: number[]; rows: string[][]; split?: boolean };
 type Field = { label: string; value: string };
 export type TabletopPdfPage = { title: TabletopPdfSheet; tables: Table[]; fields: Field[][]; status: string[]; quick: string[]; marks: string; initiative?: { base: string; turn: string }; resources: Field[] };
-export type TabletopPdfFonts = { regular: Uint8Array; bold: Uint8Array; title: Uint8Array };
+export type TabletopPdfFonts = { regular: Uint8Array; bold: Uint8Array; title: Uint8Array; serif?: Uint8Array };
 export type PdfTextPlacement = { page: number; block: string; text: string; x: number; top: number; width: number; height: number; fontSize: number };
 export type PdfRegion = { page: number; title: string; x: number; top: number; width: number; height: number };
+export type TabletopPdfAppearance = { theme: PrintTheme; headings?: PrintHeadings; masthead?: Uint8Array };
+const hexColor = (hex: string) => rgb(...[1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16) / 255) as [number, number, number]);
 
 /** A concise saved-record view. No spreadsheet cells, formulas or browser print layout. */
 export function buildTabletopPdfPages(data: PaperCharacterData, requested: readonly TabletopPdfSheet[]): TabletopPdfPage[] {
@@ -83,7 +87,7 @@ export function buildTabletopPdfPages(data: PaperCharacterData, requested: reado
 }
 
 type Box = { x: number; top: number; width: number; height: number };
-type Fonts = { regular: PDFFont; bold: PDFFont; title: PDFFont };
+type Fonts = { regular: PDFFont; bold: PDFFont; title: PDFFont; serif?: PDFFont };
 type Wrapped = { lines: string[]; size: number; lineHeight: number };
 const clean = (value: string) => value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").replace(/\t/g, " ");
 
@@ -115,26 +119,31 @@ function fitted(text: string, font: PDFFont, box: Box, preferred = 10, minimum =
 
 class Painter {
   currentBlock = "";
-  constructor(readonly page: PDFPage, readonly fonts: Fonts, readonly index: number, readonly placements: PdfTextPlacement[], readonly regions: PdfRegion[]) {}
+  constructor(readonly page: PDFPage, readonly fonts: Fonts, readonly index: number, readonly placements: PdfTextPlacement[], readonly regions: PdfRegion[], readonly appearance?: TabletopPdfAppearance) {}
+  get style() { return this.appearance ? PAPER_SHEET_STYLES[this.appearance.theme] : null; }
+  get ink() { return this.style ? hexColor(this.style.ink) : INK; }
+  get rule() { return this.style ? hexColor(this.style.rule) : INK; }
+  get paper() { return this.style ? WHITE : PAPER; }
+  get faint() { return this.style ? hexColor(this.style.faint) : PAPER; }
   get height() { return this.page.getHeight(); }
   get bottom() { return this.height - MARGIN - 11; }
   region(title: string, box: Box) { this.currentBlock = title; this.regions.push({ page: this.index, title, ...box }); }
-  rect(box: Box, fill = WHITE, stroke = true) { this.page.drawRectangle({ x: box.x, y: this.height - box.top - box.height, width: box.width, height: box.height, color: fill, borderColor: INK, borderWidth: stroke ? .65 : 0 }); }
-  line(x: number, top: number, toX: number, toTop: number, thickness = .6) { this.page.drawLine({ start: { x, y: this.height - top }, end: { x: toX, y: this.height - toTop }, color: INK, thickness }); }
-  text(text: string, box: Box, preferred = 10, bold = false, align: "left" | "center" = "left", minimum = 8, title = false) {
+  rect(box: Box, fill = WHITE, stroke = true) { this.page.drawRectangle({ x: box.x, y: this.height - box.top - box.height, width: box.width, height: box.height, color: fill === PAPER ? this.paper : fill === BLUE && this.style ? WHITE : fill, borderColor: this.rule, borderWidth: stroke ? .65 : 0 }); }
+  line(x: number, top: number, toX: number, toTop: number, thickness = .6) { this.page.drawLine({ start: { x, y: this.height - top }, end: { x: toX, y: this.height - toTop }, color: this.rule, thickness }); }
+  text(text: string, box: Box, preferred = 10, bold = false, align: "left" | "center" = "left", minimum = 8, title = false, overrideFont?: PDFFont, color?: RGB) {
     if (!text.trim()) return;
-    const font = title ? this.fonts.title : bold ? this.fonts.bold : this.fonts.regular;
+    const font = overrideFont ?? (title ? this.fonts.title : bold ? this.fonts.bold : this.fonts.regular);
     const fit = fitted(text, font, box, preferred, minimum);
     fit.lines.forEach((line, i) => {
       if (!line) return;
       const width = font.widthOfTextAtSize(line, fit.size), top = box.top + 1 + i * fit.lineHeight;
       const x = align === "center" ? box.x + (box.width - width) / 2 : box.x + 2;
       const glyphHeight = font.heightAtSize(fit.size, { descender: false });
-      this.page.drawText(line, { x, y: this.height - top - glyphHeight, size: fit.size, font, color: title ? rgb(1, 0, 0) : INK });
+      this.page.drawText(line, { x, y: this.height - top - glyphHeight, size: fit.size, font, color: color ?? (title ? rgb(1, 0, 0) : INK) });
       this.placements.push({ page: this.index, block: this.currentBlock, text: line, x, top, width, height: fit.lineHeight, fontSize: fit.size });
     });
   }
-  heading(title: string, box: Box) { this.rect(box, PAPER); this.text(title, box, Math.min(10, box.height / 1.4), true, "center", 7); }
+  heading(title: string, box: Box) { const filled = !!this.style && this.appearance?.theme !== "Plain"; this.rect(box, filled ? this.ink : PAPER); this.text(title, box, Math.min(10, box.height / 1.4), true, "center", 7, false, undefined, filled ? WHITE : this.ink); }
   panel(title: string, box: Box, values: string[], preferred = 10, headingHeight = 22) {
     this.region(title, box); this.rect(box, PAPER); this.heading(title, { ...box, height: headingHeight });
     const content = { ...box, top: box.top + headingHeight + 2, height: box.height - headingHeight - 2 };
@@ -162,7 +171,7 @@ function drawTable(p: Painter, table: Table, box: Box, layout: TableLayout) {
     let colX = x;
     table.columns.forEach((column, col) => {
       const cell = { x: colX, top: box.top + layout.headingHeight, width: width * table.widths[col], height: layout.columnHeight };
-      p.rect(cell, PAPER); p.text(column, cell, 8, true, col ? "center" : "left"); colX += cell.width;
+      p.rect(cell, p.faint); p.text(column, cell, 8, true, col ? "center" : "left", 8, false, undefined, p.ink); colX += cell.width;
     });
     let top = box.top + layout.headingHeight + layout.columnHeight;
     layout.heights.forEach((height, row) => {
@@ -180,13 +189,13 @@ function drawBob(p: Painter, data: PaperCharacterData, box: Box, headingHeight: 
   p.region("Hit Locations", box); p.rect(box, PAPER); p.heading("Hit Locations", { ...box, height: headingHeight });
   const scale = Math.min((box.width * .57) / 420, (box.height - headingHeight - 20) / 610);
   const x = box.x + 2, top = box.top + headingHeight + 4;
-  const circle = (cx: number, cy: number, radius: number, fill?: ReturnType<typeof rgb>) => p.page.drawCircle({ x: x + cx * scale, y: p.height - top - cy * scale, size: radius * scale, color: fill, borderColor: INK, borderWidth: .75 });
+  const circle = (cx: number, cy: number, radius: number, fill?: ReturnType<typeof rgb>) => p.page.drawCircle({ x: x + cx * scale, y: p.height - top - cy * scale, size: radius * scale, color: fill, borderColor: p.ink, borderWidth: .75 });
   circle(210, 62, 46);
-  for (const path of BODY_SHOT_BOB_PATHS) p.page.drawSvgPath(path, { x, y: p.height - top, scale, borderColor: INK, borderWidth: 5 });
+  for (const path of BODY_SHOT_BOB_PATHS) p.page.drawSvgPath(path, { x, y: p.height - top, scale, borderColor: p.ink, borderWidth: 5 });
   for (const [result, target] of Object.entries(BODY_SHOT_BOB_TARGETS)) {
-    circle(target.x, target.y, 25, PAPER);
+    circle(target.x, target.y, 25, p.paper);
     const size = 36 * scale, textWidth = p.fonts.regular.widthOfTextAtSize(result, size);
-    p.page.drawText(result, { x: x + target.x * scale - textWidth / 2, y: p.height - top - (target.y + 12) * scale, size, font: p.fonts.regular, color: INK });
+    p.page.drawText(result, { x: x + target.x * scale - textWidth / 2, y: p.height - top - (target.y + 12) * scale, size, font: p.fonts.regular, color: p.ink });
   }
   const keyBox = { x: box.x + box.width * .59, top: top - 2, width: box.width * .41 - 2, height: box.height - headingHeight - 8 };
   p.text(data.health.anatomy.hitLocations.map(hit => `${hit.result} - ${hit.name}`).join("\n"), keyBox, 7.5, false, "left", 7.5);
@@ -204,7 +213,7 @@ export function tabletopPdfFrontGeometry() {
 }
 
 function compactCell(p: Painter, value: string, box: Box, centered = false, header = false) {
-  p.rect(box, PAPER); p.text(value, box, header ? 7.5 : 8.5, header, centered ? "center" : "left", header ? 7.5 : 8);
+  p.rect(box, header ? p.faint : PAPER); p.text(value, box, header ? 7.5 : 8.5, header, centered ? "center" : "left", header ? 7.5 : 8, false, undefined, header ? p.ink : undefined);
 }
 
 function drawEquipment(p: Painter, table: Table, box: Box, rowHeight: number) {
@@ -319,28 +328,54 @@ function drawBack(p: Painter, model: TabletopPdfPage, data: PaperCharacterData) 
   });
 }
 
-/** Actual PDF pages are allocated here; browser pagination cannot create extra pages. */
-export async function createCharacterTabletopPdf(data: PaperCharacterData, requested: readonly TabletopPdfSheet[], bytes: TabletopPdfFonts) {
+function drawPaperMasthead(p: Painter, title: string, box: Box, artwork?: PDFImage) {
+  p.rect(box, WHITE);
+  if (artwork) {
+    p.page.pushOperators(pushGraphicsState(), rectangle(box.x, p.height - box.top - box.height, box.width, box.height), clip(), endPath());
+    const scaleY = box.height / 370;
+    p.page.drawImage(artwork, { x: box.x, y: p.height - box.top - (724 - 170) * scaleY, width: box.width, height: 724 * scaleY });
+    p.page.pushOperators(popGraphicsState());
+  }
+  const center = { ...box, x: box.x + box.width * .25, width: box.width * .5 };
+  p.text("Serrian Tide", { ...center, top: box.top + 2, height: 23 }, 18, true, "center", 16, false, p.fonts.serif, p.ink);
+  p.text(title.toUpperCase(), { ...center, top: box.top + 25, height: 11 }, 8, true, "center", 7.5, false, p.fonts.serif, p.ink);
+  p.line(box.x + 5, box.top + box.height - 2, box.x + box.width * .35, box.top + box.height - 2, .4);
+  p.line(box.x + box.width * .65, box.top + box.height - 2, box.x + box.width - 5, box.top + box.height - 2, .4);
+}
+
+function drawPaperBorder(p: Painter) {
+  if (!p.style || p.appearance?.theme === "Plain") return;
+  if (p.style.border === "double" || p.style.border === "dashed") p.page.drawRectangle({ x: MARGIN + 1.3, y: MARGIN + 1.3, width: INNER - 2.6, height: p.height - MARGIN * 2 - 2.6, borderColor: p.rule, borderWidth: .35, ...(p.style.border === "dashed" ? { borderDashArray: [3, 2] } : {}) });
+  if (p.style.border === "technical") for (const [x, top, dx, dy] of [[MARGIN + 1, MARGIN + 1, 1, 1], [WIDTH - MARGIN - 1, MARGIN + 1, -1, 1], [MARGIN + 1, p.height - MARGIN - 1, 1, -1], [WIDTH - MARGIN - 1, p.height - MARGIN - 1, -1, -1]]) { p.line(x, top, x + dx * 7, top, 1); p.line(x, top, x, top + dy * 7, 1); }
+}
+
+/** Shared page geometry and data; Paper themes change decoration only. */
+export async function createCharacterTabletopPdf(data: PaperCharacterData, requested: readonly TabletopPdfSheet[], bytes: TabletopPdfFonts, appearance?: TabletopPdfAppearance) {
   const models = buildTabletopPdfPages(data, requested);
   if (!models.length) throw new Error("Select at least one PDF sheet.");
   const document = await PDFDocument.create();
   document.registerFontkit(fontkit);
   const fonts: Fonts = { regular: await document.embedFont(bytes.regular, { subset: true }), bold: await document.embedFont(bytes.bold, { subset: true }), title: await document.embedFont(bytes.title, { subset: true }) };
+  if (appearance) { if (!bytes.serif) throw new Error("The paper style heading font could not be loaded. Retry printing."); fonts.serif = await document.embedFont(bytes.serif, { subset: true }); }
+  if (appearance && appearance.theme !== "Plain" && !appearance.masthead) throw new Error("The selected paper style artwork could not be loaded. Retry printing or select Plain.");
+  const masthead = appearance?.theme !== "Plain" && appearance?.masthead ? await document.embedPng(appearance.masthead) : undefined;
   document.setTitle(`${data.name} - Tabletop Character Sheets`);
   document.setAuthor("Serrian Tide"); document.setSubject("Saved Character tabletop reference");
   document.catalog.getOrCreateViewerPreferences().setPickTrayByPDFSize(true);
   const placements: PdfTextPlacement[] = [], regions: PdfRegion[] = [];
   models.forEach((model, index) => {
     const page = document.addPage([WIDTH, TABLETOP_PDF_PAPER.height]);
-    const p = new Painter(page, fonts, index + 1, placements, regions);
+    const p = new Painter(page, fonts, index + 1, placements, regions, appearance);
     p.rect({ x: MARGIN, top: MARGIN, width: INNER, height: TABLETOP_PDF_PAPER.height - MARGIN * 2 }, PAPER);
     const title = tabletopPdfFrontGeometry().title;
-    p.region("Title", title); p.rect(title, BLUE);
-    p.text(model.title === "Character Front" ? "Character Record Sheet" : model.title, title, 30, false, "center", 20, true);
+    p.region("Title", title);
+    if (appearance) drawPaperMasthead(p, model.title === "Character Front" ? printPresentationHeading(appearance.theme, appearance.headings ?? "standard") : model.title, title, masthead);
+    else { p.rect(title, BLUE); p.text(model.title === "Character Front" ? "Character Record Sheet" : model.title, title, 30, false, "center", 20, true); }
     if (model.title === "Character Front") drawFront(p, model, data); else drawBack(p, model, data);
     const footer = { x: MARGIN, top: p.bottom, width: INNER, height: 11 };
     p.region("Footer", footer); p.rect(footer, PAPER);
     p.text(`${data.name} · ${model.title} · Saved ${data.recordedAt.replace("T", " ").replace(/\.\d+Z$/, " UTC")} · ${index + 1}/${models.length}`, footer, 7, false, "left", 7);
+    drawPaperBorder(p);
   });
   for (const entry of placements) if (entry.x < MARGIN || entry.x + entry.width > WIDTH - MARGIN + .1 || entry.top < MARGIN || entry.top + entry.height > TABLETOP_PDF_PAPER.height - MARGIN + .1) throw new Error("The PDF layout exceeded its page boundary. Please retry or use the detailed Character sheet.");
   return { bytes: await document.save(), pages: models.map(model => model.title), placements, regions };

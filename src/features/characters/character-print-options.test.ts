@@ -13,7 +13,8 @@ test("Description-only supernatural training gets a book without a construction 
 });
 test("Independent books and multiple backs survive custom selection without an implicit front", () => {
   const custom: UnifiedPrintSelection = {front: false, backs: ["Faith", "Bardic Resonance"], books: ["Psyonics"], references: ["derivedAbilities"]};
-  for (const preset of ["custom", "paper"] as const) assert.deepEqual(printPresetSelection(preset, null, custom), custom);
+  assert.deepEqual(printPresetSelection("custom", null, custom), custom);
+  assert.deepEqual(printPresetSelection("paper", null, custom), { front: false, backs: [], books: [], references: [] });
 });
 test("Canonical support mappings govern printing and campaign eligibility", () => {
   assert.deepEqual(getNamedSupernaturalSkillSystems("Channeling"), ["Spellcraft", "Talismanism"]);

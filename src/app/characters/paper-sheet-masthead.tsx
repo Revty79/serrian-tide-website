@@ -1,11 +1,12 @@
 import type {PrintTheme} from "@/features/characters/character-print-options";
+import { paperSheetMastheadPath } from "@/features/characters/character-paper-theme";
 
 /** Artwork is decorative only. Titles and all sheet contents remain real text. */
 export function PaperSheetMasthead({title, theme = "Universal"}: {title: string; theme?: PrintTheme}) {
-  const directory = theme.toLowerCase().replaceAll(" ", "-");
+  const artwork = paperSheetMastheadPath(theme);
   return <header className="paper-sheet-masthead">
-    {theme !== "Plain" ? <svg className="paper-masthead-art" viewBox="0 170 2172 370" preserveAspectRatio="none" aria-hidden="true">
-      <image href={`/print/serrian-tide/${directory}/masthead.png`} width="2172" height="724" />
+    {artwork ? <svg className="paper-masthead-art" viewBox="0 170 2172 370" preserveAspectRatio="none" aria-hidden="true">
+      <image href={artwork} width="2172" height="724" />
     </svg> : null}
     <div className="paper-sheet-title"><strong>Serrian Tide</strong><span>{title}</span></div>
     <svg className="paper-masthead-rule" viewBox="0 0 560 12" preserveAspectRatio="none" aria-hidden="true">

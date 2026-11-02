@@ -4,6 +4,10 @@
 
 Print Options also offers **Tabletop PDF Sheets**, independently of the existing presets. The original workbook is a visual reference for a purpose-built vector PDF: Character Front, Skills Back, Spellcraft Back, Talisman Back, Faith Back, Psyonics Back, Bardic Resonance Back and Special Abilities Back. The front plus Skills Back are initially selected; any page or all eight can be selected.
 
+**Paper Character Sheet** now uses this same compact front/back PDF renderer with its existing Universal, Fantasy, Modern, Apocalyptic, Western, Science Fiction, Horror and Plain styles and standard/genre heading choices. The original Tabletop PDF appearance remains separate. Paper styling reuses the established local masthead artwork and ink/rule/tint palettes, with embedded Noto Serif headings; Plain needs no artwork. All styles share the identical Letter frame, ⅛-inch margins, section geometry, bare-minimum data, handwriting spaces and Bob. Themes change decoration and the masthead heading only. No detailed definitions, spell constructions or mechanical breakdowns are added to these table sheets.
+
+The compact Paper option selects the same eight front/backs. Books, full references and optional Form pages remain in **Custom Print**, Full Tabletop Character and Complete Character Record, using the existing detailed browser-print renderer. The styled PDF opens only after Print / Save as PDF (and the saved-record confirmation when needed); there is no large builder preview. Style, heading or page changes retire stale output, and missing artwork/font loads report a retryable error.
+
 Each selection allocates exactly one **Letter PDF page (612 × 792 points)**, with **9-point (⅛-inch) margins**. Legal is not offered. Matching the printer's Letter paper avoids shrinking a tall Legal form into a narrow inset. Visible vector rules, the original yellow/blue colors and the same Body Shot Bob paths as the live Character sheet remain. The front follows the original compact identity rows and 60-row section proportions: five adjacent Attributes / Hit Points / Mana / Initiative / Resources blocks, one weapon header, one armor header, status beside hit locations and the wide quick-roll area below.
 
 Print / Save as PDF refreshes the saved record and opens the PDF in a separate tab only after a print click (or the explicit saved-record confirmation). A temporarily reserved tab closes on failure or cancellation; blocked pop-ups retain the compact Open PDF to print and Download PDF links as a fallback. There is no embedded PDF preview taking up builder space. It does not print the editor webpage. Other print choices keep their existing browser print path.
@@ -16,7 +20,7 @@ PDF creation uses lazy-loaded `pdf-lib` and fontkit in the browser, with embedde
 
 See [the printing delivery receipt](../operations/character-spreadsheet-printing.md) for actual PDF, native printer-preview and validation results. `scripts/character-tabletop-pdf-sample.ts` and `scripts/verify-character-tabletop-pdfs.py` reproduce the PDF layout review. The owned browser fixture uses `SERRIAN_SPREADSHEET_PRINT_ONLY=true` for continuity with the earlier test entry point.
 
-The shared Realms / G.O.D. character editor now uses one saved-record print path for Quick Reference, Full Tabletop Character, Complete Character Record, Custom Print and Paper Character Sheet. Quick Reference remains the default: the standard front plus General back. No books are implicitly added to that default.
+The shared Realms / G.O.D. character editor uses the same authorized saved-record snapshot for the compact PDFs and detailed browser-print presets. Quick Reference remains the default: the standard front plus General back. No books are implicitly added to that default.
 
 ## Data and permissions
 

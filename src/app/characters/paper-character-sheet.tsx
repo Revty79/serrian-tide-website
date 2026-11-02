@@ -47,7 +47,7 @@ function Reference({data, kind}: {data: PaperCharacterData; kind: PrintReference
   return <>{kind === "inventory" ? <OwnedInventory data={data} /> : null}{data.gear.filter(gear => kind === "inventory" || gear.equipment).map(gear => <article key={gear.id} className="paper-entry"><h3>{gear.name}</h3>{gear.details.length ? gear.details.map((detail, i) => <Text key={i}>{detail}</Text>) : <Text>No description recorded.</Text>}</article>)}</>;
 }
 
-/** Every preset, genre and exported sample uses this saved-record renderer. */
+/** Detailed browser-print presets, books, references and Forms share this renderer. */
 export function PaperCharacterSheet({data, selection = DEFAULT_PRINT_SELECTION, theme = "Universal", headings = "standard"}: {data: PaperCharacterData; selection?: UnifiedPrintSelection; theme?: PrintTheme; headings?: PrintHeadings}) {
   const sections: Array<{key: string; title: string; content: ReactNode}> = [];
   if (selection.front) sections.push({key: "front", title: "Standard front", content: <PaperSheetFront data={data} />});

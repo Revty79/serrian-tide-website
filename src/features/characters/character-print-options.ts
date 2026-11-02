@@ -20,8 +20,8 @@ export function ownedPrintSystems(data: PaperCharacterData): CharacterMagicSyste
   return PRINT_SYSTEMS.filter(system => data.skills.some(skill => skill.systems.includes(system)) || data.spells.some(spell => spell.system === system));
 }
 export function printPresetSelection(preset: UnifiedPrintPreset, data: PaperCharacterData | null, custom: UnifiedPrintSelection): UnifiedPrintSelection {
-  if (preset === "pdf") return { front: false, backs: [], books: [], references: [] };
-  if (preset === "custom" || preset === "paper") return custom;
+  if (preset === "pdf" || preset === "paper") return { front: false, backs: [], books: [], references: [] };
+  if (preset === "custom") return custom;
   if (preset === "quick" || !data) return DEFAULT_PRINT_SELECTION;
   const references: PrintReference[] = [];
   if (data.skills.some(skill => !skill.special)) references.push("skills");

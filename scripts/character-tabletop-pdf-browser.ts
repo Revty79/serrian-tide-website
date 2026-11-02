@@ -5,6 +5,7 @@ import type pg from "pg";
 import type { Page } from "playwright-core";
 import { PDFDocument } from "pdf-lib";
 import { TABLETOP_PDF_SHEETS } from "../src/features/characters/character-tabletop-pdf-options";
+import { PRINT_THEMES } from "../src/features/characters/character-print-options";
 
 /** Runs only inside the newly owned character-sheet fixture; no .env or shared target. */
 export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => Promise<Page>, baseUrl: string, characters: number[]) {
@@ -48,7 +49,7 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
     return (await pool.query(`select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) value from "${table}" r`)).rows[0].value;
   }));
   const before = await snapshot();
-  const out = path.resolve("artifacts/character-spreadsheet-print/range-correction");
+  const out = path.resolve("artifacts/character-spreadsheet-print/paper-styles");
   await mkdir(out, { recursive: true });
   const page = await login("sheet-player");
   page.on("response", response => {
@@ -107,6 +108,26 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
   assert.equal(await page.getByRole("link", { name: "Download PDF", exact: true }).count(), 0);
   await page.unroute("**/tabletop/NotoSans-Regular.ttf");
   await create(); await ready();
+  await page.getByRole("button", { name: /^Paper Character Sheet/ }).click();
+  await page.getByLabel("Skills Back", { exact: true }).check();
+  assert.equal(await page.locator(".paper-character-sheet").count(), 0, "Paper uses the compact PDF layout");
+  assert.equal(await page.getByLabel("Spell Book — Spellcraft", { exact: true }).count(), 0, "Full breakdowns stay in the detailed options");
+  for (const theme of PRINT_THEMES) {
+    await page.getByLabel("Print theme", { exact: true }).selectOption(theme);
+    await page.getByLabel("Presentation headings", { exact: true }).selectOption("genre");
+    assert.equal(await page.getByRole("link", { name: "Download PDF", exact: true }).count(), 0, "A style change retires the previous PDF");
+    await create(); await ready();
+    await download("browser-paper-" + theme.toLowerCase().replaceAll(" ", "-"), 2);
+  }
+  await page.getByLabel("Print theme", { exact: true }).selectOption("Fantasy");
+  await page.route("**/fantasy/masthead.png", route => route.abort());
+  await create(); await page.getByRole("alert").waitFor();
+  assert.equal(await page.getByRole("link", { name: "Download PDF", exact: true }).count(), 0);
+  await page.unroute("**/fantasy/masthead.png");
+  await create(); await ready(); await download("browser-paper-retry", 2);
+  await page.getByRole("button", { name: /^Tabletop PDF Sheets/ }).click();
+  assert.equal(await page.getByLabel("Print theme", { exact: true }).count(), 0);
+  await create(); await ready(); await download("browser-original-after-style", 2);
   for (const viewport of [{ width: 390, height: 844 }, { width: 820, height: 1180 }]) {
     await page.setViewportSize(viewport);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), "PDF controls cannot widen the phone or tablet");
@@ -118,6 +139,11 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
   assert.equal(await page.locator('.paper-character-sheet [data-print-section="front"]').count(), 1);
   await page.getByRole("button", { name: "Print / Save as PDF", exact: true }).click();
   await page.waitForFunction(() => document.documentElement.dataset.normalPrintCalls === "1");
+  await page.getByRole("button", { name: /^Custom Print/ }).click();
+  await page.getByLabel("Spell Book — Spellcraft", { exact: true }).check();
+  await page.getByLabel("Full skill reference", { exact: true }).check();
+  assert.equal(await page.locator('.paper-character-sheet [data-print-section="book-Spellcraft"]').count(), 1);
+  assert.equal(await page.locator('.paper-character-sheet [data-print-section="reference-skills"]').count(), 1);
   await page.goto(`${baseUrl}/realms/characters/${characters[1]}`);
   await page.getByText("Print options", { exact: true }).click(); await page.getByText(/^Ready:/).waitFor();
   await page.getByRole("button", { name: /^Tabletop PDF Sheets/ }).click();
@@ -125,6 +151,11 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
   await page.getByLabel(/Character Name/).fill("UNSAVED NAME MUST NOT PRINT");
   await create(); await page.getByRole("button", { name: "Print saved record", exact: true }).click(); await ready();
   await download("browser-simple", 2);
+  assert.equal(await page.getByLabel(/Character Name/).inputValue(), "UNSAVED NAME MUST NOT PRINT");
+  await page.getByRole("button", { name: /^Paper Character Sheet/ }).click();
+  await page.getByLabel("Print theme", { exact: true }).selectOption("Fantasy");
+  await create(); await page.getByRole("button", { name: "Print saved record", exact: true }).click(); await ready();
+  await download("browser-paper-saved", 2);
   assert.equal(await page.getByLabel(/Character Name/).inputValue(), "UNSAVED NAME MUST NOT PRINT");
   assert.deepEqual(await snapshot(), before, "Creating, opening and downloading PDFs never changes persisted Character state");
   // The actual PDF opens through an explicit link, without pop-up permission or auto-printing.

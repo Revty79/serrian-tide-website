@@ -61,7 +61,9 @@ export async function reviewSavedPaperCharacter(pool:pg.Pool,login:(email:string
   await page.goto(`${baseUrl}/realms/characters/${s.characterId}`);
   await page.getByText('Print options',{exact:true}).click();
   assert.equal(await page.getByRole('button',{name:/^Tabletop Quick Reference/}).getAttribute('aria-pressed'),'true');
-  await page.getByRole('button',{name:/^Paper Character Sheet/}).click();
+  // This historical detailed-reference review uses Custom Print; the compact
+  // Paper preset is covered by character-tabletop-pdf-browser.ts.
+  await page.getByRole('button',{name:/^Custom Print/}).click();
   await page.getByText(/^Ready:/).waitFor();
   assert.equal(await page.locator('.paper-reference-start').count(),0);
   const root=page.locator('.paper-character-sheet');

@@ -109,7 +109,9 @@ export async function rehearsePaperCharacterSheets(pool: pg.Pool, login: (id: st
     await page.getByText('Print options',{exact:true}).click();
     assert.equal(await page.getByRole('button',{name:/^Tabletop Quick Reference/}).getAttribute('aria-pressed'),'true');
     await page.getByText(/^Ready:/).waitFor();
-    await page.getByRole('button',{name:/^Paper Character Sheet/}).click();
+    // Detailed books/references now use Custom Print; the styled compact Paper
+    // preset has its own actual-PDF browser journey.
+    await page.getByRole('button',{name:/^Custom Print/}).click();
     assert.equal(await page.locator('.printable-character-sheet').count(),0);
     assert.equal(await page.locator('.paper-character-sheet').getAttribute('data-character-id'),String(id));
   }
@@ -162,7 +164,7 @@ export async function rehearsePaperCharacterSheets(pool: pg.Pool, login: (id: st
   await dialog.getByRole('button',{name:'Return to editing',exact:true}).click();
   assert.equal(await player.getByLabel(/Character Name/).inputValue(),'UNSAVED NAME MUST STAY');
   assert.equal(await player.evaluate(()=>document.documentElement.dataset.paperPrintCalls),undefined);
-  for (const [i,preset] of ['Tabletop Quick Reference','Full Tabletop Character','Complete Character Record','Custom Print','Paper Character Sheet'].entries()) {
+  for (const [i,preset] of ['Tabletop Quick Reference','Full Tabletop Character','Complete Character Record','Custom Print'].entries()) {
     await player.getByRole('button',{name:new RegExp(`^${preset}`)}).click();
     await player.getByRole('button',{name:'Print / Save as PDF',exact:true}).click();
     await dialog.getByRole('button',{name:'Print saved record',exact:true}).click();
