@@ -4,7 +4,7 @@ from pathlib import Path
 import pymupdf
 from PIL import Image, ImageDraw
 
-OUT = Path("artifacts/character-spreadsheet-print/letter-layout-correction")
+OUT = Path("artifacts/character-spreadsheet-print/range-correction")
 reports = []
 compact = lambda value: "".join(c.casefold() for c in value if c.isalnum())
 for name in ["sample", "crowded", "browser-all", "browser-simple"]:
@@ -48,6 +48,13 @@ for name in ["sample", "crowded", "browser-all", "browser-simple"]:
         assert "Rowan Draft" in text[0]
         assert "UNSAVED NAME" not in "".join(text)
     assert "ammunitionstatenotinitialized" not in compact("".join(text)), name
+    if name != "browser-simple":
+        assert "S/M/L 25/50/100 feet" in text[0], (name, "Structured weapon bands are missing")
+    front_regions = {region["title"]: region for region in json.loads((OUT / "sample-manifest.json").read_text(encoding="utf-8"))["regions"] if region["page"] == 1}
+    resources = front_regions["Resources"]
+    for word in pdf[0].get_text("words"):
+        if resources["x"] < (word[0] + word[2]) / 2 < resources["x"] + resources["width"] and resources["top"] < (word[1] + word[3]) / 2 < resources["top"] + resources["height"]:
+            assert word[4] not in ["Quintessence", "Fate"], (name, word)
     if name != "browser-simple":
         for i in range(1, 66 if name in ["crowded", "browser-all"] else 6):
             expected = f"Navigation route {i:02}" if name == "browser-all" else f"Route {i:02}"

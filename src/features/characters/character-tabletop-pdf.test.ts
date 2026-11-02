@@ -29,6 +29,10 @@ test("tabletop data stays brief and places Derived Abilities in front status; am
   assert.equal(front.quick[1], "Blink Step 68%");
   assert.equal(front.tables[3].rows[0][3], "60");
   assert.equal(front.tables[3].rows[0][6], "+2");
+  assert.equal(front.tables[3].rows[0][2], "S/M/L 25/50/100 feet");
+  assert.deepEqual(front.resources, [{ label: "Credits", value: "500" }]);
+  assert.equal(front.fields.flat().find(field => field.label === "Fate")!.value, "4");
+  assert.equal(front.fields.flat().find(field => field.label === "Quintessence")!.value, "0");
   assert.equal(front.tables[1].columns[2], "Damage");
   assert.ok(front.tables[1].rows.every(row => row[2] === ""));
   assert.equal(front.tables[2].columns[2], "Spent");
@@ -56,7 +60,8 @@ test("actual PDFs fill Letter with nine-point margins and the original five sepa
   assert.equal(summary[0].x, 9);
   assert.equal(summary[4].x + summary[4].width, 603);
   assert.ok(summary.every(region => region.top === summary[0].top && region.height === summary[0].height));
-  assert.ok(result.placements.filter(entry => entry.page === 1 && entry.block === "Resources").every(entry => !/Initiative|Land/.test(entry.text)));
+  assert.ok(result.placements.filter(entry => entry.page === 1 && entry.block === "Resources").every(entry => !/Initiative|Land|Quintessence|Fate/.test(entry.text)));
+  assert.ok(result.placements.some(entry => entry.block === "Weapons" && entry.text === "S/M/L 25/50/100 feet"));
   assert.ok(result.placements.some(entry => entry.block === "Initiative" && entry.text === "16"));
   assert.ok(result.placements.some(entry => entry.block === "Weapons" && entry.text === "+2"));
   assert.ok(result.placements.filter(entry => entry.block === "Weapons").every(entry => !/DEX|STR/.test(entry.text)));

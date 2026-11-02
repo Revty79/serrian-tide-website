@@ -8,7 +8,7 @@ export function tabletopPdfFixture(crowded = false): PaperCharacterData {
   return {
     characterId: 10, raceId: 1, name: "Adrián Vale", player: "revty79", campaign: "The Breaking", race: "Scholarly Human", recordedAt: "2026-11-01T18:00:00.000Z",
     tabletop: { profile: { age: 28, sex: "Male", heightFeet: 6, heightInches: 2, weight: 190, skinColor: "White", hairColor: "Blonde", eyeColor: "Blue", deity: "None", definingMarks: "Scar across his back from right shoulder to left hip." }, baseMagic: 3,
-      weapons: [{ name: ".357 Revolver - Copy #1", quantity: 1, type: "Revolver", durability: 60, baseDamage: "4", weapon: { mode: "Single", target: 53, range: "Range/reach not recorded" }, damageSummary: { modifier: "DEX +2", totalDamage: "6" } }],
+      weapons: [{ name: ".357 Revolver - Copy #1", quantity: 1, type: "Revolver", durability: 60, baseDamage: "4", weapon: { mode: "Single", target: 53, range: "Short 25; Medium 50; Long 100 feet", compactRange: "S/M/L 25/50/100 feet" }, damageSummary: { modifier: "DEX +2", totalDamage: "6" } }],
       armor: [{ name: "Armored Motorcycle Suit", quantity: 1, coverage: "Torso, both arms, both upper legs and both lower legs, including groin protection", properties: "Blunt +1; Slashing +1; Piercing -1", durability: 50, soak: 1 }], effects: [], protectionNotes: [],
     },
     totals: [{ name: "Fate", value: 4 }, { name: "Fame", value: 0 }, { name: "XP", value: 50 }, { name: "Total XP", value: 0 }, { name: "Quintessence", value: 0 }, { name: "Total Quintessence", value: 0 }],

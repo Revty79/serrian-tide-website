@@ -28,7 +28,7 @@ export function paperEffect(effect: MechanicalEffect): string {
   return summary;
 }
 
-export type PaperWeaponDetail = { mode: string; target: number | null; governing: string; damage: string; initiative: string; range: string; timing: string[] };
+export type PaperWeaponDetail = { mode: string; target: number | null; governing: string; damage: string; initiative: string; range: string; compactRange?: string; timing: string[] };
 export type PaperRuntime = {
   health: ActiveHealthView;
   mana: ActiveManaView;

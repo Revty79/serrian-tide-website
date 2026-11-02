@@ -23,6 +23,7 @@ import { getCharacterWeaponDamage, getCharacterWeaponDamageAttributeKeys } from 
 import { characterAggregateToDraft, getAttributeModifier } from "./character-rules";
 import type { CharacterAggregate } from "./models";
 import { paperEffect, paperNumber, paperSigned, type PaperRuntime } from "./paper-character";
+import { describePaperWeaponRange } from "./paper-weapon-range";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 function interactionCondition(condition: InteractionCondition): string {
@@ -94,6 +95,7 @@ export async function readPaperCharacterRuntime(tx: Transaction, aggregate: Char
     const governance = await readWeaponSkillGovernanceInTransaction(tx, item.id);
     const [ammunition] = profile.ammunitionItemId == null ? [] : await tx.select().from(weaponProfile).where(eq(weaponProfile.itemId, profile.ammunitionItemId));
     const modes = await tx.select().from(weaponFiringMode).where(eq(weaponFiringMode.weaponProfileId, profile.id)).orderBy(asc(weaponFiringMode.sortOrder));
+    const range = describePaperWeaponRange(profile);
     result.weapons[item.id] = [];
     for (const mode of modes.length ? modes : [null]) {
       const matching = overrides.filter((entry) => entry.itemId === item.id && entry.weaponProfileId === profile.id);
@@ -114,7 +116,7 @@ export async function readPaperCharacterRuntime(tx: Transaction, aggregate: Char
       result.weapons[item.id].push({ mode: mode?.name ?? "", target: source?.originalTarget ?? null,
         governing: source ? source.kind === "skill" ? source.allocationPath.map(({ skillName }) => skillName).join(" → ") : source.kind === "attribute" ? source.attributeKey : source.label : "G.O.D. ruling required",
         damage: `${damage.damage ?? "Not recorded"}${damage.damageType ? ` ${damage.damageType}` : ""}; ${modifier} conditional modifier${damage.sourceName ? `; ammunition: ${damage.sourceName}` : ""}`,
-        initiative: paperNumber(mode ? ORDINARY_TRIGGER_PULL_INITIATIVE_COST : profile.initiativeCost), range: [profile.reachText ? `Reach ${profile.reachText}` : "", profile.rangeText ? `Range ${profile.rangeText}` : ""].filter(Boolean).join("; ") || "Range/reach not recorded",
+        initiative: paperNumber(mode ? ORDINARY_TRIGGER_PULL_INITIATIVE_COST : profile.initiativeCost), range: range.full, compactRange: range.compact,
         timing: mode ? [timing ? `${mode.name}: cycle ${timing.effectiveCyclingInitiativeCost}; recoil reset ${timing.effectiveRecoilResetInitiativeCost}; follow-up preparation ${timing.followUpPreparationInitiativeCost}; through next trigger ${timing.totalThroughNextTriggerPullInitiativeCost} Initiative.` : `${mode.name}: timing not fully authored.`,
           `Delivery: ${mode.deliveryCadence ?? "not recorded"}; rounds per cadence: ${paperNumber(mode.roundsPerCadence)}.${mode.mechanicsReviewRequired ? " Mechanics review required." : ""}`] : [],
       });

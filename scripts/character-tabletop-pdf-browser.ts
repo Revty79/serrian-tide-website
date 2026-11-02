@@ -34,6 +34,7 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
   await pool.query("insert into campaign_inventory_item(campaign_id,item_id,sort_order) select $1,$2,coalesce(max(sort_order),-1)+1 from campaign_inventory_item where campaign_id=$1", [campaignId, revolver]);
   await pool.query("insert into item_runtime_profiles(item_id,use_mode,activation_label) values($1,'none','Use')", [revolver]);
   const revolverProfile = (await pool.query("insert into weapon_profiles(item_id,profile_record_type,weapon_type,damage,initiative_cost,damage_type,capacity_rounds,readiness_mode,draw_initiative_cost,ready_initiative_cost,reload_initiative_cost,unload_initiative_cost,firing_mode_change_initiative_cost) values($1,'Weapon','Revolver','4',4,'Piercing',6,'draw-is-ready',0,0,0,0,0) returning id", [revolver])).rows[0].id;
+  await pool.query("update weapon_profiles set range_mode='ranged',distance_unit='feet',short_range_distance=25,medium_range_distance=50,long_range_distance=100,range_text='',reach_text='' where id=$1", [revolverProfile]);
   await pool.query("insert into weapon_firing_modes(weapon_profile_id,name,normalized_name,sort_order,base_cycling_initiative_cost,base_recoil_reset_initiative_cost,delivery_cadence,rounds_per_cadence) values($1,'Single','single',0,0,0,'per-trigger',1)", [revolverProfile]);
   await pool.query("insert into campaign_character_item_instance(character_id,item_id,current_charges,unit_cost_credits,equipment_state) values($1,$2,0,0,'inactive')", [characterId, revolver]);
   for (let i = 0; i < 65; i++) {
@@ -47,7 +48,7 @@ export async function rehearseTabletopPdf(pool: pg.Pool, login: (id: string) => 
     return (await pool.query(`select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) value from "${table}" r`)).rows[0].value;
   }));
   const before = await snapshot();
-  const out = path.resolve("artifacts/character-spreadsheet-print/letter-layout-correction");
+  const out = path.resolve("artifacts/character-spreadsheet-print/range-correction");
   await mkdir(out, { recursive: true });
   const page = await login("sheet-player");
   page.on("response", response => {
