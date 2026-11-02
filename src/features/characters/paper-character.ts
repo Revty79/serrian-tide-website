@@ -110,7 +110,7 @@ export function buildPaperCharacter(aggregate: CharacterAggregate, runtime: Pape
   const invalidSpells = [...data.skills.filter((row) => row.spellDocumentJson && !data.spells.some((spell) => spell.key === `catalog:${row.id}`)).map((row) => row.name),
     ...aggregate.personalSpellbook.filter((row) => !data.spells.some((spell) => spell.key === `personal:${row.id}`)).map((row) => row.name)];
   return {
-    spreadsheet: {
+    tabletop: {
       profile: { age: profile.age, sex: profile.sex, heightFeet: profile.heightFeet, heightInches: profile.heightInches, weight: profile.weight,
         skinColor: profile.skinColor, hairColor: profile.hairColor, eyeColor: profile.eyeColor, deity: profile.deity, definingMarks: profile.definingMarks },
       baseMagic: getCharacterBaseMagic(aggregate.selectedRace?.race.baseMagic, profile.baseMagicSteps),

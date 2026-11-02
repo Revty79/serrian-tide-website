@@ -139,8 +139,8 @@ test("Shared character sheet: real actions, owner controls, player totals, print
       return;
     }
     if (process.env.SERRIAN_SPREADSHEET_PRINT_ONLY === "true") {
-      const { rehearseSpreadsheetPrinting } = await import("./character-spreadsheet-print-browser");
-      await rehearseSpreadsheetPrinting(pool, login, baseUrl, characters);
+      const { rehearseTabletopPdf } = await import("./character-tabletop-pdf-browser");
+      await rehearseTabletopPdf(pool, login, baseUrl, characters);
       assert.deepEqual(errors, []);
       return;
     }

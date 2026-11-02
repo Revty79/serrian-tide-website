@@ -3,6 +3,7 @@ import {
   getCharacterHpBreakdown,
 } from "@/features/characters/character-rules";
 import type { ActiveHealthAnatomy } from "@/features/active-state/models";
+import { BODY_SHOT_BOB_PATHS, BODY_SHOT_BOB_TARGETS } from "@/features/characters/body-shot-bob";
 
 type Props = {
   totalHp: number;
@@ -13,18 +14,6 @@ type CharacterHpPoolKey = ReturnType<
   typeof getCharacterHpBreakdown
 >["pools"][number]["key"];
 
-const TARGET_POSITIONS: Record<number, { x: number; y: number }> = {
-  0: { x: 210, y: 62 },
-  1: { x: 91, y: 226 },
-  2: { x: 329, y: 226 },
-  3: { x: 166, y: 505 },
-  4: { x: 180, y: 389 },
-  5: { x: 254, y: 505 },
-  6: { x: 240, y: 389 },
-  7: { x: 210, y: 304 },
-  8: { x: 210, y: 234 },
-  9: { x: 210, y: 158 },
-};
 
 type HitLocationSilhouetteTarget = {
   result: number;
@@ -55,18 +44,11 @@ export function CharacterHitLocationSilhouette({
       <desc>{description}</desc>
       <g className="character-hit-chart__silhouette">
         <circle cx="210" cy="62" r="46" />
-        <path d="M188 103h44l9 31h-62z" />
-        <path d="M150 126Q210 108 270 126l15 75-14 76-31 63h-60l-31-63-14-76z" />
-        <path d="M148 136Q116 143 103 178L66 307q-6 25 18 33 23 7 32-17l45-123z" />
-        <path d="M272 136q32 7 45 42l37 129q6 25-18 33-23 7-32-17l-45-123z" />
-        <path d="M180 326h30v263h-50l5-137z" />
-        <path d="M210 326h30l15 126 5 137h-50z" />
-        <path d="M145 589h66v14h-77q-8-8 11-14z" />
-        <path d="M209 589h66q19 6 11 14h-77z" />
+        {BODY_SHOT_BOB_PATHS.map(path => <path key={path} d={path} />)}
       </g>
 
       {targets.map((target) => {
-        const position = TARGET_POSITIONS[target.result];
+        const position = BODY_SHOT_BOB_TARGETS[target.result];
         return (
           <g
             key={target.result}

@@ -13,14 +13,14 @@ export type PrintHeadings = "standard" | "genre";
 export const PRINT_REFERENCES = { skills: "Full skill reference", specialAbilities: "Special Ability reference", derivedAbilities: "Derived Ability reference", inventory: "Inventory reference", equipment: "Equipment reference", story: "Story / profile" } as const;
 export type PrintReference = keyof typeof PRINT_REFERENCES;
 export type UnifiedPrintSelection = { front: boolean; backs: PrintBack[]; books: CharacterMagicSystem[]; references: PrintReference[]; formIds?: number[] };
-export type UnifiedPrintPreset = "quick" | "full" | "complete" | "custom" | "paper" | "spreadsheet";
+export type UnifiedPrintPreset = "quick" | "full" | "complete" | "custom" | "paper" | "pdf";
 export const DEFAULT_PRINT_SELECTION: UnifiedPrintSelection = { front: true, backs: ["General"], books: [], references: [] };
 
 export function ownedPrintSystems(data: PaperCharacterData): CharacterMagicSystem[] {
   return PRINT_SYSTEMS.filter(system => data.skills.some(skill => skill.systems.includes(system)) || data.spells.some(spell => spell.system === system));
 }
 export function printPresetSelection(preset: UnifiedPrintPreset, data: PaperCharacterData | null, custom: UnifiedPrintSelection): UnifiedPrintSelection {
-  if (preset === "spreadsheet") return { front: false, backs: [], books: [], references: [] };
+  if (preset === "pdf") return { front: false, backs: [], books: [], references: [] };
   if (preset === "custom" || preset === "paper") return custom;
   if (preset === "quick" || !data) return DEFAULT_PRINT_SELECTION;
   const references: PrintReference[] = [];

@@ -131,6 +131,7 @@
     "validate:catalog-pass-four": "node --import ./scripts/register-test-css.mjs --import tsx --test src/features/catalog-visibility/*.test.ts src/features/races/*.test.ts src/features/creatures/*.test.ts src/features/skills/*.test.ts src/features/derived-abilities/*.test.ts src/features/authorization/shared-library-access.test.ts src/features/navigation/*.test.ts src/features/campaigns/*.test.ts src/features/items/*.test.ts src/features/shops/*.test.ts src/features/lifecycle/*.test.ts src/features/characters/item-ammunition-parity.test.ts src/features/characters/character-sheet-rules.test.ts src/features/characters/firearm-baseline-migration.test.ts src/features/tabletop-operations/firearm*.test.ts"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "1.1.1",
     "better-auth": "^1.7.1",
     "d3-geo": "3.1.1",
     "dotenv": "^17.4.2",
@@ -138,6 +139,7 @@
     "geotiff": "3.0.5",
     "lucide-react": "1.45.0",
     "next": "16.3.2",
+    "pdf-lib": "1.17.1",
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
