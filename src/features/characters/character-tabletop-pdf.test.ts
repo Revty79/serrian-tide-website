@@ -4,7 +4,7 @@ import test from "node:test";
 import { PDFDocument } from "pdf-lib";
 import { buildTabletopPdfPages, createCharacterTabletopPdf } from "./character-tabletop-pdf";
 import { TABLETOP_PDF_SHEETS, tabletopPdfFilename } from "./character-tabletop-pdf-options";
-import { tabletopPdfFixture } from "./character-tabletop-pdf.fixture";
+import { tabletopPdfFixture, tabletopWeaponPdfFixture } from "./character-tabletop-pdf.fixture";
 import { DEFAULT_PRINT_SELECTION, printPresetSelection } from "./character-print-options";
 
 const fonts = {
@@ -61,7 +61,7 @@ test("actual PDFs fill Letter with nine-point margins and the original five sepa
   assert.equal(summary[4].x + summary[4].width, 603);
   assert.ok(summary.every(region => region.top === summary[0].top && region.height === summary[0].height));
   assert.ok(result.placements.filter(entry => entry.page === 1 && entry.block === "Resources").every(entry => !/Initiative|Land|Quintessence|Fate/.test(entry.text)));
-  assert.ok(result.placements.some(entry => entry.block === "Weapons" && entry.text === "S/M/L 25/50/100 feet"));
+  assert.ok(result.placements.filter(entry => entry.block === "Weapons").map(entry => entry.text).join(" ").includes("S/M/L 25/50/100 feet"));
   assert.ok(result.placements.some(entry => entry.block === "Initiative" && entry.text === "16"));
   assert.ok(result.placements.some(entry => entry.block === "Weapons" && entry.text === "+2"));
   assert.ok(result.placements.filter(entry => entry.block === "Weapons").every(entry => !/DEX|STR/.test(entry.text)));
@@ -85,6 +85,42 @@ test("hybrid weapon modifiers retain both signed amounts without repeating attri
   data.tabletop.weapons[0].damageSummary!.modifier = "STR -3 / DEX +2";
   assert.equal(buildTabletopPdfPages(data, ["Character Front"])[0].tables[3].rows[0][6], "-3 / +2");
   assert.equal(data.tabletop.weapons[0].damageSummary!.modifier, "STR -3 / DEX +2");
+});
+
+test("real weapons precede improvised tools and Type preserves the complete authored damage types", () => {
+  const data = tabletopWeaponPdfFixture(), before = structuredClone(data);
+  const front = buildTabletopPdfPages(data, ["Character Front"])[0];
+  assert.deepEqual(front.tables[3].rows.map(row => row[0]), [".357 Revolver - Copy #1 (Single)", "Bowie Knife", "Longsword", "Spear", "Hand Axe"]);
+  assert.deepEqual(front.tables[3].rows.map(row => row[1]), ["Piercing", "Slashing / Piercing", "Blunt / Slashing / Piercing", "Piercing", "Slashing"]);
+  assert.ok(front.status.some(row => row.startsWith("Binoculars: Blunt;")));
+  assert.ok(front.status.some(row => row.startsWith("Blank Journal: Blunt;")));
+  assert.ok(front.status.some(row => row.startsWith("Canteen: Blunt;")));
+  data.tabletop.weapons[2].damageType = "";
+  assert.equal(buildTabletopPdfPages(data, ["Character Front"])[0].tables[3].rows[0][1], "—");
+  data.tabletop.weapons[2].damageType = before.tabletop.weapons[2].damageType;
+  assert.deepEqual(data, before);
+});
+
+test("all five weapon rows including multiple damage types remain in the actual one-page front", async () => {
+  const data = tabletopWeaponPdfFixture();
+  const result = await createCharacterTabletopPdf(data, ["Character Front"], fonts);
+  assert.equal((await PDFDocument.load(result.bytes)).getPageCount(), 1);
+  const weapons = result.placements.filter(row => row.block === "Weapons");
+  for (const name of [".357 Revolver - Copy #1 (Single)", "Bowie Knife", "Longsword", "Spear", "Hand Axe"]) assert.ok(weapons.some(row => row.text === name), name);
+  assert.ok(weapons.every(row => !/Improvised|Tool|Revolver$|Knife \/ Blade/.test(row.text)));
+  assert.ok(result.placements.some(row => row.block === "Hit Locations" && row.text === "Body Shot Bob"));
+  assert.ok(result.placements.some(row => row.block === "Most Common Used Skills & Rolls" && row.text === "Blink Step 68%"));
+});
+
+test("an unusually long weapon cell uses status space without displacing any of the five rows", async () => {
+  const data = tabletopWeaponPdfFixture();
+  const fullType = "Blunt / Slashing / Piercing / Fire / Cold / Lightning / Acid / Sonic";
+  data.tabletop.weapons[4].damageType = fullType;
+  const result = await createCharacterTabletopPdf(data, ["Character Front"], fonts);
+  const status = result.placements.filter(row => row.block === "Status Effects & Special Effects").map(row => row.text).join(" ");
+  assert.ok(status.includes(fullType));
+  for (const name of ["Bowie Knife", "Longsword", "Spear", "Hand Axe"]) assert.ok(result.placements.some(row => row.block === "Weapons" && row.text === name));
+  assert.equal((await PDFDocument.load(result.bytes)).getPageCount(), 1);
 });
 
 test("a record beyond one-page capacity fails visibly instead of creating cropped or continuation pages", async () => {

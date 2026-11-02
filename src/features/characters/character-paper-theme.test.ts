@@ -5,13 +5,13 @@ import { PDFDocument } from "pdf-lib";
 import { PAPER_SHEET_STYLES, paperSheetMastheadPath } from "./character-paper-theme";
 import { PRINT_THEMES } from "./character-print-options";
 import { createCharacterTabletopPdf } from "./character-tabletop-pdf";
-import { tabletopPdfFixture } from "./character-tabletop-pdf.fixture";
+import { tabletopPdfFixture, tabletopWeaponPdfFixture } from "./character-tabletop-pdf.fixture";
 import { TABLETOP_PDF_SHEETS } from "./character-tabletop-pdf-options";
 
 const fonts = { regular: readFileSync("public/print/serrian-tide/tabletop/NotoSans-Regular.ttf"), bold: readFileSync("public/print/serrian-tide/tabletop/NotoSans-Bold.ttf"), title: readFileSync("public/print/serrian-tide/spreadsheet/Lobster-Regular.ttf"), serif: readFileSync("public/print/serrian-tide/tabletop/NotoSerif-Bold.ttf") };
 
 test("every selectable Paper style preserves the approved tabletop data and section geometry", async () => {
-  const data = tabletopPdfFixture(true), before = structuredClone(data);
+  const data = tabletopWeaponPdfFixture(), before = structuredClone(data);
   const baseline = await createCharacterTabletopPdf(data, TABLETOP_PDF_SHEETS, fonts);
   for (const theme of PRINT_THEMES) {
     const artwork = paperSheetMastheadPath(theme);

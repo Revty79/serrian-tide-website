@@ -22,6 +22,8 @@ See [the printing delivery receipt](../operations/character-spreadsheet-printing
 
 The shared Realms / G.O.D. character editor uses the same authorized saved-record snapshot for the compact PDFs and detailed browser-print presets. Quick Reference remains the default: the standard front plus General back. No books are implicitly added to that default.
 
+Both compact PDF appearances provide five fixed weapon rows. Purpose-built weapons retain saved order ahead of authored Improvised / Tool profiles. Type shows the canonical damage type or types, including linked-ammunition damage types where applicable, rather than the weapon category. A wider Type column and enlarged weapon block use space from armor and blank quick rolls; unusually long cells retain their full text in status without displacing a weapon row. The Letter frame, upper summary and back layouts remain unchanged.
+
 ## Data and permissions
 
 `getPaperCharacterSheet` uses the existing authorized character reader and read-only runtime readers. `buildPaperCharacter` converts that saved aggregate for the existing character calculations; the editor draft is never passed into the print center. The Print button refreshes the snapshot. Unsaved changes require an explicit choice between returning to edit and printing the saved record. Neither option saves or changes gameplay state.

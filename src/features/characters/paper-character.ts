@@ -116,7 +116,8 @@ export function buildPaperCharacter(aggregate: CharacterAggregate, runtime: Pape
       baseMagic: getCharacterBaseMagic(aggregate.selectedRace?.race.baseMagic, profile.baseMagicSteps),
       weapons: data.ownedItems.filter(row => row.isWeapon && row.item?.recordType.toLowerCase() !== "ammunition" && row.item?.weaponType?.toLowerCase() !== "cartridge" && !row.item?.isMagazine).flatMap(row => (runtime.weapons[row.owned.itemId] ?? [null]).map(weapon => ({
         name: row.displayName, quantity: row.owned.quantity, type: row.item?.weaponType ?? "", durability: row.item?.durability ?? null,
-        baseDamage: row.item ? getCharacterWeaponDamage(row.item).damage ?? "" : "", weapon,
+        baseDamage: row.item ? getCharacterWeaponDamage(row.item).damage ?? "" : "",
+        damageType: row.item ? getCharacterWeaponDamage(row.item).damageType ?? "" : "", weapon,
         damageSummary: row.item ? getCharacterWeaponDamageSummary(row.item, draft.attributes) : null,
       }))),
       armor: data.ownedItems.filter(row => row.isArmor).map(row => ({ name: row.displayName, quantity: row.owned.quantity,

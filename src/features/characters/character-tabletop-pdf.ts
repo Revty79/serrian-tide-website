@@ -12,6 +12,7 @@ const INK = rgb(0, 0, 0), PAPER = rgb(1, 229 / 255, .6), BLUE = rgb(207 / 255, 2
 const number = (value: number | null | undefined) => value == null ? "—" : paperNumber(value);
 const leaf = (name: string) => name.split(" → ").at(-1)!.trim();
 const short = (text: string, limit = 160) => text.length <= limit ? text : text.slice(0, limit - 1).replace(/\s+\S*$/, "") + "…";
+const WEAPON_ROWS = 5;
 type Table = { title: string; columns: string[]; widths: number[]; rows: string[][]; split?: boolean };
 type Field = { label: string; value: string };
 export type TabletopPdfPage = { title: TabletopPdfSheet; tables: Table[]; fields: Field[][]; status: string[]; quick: string[]; marks: string; initiative?: { base: string; turn: string }; resources: Field[] };
@@ -23,6 +24,10 @@ const hexColor = (hex: string) => rgb(...[1, 3, 5].map(index => parseInt(hex.sli
 
 /** A concise saved-record view. No spreadsheet cells, formulas or browser print layout. */
 export function buildTabletopPdfPages(data: PaperCharacterData, requested: readonly TabletopPdfSheet[]): TabletopPdfPage[] {
+  // Preserve saved order within each group; a tool's combat profile must not
+  // displace a purpose-built weapon simply because its name sorts earlier.
+  const improvised = (type: string) => type.split("/").some(part => /^(improvised|tool)$/i.test(part.trim()));
+  const weapons = [...data.tabletop.weapons].sort((a, b) => Number(improvised(a.type)) - Number(improvised(b.type)));
   const skills = (title: string, rows: PaperCharacterData["skills"]): Table => ({
     title, columns: ["Skill", "%"], widths: [.76, .24], split: true,
     rows: rows.map(skill => [leaf(skill.name), skill.hasRoll ? number(skill.target) + "%" : "—"]),
@@ -53,7 +58,7 @@ export function buildTabletopPdfPages(data: PaperCharacterData, requested: reado
         { title: "Attributes", columns: ["Attribute", "#", "Mod", "%"], widths: [.43, .19, .19, .19], rows: data.attributes.map(row => [({ STR: "Strength", DEX: "Dexterity", CON: "Constitution", INT: "Intelligence", WIS: "Wisdom", CHR: "Charisma" })[row.key], number(row.score), number(row.modifier), number(row.target)]) },
         { title: "Hit Points", columns: ["Pool", "Max", "Damage"], widths: [.48, .23, .29], rows: [["Total HP", number(data.health.total.maximumHp), ""], ...data.health.tracks.map(row => [row.name, number(row.maximumHp), ""])] },
         { title: "Mana", columns: ["System", "Max", "Spent"], widths: [.55, .225, .225], rows: data.mana.filter(row => row.maximumMana > 0 || row.currentMana > 0).map(row => [row.system === "Talismanism" ? "Talisman" : row.system === "Bardic Resonance" ? "Bardic" : row.system, number(row.maximumMana), ""]) },
-        { title: "Weapons", columns: ["Weapon", "Type", "Range", "Durability", "%", "Damage", "Mod", "T Damage"], widths: [3 / 11, 1 / 11, 2 / 11, 1 / 11, 1 / 11, 1 / 11, 1 / 11, 1 / 11], rows: data.tabletop.weapons.slice(0, 6).map(item => [item.name + (item.quantity === 1 ? "" : ` ×${number(item.quantity)}`) + (item.weapon?.mode ? ` (${item.weapon.mode})` : ""), item.type, item.weapon?.compactRange ?? (item.weapon?.range === "Range/reach not recorded" ? "—" : item.weapon?.range || "—"), number(item.durability), item.weapon?.target == null ? "—" : number(item.weapon.target) + "%", item.baseDamage, item.damageSummary?.modifier.replace(/\b(?:STR|DEX|CON|INT|WIS|CHR|CHA)\s+/g, "") ?? "—", item.damageSummary?.totalDamage ?? "—"]) },
+        { title: "Weapons", columns: ["Weapon", "Type", "Range", "Durability", "%", "Damage", "Mod", "T Damage"], widths: [3 / 11, 1.5 / 11, 1.5 / 11, 1 / 11, 1 / 11, 1 / 11, 1 / 11, 1 / 11], rows: weapons.slice(0, WEAPON_ROWS).map(item => [item.name + (item.quantity === 1 ? "" : ` ×${number(item.quantity)}`) + (item.weapon?.mode ? ` (${item.weapon.mode})` : ""), item.damageType || "—", item.weapon?.compactRange ?? (item.weapon?.range === "Range/reach not recorded" ? "—" : item.weapon?.range || "—"), number(item.durability), item.weapon?.target == null ? "—" : number(item.weapon.target) + "%", item.baseDamage, item.damageSummary?.modifier.replace(/\b(?:STR|DEX|CON|INT|WIS|CHR|CHA)\s+/g, "") ?? "—", item.damageSummary?.totalDamage ?? "—"]) },
         { title: "Armor", columns: ["Armor", "Area Covered", "Special Properties", "Durability", "Soaks"], widths: [3 / 11, 2 / 11, 4 / 11, 1 / 11, 1 / 11], rows: data.tabletop.armor.slice(0, 6).map(item => [item.name + (item.quantity === 1 ? "" : ` ×${number(item.quantity)}`), short(item.coverage, 40), item.properties, number(item.durability), number(item.soak)]) },
       ];
       page.status = [...(data.tabletop.effects ?? data.effects), ...(data.tabletop.protectionNotes ?? []),
@@ -61,7 +66,7 @@ export function buildTabletopPdfPages(data: PaperCharacterData, requested: reado
         ...data.tabletop.armor.slice(0, 6).filter(item => item.coverage.length > 40).map(item => `${item.name}: ${item.coverage}`),
         ...data.health.tracks.slice(6).map(row => `${row.name}: ${number(row.maximumHp)} HP; Damage: ______`),
         ...data.mana.filter(row => row.maximumMana > 0 || row.currentMana > 0).slice(2).map(row => `${row.system}: ${number(row.maximumMana)} mana; Spent: ______`),
-        ...data.tabletop.weapons.slice(6).map(item => `${item.name}: ${item.type}; durability ${number(item.durability)}; ${item.weapon?.target == null ? "" : number(item.weapon.target) + "%; "}damage ${item.damageSummary?.totalDamage ?? item.baseDamage}`),
+        ...weapons.slice(WEAPON_ROWS).map(item => `${item.name}: ${item.damageType || "—"}; durability ${number(item.durability)}; ${item.weapon?.target == null ? "" : number(item.weapon.target) + "%; "}damage ${item.damageSummary?.totalDamage ?? item.baseDamage}`),
         ...data.tabletop.armor.slice(6).map(item => `${item.name}: ${item.coverage}; ${item.properties}; durability ${number(item.durability)}; soak ${number(item.soak)}`),
       ].filter(Boolean);
       page.quick = data.quickRolls.map(skill => `${leaf(skill.name)} ${number(skill.target)}%`);
@@ -209,7 +214,7 @@ export function tabletopPdfFrontGeometry() {
   const stats = box(11, 8);
   let x = MARGIN;
   const summary = [4, 3, 1, 1, 2].map((columns, index) => { const result = { title: ["Attributes", "Hit Points", "Mana", "Initiative", "Resources"][index], x, top: stats.top, width: INNER * columns / 11, height: stats.height }; x += result.width; return result; });
-  return { row, title: box(0, 3), identity: box(3, 8), summary, weapons: box(19, 7), armor: box(26, 7), status: { ...box(33, 15), width: INNER * 8 / 11 }, bob: { ...box(33, 15), x: MARGIN + INNER * 8 / 11, width: INNER * 3 / 11 }, quick: box(48, 12) };
+  return { row, title: box(0, 3), identity: box(3, 8), summary, weapons: box(19, 10), armor: box(29, 6), status: { ...box(35, 15), width: INNER * 8 / 11 }, bob: { ...box(35, 15), x: MARGIN + INNER * 8 / 11, width: INNER * 3 / 11 }, quick: box(50, 10) };
 }
 
 function compactCell(p: Painter, value: string, box: Box, centered = false, header = false) {
@@ -221,6 +226,27 @@ function drawEquipment(p: Painter, table: Table, box: Box, rowHeight: number) {
   let x = box.x;
   table.columns.forEach((name, i) => { const width = box.width * table.widths[i]; compactCell(p, name, { x, top: box.top, width, height: rowHeight }, true, true); x += width; });
   let top = box.top + rowHeight;
+  if (table.title === "Weapons") {
+    const height = (box.height - rowHeight) / WEAPON_ROWS;
+    const extra: string[] = [];
+    for (let row = 0; row < WEAPON_ROWS; row++) {
+      let x = box.x;
+      table.widths.forEach((fraction, col) => {
+        const width = box.width * fraction;
+        const value = table.rows[row]?.[col] ?? "";
+        let display = value, limit = value.length;
+        while (wrap(display, p.fonts.regular, 8, width - 4).length * 8 * 1.2 + 2 > height && limit > 1) {
+          limit = Math.max(1, Math.floor(limit * .8));
+          display = short(value, limit);
+        }
+        if (display !== value) extra.push(`${table.rows[row][0]} — ${table.columns[col]}: ${value}`);
+        compactCell(p, display, { x, top, width, height }, col >= 3);
+        x += width;
+      });
+      top += height;
+    }
+    return extra;
+  }
   const extra: string[] = [];
   for (const values of table.rows) {
     const height = Math.max(rowHeight, ...values.map((value, i) => wrap(value, p.fonts.regular, 8.5, box.width * table.widths[i] - 4).length * 8.5 * 1.2 + 2));
