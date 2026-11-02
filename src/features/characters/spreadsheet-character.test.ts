@@ -66,6 +66,23 @@ test("tabletop front keeps only the named quick roll, numeric durability and act
   assert.equal(page.values.A50, "Blink Step 62%"); assert.equal(page.values.G21, "60"); assert.equal(page.values.J28, "50");
   assert.equal(page.values.A35, "Wounded: -1 DEX"); assert.ok(!page.values.A35.includes(data.race)); assert.ok(!page.values.A35.includes("Initiative"));
 });
+test("Derived Abilities print under front status effects and never inside inventory", () => {
+  const data = fixture();
+  data.abilities = [{ name: "Steady Resolve" }] as PaperCharacterData["abilities"];
+  const pages = buildSpreadsheetCharacterPages(data, [...SPREADSHEET_SHEETS]);
+  assert.match(pages[0].values.A35, /Derived Abilities\nSteady Resolve/);
+  for (const page of pages.slice(1)) assert.ok(!Object.values(page.values).some(value => value.includes("Steady Resolve")), page.title);
+});
+test("inventory omits uninitialized ammunition diagnostics while retaining quantities and recorded ammunition/charges", () => {
+  const data = fixture();
+  data.inventory = [{ name: "Revolver", quantity: 1, status: "Ammunition state not initialized" }, { name: "Wand", quantity: 2, status: "2/5 charges; Ammunition state not initialized; 4 loaded rounds" }] as PaperCharacterData["inventory"];
+  const before = structuredClone(data);
+  const page = buildSpreadsheetCharacterPages(data, ["Skills Back"])[0];
+  assert.match(page.values.A40, /Revolver ×1/);
+  assert.match(page.values.A40, /Wand ×2; 2\/5 charges; 4 loaded rounds/);
+  assert.doesNotMatch(page.values.A40, /not initialized/i);
+  assert.deepEqual(data, before);
+});
 test("the eight captured layouts contain only labels and formatting, never formulas or source caches", () => {
   assert.deepEqual(spreadsheetCharacterTemplate.sheets.map(sheet => sheet.title), [...SPREADSHEET_SHEETS]);
   const text = JSON.stringify(spreadsheetCharacterTemplate);

@@ -10,7 +10,7 @@ export async function rehearseSpreadsheetPrinting(pool: pg.Pool, login: (id: str
   assert.equal((await pool.query("select current_database() name")).rows[0].name, "serrian_character_sheet_dev");
   const characterId = characters[0];
   const campaignId = (await pool.query("select campaign_id from campaign_character where id=$1", [characterId])).rows[0].campaign_id;
-  for (const system of ["Talismanism", "Faith", "Psyonics", "Bardic Resonance", "Special Abilities"]) await pool.query("insert into campaign_allowed_system(campaign_id,system) values($1,$2) on conflict do nothing", [campaignId, system]);
+  for (const system of ["Talismanism", "Faith", "Psyonics", "Bardic Resonance", "Special Abilities", "Derived Abilities"]) await pool.query("insert into campaign_allowed_system(campaign_id,system) values($1,$2) on conflict do nothing", [campaignId, system]);
   const roots = ["Spellcraft", "Talismanism", "Faith", "Psionic Focus", "Resonant Performance"];
   for (const [index, name] of roots.entries()) {
     let root = (await pool.query("select id from skill where name=$1 order by id limit 1", [name])).rows[0]?.id;
@@ -26,6 +26,15 @@ export async function rehearseSpreadsheetPrinting(pool: pg.Pool, login: (id: str
   }
   const special = (await pool.query("insert into skill(name,classification,tier,definition) values('Beacon Sense','Special Ability',1,'A passive ability without a governing attribute.') returning id")).rows[0].id;
   await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,5)", [characterId, special]);
+  const derived = (await pool.query("insert into derived_ability(name,acquisition_type,activation_type,description,mechanical_effect) values('Steady Resolve','awarded','activated','Disposable print fixture.','Retain the authored tabletop ruling.') returning id")).rows[0].id;
+  await pool.query("insert into campaign_allowed_derived_ability(campaign_id,derived_ability_id) values($1,$2)", [campaignId, derived]);
+  await pool.query("insert into character_derived_ability(character_id,derived_ability_id,acquisition_method) values($1,$2,'awarded')", [characterId, derived]);
+  const revolver = (await pool.query("insert into items(canonical_id,name,catalog_scope,equipment_group,record_type,family,category,price_basis,credits) values('PRINT-REVOLVER','Print Revolver','equipment','weapon','Weapon','Firearms','Handguns','unit',0) returning id")).rows[0].id;
+  await pool.query("insert into campaign_inventory_item(campaign_id,item_id,sort_order) select $1,$2,coalesce(max(sort_order),-1)+1 from campaign_inventory_item where campaign_id=$1", [campaignId, revolver]);
+  await pool.query("insert into item_runtime_profiles(item_id,use_mode,activation_label) values($1,'none','Use')", [revolver]);
+  const revolverProfile = (await pool.query("insert into weapon_profiles(item_id,profile_record_type,weapon_type,damage,initiative_cost,damage_type,capacity_rounds,readiness_mode,draw_initiative_cost,ready_initiative_cost,reload_initiative_cost,unload_initiative_cost,firing_mode_change_initiative_cost) values($1,'Weapon','Revolver','4',4,'Piercing',6,'draw-is-ready',0,0,0,0,0) returning id", [revolver])).rows[0].id;
+  await pool.query("insert into weapon_firing_modes(weapon_profile_id,name,normalized_name,sort_order,base_cycling_initiative_cost,base_recoil_reset_initiative_cost,delivery_cadence,rounds_per_cadence) values($1,'Single','single',0,0,0,'per-trigger',1)", [revolverProfile]);
+  await pool.query("insert into campaign_character_item_instance(character_id,item_id,current_charges,unit_cost_credits,equipment_state) values($1,$2,0,0,'inactive')", [characterId, revolver]);
   for (let i = 0; i < 65; i++) {
     const skill = (await pool.query("insert into skill(name,classification,tier,primary_attribute,definition) values($1,'standard',1,'WIS','Disposable overflow fixture') returning id", [`Navigation route ${String(i + 1).padStart(2, "0")}`])).rows[0].id;
     await pool.query("insert into campaign_character_skill_allocation(character_id,skill_id,points) values($1,$2,4)", [characterId, skill]);
@@ -37,7 +46,8 @@ export async function rehearseSpreadsheetPrinting(pool: pg.Pool, login: (id: str
     return (await pool.query(`select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) value from "${table}" r`)).rows[0].value;
   }));
   const before = await snapshot();
-  const out = path.resolve("artifacts/character-spreadsheet-print");
+  const out = path.resolve(process.env.SERRIAN_SPREADSHEET_PRINT_ARTIFACTS ?? "artifacts/character-spreadsheet-print/legal-correction");
+  assert.ok(out.startsWith(path.resolve("artifacts/character-spreadsheet-print") + path.sep));
   await mkdir(out, { recursive: true });
   const page = await login("sheet-player");
   await page.addInitScript(() => { Object.defineProperty(window, "__nativeSpreadsheetPrint", { value: window.print.bind(window) }); window.print = () => { document.documentElement.dataset.spreadsheetPrintCalls = String(Number(document.documentElement.dataset.spreadsheetPrintCalls ?? "0") + 1); }; });
@@ -60,6 +70,16 @@ export async function rehearseSpreadsheetPrinting(pool: pg.Pool, login: (id: str
   assert.ok((await root.locator(".spreadsheet-information").allTextContents()).join("").includes("Navigation route 65"));
   assert.ok((await root.locator('[data-spreadsheet-cell="A10"]').first().textContent())!.includes("compass tattoo"));
   assert.equal(await root.getByRole("img", { name: "Body Shot Bob — hit locations", includeHidden: true }).count(), 1);
+  assert.ok((await root.locator('[data-spreadsheet-section="Sheet front filled"] [data-sheet-information]').textContent())!.includes("Steady Resolve"));
+  assert.doesNotMatch((await root.allTextContents()).join(""), /ammunition state not initialized/i);
+  for (const back of SPREADSHEET_SHEETS.slice(1)) assert.ok(!(await root.locator(`[data-spreadsheet-section="${back}"] [data-sheet-information]`).textContent())!.includes("Steady Resolve"));
+  const geometry = await root.locator(".spreadsheet-canvas").evaluateAll(canvases => canvases.map(canvas => {
+    const rect = canvas.getBoundingClientRect();
+    const cell = canvas.querySelector<HTMLElement>("[data-spreadsheet-cell]")!;
+    const style = getComputedStyle(cell);
+    return { width: rect.width, height: rect.height, rule: style.borderRightColor, ruleWidth: style.borderRightWidth, ruleStyle: style.borderRightStyle };
+  }));
+  for (const frame of geometry) { assert.ok(Math.abs(frame.width - 748.8) < 1); assert.ok(Math.abs(frame.height - 1248.53) < 1); assert.equal(frame.ruleStyle, "solid"); assert.equal(frame.rule, "rgb(0, 0, 0)"); assert.ok(parseFloat(frame.ruleWidth) >= .5); }
   await page.emulateMedia({ media: "print" });
   await writeFile(path.join(out, "print-layout.json"), JSON.stringify(await page.evaluate(() => {
     const root = document.querySelector(".spreadsheet-character-sheet")!;

@@ -12,6 +12,7 @@ const leaf = (name: string) => name.split(" → ").at(-1)!.trim();
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 const number = (value: number | null | undefined) => value == null ? "—" : paperNumber(value);
 const shortText = (value: string) => value.length <= 120 ? value : value.slice(0, 117).replace(/\s+\S*$/, "") + "…";
+const inventoryStatus = (value: string) => value.split(/;\s*/).filter(part => !/^ammunition state not initialized\b/i.test(part.trim())).join("; ");
 const skillText = (skill: Skill) => `${leaf(skill.name)} | ${number(skill.points)} / ${number(skill.rank)} / ${skill.hasRoll ? `${number(skill.target)}%` : "—"}`;
 const slots = (first: number, last: number, columns = ["A", "E"]) => columns.flatMap(col => Array.from({ length: last - first + 1 }, (_, i) => `${col}${first + i}`));
 
@@ -45,8 +46,10 @@ export function buildSpreadsheetCharacterPages(data: PaperCharacterData, request
         matches.forEach(skill => { used.add(skill.id); extra(`${name} — distinct saved paths`, `${skill.system ?? "Skill"}: ${skillText(skill)}`); });
       }
     };
-    const inventory = () => ["Inventory", ...data.inventory.map(item => `${item.name} ×${number(item.quantity)}${item.status ? `; ${item.status}` : ""}`),
-      ...data.abilities.map(ability => `Derived: ${ability.name}`)].join("\n");
+    const inventory = () => ["Inventory", ...data.inventory.map(item => {
+      const status = inventoryStatus(item.status);
+      return `${item.name} ×${number(item.quantity)}${status ? `; ${status}` : ""}`;
+    })].join("\n");
     if (title === "Sheet front filled") {
       const p = data.spreadsheet.profile;
       const total = (name: string) => data.totals.find(row => row.name === name)?.value;
@@ -57,7 +60,8 @@ export function buildSpreadsheetCharacterPages(data: PaperCharacterData, request
         I13: data.initiative, I17: data.movement[0]?.value, K13: data.currency.map(row => `${number(row.quantity)} ${row.name}`).join("; "),
         K14: total("Quintessence"), K15: "Saved", K16: total("Fate"),
         F13: data.health.total.maximumHp, G13: data.health.total.remainingHp,
-        A35: [...(data.spreadsheet.effects ?? data.effects), ...(data.spreadsheet.protectionNotes ?? [])].join("\n"),
+        A35: [...(data.spreadsheet.effects ?? data.effects), ...(data.spreadsheet.protectionNotes ?? []),
+          ...(data.abilities.length ? ["Derived Abilities", ...data.abilities.map(ability => ability.name)] : [])].join("\n"),
         I35: data.health.anatomy.hitLocations.map(hit => `${hit.result} — ${hit.name}`).join("\n"),
         A50: data.quickRolls.map(skill => `${leaf(skill.name)} ${number(skill.target)}%`).join("\n"),
       };

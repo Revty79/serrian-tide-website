@@ -38,11 +38,18 @@ export async function inspectNativeSpreadsheetPreview(page: Page, output: string
     await writeFile(path.join(output, "native-print-preview.json"), JSON.stringify(result, null, 2));
     const shot = await command("Page.captureScreenshot", { format: "png" });
     await writeFile(path.join(output, "native-print-preview.png"), Buffer.from(shot.data as string, "base64"));
-    const selected = await command("Runtime.evaluate", { expression: `(() => { let paper; function visit(root) { for (const element of root.children || []) { if (element.shadowRoot) visit(element.shadowRoot); if (element.localName === 'select') { const option = [...element.options].find(option => option.text === '8 x 10 in'); if (option) paper = { element, option }; } visit(element); } } visit(document.body); if (!paper) return false; paper.element.value = paper.option.value; paper.element.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`, returnByValue: true });
-    await writeFile(path.join(output, "native-8x10-selection.json"), JSON.stringify(selected, null, 2));
+    const selected = await command("Runtime.evaluate", { expression: `(() => { let paper; function visit(root) { for (const element of root.children || []) { if (element.shadowRoot) visit(element.shadowRoot); if (element.localName === 'select') { const option = [...element.options].find(option => { try { const size = JSON.parse(option.value); return size.width_microns === 215900 && size.height_microns === 355600; } catch { return false; } }); if (option) paper = { element, option }; } visit(element); } } visit(document.body); if (!paper) return false; paper.element.value = paper.option.value; paper.element.dispatchEvent(new Event('change', {bubbles:true})); return true; })()`, returnByValue: true });
+    assert.equal((selected.result as { value: boolean }).value, true, "The printer must offer US Legal paper");
+    await writeFile(path.join(output, "native-legal-selection.json"), JSON.stringify(selected, null, 2));
     await new Promise(resolve => setTimeout(resolve, 1500));
+    const legalState = await command("Runtime.evaluate", { expression: `(() => { let summary = '', paper; function visit(root) { for (const element of root.children || []) { if (element.shadowRoot) visit(element.shadowRoot); if (element.localName === 'select') { try { const value = JSON.parse(element.value); if (value.width_microns && value.height_microns) paper = value; } catch {} } const text = element.textContent.trim(); if (!element.children.length && /^\\d+ sheets? of paper$/.test(text)) summary = text; visit(element); } } visit(document.body); return {summary,paper}; })()`, returnByValue: true });
+    const legalValue = (legalState.result as { value: { summary: string; paper: { width_microns: number; height_microns: number } } }).value;
+    assert.equal(legalValue.paper.width_microns, 215900);
+    assert.equal(legalValue.paper.height_microns, 355600);
+    assert.equal(legalValue.summary, "2 sheets of paper");
+    await writeFile(path.join(output, "native-legal-receipt.json"), JSON.stringify(legalValue, null, 2));
     const sizedShot = await command("Page.captureScreenshot", { format: "png" });
-    await writeFile(path.join(output, "native-print-preview-8x10.png"), Buffer.from(sizedShot.data as string, "base64"));
+    await writeFile(path.join(output, "native-print-preview-legal.png"), Buffer.from(sizedShot.data as string, "base64"));
   } finally {
     await command("Runtime.evaluate", { expression: `(() => { let cancel; function visit(root) { for (const element of root.children || []) { if (element.shadowRoot) visit(element.shadowRoot); if (element.localName === 'cr-button' && element.textContent.trim() === 'Cancel') cancel = element; visit(element); } } visit(document.body); if (cancel) setTimeout(() => cancel.click(), 10); return !!cancel; })()`, returnByValue: true });
     await Promise.race([pending.catch(() => undefined), new Promise(resolve => setTimeout(resolve, 1500))]);

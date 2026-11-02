@@ -8,8 +8,8 @@ import "./spreadsheet-character-sheet.css";
 
 export type SpreadsheetPrintHandle = { prepare: () => Promise<void> };
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
-const PAGE_WIDTH = 525.6; // 8 × 10 inches with printer-safe side margins.
-const CONTENT_HEIGHT = 644.4; // Reserve the bottom 18pt for the page identifier.
+const PAGE_WIDTH = 561.6; // US Legal with 0.35-inch side margins.
+const CONTENT_HEIGHT = 936.4; // Fill its 13.2-inch printable height, reserving 14pt for the identifier.
 const informationCell = (title: SpreadsheetSheet) => title === "Sheet front filled" ? "A35" : title === "Skills Back" ? "A40" : title === "Special Abilities Back" ? "A29" : title === "Psyonics Back" || title === "Bardic Resonance Back" ? "A39" : "A38";
 
 /** Use the sheet's own open space for full values and additional records. */
@@ -56,7 +56,7 @@ export function fitSpreadsheetCells(root: HTMLElement) {
     if (!fits()) { block.style.lineHeight = "1"; block.style.letterSpacing = "-.1pt"; }
     if (!fits()) {
       root.ownerDocument.documentElement.dataset.spreadsheetLayoutError = JSON.stringify({ sheet: page.dataset.spreadsheetSection, columns, entries: entries.length, height: block.scrollHeight, available: information.clientHeight - 4, width: block.scrollWidth, availableWidth: information.clientWidth - 4, font: getComputedStyle(block.firstElementChild!).fontSize, lineHeight: getComputedStyle(block.firstElementChild!).lineHeight, texts: entries });
-      throw new Error("The information on this sheet needs a more compact layout before it can print legibly on one 8 × 10 page.");
+      throw new Error("The information on this sheet needs a more compact layout before it can print legibly on one Legal page.");
     }
   }
 }
@@ -73,11 +73,13 @@ export function SpreadsheetCharacterSheet({ data, sheets, preview = false, ref }
   useImperativeHandle(ref, () => ({ prepare }), [prepare]);
   useEffect(() => { let active = true; void document.fonts.load('36px "Spreadsheet Lobster"').then(() => { if (active && root.current) fitSpreadsheetCells(root.current); }).catch(() => { /* The Print button reports failures and supports retry. */ }); return () => { active = false; }; }, [pages]);
   return <div className={"spreadsheet-preview-window" + (preview ? " is-preview" : "")}>
-    <style>{"@page { size: 8in 10in; margin: .4in .35in; }"}</style>
-    <div ref={root} className="spreadsheet-character-sheet" style={spreadsheetCharacterTemplate.paper} aria-label="Spreadsheet Character Sheets" aria-hidden={!preview} data-character-id={data.characterId}>
+    <style>{"@page { size: legal portrait; margin: .4in .35in; }"}</style>
+    <div ref={root} className="spreadsheet-character-sheet" style={{ ...spreadsheetCharacterTemplate.paper, "--spreadsheet-rule": spreadsheetCharacterTemplate.paper.color } as CSSProperties} aria-label="Spreadsheet Character Sheets" aria-hidden={!preview} data-character-id={data.characterId}>
       {pages.map(page => {
         const layout = spreadsheetCharacterTemplate.sheets.find(sheet => sheet.title === page.title)!;
-        const scale = Math.min(PAGE_WIDTH / sum(layout.widths), CONTENT_HEIGHT / sum(layout.heights));
+        const scaleX = PAGE_WIDTH / sum(layout.widths);
+        const scaleY = CONTENT_HEIGHT / sum(layout.heights);
+        const fontScale = Math.min(1, scaleX * 1.07);
         const freeCell = informationCell(page.title);
         const covered = new Set<string>();
         const merges = new Map(layout.merges.map(merge => {
@@ -94,17 +96,17 @@ export function SpreadsheetCharacterSheet({ data, sheets, preview = false, ref }
               const [row, col] = spreadsheetCellPosition(address), merge = merges.get(address);
               const { vertical, wrap, fontFamily, fontSize, ...appearance } = spreadsheetCharacterTemplate.styles[String(cell[0]) as keyof typeof spreadsheetCharacterTemplate.styles];
               const value = page.values[address] ?? String(cell[1]);
-              const top = sum(layout.heights.slice(0, row)) * scale;
+              const top = sum(layout.heights.slice(0, row)) * scaleY;
               const isInformation = address === freeCell, isBob = page.title === "Sheet front filled" && address === "I35";
-              const scaledAppearance = Object.fromEntries(Object.entries(appearance).map(([key, value]) => [key, key.startsWith("border") && typeof value === "string" ? value.replace(/^([\d.]+)pt/, (_, weight) => Number(weight) * scale + "pt") : value]));
-              const cellStyle = { ...scaledAppearance, fontFamily: fontFamily === "Lobster" ? '"Spreadsheet Lobster", cursive' : "Arial, sans-serif", fontSize: fontSize * scale + "pt",
-                left: sum(layout.widths.slice(0, col)) * scale + "pt", top: top + "pt",
-                width: sum(layout.widths.slice(col, (merge?.ec ?? col) + 1)) * scale + "pt",
-                height: (isInformation && page.title !== "Sheet front filled" ? CONTENT_HEIGHT - top : sum(layout.heights.slice(row, (merge?.er ?? row) + 1)) * scale) + "pt",
+              const cellAppearance = Object.fromEntries(Object.entries(appearance).filter(([key]) => !key.startsWith("border")));
+              const cellStyle = { ...cellAppearance, fontFamily: fontFamily === "Lobster" ? '"Spreadsheet Lobster", cursive' : "Arial, sans-serif", fontSize: fontSize * fontScale + "pt",
+                left: sum(layout.widths.slice(0, col)) * scaleX + "pt", top: top + "pt",
+                width: sum(layout.widths.slice(col, (merge?.ec ?? col) + 1)) * scaleX + "pt",
+                height: (isInformation && page.title !== "Sheet front filled" ? CONTENT_HEIGHT - top : sum(layout.heights.slice(row, (merge?.er ?? row) + 1)) * scaleY) + "pt",
                 alignItems: isInformation || isBob || vertical === "top" ? "flex-start" : vertical === "center" ? "center" : "flex-end", whiteSpace: wrap ? "pre-wrap" : "pre",
                 ...(isBob ? { "--spreadsheet-paper": spreadsheetCharacterTemplate.styles["94"].backgroundColor } : {}), } as CSSProperties;
               const label = address === "A10" ? "Defining marks" : page.values["A" + (row + 1)] || page.values["E" + (row + 1)] || "Additional information";
-              return <div key={address} className={"spreadsheet-cell" + (isInformation ? " spreadsheet-information" : "") + (isBob ? " spreadsheet-bob" : "")} style={cellStyle} data-spreadsheet-cell={address} data-full-text={value} data-font-size={fontSize * scale} data-fixed-label={page.values[address] === undefined && value ? "true" : undefined} data-sheet-information={isInformation ? "true" : undefined} data-body-shot-bob={isBob ? "true" : undefined} data-entries={isInformation ? JSON.stringify(entries) : undefined} data-field-label={label}>
+              return <div key={address} className={"spreadsheet-cell" + (isInformation ? " spreadsheet-information" : "") + (isBob ? " spreadsheet-bob" : "")} style={cellStyle} data-spreadsheet-cell={address} data-full-text={value} data-font-size={fontSize * fontScale} data-fixed-label={page.values[address] === undefined && value ? "true" : undefined} data-sheet-information={isInformation ? "true" : undefined} data-body-shot-bob={isBob ? "true" : undefined} data-entries={isInformation ? JSON.stringify(entries) : undefined} data-field-label={label}>
                 {isBob ? <><figure><CharacterHitLocationSilhouette title="Body Shot Bob — hit locations" /><figcaption>{data.health.anatomy.kind === "humanoid" ? "Body Shot Bob" : "Body Shot Bob · humanoid reference"}</figcaption></figure><div className="spreadsheet-hit-key">{data.health.anatomy.hitLocations.map(hit => <p key={hit.result}>{hit.result} — {hit.name}</p>)}</div></> : isInformation ? <div className="spreadsheet-information-text" /> : <span>{value}</span>}
               </div>;
             })}
