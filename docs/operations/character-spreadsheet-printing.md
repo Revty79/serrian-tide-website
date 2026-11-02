@@ -1,6 +1,16 @@
 # Original spreadsheet Character printing
 
-## Current release: original front layout, Letter only
+## Current follow-up: currency-only Resources and authored weapon range
+
+Application commit: `4806ab9de331cb8bf36bd5e342995dea6a10d7eb`, from accepted Letter-layout publication `d4b4a7d4795fbbc6f59160546338196da0ebdb68`. The owner accepts the layout and asks to remove duplicate Fate/Quintessence from Resources and correct the weapon-block Range display.
+
+Resources now contains currency only; Fate and Quintessence remain in the top profile/progression rows. The range defect was in the saved-record projection: it read only legacy `range_text` / `reach_text`, ignoring structured Reach and Short/Medium/Long limits and their explicit unit. The reader now supplies full range labels for existing detailed print choices and compact `S/M/L` text for the tabletop weapon cell. Authored mode controls which limits apply. Legacy descriptions remain a fallback, while missing bands/units remain visibly missing. No distances, units, combat rules or catalog records are inferred or changed.
+
+Current local checks: 10/10 focused PDF/range regressions, existing 14 owned-disposable action checks, headed saved-character/all-eight/individual/unsaved-edit/failure-retry/responsive journeys, actual eight-page and two-page Letter PDFs, structured range text in the exported weapon block, absence of Fate/Quintessence in the Resources rectangle, TypeScript and lint pass (one existing warning). The end-to-end fixture deliberately stores Short 25 / Medium 50 / Long 100 feet with empty legacy text. Native full-size Letter preview remains complete at 97.22% measured form-to-paper width. Evidence is ignored under `artifacts/character-spreadsheet-print/range-correction/`.
+
+The full-suite/build receipts below describe the accepted Letter baseline; GitHub validates this published follow-up separately. No migration, shared target, deployment, owner-service restart or Atlas change occurred. Existing Letter geometry, margins, handwritten tracking, Bob and print workflow stay unchanged. Main publication remains authorized.
+
+## Accepted Letter layout baseline
 
 Application commit: `6cdaffa31abf00c7fa61e25af02947ab96ef663b`, based on `052acc0a213d46fd0b7df5f33a8e6d6394b1a7a6`. On 2026-11-02 the owner clarified **Letter only**, minimum practical margins, the original design, separate Initiative, blank handwritten HP/mana tracking, numeric weapon modifiers and no large embedded builder preview. Commit/main sync remains authorized; Atlas stays paused.
 
