@@ -1,6 +1,30 @@
 # Original spreadsheet Character printing
 
-## Current follow-up: currency-only Resources and authored weapon range
+## Current: styled Paper Character Sheet for table play
+
+Application commit: `7d710cc80fd483636f32b42e96568c3b2f8e343b`, based on accepted currency/range publication `790661b53a182e20a38d2a4c61c5852b599f13b4`. On 2026-11-02 the owner requested the approved compact layout with the existing selectable Paper styles, and reiterated that it must contain only the information needed at the table. Commit and origin/main sync are authorized; Atlas remains paused.
+
+**Paper Character Sheet** now uses the same front and seven independent backs as Tabletop PDF Sheets, with Universal, Fantasy, Modern, Apocalyptic, Western, Science Fiction, Horror and Plain styling and standard/genre headings. Existing local masthead artwork, print palettes and embedded Noto Serif headings supply the appearance. All styles retain Letter-only pages, 9-point margins, original section geometry, visible rules, Body Shot Bob, blank Damage/Spent cells, separate Initiative, currency-only Resources and concise skill/range/modifier labels. The original yellow Tabletop PDF remains available and pixel-identical.
+
+These are playable table sheets. Styling adds no definitions, construction documents or full mechanical breakdowns. Books, detailed references and optional Form pages remain under Custom Print and the full-record presets. Print / Save as PDF opens the finished file when requested; there is no large embedded preview. Changing pages, style or headings retires stale output. Missing artwork or fonts reports a retryable error. Printing retains the saved-record confirmation and preserves unsaved editor changes.
+
+| Check | Actual result |
+| --- | --- |
+| Full feature suite | 2,641/2,641 pass across 328 files |
+| All eight themes | Each crowded eight-page packet is Letter; all projected text is present and in bounds, fonts are embedded, and non-title placements/section geometry match the original exactly |
+| Existing original appearance | All eight regular pages render pixel-identically to the accepted currency/range sample |
+| Headed Chrome and owned disposable actions | Existing 14 action checks plus all-eight/individual PDF selection, eight themed front/back downloads, missing font/artwork retry, stale output retirement, original/Custom switching, saved-record/unsaved-draft protection, desktop/tablet/phone controls and unchanged database fingerprints pass |
+| Actual browser PDFs | All eight themed front/back files have the same table text and positions as the original; no full reference prose or unsaved name appears |
+| Native ET-2800 preview | Complete styled front at full-size Letter; two sheets for the selected front/back, with Bob, bottom rolls and small margins visible |
+| TypeScript / ESLint / isolated production | Pass; zero lint errors and one pre-existing unused `LoreFamily` warning |
+
+The initial standard-font heading experiment failed the external text-bound check and was corrected with embedded Noto Serif before final PDF/browser verification. Existing failed and historical receipts remain retained. The detailed-reference review helpers now select Custom Print; the dedicated styled-PDF browser journey verifies the compact Paper option. The full historical detailed-reference browser journey was not rerun in this pass. No physical print job or owner acceptance is claimed.
+
+Production build: `SNIU9Hm3ZxHFySfMroGra`. All 1,822 files under `src/` and `public/` match the isolated build source; manifest SHA-256 `1dc139348c71667e766f29c7c96b5b209abab9eebe045d4b2bdd3d3af8fc0e00`. Final ignored evidence is under `artifacts/character-spreadsheet-print/paper-styles/`: `units.log`, `typecheck.log`, `lint.log`, `production-build.log`, `browser.log`, `pdf-receipt.json`, `source-parity.json`, themed PDFs/renders and `native-pdf-letter.png`.
+
+All test writes used newly owned disposable targets; the isolated production build used an unreachable dummy database. No migration, shared DEV/Production access, deployment, owner-service restart or Atlas source change occurred. The unrelated local Atlas report edit remains untouched. Recovery is a code rollback; no data rollback is required.
+
+## Accepted follow-up: currency-only Resources and authored weapon range
 
 Application commit: `4806ab9de331cb8bf36bd5e342995dea6a10d7eb`, from accepted Letter-layout publication `d4b4a7d4795fbbc6f59160546338196da0ebdb68`. The owner accepts the layout and asks to remove duplicate Fate/Quintessence from Resources and correct the weapon-block Range display.
 
