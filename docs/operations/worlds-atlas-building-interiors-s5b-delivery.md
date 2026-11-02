@@ -87,3 +87,38 @@ Fresh replay, populated upgrade through 0152 and paired SQL/private-storage rest
 Retained failed/partial evidence includes the old-ledger harness assertion, a Town-fixture creation sequence, the CommonJS restore-reader wrapper, an invalid dependency junction, the stale Create/Open label, the tablet palette widening its header, and the **391.4-pixel phone placement failure**. A phone bounding-box-only check was insufficient; visual review found and corrected the clipped Create action. Two root unit runs exposed stale lifecycle inventory counts, corrected alongside the new author-history blocker. A restricted-process disposable start and early chunked-upload transport observations are retained separately. CPU attempt 1 stopped before measurements because the older harness rejected the new evidence prefix; its sole correction admits `interiors-s5b-` while retaining target guards and thresholds. Attempt 2 passes. No canvas, CPU, permission or payload gate was relaxed. Earlier development/rehearsal receipts and failed production aggregates are not represented as one uninterrupted passing run.
 
 No shared database operation, deployment, owner-service restart, destructive cleanup/GC, commercial redesign or Stage 5C occurred. Normal main publication is authorized. Stop after publication for owner review.
+
+
+## Final recovery and data-protection correction (2026-11-01)
+
+This correction continues from `1c78ca14ee2f0d718ef08e83c7257e4ad38e82fa`. It supersedes the earlier recovery/arrival behavior and runtime references above; the original receipts remain historical evidence.
+
+- **Complete floor recovery:** another-tab comparison includes name, order, elevation and the complete design, including layers and appearance. Metadata-only edits remain recoverable. After an explicit recovery and acknowledged save, an unchanged original packet is retired; a newer other-tab packet is preserved byte-for-byte.
+- **Unaccepted creation:** names, floor position, mode, generated room count, preview/revise choice, copied-source identity/revision and exact preview geometry/IDs persist before submission. Duplicate Floor retains its initial copy choice too. Reopening offers explicit Recover / Export / Discard. Invalid raw recovery remains available for export. Both the creation editor and the existing Town unload guard protect unfinished interior work.
+- **Uncertain creation:** recovering an already-submitted request locks its original payload and request ID. An accepted request with a lost acknowledgement survives interruption and a new tab, then retries exactly once. It cannot be replaced by changing the preview.
+- **Arrival protection:** reusing compatible stairs changes only their destination. Existing identity/entity identity, name, symbol, size, rotation, point and appearance remain intact. The source arrives at the retained object's actual position. Ambiguous overlapping arrivals, incompatible symbols and conflicting destinations produce a clear 409 without changing either floor.
+
+The final two-floor browser test saves a customized arrival through the active authenticated API, reloads it, then connects through visible editor controls and verifies save/reload/navigation. The retained example keeps its name, 2.4 m × 4 m dimensions, 90° rotation, symbol and both identities. Existing canvas editing, geometry validation and styling remain unchanged.
+
+**Validation:** 2,629 unit tests in 325 files pass, including 16 focused interior/recovery cases. Standalone TypeScript, production compilation/types and lint on all affected files pass. The single final-source production receipt `artifacts/interiors-s5b-correction-production-5` passes:
+
+- Owned missing-schema, fresh/populated upgrade, exact retry/conflict/capacity/permissions and paired backup/restore with fresh actual service reads.
+- Interior journeys A–E and the new metadata-only interruption/new-tab save, immediately interrupted copy, generated preview recovery, explicit discard, real Chrome unload dialog, lost accepted creation acknowledgement/exact retry and incompatible-arrival atomic rejection.
+- Desktop/tablet/phone/expanded native input, 400 px minimum drawing gate, visible floor/save/return/create actions, wheel/trackpad cursor anchoring, page/panel scroll and touch cancellation.
+- Inherited Town manual/creative editing, permanent Shop links, lost-ack recovery, Pending Work, World/region/Town switching, native layouts and village/town/city CPU limits.
+
+The final source snapshot is `b18f00fcb7c1abc09ee2810284249debd19574184a17cbfd353d6fc8ac41f812`, runtime manifest `67b588197486923d95326813833cd755f7d7f7dad8df6443cbeb5fb729e26c9b`, build `jFEPsMVcm_jCef44J_yQg`. Exact receipts include `interior-final-corrections.json`, `interior-custom-arrival.json`, `interior-devices-wheel.json`, `interior-performance.json`, `town-performance.json` and `browser-results.json`. The recovered-preview capture was personally inspected.
+
+| Furnished floor | Objects / total features | Payload | Open | Ten keys | Draw |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Home | 40 / 46 | 14,206 B | 1,226.2 ms | 59.6 ms | 0.6 ms |
+| Inn | 320 / 326 | 92,655 B | 1,115.5 ms | 84.9 ms | 1.1 ms |
+| Dense stress | 1,600 / 1,606 | 449,881 B | 1,163.4 ms | 191.6 ms | 4.9 ms |
+
+Original 15,000 / 1,500 / 100 ms gates remain unchanged. Town village/town/city draw times are 1.7 / 5.5 / 23.9 ms; ten-key times are 198.7 / 378.8 / 688.8 ms. The earlier 36-limit World matrix above remains retained evidence, not a newly rerun matrix. World/Town canvas, artwork, viewport input, geometry, terrain and gameplay sources are exact; only the Town interior-unload guard changes outside the interior modules.
+
+All 1,822 task application/asset files match the tested build. All 306 SQL/snapshots and 153 journal entries, including migration 0152, remain frozen. The original 125 private files / 265,748 bytes remain exact. No new migration is required. A dedicated publication checkout excludes concurrently arriving character-spreadsheet files and changes; those shared-workspace edits are preserved and excluded from this delivery.
+
+Failed/partial correction receipts remain retained: an unavailable test dimension field, native setup attempts rejected by the existing precision guard, and the device run that exposed stale acknowledged recovery packets. The final run fixes the latter without weakening the guards. Source checks use the historical raw-byte registry where Windows line endings differ from canonical Git blobs. Final runtime, database and browser coverage is one successful correction run; root checks and source proof are separate receipts. Owner usability/artistic acceptance and physical-device certification remain separate.
+
+Publication and source proof are retained under `artifacts/interiors-s5b-correction-workbench/`. No shared database access, deployment, owner-server restart, destructive cleanup or Stage 5C occurred. Stop for owner review.
