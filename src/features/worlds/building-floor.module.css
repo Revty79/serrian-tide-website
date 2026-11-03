@@ -9,3 +9,6 @@
 .floorCreate{display:flex;flex-direction:column;overflow:hidden}.createFields{min-height:0;overflow:auto;overscroll-behavior:contain}.floorCreate>.createActions{flex-shrink:0;margin-bottom:0;padding-top:.4rem;border-top:1px solid var(--st-border)}.floorCreate>p[role=alert]{flex-shrink:0;max-height:5rem;overflow:auto}
 
 .expanded{width:100%;max-width:none;margin:0;padding:0;height:var(--town-height,100dvh)}
+.manipulation{display:flex;align-items:center;gap:.4rem;overflow:auto;max-width:100%;scrollbar-width:thin}.manipulation>*{flex-shrink:0}.manipulation label{display:flex;align-items:center;gap:.25rem;white-space:nowrap}.manipulation input{width:5rem;min-height:40px}.manipulation button{min-height:40px}.manipulation input,.manipulation button{font-size:.75rem}
+.gestureInfo{position:absolute;top:.4rem;left:.4rem;max-width:calc(100% - .8rem);padding:.3rem .5rem;border:1px solid var(--st-border-strong);border-radius:.3rem;background:var(--st-surface);color:var(--st-text);font-size:.75rem;pointer-events:none;z-index:1}
+@media(max-width:700px){.manipulation input,.manipulation button{min-height:44px}}
