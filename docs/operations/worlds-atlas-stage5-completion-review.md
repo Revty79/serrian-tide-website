@@ -52,4 +52,6 @@ Failed/partial receipts remain under `artifacts/underground-s5c-review-*`, inclu
 
 ## Publication
 
-Local validation is complete. Publication is authorized to origin/main. The application commit and GitHub Actions receipt will be appended after publication; stop for owner review afterward.
+Application commit **`0afe0123013eae336f0a0f6629c69f1d563dac96`** is published to origin/main. [GitHub validation 41575057342](https://github.com/Revty79/serrian-tide-website/actions/runs/41575057342) passed: TypeScript, ESLint, units and portable raster provisioning regressions. Local main/remote parity and a clean tree were verified after application publication. This subsequent documentation-only receipt changes AGENTS.md and this report; application/data/assets remain exact to the validated application commit.
+
+Stop for owner review. No Stage 6, shared release operation, final export/printing or Tabletop work is authorized by this publication.
