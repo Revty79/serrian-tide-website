@@ -3,7 +3,7 @@ type Panel="Tool"|"Measure"|"Terrain detail"|"Water"|"World"|"Climate & Biomes"|
 /** Navigate through public workspace controls, retaining exact accepted-baseline support. */
 export async function terrainPanel(p:Page|Locator,name:Panel){
  const tab=p.getByRole("tab",{name,exact:true}),options=p.getByRole("button",{name:"Options",exact:true});
- if(await options.isVisible()){if(await options.getAttribute("aria-expanded")==="false")await options.click();const menu=p.getByText("All map options",{exact:true});await menu.waitFor();if(!await menu.evaluate(e=>(e.parentElement as HTMLDetailsElement).open))await menu.click();await tab.click();return;}
+ if(await options.isVisible()){if(await options.getAttribute("aria-expanded")==="false")await options.click();const menu=p.getByText("All map options",{exact:true});await menu.waitFor();if(!await menu.evaluate(e=>(e.parentElement as HTMLDetailsElement).open))await menu.click();await tab.click();if(name==="Water"){const details=p.locator("details[data-water-tools]");if(await details.count()&&!await details.evaluate(e=>(e as HTMLDetailsElement).open))await details.locator("summary").first().click();}return;}
  const opener=p.getByRole("button",{name:/^(Show settings|Advanced settings)$/});await opener.or(tab).first().waitFor({state:"visible"});if(!await tab.isVisible())await opener.first().click();await tab.click();
 }
 const toolButtons:Record<string,string>={raise:"Raise mountains",lower:"Lower / carve valleys",smooth:"Smooth",level:"Flatten",sample:"Sample height","coast-land":"Extend land","coast-water":"Carve a bay","coast-smooth":"Smooth shoreline",pan:"Pan",inspect:"Inspect",measure:"Measure",locations:"Towns & settlements",artwork:"Artwork",labels:"Labels & map layout"};
