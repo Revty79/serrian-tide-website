@@ -1,6 +1,6 @@
 import "server-only";
 import {createHash,randomUUID} from "node:crypto";
-import {isDeepStrictEqual} from "node:util";
+import {assertUndergroundLayerChanges} from "./underground-guards";
 import {and,asc,desc,eq,sql} from "drizzle-orm";
 import {z} from "zod";
 import {db} from "@/db";
@@ -11,7 +11,7 @@ import {worldGeography,worldAtlasMap} from "@/db/world-atlas-schema";
 import {regionAreaContainsPoint,type RegionFootprint} from "./terrain-region-geometry";
 import {WorldError,worldReadAccess,worldWriteTransaction} from "./world-service";
 import {boundedRegionalLayer} from "./terrain-regional-authoring-service";
-import {UNDERGROUND_LIMITS,undergroundCommandSchema,undergroundDesignSchema,undergroundMapSchema,redactUnderground,validateUnderground,undergroundLayer,sameUndergroundMap,type UndergroundEndpoint,type UndergroundMap,type UndergroundBundle,type UndergroundConnection} from "./underground";
+import {UNDERGROUND_LIMITS,undergroundCommandSchema,undergroundDesignSchema,undergroundMapSchema,redactUnderground,validateUnderground,sameUndergroundMap,type UndergroundEndpoint,type UndergroundMap,type UndergroundBundle,type UndergroundConnection} from "./underground";
 type Tx=Parameters<Parameters<typeof worldWriteTransaction>[2]>[0];
 const unavailable=()=>new WorldError("This underground location or entrance is unavailable in this World. Saved records are retained.",404);
 const conflict=()=>new WorldError("This map or connection changed in another tab. Your draft and original request are retained. Load the saved version to compare.",409);
@@ -113,8 +113,7 @@ export async function changeUnderground(userId:string,worldId:string,raw:unknown
     boundedRegionalLayer(()=>validateUnderground(c.design,site.frame));const [row]=await tx.insert(levels).values({id:c.requestId,worldId,siteId:site.id,name:c.name,order:c.order,depth:c.depth,design:c.design,revision:1}).returning();capture("level",row);result={...result,siteId:site.id,levelId:row.id};
    }else{
     if(c.action==="save"){
-     if(old!.archived)throw new WorldError("Restore this level before editing. Your draft is retained.",409);boundedRegionalLayer(()=>validateUnderground(c.design,site.frame));const incoming=new Map(c.design.features.map(f=>[f.id,f]));for(const f of old!.design.features){const next=incoming.get(f.id),l=undergroundLayer(f,old!.design);if(!next||next.kind!==f.kind||next.variant!==f.variant||next.entityId!==f.entityId)throw new WorldError("Retain saved object identities; archive unwanted objects instead.",400);const targetLayer=undergroundLayer(next,c.design);if(targetLayer!==l&&old!.design.layers[targetLayer].locked&&c.design.layers[targetLayer].locked)throw new WorldError("Unlock the destination layer before moving an object into it.",400);if(old!.design.layers[l].locked&&c.design.layers[l].locked&&(!isDeepStrictEqual(f,next)||!isDeepStrictEqual(old!.design.attributes[f.id],c.design.attributes[f.id])))throw new WorldError("Unlock this layer before changing its objects or information.",400);}
-     for(const f of c.design.features){const l=undergroundLayer(f,c.design);if(!old!.design.attributes[f.id]&&old!.design.layers[l].locked&&c.design.layers[l].locked)throw new WorldError("Unlock this layer before adding objects.",400);}if(old!.design.layers.ground.locked&&c.design.layers.ground.locked&&old!.design.flooring!==c.design.flooring)throw new WorldError("Unlock ground before changing its material.",400);
+     if(old!.archived)throw new WorldError("Restore this level before editing. Your draft is retained.",409);boundedRegionalLayer(()=>{validateUnderground(c.design,site.frame);assertUndergroundLayerChanges(old!.design,c.design);});const incoming=new Map(c.design.features.map(f=>[f.id,f]));for(const f of old!.design.features){const next=incoming.get(f.id);if(!next||next.kind!==f.kind||next.variant!==f.variant||next.entityId!==f.entityId)throw new WorldError("Retain saved object identities; archive unwanted objects instead.",400);}
     }
     const [row]=await tx.update(levels).set({revision:old!.revision+1,updatedAt:new Date(),...c.action==="save"?{name:c.name,order:c.order,depth:c.depth,design:c.design}:{archived:c.archived}}).where(eq(levels.id,old!.id)).returning();capture("level",row);result={...result,siteId:site.id,levelId:row.id,revision:row.revision};
    }

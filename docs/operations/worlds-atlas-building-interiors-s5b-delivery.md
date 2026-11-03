@@ -1,5 +1,7 @@
 # Atlas Stage 5B — building interiors and multi-floor maps
 
+The final recovery correction is recorded at the end of this report; earlier validation remains historical.
+
 Starting checkpoint: `89504d57fb4b19b699b8093a1b3e6784a80d4e19`. The owner's brief provisionally accepts Stage 5A. Stage 5B is technically verified through the separate final receipts below. It extends the active Town workspace without reactivating the retired Atlas. Owner usability/artistic review and physical-device certification remain separate.
 
 Implementation checkpoint: [`e8aba3cc7812a61ea95afd71dd17c19b789c7f4f`](https://github.com/Revty79/serrian-tide-website/commit/e8aba3cc7812a61ea95afd71dd17c19b789c7f4f). The following documentation-only checkpoint records delivery; the final main/remote/CI receipt is retained at `artifacts/interiors-s5b-workbench/publication.json`.
