@@ -110,4 +110,6 @@ The retained baseline `underground-s5c-water-navigation-before-1` reproduces two
 
 Technical screenshots/browser input do not establish owner first-time usability/artistic acceptance or physical-device certification. The existing progressive sculpt tile-replacement limitation above remains. Shared DEV/Production and their ledgers were not inspected or changed; no owner service/Docker restart, deployment, migration edit, cleanup, Tabletop rebuild or Stage 6 occurred.
 
-Publication is authorized and local verification is complete. The application commit and GitHub validation will be recorded below after normal origin/main publication. Stop for owner review; no shared release operation or later Atlas stage is authorized.
+Application commit **`2608f6d1e0ab3e3a99da67e05cd1f12973841132`** is published to origin/main. [GitHub validation 41672146559](https://github.com/Revty79/serrian-tide-website/actions/runs/41672146559) passed TypeScript, ESLint, the 2,712-unit suite and portable raster provisioning regressions. Local main/remote parity and a clean tree were verified after application publication. This documentation-only receipt changes AGENTS.md and this report; application/data/assets remain exact to the validated application commit.
+
+Stop for owner review. No shared release operation or later Atlas stage is authorized.
