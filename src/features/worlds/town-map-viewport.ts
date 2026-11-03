@@ -13,9 +13,9 @@ export function townWheelCamera(camera:{x:number;y:number;z:number},size:{w:numb
 }
 
 /** Fit the map below the settled sticky navigation, including phone keyboards. */
-export function useTownViewport(ref:RefObject<HTMLElement|null>,expanded=false) {
+export function useTownViewport(ref:RefObject<HTMLElement|null>,expanded=false,enabled=true) {
  useEffect(()=>{
-  const root=ref.current;if(!root)return;
+  const root=ref.current;if(!root||!enabled)return;
   let frame=0,active=true;
   const navigation=()=>expanded?0:Math.max(80,document.querySelector(".authenticated-navigation")?.getBoundingClientRect().bottom??96);
   const update=()=>{
@@ -34,5 +34,5 @@ export function useTownViewport(ref:RefObject<HTMLElement|null>,expanded=false) 
   frame=requestAnimationFrame(()=>align());
   window.addEventListener("resize",update);window.visualViewport?.addEventListener("resize",update);document.addEventListener("focusin",update);document.addEventListener("focusout",update);
   return()=>{active=false;cancelAnimationFrame(frame);if(expanded&&root.matches(":popover-open"))root.hidePopover();window.removeEventListener("resize",update);window.visualViewport?.removeEventListener("resize",update);document.removeEventListener("focusin",update);document.removeEventListener("focusout",update);};
- },[ref,expanded]);
+ },[ref,expanded,enabled]);
 }

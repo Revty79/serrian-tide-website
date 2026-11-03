@@ -35,4 +35,8 @@
 
 button:has(>.toolHelp){flex-direction:column;align-items:stretch;text-align:left}
 
+.interiorHost{min-height:max(570px,calc(100dvh - 150px))}
+.mapIdentityRow{display:flex;align-items:center;gap:.3rem;min-width:0}.currentMap{flex:1;min-width:0;text-align:left;justify-content:flex-start}.identity .returnLinks{display:flex;gap:.25rem;flex-shrink:0}.returnLinks button{min-height:44px;font-size:.75rem;white-space:nowrap;padding:.3rem .5rem}
+@media(max-width:700px){.workspace .currentMap{min-height:44px;font-size:.7rem;padding:.2rem .35rem}.returnLinks button{font-size:.65rem;padding:.2rem .35rem}.workspace .headerActions{grid-template-columns:repeat(5,minmax(0,1fr))}}
+
 @media(max-width:700px){.drawingHelp[data-touch-controls=true]>.objectHeading{display:contents}.drawingHelp[data-touch-controls=true]>.objectHeading>strong{grid-column:1;grid-row:1;font-size:.75rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.drawingHelp[data-touch-controls=true]:has(.objectHeading>span){grid-template-columns:minmax(0,1fr) 92px 78px}.drawingHelp[data-touch-controls=true]>.objectHeading>span{grid-column:2;grid-row:1 / span 2;display:flex;align-items:stretch}.drawingHelp[data-touch-controls=true]>.objectHeading button{width:92px;min-height:44px;white-space:normal;font-size:.65rem;line-height:1.15;padding:.2rem}.drawingHelp[data-touch-controls=true]:has(.objectHeading>span)>.phoneTouchButton{grid-column:3}}
