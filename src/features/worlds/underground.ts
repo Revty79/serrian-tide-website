@@ -1,3 +1,4 @@
+import {compositionSchema} from "./atlas-assets";
 import {z} from "zod";
 import {emptyFloor,floorDesignSchema,floorFrameSchema,validateFloor,copyFloor,retainFloor,floorLayer,roomFeatures,type FloorDesign,type FloorFeature,type FloorFrame} from "./building-floor";
 import {snapDungeonPoint,type DungeonGrid} from "./dungeon";
@@ -52,8 +53,8 @@ export const undergroundSettingsSchema=z.object({mode:z.enum(["blank","dungeon",
 export type UndergroundSettings=z.infer<typeof undergroundSettingsSchema>;
 export const defaultUndergroundSettings:UndergroundSettings={mode:"dungeon",size:80,complexity:8,density:.7,width:3,branching:.5,style:"stone",seed:"first-descent"};
 export const undergroundCommandSchema=z.discriminatedUnion("action",[
- z.object({action:z.literal("create-site"),requestId:id,placeId:id.nullable(),newPlace:z.object({name,parentId:id.nullable()}).strict().nullable(),frame:floorFrameSchema,...metadata,design:undergroundDesignSchema,entrance:undergroundEndpointSchema.nullable(),entranceRevision:revision.nullable()}).strict(),
- z.object({action:z.literal("create-level"),requestId:id,siteId:id,...metadata,design:undergroundDesignSchema,copyLevelId:id.nullable(),copyRevision:revision.nullable()}).strict(),
+ z.object({action:z.literal("create-site"),requestId:id,placeId:id.nullable(),newPlace:z.object({name,parentId:id.nullable()}).strict().nullable(),frame:floorFrameSchema,...metadata,design:undergroundDesignSchema,entrance:undergroundEndpointSchema.nullable(),entranceRevision:revision.nullable(),templateImages:compositionSchema.optional()}).strict(),
+ z.object({action:z.literal("create-level"),requestId:id,siteId:id,...metadata,design:undergroundDesignSchema,copyLevelId:id.nullable(),copyRevision:revision.nullable(),templateImages:compositionSchema.optional()}).strict(),
  z.object({action:z.literal("save"),requestId:id,levelId:id,revision,...metadata,design:undergroundDesignSchema}).strict(),
  z.object({action:z.literal("lifecycle"),requestId:id,kind:z.enum(["site","level","connection"]),id,revision,archived:z.boolean()}).strict(),
  z.object({action:z.literal("connect"),requestId:id,name,source:undergroundEndpointSchema,destination:undergroundEndpointSchema,sourceRevision:revision,destinationRevision:revision,twoWay:z.boolean()}).strict(),

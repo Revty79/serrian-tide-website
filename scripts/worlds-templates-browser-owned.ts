@@ -1,0 +1,16 @@
+/** New task-owned clone of a stopped Stage 6C fixture; never resumes or changes its source. */
+import assert from "node:assert/strict";
+import {execFileSync} from "node:child_process";
+import {access,cp,mkdir,mkdtemp,readFile,readdir,copyFile,writeFile} from "node:fs/promises";
+import path from "node:path";
+import {tmpdir} from "node:os";
+import pg from "pg";
+import {ownedFreePort,type RegionalFixture} from "./worlds-regional-editing-fixture";
+async function main(){
+ const source=path.resolve(process.env.SERRIAN_TEMPLATE_SOURCE_EVIDENCE??"artifacts/templates-s6c-production-3"),out=path.resolve(process.env.SERRIAN_REGIONAL_EDIT_EVIDENCE??"artifacts/templates-s6c-browser-5"),prefix=path.resolve("artifacts/templates-s6c-");assert.ok(source.startsWith(prefix)&&out.startsWith(prefix)&&source!==out);
+ const old=JSON.parse(await readFile(path.join(source,"environment.json"),"utf8")),url=new URL(old.databaseUrl),sourceRoot=path.resolve(old.root),sourceData=path.resolve(old.data);assert.equal(url.hostname,"127.0.0.1");assert.notEqual(url.port,"5432");assert.ok(sourceRoot.startsWith(path.join(path.dirname(sourceRoot),"serrian-regional-editing-")));assert.equal(sourceData,path.join(sourceRoot,"data"));assert.equal(await access(path.join(sourceData,"postmaster.pid")).then(()=>true,()=>false),false,"Clone only a stopped owned cluster");
+ await mkdir(path.join(out,"owned-temp"),{recursive:true});process.env.TEMP=path.join(out,"owned-temp");process.env.TMP=process.env.TEMP;const root=await mkdtemp(path.join(tmpdir(),"serrian-regional-editing-templates-")),data=path.join(root,"data"),terrainRoot=path.join(root,"terrain"),artwork=path.join(root,"private-artwork");await cp(sourceData,data,{recursive:true});await cp(old.terrainRoot,terrainRoot,{recursive:true});await cp(path.join(old.root,"private-artwork"),artwork,{recursive:true});for(const name of await readdir(source))if(name.endsWith(".json"))await copyFile(path.join(source,name),path.join(out,name));
+ const port=await ownedFreePort();url.port=String(port);const restore=new URL(old.restoredUrl);restore.port=String(port);const bin=process.env.SERRIAN_TEST_POSTGRES_BIN??"C:/Program Files/PostgreSQL/18/bin",runPostgres=(name:string,args:string[])=>{execFileSync(path.join(bin,name+".exe"),args,{windowsHide:true,stdio:"ignore"});};let started=false;const pool=new pg.Pool({connectionString:url.toString()});
+ try{runPostgres("pg_ctl",["-D",data,"-l",path.join(root,"postgres.log"),"-o",`-h 127.0.0.1 -p ${port}`,"-w","start"]);started=true;process.env.DATABASE_URL=url.toString();process.env.SERRIAN_ASSET_ROOT=artwork;process.env.SERRIAN_TERRAIN_ROOT=terrainRoot;process.env.SERRIAN_TEMPLATES_BROWSER="1";process.env.SERRIAN_UNDERGROUND_BROWSER="production";process.env.SERRIAN_UNDERGROUND_REUSE_BUILD="1";const f:RegionalFixture={...old,root,data,databaseUrl:url.toString(),restoredUrl:restore.toString(),terrainRoot,restoredTerrainRoot:path.join(root,"restored-terrain"),out,pool,runPostgres};await writeFile(path.join(out,"environment.json"),JSON.stringify({...f,pool:undefined,runPostgres:undefined,clonedFrom:source},null,2));await(await import("./worlds-underground-browser")).undergroundBrowser(f);}finally{await pool.end();if(started)runPostgres("pg_ctl",["-D",data,"-m","fast","-w","stop"]);}
+}
+main().catch(e=>{console.error(e);process.exitCode=1;});

@@ -26,3 +26,5 @@ drizzle/0153_world_underground_maps.sql text eol=lf
 drizzle/0154_atlas_asset_library.sql text eol=lf
 
 drizzle/0155_world_craft_maps.sql text eol=lf
+
+drizzle/0156_atlas_map_templates.sql text eol=lf

@@ -1,4 +1,5 @@
 "use client";
+import {MapTemplateLauncher} from "./map-template-launcher";
 import {EngravingControls} from "./terrain-engraving-controls";
 import {DEFAULT_ENGRAVING} from "./terrain-engraving";
 import {useState} from "react";
@@ -32,11 +33,12 @@ export function TerrainStyleWorkshop({state,onEditing}:{state:State;onEditing:(o
  function update(next:MapAppearance){setDraft(next);if(preview)state.preview(next);}
  function close(accept:boolean){state.preview(undefined);if(accept&&draft)state.setValue(appearanceRelief(draft));setDraft(undefined);setPreview(false);onEditing(false);}
  async function savePreset(){if(!draft||!state.remote)return;const command=pending??{requestId:crypto.randomUUID(),mapId:state.mapId,appearanceRevision:state.remote.revision,name:name.trim(),spec:draft};setPending(command);try{localStorage.setItem(recoveryKey,JSON.stringify(command));}catch{/* This tab still retains the original request. */}setBusy(true);try{await worldApi(state.stylesBase,"POST",command);setPending(undefined);try{localStorage.removeItem(recoveryKey);}catch{}setName("");await load();setNotice("Named style saved. Accept the candidate, then Save map appearance to change this map's default.");}catch(e){setNotice((e as Error).message+" Retry retains the original snapshot.");}finally{setBusy(false);}}
- if(!draft)return <button type="button" className="st-button is-secondary" disabled={state.saving||state.pending} onClick={begin}>Open style settings</button>;
+ const worldId=state.stylesBase.match(/\/api\/worlds\/([^/]+)/)?.[1],templateTools=worldId?<MapTemplateLauncher worldId={worldId} family="appearance" application="start" disabled={busy||state.saving||state.pending} capture={()=>({family:"appearance",spec:draft??state.spec,images:[]})} onApply={c=>{if(c.family!=="appearance")throw Error("Choose an appearance preset. Terrain templates are reviewed in the geography creator.");setDraft(c.spec);setPreview(true);onEditing(true);state.preview(c.spec);}}/>:null;
+ if(!draft)return <>{templateTools}<button type="button" className="st-button is-secondary" disabled={state.saving||state.pending} onClick={begin}>Open style settings</button></>;
  const art=terrainStyle(draft.art),artistic=draft.style==="realistic-terrain"||draft.style==="illustrated-fantasy";
  const change=(key:keyof TerrainStyle,value:string|number)=>update({...draft,art:{...art,[key]:value}});
  return <fieldset className={styles.styleWorkshop} aria-label="Terrain style workshop" disabled={busy}>
-  <legend>Style settings · {mapAppearanceNames[draft.style]}</legend><p>Try visual choices, preview them on the map, then accept or cancel. Your terrain, water and environment stay unchanged. Accepting keeps a browser draft; saving the map appearance is a separate step.</p>
+  {templateTools}<legend>Style settings · {mapAppearanceNames[draft.style]}</legend><p>Try visual choices, preview them on the map, then accept or cancel. Your terrain, water and environment stay unchanged. Accepting keeps a browser draft; saving the map appearance is a separate step.</p>
   {draft.style==="engraved-fantasy"&&<EngravingControls value={draft.engraving} onChange={engraving=>update({...draft,engraving})}/>}
   {draft.style!=="engraved-fantasy"&&<GuidedField label="Terrain palette" help="A coordinated geographic palette. Website controls keep your normal theme." controlClassName="st-control"><select value={art.palette} onChange={e=>change("palette",e.target.value)}><option value="natural">Natural</option><option value="verdant">Verdant</option><option value="ochre">Warm ochre</option><option value="muted">Muted atlas</option></select></GuidedField>}
   {draft.style!=="engraved-fantasy"&&<div className={styles.controls}>{(["land","water"] as const).map(key=><GuidedField key={key} label={key==="land"?"Land color":"Water color"} help="Used by the tint control; default tint is zero." controlClassName="st-control"><input type="color" value={art[key]} onChange={e=>change(key,e.target.value)}/></GuidedField>)}</div>}

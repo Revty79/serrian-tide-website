@@ -142,3 +142,5 @@ next-env.d.ts
 /storage/atlas-assets/
 
 /artifacts/crafts-s6b-*/
+
+/artifacts/templates-s6c-*/

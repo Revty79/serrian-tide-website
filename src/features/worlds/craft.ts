@@ -1,3 +1,4 @@
+import {compositionSchema} from "./atlas-assets";
 import {z} from "zod";
 import {copyFloor,emptyFloor,floorDesignSchema,floorFrameSchema,floorRound,initialFloor,validateFloor,type FloorDesign,type FloorFeature,type FloorFrame} from "./building-floor";
 import type {TownPoint} from "./town-map";
@@ -18,9 +19,9 @@ export const surfaceKeySchema=z.union([z.literal("exterior"),id]);
 export type CraftSurfaceKey=z.infer<typeof surfaceKeySchema>;
 const request={requestId:id},target={craftId:id,surface:surfaceKeySchema,revision};
 export const craftCommandSchema=z.discriminatedUnion("action",[
- z.object({...request,action:z.literal("create"),craftId:id,draft:craftDraftSchema}).strict(),
+ z.object({...request,action:z.literal("create"),craftId:id,draft:craftDraftSchema,templateImages:compositionSchema.optional(),templateDecks:z.array(z.object({id:z.uuid(),draft:deckDraftSchema,images:compositionSchema.optional()}).strict()).max(8).optional()}).strict(),
  z.object({...request,...target,action:z.literal("save"),draft:z.union([craftDraftSchema,deckDraftSchema])}).strict(),
- z.object({...request,action:z.literal("create-deck"),craftId:id,deckId:id,draft:deckDraftSchema,copyFrom:surfaceKeySchema.nullable(),copyRevision:revision.nullable(),copyObjects:z.boolean()}).strict(),
+ z.object({...request,action:z.literal("create-deck"),craftId:id,deckId:id,draft:deckDraftSchema,copyFrom:surfaceKeySchema.nullable(),copyRevision:revision.nullable(),copyObjects:z.boolean(),templateImages:compositionSchema.optional()}).strict(),
  z.object({...request,action:z.literal("duplicate"),craftId:id,revision,newCraftId:id,name}).strict(),
  z.object({...request,...target,action:z.literal("lifecycle"),archived:z.boolean()}).strict(),
  z.object({...request,action:z.literal("place"),craftId:id,revision:z.number().int().nonnegative(),mapId:z.string().min(1).max(128),regional:regionalAuthoringSchema.optional(),x:z.number().finite().min(-1e12).max(1e12),y:z.number().finite().min(0).max(1e12),rotation:z.number().finite().min(-180).max(180)}).strict(),

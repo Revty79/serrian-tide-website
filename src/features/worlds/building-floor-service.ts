@@ -1,4 +1,5 @@
 import "server-only";
+import {createTemplateImages} from "./map-template-images";
 import {createHash,randomUUID} from "node:crypto";
 import {and,asc,desc,eq,sql} from "drizzle-orm";
 import {z} from "zod";
@@ -66,7 +67,7 @@ export async function changeBuildingFloor(userId:string,worldId:string,raw:unkno
    if(c.action==="create"){
     const count=(await tx.execute<{n:number}>(sql`select count(*)::int n from world_building_floor where building_id=${b.id}`)).rows[0].n;if(count>=FLOOR_LIMITS.floors)throw new WorldError("A building supports 64 retained floors. Restore an existing floor instead.",400);
     if(c.copyFloorId){const [source]=await tx.select().from(floors).where(and(eq(floors.id,c.copyFloorId),eq(floors.buildingId,b.id),eq(floors.worldId,worldId)));if(!source||source.archived||source.revision!==c.copyRevision)throw conflict();const ids=new Set(source.design.features.map(f=>f.id));if(c.design.features.some(f=>ids.has(f.id)||f.variant==="object"&&f.destination))throw new WorldError("Copied floors need independent object identities and unconnected stairs.",400);}else if(c.copyRevision!==null)throw conflict();
-    boundedRegionalLayer(()=>validateFloor(c.design,b.frame));await destinations(tx,b,c.design,c.requestId);const [row]=await tx.insert(floors).values({id:c.requestId,worldId,buildingId:b.id,name:c.name,order:c.order,elevation:c.elevation,revision:1,archived:false,design:c.design}).returning();changed.push(row);
+    boundedRegionalLayer(()=>validateFloor(c.design,b.frame));await destinations(tx,b,c.design,c.requestId);const [row]=await tx.insert(floors).values({id:c.requestId,worldId,buildingId:b.id,name:c.name,order:c.order,elevation:c.elevation,revision:1,archived:false,design:c.design}).returning();changed.push(row);await createTemplateImages(tx,userId,worldId,{kind:"floor",id:row.id},{...b.frame,x:0,y:0},c.templateImages);
    }else if(c.action==="lifecycle"){
     if(c.archived){const incoming=(await tx.select().from(floors).where(and(eq(floors.buildingId,b.id),eq(floors.worldId,worldId)))).some(f=>!f.archived&&f.id!==previous!.id&&f.design.features.some(s=>!s.archived&&s.variant==="object"&&s.destination?.floorId===previous!.id));if(incoming)throw new WorldError("Stairs on another floor lead here. Disconnect those stairs before archiving this floor; no work has been removed.",409);}
     changed.push({...previous!,revision:previous!.revision+1,archived:c.archived,updatedAt:new Date()});

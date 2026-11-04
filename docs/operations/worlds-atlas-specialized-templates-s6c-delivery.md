@@ -1,0 +1,169 @@
+# Atlas Stage 6C: specialized templates and mapmaker completeness
+
+Starting checkpoint: `f60aacf1e94d3c3663cf5210af1d3b8e1e9beeb7`. Work remains in the active Worlds Atlas and its existing native editors. **Stage 6C is technically verified. Authorized publication and its GitHub receipt are recorded below; owner usability/artistic acceptance remains separate.**
+
+## What was reused and what changed
+
+The initial implementation audit found numerical V1/V2/V3 generation recipes and source previews, six appearance defaults and immutable named styles, editable Town generation, building-aligned floors, three underground generators, Stage 6A asset libraries/compositions and Stage 6B craft/deck identities. These are retained. The shared catalogue orchestrates them; it introduces no alternate terrain, Town, floor, underground or craft renderer.
+
+The entry is **Templates** in the relevant creator or editor Options. One catalogue contains built-in layouts, generator presets, existing named appearance styles and intentional personal templates. **Save as Template** captures the current drawing or supported settings. Blank starts and Import Reference remain the existing native actions. Heavy catalogue code is loaded only when opened; list responses carry metadata, and drawing content is fetched for the selected template.
+
+Core sources: [template models](../../src/features/worlds/map-templates.ts), [curated catalogue](../../src/features/worlds/map-template-catalogue.ts), [shared panel](../../src/features/worlds/map-template-panel.tsx), [service](../../src/features/worlds/map-template-service.ts), [native application helpers](../../src/features/worlds/map-template-application.ts), [interior arrangements](../../src/features/worlds/map-template-interior.ts), [private image creation](../../src/features/worlds/map-template-images.ts).
+
+### Installed starter inventory
+
+| Family | Built-ins | Native result and qualifications |
+| --- | ---: | --- |
+| World/regional geography | 9 | Island, archipelago, continent, mountains, coast, arid uplands, wilderness, volcanic uplands and basin/wetland. These configure numerical height generation. Optional woodland/arid/wetland/alpine/volcanic coverage uses the native **visual** environmental layer, separately from elevations. Volcanic uplands are explicitly not a dedicated caldera or eruption operation; a basin preset does not carve rivers. |
+| Town/City | 8 | Village, agricultural, walled, city, harbor, fortress, trading and modern settings enter the native terrain-aware generator and its actual preview. Permanent Town creation/linking remains explicit; presets create no Shops, Places, NPCs or commerce. |
+| Interiors | 9 | House, inn, shop/workshop, temple, warehouse, manor, barracks, modern and custom. Native rooms, attached openings, purpose-specific furniture and flooring respect the working grid. Tight/irregular outlines can use the disclosed native clipped-layout fallback. No additional floors or connections are automatic. |
+| Underground | 8 | Dungeon, cavern, mine, sewer, crypt, fortress, ruins and blank. Native size, room count, density, branching and passage-width controls remain editable. Existing requested arrivals are retained during template application. |
+| Craft | 10 | Sailing ship, modern vessel, submarine, airship, small/large spacecraft, railcar, wagon, mobile base and custom. Exterior outlines and optional independent decks use Stage 6B. Suggested decks are an explicit checkbox; craft remain unplaced, with no crew, inventory or gameplay equipment. Hatches and routes are connected deliberately. |
+| Appearance | 6 | Existing appearance defaults, including realistic terrain and engraved fantasy, enter native style preview/accept/save. Existing immutable named styles also appear without duplicate template rows. |
+| **Total** | **50** | All results remain ordinary native settings or geometry. |
+
+New-World environmental coverage is optional and visible on the numerical preview. Existing-map regeneration retains accepted environmental coverage and manual-height protection. Regions continue to inherit their source World's numerical geography and accepted footprint; templates do not allocate independent regional terrain grids.
+
+### Preview, reuse and scope
+
+Geography/Town presets first enter their native creator, where the actual generated terrain/layout is reviewed and adjusted before acceptance. Interior, underground and craft drawing previews use the same Canvas2D geometry/artwork and image-composition renderer as the final editor. Browsing creates no maps. Applying to an existing map explicitly **adds** independent objects while retaining existing objects, settings, links and manual work. Native layer locks, geometry validation and capacities apply. Personal Town layouts use the normal blank/manual creation recipe after preview, so manual copies are not misrepresented as freshly accepted generated output. A larger drawing requires an explicit physical fit choice. Exterior images scale with a fitted craft exterior; independent deck sizes remain independent. Personal interiors retain a bounded local footprint reference. Copying between different building angles uses the accepted alignment adapter, keeps room directions square to the destination grid, transforms image positions/angles with the layout and preserves same-building geometry without round-trip drift. Explicit interior fit preserves proportions within the canonical destination workspace.
+
+Personal templates retain name, description, category, genre, attribution, immutable revisions and archive/restore state. They are private to their creator and reusable across that creator's authorized Worlds. Copies receive new feature/corner/image-placement identities. Permanent Place/Shop references, live stair destinations and cross-map connections are excluded. Source maps remain intact. Geography templates retain portable generation settings, not sculpted grids or World-specific interpreted feature plans.
+
+Private image/version references in Town, interior, underground and craft drawings are included only when explicitly selected. Geography and appearance templates carry settings rather than copying World compositions. Templates pin accepted asset versions, without copying image files. Archived images remain readable through retained pins but must be restored before new references/copies. Administrator review is explicit, read-only and restricted to templates and pinned image versions belonging to the selected source World. Other G.O.D.s, Players, anonymous and ordinary/knowledge views cannot read the private catalogue.
+
+Template requests are retained before POST for exact retry. The tab-specific recovery packet survives close/reload; unreadable bytes remain exportable. Acknowledgement removes only matching stored bytes, preserving independently updated packets. Geography starter settings recover before numerical preview; existing numerical acceptance/recovery remains authoritative. Native geometry and image layers retain their established separate save and Undo/Redo histories. New native map creation with template images/decks is atomic; invalid references roll back the entire operation.
+
+### Measurement correction
+
+[Shared ruler actions](../../src/features/worlds/measurement-actions.tsx) expose **New Measurement**, **Keep Measurement**, **Clear Ruler** and **Stop Measuring** inside the viewport. New/Clear release the old start point; Keep freezes the current ruler. Stop returns to the actual prior editing/navigation tool, including underground Passage and craft Corridor submodes. The existing physical calculations, units, grid and snapping remain authoritative. Underground now has the previously missing visible Measure entry in its existing horizontal toolbar. Floor/Town/underground/craft retain their native point-to-point ruler; World/Region retain their existing distance/path/area measurement model.
+
+## Persistence and bounds
+
+New additive [0156](../../drizzle/0156_atlas_map_templates.sql) adds four tables: template head, immutable version, exact operation receipt and immutable asset-version manifest. Deferred guards bind heads to exact versions and authorized request receipts; composite foreign keys preserve private asset pins. Owner-row locking serializes library capacity across Worlds. The existing account-deletion plan recognizes the two new owner references. All historical SQL/snapshots and 156 original journal entries remain unchanged.
+
+| Limit | Enforced behavior |
+| --- | --- |
+| 256 retained templates per creator | Archive preserves records and capacity. |
+| 128 retained revisions per template | Further history mutations are rejected; an intentionally named new template is required. |
+| 128 MiB logical retained template history | Entire over-budget request rolls back; physical PostgreSQL allocation is a separate quantity. |
+| 1,500,000 UTF-8 bytes per reusable drawing | Native source remains available when a reusable copy needs simplification. |
+| 5 MiB streamed JSON request | Rejected before unbounded parsing. |
+| 4,000,000-character template recovery packet | Browser quota can reject smaller packets; failure is visible and close does not discard an unexported packet. Resolve retained storage or simplify the reusable copy as needed. |
+| 8 copied/suggested independent decks | Larger original craft remain intact; individual decks can be saved separately. |
+| Native geometry/image limits | Existing 2,000 floor objects, composition placement/source limits, drawing budgets and memory gates are retained. |
+
+**Migration 0156 is required for personal-template persistence.** It has been applied only in owned disposable rehearsals. No shared migration or release operation is part of this pass.
+
+## Technical evidence
+
+Current production application source: `4bb68df8184b33595a7265f6f96225de1d48a96f4f5c3b669d1ff53b9af65d6b`; runtime corpus: `6cfd1aa2b4b7bbbe209169572a10672b92e283e6382927e32746327b19b8604d`; build `H6XW70p5nuq5n7N4zt1AQ`. The prepublication assertion matches all 1,916 application/data/asset/config source files and the 1,875-file runtime corpus to that build; publication is restricted to 74 reviewed paths. Evidence is retained under ignored `artifacts/templates-s6c-*`. Production checks use installed Chrome with GPU disabled and task-owned loopback services/databases. Phone results are native touch input in browser device emulation, not physical-device certification.
+
+| Receipt | Actual result |
+| --- | --- |
+| `templates-s6c-production-52/templates-browser.json` | Complete continuous creator journey: numerical World preset/adjust/repreview/accept; two nested regions; explicitly created permanent Town and village preset; a personal Town copy with a second map/new identities and no duplicate permanent records; manual road and Inn; native interior rooms/furniture/private artwork; intentional personal template; accepted-but-lost response, close/reload/recovery/exact retry; independent basement with new identities; basement hatch to templated dungeon and recorded return; three-deck ship, private artwork, explicit hatch routes and recorded craft return; reload; desktop/tablet/phone catalogue and native phone taps. All six ruler workspaces pass New/Keep/Clear/Stop; World/Region return specifically to Pan without page or numerical changes. Phone craft drawing retains 427.4 px against the unchanged 400 px gate. |
+| `templates-s6c-capacity-55/templates-database.json` | Fourteen service/persistence groups: populated 0155 upgrade, fresh replay, unchanged native records/files, existing-style reuse, six personal families, exact retries/conflicts, owner cross-World reuse, scoped Administrator review, immutable revisions/archive/restore, database guards, pinned/archived private images, template-only review versions, atomic invalid-image rollback, multideck copies and actual restored-service reads. |
+| `templates-s6c-capacity-55/templates-limits.json` | Real API saves reach 256 retained heads and 128 revisions. A valid 1,305,269-byte dense craft template reaches the unchanged 128 MiB history gate at attempted revision 97 (expected source revision 96); its rejected receipt and mutations roll back. No triggers/constraints are disabled and accepted history remains retained. |
+| `templates-s6c-workbench/final-units-5.log` | All 2,745 units in 342 feature test files pass, including 17 new template/geography/recovery tests. |
+| `templates-s6c-workbench/final-types-5.log`, `final-lint-5.log` | TypeScript passes; full lint has zero errors and the existing unrelated `LoreFamily` warning. |
+| `templates-s6c-workbench/drizzle-consistency-1.log`, `drizzle-graph-1.log` | Isolated config without dotenv, dummy non-target credentials: no schema changes; snapshot graph passes. |
+| `templates-s6c-stage5-56/underground-browser.json` | All 44 inherited Stage 5 production groups pass, including normal/expanded desktop/tablet/phone, recovery, floor/Town/underground navigation, native devices and dense native performance gates. |
+| `templates-s6c-phone-53/templates-phone.json` | Native phone taps browse Sailing ship, render the actual preview and reject it without changing the source. Canvas retains 449.4 px; no page error or horizontal overflow. |
+| `templates-s6c-dense-54/templates-performance.json` | 1,600 native objects and 255 image placements sharing one retained private image version preview in 1,116.3 ms, draw in 7.0 ms, ten navigation keys in 165.0 ms and instantiate in 213.5 ms. All 23 old objects remain; normal saves produce 256 image placements. Backing is 765 by 340; image cache is 32,768 bytes. Unchanged gates: 15 s open/instantiate, 1.5 s ten keys, 100 ms draw, 5,000 artwork marks, 2.5 M backing pixels and 24 MiB image cache. This stresses placement count and shared-image reuse; it is not a 255-distinct-source memory test. These cache/canvas figures are not whole-process RSS claims. |
+| `templates-s6c-assets-57/assets-browser.json`, `assets-extra.json` | Full Stage 6A passes: seven main and six supplementary workflow groups, twelve family/device layouts, native phone image placement/navigation, binary import recovery, exact interrupted composition retries, private HTTP/security checks and native rendering/cache limits. |
+| `templates-s6c-crafts-58` | All 24 Stage 6B production browser groups pass, including the eight supplementary groups, capacity, independent decks/routes, placement/private artwork, desktop/native phone and dense native performance. |
+| `templates-s6c-world-regional-59/workspace-followup-results.json` | All eight World/regional groups pass, with exact saved geography, direct navigation and retained recovery. |
+| `templates-s6c-sculpt-60/sculpt-visibility.json` | All 24 primary actual-frame sculpt cases pass across six World appearances and six regional appearances at fitted/close views. Eight worker-off cases pass separately in receipt 63 below. |
+| `templates-s6c-followups-67` | Retained house/interior/tool explanations, passage artwork/joins, floor alignment and 1,600-object capacity, basement/reference positioning, expanded desktop/tablet/phone and all seven water-navigation groups pass. Actual lake/wetland cancel, failed reload/retry, separate-tab browsing, completed lake save, watershed review/keep and native 390 px navigation retain source geography. |
+| `templates-s6c-navigation-68/town-interior-navigation-results.json` | All nine owner-navigation groups pass: stable double-click entry, exact direct Town/Region/World exits, draft protection, World/regional marker and caption double-click, single/multiple Town views and delayed lookup retaining a newly begun lake. Six responsive layouts retain the unchanged 400 px drawing gate. |
+| `templates-s6c-sculpt-fallback-63/sculpt-visibility.json` | All eight forced-main-thread cases pass: realistic terrain and engraved fantasy, World and region, fitted and close zoom. Every case checks saved samples, stable view and complete styled coverage through autosave. Together with receipt 60 these are 32 distinct cases; they are not presented as one uninterrupted run. |
+| `templates-s6c-world-cpu-64/results.json` and four comparison receipts | All 36 unchanged matched limits pass against accepted `88cfa27c682b5b339e7f672d8c98b1f0289b2191`: nine each for artwork, labels, engraving and regions. Geographic inputs match; regional switches/reopen preserve pinned numerical reuse and World pixels. Installed Chrome 134.0.6998.166, GPU disabled; runtime corpus equals the final template build. |
+
+Representative actual application captures include `templates-s6c-production-52/personal-town-template-copy.png`, `angled-personal-template-copy.png`, and: `templates-s6c-production-52/template-numerical-world.png`, `template-Inn---tavern.png`, `template-customized-basement.png`, `template-Sailing-ship.png`, `template-catalogue-390.png` and `template-native-phone.png`. The populated native phone preview is `templates-s6c-phone-53/template-native-phone-preview.png`; dense preview is `templates-s6c-dense-54/dense-template-preview.png`. These are actual application captures, not substitute mockups. Artistic/usability acceptance remains with the owner.
+
+### Matched performance comparisons
+
+All four comparison files in `templates-s6c-world-cpu-64` retain every baseline/after/limit measurement. Each row below shows the measurement closest to its unchanged gate in that family; all nine measurements per family pass. Values are milliseconds. The baseline is the accepted `88cfa27` control with matched geographic inputs.
+
+| Family | Measurement | Before | After | Unchanged limit |
+| --- | --- | ---: | ---: | ---: |
+| Artwork | `climatePreviewMs` | 949.60 | 988.12 | 1,187.00 |
+| Labels | `fallbackNavigationReadyMs` | 4,323.81 | 4,325.59 | 5,404.76 |
+| Engraving | `closeReadyMs` | 2,114.14 | 2,087.19 | 2,642.67 |
+| Regions | `repeatedPanZoomMs` | 3,360.85 | 3,377.43 | 4,201.06 |
+
+The dense template and aligned-floor capacity receipts above use the existing native object, input, rendering and image-cache limits. They measure different workloads from the matched World comparisons and are not presented as a direct percentage comparison. CPU/cache measurements establish technical bounds on this machine, not Phenom/Ryzen compatibility or physical-device certification.
+
+### Preserved sources and retained failures
+
+`templates-s6c-preservation/results.json` verifies 10,158 protected paths from the 10,200-entry starting tree, including all 114 original public assets, 312 historical SQL/snapshots and the complete original owner instructions. Native numerical generation, hydrology-flow/mesh and renderer kernels remain protected; reviewed changes wire templates, recovery, ruler actions and atomic native creation. The new migration SHA-256 is `9ed3f14cc474ca453618327d953fc47a983ec167a403c31b1a7d0ac9ce6f0fdc`.
+
+Earlier failed/partial evidence remains retained. Bounded application defects found during this pass included shared-theme CSS, the missing underground Measure entry, template-only Administrator image delivery, cross-angle interior reuse and Town copying that discarded its normal blank recipe. These were corrected and exercised on the final source. Ruler entry also retains passage/corridor submodes.
+
+Early fixture failures included a stale latest-migration assertion, an incomplete craft-response expectation, an environment-field assertion and hidden-toolbar/viewport/ARIA assumptions. Dense attempt 28 used non-centimetre coordinates; the fixture was corrected without relaxing native validation. Old-source follow-up 23 and asset 31 runs were correctly rejected by exact-build guards and are not application passes. Ruler attempts 13/14 used an old helper that changed Pan to Inspect before Measure; direct public controls in 16 and the complete final repeat in 52 verify the actual prior-tool return.
+
+Inherited asset attempts 19/45 exposed interrupted-import/compose test races: seeing Retry did not establish a settled request callback. Tests now wait for the finished busy state and unroute outside the callback. Follow-up attempts 61/65/66 retained a phone viewport from the preceding test and placed one synthetic water point on an existing Town caption. The test now restores its desktop viewport, recomputes canvas positions and uses open ground; its dedicated native phone journey and exact two-point/retry/discard assertions remain. Navigation attempt 62 rendered the new Town canvas before its asynchronous URL update; the test now waits for the actual Town route. Final receipts 57/67/68 pass these respective journeys. Performance gates are unchanged, and no failed aggregate is silently converted into a pass.
+
+### Shared-access exception
+
+One validation command mistakenly invoked `scripts/verify-local-migration-ledger.mjs`. That helper loads `.env.local` and performed a **read-only SELECT** of the shared loopback `serrian_tide_dev` migration ledger. It observed 156 entries; it made no writes, migration, deployment or restart. This violated the no-shared-access instruction and was disclosed during work. The helper was excluded from subsequent checks. All schema application, authoring, capacity, backup/restore and browser fixtures use owned targets. No further shared inspection is authorized or implied; current shared release/migration/backup status remains outside this delivery.
+
+## Original-requirements audit
+
+The rows below describe active implementation, not the presence of a retained schema or retired editor. “Owner acceptance” means technically implemented and tested but not owner-approved for ease of use or artistic quality. Substantial missing numerical behavior is recorded explicitly.
+
+| Original requirement | Status | Active source and practical evidence |
+| --- | --- | --- |
+| Flat heightmap-based World creation | Implemented; requiring owner usability acceptance | `terrain-source-workshop.tsx`, `terrain-source.ts`, `terrain-service.ts`; production template journey accepts and reopens numerical generation; existing blank/import starts retained. |
+| Raise/lower | Implemented and verified | `terrain.ts`, `terrain-operations.ts`, `terrain-editor.tsx`; inherited sculpt/native workflow receipts and immutable source preservation. |
+| Smooth/flatten | Implemented and verified | Same native operations and tools; measured sculpt regression matrix. These are not localized erosion. |
+| Adjustable sea level and preview | Implemented; requiring owner usability acceptance | `terrain-editor.tsx`, `terrain-source-workshop.tsx`, `terrain-source-controls.tsx`; ordinary preview/save/recovery behavior remains native. |
+| Shoreline and terrain editing | Implemented; requiring owner usability acceptance | Native coast-land/coast-water/coast-smooth tools in `terrain-workspace-tools.tsx` and numerical operations; inherited terrain/sculpt verification. |
+| Downhill river authoring | Implemented; requiring owner usability acceptance | `terrain-hydrology-flow.ts`, `terrain-hydrology-mesh.ts`, `terrain-hydrology-controls.tsx`, `terrain-hydrology-service.ts`; native sources/flow/proposals and retained water workflows. |
+| Optional numerical river carving | **Not implemented** | `terrain-hydrology-flow.ts` expressly retains sinks and performs no terrain carving. River drawings/flow graphs do not lower elevation samples. |
+| Localized erosion controls | **Not implemented** | Active sculpt/operation controls provide smoothing, flattening and landforms; no bounded selected-area erosion operation, parameters or acceptance/history path exists. |
+| Dedicated volcano authoring | **Partially implemented** | Generic numerical uplands/sculpting and volcanic artwork/coverage can compose a scene. `map-template-catalogue.ts` discloses that dedicated crater/caldera authoring is absent. |
+| Optional eruption effects | **Not implemented** | No active numerical eruption operation or approved effect workflow. Decorative volcano references do not satisfy this requirement. |
+| Selected-area regeneration/manual protection | Implemented and verified | `terrain-source-workshop.tsx`, `terrain-source.ts`, `terrain-service.ts`, `terrain-regional-scope.ts`; existing preview/explicit acceptance and protected inherited/finer boundaries retained. |
+| World/regional performance | Implemented and verified | `terrain-renderer.ts`, `terrain-render-quality.ts`; all four unchanged nine-limit artwork/labels/engraving/region matrices and matched geographic-input checks pass in CPU receipt 64. |
+| Numerical geography versus appearance | Implemented and verified | `terrain.ts`, `terrain-appearance.ts`, `terrain-environment.ts`, `map-template-geography.ts`; numerical preset acceptance and separate optional visual coverage, unchanged numerical sources and scoped ruler read checks. |
+| Multiple World/regional/local maps | Implemented and verified | `terrain-region-service.ts`, `terrain-region-hierarchy-service.ts`, `town-map-service.ts`; continuous production journey creates and navigates multiple native map families. |
+| Freehand regions | Implemented; requiring owner usability acceptance | `terrain-region-drawing.ts`, `terrain-region-controls.tsx`, `terrain-region-footprint-service.ts`; inherited region/native-device suites. |
+| Rectangle and point polygons | Implemented and verified | Same native region controls; Stage 6C journey authors two point-by-point polygons and verifies saved parent/source relationships. |
+| Nested subregions | Implemented and verified | `terrain-region-hierarchy.ts` and service; explicit organizing parents plus authoritative source World are checked after native saves. |
+| Geographic inheritance/authoritative edits | Implemented and verified | `terrain-regional-authoring-service.ts`, `terrain-regional-scope.ts`, `terrain-refinement.ts`; native shared terrain identity and existing protections are preserved. |
+| Cross-map navigation | Implemented; requiring owner usability acceptance | `terrain-editor.tsx`, `town-map-editor.tsx`, `building-floor-editor.tsx`, `underground-links.tsx`, `craft-editor.tsx`; complete template journey uses saved basement/dungeon and craft routes, reload and recorded returns; inherited owner-navigation suite retained. |
+| Permanent Place/Town/Shop identities | Implemented and verified | `world-town-service.ts`, `world-business-service.ts`, `town-map-service.ts`; original native records retained; templates strip links instead of manufacturing duplicates. |
+| Brush behavior | Implemented; requiring owner usability acceptance | `terrain-canvas.tsx`, `terrain-operations.ts`, native floor/Town/underground canvases; existing pointer/native touch and sculpt suites. |
+| Grid, snapping, physical units | Implemented; requiring owner usability acceptance | `terrain-measurement.ts`, `terrain-measurement-controls.tsx`, `building-floor-alignment.ts`; template rooms use the accepted grid and measurements remain in native physical coordinates. |
+| Measurement new/keep/clear/stop | Implemented and verified | `measurement-actions.tsx` and all six host canvases/editors; full production receipt 52 verifies all four actions and stable page position. World/Region numerical tiles remain exact. |
+| Independent visible/locked layers | Implemented and verified | Native floor/Town/underground layer models and Stage 6A compositions; new append helpers reject locked target layers and preserve existing state; inherited lock/privacy tests retained. |
+| Preview/revise/accept | Implemented; requiring owner usability acceptance | `map-template-panel.tsx` plus native creators; actual production presets and drawing copies, generation adjustment and explicit normal saves. |
+| Recoverable unsaved work | Implemented and verified | Existing native recovery modules, `map-template-source-recovery.ts`, panel packets; lost-ack/reload/exact retry production journey, corrupt-byte/bounded starter recovery units and inherited recovery suites. |
+| Undo/Redo and saved revisions | Implemented and verified | Existing native editor histories; immutable template version/operation tables and service tests. Geometry and image layers retain separate native save/Undo domains. |
+| Close-zoom clarity/stable rendering | Implemented; requiring owner artistic acceptance | Protected `terrain-renderer.ts` and native Canvas2D painters; inherited 32-case sculpt and matched CPU checks. Technical stability does not establish owner visual acceptance. |
+| Accessible tools/minimal scrolling | Implemented; requiring owner usability acceptance | Existing Options/expanded/native-touch layouts plus lazy shared catalogue and visible ruler actions. Production desktop/tablet/phone controls and unchanged canvas-height gates are tested; ordinary owners still need hands-on review. |
+| Town and City workflows | Implemented; requiring owner artistic/usability acceptance | `town-map-creation.tsx`, `town-map-editor.tsx`, native generation/painter; village preset, manual road/Inn changes, retained city/neighborhood suites. |
+| Interiors/independent floors | Implemented; requiring owner artistic/usability acceptance | `building-floor-editor.tsx`, `building-floor-start.tsx`, `building-floor-service.ts`; native Inn template, edited rooms, personalized reuse and independent basement. |
+| Doors, stairs and ladders | Implemented and verified | Native attached openings and transition identities in `building-floor.ts` and service; retained real-gap/floor-transition tests and explicit template journey routes. |
+| Explicit underground entrances | Implemented and verified | `underground-links.tsx`, `underground-service.ts`; requested basement arrival survives template application and recorded return reaches the exact saved floor. |
+| Dungeons, caves and sewers | Implemented; requiring owner artistic/usability acceptance | `underground.ts`, `underground-editor.tsx`, service; specialized generator presets plus complete inherited independent-level/connection/native-device suites. |
+| Craft/deck navigation and placement | Implemented; requiring owner artistic/usability acceptance | `craft.ts`, `craft-editor.tsx`, `craft-service.ts`; template journey creates and connects three decks without automatic placement; retained Stage 6B placement/move/rotation/security/performance suites verify geographic placement. |
+| Custom artwork/reference imports | Implemented; requiring owner artistic/usability acceptance | `atlas-assets.ts`, `atlas-asset-service.ts`, `atlas-asset-panel.tsx`; actual private artwork placed/saved in two template map families, version pinning, paired restore and inherited Stage 6A suites. |
+| Historical map appearances/eras | Deliberately reserved for later approval | Existing narrative history, eras and immutable revisions are not an integrated historical geography/appearance state system. No historical-state implementation began here. |
+| Owner/editor/viewer permissions | Implemented and verified within current owner/review model | `world-service.ts`, `http.ts`, template/asset services and native permission suites; owner editing, explicit read-only Administrator review and private actor rejection. |
+| Safe editing handoffs/collaboration | Partially implemented; collaboration reserved | Pending Work, exact retry/recovery, conflicts and immutable history protect present owner editing. Concurrent multi-editor grants, collaboration and a full handoff workflow are not delivered. |
+| Eventual read-only Tabletop consumption | Deliberately reserved for later approval | Native map identities/typed routes remain suitable foundations. No current end-to-end rebuilt Tabletop consumer is claimed. |
+| Final exporting and printing | Deliberately reserved for later approval | Active editor recovery JSON is not final map export/print. Retained `atlas-map-editor.tsx`/PNG export code does not establish complete export of the current multi-family terrain Atlas; no final print/export work was undertaken. |
+
+All unqualified filenames above are under `src/features/worlds/`. Evidence is cross-referenced in the technical receipt table. These separate final-source receipts do not turn the retained failed/interrupted attempts into an uninterrupted all-stage aggregate.
+
+## Remaining substantial work and stop boundary
+
+The complete mapmaker is **not** declared finished. A focused **Stage 6D**, requiring owner authorization before Stage 7, is recommended for optional river carving, localized erosion, dedicated volcano/caldera authoring and any approved eruption presentation. It should define numerical effects versus visual effects, bounded selected areas and protected/finer boundaries, preview/cancel/accept, immutable terrain history/exact retry, water-source invalidation/reanalysis, unchanged data/privacy and matched low-resource CPU gates. Generic smoothing, a rough upland preset or decorative volcano art should not be substituted for those requirements.
+
+Owner hands-on assessment should also judge whether the starter layouts, artwork distinctions, guidance and transitions are intuitive and attractive. Historical states, collaboration, final export/printing, Stage 7/8 and Tabletop remain outside this authorization. No hardware compatibility, Docker configuration, owner-service restart, deployment, shared migration or destructive cleanup is part of this delivery.
+
+## Publication
+
+Local technical validation is complete on the exact source/runtime/build above. Application publication and GitHub validation are the remaining delivery steps; the following documentation receipt will record the exact published application commit and successful run. No application source changes are planned after that validation. Stop for owner review after publication; Stage 6D and later stages require new authorization.

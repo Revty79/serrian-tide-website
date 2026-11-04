@@ -1,4 +1,8 @@
 "use client";
+import {templateImagePreview} from "./map-template-application";
+import {townDesignSchema,validateTownDesign} from "./town-map";
+import {compositionSchema,type AssetComposition} from "./atlas-assets";
+import {MapTemplateLauncher} from "./map-template-launcher";
 import {useEffect,useRef,useState} from "react";
 import {useTownViewport} from "./town-map-viewport";
 import {worldApi} from "./client-api";
@@ -33,10 +37,12 @@ export function TownGenerationFields({value:v,onChange,startingOption=true}:{val
  </div>;
 }
 
-type Setup={name:string;anchorId:string;context:string;width:number;height:number;rotation:number;settings:TownGeneration};
-type Proposal={design:TownDesign;backdrop:TownBackdrop;warnings:string[];previewToken:string};
+type TemplateDrawing={design:TownDesign;images?:AssetComposition};
+type Setup={name:string;anchorId:string;context:string;width:number;height:number;rotation:number;settings:TownGeneration;templateDrawing?:TemplateDrawing};
+type Proposal={design:TownDesign;backdrop:TownBackdrop;warnings:string[];previewToken:string;templateImages?:AssetComposition};
 export function TownMapCreation({worldId,townId,contextMapId,placementId,onAccepted,onCancel,onDirty}:{worldId:string;townId:string;contextMapId?:string;placementId?:string;onAccepted:(id:string)=>void;onCancel:()=>void;onDirty:(v:boolean)=>void}) {
  const [towns,setTowns]=useState<TownBundle>(),[load,setLoad]=useState(0),[available,setAvailable]=useState(true),[hierarchy,setHierarchy]=useState<RegionHierarchy>(),[anchorId,setAnchorId]=useState(placementId??""),[context,setContext]=useState(contextMapId??""),[name,setName]=useState(""),[width,setWidth]=useState(1500),[height,setHeight]=useState(1000),[rotation,setRotation]=useState(0),[settings,setSettings]=useState(()=>({...defaultTownGeneration(),seed:townId})),[proposal,setProposal]=useState<Proposal>(),[previewFrame,setPreviewFrame]=useState<TownFrame>(),[outdated,setOutdated]=useState(false),[error,setError]=useState(""),[pending,setPending]=useState(false),[attempt,setAttempt]=useState<TownMapCommand>(),[recovered,setRecovered]=useState<TownMapCommand>(),[options,setOptions]=useState(false),[recoveredSetup,setRecoveredSetup]=useState<Setup>();
+ const [templateDrawing,setTemplateDrawing]=useState<TemplateDrawing>();
  const controller=useRef<AbortController>(null),surface=useRef<HTMLElement>(null),setupTouched=useRef(false),api="/api/worlds/"+worldId+"/town-maps",key="st:town-map-create:v1:"+worldId+":"+townId;
  useTownViewport(surface);
  useEffect(()=>{
@@ -50,26 +56,26 @@ export function TownMapCreation({worldId,townId,contextMapId,placementId,onAccep
   try {
    const raw=localStorage.getItem(key);
    if(raw)queueMicrotask(()=>{if(alive){setRecovered(JSON.parse(raw));onDirty(true);}});
-   else {const rawSetup=localStorage.getItem(key+":settings");if(rawSetup){const value=JSON.parse(rawSetup) as Setup;townGenerationSchema.parse(value.settings);queueMicrotask(()=>{if(alive){setRecoveredSetup(value);onDirty(true);}});}}
+   else {const rawSetup=localStorage.getItem(key+":settings");if(rawSetup){const value=JSON.parse(rawSetup) as Setup;townGenerationSchema.parse(value.settings);if(value.templateDrawing){townDesignSchema.parse(value.templateDrawing.design);if(value.templateDrawing.images)compositionSchema.parse(value.templateDrawing.images);}queueMicrotask(()=>{if(alive){setRecoveredSetup(value);onDirty(true);}});}}
   } catch {queueMicrotask(()=>setError("Your saved maps are safe, but this browser could not read the unfinished setup. Keep this page open and try again."));}
   return()=>{alive=false;controller.current?.abort();};
  },[worldId,townId,key,onDirty,load]);
  const placements=towns?.placements.filter(p=>p.townId===townId&&!p.removed&&!p.archived)??[],anchor=placements.find(p=>p.id===anchorId),source=anchor?.mapId,contexts=hierarchy?.nodes.filter(n=>n.sourceWorldMapId===source&&!n.archived&&n.sourceAvailable)??[],chosenContext=contexts.find(c=>c.id===context)?.id??(context?"":source),frame:TownFrame|undefined=anchor?{x:anchor.x-width/2,y:anchor.y-height/2,width,height,rotation}:undefined;
  const ready=available&&!!towns&&!!hierarchy&&!!anchor&&!!chosenContext&&!!name.trim()&&!recoveredSetup&&!recovered;
- useEffect(()=>{if(!setupTouched.current||recoveredSetup||attempt||recovered)return;try{localStorage.setItem(key+":settings",JSON.stringify({name,anchorId,context,width,height,rotation,settings}));}catch{queueMicrotask(()=>setError("This browser could not keep your setup. Keep this page open until the map is saved."));}},[key,name,anchorId,context,width,height,rotation,settings,recoveredSetup,attempt,recovered]);
+ useEffect(()=>{if(!setupTouched.current||recoveredSetup||attempt||recovered)return;try{localStorage.setItem(key+":settings",JSON.stringify({name,anchorId,context,width,height,rotation,settings,templateDrawing}));}catch{queueMicrotask(()=>setError("This browser could not keep your setup. Keep this page open until the map is saved."));}},[key,name,anchorId,context,width,height,rotation,settings,templateDrawing,recoveredSetup,attempt,recovered]);
  function change(){setupTouched.current=true;controller.current?.abort();setOutdated(true);setError("");onDirty(true);}
  async function accept(original?:TownMapCommand,prepared?:Proposal,chosen=settings) {
   const result=prepared??proposal;
   if(!original&&(!result||!anchor||!source||!frame||!chosenContext))return;
-  const command=original??attempt??{action:"create",requestId:crypto.randomUUID(),townId,sourceMapId:source!,contextMapId:chosenContext!,placementId:anchor!.id,placementRevision:anchor!.revision,anchor:{x:anchor!.x,y:anchor!.y},frame:frame!,name,design:result!.design,previewToken:chosen.mode==="blank"?null:result!.previewToken};
-  setAttempt(command);
-  try{localStorage.setItem(key,JSON.stringify(command));}catch{setError("This browser could not keep a recovery copy. Keep this page open until saving finishes.");}
+  const command=original??attempt??{action:"create",requestId:crypto.randomUUID(),townId,sourceMapId:source!,contextMapId:chosenContext!,placementId:anchor!.id,placementRevision:anchor!.revision,anchor:{x:anchor!.x,y:anchor!.y},frame:frame!,name,design:result!.design,previewToken:chosen.mode==="blank"?null:result!.previewToken,...result?.templateImages?{templateImages:result.templateImages}:{}};
+  setAttempt(command);const submitted=JSON.stringify(command),submittedSetup=localStorage.getItem(key+":settings");
+  try{localStorage.setItem(key,submitted);}catch{setError("This browser could not keep a recovery copy. Keep this page open until saving finishes.");}
   setPending(true);
-  try{const saved=await worldApi<{id:string}>(api,"POST",command);localStorage.removeItem(key);localStorage.removeItem(key+":settings");onDirty(false);onAccepted(saved.id);}
+  try{const saved=await worldApi<{id:string}>(api,"POST",command);if(localStorage.getItem(key)===submitted)localStorage.removeItem(key);if(localStorage.getItem(key+":settings")===submittedSetup)localStorage.removeItem(key+":settings");onDirty(false);onAccepted(saved.id);}
   catch(e){setError(townProblem(e)+" Your map is kept here. Choose Retry Save & Open to try again.");}
   finally{setPending(false);}
  }
- async function preview(chosen=settings,openBlank=false) {
+ async function preview(chosen=settings,openBlank=false,manual:TemplateDrawing|null|undefined=templateDrawing) {
   if(!anchor||!source||!frame||!chosenContext){setError("Choose where this Town is placed below. If it has no location yet, place it on the World first.");return;}
   setPending(true);setError("");
   const c=new AbortController();controller.current=c;
@@ -77,12 +83,12 @@ export function TownMapCreation({worldId,townId,contextMapId,placementId,onAccep
    townGenerationSchema.parse(chosen);townFrameSchema.parse(frame);
    const result=await worldApi<Proposal>(api,"POST",{action:"preview",sourceMapId:source,frame,settings:chosen},c.signal);
    if(c.signal.aborted)return;
-   setProposal(result);setPreviewFrame(frame);setOutdated(false);setOptions(false);onDirty(true);
+   if(manual){validateTownDesign(manual.design,frame);result.design={...manual.design,recipe:result.design.recipe};result.templateImages=manual.images;}setProposal(result);setPreviewFrame(frame);setOutdated(false);setOptions(false);onDirty(true);
    if(openBlank)await accept(undefined,result,chosen);
   } catch(e){if(!c.signal.aborted)setError(townProblem(e));}
   finally{if(controller.current===c)setPending(false);}
  }
- function start(mode:TownGeneration["mode"]) {const chosen={...settings,mode};change();setSettings(chosen);void preview(chosen,mode==="blank");}
+ function start(mode:TownGeneration["mode"]) {const chosen={...settings,mode};change();setTemplateDrawing(undefined);setSettings(chosen);void preview(chosen,mode==="blank",null);}
  const locationChoices=<label>Town location<select aria-label="Town location" className="st-control" value={anchorId} onChange={e=>{change();setAnchorId(e.target.value);setContext("");}}><option value="">Choose where your Town is placed</option>{placements.map(p=><option key={p.id} value={p.id}>{p.mapName} · {p.x.toFixed(0)}, {p.y.toFixed(0)} m</option>)}</select></label>;
  const areaSettings=<details><summary>Map area & location</summary><div className={styles.fields}>
   {anchor&&locationChoices}
@@ -92,10 +98,10 @@ export function TownMapCreation({worldId,townId,contextMapId,placementId,onAccep
  </div></details>;
  const recovery=<>
   {recovered&&<div className={styles.recovery}><h3>Pick up where you left off</h3><p>Your last map creation is kept here. Open it again safely, even if the last save already went through.</p><button className="st-button is-primary" disabled={pending} onClick={()=>void accept(recovered)}>Retry Save & Open</button><button className="st-button" disabled={pending} onClick={()=>{if(window.confirm("Discard this unfinished setup? Any map already saved stays in Switch Map.")){localStorage.removeItem(key);setRecovered(undefined);setAttempt(undefined);}}}>Discard unfinished setup</button></div>}
-  {recoveredSetup&&<div className={styles.recovery}><h3>Continue your unfinished setup?</h3><p>Your previous choices are kept here.</p><button className="st-button is-primary" onClick={()=>{setName(recoveredSetup.name);setAnchorId(recoveredSetup.anchorId);setContext(recoveredSetup.context);setWidth(recoveredSetup.width);setHeight(recoveredSetup.height);setRotation(recoveredSetup.rotation);setSettings(recoveredSetup.settings);setupTouched.current=true;setRecoveredSetup(undefined);setOptions(true);}}>Continue My Setup</button><button className="st-button" onClick={()=>{if(window.confirm("Discard your previous setup choices? Saved Town Maps stay safe.")){localStorage.removeItem(key+":settings");setRecoveredSetup(undefined);}}}>Start Fresh</button></div>}
+  {recoveredSetup&&<div className={styles.recovery}><h3>Continue your unfinished setup?</h3><p>Your previous choices are kept here.</p><button className="st-button is-primary" onClick={()=>{setName(recoveredSetup.name);setAnchorId(recoveredSetup.anchorId);setContext(recoveredSetup.context);setWidth(recoveredSetup.width);setHeight(recoveredSetup.height);setRotation(recoveredSetup.rotation);setSettings(recoveredSetup.settings);setTemplateDrawing(recoveredSetup.templateDrawing);setupTouched.current=true;setRecoveredSetup(undefined);setOptions(true);}}>Continue My Setup</button><button className="st-button" onClick={()=>{if(window.confirm("Discard your previous setup choices? Saved Town Maps stay safe.")){localStorage.removeItem(key+":settings");setRecoveredSetup(undefined);}}}>Start Fresh</button></div>}
  </>;
  return <section ref={surface} className={styles.workspace} aria-label="Create Town Map">
-  <header className={styles.header}><div className={styles.identity}><strong>{proposal?"Your town preview":"Let’s make your Town Map"}</strong><small>{towns?.towns.find(t=>t.id===townId)?.name??"Loading Town…"}</small></div><div className={styles.headerActions}>
+  <header className={styles.header}><div className={styles.identity}><strong>{proposal?"Your town preview":"Let’s make your Town Map"}</strong><small>{towns?.towns.find(t=>t.id===townId)?.name??"Loading Town…"}</small></div><div className={styles.headerActions}><MapTemplateLauncher worldId={worldId} family="town" disabled={!ready||pending||!!attempt} application="start" context={frame?{frame}:undefined} capture={images=>proposal&&frame?{family:"town",settings,drawing:{frame,design:proposal.design},images:images&&proposal.templateImages?[{surface:0,layer:proposal.templateImages}]:[]}:{family:"town",settings,images:[]}} onApply={async c=>{if(c.family!=="town")throw Error("Choose a Town template.");change();const chosen=c.drawing?{...c.settings,mode:"blank" as const}:c.settings;setSettings(chosen);const manual=c.drawing?{design:c.drawing.design,images:c.images[0]?.layer}:undefined;setTemplateDrawing(manual);await preview(chosen,false,manual??null);}}/>
    {proposal&&<button className="st-button" aria-expanded={options} onClick={()=>setOptions(!options)}>Change Layout</button>}
    {(attempt||recovered)&&<button className="st-button is-primary" disabled={pending} onClick={()=>void accept(recovered??attempt)}>{pending?"Saving your map…":"Retry Save & Open"}</button>}
    {proposal&&!attempt&&!recovered&&<button className="st-button is-primary" disabled={pending} onClick={()=>outdated?void preview():void accept()}>{pending?"Preparing your town…":outdated?"Update Preview":"Save & Open Town Map"}</button>}
@@ -106,7 +112,7 @@ export function TownMapCreation({worldId,townId,contextMapId,placementId,onAccep
     {error&&<p role="alert" className={styles.warning}>{error}{!towns&&<button className="st-button" onClick={()=>{setError("");setLoad(n=>n+1);}}>Try Again</button>}</p>}
     {proposal?<>
      <div className={styles.previewBadge}><strong>{outdated?"Your choices changed.":"Like this town?"}</strong> {outdated?"Update Preview to see them before saving.":"Save & Open Town Map to start moving buildings, drawing roads and making it yours."}</div>
-     <TownMapCanvas key={proposal.previewToken} handleRef={()=>{}} design={proposal.design} frame={previewFrame??frame!} backdrop={proposal.backdrop} tool="pan" shape="rectangle" selected="" onSelect={()=>{}} onChange={()=>{}} onError={setError} editable={false} onDraft={()=>{}} draft={[]} onFinish={()=>{}} onCancel={()=>{}} touchEdit={false}/>
+     <TownMapCanvas composition={templateImagePreview(worldId,proposal?.templateImages,setError)} key={proposal.previewToken} handleRef={()=>{}} design={proposal.design} frame={previewFrame??frame!} backdrop={proposal.backdrop} tool="pan" shape="rectangle" selected="" onSelect={()=>{}} onChange={()=>{}} onError={setError} editable={false} onDraft={()=>{}} draft={[]} onFinish={()=>{}} onCancel={()=>{}} touchEdit={false}/>
      {proposal.warnings.length>0&&<details className={styles.previewNotes}><summary>About this layout</summary>{proposal.warnings.map((w,i)=><p key={i}>{w}</p>)}</details>}
     </>:<div className={styles.creationStart}>
      {recovery}

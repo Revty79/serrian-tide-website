@@ -1093,6 +1093,13 @@
       "when": 1793758374949,
       "tag": "0155_world_craft_maps",
       "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1793809043463,
+      "tag": "0156_atlas_map_templates",
+      "breakpoints": true
     }
   ]
 }

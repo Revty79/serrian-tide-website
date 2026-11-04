@@ -1,3 +1,4 @@
+import {compositionSchema} from "./atlas-assets";
 import {z} from "zod";
 import {validateGeometry} from "./atlas-geometry";
 import {openingAnchor,interiorCenter,duplicateInteriorSource,type InteriorShape} from "./interior";
@@ -75,7 +76,7 @@ export function transformFloorFeature(f:FloorFeature,features:FloorFeature[],dx=
 const metadata={name,order:z.number().int().min(-1000).max(1000),elevation:number.min(-20000).max(20000).nullable()};
 export const floorCommandSchema=z.discriminatedUnion("action",[
  z.object({action:z.literal("enter"),requestId:id,townMapId:id,featureId:id}).strict(),
- z.object({action:z.literal("create"),requestId:id,buildingId:id,...metadata,design:floorDesignSchema,copyFloorId:id.nullable(),copyRevision:z.number().int().positive().nullable()}).strict(),
+ z.object({action:z.literal("create"),requestId:id,buildingId:id,...metadata,design:floorDesignSchema,copyFloorId:id.nullable(),copyRevision:z.number().int().positive().nullable(),templateImages:compositionSchema.optional()}).strict(),
  z.object({action:z.literal("save"),requestId:id,floorId:id,revision:z.number().int().positive(),...metadata,design:floorDesignSchema}).strict(),
  z.object({action:z.literal("lifecycle"),requestId:id,floorId:id,revision:z.number().int().positive(),archived:z.boolean()}).strict(),
  z.object({action:z.literal("connect"),requestId:id,floorId:id,revision:z.number().int().positive(),featureId:id,destinationFloorId:id,destinationRevision:z.number().int().positive(),point,reciprocal:z.boolean()}).strict(),

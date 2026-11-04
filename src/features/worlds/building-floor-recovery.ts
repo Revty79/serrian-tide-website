@@ -1,3 +1,4 @@
+import {compositionSchema} from "./atlas-assets";
 import {z} from "zod";
 import {FLOOR_LIMITS,floorCommandSchema,floorDesignSchema,validateFloor,type FloorDocument,type FloorFrame} from "./building-floor";
 type Store=Pick<Storage,"getItem"|"setItem"|"removeItem"|"key"|"length">;
@@ -15,7 +16,7 @@ export function readFloorRecovery(store:Store,key:string,saved?:EditableFloor){
 }
 export type FloorRecoveryCandidate=NonNullable<ReturnType<typeof readFloorRecovery>>;
 export function removeUnchangedFloorRecovery(store:Store,candidate:FloorRecoveryCandidate|undefined,ownKey:string){if(candidate&&candidate.key!==ownKey&&store.getItem(candidate.key)===candidate.raw){store.removeItem(candidate.key);return true;}return false;}
-export const floorCreationDraftSchema=z.object({version:z.literal(1),buildingId:z.uuid(),name:z.string().max(160),position:z.number().int().min(-1000).max(1000),mode:z.enum(["blank","outline","generate","copy"]),rooms:z.number().int().min(2).max(8),show:z.boolean(),design:floorDesignSchema,copyDesign:floorDesignSchema.nullable(),copyFloorId:z.uuid().nullable(),copyRevision:z.number().int().positive().nullable()}).strict();
+export const floorCreationDraftSchema=z.object({version:z.literal(1),buildingId:z.uuid(),name:z.string().max(160),position:z.number().int().min(-1000).max(1000),mode:z.enum(["blank","outline","generate","copy"]),rooms:z.number().int().min(2).max(8),show:z.boolean(),design:floorDesignSchema,copyDesign:floorDesignSchema.nullable(),copyFloorId:z.uuid().nullable(),copyRevision:z.number().int().positive().nullable(),templateImages:compositionSchema.optional()}).strict();
 export type FloorCreationDraft=z.infer<typeof floorCreationDraftSchema>;
 export function parseFloorCreationRecovery(raw:string,buildingId:string,frame:FloorFrame){
  const value=JSON.parse(raw),pending=value.pending?floorCommandSchema.parse(value.pending):value.action?floorCommandSchema.parse(value):undefined;

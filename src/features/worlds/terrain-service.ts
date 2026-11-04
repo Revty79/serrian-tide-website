@@ -70,8 +70,10 @@ export async function changeTerrain(userId: string, worldId: string, raw: unknow
       await tx.insert(worldTerrainVersion).values({ terrainId, worldId, revision: 1, previousRevision: null, seaLevel,source, requestId: command.requestId, contentHash: creationHash, authorId: userId });
       if(objects.length)await tx.insert(worldTerrainTile).values(objects.map(object=>({terrainId,worldId,revision:1,...object,manualProtection:EMPTY_PROTECTION})));
       await tx.insert(worldMapCanvas).values({ mapId: command.requestId, worldId, terrainId });
+      if(source.kind==="generated"&&source.templateEnvironment){const {createTemplateEnvironment}=await import("./map-template-environment-service");await createTemplateEnvironment(tx,userId,worldId,command.requestId,source.templateEnvironment,{width:s.widthKm*1000,height:s.heightKm*1000,wrap:s.wrap},command.requestId);}
       return { id: command.requestId, revision: 1 };
     }
+    if(command.source?.kind==="generated"&&command.source.templateEnvironment)throw new WorldError("Template land coverage initializes new Worlds only. Use the native environmental tools to edit an existing map.",400);
     await requireWorldGeographyWrite(tx,worldId,command.mapId);
     const [row] = await tx.select({ t: worldTerrain, m: worldAtlasMap }).from(worldMapCanvas).innerJoin(worldAtlasMap, eq(worldAtlasMap.id, worldMapCanvas.mapId)).innerJoin(worldTerrain, eq(worldTerrain.id, worldMapCanvas.terrainId)).where(and(eq(worldMapCanvas.mapId, command.mapId), eq(worldMapCanvas.worldId, worldId))).for("update");
     if (!row || row.m.archivedAt) throw unavailable();

@@ -1,4 +1,5 @@
 import "server-only";
+import {createTemplateImages} from "./map-template-images";
 import {createHash,randomUUID} from "node:crypto";
 import {assertUndergroundLayerChanges} from "./underground-guards";
 import {and,asc,desc,eq,sql} from "drizzle-orm";
@@ -97,7 +98,7 @@ export async function changeUnderground(userId:string,worldId:string,raw:unknown
    if(c.newPlace){placeId=randomUUID();await tx.insert(worldGeography).values({id:placeId,worldId,parentId:c.newPlace.parentId,name:c.newPlace.name,kind:"location",context:"dungeon"});}
    boundedRegionalLayer(()=>validateUnderground(c.design,c.frame));if(c.entrance){const r=await resolveEndpoint(tx,worldId,c.entrance,true);if(r.revision!==c.entranceRevision)throw conflict();}else if(c.entranceRevision!==null)throw conflict();
    const [site]=await tx.insert(sites).values({id:c.requestId,worldId,name:c.name,placeId,frame:c.frame,revision:1}).returning();capture("site",site);
-   const [level]=await tx.insert(levels).values({id:randomUUID(),worldId,siteId:site.id,name:c.name,order:c.order,depth:c.depth,design:c.design,revision:1}).returning();capture("level",level);result={...result,siteId:site.id,levelId:level.id};
+   const [level]=await tx.insert(levels).values({id:randomUUID(),worldId,siteId:site.id,name:c.name,order:c.order,depth:c.depth,design:c.design,revision:1}).returning();capture("level",level);await createTemplateImages(tx,userId,worldId,{kind:"underground",id:level.id},{...c.frame,x:0,y:0},c.templateImages);result={...result,siteId:site.id,levelId:level.id};
    if(c.entrance){const marker=c.design.features.find(f=>!f.archived&&f.kind==="transition"&&f.variant==="object");if(!marker||marker.variant!=="object")throw new WorldError("Place an arrival stair in the underground preview before connecting this entrance.",400);const link=await insertConnection(c.entrance,{map:{kind:"underground",levelId:level.id},entranceId:marker.id,point:marker.point},"Entrance to "+site.name,true,randomUUID());result.connectionId=link.id;}
   }else if(c.action==="connect"){
    const source=await resolveEndpoint(tx,worldId,c.source,true),destination=await resolveEndpoint(tx,worldId,c.destination,true);if(source.revision!==c.sourceRevision||destination.revision!==c.destinationRevision)throw conflict();const row=await insertConnection(c.source,c.destination,c.name,c.twoWay,c.requestId);result.connectionId=row.id;
@@ -110,7 +111,7 @@ export async function changeUnderground(userId:string,worldId:string,raw:unknown
    if(site.placeId){const [p]=await tx.select().from(worldGeography).where(and(eq(worldGeography.id,site.placeId),eq(worldGeography.worldId,worldId)));if(!p||p.archivedAt)throw unavailable();}
    if(c.action==="create-level"){
     await count(levels,eq(levels.siteId,site.id),UNDERGROUND_LIMITS.levels);if(c.copyLevelId){const [source]=await tx.select().from(levels).where(and(eq(levels.id,c.copyLevelId),eq(levels.worldId,worldId),eq(levels.siteId,site.id)));if(!source||source.archived||source.revision!==c.copyRevision)throw conflict();}else if(c.copyRevision!==null)throw conflict();
-    boundedRegionalLayer(()=>validateUnderground(c.design,site.frame));const [row]=await tx.insert(levels).values({id:c.requestId,worldId,siteId:site.id,name:c.name,order:c.order,depth:c.depth,design:c.design,revision:1}).returning();capture("level",row);result={...result,siteId:site.id,levelId:row.id};
+    boundedRegionalLayer(()=>validateUnderground(c.design,site.frame));const [row]=await tx.insert(levels).values({id:c.requestId,worldId,siteId:site.id,name:c.name,order:c.order,depth:c.depth,design:c.design,revision:1}).returning();capture("level",row);await createTemplateImages(tx,userId,worldId,{kind:"underground",id:row.id},{...site.frame,x:0,y:0},c.templateImages);result={...result,siteId:site.id,levelId:row.id};
    }else{
     if(c.action==="save"){
      if(old!.archived)throw new WorldError("Restore this level before editing. Your draft is retained.",409);boundedRegionalLayer(()=>{validateUnderground(c.design,site.frame);assertUndergroundLayerChanges(old!.design,c.design);});const incoming=new Map(c.design.features.map(f=>[f.id,f]));for(const f of old!.design.features){const next=incoming.get(f.id);if(!next||next.kind!==f.kind||next.variant!==f.variant||next.entityId!==f.entityId)throw new WorldError("Retain saved object identities; archive unwanted objects instead.",400);}

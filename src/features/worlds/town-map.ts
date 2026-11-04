@@ -1,3 +1,4 @@
+import {compositionSchema} from "./atlas-assets";
 import {z} from "zod";
 import {generateOrganicTown} from "./town-map-generation";
 import {makeTownStamp,defaultTownBrush,townPreset} from "./town-map-presets";
@@ -43,7 +44,7 @@ export function validateTownDesign(d:TownDesign,f:Pick<TownFrame,"width"|"height
  if(points>TOWN_MAP_LIMITS.points)throw Error("This map supports 64,000 retained points. Archive or simplify features before adding more.");
 }
 export const townMapCommandSchema=z.discriminatedUnion("action",[
- z.object({action:z.literal("create"),requestId:id,townId:id,sourceMapId:id,contextMapId:id,placementId:id.nullable(),placementRevision:z.number().int().positive().nullable(),anchor:townPointSchema.extend({x:metres.min(0).max(1e9),y:metres.min(0).max(1e9)}),frame:townFrameSchema,name:text(160).min(1),design:townDesignSchema,previewToken:z.string().max(128).nullable()}).strict(),
+ z.object({action:z.literal("create"),requestId:id,townId:id,sourceMapId:id,contextMapId:id,placementId:id.nullable(),placementRevision:z.number().int().positive().nullable(),anchor:townPointSchema.extend({x:metres.min(0).max(1e9),y:metres.min(0).max(1e9)}),frame:townFrameSchema,name:text(160).min(1),design:townDesignSchema,previewToken:z.string().max(128).nullable(),templateImages:compositionSchema.optional()}).strict(),
  z.object({action:z.literal("save"),requestId:id,mapId:id,revision:z.number().int().positive(),name:text(160).min(1),design:townDesignSchema}).strict(),
  z.object({action:z.literal("lifecycle"),requestId:id,mapId:id,revision:z.number().int().positive(),archived:z.boolean()}).strict(),
 ]);
