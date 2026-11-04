@@ -65,7 +65,7 @@ Private-file hash evidence uses owned fixtures. Live owner storage and shared le
 
 ## Publication
 
-Application commit and GitHub Actions receipt will be appended after authorized main publication. No deployment or shared migration is part of that publication.
+Application commit **`4ecd8350a1ff4e9dfac13b119f93732896541528`** is published to origin/main. [GitHub validation 41749839665](https://github.com/Revty79/serrian-tide-website/actions/runs/41749839665) passed dependency installation, TypeScript, ESLint, all units and portable raster provisioning regressions on Node 22 / Ubuntu. Local clean-tree and remote parity were verified after application publication. This subsequent documentation-only receipt changes AGENTS.md and this report; the entire application/data/asset/config corpus remains exact to the validated application commit. No deployment or shared migration occurred. Stop for owner review.
 
 ## Limits and owner review
 
