@@ -18,6 +18,7 @@ export type UserAccountForeignKeyPlanEntry = {
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "world_craft_operation", columnName: "author_id", constraintName: "world_craft_operation_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable craft author history" },
   { tableName: "atlas_asset", columnName: "owner_id", constraintName: "atlas_asset_owner_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Private Atlas artwork ownership" },
   { tableName: "atlas_asset_operation", columnName: "owner_id", constraintName: "atlas_asset_operation_owner_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable Atlas artwork requests" },
   { tableName: "atlas_asset_preference", columnName: "owner_id", constraintName: "atlas_asset_preference_owner_id_user_id_fk", onDelete: "restrict", disposition: "cleanup", label: "Atlas artwork favorites" },
@@ -162,4 +163,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 142;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 143;

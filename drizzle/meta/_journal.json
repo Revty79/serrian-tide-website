@@ -1086,6 +1086,13 @@
       "when": 1793745589970,
       "tag": "0154_atlas_asset_library",
       "breakpoints": true
+    },
+    {
+      "idx": 155,
+      "version": "7",
+      "when": 1793758374949,
+      "tag": "0155_world_craft_maps",
+      "breakpoints": true
     }
   ]
 }

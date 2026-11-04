@@ -2,13 +2,13 @@ import {z} from "zod";
 import {artworkAsset} from "./terrain-artwork-assets";
 
 export const ASSET_LIMITS={fileBytes:8*1024*1024,pixels:16*1024*1024,edge:8192,creatorBytes:256*1024*1024,versions:512,placements:256,sources:32,bodyBytes:256*1024,history:30,cacheBytes:24*1024*1024} as const;
-export const assetScales=["world","regional","town","building","interior","underground"] as const;
+export const assetScales=["world","regional","town","building","interior","underground","craft","deck"] as const;
 export const assetGenres=["fantasy","historical","modern","science-fiction","general"] as const;
-export const assetMetadataSchema=z.object({purpose:z.enum(["reference","symbol"]).default("reference"),name:z.string().trim().min(1).max(160),description:z.string().max(2000),category:z.string().trim().min(1).max(60),tags:z.array(z.string().trim().min(1).max(40)).max(24),genres:z.array(z.enum(assetGenres)).min(1).max(5),scales:z.array(z.enum(assetScales)).min(1).max(6),source:z.string().max(500),license:z.string().max(500),attribution:z.string().max(1000)}).strict();
+export const assetMetadataSchema=z.object({purpose:z.enum(["reference","symbol"]).default("reference"),name:z.string().trim().min(1).max(160),description:z.string().max(2000),category:z.string().trim().min(1).max(60),tags:z.array(z.string().trim().min(1).max(40)).max(24),genres:z.array(z.enum(assetGenres)).min(1).max(5),scales:z.array(z.enum(assetScales)).min(1).max(assetScales.length),source:z.string().max(500),license:z.string().max(500),attribution:z.string().max(1000)}).strict();
 export type AssetMetadata=z.infer<typeof assetMetadataSchema>;
 export const defaultAssetMetadata=(name="My artwork"):AssetMetadata=>({purpose:"reference",name,description:"",category:"References",tags:[],genres:["fantasy"],scales:[...assetScales],source:"",license:"Private creator upload",attribution:""});
 export const assetKeySchema=z.string().max(100).refine(id=>!!artworkAsset(id)||z.string().uuid().safeParse(id).success,"Choose an installed or uploaded asset.");
-export const compositionTargetSchema=z.object({kind:z.enum(["terrain","town","floor","underground"]),id:z.string().min(1).max(128)}).strict();
+export const compositionTargetSchema=z.object({kind:z.enum(["terrain","town","floor","underground","craft","craft-deck"]),id:z.string().min(1).max(128)}).strict();
 export type CompositionTarget=z.infer<typeof compositionTargetSchema>;
 export const assetPlacementSchema=z.object({id:z.string().uuid(),assetId:assetKeySchema,version:z.number().int().min(1).max(512),name:z.string().max(160),x:z.number().finite().min(-1e12).max(1e12),y:z.number().finite().min(-1e12).max(1e12),width:z.number().finite().min(.01).max(2e12),height:z.number().finite().min(.01).max(2e12),rotation:z.number().finite().min(-180).max(180),opacity:z.number().min(0).max(1),flipX:z.boolean(),flipY:z.boolean(),visible:z.boolean(),locked:z.boolean(),tier:z.enum(["reference","overlay"])}).strict().superRefine((p,c)=>{if(artworkAsset(p.assetId)&&p.version!==1)c.addIssue({code:"custom",message:"Installed artwork retains version 1."});});
 export type AssetPlacement=z.infer<typeof assetPlacementSchema>;

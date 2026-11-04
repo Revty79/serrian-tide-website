@@ -4,6 +4,8 @@ import {db} from "@/db";
 import {user} from "@/db/auth-schema";
 import {worldMapCanvas,worldTerrain} from "@/db/world-terrain-schema";
 import {worldAtlasMap,worldGeography} from "@/db/world-atlas-schema";
+import {craftAssetFrame} from "./craft-service";
+import {assertCraftBudget} from "./craft-budget";
 import {buildingFloorEditReason} from "./building-floor-service";
 import {worldMapRegion} from "@/db/world-map-region-schema";
 import {worldTownMap} from "@/db/world-town-map-schema";
@@ -18,6 +20,7 @@ type Tx=Parameters<Parameters<typeof db.transaction>[0]>[0];
 const unavailable=()=>new WorldError("This artwork or map is unavailable.",404);
 export async function assetsAvailable(tx:Pick<Tx,"execute">=db){return !!(await tx.execute<{ok:boolean}>(sql`select to_regclass('public.atlas_asset') is not null and to_regclass('public.atlas_composition') is not null as ok`)).rows[0].ok;}
 async function mapFrame(tx:Tx,worldId:string,t:CompositionTarget,writing=false):Promise<AssetFrame>{
+ if(t.kind==="craft"||t.kind==="craft-deck")return craftAssetFrame(tx,worldId,t,writing);
  if(t.kind==="terrain"){
   const [m]=await tx.select({width:worldTerrain.widthMetres,height:worldTerrain.heightMetres,wrap:worldTerrain.wrap,archived:worldAtlasMap.archivedAt}).from(worldMapCanvas).innerJoin(worldAtlasMap,eq(worldAtlasMap.id,worldMapCanvas.mapId)).innerJoin(worldTerrain,eq(worldMapCanvas.terrainId,worldTerrain.id)).where(and(eq(worldMapCanvas.mapId,t.id),eq(worldMapCanvas.worldId,worldId)));
   if(!m||writing&&m.archived)throw unavailable();const [r]=await tx.select().from(worldMapRegion).where(eq(worldMapRegion.mapId,t.id));if(writing&&r){const [parent]=await tx.select({archived:worldAtlasMap.archivedAt}).from(worldAtlasMap).where(and(eq(worldAtlasMap.id,r.parentMapId),eq(worldAtlasMap.worldId,worldId)));if(!parent||parent.archived)throw unavailable();}return r?{x:r.x,y:r.y,width:r.width,height:r.height,wrap:m.wrap}:{x:0,y:0,...m};
@@ -52,10 +55,10 @@ export async function changeAtlasAsset(userId:string,worldId:string,raw:unknown,
   const [used]=await tx.select().from(atlasAssetOperation).where(eq(atlasAssetOperation.requestId,c.requestId));if(used){if(used.ownerId!==userId||used.worldId!==worldId||used.inputHash!==hash)throw new WorldError("This request already belongs to different work. Retry the exact retained request.",409);return used.result;}
   let result:{revision:number;version?:number};
   if(c.action==="compose"){
-   const frame=await mapFrame(tx,worldId,c.target,true);try{validateComposition(c.layer,frame);}catch(e){throw new WorldError((e as Error).message,400);}const [head]=await tx.select().from(atlasComposition).where(targetWhere(c.target,worldId));if((head?.revision??0)!==c.revision)throw new WorldError("Another tab saved newer image layers. Export your draft before loading saved artwork.",409);
+   if((c.target.kind==="craft"||c.target.kind==="craft-deck")&&c.revision>=512)throw new WorldError("This craft surface has reached 512 retained image revisions. Your draft is retained.",413);const frame=await mapFrame(tx,worldId,c.target,true);try{validateComposition(c.layer,frame);}catch(e){throw new WorldError((e as Error).message,400);}const [head]=await tx.select().from(atlasComposition).where(targetWhere(c.target,worldId));if((head?.revision??0)!==c.revision)throw new WorldError("Another tab saved newer image layers. Export your draft before loading saved artwork.",409);
    for(const p of c.layer.placements){if(artworkAsset(p.assetId))continue;const [a]=await tx.select({ownerId:atlasAsset.ownerId,archived:atlasAsset.archived,version:atlasAssetVersion.version}).from(atlasAsset).innerJoin(atlasAssetVersion,and(eq(atlasAssetVersion.assetId,atlasAsset.id),eq(atlasAssetVersion.version,p.version))).where(eq(atlasAsset.id,p.assetId));if(!a||a.ownerId!==userId)throw unavailable();if(a.archived&&!head?.layer.placements.some(old=>old.assetId===p.assetId&&old.version===p.version))throw new WorldError("Restore this archived asset before placing it in another map.",400);}
    const revision=c.revision+1,values={worldId,kind:c.target.kind,mapId:c.target.id,revision,layer:c.layer};await tx.insert(atlasComposition).values(values).onConflictDoUpdate({target:[atlasComposition.worldId,atlasComposition.kind,atlasComposition.mapId],set:{revision,layer:c.layer}});await tx.insert(atlasCompositionVersion).values(values);
-   const refs=[...new Map(c.layer.placements.filter(p=>!artworkAsset(p.assetId)).map(p=>[p.assetId+":"+p.version,p])).values()];if(refs.length)await tx.insert(atlasAssetUsage).values(refs.map(p=>({worldId,kind:c.target.kind,mapId:c.target.id,revision,assetId:p.assetId,assetVersion:p.version})));result={revision};
+   const refs=[...new Map(c.layer.placements.filter(p=>!artworkAsset(p.assetId)).map(p=>[p.assetId+":"+p.version,p])).values()];if(refs.length)await tx.insert(atlasAssetUsage).values(refs.map(p=>({worldId,kind:c.target.kind,mapId:c.target.id,revision,assetId:p.assetId,assetVersion:p.version})));if(c.target.kind==="craft"||c.target.kind==="craft-deck")await assertCraftBudget(tx,worldId);result={revision};
   }else if(c.action==="preferences"){
    const [old]=await tx.select().from(atlasAssetPreference).where(eq(atlasAssetPreference.ownerId,userId));if((old?.revision??0)!==c.revision)throw new WorldError("Your library choices changed in another tab. Load the library before retrying a new choice.",409);
    const ids=[...new Set([...c.favorites,...c.recent].filter(id=>!artworkAsset(id)))],owned=ids.length?await tx.select({id:atlasAsset.id}).from(atlasAsset).where(and(eq(atlasAsset.ownerId,userId),inArray(atlasAsset.id,ids))):[];if(owned.length!==ids.length)throw unavailable();const revision=c.revision+1;await tx.insert(atlasAssetPreference).values({ownerId:userId,revision,favorites:c.favorites,recent:c.recent}).onConflictDoUpdate({target:atlasAssetPreference.ownerId,set:{revision,favorites:c.favorites,recent:c.recent}});result={revision};
