@@ -18,6 +18,9 @@ export type UserAccountForeignKeyPlanEntry = {
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "atlas_asset", columnName: "owner_id", constraintName: "atlas_asset_owner_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Private Atlas artwork ownership" },
+  { tableName: "atlas_asset_operation", columnName: "owner_id", constraintName: "atlas_asset_operation_owner_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable Atlas artwork requests" },
+  { tableName: "atlas_asset_preference", columnName: "owner_id", constraintName: "atlas_asset_preference_owner_id_user_id_fk", onDelete: "restrict", disposition: "cleanup", label: "Atlas artwork favorites" },
   { tableName: "world_underground_operation", columnName: "author_id", constraintName: "world_underground_operation_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable underground author history" },
   { tableName: "world_building_floor_operation", columnName: "author_id", constraintName: "world_building_floor_operation_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable building interior author history" },
   { tableName: "world_town_map_version", columnName: "author_id", constraintName: "world_town_map_version_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable Town Map author history" },
@@ -159,4 +162,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 139;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 142;

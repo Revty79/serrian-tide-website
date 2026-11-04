@@ -138,3 +138,5 @@ next-env.d.ts
 /artifacts/character-spreadsheet-print/
 /artifacts/character-creation-autosave/
 /artifacts/underground-s5c-*/
+/artifacts/atlas-s6a-*/
+/storage/atlas-assets/

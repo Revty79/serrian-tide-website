@@ -5,10 +5,11 @@ import {paintFloor,type FloorPalette,type FloorView} from "./building-floor-art"
 import {floorProjection,undergroundLayer,type UndergroundDesign} from "./underground";
 import type {FloorFrame} from "./building-floor";
 /** Bounded original linework, shared attached wall gaps and physical-metre source. */
-export function paintUnderground(ctx:CanvasRenderingContext2D,d:UndergroundDesign,frame:FloorFrame,v:FloorView,p:FloorPalette,reference=false,budget=5000){
+export function paintUnderground(ctx:CanvasRenderingContext2D,d:UndergroundDesign,frame:FloorFrame,v:FloorView,p:FloorPalette,reference=false,budget=5000,background?:()=>void){
  const project=(q:{x:number;y:number})=>({x:(q.x-v.left)*v.scale,y:(q.y-v.top)*v.scale}),visible=d.features.filter(f=>!f.archived&&d.layers[undergroundLayer(f,d)].visible),base=floorProjection(d),legacy=legacyFloorShapes(d.features),opacity=ctx.globalAlpha;let marks=0;
  const active={...base,features:visible,layers:{...base.layers,ground:{visible:false,locked:false}}};
  if(!reference)paintFloor(ctx,{...base,features:[],flooring:"plain"},frame,v,p);
+ if(!reference)background?.();
  const a=project({x:0,y:0});ctx.save();ctx.beginPath();ctx.rect(a.x,a.y,frame.width*v.scale,frame.height*v.scale);ctx.clip();ctx.lineCap="round";ctx.lineJoin="round";
  if(!reference&&d.flooring!=="plain"&&d.layers.ground.visible){const step=Math.max(d.flooring==="boards"?.5:1,12/v.scale),left=Math.max(0,Math.floor(v.left/step)*step),top=Math.max(0,Math.floor(v.top/step)*step),right=Math.min(frame.width,v.left+v.width/v.scale),bottom=Math.min(frame.height,v.top+v.height/v.scale),limit=Math.min(500,Math.max(0,budget-visible.length));ctx.strokeStyle=p.ink;ctx.lineWidth=.6;ctx.globalAlpha=.13*opacity;ctx.beginPath();for(let y=top;y<=bottom&&marks<limit;y+=step){const a=project({x:left,y}),b=project({x:right,y});ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);marks++;}if(d.flooring!=="boards")for(let x=left;x<=right&&marks<limit;x+=step){const a=project({x,y:top}),b=project({x,y:bottom});ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);marks++;}ctx.stroke();ctx.globalAlpha=opacity;}
 

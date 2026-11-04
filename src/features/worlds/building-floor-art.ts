@@ -2,13 +2,14 @@ import {wallSegments,openingAnchor,type InteriorShape} from "./interior";
 import {floorLayer,legacyFloorShapes,type FloorDesign,type FloorFeature,type FloorFrame} from "./building-floor";
 export type FloorView={left:number;top:number;scale:number;width:number;height:number};
 export type FloorPalette={paper:string;ink:string;wood:string;accent:string;stone:string};
-export function paintFloor(ctx:CanvasRenderingContext2D,design:FloorDesign,frame:FloorFrame,view:FloorView,palette:FloorPalette,reference=false){
+export function paintFloor(ctx:CanvasRenderingContext2D,design:FloorDesign,frame:FloorFrame,view:FloorView,palette:FloorPalette,reference=false,background?:()=>void){
  const {scale}=view,project=(p:{x:number;y:number})=>({x:(p.x-view.left)*scale,y:(p.y-view.top)*scale}),a=project({x:0,y:0});const opacity=ctx.globalAlpha;let marks=0;const detail=()=>marks++<5000;
  const visible=design.features.filter(f=>!f.archived&&design.layers[floorLayer(f)].visible),shapes=legacyFloorShapes(design.features),gaps=new Map<string,InteriorShape[]>();for(const f of shapes)if(f.variant==="opening"&&!f.archived){const list=gaps.get(f.wallId)??[];list.push(f);gaps.set(f.wallId,list);}
  ctx.save();ctx.beginPath();ctx.rect(a.x,a.y,frame.width*scale,frame.height*scale);ctx.clip();ctx.strokeStyle=palette.ink;ctx.lineJoin="round";ctx.lineCap="butt";
  if(!reference&&design.layers.ground.visible){ctx.fillStyle=palette.paper;ctx.fillRect(a.x,a.y,frame.width*scale,frame.height*scale);if(design.flooring!=="plain"){
   const step=Math.max(design.flooring==="boards"?.3:1,8/scale),left=Math.max(0,Math.floor(view.left/step)*step),top=Math.max(0,Math.floor(view.top/step)*step),right=Math.min(frame.width,view.left+view.width/scale),bottom=Math.min(frame.height,view.top+view.height/scale);ctx.globalAlpha=.13*opacity;ctx.lineWidth=.6;ctx.beginPath();for(let y=top;y<=bottom&&detail();y+=step){const p=project({x:0,y});ctx.moveTo(a.x,p.y);ctx.lineTo(a.x+frame.width*scale,p.y);}if(design.flooring!=="boards")for(let x=left;x<=right&&detail();x+=step){const p=project({x,y:0});ctx.moveTo(p.x,a.y);ctx.lineTo(p.x,a.y+frame.height*scale);}ctx.stroke();ctx.globalAlpha=opacity;
  }}
+ if(!reference)background?.();
  for(const f of visible){if(f.variant!=="area")continue;ctx.beginPath();f.points.forEach((p,i)=>{const q=project(p);if(i)ctx.lineTo(q.x,q.y);else ctx.moveTo(q.x,q.y);});ctx.closePath();ctx.fillStyle=palette.wood;ctx.globalAlpha=.1*opacity;ctx.fill();ctx.globalAlpha=opacity;if(f.name&&scale>4&&detail()){const x=f.points.reduce((n,p)=>n+p.x,0)/f.points.length,y=f.points.reduce((n,p)=>n+p.y,0)/f.points.length,q=project({x,y});ctx.fillStyle=palette.ink;ctx.font="12px Georgia,serif";ctx.textAlign="center";ctx.fillText(f.name.slice(0,40),q.x,q.y);}}
  // Paint all wall bands first; aligned junctions stay continuous and openings are actual missing spans.
  for(const f of visible){if(f.variant!=="wall")continue;ctx.strokeStyle=palette.ink;ctx.lineWidth=Math.max(1.2,f.width*scale);ctx.beginPath();for(const span of wallSegments(f,[f,...gaps.get(f.id)??[]])){const a=project(span.a),b=project(span.b);ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);}ctx.stroke();}

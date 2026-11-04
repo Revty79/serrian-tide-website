@@ -1,0 +1,7 @@
+"use client";
+import type {AssetImport} from "./atlas-assets";
+export type RetainedImport={id:string;worldId:string;command:AssetImport;file:Blob};
+async function database(){return new Promise<IDBDatabase>((resolve,reject)=>{const request=indexedDB.open("st-atlas-image-imports",1);request.onupgradeneeded=()=>request.result.createObjectStore("imports",{keyPath:"id"});request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(Error("Image recovery storage is unavailable. Keep this tab open and try again."));});}
+export async function retainedImports(worldId:string){const db=await database();try{return await new Promise<RetainedImport[]>((resolve,reject)=>{const r=db.transaction("imports").objectStore("imports").getAll();r.onsuccess=()=>resolve((r.result as RetainedImport[]).filter(v=>v.worldId===worldId));r.onerror=()=>reject(r.error);});}finally{db.close();}}
+export async function retainImport(value:RetainedImport){const db=await database();try{await new Promise<void>((resolve,reject)=>{const t=db.transaction("imports","readwrite");t.objectStore("imports").put(value);t.oncomplete=()=>resolve();t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error);});}finally{db.close();}}
+export async function forgetImport(id:string){const db=await database();try{await new Promise<void>((resolve,reject)=>{const t=db.transaction("imports","readwrite");t.objectStore("imports").delete(id);t.oncomplete=()=>resolve();t.onerror=()=>reject(t.error);});}finally{db.close();}}

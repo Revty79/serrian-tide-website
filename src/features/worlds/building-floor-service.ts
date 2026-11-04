@@ -95,3 +95,6 @@ export async function changeBuildingFloor(userId:string,worldId:string,raw:unkno
   return result;
  });
 }
+
+// Image compositions share the existing transaction-authoritative parent guards.
+export {editReason as buildingFloorEditReason};

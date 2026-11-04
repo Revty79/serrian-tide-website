@@ -37,6 +37,8 @@ export function useTerrainArtwork(api:string,mapId:string,editable:boolean,world
   accept:()=>{if(!preview||!canPreview)return;undo.current.push(current.current);if(undo.current.length>ARTWORK_LIMITS.history)undo.current.shift();redo.current=[];install(preview);setPreview(undefined);setNotice("Artwork settings accepted into the draft. Save artwork to keep them.");},
   cancel:()=>setPreview(undefined),
   remove:()=>{if(selected&&change({...current.current,placements:current.current.placements.filter(p=>p.id!==selected.id)}))setSelectedId(null);},
+  duplicate:()=>{if(!selected)return;const p={...selected,id:crypto.randomUUID()};if(change({...current.current,placements:[...current.current.placements,p]})){setSelectedId(p.id);setMode("select");setNotice("Artwork duplicated above the original. Move selected on map to choose its new location.");}},
+  reorder:(delta:number)=>{if(!selected)return;const placements=[...current.current.placements],i=placements.findIndex(p=>p.id===selected.id),j=Math.max(0,Math.min(placements.length-1,i+delta));if(i!==j){[placements[i],placements[j]]=[placements[j],placements[i]];change({...current.current,placements});}},
   exportDraft:()=>{const url=URL.createObjectURL(new Blob([JSON.stringify({mapId,revision:revision.current,regional:authoring.current,layer:current.current,preview,pending:pending.current,recovered})],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download=mapId+"-artwork.json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
  };
 }
