@@ -144,3 +144,6 @@ next-env.d.ts
 /artifacts/crafts-s6b-*/
 
 /artifacts/templates-s6c-*/
+
+# Stage 6D task-owned evidence and validation services
+/artifacts/terrain-s6d-*/

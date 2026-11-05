@@ -1100,6 +1100,13 @@
       "when": 1793809043463,
       "tag": "0156_atlas_map_templates",
       "breakpoints": true
+    },
+    {
+      "idx": 157,
+      "version": "7",
+      "when": 1793847809893,
+      "tag": "0157_advanced_terrain_indexes",
+      "breakpoints": true
     }
   ]
 }

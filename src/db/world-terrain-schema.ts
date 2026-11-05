@@ -1,6 +1,6 @@
 ﻿import type {TerrainSource} from "@/features/worlds/terrain-source";
 import { sql } from "drizzle-orm";
-import { boolean, check, doublePrecision, foreignKey, integer, jsonb, pgTable, primaryKey, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { boolean, check, doublePrecision, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique } from "drizzle-orm/pg-core";
 import { worldAtlasMap } from "./world-atlas-schema";
 import { world } from "./world-schema";
 import { user } from "./auth-schema";
@@ -28,6 +28,7 @@ export const worldTerrainVersion = pgTable("world_terrain_version", {
   terrainId: text("terrain_id").notNull(), worldId: text("world_id").notNull(), revision: integer("revision").notNull(), previousRevision: integer("previous_revision"),
   source:jsonb("source").$type<TerrainSource>().notNull().default({kind:"legacy"}),requestId: text("request_id").notNull().unique(), contentHash: text("content_hash").notNull(), seaLevel: integer("sea_level").notNull(), authorId: text("author_id").notNull().references(() => user.id, { onDelete: "restrict" }), createdAt: timestamp("created_at").notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.terrainId, t.revision] }), unique("world_terrain_version_world_uq").on(t.terrainId, t.worldId, t.revision),
+  index("world_terrain_advanced_volcano_idx").on(t.terrainId, t.createdAt.desc(), t.requestId).where(sql`${t.source} #>> '{advanced,operation,kind}'='volcano'`),
   foreignKey({ name: "world_terrain_version_terrain_fk", columns: [t.terrainId, t.worldId], foreignColumns: [worldTerrain.id, worldTerrain.worldId] }).onDelete("restrict"),
   foreignKey({ name: "world_terrain_version_parent_fk", columns: [t.terrainId, t.worldId, t.previousRevision], foreignColumns: [t.terrainId, t.worldId, t.revision] }).onDelete("restrict"),
   check("world_terrain_version_source_valid",sql`jsonb_typeof(${t.source})='object' AND ${t.source}->>'kind' IN ('legacy','manual','blank','generated','imported','regenerated')`),check("world_terrain_version_valid", sql`${t.revision}>0 AND ((${t.revision}=1 AND ${t.previousRevision} IS NULL) OR (${t.previousRevision} IS NOT NULL AND ${t.previousRevision}=${t.revision}-1)) AND ${t.seaLevel} BETWEEN -30000 AND 30000 AND ${t.contentHash} ~ '^[a-f0-9]{64}$'`)]);

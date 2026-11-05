@@ -1,0 +1,2 @@
+CREATE INDEX "world_terrain_advanced_volcano_idx" ON "world_terrain_version" USING btree ("terrain_id","created_at" DESC NULLS LAST,"request_id") WHERE "world_terrain_version"."source" #>> '{advanced,operation,kind}'='volcano';--> statement-breakpoint
+CREATE INDEX "world_refinement_advanced_volcano_idx" ON "world_terrain_refinement_version" USING btree ("terrain_id","created_at" DESC NULLS LAST,"request_id") WHERE "world_terrain_refinement_version"."source" #>> '{advanced,operation,kind}'='volcano';

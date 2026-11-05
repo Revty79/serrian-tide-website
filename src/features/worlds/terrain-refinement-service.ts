@@ -113,7 +113,8 @@ export async function saveRefinement(userId:string,worldId:string,id:string,raw:
    for(let n=0;n<1024;n++)if(tile.samples[n]!==old[n]){const x=tile.x*32+n%32,y=tile.y*32+Math.floor(n/32);if(mask?.[y*shape.width+x])throw new WorldError("The inherited boundary and finer child coverage are protected. Sculpt inside this area's collar or edit the finer source; the retained draft was not accepted.",409);if(source.kind==="regenerated"){const a=source.area;if(x<a.x||x>=a.x+a.width||y<a.y||y>=a.y+a.height||source.preserveManual&&isProtected(ref.mask,n))throw new WorldError("This proposal changes samples outside its selected area or replaces protected manual detail.",400);}indices.push(n);}
    changed+=indices.length;masks.set(coordinate(tile.x,tile.y),source.kind==="manual"?protectSamples(ref.mask,indices):ref.mask);
   }
-  if(!changed)throw new WorldError("This edit makes no numerical change. Nothing was accepted.",400);
+  if(source.kind==="manual"&&source.advanced){const {validateAdvancedAcceptance}=await import("./terrain-advanced-service");await validateAdvancedAcceptance(tx,worldId,command.mapId,id,source.advanced,shape,root.terrain.baseElevation,[...before.values()],tiles,mask);}
+   if(!changed)throw new WorldError("This edit makes no numerical change. Nothing was accepted.",400);
   const revision=surface.revision+1;await tx.execute(sql`SELECT set_config('serrian.refinement_guard',${id},true)`);await tx.insert(versions).values({refinementId:id,terrainId:root.terrain.id,worldId,revision,previousRevision:surface.revision,parentRevision:surface.parentRevision,rootRevision:root.terrain.revision,requestId:command.requestId,contentHash,source,authorId:userId});await publishPyramid(tx,root,meta,command.requestId,revision,tiles,masks,surface.revision);await tx.update(surfaces).set({revision,updatedAt:new Date()}).where(eq(surfaces.id,id));return {id:command.mapId,refinementId:id,revision};
  });
 }

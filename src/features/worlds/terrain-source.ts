@@ -1,3 +1,4 @@
+import {advancedProvenanceSchema} from "./terrain-advanced-spec";
 import {geographyTemplateEnvironmentSchema} from "./map-template-geography-spec";
 import {z} from "zod";
 import {INTENT_VERSION,intentPlanSchema,intentIssueSchema} from "./terrain-intent";
@@ -40,7 +41,7 @@ export const importInterpretationSchema=z.object({
 export type ImportInterpretation=z.infer<typeof importInterpretationSchema>;
 export const terrainSourceSchema=z.discriminatedUnion("kind",[
  z.object({kind:z.literal("legacy")}).strict(),
- z.object({kind:z.literal("manual")}).strict(),
+ z.object({kind:z.literal("manual"),advanced:advancedProvenanceSchema.optional()}).strict(),
  z.object({kind:z.literal("blank"),surface:z.enum(["ocean","land"])}).strict(),
  z.object({kind:z.literal("generated"),recipe:generationRecipeSchema,scaleAcknowledged:z.boolean().optional(),templateEnvironment:geographyTemplateEnvironmentSchema.optional()}).strict(),
  z.object({kind:z.literal("imported"),format:z.literal("grayscale-png"),fileName:z.string().max(180),sha256:z.string().regex(/^[a-f0-9]{64}$/),sourceWidth:z.number().int().positive().max(4096),sourceHeight:z.number().int().positive().max(4096),bitDepth:z.union([z.literal(8),z.literal(16)]),interpretation:importInterpretationSchema,transparentSample:z.number().int().min(0).max(65535).nullable().optional(),sourceNoDataCount:z.number().int().min(0).max(4194304).optional()}).strict(),

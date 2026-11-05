@@ -1,0 +1,21 @@
+.stage{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0;gap:.35rem}
+.map{position:relative;flex:1;min-height:0;overflow:hidden;border:1px solid var(--st-border-strong);border-radius:.5rem;background:var(--st-surface-deep)}
+.bar{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
+.status{font-size:.82rem;line-height:1.35;margin:.2rem 0;overflow-wrap:anywhere}
+.fields{display:grid;grid-template-columns:minmax(0,1fr);gap:.55rem}
+.fields label{display:flex;flex-direction:column;gap:.2rem}
+.fields input,.fields select,.review select,.review input[type=number]{width:100%;min-width:0;background:var(--st-surface);color:var(--st-text);border:1px solid var(--st-border);border-radius:.35rem;padding:.45rem}
+.review input[type=number]{display:block}
+.fields .check{flex-direction:row;align-items:flex-start}
+.check input{width:auto;flex-shrink:0;margin-top:.25rem}
+.review{font-size:.85rem;overflow-wrap:anywhere}
+.review ul{padding-left:1.2rem}
+.actions{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+.error{color:var(--st-text-strong);border:1px solid var(--st-border-strong);padding:.3rem;margin:.2rem 0;font-size:.85rem;overflow-wrap:anywhere;max-height:6rem;overflow:auto}
+@media(max-width:700px){.bar button{font-size:.78rem;padding:.35rem .5rem}.status{font-size:.75rem}.actions button{min-height:44px}}
+
+.short{display:none}
+@media(max-width:700px){.full{display:none}.short{display:inline}}
+
+.shell{display:contents}
+@media(max-width:700px){.stage{gap:.2rem}.shell:has([data-settings="closed"]) header p{white-space:nowrap;max-width:23ch;overflow:hidden;text-overflow:ellipsis}}

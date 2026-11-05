@@ -21,6 +21,7 @@ export const worldTerrainRefinementVersion=pgTable("world_terrain_refinement_ver
  requestId:text("request_id").notNull().unique(),contentHash:text("content_hash").notNull(),source:jsonb("source").$type<TerrainSource>().notNull(),authorId:text("author_id").notNull().references(()=>user.id,{onDelete:"restrict"}),createdAt:timestamp("created_at").notNull().defaultNow(),
 },t=>[
  primaryKey({columns:[t.refinementId,t.revision]}),unique("world_terrain_refinement_version_identity_uq").on(t.refinementId,t.terrainId,t.worldId,t.revision),
+ index("world_refinement_advanced_volcano_idx").on(t.terrainId,t.createdAt.desc(),t.requestId).where(sql`${t.source} #>> '{advanced,operation,kind}'='volcano'`),
  foreignKey({name:"world_terrain_refinement_version_root_fk",columns:[t.terrainId,t.worldId,t.rootRevision],foreignColumns:[worldTerrainVersion.terrainId,worldTerrainVersion.worldId,worldTerrainVersion.revision]}).onDelete("restrict"),
  foreignKey({name:"world_terrain_refinement_version_surface_fk",columns:[t.refinementId,t.terrainId,t.worldId],foreignColumns:[worldTerrainRefinement.id,worldTerrainRefinement.terrainId,worldTerrainRefinement.worldId]}).onDelete("restrict"),
  foreignKey({name:"world_terrain_refinement_version_previous_fk",columns:[t.refinementId,t.previousRevision],foreignColumns:[t.refinementId,t.revision]}).onDelete("restrict"),

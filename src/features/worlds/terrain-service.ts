@@ -1,4 +1,4 @@
-﻿import "server-only";
+import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -96,6 +96,11 @@ export async function changeTerrain(userId: string, worldId: string, raw: unknow
       }
       changedSamples+=changed.length;masks.set(key,source.kind==="manual"?protectSamples(mask,changed):mask);
     }));
+    if(source.kind==="manual"&&source.advanced){
+      if(command.seaLevel!==row.t.seaLevel)throw new WorldError("Advanced operations retain the accepted sea level. Change it separately.",400);
+      const {validateAdvancedAcceptance}=await import("./terrain-advanced-service");
+      await validateAdvancedAcceptance(tx,worldId,command.mapId,undefined,source.advanced,editShape,row.t.baseElevation,previous,tiles,refinementMask);
+    }
     if(source.kind==="regenerated"&&!changedSamples)throw new WorldError("This selected-area preview makes no numerical change. Nothing was accepted.",400);
     // Private files are verified and published before the atomic revision/head
     // transaction commits references. A failed transaction leaves safe orphans.

@@ -1,10 +1,11 @@
-import type {Page,Locator} from "playwright-core";
+import type {Page,Locator,BrowserContext} from "playwright-core";
 type Panel="Tool"|"Measure"|"Terrain detail"|"Water"|"World"|"Climate & Biomes"|"Artwork"|"Labels & Layout"|"Settlements"|"Regions";
 /** Navigate through public workspace controls, retaining exact accepted-baseline support. */
 export async function terrainPanel(p:Page|Locator,name:Panel){
- const tab=p.getByRole("tab",{name,exact:true}),options=p.getByRole("button",{name:"Options",exact:true});
+ const tab=p.getByRole("tab",{name,exact:true}),options=p.getByRole("button",{name:"Options",exact:true}),opener=p.getByRole("button",{name:/^(Show settings|Advanced settings)$/});
+ await options.or(opener).or(tab).first().waitFor({state:"visible"});
  if(await options.isVisible()){if(await options.getAttribute("aria-expanded")==="false")await options.click();const menu=p.getByText("All map options",{exact:true});await menu.waitFor();if(!await menu.evaluate(e=>(e.parentElement as HTMLDetailsElement).open))await menu.click();await tab.click();if(name==="Water"){const details=p.locator("details[data-water-tools]");if(await details.count()&&!await details.evaluate(e=>(e as HTMLDetailsElement).open))await details.locator("summary").first().click();}return;}
- const opener=p.getByRole("button",{name:/^(Show settings|Advanced settings)$/});await opener.or(tab).first().waitFor({state:"visible"});if(!await tab.isVisible())await opener.first().click();await tab.click();
+ if(!await tab.isVisible())await opener.first().click();await tab.click();
 }
 const toolButtons:Record<string,string>={raise:"Raise mountains",lower:"Lower / carve valleys",smooth:"Smooth",level:"Flatten",sample:"Sample height","coast-land":"Extend land","coast-water":"Carve a bay","coast-smooth":"Smooth shoreline",pan:"Pan",inspect:"Inspect",measure:"Measure",locations:"Towns & settlements",artwork:"Artwork",labels:"Labels & map layout"};
 export async function terrainTool(p:Page,tool:string|{label:string}){
@@ -21,7 +22,7 @@ export async function terrainTool(p:Page,tool:string|{label:string}){
  if(["pan","inspect"].includes(tool)&&!await p.getByLabel("More tools",{exact:true}).isVisible()&&!await p.getByLabel("Active terrain tool",{exact:true}).isVisible()){const c=p.getByLabel("Terrain map canvas",{exact:true});await c.scrollIntoViewIfNeeded();await c.focus();await p.keyboard.press(tool==="pan"?"p":"i");return;}
  let current=p.getByLabel("More tools",{exact:true});if(!await current.isVisible()&&!await p.getByLabel("Active terrain tool",{exact:true}).isVisible())await terrainPanel(p,"Tool");current=p.getByLabel("More tools",{exact:true});await(await current.count()?current:p.getByLabel("Active terrain tool",{exact:true})).selectOption(tool);
 }
-export async function terrainActiveTool(p:Page){if(await p.getByRole("button",{name:"Options",exact:true}).count()){const names=await p.getByRole("navigation",{name:"Mapmaking tools",includeHidden:true}).getByRole("button",{pressed:true,includeHidden:true}).allTextContents();return Object.entries(toolButtons).find(([,label])=>names.includes(label))?.[0];}const old=p.getByLabel("More tools",{exact:true});return(await old.count()?old:p.getByLabel("Active terrain tool",{exact:true})).inputValue();}
+export async function terrainActiveTool(p:Page){if(await p.getByRole("button",{name:"Options",exact:true}).count()){const names=await p.getByRole("navigation",{name:"Mapmaking tools",includeHidden:true}).getByRole("button",{pressed:true,includeHidden:true}).evaluateAll(nodes=>nodes.map(node=>node.getAttribute("aria-label")??node.textContent??""));return Object.entries(toolButtons).find(([,label])=>names.includes(label))?.[0];}const old=p.getByLabel("More tools",{exact:true});return(await old.count()?old:p.getByLabel("Active terrain tool",{exact:true})).inputValue();}
 export async function enableTerrainTouch(p:Page){const off=p.getByRole("button",{name:"Touch controls: Off",exact:true});if(!await off.isVisible()&&await p.getByRole("button",{name:"Options",exact:true}).count())await terrainPanel(p,"Tool");if(await off.isVisible())await off.click();}
 export async function chooseTerrainMap(p:Page,map:string){
  const direct=p.getByRole("button",{name:"Switch Map",exact:true});
@@ -53,3 +54,9 @@ export async function visibleTerrainPoint(p:Page,point:{x:number;y:number}){
 
 /** Prefer the visible everyday history action, retaining the published toolbar fallback. */
 export async function terrainHistory(p:Page|Locator,direction:"undo"|"redo",touch=false){const name=direction==="undo"?"Undo":"Redo",primary=p.getByRole("button",{name:name+" change",exact:true}),legacy=p.getByRole("button",{name,exact:true});await primary.or(legacy).first().waitFor({state:"visible"});const button=await primary.isVisible()?primary:legacy;if(touch)await button.tap();else await button.click();}
+
+/** Respect the real sign-in limiter on owned legacy fixtures; never change its settings. */
+export async function signInTerrainTestActor(context:BrowserContext,base:string,actor:string){
+ const target=new URL(base);if(target.hostname!=="127.0.0.1"||target.port==="3000")throw Error("Test sign-in requires an owned loopback service");
+ for(let attempt=0;attempt<15;attempt++){const response=await context.request.post(base+"/api/auth/sign-in/email",{headers:{Origin:base},data:{email:actor+"@example.invalid",password:"Worlds-Test-Only-Password!"}});if(response.status()===200)return;if(response.status()!==429)throw Error("Fixture sign-in failed: "+response.status());const retry=Number(response.headers()["retry-after"]??1);await new Promise(resolve=>setTimeout(resolve,Math.min(60000,Math.max(1000,(Number.isFinite(retry)?retry:1)*1000))));}throw Error("Fixture sign-in remained rate limited");
+}

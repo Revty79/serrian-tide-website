@@ -1,3 +1,5 @@
+import {advancedOperationOptions} from "./terrain-advanced-spec";
+import {prepareAdvancedTerrain,type AdvancedTerrainContext} from "./terrain-advanced";
 import {z} from "zod";
 import {physicalBrushGeometry} from "./terrain-physical-brush";
 import {brushWeight,type TerrainGeometry,type TerrainPatch} from "./terrain";
@@ -6,6 +8,7 @@ import {terrainAreaSchema,type TerrainArea} from "./terrain-source";
 export type TerrainPathPoint={x:number;y:number};
 const point=z.object({x:z.number().finite(),y:z.number().finite()}).strict();
 export const terrainOperationSchema=z.discriminatedUnion("kind",[
+ ...advancedOperationOptions,
  z.object({kind:z.enum(["ridge","valley"]),points:z.array(point).min(2).max(256),radius:z.number().min(1).max(128),radiusMetres:z.number().finite().positive().max(1e9).optional(),height:z.number().int().min(1).max(30000),hardness:z.number().min(0).max(1)}).strict(),
  z.object({kind:z.literal("area"),area:terrainAreaSchema,tool:z.enum(["level","smooth","raise","lower"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32)}).strict(),
 ]);
@@ -17,8 +20,9 @@ export function unwrapTerrainPath(points:TerrainPathPoint[],shape:TerrainGeometr
 const indexAt=(x:number,y:number,s:TerrainGeometry)=>Math.max(0,Math.min(s.height-1,y))*s.width+(s.wrap?(x%s.width+s.width)%s.width:Math.max(0,Math.min(s.width-1,x)));
 const bounded=(v:number,s:TerrainGeometry)=>Math.round(Math.max(s.min,Math.min(s.max,v)));
 /** Independent preview buffer; neither the caller's grid nor outside cells mutate. */
-export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,raw:TerrainOperation,progress?:(p:number)=>void,blocked?:Uint8Array){
+export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,raw:TerrainOperation,progress?:(p:number)=>void,blocked?:Uint8Array,advancedContext?:AdvancedTerrainContext,manual?:Uint8Array){
  const operation=terrainOperationSchema.parse(raw);if(base.length!==shape.width*shape.height)throw Error("The terrain buffer does not match this map.");
+ if("selection" in operation){if(!advancedContext)throw Error("An advanced operation requires its accepted geographic context.");const r=prepareAdvancedTerrain(base,shape,operation,advancedContext,blocked,manual,progress);return {...r,...r.metrics};}
  const grid=base.slice();
  if(operation.kind==="area"){
   validateArea(operation.area,shape);if(operation.tool==="level"&&(operation.target<shape.min||operation.target>shape.max))throw Error("Choose a target elevation within this saved map's limits.");
