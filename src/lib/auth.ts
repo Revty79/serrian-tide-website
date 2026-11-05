@@ -9,6 +9,12 @@ import { finishPasswordRecovery, passwordResetIdentifier, PASSWORD_RESET_LIFETIM
 import { passwordRecovery } from "@/features/authorization/password-recovery-plugin";
 
 export const auth = betterAuth({
+  // A callback extends Better Auth's base-URL trust instead of replacing it.
+  trustedOrigins: () => (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
