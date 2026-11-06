@@ -25,6 +25,7 @@ export const worldMapStateVersion = pgTable("world_map_state_version", {
   foreignKey({name:"map_state_version_source_fk",columns:[t.sourceVersionId,t.worldId,t.mapId],foreignColumns:[t.id,t.worldId,t.mapId]}).onDelete("restrict"),
   foreignKey({name:"map_state_version_previous_fk",columns:[t.previousVersionId,t.worldId,t.mapId,t.stateId],foreignColumns:[t.id,t.worldId,t.mapId,t.stateId]}).onDelete("restrict"),
   index("map_state_version_state_idx").on(t.worldId,t.mapId,t.stateId,t.createdAt),
+  index("map_state_native_target_idx").on(t.worldId,sql`(${t.payload}->'nativeAtlas'->'target'->>'kind')`,sql`(${t.payload}->'nativeAtlas'->'target'->>'id')`,t.timelineId,t.createdAt.desc()).where(sql`${t.payload} ? 'nativeAtlas'`),
   check("map_state_version_valid",sql`length(trim(${t.name})) BETWEEN 1 AND 160 AND length(${t.account})<=12000 AND length(${t.authorId})>0 AND ${t.baselineRevision}>0 AND (${t.sourceVersionId} IS NULL OR ${t.sourceVersionId}<>${t.id}) AND ((${t.stateId} IS NULL AND ${t.startYear} IS NULL AND ${t.endYear} IS NULL AND ${t.sourceVersionId} IS NULL AND NOT ${t.archived}) OR (${t.stateId} IS NOT NULL AND ${t.startYear} IS NOT NULL AND ${t.endYear} IS NOT NULL AND abs(${t.startYear})<=1000000000000 AND abs(${t.endYear})<=1000000000000 AND ${t.startYear}<=${t.endYear} AND ${t.sourceVersionId} IS NOT NULL))`),
   check("map_state_payload_valid",sql`world_map_state_payload_valid(${t.payload}) IS TRUE`)]);
 export const worldMapStateHead = pgTable("world_map_state_head", {

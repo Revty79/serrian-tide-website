@@ -1,5 +1,8 @@
 "use client";
 import Link from "next/link";
+import {useSearchParams} from "next/navigation";
+import {useWorldAtlasContext} from "./world-atlas-context-client";
+import {worldContextUrl} from "./world-atlas-context";
 import { useEffect, useRef, useState } from "react";
 import { ChronologyYearInput } from "./chronology-year-input";
 import { Field } from "./world-field";
@@ -14,7 +17,11 @@ export function CampaignAssociationsWorkspace({ worldId, timelineId, worldArchiv
   onDirty: (dirty: boolean) => void; onSelectTimeline: (id: string) => void;
   onSaved:()=>void;
 }) {
+  const worldContext=useWorldAtlasContext();
+  const requestedContext=useSearchParams().get("worldCampaignContext");
+
   const [bundle, setBundle] = useState<AssociationBundle | null>(null);
+  useEffect(()=>{if(!requestedContext)return;const frame=requestAnimationFrame(()=>document.getElementById("world-campaign-"+requestedContext)?.scrollIntoView({block:"center"}));return()=>cancelAnimationFrame(frame);},[requestedContext,bundle]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
@@ -31,7 +38,7 @@ export function CampaignAssociationsWorkspace({ worldId, timelineId, worldArchiv
   useEffect(() => { let alive = true;worldApi<AssociationBundle>(`${url}${review ? "?review=1" : ""}`).then(data => { if (alive) { setBundle(data);setSelectionId(data.contexts.some(row => row.id === data.selection.contextId) ? data.selection.contextId! : "");setViewingYear(data.contexts.some(row => row.id === data.selection.contextId) ? data.selection.viewingYear : null); } }).catch(failure => { if (alive) setError(failure.message); });return () => { alive = false; }; }, [url, review]);
   useEffect(() => { onDirty(selectionDirty || editorDirty);return () => onDirty(false); }, [selectionDirty, editorDirty, onDirty]);
   useEffect(() => { if (!selectionDirty) return;const warn = (event: BeforeUnloadEvent) => event.preventDefault();window.addEventListener("beforeunload", warn);return () => window.removeEventListener("beforeunload", warn); }, [selectionDirty]);
-  useEffect(()=>{if(!selectionDirty&&!editorDirty)return;const guard=(event:MouseEvent)=>{const link=(event.target as Element).closest("a[href]");if(link&&!window.confirm("Leave this page and discard the unsaved association draft?")){event.preventDefault();event.stopPropagation();}};document.addEventListener("click",guard,true);return()=>document.removeEventListener("click",guard,true);},[selectionDirty,editorDirty]);
+  useEffect(()=>{if(!selectionDirty&&!editorDirty)return;const guard=(event:MouseEvent)=>{const link=(event.target as Element).closest("a[href]");if(link&&link.getAttribute("target")!=="_blank"&&!event.ctrlKey&&!event.metaKey&&!window.confirm("Leave this page and discard the unsaved association draft?")){event.preventDefault();event.stopPropagation();}};document.addEventListener("click",guard,true);return()=>document.removeEventListener("click",guard,true);},[selectionDirty,editorDirty]);
   async function save(command: object) { await worldApi(url, "POST", command);onSaved();setNotice("Association metadata saved. Gameplay is unchanged.");try { await reload(); } catch (failure) { setError(`Saved successfully; reload associations to see the result. ${failure instanceof Error ? failure.message : ""}`); } }
   async function act(command: object) { setPending(true);setError("");try { await save(command);return true; } catch (failure) { setError(failure instanceof Error ? failure.message : "The change failed.");return false; } finally { setPending(false); } }
   if (!bundle) return <section className={styles.story}><h2>Campaign Associations</h2>{error ? <p role="alert">{error}</p> : <p>Loading association metadata…</p>}<button className="st-button is-secondary" onClick={() => reload().catch(failure => setError(failure.message))}>Reload associations</button></section>;
@@ -59,9 +66,9 @@ export function CampaignAssociationsWorkspace({ worldId, timelineId, worldArchiv
     </div>}
     <div className={styles.associationToolbar}><label className="st-field">Find associated Campaigns<input className="st-control" type="search" value={query} onChange={event => { setQuery(event.target.value);setLimit(30); }}/></label><label><input type="checkbox" checked={showRemoved} onChange={event => setShowRemoved(event.target.checked)}/>Show removed associations</label></div>
     {!bundle.contexts.length && <p>No Campaigns are associated. This World works independently; link an existing Campaign whenever you need an authoring context.</p>}
-    <div className={styles.associationList}>{visible.slice(0, limit).map(item => { const home = bundle.homes.find(row => row.campaignId === item.campaignId)!;return <article key={item.id} className={styles.associationCard} data-context-id={item.id}>
+    <div className={styles.associationList}>{visible.slice(0, limit).map(item => { const home = bundle.homes.find(row => row.campaignId === item.campaignId)!;return <article id={"world-campaign-"+item.id} key={item.id} className={styles.associationCard} data-context-id={item.id}>
       <h3>{item.campaignName}</h3><p>{item.timelineName}{item.home ? " · Home context" : home.contextId ? " · Home designated in another associated context" : " · No home designated"}</p>
-      <p>Historical starting year: {yearText(item.startingYear, displaySystem)}</p>
+      <p>Historical starting year: {yearText(item.startingYear, displaySystem)}</p>{worldContext&&item.ownershipAvailable&&<p><a className="st-button is-secondary" target="_blank" rel="noopener" href={worldContextUrl({...worldContext,timelineId:item.timelineId,year:bundle.selection.contextId===item.id?bundle.selection.viewingYear??undefined:item.startingYear??undefined},{tab:"atlas"},location.pathname+location.search)}>Browse Atlas in this saved context</a> A Campaign context has no geographic position.</p>}
       {!item.available && <p className={styles.caption}>Unavailable · {contextUnavailableReason(item)}. The original relationship is retained; no replacement is selected automatically.</p>}
       {item.ownershipAvailable && !review && <Link href={`/heavens/campaigns?campaign=${item.campaignId}`}>Open Campaign settings</Link>}
       {canManage && item.ownershipAvailable && <div className={styles.actions}>

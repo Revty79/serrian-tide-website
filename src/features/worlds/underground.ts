@@ -63,7 +63,7 @@ export type UndergroundCommand=z.infer<typeof undergroundCommandSchema>;
 export type UndergroundSite={id:string;worldId:string;name:string;placeId:string|null;frame:FloorFrame;revision:number;archived:boolean};
 export type UndergroundLevel={id:string;worldId:string;siteId:string;name:string;order:number;depth:string;revision:number;archived:boolean};
 export type UndergroundDocument=UndergroundLevel&{design:UndergroundDesign;history:{revision:number;requestId:string}[]};
-export type UndergroundConnection={id:string;name:string;source:UndergroundEndpoint;destination:UndergroundEndpoint;twoWay:boolean;revision:number;archived:boolean;available:boolean;reason:string};
+export type UndergroundConnection={historicalAccount?:import("./historical-connections").HistoricalConnectionDraft&{sourceVersionId:string;destinationVersionId:string};id:string;name:string;source:UndergroundEndpoint;destination:UndergroundEndpoint;twoWay:boolean;revision:number;archived:boolean;available:boolean;reason:string};
 export type UndergroundBundle={available:boolean;canEdit:boolean;canRecover:boolean;ordinary:boolean;reason:string;sites:UndergroundSite[];levels:UndergroundLevel[];document:UndergroundDocument|null;connections:UndergroundConnection[];worldEntrances?:{maps:{id:string;name:string;revision:number}[];places:{id:string;name:string}[]}};
 export const sameUndergroundMap=(a:UndergroundMap,b:UndergroundMap)=>a.kind===b.kind&&("levelId" in a?a.levelId:"townMapId" in a?a.townMapId:"floorId" in a?a.floorId:a.atlasMapId)===("levelId" in b?b.levelId:"townMapId" in b?b.townMapId:"floorId" in b?b.floorId:b.atlasMapId);
 export function generateUnderground(settings:UndergroundSettings,newId:()=>string):{frame:FloorFrame;design:UndergroundDesign}{

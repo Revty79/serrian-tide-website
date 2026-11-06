@@ -90,7 +90,20 @@ async function detail(tx:HistoryTx,worldId:string,timelineId:string,id:string,or
   const draft:LoreDraft={...astronomy,...narrativeStory,family:summary.family,name:recordName,description:ordinary&&protectedFields.includes("description")?"":description,fields,...summary.family==="individual"?{protectedFields:ordinary?[]:protectedFields,nameAccounts}:{},...summary.family==="relationship"?{relationshipPeriods}:{},...(isPoliticalFamily(summary.family)||isOrganizationFamily(summary.family)||isCosmologyFamily(summary.family)||isAstronomyFamily(summary.family)||summary.family==="story")?{periods,protectedFields:ordinary?[]:protectedFields}:{},time:v.time,accuracy:v.accuracy as LoreDraft["accuracy"],narrative:v.narrative,visibility:v.visibility,privateNotes:ordinary?"":v.privateNotes,geographies:geographies.map(({name:_,destinationName:__,unavailable:___,...g})=>{void _;void __;void ___;return g;}),participants:participants.map(({targetId,authoredReference,role,account,protected:secret})=>({targetId,authoredReference,role,account,...secret?{protected:true}:{}})),historyRefs:historyRows.map(({entityId,versionId})=>({entityId,versionId})),sections,datingSystemId:v.datingSystemId,datingSystemRevision:v.sourceDating?.revision,calendarDate:calendarDraft(v.calendarSource),milestones:milestones.filter(m=>!m.archived).map(m=>({entryId:m.id,revision:m.revision,eventType:m.eventType,draft:milestoneDraft(m),...m.targets.length?{targets:m.targets}:{}}))};
   return {...clientSummary(summary),draft,...storySources?{storySources}:{},...skySources?{skySources}:{},geographies,participants,historyNames:historyRows,related:related.map(clientSummary),milestoneRecords:milestones,sourceDating:v.sourceDating,calendarSource:v.calendarSource,authorId:v.authorId,createdAt:v.createdAt.toISOString()};
 }
-export async function getPeople(userId:string,worldId:string,timelineId:string,id:string,review=false,ordinary=false) { await worldReadAccess(userId,worldId,review);return db.transaction(tx=>detail(tx,worldId,timelineId,id,ordinary),{isolationLevel:"repeatable read",accessMode:"read only"}); }
+export async function getPeople(userId:string,worldId:string,timelineId:string,id:string,review=false,ordinary=false,versionId?:string) {
+  await worldReadAccess(userId,worldId,review);
+  return db.transaction(async tx=>{
+    await selectedTimeline(tx,worldId,timelineId);
+    if(!versionId)return detail(tx,worldId,timelineId,id,ordinary);
+    const [effective]=await tx.select().from(head).where(and(eq(head.worldId,worldId),eq(head.timelineId,timelineId),eq(head.entityId,id),inArray(head.mode,["authored","inherited","interpretation"])));
+    if(!effective)throw unavailable();
+    const [pin]=await tx.select().from(version).where(and(eq(version.id,versionId),eq(version.worldId,worldId),eq(version.entityId,id),sql`(${version.id}=${effective.versionId} or ${version.id}=${effective.sourceVersionId} or exists(select 1 from world_lore_change c where c.world_id=${worldId} and c.timeline_id=${timelineId} and c.entity_id=${id} and c.version_id=${versionId}) or exists(select 1 from world_link_head h join world_link_version l on l.id=h.version_id where h.world_id=${worldId} and h.timeline_id=${timelineId} and h.mode<>'excluded' and not l.archived and l.lore_id=${id} and l.lore_version_id=${versionId}))`,ordinary?ordinaryLorePinnedSource(worldId,timelineId,sql`${versionId}`):undefined));
+    if(!pin)throw unavailable();
+    const [receipt]=await tx.select({revision:change.revision}).from(change).where(and(eq(change.worldId,worldId),eq(change.timelineId,timelineId),eq(change.entityId,id),eq(change.versionId,versionId))).limit(1);
+    const result=await detail(tx,worldId,timelineId,id,ordinary,{versionId,revision:receipt?.revision??(effective.versionId===versionId?effective.revision:effective.sourceRevision??1)});
+    return {...result,mode:effective.mode};
+  },{isolationLevel:"repeatable read",accessMode:"read only"});
+}
 
 export async function pinnedStorySource(userId:string,worldId:string,timelineId:string,ownerId:string,sourceVersionId:string,review=false,ordinary=false) {
   await worldReadAccess(userId,worldId,review);

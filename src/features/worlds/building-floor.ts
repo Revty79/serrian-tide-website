@@ -85,4 +85,4 @@ export type FloorCommand=z.infer<typeof floorCommandSchema>;
 export type FloorSummary={id:string;buildingId:string;name:string;order:number;elevation:number|null;revision:number;archived:boolean};
 export type InteriorBuilding={id:string;worldId:string;townId:string;placeId:string|null;name:string;frame:FloorFrame;footprint:TownPoint[];townFrame:TownFrame};
 export type FloorDocument=FloorSummary&{worldId:string;design:FloorDesign;history:{revision:number;requestId:string}[]};
-export type FloorBundle={available:boolean;canEdit:boolean;reason:string;bound?:boolean;building:InteriorBuilding|null;floors:FloorSummary[];document:FloorDocument|null};
+export type FloorBundle={available:boolean;canEdit:boolean;reason:string;bound?:boolean;building:InteriorBuilding|null;floors:FloorSummary[];document:FloorDocument|null;selectedFloorId?:string};

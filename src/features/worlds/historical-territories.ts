@@ -28,11 +28,16 @@ export function ringContains(outer:TerritoryBoundary["points"],inner:TerritoryBo
 }
 export function validateTerritories(territories:HistoricalTerritory[],period?:{startYear:number;endYear:number}) {
   territoriesSchema.parse(territories);
+  validateTerritoryContents(territories,period);
+}
+/** Shared identity, topology and political-period rules. Callers validate their
+ * own coordinate-space schema before supplying an explicit physical extent. */
+export function validateTerritoryContents(territories:Omit<HistoricalTerritory,"coordinateSpace">[],period?:{startYear:number;endYear:number},extent?:{width:number;height:number}) {
   const ids = new Set<string>(); let rings=0,points=0;
   function distinct(value:string){if(ids.has(value))throw new Error("Territories, boundaries and relationships keep distinct identities.");ids.add(value);}
   for(const t of territories){distinct(t.id);if(new Set(t.geographyIds).size!==t.geographyIds.length||new Set(t.history.map(h=>h.entityId)).size!==t.history.length)throw new Error("Keep each saved place and History citation once per territory.");
     if((t.coverage==="unknown"||t.coverage==="unclaimed")&&t.relationships.length)throw new Error("Unknown or unclaimed territory does not establish a political relationship. Choose an authored or contested account.");
-    for(const b of t.boundaries){distinct(b.id);rings++;points+=b.points.length;validateGeometry({version:1,type:"polygon",points:b.points});if(b.parentId){const outer=t.boundaries.find(n=>n.id===b.parentId);if(!outer||outer.parentId||outer.id===b.id)throw new Error("A hole belongs to an outer boundary of this territory.");if(!b.archived&&outer.archived)throw new Error("Archive a boundary's holes with its outer boundary.");if(!b.archived&&!ringContains(outer.points,b.points))throw new Error("An enclave hole must lie strictly inside its containing boundary.");}}
+    for(const b of t.boundaries){distinct(b.id);rings++;points+=b.points.length;validateGeometry({version:1,type:"polygon",points:b.points},extent?.width,extent?.height);if(b.parentId){const outer=t.boundaries.find(n=>n.id===b.parentId);if(!outer||outer.parentId||outer.id===b.id)throw new Error("A hole belongs to an outer boundary of this territory.");if(!b.archived&&outer.archived)throw new Error("Archive a boundary's holes with its outer boundary.");if(!b.archived&&!ringContains(outer.points,b.points))throw new Error("An enclave hole must lie strictly inside its containing boundary.");}}
     const holes=t.boundaries.filter(b=>!b.archived&&b.parentId);
     for(let i=0;i<holes.length;i++)for(let j=i+1;j<holes.length;j++)if(holes[i].parentId===holes[j].parentId&&(ringsCross(holes[i].points,holes[j].points)||ringContains(holes[i].points,holes[j].points)||ringContains(holes[j].points,holes[i].points)))throw new Error("Enclave holes within the same boundary must not overlap or touch. Draw their combined outline instead.");
     for(const r of t.relationships){distinct(r.id);if(r.endYear<r.startYear||period&&(r.startYear<period.startYear||r.endYear>period.endYear))throw new Error("Political relationship periods are inclusive and must remain within this appearance's period.");if(r.role==="other"&&!r.roleLabel.trim())throw new Error("Describe the original political relationship.");}
@@ -40,4 +45,4 @@ export function validateTerritories(territories:HistoricalTerritory[],period?:{s
   if(rings>128||points>8192)throw new Error("A political overlay supports 128 boundary rings and 8,192 vertices.");
 }
 export function territoryPath(t:HistoricalTerritory){return t.boundaries.filter(b=>!b.archived&&(!b.parentId||!t.boundaries.find(p=>p.id===b.parentId)?.archived)).map(b=>`M ${b.points.map(p=>`${p.x} ${p.y}`).join(" L ")} Z`).join(" ");}
-export function activeTerritoryRelationships(t:HistoricalTerritory,year?:number|null){return t.relationships.filter(r=>year==null||r.startYear<=year&&r.endYear>=year);}
+export function activeTerritoryRelationships(t:Pick<HistoricalTerritory,"relationships">,year?:number|null){return t.relationships.filter(r=>year==null||r.startYear<=year&&r.endYear>=year);}

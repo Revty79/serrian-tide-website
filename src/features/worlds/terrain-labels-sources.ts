@@ -8,13 +8,17 @@ import {worldGeography} from "@/db/world-atlas-schema";
 import type {HydroPoint} from "./terrain-hydrology";
 import type {LabelCandidate,LabelSource,MapLabel} from "./terrain-labels";
 
+export function labelSourceCandidate(mapId:string,kind:LabelSource["kind"],id:string,name:string,anchor:HydroPoint|undefined,path:HydroPoint[],labelKind:MapLabel["kind"]):LabelCandidate|undefined{
+ if(!name.trim()||!anchor||!Number.isFinite(anchor.x)||!Number.isFinite(anchor.y))return;
+ const source:LabelSource={kind,id,mapId,name,fingerprint:createHash("sha256").update(JSON.stringify([kind,id,name,[anchor.x,anchor.y],path.map(p=>[p.x,p.y])])).digest("hex")};
+ return {key:kind+":"+id,source,anchor:{x:anchor.x,y:anchor.y},path:path.map(p=>({x:p.x,y:p.y})),kind:labelKind};
+}
+
 /** Read existing accepted names/positions only. No geographic identity is created. */
 export async function labelSourceCatalog(tx:Pick<typeof db,"select">,worldId:string,mapId:string){
  const catalog=new Map<string,LabelCandidate>();
  function add(kind:LabelSource["kind"],id:string,name:string,anchor:HydroPoint,path:HydroPoint[],labelKind:MapLabel["kind"]){
-  if(!name.trim()||!anchor||!Number.isFinite(anchor.x)||!Number.isFinite(anchor.y))return;
-  const source:LabelSource={kind,id,mapId,name,fingerprint:createHash("sha256").update(JSON.stringify([kind,id,name,[anchor.x,anchor.y],path.map(p=>[p.x,p.y])])).digest("hex")};
-  catalog.set(kind+":"+id,{key:kind+":"+id,source,anchor:{x:anchor.x,y:anchor.y},path:path.map(p=>({x:p.x,y:p.y})),kind:labelKind});
+  const candidate=labelSourceCandidate(mapId,kind,id,name,anchor,path,labelKind);if(candidate)catalog.set(candidate.key,candidate);
  }
  const [water]=await tx.select().from(worldHydrology).where(and(eq(worldHydrology.mapId,mapId),eq(worldHydrology.worldId,worldId)));
  for(const edge of water?.layer.edges??[])add("river",edge.id,edge.name,edge.points[Math.floor(edge.points.length/2)],edge.points,"river");

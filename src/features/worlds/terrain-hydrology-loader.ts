@@ -12,7 +12,7 @@ export function hydrologyUrl(api:string,mapId:string,child="hydrology"){
 /** Loads only a bounded camera-independent analysis plan, through the existing
  * guarded immutable terrain APIs. These fresh buffers never alias editor grids. */
 export async function loadHydrologyPatches(api:string,mapId:string,sources:HydroSources,signal:AbortSignal,progress:(value:number)=>void,analysis?:HydroAnalysis){
-  const [root,index]=await Promise.all([worldApi<{document:TerrainDocument|null}>(hydrologyUrl(api,mapId,""),"GET",undefined,signal),worldApi<RefinementIndex>(hydrologyUrl(api,mapId,"refinements"),"GET",undefined,signal)]);
+  const [root,index]=await Promise.all([worldApi<{document:TerrainDocument|null}>(hydrologyUrl(api,mapId,""),"GET",undefined,signal),worldApi<RefinementIndex>(hydrologyUrl(api,mapId,"refinements")+"&allSources=1","GET",undefined,signal)]);
   if(!root.document||root.document.revision!==sources.rootRevision||index.rootRevision!==sources.rootRevision||index.seaLevel!==sources.seaLevel)throw Error("The accepted World changed while preparing drainage. Suggest rivers again; saved waterways are retained.");
   const shape=terrainGeometry(root.document.settings),plan=hydrologyPlan(sources,undefined,analysis&&analysis.method!=="terrain-drainage-v1"?analysis.focus:undefined),patches:HydroPatch[]=[];
   if(shape.displayWidth!==sources.world.width||shape.displayHeight!==sources.world.height||shape.wrap!==sources.world.wrap)throw Error("The drainage source does not match its World coordinates.");

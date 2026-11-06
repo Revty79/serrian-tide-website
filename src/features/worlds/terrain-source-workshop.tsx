@@ -1,4 +1,5 @@
 "use client";
+import {nativeOriginalRequestUuidForUrl} from "./native-map-history-transport-client";
 import {geographyTemplatePrefix,readGeographyTemplateStart,writeGeographyTemplateStart,retireGeographyTemplateStart,type GeographyTemplateStart,type GeographyTemplateCandidate} from "./map-template-source-recovery";
 import {MeasurementActions} from "./measurement-actions";
 import {geographyTemplateEnvironment,type GeographyTemplateEnvironment} from "./map-template-geography";
@@ -101,7 +102,7 @@ export function TerrainSourceWorkshop({worldId,api,regeneration,relief:inherited
     const tiles=proposal?Array.from({length:shape.width/32*shape.height/32},(_,i)=>readTile(proposal.grid,i,shape)).filter(tile=>!regeneration||tile.samples.some((value,n)=>value!==regeneration.base[(tile.y*32+(n>>5))*shape.width+tile.x*32+(n&31)])):undefined;
     let source=proposal&&(proposal.source.kind==="generated"||proposal.source.kind==="regenerated")&&proposal.source.recipe.version!=="world-heightmap-v1"?{...proposal.source,scaleAcknowledged:needsAcknowledgement&&acknowledged===proposal.fingerprint}:proposal?.source;
     if(!regeneration&&source?.kind==="generated"&&templateEnvironment)source={...source,templateEnvironment};
-    const command:SourceCommand=regeneration?{action:"save",requestId:crypto.randomUUID(),mapId:regeneration.document.id,revision:regeneration.document.revision,seaLevel,tiles:tiles!,source:source!}:{action:"create",requestId:crypto.randomUUID(),name:name.trim(),initial:mode,settings:parsed,seaLevel,source:source??{kind:"blank",surface:mode as "ocean"|"land"},...mode==="generated"||mode==="imported"?{tiles}:{}};
+    const command:SourceCommand=regeneration?{action:"save",requestId:nativeOriginalRequestUuidForUrl(api),mapId:regeneration.document.id,revision:regeneration.document.revision,seaLevel,tiles:tiles!,source:source!}:{action:"create",requestId:nativeOriginalRequestUuidForUrl(api),name:name.trim(),initial:mode,settings:parsed,seaLevel,source:source??{kind:"blank",surface:mode as "ocean"|"land"},...mode==="generated"||mode==="imported"?{tiles}:{}};
     original={key,command,savedAt:new Date().toISOString()};setAttempt(original);
    }
    setAccepting(true);

@@ -1,4 +1,6 @@
 "use client";
+import {nativeOriginalRequestUuidForUrl} from "./native-map-history-transport-client";
+import {nativeRecoveryKey} from "./native-map-history-client";
 import {useLayerGeographyRefresh} from "./terrain-geography-refresh";
 import {regionalAuthoringSchema,type RegionalAuthoring,type RegionalScope} from "./terrain-regional-scope";
 import {regionalMaterials} from "./terrain-regional-layers";
@@ -11,7 +13,7 @@ import styles from "./terrain.module.css";
 type Saved={regional?:RegionalAuthoring;available:boolean;revision:number;layer:TerrainMaterials;history:{revision:number;createdAt:string}[]};
 type Recovery={regional?:RegionalAuthoring;mapId:string;revision:number;layer:TerrainMaterials;pending?:MaterialCommand};
 export function useTerrainMaterials(api:string,mapId:string,editable:boolean,scope?:RegionalScope,isInteracting?:()=>boolean){
- const endpoint=api.split("?")[0]+"/materials?"+(api.split("?")[1]?api.split("?")[1]+"&":"")+"terrainMap="+mapId,key="st:terrain-material-draft:"+endpoint;
+ const endpoint=api.split("?")[0]+"/materials?"+(api.split("?")[1]?api.split("?")[1]+"&":"")+"terrainMap="+mapId,key="st:terrain-material-draft:"+nativeRecoveryKey(endpoint);
  const [layer,setLayer]=useState(EMPTY_TERRAIN_MATERIALS),[remote,setRemote]=useState<Saved>(),[saving,setSaving]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("Loading Terrain Materials..."),[recovered,setRecovered]=useState<Recovery>(),[epoch,tick]=useState(0),[ledger,setLedger]=useState({undo:0,redo:0,pending:false});
  const authoring=useRef<RegionalAuthoring|undefined>(undefined);
  const current=useRef(layer),revision=useRef(0),baseline=useRef(EMPTY_TERRAIN_MATERIALS),pending=useRef<MaterialCommand|undefined>(undefined),undo=useRef<TerrainMaterials[]>([]),redo=useRef<TerrainMaterials[]>([]),alive=useRef(true),busy=useRef(false),saveRef=useRef<()=>Promise<void>>(undefined);
@@ -20,7 +22,7 @@ export function useTerrainMaterials(api:string,mapId:string,editable:boolean,sco
  const dirty=useMemo(()=>JSON.stringify(layer)!==JSON.stringify(remote?.layer??EMPTY_TERRAIN_MATERIALS),[layer,remote?.layer])||ledger.pending;
  function change(next:TerrainMaterials){if(!editable||!remote?.available||recovered)return;try{terrainMaterialsSchema.parse(next);if(scope)regionalMaterials(current.current,next,scope);}catch(e){setError((e as Error).message);return;}undo.current.push(current.current);if(undo.current.length>60)undo.current.shift();redo.current=[];current.current=next;setLayer(next);tick(n=>n+1);retain();}
  function history(direction:"undo"|"redo"){if(!editable||recovered)return;const from=direction==="undo"?undo:redo,to=direction==="undo"?redo:undo,value=from.current.pop();if(!value)return;to.current.push(current.current);current.current=value;setLayer(value);tick(n=>n+1);retain();}
- async function save(){if(busy.current||!editable||!remote?.available||recovered)return;busy.current=true;setSaving(true);setError("");pending.current??={mapId,revision:revision.current,requestId:crypto.randomUUID(),layer:current.current,...authoring.current?{regional:authoring.current}:{}};retain();const command=pending.current;
+ async function save(){if(busy.current||!editable||!remote?.available||recovered)return;busy.current=true;setSaving(true);setError("");pending.current??={mapId,revision:revision.current,requestId:nativeOriginalRequestUuidForUrl(endpoint),layer:current.current,...authoring.current?{regional:authoring.current}:{}};retain();const command=pending.current;
   try{const result=await worldApi<{revision:number;regional?:RegionalAuthoring;layer:TerrainMaterials}>(endpoint,"POST",command);if(!alive.current)return;baseline.current=result.layer;revision.current=result.revision;authoring.current=result.regional??authoring.current;pending.current=undefined;setRemote(r=>({...r!,regional:authoring.current,revision:result.revision,layer:result.layer,history:[{revision:result.revision,createdAt:new Date().toISOString()},...(r?.history??[]).filter(v=>v.revision!==result.revision)].slice(0,60)}));setNotice(`Terrain Materials saved at material revision ${result.revision}. Elevation is unchanged.`);retain();tick(n=>n+1);}catch(e){if(alive.current)setError((e as Error).message+" The original material request is retained for retry.");}finally{busy.current=false;if(alive.current)setSaving(false);}}
  useEffect(()=>{saveRef.current=save;});
  useEffect(()=>{if(!editable||!remote?.available||!dirty||saving||error||recovered)return;const timer=setTimeout(()=>void saveRef.current?.(),1100);return()=>clearTimeout(timer);},[editable,remote?.available,dirty,saving,error,recovered,epoch]);

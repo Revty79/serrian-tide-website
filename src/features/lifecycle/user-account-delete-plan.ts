@@ -18,6 +18,8 @@ export type UserAccountForeignKeyPlanEntry = {
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "world_map_state_component", columnName: "author_id", constraintName: "world_map_state_component_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable native historical map content" },
+  { tableName: "world_map_state_native_request", columnName: "author_id", constraintName: "world_map_state_native_request_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable native historical map requests" },
   { tableName: "atlas_template", columnName: "owner_id", constraintName: "atlas_template_owner_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Private Atlas templates" },
   { tableName: "atlas_template_operation", columnName: "owner_id", constraintName: "atlas_template_operation_owner_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable Atlas template requests" },
   { tableName: "world_craft_operation", columnName: "author_id", constraintName: "world_craft_operation_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable craft author history" },
@@ -165,4 +167,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 145;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 147;

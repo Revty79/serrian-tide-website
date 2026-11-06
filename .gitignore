@@ -147,3 +147,6 @@ next-env.d.ts
 
 # Stage 6D task-owned evidence and validation services
 /artifacts/terrain-s6d-*/
+
+# Stage 7A task-owned validation, private fixtures and retained diagnostics.
+/artifacts/history-s7a-*/

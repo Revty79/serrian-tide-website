@@ -31,6 +31,7 @@ export default defineConfig({
     "./src/db/world-linking-schema.ts",
     "./src/db/world-story-schema.ts",
     "./src/db/world-map-state-schema.ts",
+    "./src/db/world-native-map-state-schema.ts",
     "./src/db/world-map-connection-schema.ts",
     "./src/db/world-geographic-schema.ts",
     "./src/db/world-raster-schema.ts",

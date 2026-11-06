@@ -67,6 +67,9 @@ export async function validateAdvancedAcceptance(
   shape:TerrainGeometry,baseElevation:number,references:Reference[],tiles:TerrainTile[],blocked?:Uint8Array|null,
 ){
   const intent=advancedProvenanceSchema.parse(provenance),packet=await advancedContextInTransaction(tx,worldId,mapId,sourceId);
+  return validateAdvancedTerrainTiles(packet,intent,shape,baseElevation,references,tiles,blocked);
+}
+export async function validateAdvancedTerrainTiles(packet:AdvancedContextPacket,intent:AdvancedProvenance,shape:TerrainGeometry,baseElevation:number,references:Reference[],tiles:TerrainTile[],blocked?:Uint8Array|null){
   if(packet.pin!==intent.contextPin)throw new WorldError("Water, settlement supports or authored volcano context changed. Keep the proposal and preview against saved geography again.",409);
   const base=new Int16Array(shape.width*shape.height).fill(baseElevation),manual=new Uint8Array(base.length);
   for(let offset=0;offset<references.length;offset+=16)await Promise.all(references.slice(offset,offset+16).map(async ref=>{

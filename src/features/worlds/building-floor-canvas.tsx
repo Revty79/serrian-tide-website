@@ -1,4 +1,6 @@
 "use client";
+import {readAtlasRecordView} from "./atlas-record-view";
+import {useAtlasRecordViewCapture} from "./atlas-record-view-client";
 import {MeasurementActions} from "./measurement-actions";
 import {snapCompositionPoint} from "./atlas-assets";
 import {useCompositionCanvas} from "./atlas-asset-canvas";
@@ -16,7 +18,8 @@ export type FloorCanvasHandle={fit:()=>void;zoom:(n:number)=>void;center:(p:Town
 type Props={onStopMeasure?:()=>void;ariaLabel?:string;composition?:CompositionOverlay;design:FloorDesign;frame:FloorFrame;tool:FloorTool;shape:"rectangle"|"polygon";selected:string;reshape:boolean;drawing:TownPoint[];onDrawing:(p:TownPoint[])=>void;onFinish:()=>void;onSelect:(id:string)=>void;onChange:(f:FloorFeature)=>void;onPlace:(p:TownPoint)=>void;onError:(s:string)=>void;editable:boolean;touchEdit:boolean;brush:FloorBrush;showGrid:boolean;reference?:FloorDesign;handleRef:Ref<FloorCanvasHandle>};
 function segment(p:TownPoint,a:TownPoint,b:TownPoint){const dx=b.x-a.x,dy=b.y-a.y,t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1)));return {point:{x:a.x+dx*t,y:a.y+dy*t},t,distance:Math.hypot(p.x-a.x-dx*t,p.y-a.y-dy*t),length:Math.hypot(dx,dy)};}
 export function FloorCanvas(p:Props){
- const canvas=useRef<HTMLCanvasElement>(null),wrap=useRef<HTMLDivElement>(null),[size,setSize]=useState({w:800,h:600}),[camera,setCamera]=useState({x:p.frame.width/2,y:p.frame.height/2,z:1}),[live,setLive]=useState<FloorFeature>(),[measure,setMeasure]=useState<TownPoint[]>([]),[measureKept,setMeasureKept]=useState(false),[renderMs,setRenderMs]=useState(0),current=useRef(p);useEffect(()=>{current.current=p;});
+ const canvas=useRef<HTMLCanvasElement>(null),wrap=useRef<HTMLDivElement>(null),[size,setSize]=useState({w:800,h:600}),[camera,setCamera]=useState(()=>{const retained=typeof window!=="undefined"?readAtlasRecordView(new URL(location.href),"local"):undefined;return retained?{x:retained.x,y:retained.y,z:Math.max(.5,Math.min(50,retained.scale))}:{x:p.frame.width/2,y:p.frame.height/2,z:1};}),[live,setLive]=useState<FloorFeature>(),[measure,setMeasure]=useState<TownPoint[]>([]),[measureKept,setMeasureKept]=useState(false),[renderMs,setRenderMs]=useState(0),current=useRef(p);useEffect(()=>{current.current=p;});
+ useAtlasRecordViewCapture("local",()=>({x:camera.x,y:camera.y,scale:camera.z}));
  const liveRef=useRef<FloorFeature|undefined>(undefined),pointers=useRef(new Map<number,TownPoint>()),pinch=useRef<{distance:number;camera:typeof camera;point:TownPoint}|undefined>(undefined),gesture=useRef<{start:TownPoint;pixel:TownPoint;camera:typeof camera;feature?:FloorFeature;vertex?:number;resize?:boolean;rotate?:boolean;pan?:boolean;rectangle?:boolean;stamp?:boolean;before:TownPoint[]}|undefined>(undefined);
  const base=Math.min(Math.max(1,size.w-32)/p.frame.width,Math.max(1,size.h-32)/p.frame.height),scale=Math.max(1e-6,base*camera.z),view=useMemo(()=>({left:camera.x-size.w/scale/2,top:camera.y-size.h/scale/2,scale,width:size.w,height:size.h}),[camera,size,scale]);
  const project=useCallback((q:TownPoint)=>({x:(q.x-view.left)*scale,y:(q.y-view.top)*scale}),[view,scale]);

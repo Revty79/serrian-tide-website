@@ -1,0 +1,18 @@
+.summary {display:flex;gap:.75rem;align-items:center;justify-content:space-between;flex-wrap:wrap;min-width:0;padding:.4rem 0;}
+.summary strong {overflow-wrap:anywhere;}
+.dialog {width:min(960px,calc(100vw - 24px));max-height:calc(100dvh - 40px);overflow:auto;overflow-wrap:anywhere;margin:auto;padding:1rem;border:1px solid var(--st-border);border-radius:.75rem;background:var(--st-surface);color:var(--st-text);box-shadow:0 16px 60px var(--st-shadow);}
+.dialog::backdrop {background:var(--st-shadow);}
+.dialogHeader {display:flex;justify-content:space-between;align-items:center;gap:1rem;position:sticky;top:-1rem;z-index:1;background:var(--st-surface);padding:.5rem 0;}
+.dialogHeader h2 {margin:0;font-size:1.3rem;}
+.controls {display:flex;gap:.75rem;align-items:end;flex-wrap:wrap;min-width:0;}
+.controls>strong {flex-basis:100%;overflow-wrap:anywhere;}
+.controls label {display:grid;gap:.3rem;min-width:0;flex:1 1 180px;max-width:100%;}
+.controls input,.controls select,.form input,.form select,.form textarea {min-width:0;max-width:100%;width:100%;}
+.form {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:.75rem;min-width:0;margin-top:1rem;padding:1rem;border:1px solid var(--st-border);}
+.form p {grid-column:1/-1;}
+.form label {display:grid;gap:.3rem;min-width:0;}
+.form textarea {min-height:6rem;}
+.dialog button {min-height:44px;}
+.dialog fieldset {min-inline-size:0;max-width:100%;}
+.dialog table {width:100%;table-layout:fixed;border-collapse:collapse;}
+.dialog th,.dialog td {overflow-wrap:anywhere;white-space:normal;vertical-align:top;text-align:left;padding:.25rem;}

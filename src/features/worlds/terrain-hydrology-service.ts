@@ -46,7 +46,7 @@ export async function getTerrainHydrology(userId:string,worldId:string,mapId:str
     return {...context.regional?{regional:context.regional}:{},available:true,revision,headRevision:head?.revision??0,layer:hydroLayerSchema.parse(layer??EMPTY_HYDROLOGY),history,sources};
   },{accessMode:"read only",isolationLevel:"repeatable read"});
 }
-function checkProvenance(layer:HydroLayer,previous:HydroLayer,sources:HydroSources){
+export function checkProvenance(layer:HydroLayer,previous:HydroLayer,sources:HydroSources){
   for(const analysis of layer.analyses){
     const original=previous.analyses.find(a=>a.id===analysis.id);if(original&&JSON.stringify(original)===JSON.stringify(analysis))continue;
     const expected=makeHydroAnalysis(sources,analysis.focus,analysis.minimumAreaM2,analysis.method!=="terrain-drainage-v1"?{lakeMinimumAreaM2:analysis.lakeMinimumAreaM2!,lakeMinimumDepthM:analysis.lakeMinimumDepthM!,...analysis.naturalDetail?{naturalDetail:analysis.naturalDetail}:{}}:undefined);

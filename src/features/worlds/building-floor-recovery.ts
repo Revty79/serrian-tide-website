@@ -3,9 +3,9 @@ import {z} from "zod";
 import {FLOOR_LIMITS,floorCommandSchema,floorDesignSchema,validateFloor,type FloorDocument,type FloorFrame} from "./building-floor";
 type Store=Pick<Storage,"getItem"|"setItem"|"removeItem"|"key"|"length">;
 let documentTab:string|undefined;
-export function floorRecoveryKey(worldId:string,floorId:string,creation=false){
+export function floorRecoveryKey(worldId:string,floorId:string,creation=false,namespace=""){
  if(!documentTab){try{const key="st:building-floor-tab:v1",retained=sessionStorage.getItem(key),reload=(performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming|undefined)?.type==="reload";documentTab=reload&&retained?retained:crypto.randomUUID();sessionStorage.setItem(key,documentTab);}catch{documentTab=crypto.randomUUID();}}
- return `${creation?"st:floor-create:v1":"st:building-floor:v1"}:${worldId}:${floorId}:${documentTab}`;
+ return `${creation?"st:floor-create:v1":"st:building-floor:v1"}${namespace}:${worldId}:${floorId}:${documentTab}`;
 }
 export const floorRecoveryPrefix=(key:string)=>key.slice(0,key.lastIndexOf(":"))+":";
 type EditableFloor=Pick<FloorDocument,"id"|"name"|"order"|"elevation"|"design">;

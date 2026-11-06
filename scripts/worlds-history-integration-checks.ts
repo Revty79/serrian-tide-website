@@ -1,0 +1,122 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
+import type { RegionalFixture } from "./worlds-regional-editing-fixture";
+import { emptyTown } from "../src/features/worlds/world-towns";
+import { emptyShop } from "../src/features/worlds/world-business";
+import { emptyLore, type LoreFamily } from "../src/features/worlds/peoples";
+import { emptyTownDesign, townFeature } from "../src/features/worlds/town-map";
+import {validateHistoricalArtwork} from "./worlds-history-artwork-checks";
+import type { NativeHistoryScope } from "../src/features/worlds/native-map-history";
+
+/** Real accepted service commands in a newly owned fixture. No env-file reads. */
+export async function validateWorldsAtlasIntegration(f: RegionalFixture, timelineId: string) {
+  const { changeTerrain } = await import("../src/features/worlds/terrain-service");
+  const { changeWorldTown } = await import("../src/features/worlds/world-town-service");
+  const { changeWorldBusiness, readWorldBusiness } = await import("../src/features/worlds/world-business-service");
+  const { changeTownMap } = await import("../src/features/worlds/town-map-service");
+  const { changePeople, getPeople } = await import("../src/features/worlds/peoples-service");
+  const { changeNativeMapHistory, getNativeMapHistory } = await import("../src/features/worlds/native-map-history-service");
+  const { discoverWorldAtlas } = await import("../src/features/worlds/world-atlas-discovery-service");
+  const { changeWorldLink,getWorldLinks } = await import("../src/features/worlds/linking-service");
+  const { savePlaceMilestone } = await import("../src/features/worlds/atlas-milestone-service");
+  const { nativeContentRequest } = await import("../src/features/worlds/native-map-history-api");
+  const { nativeHistoryUrl } = await import("../src/features/worlds/native-map-history");
+  const target = { kind: "terrain" as const, id: randomUUID() };
+  await changeTerrain("world-god", f.world, { action: "create", requestId: target.id, name: "Worlds integration source", initial: "land", settings: { gridWidth: 64, gridHeight: 64, widthKm: 64, heightKm: 64, wrap: false, minElevation: -10000, maxElevation: 10000 } });
+  const town = await changeWorldTown("world-god", f.world, { action: "save", requestId: randomUUID(), id: null, revision: null, geographyRevision: null, draft: { ...emptyTown, name: "Integration Harbor" } });
+  const marker = await changeWorldTown("world-god", f.world, { action: "place", requestId: randomUUID(), mapId: target.id, townId: town.townId, revision: null, x: 10000, y: 10000 });
+  const place = await changeWorldBusiness("world-god", f.world, { action: "save-place", requestId: randomUUID(), id: null, revision: null, draft: { townId: town.townId, name: "Harbor original hall", placeKind: "building", category: "hall", description: "", locationNotes: "", godNotes: "", sortOrder: 0 } });
+  const shop = await changeWorldBusiness("world-god", f.world, { action: "save-shop", requestId: randomUUID(), id: null, revision: null, definition: { ...emptyShop, name: "Original Harbor Shop" }, townId: town.townId, placeId: place.id, godNotes: "", sortOrder: 0 });
+  const branch = (await readWorldBusiness("world-god", f.world)).shopLocations.find(branch => branch.shopId === shop.id)!;
+  assert.ok(branch);
+  const townMap = { kind: "town" as const, id: randomUUID() };
+  const blank = emptyTownDesign();
+  await changeTownMap("world-god", f.world, { action: "create", requestId: townMap.id, townId: town.townId, sourceMapId: target.id, contextMapId: target.id, placementId: marker.placementId, placementRevision: marker.placementRevision, anchor: { x: 10000, y: 10000 }, frame: { x: 9750, y: 9750, width: 500, height: 500, rotation: 0 }, name: "Original Harbor native Town Map", design: blank, previewToken: null });
+  const building = { ...townFeature("building", "area", [{ x: 200, y: 200 }, { x: 240, y: 200 }, { x: 240, y: 240 }, { x: 200, y: 240 }], randomUUID()), name: "Mapped original hall", placeId: place.id, shopLocationId: branch.id };
+  await changeTownMap("world-god", f.world, { action: "save", requestId: randomUUID(), mapId: townMap.id, revision: 1, name: "Original Harbor native Town Map", design: { ...blank, features: [building] } });
+  const known = (year: number) => ({ version: 1 as const, scale: "world-year" as const, kind: "known" as const, year });
+  const range = { version: 1 as const, scale: "world-year" as const, kind: "duration" as const, startYear: 100, endYear: 599 };
+  const records: Record<string, string> = {};
+  for (const [family, name, time] of [["organization", "Harbor Guild HQ", range], ["individual", "Harbor Keeper", known(100)], ["culture", "Harbor Culture", known(100)], ["population", "Later Harbor Population", known(500)], ["polity", "Harbor Polity", range], ["realm", "Mapped Harbor Realm", range], ["story", "Harbor Story", known(100)]] as const) {
+    const draft = { ...emptyLore(family as LoreFamily), name, geographies: [{ id: randomUUID(), geographyId: family === "organization" ? place.id : town.townId, destinationId: null, relationshipType: family === "organization" ? "Headquarters" : "Recorded place", account: "Explicit saved relationship", time, protected: false }] };
+    records[family] = await changePeople("world-god", f.world, { action: "create", requestId: randomUUID(), timelineId, draft });
+  }
+  records.unknown = await changePeople("world-god", f.world, { action: "create", requestId: randomUUID(), timelineId, draft: { ...emptyLore("individual"), name: "Unplaced Individual" } });
+  records.protected = await changePeople("world-god", f.world, { action: "create", requestId: randomUUID(), timelineId, draft: { ...emptyLore("individual"), name: "Protected Harbor Identity", visibility: "protected", geographies: [{ id: randomUUID(), geographyId: town.townId, destinationId: null, relationshipType: "Secret residence", account: "", time: range, protected: true }] } });
+  await changeWorldLink("world-god", f.world, { action: "save", timelineId, id: randomUUID(), draft: { kind: "realm-map", loreId: records.realm, mapId: target.id, label: "Harbor Realm native representation", interpretation: "Explicit native map association", perspective: "", visibility: "ordinary", beginning: known(100), ending: known(599) } });
+  const geographyRevision = (await f.pool.query("select revision from world_geography where id=$1", [town.townId])).rows[0].revision;
+  const eventId = await savePlaceMilestone("world-god", f.world, { timelineId, geographyId: town.townId, geographyRevision, requestId: randomUUID(), eventType: "Founding", draft: { title: "Harbor founded", account: "Owned explicit event-place relationship", time: known(100), accuracy: "established", narrative: "recorded", eraIds: [], notes: "" } });
+  const sources: Record<string, NativeHistoryScope> = {};
+  for (const map of [target, townMap]) {
+    const prepared = await getNativeMapHistory("world-god", f.world, map, timelineId, { prepareBaseline: true, year: 100 });
+    for (const year of [100, 500]) {
+      const made = await changeNativeMapHistory("world-god", f.world, { action: "create", requestId: randomUUID(), timelineId, target: map, sourceVersionId: null, baselinePin: prepared.baselinePin,geographyVersionId:map.kind==="town"?(await getNativeMapHistory("world-god",f.world,map,timelineId,{year})).geographySource?.versionId??null:null, details: { name: `${map.kind} integration ${year}`, startYear: year, endYear: year === 500 ? 599 : 100, account: "Explicit baseline source", protected: false } });
+      sources[`${map.kind}:${year}`] = { target: map, stateId: String(made.id), timelineId, year, edit: true };
+    }
+  }
+  const readTown=await nativeContentRequest(new Request("http://owned.invalid"+nativeHistoryUrl(`/api/worlds/${f.world}/town-maps?map=${townMap.id}`,{...sources["town:100"],edit:false})),"world-god") as import("../src/features/worlds/town-map").TownMapBundle;
+  assert.deepEqual(readTown.document!.history.map(v=>v.revision),[2],"Only native-retained component revisions can be offered");
+  const readBackdrop=await nativeContentRequest(new Request("http://owned.invalid"+nativeHistoryUrl(`/api/worlds/${f.world}/town-maps?backdrop=1&sourceMap=${target.id}&frame=${encodeURIComponent(JSON.stringify({x:9750,y:9750,width:500,height:500,rotation:0}))}`,{...sources["town:100"],edit:false})),"world-god") as import("../src/features/worlds/town-map").TownBackdrop;
+  assert.ok(Array.isArray(readBackdrop.warnings));assert.ok(Array.isArray(readBackdrop.heights));assert.equal("maps" in readBackdrop,false,"Ground requests must not fall into the identity inventory route");
+  const sharedTown=await nativeContentRequest(new Request("http://owned.invalid"+nativeHistoryUrl(`/api/worlds/${f.world}/towns?town=${town.townId}`,{...sources["town:100"],edit:false})),"world-god") as import("../src/features/worlds/world-towns").TownBundle;
+  assert.equal(sharedTown.town!.id,town.townId);assert.deepEqual(sharedTown.placements,[]);
+  const initialTown500=(await getNativeMapHistory("world-god",f.world,townMap,timelineId,{year:500})).selected!;
+  const initialRoot500=(await nativeContentRequest(new Request("http://owned.invalid"+nativeHistoryUrl(`/api/worlds/${f.world}/terrain`,{...sources["terrain:500"],edit:false})),"world-god") as {document:import("../src/features/worlds/terrain").TerrainDocument}).document;
+  await nativeContentRequest(new Request("http://owned.invalid"+nativeHistoryUrl(`/api/worlds/${f.world}/terrain`,sources["terrain:500"]),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"save",requestId:randomUUID(),mapId:target.id,revision:initialRoot500.revision,seaLevel:initialRoot500.seaLevel,source:{kind:"manual"},tiles:[{x:0,y:0,samples:new Array(1024).fill(650)}]})}),"world-god");
+  const ground=async(scope:NativeHistoryScope)=>nativeContentRequest(new Request("http://owned.invalid"+nativeHistoryUrl(`/api/worlds/${f.world}/town-maps?backdrop=1`,scope)),"world-god") as Promise<import("../src/features/worlds/town-map").TownBackdrop>;
+  assert.ok((await ground({...sources["town:500"],edit:false})).heights.every(height=>height===650));
+  assert.ok((await ground({...sources["town:100"],edit:false})).heights.every(height=>height===500));
+  assert.ok((await ground({...sources["town:500"],edit:false,versionId:initialTown500.versionId})).heights.every(height=>height===500),"An immutable Town source retains its exact older World ground");
+  await nativeContentRequest(new Request("http://owned.invalid"+nativeHistoryUrl(`/api/worlds/${f.world}/town-maps`,sources["town:500"]),{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"save",requestId:randomUUID(),mapId:townMap.id,revision:2,name:"town integration 500",design:{...blank,features:[building]}})}),"world-god");
+  const repinnedTown500=(await getNativeMapHistory("world-god",f.world,townMap,timelineId,{year:500})).selected!;
+  assert.ok((await ground({...sources["town:500"],edit:false,versionId:repinnedTown500.versionId})).heights.every(height=>height===650),"Saving the dated Town pins the actual dated World it reads");
+  const unknownGround=await changeNativeMapHistory("world-god",f.world,{action:"create",requestId:randomUUID(),timelineId,target:townMap,sourceVersionId:initialTown500.versionId,baselinePin:null,geographyVersionId:null,details:{name:"Town plan with unknown World ground",startYear:300,endYear:300,account:"Town layout coverage does not imply World terrain coverage",protected:false}});
+  const unavailableGround=await nativeContentRequest(new Request("http://owned.invalid"+nativeHistoryUrl(`/api/worlds/${f.world}/town-maps?backdrop=1`,{target:townMap,timelineId,year:300,stateId:String(unknownGround.id),edit:false})),"world-god") as {available:false;reason:string};
+  assert.equal(unavailableGround.available,false);assert.match(unavailableGround.reason,/coverage is unknown/);
+  const find = (subject: unknown, year = 100) => discoverWorldAtlas("world-god", f.world, { timelineId, year, subject });
+  const townResult = await find({ kind: "town", id: town.townId });
+  assert.ok(townResult.maps.some(map => map.target.id === target.id && map.objectId === marker.placementId && map.point?.x === 10000));
+  assert.ok(townResult.maps.some(map => map.target.id === townMap.id));
+  const shopResult = await find({ kind: "shop", id: shop.id, branchId: branch.id });
+  assert.equal(shopResult.maps.length, 1); assert.equal(shopResult.maps[0].target.id, townMap.id); assert.equal(shopResult.maps[0].objectId, building.id);
+  const related = await find({ kind: "map", target: townMap, scope: { ...sources["town:100"], edit: false }, objectId: building.id });
+  assert.ok(related.records.some(record => record.id === shop.id && record.kind === "shop"));
+  assert.ok(related.records.some(record => record.id === place.id && record.kind === "place"));
+  assert.ok(related.records.some(record => record.id === records.organization && record.versionId));
+  const at100 = await find({ kind: "map", target, scope: { ...sources["terrain:100"], edit: false } });
+  const at500 = await find({ kind: "map", target, scope: { ...sources["terrain:500"], edit: false } }, 500);
+  assert.ok(at100.records.some(record => record.id === records.culture)); assert.ok(!at100.records.some(record => record.id === records.population));
+  assert.ok(at500.records.some(record => record.id === records.population)); assert.ok(!at500.records.some(record => record.id === records.culture));
+  assert.ok(at100.records.some(record => record.id === eventId));
+  assert.ok(at100.records.some(record => record.id === records.realm && record.associationVersionId));
+  assert.ok((await find({ kind: "history", id: eventId })).maps.some(map => map.target.id === target.id));
+  assert.equal((await find({ kind: "lore", id: records.unknown })).maps.length, 0);
+  assert.equal((await find({ kind: "lore", id: records.culture }, 500)).maps.length, 0);
+  const oldOrganization = await getPeople("world-god", f.world, timelineId, records.organization);
+  await changePeople("world-god", f.world, { action: "save", timelineId, id: records.organization, revision: oldOrganization.revision, draft: { ...oldOrganization.draft, name: "Later Guild Account", geographies: [] } });
+  const retained = await find({ kind: "lore", id: records.organization, versionId: oldOrganization.versionId });
+  assert.equal(retained.sourceName, "Harbor Guild HQ"); assert.ok(retained.maps.some(map => map.target.id === townMap.id));
+  assert.equal((await find({ kind: "lore", id: records.organization })).maps.length, 0);
+  const originalJourney=await find({kind:"map",target:townMap,scope:{...sources["town:100"],edit:false},source:{kind:"lore",id:records.organization,versionId:oldOrganization.versionId}});
+  assert.ok(originalJourney.records.some(record=>record.id===records.organization&&record.versionId===oldOrganization.versionId&&record.name==="Harbor Guild HQ"));
+  await assert.rejects(discoverWorldAtlas("other-god", f.world, { timelineId, year: 100, subject: { kind: "town", id: town.townId } }), /unavailable/i);
+  await assert.rejects(discoverWorldAtlas("world-god", f.world, { timelineId, year: 100, subject: { kind: "lore", id: records.protected } }, { ordinary: true }), /unavailable/i);
+  const ordinary = await discoverWorldAtlas("world-god", f.world, { timelineId, year: 100, subject: { kind: "lore", id: records.culture } }, { ordinary: true });
+  assert.equal(ordinary.maps.length, 0); assert.equal(JSON.stringify(ordinary).includes("Protected Harbor"), false);
+  const ordinaryLinks=await getWorldLinks("world-god",f.world,timelineId,false,true);
+  assert.equal(ordinaryLinks.choices.maps.length,0,"Native Atlas map names and counts have no ordinary-reader projection");
+  assert.equal(ordinaryLinks.links.some(link=>link.draft.kind==="realm-map"),false);
+  const review = await discoverWorldAtlas("world-admin", f.world, { timelineId, year: 100, subject: { kind: "town", id: town.townId } }, { review: true });
+  assert.ok(review.maps.length); assert.ok(review.maps.every(map => new URL(map.href, "https://owned.invalid").searchParams.get("review") === "1"));
+  // Dated placement changes are resolved from accepted components, not current rows.
+  const scope = sources["terrain:500"];
+  const response = await nativeContentRequest(new Request("http://owned.invalid" + nativeHistoryUrl(`/api/worlds/${f.world}/towns`, scope), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "place", requestId: randomUUID(), mapId: target.id, townId: town.townId, revision: marker.placementRevision, x: 12000, y: 13000 }) }), "world-god");
+  assert.ok(response);
+  assert.ok((await find({ kind: "town", id: town.townId }, 500)).maps.some(map => map.target.id === target.id && map.point?.x === 12000));
+  assert.ok((await find({ kind: "town", id: town.townId }, 100)).maps.some(map => map.target.id === target.id && map.point?.x === 10000));
+  assert.equal((await f.pool.query("select x_metres from world_map_place where id=$1", [marker.placementId])).rows[0].x_metres, 10000);
+  await validateHistoricalArtwork(f,sources["town:100"]);
+  await writeFile(path.join(f.out, "worlds-atlas-integration.json"), JSON.stringify({ passed: true, serverRequestPathsOnly: true, fullBrowserAcceptance: false, townAndShopBranchAndPlaceIdentities: true, datedLoreAndMilestoneRelations: true, realmNativeLinkAuthoring: true, exactRetainedLoreSource: true, year100And500IndependentRelationshipsAndPositions: true, ownerAndAdminReviewAndOrdinaryProtection: true, otherWorldOwnerDenied: true, sharedDatabaseAccess: false, fixture: { worldId: f.world, timelineId, target, townMap, townId: town.townId, placeId: place.id, shopId: shop.id, branchId: branch.id, buildingId: building.id, eventId, records, sources,retainedOrganizationVersion:oldOrganization.versionId } }, null, 2));
+}

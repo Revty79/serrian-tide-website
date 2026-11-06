@@ -10,16 +10,18 @@ import { worldReadAccess, worldWriteTransaction, changeHistoryInTransaction, Wor
 import { peoplesReferencesInTransaction, milestoneDraft, entityMilestones } from "./peoples-service";
 import { selectedTimeline } from "./history-version-service";
 import type { EntryRecord } from "./history";
+import {historyEntry} from "./history-index-service";
 import { ordinaryHistorySource } from "./ordinary-knowledge";
 const id=z.string().uuid();
 const linkSchema=z.object({timelineId:id,entryId:id,revision:z.number().int().positive(),targetId:id,kind:z.enum(["lore","geography"]),eventType:z.string().trim().min(1).max(160)}).strict();
 export type MilestoneLinks={links:{id:string;name:string;kind:"lore"|"geography";eventType:string;timelineId:string;family?:string}[];choices:{id:string;name:string;kind:"lore"|"geography"}[]};
-export async function milestoneLinks(userId:string,worldId:string,timelineId:string,entryId:string,review=false,ordinary=false):Promise<MilestoneLinks> {
+export async function milestoneLinks(userId:string,worldId:string,timelineId:string,entryId:string,review=false,ordinary=false,versionId?:string):Promise<MilestoneLinks> {
   await worldReadAccess(userId,worldId,review);
+  if(versionId)await historyEntry(userId,worldId,timelineId,entryId,review,ordinary,versionId);
   return db.transaction(async tx=>{const refs=await peoplesReferencesInTransaction(tx,worldId,timelineId,ordinary);const [h]=await tx.select({h:worldHistoryHead,v:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,entryId),ordinary?ordinaryHistorySource(worldId,timelineId,sql`${worldHistoryVersion.id}`):undefined));if(!h?.v.entryId||["pending","excluded"].includes(h.h.mode)||(ordinary&&(h.v.payload as EntryRecord).visibility==="protected"))throw new WorldError("This event is unavailable.",404);
     const places=await tx.select({id:worldGeography.id,name:worldGeography.name,archivedAt:worldGeography.archivedAt}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),ordinary?sql`${worldGeography.id} not in (${geographicPrivatePlaces(worldId)})`:undefined)).limit(2000);
     const choices=[...refs.entities.filter(e=>!e.archived).map(e=>({id:e.id,name:e.name,kind:"lore" as const})),...places.filter(p=>!p.archivedAt).map(p=>({id:p.id,name:p.name,kind:"geography" as const}))];const names=new Map([...refs.entities,...places].map(e=>[e.id,e.name]));
-    const current=await tx.select().from(links).where(eq(links.versionId,h.h.versionId)).limit(101);if(current.length>100)throw new WorldError("This event exceeds its supported 100 participating entities.",400);
+    const current=await tx.select().from(links).where(eq(links.versionId,versionId??h.h.versionId)).limit(101);if(current.length>100)throw new WorldError("This event exceeds its supported 100 participating entities.",400);
     const missingPlaces=current.filter(l=>l.geographyId&&!names.has(l.targetId)).map(l=>l.targetId);
     if(missingPlaces.length){const retainedPlaces=await tx.select({id:worldGeography.id,name:worldGeography.name}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),inArray(worldGeography.id,missingPlaces),ordinary?sql`${worldGeography.id} not in (${geographicPrivatePlaces(worldId)})`:undefined));for(const p of retainedPlaces)names.set(p.id,p.name);}
     const missing=current.filter(l=>l.loreId&&!names.has(l.targetId)).map(l=>l.targetId);

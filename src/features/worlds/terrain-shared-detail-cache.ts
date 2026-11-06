@@ -5,8 +5,8 @@ import type {CachedDetailTile} from "./terrain-refinement-cache";
  * Renderer bitmaps remain local to the current Canvas and are released normally.
  */
 const sources=new Map<string,Map<string,CachedDetailTile>>();
-export function sharedTerrainDetails(worldId:string,terrainId:string){
- const key=worldId+":"+terrainId,cache=sources.get(key)??new Map<string,CachedDetailTile>();
+export function sharedTerrainDetails(worldId:string,terrainId:string,namespace=""){
+ const key=worldId+":"+terrainId+(namespace?":"+namespace:""),cache=sources.get(key)??new Map<string,CachedDetailTile>();
  sources.delete(key);sources.set(key,cache);
  while(sources.size>2)sources.delete(sources.keys().next().value!);
  return cache;

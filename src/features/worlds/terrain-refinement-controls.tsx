@@ -1,7 +1,8 @@
 "use client";
+import {useNativeWorldApi} from "./native-map-history-client";
 import {useEffect,useRef,useState,type RefObject} from "react";
 import {GuidedField} from "@/components/field-guidance";
-import {worldApi} from "./client-api";
+
 import type {TerrainDocument,TerrainGeometry} from "./terrain";
 import {regionContainsFrame} from "./terrain-regions";
 import {frameGeometry,normalizeTerrainX,overviewLevels,refinementLogicalBytes,refinementSizes,rootFrame,validateRefinement,type RefinementMeta,type TerrainFrame,type RefinementCreate} from "./terrain-refinement";
@@ -15,6 +16,7 @@ import styles from "./terrain.module.css";
 export type TerrainRefinementPreview={meta:RefinementMeta;grid:Int16Array;shape:TerrainGeometry};
 type Props={api:string;root:TerrainDocument;world:TerrainGeometry;current:TerrainDocument;shape:TerrainGeometry;grid:Int16Array;revision:number;index?:RefinementIndex;preferences:MeasurementPreferences;canvas:RefObject<TerrainCanvasHandle|null>;disabled:boolean;editable:boolean;frame?:TerrainFrame;onFrame:(v:TerrainFrame|undefined)=>void;onSelect:(id:string|null)=>void;onDraw:()=>void;onPreview:(v:TerrainRefinementPreview|undefined)=>void;onDirty:(v:boolean)=>void;onAccepted:(id:string)=>Promise<void>};
 export function TerrainRefinementControls(p:Props){
+ const worldApi=useNativeWorldApi();
  const [name,setName]=useState("Local terrain"),[width,setWidth]=useState(p.root.region?Math.min(20000,p.root.region.frame.width/2):20000),[height,setHeight]=useState(p.root.region?Math.min(20000,p.root.region.frame.height/2):20000),[east,setEast]=useState(p.root.region?p.root.region.frame.x+p.root.region.frame.width/2:p.world.displayWidth/2),[south,setSouth]=useState(p.root.region?p.root.region.frame.y+p.root.region.frame.height/2:p.world.displayHeight/2),[columns,setColumns]=useState(p.root.region?256:1024),[rows,setRows]=useState(p.root.region?256:1024),[custom,setCustom]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[preview,setPreview]=useState<TerrainRefinementPreview>(),[attempt,setAttempt]=useState<RefinementCreate>(),[ready,setReady]=useState(false),[formEdited,setFormEdited]=useState(false),[located,setLocated]=useState<string[]>();
  const onDirty=p.onDirty,drawnFrame=p.frame;
  const worker=useRef<Worker|null>(null),generation=useRef(0),alive=useRef(true),key=`${p.root.worldId}:${p.root.id}:create-detail`,unit=distanceEditUnit(p.preferences.distance),parentFrame=p.current.refinement?.frame??rootFrame(p.world);
@@ -39,7 +41,7 @@ export function TerrainRefinementControls(p:Props){
  }
  async function accept(){
   if(busy||!ready)return;setBusy(true);setError("");
-  try{let command=attempt;if(!command){if(!preview||prepared.current!==fingerprint)throw Error("Prepare and inspect the current refinement before accepting.");command={action:"create",requestId:crypto.randomUUID(),mapId:p.root.id,parentId:preview.meta.parentId,parentRevision:preview.meta.parentRevision,name:preview.meta.name,frame:preview.meta.frame,gridWidth:columns,gridHeight:rows,previewHash:await numericalChecksum(preview.grid)};await refinementRecovery("write",key,command);setAttempt(command);}
+  try{let command=attempt;if(!command){if(!preview||prepared.current!==fingerprint)throw Error("Prepare and inspect the current refinement before accepting.");command={action:"create",requestId:worldApi.newRequestId(),mapId:p.root.id,parentId:preview.meta.parentId,parentRevision:preview.meta.parentRevision,name:preview.meta.name,frame:preview.meta.frame,gridWidth:columns,gridHeight:rows,previewHash:await numericalChecksum(preview.grid)};await refinementRecovery("write",key,command);setAttempt(command);}
    const result=await worldApi<{refinementId:string}>(p.api,"POST",command);await refinementRecovery("delete",key);setAttempt(undefined);setFormEdited(false);setPreview(undefined);p.onPreview(undefined);p.onFrame(undefined);await p.onAccepted(result.refinementId);
   }catch(e){setError(e instanceof Error?e.message:"The detail was not accepted. Its request is retained.");}finally{if(alive.current)setBusy(false);}
  }

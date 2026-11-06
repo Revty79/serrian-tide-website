@@ -1,0 +1,42 @@
+import assert from "node:assert/strict";
+import {randomUUID} from "node:crypto";
+import {writeFile} from "node:fs/promises";
+import path from "node:path";
+import type {RegionalFixture} from "./worlds-regional-editing-fixture";
+import type {NativeHistoryScope} from "../src/features/worlds/native-map-history";
+import type {TownMapBundle,TownDesign} from "../src/features/worlds/town-map";
+
+export async function validateNativeTownCreation(f:RegionalFixture,timelineId:string){
+  const {nativeContentRequest}=await import("../src/features/worlds/native-map-history-api"),{nativeHistoryUrl}=await import("../src/features/worlds/native-map-history"),{getNativeMapHistory,changeNativeMapHistory}=await import("../src/features/worlds/native-map-history-service"),{getTownMaps}=await import("../src/features/worlds/town-map-service"),{defaultTownGeneration,townFeature}=await import("../src/features/worlds/town-map");
+  const rootId=(await f.pool.query("select id from world_atlas_map where world_id=$1 and name='Dated craft sea'",[f.world])).rows[0].id,target={kind:"terrain" as const,id:rootId},root=(await getNativeMapHistory("world-god",f.world,target,timelineId,{year:500})).selected!;
+  const scope:NativeHistoryScope={target,timelineId,year:500,stateId:root.id,edit:true};
+  const call=(binding:NativeHistoryScope,query:string,body?:unknown,user="world-god")=>nativeContentRequest(new Request("http://owned.invalid"+nativeHistoryUrl(`/api/worlds/${f.world}/${query}`,binding),body?{method:"POST",body:JSON.stringify(body)}:undefined),user);
+  const places=await call(scope,"towns") as import("../src/features/worlds/world-towns").TownBundle,marker=places.placements.find(marker=>marker.townId===f.town)!;assert.ok(marker);
+  const frame={x:marker.x-500,y:marker.y-500,width:1000,height:1000,rotation:0},settings={...defaultTownGeneration(),mode:"generate" as const,category:"village" as const,population:50};
+  const preview=await call(scope,"town-maps",{action:"preview",sourceMapId:rootId,frame,settings}) as {design:TownDesign;previewToken:string};assert.ok(preview.design.features.length);
+  assert.equal((await getNativeMapHistory("world-god",f.world,target,timelineId,{year:500})).selected!.versionId,root.versionId,"Preview must not write an appearance");
+  const command={action:"create",requestId:randomUUID(),townId:f.town,sourceMapId:rootId,contextMapId:rootId,placementId:marker.id,placementRevision:marker.revision,anchor:{x:marker.x,y:marker.y},frame,name:"Town first authored in Year 500",design:preview.design,previewToken:preview.previewToken};
+  const accepted=await call(scope,"town-maps",command) as {id:string;childHistorical:{stateId:string;versionId:string}};assert.deepEqual(await call(scope,"town-maps",command),accepted);
+  await assert.rejects(call(scope,"town-maps",{...command,name:"Changed original bytes"}),/newer|changed/);
+  assert.equal((await getNativeMapHistory("world-god",f.world,target,timelineId,{year:500})).selected!.versionId,root.versionId,"A separate Town does not rewrite its source World head");
+  const child={kind:"town" as const,id:accepted.id},history=await getNativeMapHistory("world-god",f.world,child,timelineId,{year:500});assert.equal(history.coverage,"established");assert.equal(history.baselineAvailable,false);
+  const childScope:NativeHistoryScope={target:child,timelineId,year:500,stateId:history.selected!.id,edit:true},town=await call(childScope,`town-maps?map=${accepted.id}`) as TownMapBundle;assert.deepEqual(town.document!.design,preview.design);assert.equal(town.document!.townId,f.town);
+  const beforeMore=(await getNativeMapHistory("world-god",f.world,child,timelineId,{year:500})).selected!.versionId;
+  const more=await call(childScope,"town-maps",{action:"preview",sourceMapId:rootId,frame,settings,existing:town.document!.design}) as {design:TownDesign};
+  assert.ok(more.design.features.length>=town.document!.design.features.length);for(const feature of town.document!.design.features)assert.deepEqual(more.design.features.find(f=>f.id===feature.id),feature);
+  assert.equal((await getNativeMapHistory("world-god",f.world,child,timelineId,{year:500})).selected!.versionId,beforeMore,"Generate More Town preview is read-only and preserves its parent head");
+  await assert.rejects(call(childScope,"town-maps",{action:"preview",sourceMapId:randomUUID(),frame,settings,existing:town.document!.design}),/exact dated Town/);
+  await assert.rejects(call(childScope,"town-maps",{action:"preview",sourceMapId:rootId,frame:{...frame,width:frame.width+1},settings,existing:town.document!.design}),/exact dated Town/);
+  await assert.rejects(getTownMaps("world-god",f.world,{mapId:accepted.id}),/unavailable/);assert.equal((await getTownMaps("world-god",f.world,{townId:f.town})).maps.some(map=>map.id===accepted.id),false);
+  const inventory=await call(scope,`town-maps?town=${f.town}`) as TownMapBundle;assert.ok(inventory.maps.some(map=>map.id===accepted.id));
+  assert.equal((await getNativeMapHistory("world-god",f.world,child,timelineId,{year:100})).coverage,"unknown");
+  const copied=await changeNativeMapHistory("world-god",f.world,{action:"create",requestId:randomUUID(),timelineId,target:child,sourceVersionId:history.selected!.versionId,baselinePin:null,geographyVersionId:null,details:{name:"Later Town construction in 900",startYear:900,endYear:900,account:"Explicit copy of the dated Town; World ground at900 unknown",protected:false}});
+  const laterScope:NativeHistoryScope={target:child,timelineId,year:900,stateId:String(copied.id),edit:true},road=townFeature("road","line",[{x:20,y:20},{x:100,y:50}],randomUUID());
+  await call(laterScope,"town-maps",{action:"save",requestId:randomUUID(),mapId:accepted.id,revision:town.document!.revision,name:town.document!.name,design:{...town.document!.design,features:[...town.document!.design.features,road]}});
+  assert.deepEqual((await call(childScope,`town-maps?map=${accepted.id}`) as TownMapBundle).document!.design,preview.design);
+  assert.equal((await call(laterScope,"town-maps?backdrop=1") as {available?:boolean}).available,false);
+  await assert.rejects(call(laterScope,"town-maps",{action:"preview",sourceMapId:rootId,frame,settings,existing:town.document!.design}),/coverage is unknown|no retained appearance/);
+  await assert.rejects(call({...scope,edit:false},"town-maps",{action:"preview",sourceMapId:rootId,frame,settings}),/Edit This Appearance/);
+  assert.equal((await f.pool.query("select native_origin_version_id from world_town_map where id=$1",[accepted.id])).rows[0].native_origin_version_id,root.versionId);
+  await writeFile(path.join(f.out,"native-town-creation.json"),JSON.stringify({passed:true,realDatedGenerationPreview:true,generateMoreUsesDatedWorldAndPreservesManualFeatures:true,previewDoesNotWriteAndRejectsUnknownForeignSourceAndDifferentFrame:true,firstDatedTownAppearance:true,parentWorldHeadExact:true,onePermanentTownIdentity:true,baselineInventoryReadWriteIsolation:true,exactCreationRetry:true,earlierYearUnknown:true,laterCopyIndependentlyEditable:true,missingLaterWorldGroundUnknown:true,sharedDatabaseAccess:false,fixture:{mapId:accepted.id,scope:childScope}},null,2));
+}

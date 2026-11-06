@@ -1,0 +1,56 @@
+/** Retained Stage 5/6 browser validators, composed for Stage 7A. Only newly
+ * owned fixture identities, private files and services are used. */
+import assert from "node:assert/strict";
+import {createHash,randomUUID} from "node:crypto";
+import {writeFile} from "node:fs/promises";
+import path from "node:path";
+import sharp from "sharp";
+import type {Browser,BrowserContext,Page} from "playwright-core";
+import type {RegionalFixture} from "./worlds-regional-editing-fixture";
+import {readTile,terrainGeometry} from "../src/features/worlds/terrain";
+import type {TerrainSource} from "../src/features/worlds/terrain-source";
+import {regionalFixtureIds} from "./worlds-regional-editing-fixture";
+import {emptyTownDesign,townFeature} from "../src/features/worlds/town-map";
+import {builtInMapTemplates} from "../src/features/worlds/map-template-catalogue";
+import {resolveTemplate} from "../src/features/worlds/map-templates";
+import {frameGeometry} from "../src/features/worlds/terrain-refinement";
+import {createGrid} from "../src/features/worlds/terrain";
+
+export async function seedNativeHistoryInherited(f:RegionalFixture){
+  const root=path.resolve(f.root);assert.ok(root.startsWith(path.join(path.resolve(f.out),"owned-temp")+path.sep));
+  const reference=await sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="1200" height="800" fill="#decda4"/><path d="M0 80Q290 180 300 390T650 800H0Z" fill="#83acae"/><path d="M310 0Q500 220 390 430T740 800" fill="none" stroke="#78a6ab" stroke-width="16"/><path d="M600 270l65-140 82 140zM760 310l80-180 94 180z" fill="#b2a188" stroke="#675f50"/><text x="670" y="90" font-size="40">Owned survey fixture</text></svg>')).png().toBuffer(),symbol=await sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><path d="M28 112V40h12V20h14v20h20V20h14v20h12v72z" fill="#759268" stroke="#354a32" stroke-width="5"/><path d="M52 112V82q12-24 24 0v30" fill="#344632"/></svg>')).webp().toBuffer();
+  await writeFile(path.join(f.out,"reference.png"),reference);await writeFile(path.join(f.out,"symbol.webp"),symbol);
+  const {changeAtlasAsset}=await import("../src/features/worlds/atlas-asset-service"),{defaultAssetMetadata}=await import("../src/features/worlds/atlas-assets"),retainedAsset=randomUUID(),retainedImage=await sharp({create:{width:640,height:320,channels:4,background:"#436d7f"}}).png().toBuffer();
+  await changeAtlasAsset("world-god",f.world,{action:"import",requestId:randomUUID(),assetId:retainedAsset,revision:0,metadata:{...defaultAssetMetadata("Retained before 0155"),scales:["world","regional","town","building","interior","underground"]},filename:"deck-reference.png",mime:"image/png"},retainedImage);
+  await writeFile(path.join(f.out,"retained-asset.json"),JSON.stringify({id:retainedAsset,browserFixtureOnly:true}));
+  const template=(id:string)=>builtInMapTemplates.find(t=>t.id===`atlas-template:${id}`)!.content,templateContext={fit:false,includeDecks:true,seed:"Stage 7A owned inherited fixtures"},ship=resolveTemplate(template("craft:sailing"),templateContext,randomUUID);
+  assert.ok(ship.family==="craft"&&ship.drawing);if(ship.family!=="craft"||!ship.drawing)throw Error("Owned sailing fixture unavailable");
+  const {changeCraft}=await import("../src/features/worlds/craft-service"),craftId=randomUUID(),decks=ship.drawing.decks.map(draft=>({id:randomUUID(),draft}));
+  await changeCraft("world-god",f.world,{action:"create",requestId:randomUUID(),craftId,draft:{...ship.drawing.draft,name:"Owned retained template ship"},templateDecks:decks});
+  await writeFile(path.join(f.out,"crafts-database.json"),JSON.stringify({craftId,decks:decks.map(d=>d.id),assetId:retainedAsset,browserFixtureOnly:true,notStage6DatabaseValidationReceipt:true}));
+  const towns=await import("../src/features/worlds/town-map-service"),floors=await import("../src/features/worlds/building-floor-service"),townMap=(await towns.changeTownMap("world-god",f.world,{action:"create",requestId:randomUUID(),townId:f.town,sourceMapId:regionalFixtureIds.parent,contextMapId:regionalFixtureIds.a,placementId:null,placementRevision:null,anchor:{x:80000,y:50000},frame:{x:79250,y:49500,width:1500,height:1000,rotation:0},name:"Owned retained template source Town",design:emptyTownDesign(),previewToken:null})).id,
+    building=townFeature("building","area",[{x:100,y:100},{x:130,y:100},{x:130,y:124},{x:100,y:124}],randomUUID());building.name="Owned retained Template Inn";
+  await towns.changeTownMap("world-god",f.world,{action:"save",requestId:randomUUID(),mapId:townMap,revision:1,name:"Owned retained template source Town",design:{...emptyTownDesign(),features:[building]}});
+  await floors.changeBuildingFloor("world-god",f.world,{action:"enter",requestId:randomUUID(),townMapId:townMap,featureId:building.id});const b=(await floors.getBuildingFloors("world-god",f.world,{townMapId:townMap,featureId:building.id})).building!,inn=resolveTemplate(template("interior:inn"),{...templateContext,frame:b.frame,footprint:b.footprint},randomUUID);
+  assert.ok(inn.family==="interior"&&inn.drawing);if(inn.family!=="interior"||!inn.drawing)throw Error("Owned Inn fixture unavailable");
+  const floor=(await floors.changeBuildingFloor("world-god",f.world,{action:"create",requestId:randomUUID(),buildingId:b.id,name:"Owned retained Ground",order:0,elevation:0,design:inn.drawing.design,copyFloorId:null,copyRevision:null})).floorId!,images={version:1 as const,placements:[{id:randomUUID(),assetId:retainedAsset,version:1,name:"Owned pinned template reference",x:b.frame.width/2,y:b.frame.height/2,width:4,height:2,rotation:0,opacity:.6,flipX:false,flipY:false,visible:true,locked:false,tier:"reference" as const}]};
+  await changeAtlasAsset("world-god",f.world,{action:"compose",requestId:randomUUID(),target:{kind:"floor",id:floor},revision:0,layer:images});
+  await writeFile(path.join(f.out,"retained-template-sources.json"),JSON.stringify({world:f.world,townMap,featureId:building.id,floor,buildingId:b.id,frame:b.frame,footprint:b.footprint,craftId,decks:decks.map(d=>d.id),images,browserFixtureOnly:true,not0156UpgradeReceipt:true}));
+  await writeFile(path.join(f.out,"assets-database.json"),JSON.stringify({browserFixtureOnly:true,reference:"Newly generated owned reference.png",retainedCraftFixtureAsset:retainedAsset,retainedCraftFixtureCreatedOnCurrentSchema:true,not0155UpgradeReceipt:true,privateFilesAreTaskOwned:true,notStage6DatabaseValidationReceipt:true}));
+  const pixels=Uint8Array.from({length:128*128},(_,i)=>Math.max(0,Math.min(255,Math.round(35+165*Math.exp(-(((i%128-60)/27)**2))+50*(1-Math.floor(i/128)/128)))));for(let y=118;y<128;y++)for(let x=0;x<128;x++)pixels[y*128+x]=0;
+  const png=await sharp(pixels,{raw:{width:128,height:128,channels:1}}).png().toBuffer(),settings={gridWidth:128,gridHeight:128,widthKm:64,heightKm:64,wrap:false,minElevation:-12000,maxElevation:12000},shape=terrainGeometry(settings),grid=Int16Array.from(pixels,v=>Math.round(-200+v/255*4200)),id=randomUUID();
+  const source:TerrainSource={kind:"imported",format:"grayscale-png",fileName:"Owned synthetic highland.png",sha256:createHash("sha256").update(png).digest("hex"),sourceWidth:128,sourceHeight:128,bitDepth:8,interpretation:{low:-200,high:4000,crop:"fit",resampling:"nearest",noData:null,noDataMode:"reject",fillElevation:500}};
+  const {changeTerrain}=await import("../src/features/worlds/terrain-service");await changeTerrain("world-god",f.world,{action:"create",requestId:id,name:"Stage 7A inherited advanced geography",initial:"imported",settings,source,seaLevel:0,tiles:Array.from({length:16},(_,key)=>readTile(grid,key,shape))});
+  const refinements=await import("../src/features/worlds/terrain-refinement-service"),terrain=await import("../src/features/worlds/terrain-service"),index=await refinements.getRefinements("world-god",f.world,regionalFixtureIds.a),fine=index.refinements.find(r=>r.id===f.fine)!;assert.ok(fine);const parent=(await terrain.getTerrain("world-god",f.world,{mapId:regionalFixtureIds.parent})).document!,fineShape=frameGeometry(fine,terrainGeometry(parent.settings)),batch=await refinements.getRefinementTiles("world-god",f.world,regionalFixtureIds.a,f.fine,{lod:0,keys:Array.from({length:fine.gridWidth*fine.gridHeight/1024},(_,key)=>key)}),fineGrid=createGrid(parent.baseElevation,batch.tiles.map(t=>({x:t.x,y:t.y,samples:t.samples})),fineShape);
+  for(let y=4;y<fineShape.height-4;y++)for(let x=4;x<fineShape.width-4;x++)fineGrid[y*fineShape.width+x]+=Math.round(250*Math.exp(-(((x-fineShape.width*.5)/(fineShape.width*.22))**2+((y-fineShape.height*.5)/(fineShape.height*.22))**2)));
+  await refinements.saveRefinement("world-god",f.world,f.fine,{action:"save",requestId:randomUUID(),mapId:regionalFixtureIds.a,revision:fine.revision,sourceState:index.sourceState,seaLevel:parent.seaLevel,source:{kind:"manual"},tiles:Array.from({length:fine.gridWidth*fine.gridHeight/1024},(_,key)=>readTile(fineGrid,key,fineShape))});
+  await writeFile(path.join(f.out,"advanced-database.json"),JSON.stringify({browserMap:id,regionalMap:regionalFixtureIds.a,fine:f.fine,browserFixtureOnly:true,notStage6DatabaseValidationReceipt:true,sharedDatabaseAccess:false}));
+}
+export async function nativeHistoryInheritedBrowser(input:{f:RegionalFixture;browser:Browser;context:BrowserContext;page:Page;base:string}){
+  if(process.env.SERRIAN_HISTORY_ASSET_POINTER_TRACE==="1")await input.page.addInitScript(()=>{const state=window as unknown as {atlasPointerTrace:unknown[]};state.atlasPointerTrace=[];document.addEventListener("pointerdown",event=>{const canvas=document.querySelector<HTMLCanvasElement>('canvas[aria-label="Town Map canvas"]');if(!canvas)return;const target=event.target as HTMLElement,rect=canvas.getBoundingClientRect();state.atlasPointerTrace.push({x:event.clientX,y:event.clientY,target:target.tagName,label:target.getAttribute("aria-label")??target.textContent?.slice(0,80),scrollY,canvas:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},view:canvas.dataset.compositionView,selected:document.querySelector<HTMLSelectElement>('[aria-label="Image placements"]')?.value,drafts:Object.keys(localStorage).filter(k=>k.startsWith("st:atlas-assets:v1:")).map(k=>({key:k,value:JSON.parse(localStorage.getItem(k)!)}))});state.atlasPointerTrace=state.atlasPointerTrace.slice(-80);},true);});
+  try{await(await import("./worlds-assets-browser-checks")).assetsBrowserChecks(input);}finally{if(process.env.SERRIAN_HISTORY_ASSET_POINTER_TRACE==="1")await writeFile(path.join(input.f.out,"asset-pointer-trace.json"),JSON.stringify(await input.page.evaluate(()=>(window as unknown as {atlasPointerTrace:unknown[]}).atlasPointerTrace),null,2));}
+  await(await import("./worlds-crafts-browser-checks")).craftsBrowserChecks(input);
+  await(await import("./worlds-templates-browser-checks")).templatesBrowserChecks(input);
+  await(await import("./worlds-advanced-browser-checks")).advancedTerrainBrowser(input);
+  await writeFile(path.join(input.f.out,"historical-inherited-stage6-browser.json"),JSON.stringify({passed:true,retainedValidators:["assetsBrowserChecks","craftsBrowserChecks","templatesBrowserChecks","advancedTerrainBrowser"],sharedDatabaseAccess:false,ownerAcceptance:false,physicalDeviceAcceptance:false},null,2));
+}

@@ -25,6 +25,11 @@ export async function territoryReferences(tx:Tx,worldId:string,timelineId:string
 }
 export async function validateTerritorySources(tx:Tx,worldId:string,mapId:string,timelineId:string,incoming:HistoricalTerritory[],previous:HistoricalTerritory[],period?:{startYear:number;endYear:number}) {
   try{validateTerritories(incoming,period);}catch(e){throw new WorldError((e as Error).message,400);}
+  return validateTerritorySourceRecords(tx,worldId,mapId,timelineId,incoming,previous);
+}
+/** Coordinate-independent canonical identity and source-pin checks. Native
+ * physical overlays validate their own geometry before reusing these records. */
+export async function validateTerritorySourceRecords(tx:Tx,worldId:string,mapId:string,timelineId:string,incoming:Omit<HistoricalTerritory,"coordinateSpace">[],previous:Omit<HistoricalTerritory,"coordinateSpace">[]) {
   if(previous.some(t=>!incoming.some(n=>n.id===t.id))||previous.some(t=>t.boundaries.some(b=>!incoming.find(n=>n.id===t.id)?.boundaries.some(n=>n.id===b.id))))throw new WorldError("Keep retained territories and boundaries. Archive a representation instead of removing its identity.",400);
   for(const t of incoming){const [old]=await tx.select().from(territories).where(eq(territories.id,t.id));if(old&&(old.worldId!==worldId||old.mapId!==mapId))throw missing();if(old&&!previous.some(p=>p.id===t.id))throw new WorldError("Reuse a territory through its exact saved appearance; do not forge its identity.",400);
     if(!old)await tx.insert(territories).values({id:t.id,worldId,mapId,originTimelineId:timelineId});
@@ -36,7 +41,7 @@ export async function validateTerritorySources(tx:Tx,worldId:string,mapId:string
     for(const h of t.history){if(previous.find(p=>p.id===t.id)?.history.some(n=>n.entityId===h.entityId&&n.versionId===h.versionId&&n.name===h.name))continue;const [saved]=await tx.select({v:worldHistoryVersion,h:worldHistoryHead}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.worldId,worldId),eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,h.entityId)));if(!saved||saved.v.id!==h.versionId||!["authored","inherited","partial","interpretation"].includes(saved.h.mode)||saved.v.payload.archived||("title"in saved.v.payload?saved.v.payload.title:saved.v.payload.name)!==h.name)throw missing();}
   }
 }
-export async function appendTerritoryReferences(tx:Tx,worldId:string,mapId:string,versionId:string,incoming:HistoricalTerritory[]) {
+export async function appendTerritoryReferences(tx:Tx,worldId:string,mapId:string,versionId:string,incoming:Omit<HistoricalTerritory,"coordinateSpace">[]) {
   const lore=incoming.flatMap(t=>t.relationships.map(r=>({worldId,mapId,versionId,territoryId:t.id,id:r.id,entityId:r.entityId,loreVersionId:r.versionId})));
   const history=incoming.flatMap(t=>t.history.map(h=>({worldId,mapId,versionId,territoryId:t.id,entityId:h.entityId,historyVersionId:h.versionId})));
   if(lore.length)await tx.insert(lorePins).values(lore);if(history.length)await tx.insert(historyPins).values(history);

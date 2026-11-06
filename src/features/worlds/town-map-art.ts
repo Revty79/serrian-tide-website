@@ -11,9 +11,20 @@ function tree(ctx:CanvasRenderingContext2D,x:number,y:number,r:number,budget:Tow
  if(r>5){ctx.strokeStyle="#4d6443";ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(x-r*.35,y+r*.2);ctx.lineTo(x+r*.3,y-r*.25);ctx.stroke();}
 }
 /** Original vector cartography. All detail is screen-bounded and leaves metre geometry untouched. */
-export function paintTownFeature(ctx:CanvasRenderingContext2D,s:TownFeature,ps:TownPoint[],scale:number,p:Palette,selected:boolean,budget:TownArtBudget,culture="local") {
+export function paintTownFeature(ctx:CanvasRenderingContext2D,s:TownFeature,ps:TownPoint[],scale:number,p:Palette,selected:boolean,budget:TownArtBudget,culture="local",condition?:"ruined") {
  const xs=ps.map(q=>q.x),ys=ps.map(q=>q.y),x=Math.min(...xs),y=Math.min(...ys),w=Math.max(...xs)-x,h=Math.max(...ys)-y,cx=x+w/2,cy=y+h/2,category=s.category.split(":").at(-1)??"",stone=s.category.startsWith("stone")||(!/^(timber|local):/.test(s.category)&&culture==="stone")||s.category.startsWith("local:")&&(Math.round(s.points[0].x)*31+Math.round(s.points[0].y)*17)%3===0,detail=Math.max(w,h),seed=Array.from(s.id).reduce((n,c)=>Math.imul(n^c.charCodeAt(0),16777619),2166136261)>>>0,thatch=s.category.startsWith("thatch:")||category==="cottage"&&!stone&&seed%3===0;
  ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
+ if(s.kind==="building"&&condition==="ruined"){
+  // Historical presentation only: the accepted footprint and object identity
+  // stay intact. Broken walls replace the roof within the existing art budget.
+  path(ctx,ps);ctx.fillStyle="#a29b86";ctx.globalAlpha=.55;ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle="#655f50";ctx.lineWidth=Math.max(1.2,Math.min(4,scale*.45));
+  for(let i=0;i<Math.min(ps.length,32)&&budget.remaining>=2;i++){
+   budget.remaining-=2;const a=ps[i],b=ps[(i+1)%ps.length],at=(t:number)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});
+   ctx.beginPath();ctx.moveTo(a.x,a.y);const broken=at(.58);ctx.lineTo(broken.x,broken.y);ctx.stroke();const rubble=at(.82);ctx.fillStyle="#756e5d";ctx.fillRect(rubble.x-1.2,rubble.y-1,2.4,2);
+  }
+  if(selected){path(ctx,ps);ctx.strokeStyle=p.selection;ctx.lineWidth=2;ctx.stroke();}ctx.restore();return;
+ }
+
  if(s.kind==="road") {
   path(ctx,ps,false);const width=Math.max(1.5,s.width*scale);
   ctx.strokeStyle=s.category==="trail"?"#a18a62":"#87775e";ctx.lineWidth=width+1.8;ctx.stroke();

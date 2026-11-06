@@ -31,9 +31,20 @@ export async function historyEntryInTransaction(tx:HistoryTx,worldId:string,time
   const record=inheritedProjection({...row.v.payload,revision:row.h.revision},{mode:row.h.mode,timelineId,versionId:row.v.id,sourceTimelineId:row.h.sourceTimelineId,sourceVersionId:ordinary?null:row.h.sourceVersionId,sourceRevision:ordinary?null:row.h.sourceRevision,coveredUntil:row.h.coveredUntil,newerParent:false,parentRevision:null,parentVersionId:null}) as EntryRecord;
   return {...record,...ordinary?{notes:""}: {}};
 }
-export async function historyEntry(userId:string,worldId:string,timelineId:string,id:string,review=false,ordinary=false) {
+export async function historyEntry(userId:string,worldId:string,timelineId:string,id:string,review=false,ordinary=false,versionId?:string) {
   await worldReadAccess(userId,worldId,review);
-  return db.transaction(async tx=>{await selectedTimeline(tx,worldId,timelineId);return historyEntryInTransaction(tx,worldId,timelineId,id,ordinary);},{isolationLevel:"repeatable read",accessMode:"read only"});
+  return db.transaction(async tx=>{
+    await selectedTimeline(tx,worldId,timelineId);
+    const current=await historyEntryInTransaction(tx,worldId,timelineId,id,ordinary);
+    if(!versionId||versionId===current.historyContext?.versionId)return current;
+    // An old protected narrative cannot be released by a newer public head.
+    // Ordinary readers currently require the effective exact source; owners may
+    // inspect accepted older sources from this timeline or its explicit pin.
+    if(ordinary)throw new WorldError("This retained historical account is unavailable in this knowledge view.",404);
+    const [row]=await tx.select().from(worldHistoryVersion).where(and(eq(worldHistoryVersion.id,versionId),eq(worldHistoryVersion.worldId,worldId),eq(worldHistoryVersion.entityId,id),sql`(${worldHistoryVersion.timelineId}=${timelineId} or ${worldHistoryVersion.id}=${current.historyContext?.sourceVersionId??null})`));
+    if(!row?.entryId)throw new WorldError("This retained historical account is unavailable in this timeline.",404);
+    return {...row.payload as EntryRecord,historyContext:{...current.historyContext!,versionId:row.id}};
+  },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function searchHistory(userId:string,worldId:string,timelineId:string,input:unknown,review=false,ordinary=false):Promise<HistoryIndex> {
   await worldReadAccess(userId,worldId,review);

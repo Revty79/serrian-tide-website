@@ -38,7 +38,7 @@ export async function getWorldTowns(userId:string,worldId:string,options:{review
     return {...context?.regional?{regional:context.regional}:{},...context?.region?{unavailableTownIds:placements.filter(placement=>!placement.removed&&!inside(placement)).map(placement=>placement.townId)}:{},towns,town:options.townId?await townRecord(tx,worldId,options.townId):null,placements:context?.region?placements.filter(placement=>placement.removed||inside(placement)):placements,references:await references(tx,worldId),canEdit:(!context?.region||!!context.regional)&&parent.ownerId===userId&&!parent.archivedAt&&!options.review};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
-async function saveTown(tx:Tx,worldId:string,id:string,draft:TownDraft,current:TownRecord|null){
+export async function saveTownInTransaction(tx:Tx,worldId:string,id:string,draft:TownDraft,current:TownRecord|null){
   const refs=await references(tx,worldId),allowed=(id:string|null,choices:{id:string;archived:boolean}[],retained:string|null)=>!id||id===retained||choices.some(c=>c.id===id&&!c.archived);
   if(!allowed(draft.cultureId,refs.cultures,current?.draft.cultureId??null)||!allowed(draft.governmentId,refs.governments,current?.draft.governmentId??null)||draft.historyIds.some(id=>!allowed(id,refs.history,current?.draft.historyIds.includes(id)?id:null)))throw new WorldError("Choose active culture, government and historical records from this World, or keep an existing association.",400);
   if(!current){const [collision]=await tx.select({id:worldGeography.id}).from(worldGeography).where(eq(worldGeography.id,id));if(collision)throw conflict();const [{count}]= (await tx.execute<{count:number}>(sql`select count(*)::int count from world_settlement_profile where world_id=${worldId}`)).rows;if(count>=2000)throw new WorldError("This World has reached the supported 2,000 retained settlements.",400);
@@ -56,13 +56,13 @@ export async function changeWorldTown(userId:string,worldId:string,input:unknown
     let result:TownResult,appearance:Record<string,unknown>|null=null,mapId:string|null=null,town:TownRecord;
     if(c.action==="save"){
       const current=c.id?await townRecord(tx,worldId,c.id):null;if(current?(current.revision!==c.revision||current.geographyRevision!==c.geographyRevision):(c.revision!==null||c.geographyRevision!==null))throw conflict();
-      town=await saveTown(tx,worldId,c.id??c.requestId,c.draft,current);result={townId:town.id,revision:town.revision};
+      town=await saveTownInTransaction(tx,worldId,c.id??c.requestId,c.draft,current);result={townId:town.id,revision:town.revision};
     }else if(c.action==="archive"||c.action==="restore"){
       town=await townRecord(tx,worldId,c.id);if(town.revision!==c.revision||town.geographyRevision!==c.geographyRevision)throw conflict();if(town.archived===(c.action==="archive"))throw new WorldError(`This settlement is already ${town.archived?"archived":"active"}.`,400);
       await tx.update(worldGeography).set({archivedAt:c.action==="archive"?new Date():null,revision:town.geographyRevision+1,updatedAt:new Date()}).where(eq(worldGeography.id,town.id));await tx.update(worldSettlementProfile).set({revision:town.revision+1,archiveReason:c.action==="archive"?c.reason:""}).where(eq(worldSettlementProfile.geographyId,town.id));town=await townRecord(tx,worldId,town.id);result={townId:town.id,revision:town.revision};
     }else{
       requireRegionalAuthoringPin(context!,c.regional);mapId=context!.sourceMapId;const frame=await mapFrame(tx,worldId,mapId);
-      town=c.action==="place-new"?await saveTown(tx,worldId,c.requestId,c.draft,null):await townRecord(tx,worldId,c.townId);
+      town=c.action==="place-new"?await saveTownInTransaction(tx,worldId,c.requestId,c.draft,null):await townRecord(tx,worldId,c.townId);
       const [old]=await tx.select().from(worldMapPlace).where(and(eq(worldMapPlace.worldId,worldId),eq(worldMapPlace.mapId,mapId),eq(worldMapPlace.geographyId,town.id)));
       if(context?.region&&old&&!old.removedAt)boundedRegionalLayer(()=>requireRegionalPath([old],0,regionalScope(context),"The existing Town marker"));
       if(c.action!=="place-new"&&(old?old.revision!==c.revision:c.revision!==null))throw conflict();

@@ -20,7 +20,10 @@ export async function worldRequest(request: Request, mutation: boolean, run: (us
     // Shared lore, History, calendar and Campaign endpoints retain their own guards.
     if (isMapOnlyWorldsApi(new URL(request.url).pathname)) throw new WorldError(atlasUnavailableMessage, 404);
     if(mutation&&readOnlyPreview(new URL(request.url).searchParams))throw new WorldError("This preview is read-only.",403);
-    const result=await run(session.user.id);
+    const url=new URL(request.url);
+    const result=url.searchParams.has("historicalAtlas")
+      ?await (await import("./native-map-history-api")).nativeContentRequest(request,session.user.id)
+      :await run(session.user.id);
     if(result instanceof Response){result.headers.set("Cache-Control","private, no-store");result.headers.set("Vary","Cookie");result.headers.set("X-Content-Type-Options","nosniff");return result;}
     return privateJson(result);
   } catch (error) {

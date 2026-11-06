@@ -1,4 +1,5 @@
 "use client";
+import {nativeOriginalRequestUuidForUrl} from "./native-map-history-transport-client";
 import {TerrainStyleWorkshop} from "./terrain-style-workshop";
 import {useEffect,useRef,useState} from "react";
 import {worldApi} from "./client-api";
@@ -16,7 +17,7 @@ export function useMapAppearance(key:string,physicalDefault:boolean,api:string,m
   if(!live)return;setBaseline(result.spec??visualAppearance(valueNow.current));setRemote(result);setNotice(result.available?"Appearance changes preview in this browser. Save them to set this map's default.":"MIGRATION 0139 REQUIRED to save map appearances. You can still preview every style.");
   try{const local=parseTerrainRelief(JSON.parse(localStorage.getItem("st:terrain-relief:"+key)??"null"));if(!local?.appearance&&result.spec)setValue(appearanceRelief(result.spec));const raw=localStorage.getItem(storageKey);if(raw){const original=appearanceSaveSchema.parse(JSON.parse(raw));if(original.mapId===mapId){pending.current=original;setPendingState(true);setNotice("An original appearance save is retained. Retry it or explicitly load the map's saved appearance.");}}}catch{/* Local preferences can be unavailable; server values and terrain remain safe. */}
  }).catch(failure=>{if(live){setError((failure as Error).message);setNotice("Appearance is available as a local preview.");}});return()=>{live=false;alive.current=false;};},[base,key,mapId,setValue,storageKey]);
- async function save(){if(saving||!remote?.available)return;const command=pending.current??{mapId,revision:remote.revision,requestId:crypto.randomUUID(),spec:visualAppearance(value)};pending.current=command;setPendingState(true);try{localStorage.setItem(storageKey,JSON.stringify(command));}catch{/* A stable in-memory request still protects retries for this tab. */}setSaving(true);setError("");
+ async function save(){if(saving||!remote?.available)return;const command=pending.current??{mapId,revision:remote.revision,requestId:nativeOriginalRequestUuidForUrl(base),spec:visualAppearance(value)};pending.current=command;setPendingState(true);try{localStorage.setItem(storageKey,JSON.stringify(command));}catch{/* A stable in-memory request still protects retries for this tab. */}setSaving(true);setError("");
   try{const result=await worldApi<{revision:number;spec:MapAppearance}>(base,"POST",command);pending.current=undefined;try{localStorage.removeItem(storageKey);}catch{}if(alive.current){setRemote({available:true,...result});setPendingState(false);setNotice("Map appearance saved separately. Numerical terrain and its revision are unchanged.");}}
   catch(failure){if(alive.current)setError((failure as Error).message+" Retry uses the original appearance request.");}finally{if(alive.current)setSaving(false);}
  }

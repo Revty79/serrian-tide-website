@@ -1,0 +1,31 @@
+import assert from "node:assert/strict";
+import {randomUUID} from "node:crypto";
+import {readFile,writeFile} from "node:fs/promises";
+import path from "node:path";
+import type {RegionalFixture} from "./worlds-regional-editing-fixture";
+import type {NativeHistoryScope} from "../src/features/worlds/native-map-history";
+import type {FloorBundle,FloorFeature} from "../src/features/worlds/building-floor";
+export async function validateNativeFloorRoutes(f:RegionalFixture,timelineId:string){
+  const {nativeContentRequest}=await import("../src/features/worlds/native-map-history-api"),{nativeHistoryUrl}=await import("../src/features/worlds/native-map-history"),{getNativeMapHistory}=await import("../src/features/worlds/native-map-history-service"),{copyFloor,floorRound}=await import("../src/features/worlds/building-floor");
+  const fixture=JSON.parse(await readFile(path.join(f.out,"native-floor-creation.json"),"utf8")).fixture as {floorId:string;scope:NativeHistoryScope},scope=fixture.scope;
+  const call=(binding:NativeHistoryScope,id:string,body?:unknown)=>nativeContentRequest(new Request("http://owned.invalid"+nativeHistoryUrl(`/api/worlds/${f.world}/building-floors${body?"":`?floor=${id}`}`,binding),body?{method:"POST",body:JSON.stringify(body)}:undefined),"world-god");
+  const original=await call(scope,fixture.floorId) as FloorBundle,old=original.document!,frame=original.building!.frame,canonical=(await f.pool.query("select design from world_building_floor where id=$1",[old.id])).rows[0].design;
+  const stairId=randomUUID(),stairs:FloorFeature={version:1,id:stairId,entityId:stairId,kind:"transition",variant:"object",name:"Ground stair500",archived:false,point:{x:floorRound(frame.width*.7),y:floorRound(frame.height*.7)},width:1.2,height:2,rotation:0,symbol:"stairs",destination:null};
+  const sourceDesign={...old.design,features:[...old.design.features,stairs]};await call(scope,old.id,{action:"save",requestId:randomUUID(),floorId:old.id,revision:old.revision,name:old.name,order:old.order,elevation:old.elevation,design:sourceDesign});
+  const arrivalId=randomUUID(),arrival={...stairs,id:arrivalId,entityId:arrivalId,name:"Customized basement arrival",width:1.75,height:1.9,rotation:37,point:{x:floorRound(frame.width*.2),y:floorRound(frame.height*.2)}};
+  const lowerDesign={...copyFloor(old.design,randomUUID),features:[...copyFloor(old.design,randomUUID).features,arrival]};
+  const made=await call(scope,old.id,{action:"create",requestId:randomUUID(),buildingId:original.building!.id,name:"Basement500",order:-1,elevation:-3,design:lowerDesign,copyFloorId:old.id,copyRevision:2}) as {floorId:string;childHistorical:{stateId:string}},target={kind:"floor" as const,id:made.floorId},lowerScope={...scope,target,stateId:made.childHistorical.stateId};
+  const command={action:"connect",requestId:randomUUID(),floorId:old.id,revision:2,featureId:stairs.id,destinationFloorId:made.floorId,destinationRevision:1,point:arrival.point,reciprocal:true},accepted=await call(scope,old.id,command) as {historical:{versionId:string}};assert.deepEqual(await call(scope,old.id,command),accepted);
+  const connected=await call(lowerScope,made.floorId) as FloorBundle,nowArrival=connected.document!.design.features.find(feature=>feature.id===arrivalId)!;assert.ok(nowArrival.variant==="object");assert.deepEqual({...nowArrival,destination:null},arrival,"Reciprocal arrival preserves independent name, position, size, angle and identity");assert.equal(nowArrival.destination!.floorId,old.id);
+  const retained=await call({...scope,edit:false,versionId:accepted.historical.versionId},made.floorId) as FloorBundle;assert.deepEqual(retained.document!.design,connected.document!.design);
+  await assert.rejects(call(lowerScope,made.floorId,{action:"lifecycle",requestId:randomUUID(),floorId:made.floorId,revision:2,archived:true}),/Stairs on another dated floor/);
+  await assert.rejects(call(scope,old.id,{...command,requestId:randomUUID()}),/newer|changed/i);
+  await call(scope,old.id,{action:"save",requestId:randomUUID(),floorId:old.id,revision:3,name:old.name,order:old.order,elevation:old.elevation,design:sourceDesign});
+  await call(lowerScope,made.floorId,{action:"lifecycle",requestId:randomUUID(),floorId:made.floorId,revision:2,archived:true});assert.equal((await call(lowerScope,made.floorId) as FloorBundle).document!.archived,true);
+  assert.equal((await call({...scope,edit:false,versionId:accepted.historical.versionId},made.floorId) as FloorBundle).document!.archived,false);
+  await call(lowerScope,made.floorId,{action:"lifecycle",requestId:randomUUID(),floorId:made.floorId,revision:3,archived:false});
+  assert.deepEqual((await f.pool.query("select design from world_building_floor where id=$1",[old.id])).rows[0].design,canonical);
+  assert.equal((await getNativeMapHistory("world-god",f.world,target,timelineId,{year:100})).coverage,"unknown");
+  const later=(await getNativeMapHistory("world-god",f.world,scope.target,timelineId,{year:900})).selected!;const laterDesign=(await call({...scope,year:900,stateId:later.id},old.id) as FloorBundle).document!.design;assert.equal(laterDesign.features.some(feature=>feature.id===stairs.id),false);
+  await writeFile(path.join(f.out,"native-floor-routes.json"),JSON.stringify({passed:true,sameCanonicalBuildingAndFloors:true,reciprocalStairsAtomic:true,customizedArrivalPropertiesExact:true,exactRetryAndStaleRejection:true,retainedDestinationVersionPinned:true,incomingStairsArchiveGuard:true,datedFloorArchiveRestore:true,laterAppearanceIndependent:true,baselineBirthGeometryExact:true,sharedDatabaseAccess:false},null,2));
+}

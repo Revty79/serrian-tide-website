@@ -13,7 +13,7 @@ import {appearanceRelief,visualAppearance,mapAppearanceNames,DEFAULT_MAP_APPEARA
 import type {TerrainInspection} from "./terrain-units";
 import {useMeasurementPreferences} from "./terrain-measurement-preferences";
 import {TerrainTouchSwitch,useTerrainTouchControls} from "./terrain-touch-controls";
-import {worldApi} from "./client-api";
+import {useNativeWorldApi,useNativeHistoryRecovery} from "./native-map-history-client";
 import {advancedNames,advancedOperationSchema,ADVANCED_TERRAIN_LIMITS,type AdvancedKind,type AdvancedOperation,type AdvancedProvenance} from "./terrain-advanced-spec";
 import {prepareAdvancedTerrainAsync,type AdvancedResult} from "./terrain-advanced";
 import type {AdvancedContextPacket} from "./terrain-advanced-service";
@@ -50,6 +50,7 @@ function download(value:string,name:string){
   a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 export function AdvancedTerrainWorkshop(p:Props){
+  const worldApi=useNativeWorldApi(),historyRecovery=useNativeHistoryRecovery();
   const {onDirty}=p;
   const [op,setOp]=useState<AdvancedOperation>(()=>startingOperation(p.input)),[packet,setPacket]=useState<AdvancedContextPacket>(),
     [section,setSection]=useState("settings"),[tool,setTool]=useState<TerrainCanvasTool>("pan"),
@@ -62,7 +63,7 @@ export function AdvancedTerrainWorkshop(p:Props){
     [recovery,setRecovery]=useState<{key:string;raw:string}>(),[recoveryReady,setRecoveryReady]=useState(false);
   const [preferences]=useMeasurementPreferences(),[touch,setTouch,touchEpoch]=useTerrainTouchControls(),[armed,setArmed]=useState<number|null>(null);
   const doc=p.input.document,[shape]=useState(()=>terrainGeometry(p.input.document.settings)),
-    prefix="st:terrain-advanced:v1:"+doc.worldId+":"+doc.id+":"+(doc.refinement?.id??"root")+":",
+    prefix="st:terrain-advanced:v1"+historyRecovery+":"+doc.worldId+":"+doc.id+":"+(doc.refinement?.id??"root")+":",
     [key]=useState(()=>prefix+crypto.randomUUID()),canvas=useRef<TerrainCanvasHandle>(null),
     worker=useRef<Worker|null>(null),controller=useRef<AbortController|null>(null),serial=useRef(0),alive=useRef(true),
     watchdog=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),retained=useRef(""),exported=useRef(false),storageFailed=useRef(false),origin=useRef<{key:string;raw:string}|undefined>(undefined),retired=useRef(false);
@@ -98,7 +99,7 @@ export function AdvancedTerrainWorkshop(p:Props){
     try{for(let n=0;n<localStorage.length;n++){const candidate=localStorage.key(n);if(candidate?.startsWith(prefix)&&candidate!==key){const raw=localStorage.getItem(candidate)!;queueMicrotask(()=>{if(live)setRecovery({key:candidate,raw});});break;}}}
     catch{queueMicrotask(()=>{if(live)setError("Browser recovery storage is unavailable. Keep this editor open or export the operation settings.");});}
     queueMicrotask(()=>{if(live)setRecoveryReady(true);});return()=>{live=false;};
-  },[doc.worldId,doc.id,doc.revision,doc.refinement,key,prefix]);
+  },[doc.worldId,doc.id,doc.revision,doc.refinement,key,prefix,worldApi]);
   useEffect(()=>{
     if(!recoveryReady||recovery||retired.current)return;
     const raw=JSON.stringify({version:1,mapId:doc.id,sourceId:doc.refinement?.id??null,revision:doc.revision,operation:op,visualOnly,outline,areaMode,drawing,simplificationM:outlineTolerance});
