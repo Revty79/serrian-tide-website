@@ -1,6 +1,6 @@
 # Stage 7A Worlds and Atlas integration matrix
 
-Status: technically verified on the final Stage 7A source. Main publication and GitHub validation remain to be recorded in the delivery report.
+Status: technically verified and published. Application `151e3a3c9951e05c75d5d998c87cbfd7657c35a6`, test-only correction/release `406fef78336c191afdc5ee8a82f3d0f4d5009485`; [GitHub validation 42169950593](https://github.com/Revty79/serrian-tide-website/actions/runs/42169950593) passed. The delivery report distinguishes the unchanged tested production build from the later unbundled test input and retains the first failed CI run. Owner review remains pending.
 
 This pass starts at `88704f86fea5534513139e942e9c54e63f2d1691`. Worlds owns the records, source accounts and identities; the active Atlas displays their authorized geographic representations. Names and a shared World ID never substitute for a relationship. No universal registry or retired Atlas renderer was added.
 
