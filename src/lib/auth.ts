@@ -15,6 +15,11 @@ export const auth = betterAuth({
     .map((origin) => origin.trim())
     .filter(Boolean),
 
+  // Render supplies this client-IP header; keep other hosts' defaults unchanged.
+  advanced: process.env.RENDER === "true"
+    ? { ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] } }
+    : undefined,
+
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
