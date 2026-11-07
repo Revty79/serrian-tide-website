@@ -22,6 +22,12 @@ export function canonGeographyPlan(worldId:string):CanonGeographyPlan[]{
         union select r.terrain_id,v.root_revision,'root') next
   ) select *,row_number() over(partition by id order by revision)::int copy_revision from pins`;
   const primary=sql`select id from world_timeline where world_id=${worldId} and is_primary`;
+  const connectionPins=sql`values
+    (c.payload#>>'{source,sourceVersionId}'),(c.payload#>>'{source,destinationVersionId}'),
+    (c.payload#>>'{source,sourceGeographyVersionId}'),(c.payload#>>'{source,destinationGeographyVersionId}'),
+    (c.payload#>>'{original,sourceVersionId}'),(c.payload#>>'{original,destinationVersionId}'),
+    (c.payload#>>'{original,sourceGeographyVersionId}'),(c.payload#>>'{original,destinationGeographyVersionId}')`;
+  const ordinaryConnection=sql`c.kind='connections' and c.payload ? 'connection' and c.payload ? 'original' and coalesce(c.payload#>>'{draft,protected}','false')<>'true'`;
   const targetId=(alias:"v"|"p")=>sql`${sql.identifier(alias)}.payload->'nativeAtlas'->'target'->>'id'`;
   const targetKind=(alias:"v"|"p")=>sql`${sql.identifier(alias)}.payload->'nativeAtlas'->'target'->>'kind'`;
   const birth=(alias:"v"|"p")=>sql`case ${targetKind(alias)}
@@ -46,7 +52,11 @@ export function canonGeographyPlan(worldId:string):CanonGeographyPlan[]{
   ), selected(id) as (
     select v.id from world_map_state_head h join world_map_state_version v on v.id=h.version_id where h.world_id=${worldId} and h.timeline_id in (${primary}) and v.map_id in (${maps}) and v.payload ? 'nativeAtlas' and v.id not in (select id from blocked)
     union select next.id from selected s join world_map_state_version v on v.id=s.id and v.world_id=${worldId}
-      cross join lateral(select v.source_version_id id where v.source_version_id is not null union select ${birth("v")} where ${birth("v")} is not null union select d.source_version_id from world_map_state_native_dependency d where d.version_id=v.id and d.world_id=${worldId}) next
+      cross join lateral(select v.source_version_id id where v.source_version_id is not null union select ${birth("v")} where ${birth("v")} is not null union select d.source_version_id from world_map_state_native_dependency d where d.version_id=v.id and d.world_id=${worldId}
+        union select pin.id from world_map_state_component_ref r join world_map_state_component c on c.id=r.component_id and c.world_id=r.world_id
+          cross join lateral(${connectionPins}) pin(id)
+          where r.version_id=v.id and r.world_id=${worldId} and ${ordinaryConnection} and pin.id is not null
+            and exists(select 1 from world_map_state_version exact where exact.id=pin.id and exact.world_id=${worldId} and exact.id not in(select id from blocked))) next
   ) select id from selected`;
   const origin=sql`(native_origin_version_id is null or native_origin_version_id in (${nativeVersions}))`;
   const town=sql`select id from world_town_map where world_id=${worldId} and ${origin} and not archived and source_map_id in (${maps}) and context_map_id in (${maps})`;
@@ -80,7 +90,10 @@ export function canonGeographyPlan(worldId:string):CanonGeographyPlan[]{
   // Version envelopes depend only on the already-created numerical anchor and
   // timeline; born-in-history native identities may then reference these pins.
   add("world_map_state","id",sql`s.id in (select state_id from world_map_state_version where id in (${nativeVersions}))`);
-  const ordinaryComponent=sql`coalesce(c.payload #>> '{draft,protected}','false')<>'true'`;
+  // Strict route accounts retain exact endpoint versions separately from the
+  // manifest's general dependencies. Copy that ordinary closed source graph;
+  // omit an account if even one of its retained geometry pins is unavailable.
+  const ordinaryComponent=sql`coalesce(c.payload #>> '{draft,protected}','false')<>'true' and (not(${ordinaryConnection}) or not exists(select 1 from (${connectionPins}) pin(id) where pin.id is not null and pin.id not in(${nativeVersions})))`;
   const scoped=sql`case when (c.kind='conditions' and jsonb_array_length(coalesce(c.payload->'values','[]'::jsonb))>0) or (c.kind='connections' and c.payload ? 'connection') or (c.kind in ('connections','underground') and jsonb_array_length(coalesce(c.payload->'bundle'->'connections',c.payload->'connections','[]'::jsonb))>0) then r.version_id else '' end`;
   plans.push({table:"world_map_state_component",key:sql`s.id||case when s.__version_id='' then '' else ':'||s.__version_id end`,batch:1,source:sql`select distinct on(c.id,${scoped}) c.*,${scoped} __version_id from world_map_state_component c join world_map_state_component_ref r on r.component_id=c.id and r.world_id=c.world_id where c.world_id=${worldId} and r.version_id in (${nativeVersions}) and r.key<>'territories' and ${ordinaryComponent} order by c.id,${scoped}`});
   add("world_map_state_version","id",sql`s.id in (${nativeVersions})`,1);

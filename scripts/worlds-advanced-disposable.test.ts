@@ -1,3 +1,4 @@
+import {stageRowRecords,worldWriteSnapshot,assertWorldWriteEffects} from "./worlds-atlas-checkpoint-stage-rows";
 /** Stage 6D: new owned loopback databases/files only. Never loads an env file. */
 import assert from "node:assert/strict";
 import {createHash,randomUUID} from "node:crypto";
@@ -18,12 +19,7 @@ const out=path.resolve(process.env.SERRIAN_REGIONAL_EDIT_EVIDENCE??"artifacts/te
 assert.ok(out.startsWith(path.resolve("artifacts/terrain-s6d-")));
 process.env.SERRIAN_REGIONAL_EDIT_EVIDENCE=out;
 let beforeUpgradeRows:unknown,beforeUpgradeFiles:unknown;
-async function retainedRows(f:RegionalFixture){
-  const result:Record<string,unknown>={};
-  for(const {tablename} of(await f.pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows){
-    assert.match(tablename,/^[a-z0-9_]+$/);result[tablename]=(await f.pool.query('select row_to_json(t)::text v from "'+tablename+'" t order by row_to_json(t)::text')).rows;
-  }return result;
-}
+async function retainedRows(f:RegionalFixture){const names=(await f.pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows.map(row=>row.tablename as string);return stageRowRecords(f,names);}
 async function beforeAdvancedUpgrade(f:RegionalFixture){
   assert.equal((await f.pool.query("select to_regclass('world_terrain_advanced_volcano_idx') as value")).rows[0].value,null);
   const advanced=await import("../src/features/worlds/terrain-advanced-service");
@@ -42,7 +38,7 @@ async function run(f:RegionalFixture){
   assert.ok(path.resolve(f.root).startsWith(path.join(out,"owned-temp")+path.sep));
   assert.equal(process.env.DATABASE_URL,f.databaseUrl);
   assert.deepEqual(await retainedRows(f),beforeUpgradeRows);assert.deepEqual(await files(f.terrainRoot),beforeUpgradeFiles);
-  const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")),entry=journal.entries.at(-1),migration=await readFile("drizzle/0157_advanced_terrain_indexes.sql");
+  const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")),entry=journal.entries.find((e:{idx:number})=>e.idx===157),migration=await readFile("drizzle/0157_advanced_terrain_indexes.sql");
   assert.equal(entry.idx,157);assert.ok(!migration.includes(13));
   assert.equal((await f.pool.query("select hash from drizzle.__drizzle_migrations where created_at=$1",[entry.when])).rows[0].hash,createHash("sha256").update(migration).digest("hex"));
   assert.equal((await f.pool.query("select count(*)::int n from pg_indexes where indexname in ('world_terrain_advanced_volcano_idx','world_refinement_advanced_volcano_idx')")).rows[0].n,2);
@@ -52,6 +48,7 @@ async function run(f:RegionalFixture){
     environment=await import("../src/features/worlds/terrain-environment-service"),{db}=await import("../src/db");
   const groups:string[]=["populated 0156-to-0157 upgrade preserves every public table row and numerical file; both partial indexes and canonical LF migration ledger verified"],allTables=(await f.pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows;
   const mutable=new Set(["world_terrain","world_terrain_version","world_terrain_tile","world_terrain_refinement","world_terrain_refinement_version","world_terrain_refinement_tile","world_atlas_map","world_map_canvas","world_hydrology","world_hydrology_version","world_environment","world_environment_version"]);
+  const worldBefore=await worldWriteSnapshot(f);
   const frozen:Record<string,string>={};
   for(const {tablename} of allTables)if(!mutable.has(tablename)){
     assert.match(tablename,/^[a-z0-9_]+$/);
@@ -160,6 +157,8 @@ async function run(f:RegionalFixture){
   try{assert.equal((await advanced.getAdvancedTerrainContext("world-god",f.world,map)).canEdit,false);await assert.rejects(terrain.changeTerrain("world-god",f.world,reviewed.command));}
   finally{await f.pool.query("update world set archived_at=null where id=$1",[f.world]);}
   groups.push("unavailable/archived map, archived World, nonowner/admin review and malformed workload cannot accept numerical changes");
+  await assertWorldWriteEffects(f,worldBefore,[f.world],["atlas"]);
+  for(const tablename of ["world","world_access_audit"])frozen[tablename]=createHash("sha256").update(JSON.stringify((await f.pool.query('select row_to_json(t)::text v from "'+tablename+'" t order by row_to_json(t)::text')).rows)).digest("hex");
   for(const [tablename,before] of Object.entries(frozen)){
     const after=createHash("sha256").update(JSON.stringify((await f.pool.query('select row_to_json(t)::text v from "'+tablename+'" t order by row_to_json(t)::text')).rows)).digest("hex");
     assert.equal(after,before,"Retained table: "+tablename);

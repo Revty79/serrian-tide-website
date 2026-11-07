@@ -22,6 +22,22 @@ import {ordinaryCanonHistoricalComponent} from "./world-canon-geography-projecti
 export type CanonCopyJob=typeof worldCanonCopy.$inferSelect;
 export type PersonalCanonResult={id:string;pending?:boolean;progress?:{section:string;prepared:number}};
 export async function canonCopyAvailable(tx:WorldTransaction){return !!(await tx.execute<{ok:boolean}>(sql`select to_regclass('public.world_canon_copy') is not null and to_regclass('public.world_canon_copy_row') is not null and to_regclass('public.world_canon_copy_identity') is not null ok`)).rows[0].ok;}
+async function preparedBuildingSource(tx:WorldTransaction,job:CanonCopyJob,buildingId:string,sourceId?:string){
+  // A Town may retain an interior binding for a building that exists only in
+  // protected history. Require its actual feature in already-projected ordinary
+  // Town geometry; otherwise neither that binding nor its interior is copied.
+  return !!(await tx.execute<{ok:boolean}>(sql`select exists(
+    select 1 from world_building_interior_source s
+    join world_canon_copy_row m on m.request_id=${job.requestId} and m.family='world_town_map' and m.record_key=s.town_map_id
+    where s.world_id=${job.sourceWorldId} and s.building_id=${buildingId} ${sourceId?sql`and s.id=${sourceId}`:sql``} and (
+      exists(select 1 from jsonb_array_elements(m.payload#>'{design,features}') f where f->>'id'=s.feature_id and f->>'kind'='building' and f->>'archived'='false')
+      or exists(select 1 from world_canon_copy_row c
+        cross join lateral jsonb_array_elements(c.payload#>'{payload,bundle,document,design,features}') f
+        where c.request_id=${job.requestId} and c.family='world_map_state_component' and c.payload->>'kind'='town'
+          and c.payload#>>'{payload,bundle,document,id}'=s.town_map_id
+          and f->>'id'=s.feature_id and f->>'kind'='building' and f->>'archived'='false')
+    )) ok`)).rows[0].ok;
+}
 async function ordinarySourceConnection(tx:WorldTransaction,job:CanonCopyJob,row:Record<string,unknown>){
   for(const endpoint of [row.source,row.destination]){
     const e=endpoint as {map:Record<string,string>;entranceId:string;anchor?:string};
@@ -50,11 +66,27 @@ export async function canonIdentityMap(tx:WorldTransaction,requestId:string,valu
 /** A single bounded step. Terrain samples are never decoded or sent through the
  * browser. Every acknowledgement may be lost: the same packet resumes this row. */
 export async function prepareCanonGeography(tx:WorldTransaction,job:CanonCopyJob,permission:WorldPermission):Promise<PersonalCanonResult|null>{
+  const [format]=await tx.select({payload:rows.payload}).from(rows).where(and(eq(rows.requestId,job.requestId),eq(rows.family,"canon_copy_format"),eq(rows.key,"preparation"))).limit(1);
+  if(format&&format.payload.version!==2)throw new WorldError("Use the newer website version to retry this unfinished copy. Its original request is retained.",409);
+  if(!format){
+    // A published older producer may already have passed a corrected selection
+    // phase. Preserve all of its private staging payloads and assigned IDs,
+    // then regenerate the ordinary graph under the same exact request. No
+    // accepted World enters this path; its existing receipt returns earlier.
+    const [retained]=await tx.select({key:rows.key}).from(rows).where(eq(rows.requestId,job.requestId)).limit(1);
+    if(retained)await tx.update(rows).set({family:sql`'retained-v1:'||${rows.family}`,ready:1}).where(eq(rows.requestId,job.requestId));
+    await tx.insert(rows).values({requestId:job.requestId,family:"canon_copy_format",key:"preparation",payload:{version:2},ready:1});
+    await tx.update(worldCanonCopy).set({phase:0,cursor:"",rows:0,updatedAt:new Date()}).where(eq(worldCanonCopy.requestId,job.requestId));
+    return {id:job.targetWorldId,pending:true,progress:{section:retained?"Refreshing your unfinished copy. Your original request is kept.":"Preparing independent map records",prepared:0}};
+  }
   const plans=canonGeographyPlan(job.sourceWorldId),plan=plans[job.phase];
   if(plan){
     const batch=(await tx.execute<{payload:Record<string,unknown>;key:string}>(sql`select to_jsonb(s) payload,${plan.key} key from (${plan.source}) s where (${plan.key})>${job.cursor} order by ${plan.key} limit ${plan.batch}`)).rows;
     let accepted=0;
     for(const row of batch){
+      if(plan.table==="world_building_interior"&&!await preparedBuildingSource(tx,job,String(row.payload.id)))continue;
+      if(plan.table==="world_building_interior_source"&&!await preparedBuildingSource(tx,job,String(row.payload.building_id),String(row.payload.id)))continue;
+      if(plan.table==="world_building_floor"&&!(await tx.select({key:rows.key}).from(rows).where(and(eq(rows.requestId,job.requestId),eq(rows.family,"world_building_interior"),eq(rows.key,String(row.payload.building_id)))).limit(1)).length)continue;
       if(plan.table==="world_underground_connection"&&!await ordinarySourceConnection(tx,job,row.payload))continue;
       if(plan.table==="canon_landforms")row.payload.volcanoes=await canonVolcanoes(tx,job.sourceWorldId,String(row.payload.map_id),String(row.payload.terrain_id));
       if(plan.table==="world_map_state_component_ref"&&!(await preparedComponents(tx,job.requestId,String(row.payload.version_id),[String(row.payload.component_id)])).size)continue;

@@ -71,5 +71,5 @@ export async function prepareCanonGeographyFixture(f:CollaborationFixture){
   await routeRequest({action:"historical-account",requestId:randomUUID(),craftId,id:routeId,revision:route.revision,draft:{...route.draft,protected:false,account:"Deliberate ordinary two-surface historical connection"},refreshSources:false});
   await owner(()=>collaboration.changeWorldCollaboration(actor,f.worldA,{action:"release-control",requestId:randomUUID(),proof}));
   await f.pool.query("update world_settlement_profile set god_notes='CANON-GEOGRAPHY-SECRET-NOTE' where world_id=$1",[f.worldA]);
-  return {archivedNonRenderableDatabaseProbes:probes.length,strictOriginalSourceGuardVerified:true,ordinaryPrimaryCaptures:captures,authoredVolcano:true,largestGrid:[1024,1024],largeMap,hiddenMap,craftRoute:{craftId,deckId,routeId,year:12345}};
+  return {archivedNonRenderableDatabaseProbes:probes.length,strictOriginalSourceGuardVerified:true,ordinaryPrimaryCaptures:captures,authoredVolcano:true,largestGrid:[1024,1024],largeMap,hiddenMap,publicHall:{root:root.map_id as string,townMap,featureId:feature,floorId:floor.floorId!,levelId:underground.levelId!},craftRoute:{craftId,deckId,routeId,year:12345}};
 }

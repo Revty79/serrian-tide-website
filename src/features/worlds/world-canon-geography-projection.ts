@@ -3,7 +3,7 @@ import {worldRequestAuthority,withWorldRequestAuthority} from "./world-authoriza
 import type {WorldTransaction} from "./world-access-service";
 import {loadNativeVersion,nativeManifestOf} from "./native-map-history-store";
 import {nativeContentContext} from "./native-map-history-context";
-import {nativeConnectionReadable} from "./native-map-history-connections";
+import {nativeConnectionReadable,nativeConnectionView} from "./native-map-history-connections";
 import {nativeConditionChoices} from "./native-map-history-conditions";
 import type {UndergroundConnection} from "./underground";
 import type {WorldPermission} from "./world-permissions";
@@ -24,7 +24,10 @@ export async function ordinaryCanonHistoricalComponent(tx:WorldTransaction,world
       if(typeof (payload.connection as {source?:unknown}).source==="object"){
         const account=payload as unknown as {connection:UndergroundConnection;draft:Record<string,unknown>;source:{sourceVersionId:string;destinationVersionId:string}};
         const connection={...account.connection,historicalAccount:{...account.draft,...account.source}} as UndergroundConnection;
-        if(!await nativeConnectionReadable(tx,context,connection))return null;
+        // A strict retained account owns explicit geometry pins for both ends.
+        // Reauthorize those exact sources as normal retained navigation does;
+        // unrelated manifest dependencies cannot replace its accepted pins.
+        if(!(await nativeConnectionView(tx,context,connection)).available)return null;
       }
       return value;
     }

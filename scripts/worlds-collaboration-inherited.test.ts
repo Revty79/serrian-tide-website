@@ -29,6 +29,9 @@ withCollaborationResources(async f=>{
   else if(mode==="family")await(await import("./worlds-history-family-creation-browser")).nativeFamilyCreationBrowser({f:f.regional,browser:b.browser,context,base:b.base,sourceHash:b.sourceHash});
   else if(mode==="narrative")await(await import("./worlds-native-history-narrative-browser")).nativeNarrativeBrowser({f:f.regional,browser:b.browser,context,base:b.base,sourceHash:b.sourceHash});
   else if(mode==="integration")await(await import("./worlds-native-history-navigation-browser")).nativeNavigationBrowser({f:f.regional,browser:b.browser,context,base:b.base,sourceHash:b.sourceHash});
+  else if(mode==="hierarchy"){
+   await(await import("./worlds-region-hierarchy-browser")).hierarchyBrowser({f:f.regional,browser:b.browser,context,page,base:b.base,errors,groups});
+  }
   else if(mode.startsWith("stage6-")){
    const input={f:f.regional,browser:b.browser,context,page,base:b.base};
    if(mode==="stage6-template-performance")await(await import("./worlds-templates-performance")).templatePerformance(input);
