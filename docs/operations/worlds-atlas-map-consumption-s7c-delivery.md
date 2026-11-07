@@ -52,6 +52,8 @@ All results are recorded separately; no uninterrupted all-stage aggregate or own
 
 The final browser/storage regression receipts use production4 and the same application source as contract8. The runtime fingerprint over 2,031 runtime inputs is `86c520222e803e3f25a5a15873ba049b6b910c28d9185f306361f7520da471fc`; the broader 2,072-file source fingerprint also includes the original public/config/type inputs. The fingerprints identify different declared input sets, not different application code.
 
+Build comparison permits exactly two declared isolated configuration adjustments: `next.config.ts` substitutes the real repository root for `process.cwd()` so the copied build resolves its installed dependencies; `tsconfig.json` can include generated `.next-collaboration/types` paths. The integrity script verifies those exact transformations and byte equality for the other inputs. The source fingerprints hash the unmodified repository versions of these configurations. No environment file is copied or loaded, and no repository configuration is changed. References to matching build inputs above use these declared exceptions rather than claiming the two isolated configurations are byte-identical.
+
 | Original regression coverage | Final retained evidence |
 | --- | --- |
 | Stage 5 editor and navigation | `checkpoint-stage5-s7c4`: original combined editor/browser groups, interior A-E journeys, native phone/tablet/desktop layouts, wheel/page/panel isolation, retained drafts and exact navigation, Town creative/neighborhood checks and original Town/interior capacity/CPU limits pass. |
