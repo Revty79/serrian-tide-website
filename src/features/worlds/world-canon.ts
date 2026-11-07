@@ -7,4 +7,4 @@ export const personalCanonWorldSchema = z.object({
   requestId: z.string().uuid(), revision: z.number().int().positive(), name: z.string().trim().min(1).max(160),
 }).strict();
 export type CanonWorldCard = { id: string; name: string; description: string; ownerName: string; revision: number };
-export type CanonSource = { worldId: string; name: string; canonRevision: number; worldRevision: number };
+export type CanonSource = { worldId: string; name: string; canonRevision: number; worldRevision: number; geography?:"independent-native-v1" };

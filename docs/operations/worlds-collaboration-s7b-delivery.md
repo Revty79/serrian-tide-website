@@ -2,6 +2,8 @@
 
 **Status: technically verified and published to origin/main.** Starting checkpoint: `881e18bf05e38eaefac50b6f8d54f64e86970578`. The [initial inventory](worlds-collaboration-s7b-permission-inventory.md) was written before implementation. Owner usability/artistic review and physical-device certification remain separate.
 
+The [editable canon geography correction](worlds-canon-editable-geography-s7b-correction.md) supersedes this original receipt's map-reference limitation for newly created variations. Original validation receipts below remain historical; the correction records its own exact source, privacy boundaries, additive migration and publication evidence.
+
 ## Ownership and access
 
 A World keeps its original creator. Global Administrator/G.O.D./Player roles establish product eligibility; ownership, an accepted invitation or an explicit canon publication then establishes World access; explicit section scopes and protected-content permission determine each readable resource; a live session/tab fence determines content-writing authority. An invitation grants no global creator role, Campaign membership grants no World access, and an ID or retained URL grants nothing.

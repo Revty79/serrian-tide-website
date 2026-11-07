@@ -1,3 +1,4 @@
+import {inheritedCanonVolcanoes} from "./world-canon-landforms";
 import { worldContentEditor } from "./world-access-service";
 import "server-only";
 import {createHash} from "node:crypto";
@@ -51,6 +52,7 @@ export async function advancedContextInTransaction(tx:Connection,worldId:string,
   for(const r of rows)if(r.source.kind==="manual"&&r.source.advanced?.operation.kind==="volcano")volcanoes.push({
     id:r.id,revision:r.revision,sourceId:r.source_id,operation:r.source.advanced.operation,
   });
+  for(const inherited of await inheritedCanonVolcanoes(tx,worldId,resolved.sourceMapId))if(!volcanoes.some(own=>own.id===inherited.id)&&volcanoes.length<ADVANCED_TERRAIN_LIMITS.volcanoes)volcanoes.push(inherited);
   const context:AdvancedTerrainContext={frame,world:{width:root.widthMetres,height:root.heightMetres,wrap:root.wrap},seaLevel:root.seaLevel,water,sites,volcanoes};
   const pin=createHash("sha256").update(JSON.stringify({terrain:root.id,frame,waterRevision:waterRow?.revision??0,sites,volcanoes})).digest("hex");
   return {pin,context,sourceId:sourceId??null,sourceRevision,rootRevision:root.revision,canEdit:true};

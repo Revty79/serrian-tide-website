@@ -7,12 +7,12 @@ import {loreWorldScope,worldScopes} from "./world-permissions";
 
 /** Retained map snapshots contain reference labels as well as geometry. Resolve
  * their exact version pins before returning labels captured by another author. */
-export async function projectWorldPinnedContent<T>(payload:T,worldId:string,timelineId?:string,connection:Pick<typeof db,"execute">=db):Promise<T>{
- if(worldProtectedContent(worldId)&&worldScopes.every(scope=>worldScopeAllowed(worldId,scope)))return payload;
+export async function projectWorldPinnedContent<T>(payload:T,worldId:string,timelineId?:string,connection:Pick<typeof db,"execute">=db,options:{ordinary?:boolean}={}):Promise<T>{
+ if(!options.ordinary&&worldProtectedContent(worldId)&&worldScopes.every(scope=>worldScopeAllowed(worldId,scope)))return payload;
  const ids=new Set<string>(),identities=new Set<string>();
  function gather(value:unknown){if(!value||typeof value!=="object"||value instanceof Date||value instanceof Uint8Array)return;if(Array.isArray(value)){for(const child of value)gather(child);return;}const row=value as Record<string,unknown>;if(["name","entityName","title"].some(key=>typeof row[key]==="string"))for(const key of ["id","entityId","targetId"])if(typeof row[key]==="string"&&/^[a-f0-9-]{36}$/i.test(row[key] as string))identities.add(row[key] as string);for(const [key,child]of Object.entries(value)){if((key==="versionId"||key.endsWith("VersionId"))&&typeof child==="string"&&/^[a-f0-9-]{36}$/i.test(child))ids.add(child);else if(child&&typeof child==="object")gather(child);}}
  gather(payload);if(!ids.size&&!identities.size)return payload;
- const blocked=new Set<string>(),protectedContent=worldProtectedContent(worldId),history=worldScopeAllowed(worldId,"history"),timekeeping=worldScopeAllowed(worldId,"timekeeping");
+ const blocked=new Set<string>(),protectedContent=!options.ordinary&&worldProtectedContent(worldId),history=worldScopeAllowed(worldId,"history"),timekeeping=worldScopeAllowed(worldId,"timekeeping");
  // Resource and source limits bound each response; chunk binds independently
  // of the size of a terrain grid, without querying unrelated Worlds.
  const values=[...ids];

@@ -151,3 +151,4 @@ next-env.d.ts
 # Stage 7A task-owned validation, private fixtures and retained diagnostics.
 /artifacts/history-s7a-*/
 /artifacts/collaboration-s7b-*/
+/artifacts/canon-geography-s7b-schema-*/

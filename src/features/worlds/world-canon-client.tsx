@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { personalCanonWorldSchema } from "./world-canon";
 import { useCanonPacket } from "./world-canon-packet";
 import { worldApi } from "./client-api";
@@ -9,10 +9,22 @@ import type { WorldPermission } from "./world-permissions";
 import styles from "./world-collaboration.module.css";
 
 function PersonalCanonWorld({source}:{source:CanonWorldCard}) {
-  const [name,setName]=useState(`${source.name} — my version`.slice(0,160)),[error,setError]=useState(""),[busy,setBusy]=useState(false),[created,setCreated]=useState<string>();
+  const [name,setName]=useState(`${source.name} — my version`.slice(0,160)),[error,setError]=useState(""),[busy,setBusy]=useState(false),[created,setCreated]=useState<string>(),[progress,setProgress]=useState(""),live=useRef(true);
+  useEffect(()=>{live.current=true;return()=>{live.current=false;};},[]);
   const packet=useCanonPacket(`st:canon-personal-world:v1:${source.id}`,personalCanonWorldSchema),original=packet.original;
-  async function create(){setBusy(true);setError("");try{const command=packet.retain(original.current??{requestId:crypto.randomUUID(),revision:source.revision,name});const result=await worldApi<{id:string}>("/api/worlds/canon","POST",{worldId:source.id,...command});packet.accepted();setCreated(result.id);}catch(error){setError(error instanceof Error?error.message:"Your personal World could not be confirmed. Retry the original request.");}finally{setBusy(false);}}
-  return <section className={styles.card}><h3>Create your personal version</h3><p>Start with this canon World’s opening pages and ordinary Primary History. Your World, timelines, maps and stories are private and independent. Canon maps and lore remain available as read-only references; private notes, hidden records, files and map geometry are not copied.</p>{created?<Link className="st-button" href={`/worlds/${created}`}>Open your personal World</Link>:<><label className={styles.field}>Personal World name<input className="st-control" maxLength={160} value={packet.recovered?.name??name} disabled={busy||!!original.current} onChange={event=>setName(event.target.value)}/></label><button className="st-button" disabled={busy||packet.unreadable||!name.trim()} onClick={()=>void create()}>{busy?"Creating…":original.current?"Retry original personal World":"Create personal World from canon"}</button></>}{(packet.recovered||packet.unreadable)&&<p>Original request retained. <button className="st-button is-secondary" onClick={packet.exportOriginal}>Export original request</button><button className="st-button is-secondary" onClick={()=>{try{packet.discard();}catch(error){setError(error instanceof Error?error.message:"The packet remains retained.");}}}>Discard local request</button></p>}{error&&<p role="alert">{error}</p>}</section>;
+  async function create(){
+    setBusy(true);setError("");
+    try{
+      const command=packet.retain(original.current??{requestId:crypto.randomUUID(),revision:source.revision,name});
+      while(live.current){
+        const result=await worldApi<{id:string;pending?:boolean;progress?:{section:string;prepared:number}}>("/api/worlds/canon?copy=editable-geography-v1","POST",{worldId:source.id,...command});
+        if(!result.pending){packet.accepted();setCreated(result.id);setProgress("");break;}
+        setProgress(`${result.progress?.section??"Preparing your maps"}. Progress is saved; the original request can resume after interruption.`);
+        await new Promise(resolve=>setTimeout(resolve,25));
+      }
+    }catch(error){setError(error instanceof Error?error.message:"Your personal World could not be confirmed. Retry the original request.");}finally{if(live.current)setBusy(false);}
+  }
+  return <section className={styles.card}><h3>Create your personal version</h3><p>Start with this canon World&apos;s permitted geography, opening pages and ordinary Primary History. Its continents, elevations, waterways, regions and supported native maps become independently editable in your private World. Private notes, hidden details, private images and Campaign associations are excluded. Progress is saved safely if creation is interrupted.</p>{created?<Link className="st-button" href={`/worlds/${created}`}>Open your personal World</Link>:<><label className={styles.field}>Personal World name<input className="st-control" maxLength={160} value={packet.recovered?.name??name} disabled={busy||!!original.current} onChange={event=>setName(event.target.value)}/></label><button className="st-button" disabled={busy||packet.unreadable||!name.trim()} onClick={()=>void create()}>{busy?"Creating…":original.current?"Retry original personal World":"Create personal World from canon"}</button></>}{(packet.recovered||packet.unreadable)&&<p>Original request retained. <button className="st-button is-secondary" onClick={packet.exportOriginal}>Export original request</button><button className="st-button is-secondary" onClick={()=>{try{packet.discard();}catch(error){setError(error instanceof Error?error.message:"The packet remains retained.");}}}>Discard local request</button></p>}{progress&&<p role="status">{progress}</p>}{error&&<p role="alert">{error}</p>}</section>;
 }
 export function CanonWorldLibrary(){
   const [open,setOpen]=useState(false),[worlds,setWorlds]=useState<CanonWorldCard[]>([]),[search,setSearch]=useState(""),[hasMore,setMore]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[selected,setSelected]=useState<CanonWorldCard>();
@@ -24,5 +36,5 @@ export function WorldCanonContext({worldId,name,permission}:{worldId:string;name
   const overviewAllowed=permission.scopes.includes("overview"),review=permission.role==="administrator-review";
   useEffect(()=>{if(permission.canon||!overviewAllowed)return;let live=true;void worldApi<CanonSource|null>(`/api/worlds/${worldId}/canon-source${review?"?review=1":""}`).then(value=>{if(live)setSource(value);}).catch(()=>{});return()=>{live=false;};},[worldId,permission.canon,overviewAllowed,review]);
   if(permission.canon)return <aside className={styles.card} aria-label="Canon source"><strong>Canon World · original locked</strong><p>Use this World as a pattern for your own timelines, maps and stories. Changes belong in a separate personal version.</p><button className="st-button" onClick={()=>setUsePattern(!usePattern)}>Use this canon World as a pattern</button>{usePattern&&<PersonalCanonWorld source={{id:worldId,name,description:"",ownerName:"",revision:permission.canonRevision!}}/>}</aside>;
-  return source?<aside className={styles.card} aria-label="Personal canon variation"><strong>Independent variation of {source.name}</strong><p>Pattern: canon decision {source.canonRevision}, World revision {source.worldRevision}. Your changes stay in this World. Source maps and lore were not copied.</p><Link href={`/worlds/${source.worldId}`}>Open source World’s current view</Link></aside>:null;
+  return source?<aside className={styles.card} aria-label="Personal canon variation"><strong>Independent variation of {source.name}</strong><p>Pattern: canon decision {source.canonRevision}, World revision {source.worldRevision}. Your changes stay in this World. {source.geography?"Its inherited geography has independent map records; future source changes do not alter your version.":"This earlier variation copied introductory pages and history. Create a new variation from the source to inherit editable geography."}</p><Link href={`/worlds/${source.worldId}`}>Open source World’s current view</Link></aside>:null;
 }
