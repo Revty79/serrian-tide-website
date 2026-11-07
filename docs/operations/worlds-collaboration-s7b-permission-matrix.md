@@ -1,6 +1,6 @@
 # Stage 7B permission and resource matrix
 
-**Validation status:** locally technically verified permission matrix, with exact evidence in the delivery report. See the [delivery report](worlds-collaboration-s7b-delivery.md) and [pre-implementation inventory](worlds-collaboration-s7b-permission-inventory.md).
+**Validation status:** technically verified and published in application `75b2a0f372187e0bac24fd8faa2c5f0419d14e77`, with successful GitHub validation 42329634974 and exact evidence in the delivery report. See the [delivery report](worlds-collaboration-s7b-delivery.md) and [pre-implementation inventory](worlds-collaboration-s7b-permission-inventory.md).
 
 `R/W*` means authorized reading and content writes only with a live session/tab fence and current revision. `R(scope)` means an accepted current grant for the listed scope, plus the content restrictions in that row. Editor permissions never grant ownership or access-management rights. Administrator reading requires an explicit privileged review context; ordinary content writes remain forbidden. Uninvited users receive opaque 404 responses for non-canon Worlds before resource/body processing, including known IDs and historical URLs.
 
