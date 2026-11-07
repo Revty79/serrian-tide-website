@@ -1,6 +1,6 @@
 # Stage 7B correction: editable canon geography
 
-**Technically verified, including the connection/timeline supplement; its publication and exact GitHub validation are pending.** Starting checkpoint: `10e69e0c478dac99af36d0f94fae7648ede9cc53`. This corrects the original Stage 7B map-reference limitation. Owner usability/artistic review and physical-device acceptance remain separate.
+**Technically verified and published to origin/main, including the connection/timeline supplement.** Starting checkpoint: `10e69e0c478dac99af36d0f94fae7648ede9cc53`. This corrects the original Stage 7B map-reference limitation. Owner usability/artistic review and physical-device acceptance remain separate.
 
 ## Implementation
 
@@ -51,4 +51,4 @@ Failed receipts remain retained. Prototypes exposed native receipt, exact parent
 
 0160 adds only preparation/identity/staged-row tables and their restrictive references. It was applied solely in task-owned disposable targets. **0160 is required with this correction; it has not been applied to shared DEV or Production by this task.** Existing 0159 and all earlier history stay unchanged.
 
-Publish to origin/main with `[skip render]`, verify exact GitHub validation and clean remote parity, then stop for owner testing. No shared database/credential access, deployment, owner-service restart, cleanup/GC, Stage 7C/8, export/printing, Project Earth, Studio or Tabletop work occurred. Initial implementation `7e79535f9491fd37caa6ff21954d6d1b76893ec8` is published with [successful GitHub validation 42342622081](https://github.com/Revty79/serrian-tide-website/actions/runs/42342622081). The strictly formatted connection-account and final-timeline/hash supplement follows; its exact publication confirmation will be recorded after validation.
+Published application commits carry `[skip render]`; no Render deployment was started. No shared database/credential access, deployment, owner-service restart, cleanup/GC, Stage 7C/8, export/printing, Project Earth, Studio or Tabletop work occurred. Initial implementation `7e79535f9491fd37caa6ff21954d6d1b76893ec8` is published with [successful GitHub validation 42342622081](https://github.com/Revty79/serrian-tide-website/actions/runs/42342622081). Final application `fe5c96f95e90ef2d5a429361577af8d24b7f8e80` is published to origin/main with [successful GitHub validation 42346025742](https://github.com/Revty79/serrian-tide-website/actions/runs/42346025742). Its TypeScript, lint, unit tests and Linux portable raster checks all pass. This following documentation-only receipt preserves every application and migration byte and carries `[skip render]`; verify its exact CI and clean remote parity, then stop for owner testing.
