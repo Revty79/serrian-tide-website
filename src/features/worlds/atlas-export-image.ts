@@ -1,0 +1,18 @@
+const encoder=new TextEncoder();
+const crcTable=Uint32Array.from({length:256},(_,i)=>{let c=i;for(let bit=0;bit<8;bit++)c=c&1?0xedb88320^(c>>>1):c>>>1;return c>>>0;});
+export function exportCrc32(bytes:Uint8Array){let value=0xffffffff;for(const byte of bytes)value=crcTable[(value^byte)&255]^(value>>>8);return(value^0xffffffff)>>>0;}
+function chunk(name:string,data:Uint8Array){const bytes=new Uint8Array(data.length+12),view=new DataView(bytes.buffer);view.setUint32(0,data.length);bytes.set(encoder.encode(name),4);bytes.set(data,8);view.setUint32(data.length+8,exportCrc32(bytes.subarray(4,data.length+8)));return bytes;}
+export function pngExportMetadata(original:Uint8Array,dpi:number,source:unknown){
+ if(original.length<24||original[0]!==137||String.fromCharCode(...original.subarray(1,4))!=="PNG")throw Error("The generated PNG has an invalid file signature.");
+ const density=new Uint8Array(9),view=new DataView(density.buffer),metres=Math.round(dpi/0.0254);view.setUint32(0,metres);view.setUint32(4,metres);density[8]=1;const phys=chunk("pHYs",density),metadata=chunk("iTXt",encoder.encode("Atlas source\0\0\0\0\0"+JSON.stringify(source))),parts:Uint8Array[]=[original.subarray(0,8)];let inserted=false,ended=false;
+ for(let offset=8;offset+12<=original.length;){const length=new DataView(original.buffer,original.byteOffset+offset,4).getUint32(0);if(length>original.length-offset-12)throw Error("The generated PNG is incomplete.");const type=String.fromCharCode(...original.subarray(offset+4,offset+8));if(!inserted&&type==="IDAT"){parts.push(phys,metadata);inserted=true;}if(type!=="pHYs")parts.push(original.subarray(offset,offset+length+12));offset+=length+12;if(type==="IEND"){ended=true;break;}}
+ if(!inserted||!ended)throw Error("The generated PNG lacks its complete image data.");const result=new Uint8Array(parts.reduce((n,b)=>n+b.length,0));let offset=0;for(const p of parts){result.set(p,offset);offset+=p.length;}return result;
+}
+export function jpegExportDensity(original:Uint8Array,dpi:number){
+ if(original[0]!==255||original[1]!==216||original.at(-2)!==255||original.at(-1)!==217)throw Error("The generated JPEG has an invalid or incomplete file signature.");const bytes=original.slice();
+ for(let offset=2;offset+4<=bytes.length;){if(bytes[offset]!==255)break;const marker=bytes[offset+1];if(marker===0xda||marker===0xd9)break;const length=bytes[offset+2]*256+bytes[offset+3];if(length<2||offset+length+2>bytes.length)throw Error("The generated JPEG marker is incomplete.");if(marker===0xe0&&length>=16&&String.fromCharCode(...bytes.subarray(offset+4,offset+9))==="JFIF\0"){bytes[offset+11]=1;bytes[offset+12]=bytes[offset+14]=dpi>>>8;bytes[offset+13]=bytes[offset+15]=dpi&255;return bytes;}offset+=length+2;}
+ const header=new Uint8Array([255,224,0,16,74,70,73,70,0,1,1,1,dpi>>>8,dpi&255,dpi>>>8,dpi&255,0,0]),result=new Uint8Array(bytes.length+header.length);result.set(bytes.subarray(0,2));result.set(header,2);result.set(bytes.subarray(2),2+header.length);return result;
+}
+export function exportXml(value:string){return value.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&apos;");}
+export async function canvasExportBlob(canvas:HTMLCanvasElement,type="image/png",quality=.94){return new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(Error("The browser could not encode this output. Lower the resolution and retry; your map is unchanged.")),type,quality));}
+export function exportBase64(bytes:Uint8Array){let binary="";for(let offset=0;offset<bytes.length;offset+=32768)binary+=String.fromCharCode(...bytes.subarray(offset,offset+32768));return btoa(binary);}

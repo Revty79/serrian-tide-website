@@ -92,7 +92,9 @@ async function geometry(tx:NativeHistoryTx,c:NativeContentContext):Promise<{valu
  return {key:"craft",parent,records,value:{family:"craft",frame:frame(selected.frame),classification:b.bundle.craft!.classification,outlineId,plan}};
 }
 
-async function produce(tx:NativeHistoryTx,c:NativeContentContext){
+/** Internal adapter reuse only: caller supplies a checked ordinary native context,
+ * checks geographic availability and revalidates the live response after work. */
+export async function projectAtlasMapConsumption(tx:NativeHistoryTx,c:NativeContentContext){
  const selected=await geometry(tx,c),resources=new Map<string,{value:ConsumptionResource;componentId:string;sourceSha256:string}>(),omissions=new Set<ConsumptionManifest["omissions"][number]>(["no-publication-approval"]);
  const add=async(key:string,value:unknown,sourceKey=key)=>{
   const component=await nativeResource(tx,c,sourceKey);
@@ -152,7 +154,7 @@ async function produce(tx:NativeHistoryTx,c:NativeContentContext){
  const pin={schema:ATLAS_CONSUMPTION.schema,schemaVersion:1 as const,projectionVersion:1 as const,source,sha256:nativeContentHash(body)};
  return {manifest:consumptionManifestSchema.parse({...body,pin}),resources};
 }
-export async function readAtlasMapContract(userId:string,worldId:string,request:ConsumptionRequest):Promise<ConsumptionManifest>{return ordinaryRead(userId,worldId,request,async(tx,c)=>(await produce(tx,c)).manifest);}
+export async function readAtlasMapContract(userId:string,worldId:string,request:ConsumptionRequest):Promise<ConsumptionManifest>{return ordinaryRead(userId,worldId,request,async(tx,c)=>(await projectAtlasMapConsumption(tx,c)).manifest);}
 export function validateAtlasMapManifest(raw:unknown){
  const manifest=consumptionManifestSchema.parse(raw),{pin,...body}=manifest;
  if(nativeContentHash(body)!==pin.sha256)throw new WorldError("The map representation failed its integrity checksum.",400);
@@ -166,7 +168,7 @@ export function validateAtlasMapResource(manifest:ConsumptionManifest,key:string
 }
 export async function readAtlasMapResource(userId:string,rawPin:ConsumptionPin,key:string):Promise<ConsumptionResource>{
  const pin=consumptionPinSchema.parse(rawPin),{worldId,...request}=pin.source;return ordinaryRead(userId,worldId,request,async(tx,c)=>{
-  const result=await produce(tx,c);if(result.manifest.pin.sha256!==pin.sha256)throw new WorldError("This exact ordinary representation changed availability. Keep its pin and explicitly select another authorized source.",409);
+  const result=await projectAtlasMapConsumption(tx,c);if(result.manifest.pin.sha256!==pin.sha256)throw new WorldError("This exact ordinary representation changed availability. Keep its pin and explicitly select another authorized source.",409);
   const resource=result.resources.get(key);if(!resource)throw missing();return structuredClone(resource.value);
  });
 }
@@ -174,7 +176,7 @@ export async function readAtlasMapTiles(userId:string,pin:ConsumptionPin,key:str
  const indexes=z.array(z.number().int().nonnegative().max(8191)).min(1).max(ATLAS_CONSUMPTION.tileBatch).refine(v=>new Set(v).size===v.length).parse(rawIndexes);
  const parsed=consumptionPinSchema.parse(pin),{worldId,...request}=parsed.source;
  return ordinaryRead(userId,worldId,request,async(tx,c)=>{
-  const result=await produce(tx,c);if(result.manifest.pin.sha256!==parsed.sha256)throw new WorldError("The retained representation does not match this pin.",409);
+  const result=await projectAtlasMapConsumption(tx,c);if(result.manifest.pin.sha256!==parsed.sha256)throw new WorldError("The retained representation does not match this pin.",409);
   const value=result.resources.get(key)?.value;
   const tiles=value?.kind==="geometry"&&(value.value.family==="world"||value.value.family==="regional")?value.value.tiles:value?.kind==="numerical"?value.tiles:null;
   if(!tiles||indexes.some(i=>!tiles[i]))throw missing();

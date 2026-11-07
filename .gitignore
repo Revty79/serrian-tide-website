@@ -152,3 +152,6 @@ next-env.d.ts
 /artifacts/history-s7a-*/
 /artifacts/collaboration-s7b-*/
 /artifacts/canon-geography-s7b-schema-*/
+
+# Owned Atlas Stage 8 export/print fixtures and generated output
+/artifacts/exports-s8-*/

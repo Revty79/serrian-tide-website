@@ -25,6 +25,7 @@ export function useNativeNavigationGuard(){
 export function useNativeConditions(){return useContext(NativeHistoryContext).conditions??[];}
 export function useNativeCanEdit(){const context=useContext(NativeHistoryContext);return context.canEdit??(!context.reference&&(!context.scope||context.scope.edit));}
 export function useNativeHistory() { return useContext(NativeHistoryContext).scope; }
+export function useNativeExportContext() { const {scope,reference,requestedYear}=useContext(NativeHistoryContext);return {scope,reference,requestedYear}; }
 export function useNativeRequestUuid(){const scope=useNativeHistory();return useCallback(()=>nativeOriginalRequestUuid(scope),[scope]);}
 export function useNativeHistoryRecovery() { return nativeHistoryRecoveryScope(useNativeHistory()); }
 export function NativeHistoryBadge() {
