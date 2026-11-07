@@ -52,14 +52,24 @@ export async function prepareCanonGeographyFixture(f:CollaborationFixture){
   // A valid protected geographic-view binding on a numerical map exercises the
   // same private-map exclusion used by ordinary Atlas discovery.
   await f.pool.query("insert into world_geo_view(map_id,world_id,surface_id) values($1,$2,$3)",[hiddenMap,f.worldA,hiddenSurface.id]);
+  const craftModel=await import("../src/features/worlds/craft"),craftService=await import("../src/features/worlds/craft-service"),craftId=randomUUID(),deckId=randomUUID(),firstStair=randomUUID(),secondStair=randomUUID(),craftFrame={x:0,y:0,width:24,height:16,rotation:0};
+  const surface=(id:string)=>{const value=craftModel.emptyCraftSurface();value.plan.features.push({version:1,id,entityId:id,variant:"object",kind:"transition",name:"Public stairs",archived:false,point:{x:5,y:5},width:1,height:1,rotation:0,symbol:"stairs",destination:null});value.details[id]={notes:"",transition:"stairs"};return value;};
+  await owner(()=>craftService.changeCraft(actor,f.worldA,{action:"create",requestId:randomUUID(),craftId,draft:{name:"Ordinary inherited route craft",classification:"airship",description:"Public two-surface route fixture",frame:craftFrame,surface:surface(firstStair)}}));
+  await owner(()=>craftService.changeCraft(actor,f.worldA,{action:"create-deck",requestId:randomUUID(),craftId,deckId,draft:{name:"Ordinary inherited route deck",order:1,height:3,frame:craftFrame,surface:surface(secondStair)},copyFrom:null,copyRevision:null,copyObjects:false}));
+  const capturedScopes=new Map<string,{target:{kind:string;id:string};timelineId:string;stateId:string;year:number;edit:boolean}>();
   const captures:string[]=[];
-  for(const [kind,id]of [["floor",floor.floorId!],["underground",underground.levelId!]] as const){
+  for(const [kind,id]of [["floor",floor.floorId!],["underground",underground.levelId!],["craft",craftId],["deck",deckId]] as const){
     const target={kind,id},baseline=await owner(()=>history.getNativeMapHistory(actor,f.worldA,target,f.timelineA,{prepareBaseline:true}));assert.ok(baseline.baselinePin);
     const dated=await owner(()=>history.changeNativeMapHistory(actor,f.worldA,{action:"create",requestId:randomUUID(),timelineId:f.timelineA,target,sourceVersionId:null,baselinePin:baseline.baselinePin,details:{name:`Ordinary inherited ${kind} fixture`,startYear:12345,endYear:12345,account:"Deliberate ordinary Primary snapshot of real current native geometry",protected:false}}));
+    assert.ok(typeof dated.id==="string");capturedScopes.set(kind,{target,timelineId:f.timelineA,stateId:dated.id,year:12345,edit:true});
     if(kind==="underground"){const {nativeContentRequest}=await import("../src/features/worlds/native-map-history-api"),scope={timelineId:f.timelineA,target,stateId:dated.id,year:12345,edit:true};await owner(()=>nativeContentRequest(new Request(`http://127.0.0.1:1/api/worlds/${f.worldA}/atlas-history/conditions?historicalAtlas=${encodeURIComponent(JSON.stringify(scope))}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"conditions",requestId:randomUUID(),revision:0,value:{id:hiddenRoom.id,condition:"ruined",account:"CANON-GEOGRAPHY-SECRET-CONDITION"}})}),actor));}
     captures.push(kind);
   }
+  const {nativeContentRequest}=await import("../src/features/worlds/native-map-history-api"),routeId=randomUUID(),craftScope=capturedScopes.get("craft")!,routeRequest=(body:unknown)=>owner(()=>nativeContentRequest(new Request(`http://127.0.0.1:1/api/worlds/${f.worldA}/crafts?historicalAtlas=${encodeURIComponent(JSON.stringify(craftScope))}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),actor));
+  await routeRequest({action:"connect",requestId:randomUUID(),craftId,connectionId:routeId,source:"exterior",sourceRevision:1,sourceFeatureId:firstStair,destination:deckId,destinationRevision:1,arrivalFeatureId:secondStair,arrivalPoint:{x:5,y:5},kind:"stairs",twoWay:true,newDeck:null});
+  const route=(await f.pool.query("select c.payload from world_map_state_head h join world_map_state_component_ref r on r.version_id=h.version_id join world_map_state_component c on c.id=r.component_id where h.world_id=$1 and h.state_id=$2 and r.key=$3",[f.worldA,craftScope.stateId,"craft-route:"+routeId])).rows[0].payload;
+  await routeRequest({action:"historical-account",requestId:randomUUID(),craftId,id:routeId,revision:route.revision,draft:{...route.draft,protected:false,account:"Deliberate ordinary two-surface historical connection"},refreshSources:false});
   await owner(()=>collaboration.changeWorldCollaboration(actor,f.worldA,{action:"release-control",requestId:randomUUID(),proof}));
   await f.pool.query("update world_settlement_profile set god_notes='CANON-GEOGRAPHY-SECRET-NOTE' where world_id=$1",[f.worldA]);
-  return {archivedNonRenderableDatabaseProbes:probes.length,strictOriginalSourceGuardVerified:true,ordinaryPrimaryCaptures:captures,authoredVolcano:true,largestGrid:[1024,1024],largeMap,hiddenMap};
+  return {archivedNonRenderableDatabaseProbes:probes.length,strictOriginalSourceGuardVerified:true,ordinaryPrimaryCaptures:captures,authoredVolcano:true,largestGrid:[1024,1024],largeMap,hiddenMap,craftRoute:{craftId,deckId,routeId,year:12345}};
 }

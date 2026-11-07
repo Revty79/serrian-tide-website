@@ -18,8 +18,16 @@ export async function ordinaryCanonHistoricalComponent(tx:WorldTransaction,world
   const reads=new Map(authority.reads);reads.set(worldId,{...cached,permission:{...permission,scopes:permission.scopes.filter(scope=>scope!=="campaigns"),protectedContent:false,canEdit:false}});
   return withWorldRequestAuthority({...authority,proof:null,review:false,reads},async()=>{
     const value=structuredClone(input),payload=value.payload as Record<string,unknown>,version=await loadNativeVersion(tx,worldId,String(input.__version_id));
-    if(!version.stateId){if(value.kind==="conditions")payload.values=[];else{const bundle=(payload.bundle??payload) as Record<string,unknown>;bundle.connections=[];}return value;}
+    if(!version.stateId){if(payload.connection)return null;if(value.kind==="conditions")payload.values=[];else{const bundle=(payload.bundle??payload) as Record<string,unknown>;bundle.connections=[];}return value;}
     const context=await nativeContentContext(tx,userId,worldId,{timelineId:version.timelineId,target:nativeManifestOf(version).target,stateId:version.stateId,versionId:version.id,year:version.startYear!,edit:false},{ownerId:"",archived:false,review:true,ordinary:false});
+    if(payload.connection){
+      if(typeof (payload.connection as {source?:unknown}).source==="object"){
+        const account=payload as unknown as {connection:UndergroundConnection;draft:Record<string,unknown>;source:{sourceVersionId:string;destinationVersionId:string}};
+        const connection={...account.connection,historicalAccount:{...account.draft,...account.source}} as UndergroundConnection;
+        if(!await nativeConnectionReadable(tx,context,connection))return null;
+      }
+      return value;
+    }
     if(value.kind==="conditions"){
       const known=new Set((await nativeConditionChoices(tx,context)).map(choice=>choice.id));payload.values=(payload.values as {id:string}[]).filter(condition=>known.has(condition.id));
     }else{

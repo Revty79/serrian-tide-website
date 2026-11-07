@@ -24,6 +24,8 @@ export function canonOrdinaryGeography(input:unknown):unknown {
   return out;
 }
 
+export function canonStrictConnectionAccount(row:Record<string,unknown>){const payload=row.payload as Record<string,unknown>|undefined;return row.kind==="connections"&&!!payload?.connection&&!!payload.draft&&!!payload.source&&!!payload.original;}
+
 export function canonGeographyRow(family:string,input:Record<string,unknown>,actorId:string):Record<string,unknown>{
   const original=structuredClone(input);
   if(family==="world_underground_level")original.design=redactUnderground(undergroundDesignSchema.parse(original.design));
@@ -56,7 +58,8 @@ export function canonGeographyRow(family:string,input:Record<string,unknown>,act
     const payload=value.payload as Record<string,unknown>;
     // Each imported immutable component keeps a distinct copy identity, even
     // when removing private fields makes two ordinary payloads identical.
-    payload.canonCopyIdentity=value.id;
+    if(canonStrictConnectionAccount(value))delete payload.canonCopyIdentity;
+    else payload.canonCopyIdentity=value.id;
     function clearCatalogs(input:unknown):unknown{
       if(Array.isArray(input))return input.map(clearCatalogs);
       if(!input||typeof input!=="object")return input;

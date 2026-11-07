@@ -6,7 +6,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { worldCanonCopy, worldCanonCopyIdentity as identities, worldCanonCopyRow as rows } from "@/db/world-canon-copy-schema";
 import type { WorldTransaction } from "./world-access-service";
 import { WorldError } from "./world-errors";
-import { canonDefinedIds, canonGeographyRow, canonReferencedIds, remapCanonGeography, rebaseCanonSourcePins } from "./world-canon-geography";
+import { canonDefinedIds, canonStrictConnectionAccount, canonGeographyRow, canonReferencedIds, remapCanonGeography, rebaseCanonSourcePins } from "./world-canon-geography";
 import { canonGeographyPlan } from "./world-canon-geography-plan";
 import {sourceIndex} from "./terrain-hydrology-service";
 import {labelSourceCatalog} from "./terrain-labels-sources";
@@ -34,6 +34,10 @@ async function ordinarySourceConnection(tx:WorldTransaction,job:CanonCopyJob,row
     if(e.anchor!=="position"&&!design.features.some(feature=>feature.id===e.entranceId&&!feature.archived))return false;
   }return true;
 }
+async function preparedComponents(tx:WorldTransaction,requestId:string,versionId:string,componentIds:string[]){
+  const keys=componentIds.flatMap(id=>[id,id+":"+versionId]),prepared=keys.length?await tx.select({key:rows.key,payload:rows.payload}).from(rows).where(and(eq(rows.requestId,requestId),eq(rows.family,"world_map_state_component"),inArray(rows.key,keys))):[],result=new Map<string,string>();
+  for(const id of componentIds){const row=prepared.find(row=>row.key===id+":"+versionId)??prepared.find(row=>row.key===id);if(row)result.set(id,String(row.payload.id));}return result;
+}
 export async function registerCanonIdentities(tx:WorldTransaction,requestId:string,values:Iterable<string>){
   const entries=[...new Set(values)];for(let start=0;start<entries.length;start+=500)await tx.insert(identities).values(entries.slice(start,start+500).map(sourceId=>({requestId,sourceId,targetId:randomUUID()}))).onConflictDoNothing();
 }
@@ -53,14 +57,16 @@ export async function prepareCanonGeography(tx:WorldTransaction,job:CanonCopyJob
     for(const row of batch){
       if(plan.table==="world_underground_connection"&&!await ordinarySourceConnection(tx,job,row.payload))continue;
       if(plan.table==="canon_landforms")row.payload.volcanoes=await canonVolcanoes(tx,job.sourceWorldId,String(row.payload.map_id),String(row.payload.terrain_id));
+      if(plan.table==="world_map_state_component_ref"&&!(await preparedComponents(tx,job.requestId,String(row.payload.version_id),[String(row.payload.component_id)])).size)continue;
       const raw=plan.table==="world_map_state_component"?await ordinaryCanonHistoricalComponent(tx,job.sourceWorldId,job.actorId,permission,row.payload):row.payload;
+      if(!raw)continue;
       const ordinary=["world_map_state_component","world_map_state_version"].includes(plan.table)?await projectWorldPinnedContent(raw,job.sourceWorldId,undefined,tx,{ordinary:true}):raw;
       // Geometry must be redacted while its complete attribute map is present;
       // generic field projection alone can remove a secret attribute too early.
       const safe=canonGeographyRow(plan.table,ordinary,job.actorId);
       const projected=projectWorldContent(safe,{...permission,protectedContent:false});
       const defined=canonDefinedIds(projected);
-      if(plan.table==="world_map_state_component"&&projected.__version_id)defined.add(String(projected.id)+":"+String(projected.__version_id));
+      if(plan.table==="world_map_state_component"&&projected.__version_id&&!canonStrictConnectionAccount(projected))defined.add(String(projected.id)+":"+String(projected.__version_id));
       if(typeof projected.request_id==="string")defined.add(projected.request_id);
       if(plan.table==="world_underground_connection")for(const endpoint of [projected.source,projected.destination]){
         const e=endpoint as {anchor?:string;entranceId?:string};if(e.anchor==="position"&&e.entranceId)defined.add(e.entranceId);
@@ -80,12 +86,12 @@ export async function prepareCanonGeography(tx:WorldTransaction,job:CanonCopyJob
     const batch=large.has(first.family)?pending:await tx.select().from(rows).where(and(eq(rows.requestId,job.requestId),eq(rows.ready,0),eq(rows.family,first.family))).orderBy(rows.key).limit(128);
     for(const row of batch){
     const ids=await canonIdentityMap(tx,job.requestId,canonReferencedIds(row.payload));
-    if(row.family==="world_map_state_component"&&row.payload.__version_id){const key=String(row.payload.id)+":"+String(row.payload.__version_id),scoped=await canonIdentityMap(tx,job.requestId,[key]);ids.set(String(row.payload.id),scoped.get(key)!);}
-    if(row.family==="world_map_state_component_ref"){const key=String(row.payload.component_id)+":"+String(row.payload.version_id),scoped=await canonIdentityMap(tx,job.requestId,[key]);if(scoped.has(key))ids.set(String(row.payload.component_id),scoped.get(key)!);}
+    if(row.family==="world_map_state_component"&&row.payload.__version_id&&!canonStrictConnectionAccount(row.payload)){const key=String(row.payload.id)+":"+String(row.payload.__version_id),scoped=await canonIdentityMap(tx,job.requestId,[key]);ids.set(String(row.payload.id),scoped.get(key)!);}
+    if(row.family==="world_map_state_component_ref"){
+      const mapped=await preparedComponents(tx,job.requestId,String(row.payload.version_id),[String(row.payload.component_id)]),target=mapped.get(String(row.payload.component_id));if(!target){await tx.delete(rows).where(and(eq(rows.requestId,job.requestId),eq(rows.family,row.family),eq(rows.key,row.key)));continue;}ids.set(String(row.payload.component_id),target);
+    }
     if(row.family==="world_map_state_version"){
-      const resources=((row.payload.payload as {nativeAtlas:{resources:{componentId:string}[]}}).nativeAtlas.resources),keys=resources.map(resource=>resource.componentId+":"+String(row.payload.id)),scoped=await canonIdentityMap(tx,job.requestId,keys);
-      const envelope=(row.payload.payload as {nativeAtlas:{resources:{componentId:string}[]}}).nativeAtlas;envelope.resources=resources.filter(resource=>ids.has(resource.componentId));
-      for(const resource of envelope.resources){const key=resource.componentId+":"+String(row.payload.id);if(scoped.has(key))ids.set(resource.componentId,scoped.get(key)!);}
+      const envelope=(row.payload.payload as {nativeAtlas:{resources:{componentId:string}[]}}).nativeAtlas,mapped=await preparedComponents(tx,job.requestId,String(row.payload.id),envelope.resources.map(resource=>resource.componentId));envelope.resources=envelope.resources.filter(resource=>mapped.has(resource.componentId));for(const resource of envelope.resources)ids.set(resource.componentId,mapped.get(resource.componentId)!);
     }
     let payload=remapCanonGeography(row.payload,ids) as Record<string,unknown>;
     const knownTargets=new Set(ids.values()),staged=new Map<string,Set<string>>(),references=[...ids.keys()];
@@ -146,6 +152,12 @@ export async function prepareCanonGeography(tx:WorldTransaction,job:CanonCopyJob
 /** Only called inside the final World creation transaction. New rows own all
  * mutable heads; immutable content-addressed terrain files are safely reused. */
 export async function acceptCanonGeography(tx:WorldTransaction,job:CanonCopyJob,timelineId:string){
+  // The World trigger assigns the final Primary timeline. Rehash only bounded
+  // components containing its preparation placeholder after replacing it.
+  if(job.targetTimelineId!==timelineId)for(;;){
+    const [component]=await tx.select().from(rows).where(and(eq(rows.requestId,job.requestId),eq(rows.family,"world_map_state_component"),sql`${rows.payload}::text like ${"%"+job.targetTimelineId+"%"}`)).orderBy(rows.key).limit(1);if(!component)break;
+    const payload=JSON.parse(JSON.stringify(component.payload).replaceAll(job.targetTimelineId,timelineId)) as Record<string,unknown>;payload.content_hash=nativeContentHash(payload.payload);await tx.update(rows).set({payload}).where(and(eq(rows.requestId,job.requestId),eq(rows.family,component.family),eq(rows.key,component.key)));
+  }
   const plans=canonGeographyPlan(job.sourceWorldId);
   for(const plan of plans){
     if(plan.table==="world_terrain")await acceptCanonNumerical(tx,job.requestId);
@@ -156,6 +168,10 @@ export async function acceptCanonGeography(tx:WorldTransaction,job:CanonCopyJob,
     if(plan.table==="world_map_region"){
       const prepared=await tx.select().from(rows).where(and(eq(rows.requestId,job.requestId),eq(rows.family,plan.table)));
       for(const row of prepared){const payload=row.payload,root=(await tx.execute<{revision:number}>(sql`select revision from world_terrain where id=${String(payload.terrain_id)} and world_id=${job.targetWorldId}`)).rows[0],details=(await tx.execute<{id:string;revision:number}>(sql`select id,revision from world_terrain_refinement where terrain_id=${String(payload.terrain_id)} and world_id=${job.targetWorldId}`)).rows;payload.initial_source_revision=root.revision;payload.initial_source_state=terrainSourceState(root.revision,details);await tx.update(rows).set({payload}).where(and(eq(rows.requestId,job.requestId),eq(rows.family,row.family),eq(rows.key,row.key)));}
+    }
+    if(plan.table==="world_map_state_component"){
+      const inconsistent=(await tx.execute(sql`select 1 from world_canon_copy_row where request_id=${job.requestId} and family='world_map_state_component' group by payload->>'id' having count(distinct payload->>'content_hash')>1 limit 1`)).rows;if(inconsistent.length)throw new WorldError("An inherited immutable component has conflicting projections. Nothing was accepted.",409);
+      await tx.execute(sql`insert into world_map_state_component select (jsonb_populate_record(null::world_map_state_component,payload)).* from (select distinct on(payload->>'id') payload from world_canon_copy_row where request_id=${job.requestId} and family='world_map_state_component' and ready=1 order by payload->>'id',record_key) c`);continue;
     }
     const table=sql.identifier(plan.table);
     await tx.execute(sql`insert into ${table} select (jsonb_populate_record(null::${table},replace(payload::text,${JSON.stringify(job.targetTimelineId)},${JSON.stringify(timelineId)})::jsonb)).*
@@ -223,6 +239,7 @@ export async function acceptCanonGeography(tx:WorldTransaction,job:CanonCopyJob,
     where s.world_id=${job.sourceWorldId} and s.lore_id is null`);
   const [unready]=await tx.select({key:rows.key}).from(rows).where(and(eq(rows.requestId,job.requestId),eq(rows.ready,0))).limit(1);
   if(unready)throw new WorldError("The independent map preparation is incomplete. Retry the original request.",409);
+  await tx.update(identities).set({targetId:timelineId}).where(and(eq(identities.requestId,job.requestId),eq(identities.targetId,job.targetTimelineId)));
   await tx.update(worldCanonCopy).set({status:"accepted",updatedAt:new Date()}).where(eq(worldCanonCopy.requestId,job.requestId));
   return (await tx.select({payload:rows.payload}).from(rows).where(and(eq(rows.requestId,job.requestId),eq(rows.family,"canon_landforms"),eq(rows.ready,1)))).map(row=>row.payload);
 }

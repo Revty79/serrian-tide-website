@@ -1,3 +1,4 @@
+import {nativeConnectionAccountSchema} from "./native-map-history-connection-account";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {canonDefinedIds,canonGeographyRow,canonOrdinaryGeography,canonReferencedIds,remapCanonGeography,rebaseCanonSourcePins} from "./world-canon-geography";
@@ -32,4 +33,9 @@ test("minimal pinned numerical ancestry retains its new contiguous counters and 
 test("historical numerical source recipes and unrelated lore pickers are removed from editable copies",()=>{
  const row=canonGeographyRow("world_map_state_component",{id:source,kind:"places",payload:{version:{source:{kind:"imported",fileName:"confidential-source.png",sha256:"a".repeat(64)}},references:{cultures:[{id:source,name:"Confidential culture"}],governments:[{id:source,name:"Protected government"}],history:[{id:source,name:"Hidden source"}],timelineId:target}}},"player");
  assert.deepEqual((row.payload as {version:unknown}).version,{source:{kind:"manual"}});assert.deepEqual((row.payload as {references:unknown}).references,{cultures:[],governments:[],history:[],timelineId:target});
+});
+
+test("ordinary inherited connection accounts retain their existing strict native format",()=>{
+ const endpoint={map:{kind:"world",atlasMapId:source},entranceId:target,point:{x:5,y:8}},connection={id:target,name:"Public connection",source:endpoint,destination:endpoint,twoWay:true,revision:1,archived:false},pins={sourceVersionId:source,destinationVersionId:target,connection},account={version:1,revision:1,connection,source:pins,original:pins,draft:{name:"Ordinary dated account",startYear:20,endYear:30,status:"available",destinationMapId:source,destinationGeographyId:null,account:"Explicit ordinary public source",accountYear:20,originalNotation:"Retained public wording",protected:false}};
+ const row=canonGeographyRow("world_map_state_component",{id:source,kind:"connections",revision:1,payload:account},"player");assert.deepEqual(nativeConnectionAccountSchema.parse(row.payload),account);
 });
