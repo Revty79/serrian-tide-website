@@ -1,4 +1,5 @@
 "use client";
+import {useWorldCanEdit,useWorldScope} from "./world-permission-context";
 import { ordinaryKnowledge } from "./knowledge-preview";
 import { useSearchParams } from "next/navigation";
 
@@ -17,6 +18,7 @@ import styles from "./calendar.module.css";
 import shared from "./worlds.module.css";
 
 export function CalendarWorkspace({worldId,timelineId,refresh,review,onWorldChange,entries,onReadEntry,primaryHistory=true,active=true,initialBundle}:{worldId:string;timelineId:string;refresh:string;review:boolean;onWorldChange:()=>Promise<unknown>;entries:EntryRecord[];onReadEntry:(id:string)=>void;primaryHistory?:boolean;active?:boolean;initialBundle?:CalendarBundle}){
+  const liveEdit=useWorldCanEdit(worldId),permitted=useWorldScope(worldId,"timekeeping");
   const search=useSearchParams(),ordinary=ordinaryKnowledge(search),requestedVersion=search.get("calendarVersion"),requestedCalendar=search.get("calendar"),query=`?timeline=${timelineId}&review=${review?"1":"0"}&ordinary=${ordinary?"1":"0"}`;
   const api=`/api/worlds/${worldId}/calendars`,[result,setBundle]=useState<CalendarBundle|null>(initialBundle??null),[loadedQuery,setLoadedQuery]=useState(initialBundle?`${api}${query}`:""),[selectedId,setSelectedId]=useState<string|null>(initialBundle?.defaultVersionId??initialBundle?.versions.find(v=>!v.archived)?.id??null),[editor,setEditor]=useState<CalendarEditorTarget|null>(null),[showArchived,setShowArchived]=useState(false),[pending,setPending]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const bundle=loadedQuery===`${api}${query}`?result:null;
@@ -34,7 +36,7 @@ export function CalendarWorkspace({worldId,timelineId,refresh,review,onWorldChan
   // Preload within this authorized context, without canceling a cold read on first tab entry.
   // Network synchronization includes visible pending/error state for this request.
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(()=>loadBundle(),[loadBundle,refresh]);
+  useEffect(()=>{if(permitted)return loadBundle();},[loadBundle,refresh,liveEdit,permitted]);
   // Returning checks fresh data while retaining the selected calendar and preview.
   useEffect(()=>{const returning=active&&!previousActive.current;previousActive.current=active;if(returning&&hasBundle.current)return loadBundle();},[active,loadBundle]);
   function selectVersion(id:string){setSelectedId(id);const url=new URL(window.location.href);url.searchParams.set("calendarVersion",id);url.searchParams.delete("calendar");window.history.pushState(null,"",url.pathname+url.search);}
@@ -46,7 +48,7 @@ export function CalendarWorkspace({worldId,timelineId,refresh,review,onWorldChan
   }
   async function action(body:unknown,message:string){setPending(true);setError("");try{await worldApi(api,"POST",body);setNotice(message);try{await reload();await onWorldChange();}catch(failure){setError(failure instanceof Error?`Saved successfully. ${failure.message}`:"Saved; reload to see it.");}}catch(failure){setError(failure instanceof Error?failure.message:"Could not save.");}finally{setPending(false);}}
   const selectedCalendarVersion=requestedCalendar&&!requestedVersion?(bundle?.versions.find(v=>v.calendarId===requestedCalendar&&!v.archived)??bundle?.versions.find(v=>v.calendarId===requestedCalendar))?.id:null;
-  const version=bundle?.versions.find(item=>item.id===(selectedCalendarVersion??(requestedVersion&&bundle.versions.some(v=>v.id===requestedVersion)?requestedVersion:selectedId))),calendar=bundle?.calendars.find(item=>item.id===version?.calendarId),canEdit=!!bundle?.canEdit&&!review;
+  const version=bundle?.versions.find(item=>item.id===(selectedCalendarVersion??(requestedVersion&&bundle.versions.some(v=>v.id===requestedVersion)?requestedVersion:selectedId))),calendar=bundle?.calendars.find(item=>item.id===version?.calendarId),canEdit=liveEdit&&permitted&&!!bundle?.canEdit&&!review;
   if(!bundle)return <section className={styles.workspace} aria-label="World calendars"><h2>Calendars</h2>{error?<div role="alert" className={styles.feedback}><p>{error}</p><button className="st-button is-secondary" onClick={()=>reload().then(()=>setError("")).catch(failure=>setError(failure.message))}>Reload calendars</button></div>:<p>Opening the calendar archive…</p>}</section>;
   return <section className={styles.workspace} aria-label="World calendars" aria-busy={loading}>
     <div className={shared.sectionHeading}><div><p className={shared.eyebrow}>The shape of a year</p><h2>Calendars</h2><p className={shared.muted}>Organize days, weeks, months, seasons and special dates. Different calendars can describe the same day.</p></div>{canEdit&&<button className="st-button" disabled={pending} onClick={()=>setEditor({kind:"create"})}><Plus size={17}/>New calendar</button>}</div>
@@ -65,6 +67,6 @@ export function CalendarWorkspace({worldId,timelineId,refresh,review,onWorldChan
       <p><a className="st-button is-secondary" href={`/worlds/${worldId}?tab=cosmology&sky=1&skyCalendarVersion=${version.id}${search.get("timeline")?`&timeline=${search.get("timeline")}`:""}${review?"&review=1":""}${ordinary?"&knowledge=ordinary":""}`}>Explore this calendar in the celestial chronicle</a></p>
       <CalendarPreview key={version.id} rules={version.rules}/>
     </section>}
-    {editor&&<CalendarEditor active={active} key={`${editor.kind}:${editor.calendar?.id??"new"}:${editor.calendar?.revision??0}`} target={editor} onClose={()=>setEditor(null)} onReload={async()=>{const fresh=await reload(),current=fresh.calendars.find(item=>item.id===editor.calendar?.id);if(!current)throw new SaveError("This calendar is unavailable. Your draft is retained.",404);setEditor({...editor,calendar:current,version:fresh.versions.find(item=>item.id===editor.version?.id)});}} onSave={async body=>{const result=await worldApi<{id:string}>(api,"POST",body);setEditor(null);setNotice("Calendar saved to your World.");if(editor.kind!=="identity")selectVersion(result.id);try{await reload();await onWorldChange();}catch(failure){setError(failure instanceof Error?`Saved successfully. ${failure.message}`:"Saved; reload to see it.");}}}/>}
+    {editor&&<CalendarEditor active={active&&liveEdit&&permitted} key={`${editor.kind}:${editor.calendar?.id??"new"}:${editor.calendar?.revision??0}`} target={editor} onClose={()=>setEditor(null)} onReload={async()=>{const fresh=await reload(),current=fresh.calendars.find(item=>item.id===editor.calendar?.id);if(!current)throw new SaveError("This calendar is unavailable. Your draft is retained.",404);setEditor({...editor,calendar:current,version:fresh.versions.find(item=>item.id===editor.version?.id)});}} onSave={async body=>{const result=await worldApi<{id:string}>(api,"POST",body);setEditor(null);setNotice("Calendar saved to your World.");if(editor.kind!=="identity")selectVersion(result.id);try{await reload();await onWorldChange();}catch(failure){setError(failure instanceof Error?`Saved successfully. ${failure.message}`:"Saved; reload to see it.");}}}/>}
   </section>;
 }

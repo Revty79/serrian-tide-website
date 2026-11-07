@@ -84,7 +84,7 @@ export async function changeTimeline(userId:string,worldId:string,input:unknown)
     }
     await tx.update(worldHistoryHead).set({mode,versionId,sourceVersionId,sourceRevision,coveredUntil,revision:row.head.revision+1}).where(and(eq(worldHistoryHead.timelineId,timeline.id),eq(worldHistoryHead.entityId,row.head.entityId)));
     await touch(tx,worldId);return timeline.id;
-  });
+  },"history");
 }
 type HistoryCommand = {entity:"entry";id?:string;revision?:number;action:"save"|"archive"|"restore";draft?:EntryDraft}|{entity:"era";id?:string;revision?:number;action:"save"|"archive"|"restore";draft?:EraDraft};
 export async function changeBranchHistory(tx:HistoryTx,worldId:string,timeline:typeof worldTimeline.$inferSelect,command:HistoryCommand,entityId:string){

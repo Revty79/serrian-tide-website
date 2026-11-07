@@ -1,4 +1,6 @@
 import "server-only";
+import {authorizeTownBackdrop} from "./world-derived-reads";
+import type {TownFrame} from "./town-map";
 import {beginRegionalEdit,boundedRegionalLayer,finishRegionalEdit,regionalAuthoringContext,regionalScope,regionalRetryLayer} from "./terrain-regional-authoring-service";
 import {regionalHydrology} from "./terrain-regional-layers";
 import {regionalEqual} from "./terrain-regional-scope";
@@ -31,11 +33,11 @@ export async function sourceIndex(tx:Connection,worldId:string,mapId:string):Pro
 }
 async function available(tx:Connection){const result=await tx.execute<{present:boolean}>(sql`select to_regclass('public.world_hydrology') is not null and to_regclass('public.world_hydrology_version') is not null as present`);return result.rows[0].present;}
 export async function getHydrologySources(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean}={}){
-  await worldReadAccess(userId,worldId,options.review??false);if(options.ordinary)throw unavailable();
+  await worldReadAccess(userId,worldId,options.review??false,"atlas");if(options.ordinary)throw unavailable();
   return db.transaction(async tx=>({sources:await sourceIndex(tx,worldId,mapId)}),{accessMode:"read only",isolationLevel:"repeatable read"});
 }
-export async function getTerrainHydrology(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean;revision?:number}={}){
-  await worldReadAccess(userId,worldId,options.review??false);if(options.ordinary)throw unavailable();
+export async function getTerrainHydrology(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean;revision?:number;townBackdrop?:TownFrame}={}){
+  if(options.townBackdrop)await authorizeTownBackdrop(userId,worldId,mapId,options.townBackdrop,!!options.review);else await worldReadAccess(userId,worldId,options.review??false,"atlas");if(options.ordinary)throw unavailable();
   return db.transaction(async tx=>{
     const context=await regionalAuthoringContext(tx,worldId,mapId);mapId=context.sourceMapId;
     const sources=await sourceIndex(tx,worldId,mapId);
@@ -82,5 +84,5 @@ export async function saveTerrainHydrology(userId:string,worldId:string,raw:unkn
     await tx.insert(worldHydrology).values({mapId:command.mapId,worldId,revision,layer:command.layer,updatedBy:userId}).onConflictDoUpdate({target:worldHydrology.mapId,set:{revision,layer:command.layer,updatedBy:userId,updatedAt:new Date()}});
     await tx.insert(worldHydrologyVersion).values({mapId:command.mapId,worldId,revision,previousRevision:revision===1?null:revision-1,restoredFromRevision:command.restoreRevision??null,layer:command.layer,requestId:command.requestId,createdBy:userId});
     await finishRegionalEdit(tx,userId,worldId,"water",command,regionalAccess,{revision,geographyChanged:true});return {revision,layer:command.layer,...command.regional?{regional:command.regional}:{}};
-  });
+  },"atlas");
 }

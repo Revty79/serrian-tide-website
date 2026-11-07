@@ -1,3 +1,6 @@
+import { worldProtectedContent } from "./world-access-service";
+import { redactUnderground } from "./underground";
+import { nativeConnectionReadable } from "./native-map-history-connections";
 import "server-only";
 import {readNativeTownBackdrop,sampleNativeTownBackdrop} from "./native-map-history-backdrop";
 import {townFrameSchema} from "./town-map";
@@ -29,7 +32,8 @@ import {sampleNativeTerrain} from "./native-map-history-sampling";
 import {saveNativeConnection} from "./native-map-history-connection-write";
 import {navigateNativeUnderground,nativeConnectionView,nativeConnectionBundle} from "./native-map-history-connections";
 import {readNativeConditions,saveNativeConditions,nativeConditions,presentNativePlaces} from "./native-map-history-conditions";
-import { WorldError } from "./world-service";
+import { WorldError,worldReadAccess } from "./world-service";
+import type { WorldScope } from "./world-permissions";
 import { getTownMaps } from "./town-map-service";
 import { getRegionHierarchy } from "./terrain-region-hierarchy-service";
 import {nativeFloorIdentities,nativeFloorChoices} from "./native-map-history-floor-identities";
@@ -144,8 +148,10 @@ export async function readNativeContent(tx: NativeHistoryTx, context: NativeCont
     const bundle=structuredClone(value.bundle??value),inventory=await nativeUndergroundInventory(tx,context);
     bundle.levels=inventory.levels;bundle.sites=[...bundle.sites,...inventory.sites.filter(site=>!bundle.sites.some(retained=>retained.id===site.id))];bundle.connections=(await nativeConnectionBundle(tx,context)).connections;
     if(bundle.document)bundle.document.history=(await nativeResourceRevisions(tx,context,key)).map(v=>({revision:v.revision,requestId:v.componentId}));
-    for(let i=0;i<bundle.connections.length;i++)bundle.connections[i]=await nativeConnectionView(tx,context,bundle.connections[i]);
-    return {...bundle,canEdit,canRecover:canEdit};
+    const visibleConnections=[];for(const connection of bundle.connections)if(await nativeConnectionReadable(tx,context,connection))visibleConnections.push(await nativeConnectionView(tx,context,connection));bundle.connections=visibleConnections;
+    let permittedEdit=canEdit;
+    if(bundle.document&&!worldProtectedContent(context.worldId)){const visible=redactUnderground(bundle.document.design);if(JSON.stringify(visible.features)!==JSON.stringify(bundle.document.design.features))permittedEdit=false;bundle.document.design=visible;}
+    return {...bundle,canEdit:permittedEdit,canRecover:canEdit};
   }
   if (path === "crafts") {
     if(q.has("connection"))return navigateNativeCraft(tx,context,atlasId.parse(q.get("connection")),q.get("reverse")==="1");
@@ -177,6 +183,8 @@ export async function nativeContentRequest(request: Request, userId: string) {
   if (!encoded || encoded.length > 4096) throw new WorldError("Choose a bounded explicit historical map context.", 400);
   const scope: NativeHistoryScope = nativeHistoryScopeSchema.parse(JSON.parse(encoded));
   const options = { review: url.searchParams.get("review") === "1", ordinary: ordinaryKnowledge(url.searchParams) };
+  const resourceScope:WorldScope|undefined=path==="towns"||path==="town-maps"?"settlements":path==="building-floors"?"interiors":path==="underground"?"underground":path==="crafts"?"craft":path==="assets"?"assets":path.startsWith("terrain")?"atlas":path==="atlas-history/territories"?"politics":undefined;
+  if(resourceScope)await worldReadAccess(userId,worldId,options.review,resourceScope);
   if (request.method === "GET") return withNativeHistoryRead(userId, worldId, scope, options, (tx, context) => readNativeContent(tx, context, path, url.searchParams));
   if (request.method !== "POST" || options.review || options.ordinary) throw new WorldError("This dated map context is read-only.", 403);
   const raw = await readTerrainRequest(request);

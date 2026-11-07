@@ -1,3 +1,4 @@
+import {claimOwnedWorldPage} from "./worlds-owned-world-api";
 import assert from "node:assert/strict";
 import {writeFile} from "node:fs/promises";
 import type {Browser,BrowserContext,Page} from "playwright-core";
@@ -8,7 +9,7 @@ type Options={f:RegionalFixture;browser:Browser;context:BrowserContext;page:Page
 export async function townWheelBrowser({f,browser,context,page:p,base,groups,errors}:Options) {
  const baseline=process.env.SERRIAN_TOWN_WHEEL_BASELINE==="1",editor=p.getByRole("region",{name:"Town Map editor",exact:true}),canvas=p.getByLabel("Town Map canvas",{exact:true});
  const settle=async(q:Page)=>{await q.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));await q.waitForTimeout(180);};
- await p.goto(`${base}/worlds/${f.world}?tab=atlas&terrainMap=${ids.a}`);await p.getByRole("button",{name:"Town Maps",exact:true}).click();
+ await p.goto(`${base}/worlds/${f.world}?tab=atlas&terrainMap=${ids.a}`);if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);await p.getByRole("button",{name:"Town Maps",exact:true}).click();
  const locations=p.getByRole("region",{name:"Atlas locations",exact:true});await locations.getByRole("button",{name:"One permanent shared Town",exact:true}).click();await locations.getByRole("button",{name:"Create Town Map",exact:true}).click();
  await p.getByRole("region",{name:"Create Town Map",exact:true}).getByRole("button",{name:/^Draw My Own/}).click();await canvas.waitFor();await settle(p);
  const mapId=new URL(p.url()).searchParams.get("townMap")!,api=`${base}/api/worlds/${f.world}/town-maps?map=${mapId}`;
@@ -20,6 +21,7 @@ export async function townWheelBrowser({f,browser,context,page:p,base,groups,err
  async function snapshot(q:Page){return q.getByLabel("Town Map canvas",{exact:true}).evaluate(el=>{const b=el.getBoundingClientRect(),v=JSON.parse((el as HTMLCanvasElement).dataset.view!);return {x:scrollX,y:scrollY,view:v as {left:number;top:number;scale:number;width:number;height:number},box:{x:b.x,y:b.y,width:b.width,height:b.height},visibleHeight:Math.max(0,Math.min(innerHeight,b.bottom)-Math.max(0,b.top)),viewportScale:visualViewport?.scale};});}
  async function wheels(q:Page,label:string,deltas:number[],options:{ctrl?:boolean;expectChange?:boolean;burst?:boolean}={}) {
   const before=await snapshot(q),cursor={x:Math.round(before.box.x+before.box.width*.64),y:Math.round(before.box.y+before.box.height*.43)},geo={x:before.view.left+(cursor.x-before.box.x)/before.box.width*before.view.width/before.view.scale,y:before.view.top+(cursor.y-before.box.y)/before.box.height*before.view.height/before.view.scale};
+  assert.ok(await q.getByLabel("Town Map canvas",{exact:true}).evaluate((element,point)=>document.elementFromPoint(point.x,point.y)===element,cursor),label+" must target the painted canvas");
   await q.mouse.move(cursor.x,cursor.y);if(options.ctrl)await q.keyboard.down("Control");try{for(const delta of deltas){await q.mouse.wheel(0,delta);if(!options.burst)await settle(q);}}finally{if(options.ctrl)await q.keyboard.up("Control");}
   await settle(q);const after=await snapshot(q),screen={x:after.box.x+(geo.x-after.view.left)*after.view.scale/after.view.width*after.box.width,y:after.box.y+(geo.y-after.view.top)*after.view.scale/after.view.height*after.box.height},cursorErrorPx=Math.hypot(screen.x-cursor.x,screen.y-cursor.y),changed=Math.abs(after.view.scale-before.view.scale)>1e-9;
   receipts.push({label,input:options.ctrl?"native ctrl-wheel trackpad pinch":"native mouse.wheel",deltas,cursor,before,after,cursorErrorPx,changed});await writeFile(f.out+"/town-wheel-progress.json",JSON.stringify(receipts,null,2));
@@ -53,7 +55,7 @@ export async function townWheelBrowser({f,browser,context,page:p,base,groups,err
    if(viewport.width===390){const before=await snapshot(q),b=before.box,cdp=await small.newCDPSession(q),finger=(id:number,x:number)=>({id,x,y:b.y+b.height*.5,radiusX:3,radiusY:3,force:1});await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[finger(0,b.x+b.width*.4),finger(1,b.x+b.width*.6)]});await cdp.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[finger(0,b.x+b.width*.3),finger(1,b.x+b.width*.7)]});await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});await settle(q);const after=await snapshot(q);assert.ok(after.view.scale>before.view.scale*1.5,"Native phone pinch must zoom the map");assert.equal(after.y,before.y);assert.equal(after.x,before.x);receipts.push({label:"native phone pinch",before,after});await cdp.detach();}
    await q.screenshot({path:f.out+`/town-wheel-${viewport.width}.png`});}finally{await small.close();}
  }
- assert.deepEqual(await read(),saved,"Navigation must not change saved work or accepted revision");assert.equal(await save.isDisabled(),true);await p.reload();await canvas.waitFor();await settle(p);await wheels(p,"listener after reload",[-120,60]);assert.deepEqual(await read(),saved);assert.deepEqual(errors,[]);
+ assert.deepEqual(await read(),saved,"Navigation must not change saved work or accepted revision");assert.equal(await save.isDisabled(),true);await p.reload();if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);await canvas.waitFor();await canvas.scrollIntoViewIfNeeded();await settle(p);await wheels(p,"listener after reload",[-120,60]);assert.deepEqual(await read(),saved);assert.deepEqual(errors,[]);
  groups.push("Native canvas-only mouse/trackpad/ctrl-wheel zoom, cursor anchoring, unchanged page scroll at both limits, page/panel scrolling, direct pan/keys/buttons, embedded/expanded/tablet/phone and unchanged saved geometry");
  await p.screenshot({path:f.out+"/town-wheel-embedded.png"});await writeFile(f.out+"/town-wheel.json",JSON.stringify({passed:true,receipts,geometryAndRevisionExact:true,nativeMouseWheel:true,highResolutionTrackpadStyle:true,ctrlWheelPinch:true,sharedDatabaseAccess:false,ownerAcceptance:false,physicalDeviceClaim:false},null,2));
 }

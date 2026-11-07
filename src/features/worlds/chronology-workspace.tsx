@@ -1,4 +1,6 @@
 "use client";
+import {useContext} from "react";
+import {WorldPermissionContext} from "./world-permission-context";
 import { ordinaryKnowledge } from "./knowledge-preview";
 import { useSearchParams } from "next/navigation";
 import {WorldRecordMapLinks} from "./world-atlas-discovery-client";
@@ -18,6 +20,7 @@ function NumberingPreview({system}:{system:DatingDraft}) {
   return <div className={styles.examples} aria-label="Year numbering preview">{[-1,0,1].map((offset)=>system.epochYear+offset).filter((year)=>Math.abs(year)<=YEAR_LIMIT).map((year)=><div key={year}><small>Canonical {yearLabel(year)}</small><strong>{formatYear(year,system)}</strong></div>)}</div>;
 }
 function DatingEditor({record,onClose,onSave,onReload}:{record?:DatingSystem;onClose:()=>void;onSave:(draft:DatingDraft)=>Promise<void>;onReload:()=>Promise<void>}) {
+  const context=useContext(WorldPermissionContext),liveEdit=!context||context.permission.canEdit&&context.permission.scopes.includes("timekeeping");
   const dialog=useRef<HTMLDialogElement>(null);
   const [draft,setDraft]=useState(()=>datingDraftOf(record));const [original]=useState(()=>JSON.stringify(draft));
   const dirty=original!==JSON.stringify(draft);const [pending,setPending]=useState(false);const [error,setError]=useState("");const [conflict,setConflict]=useState(false);const [discard,setDiscard]=useState(false);
@@ -42,7 +45,7 @@ function DatingEditor({record,onClose,onSave,onReload}:{record?:DatingSystem;onC
       </fieldset>
       {error && <div className={shared.feedback} role="alert"><p>{error}</p>{conflict && record && <button type="button" className="st-button is-secondary" disabled={pending} onClick={async()=>{if(!window.confirm("Discard this draft and load the latest saved version?"))return;setPending(true);try{await onReload();}catch(failure){setError(failure instanceof Error ? failure.message : "Could not reload; your draft is retained.");}finally{setPending(false);}}}>Load latest version</button>}</div>}
       {discard && <div className={shared.feedback} role="alert"><p>Discard your unsaved dating-system draft?</p><div className={shared.actions}><button type="button" className="st-button is-secondary" onClick={()=>setDiscard(false)}>Keep writing</button><button type="button" className="st-button is-danger" onClick={onClose}>Discard draft</button></div></div>}
-      <footer className={shared.editorFooter}><span className={shared.muted}>{pending ? "Saving…" : dirty ? "Unsaved draft" : "Ready to define"}</span><div className={shared.actions}><button type="button" className="st-button is-secondary" disabled={pending} onClick={close}>Cancel</button><button className="st-button" disabled={pending}>{record ? "Save dating system" : "Create dating system"}</button></div></footer>
+      <footer className={shared.editorFooter}><span className={shared.muted}>{pending ? "Saving…" : dirty ? "Unsaved draft" : "Ready to define"}</span><div className={shared.actions}><button type="button" className="st-button is-secondary" disabled={pending} onClick={close}>Cancel</button><button className="st-button" disabled={pending||!liveEdit}>{record ? "Save dating system" : "Create dating system"}</button></div></footer>
     </form>
   </dialog>;
 }

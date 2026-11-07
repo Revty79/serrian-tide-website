@@ -1,4 +1,5 @@
 "use client";
+import { accountWorldStorage } from "./world-draft-storage";
 import {templateImagePreview} from "./map-template-application";
 import {townDesignSchema,validateTownDesign} from "./town-map";
 import {compositionSchema,type AssetComposition} from "./atlas-assets";
@@ -41,6 +42,7 @@ type TemplateDrawing={design:TownDesign;images?:AssetComposition};
 type Setup={name:string;anchorId:string;context:string;width:number;height:number;rotation:number;settings:TownGeneration;templateDrawing?:TemplateDrawing};
 type Proposal={design:TownDesign;backdrop:TownBackdrop;warnings:string[];previewToken:string;templateImages?:AssetComposition};
 export function TownMapCreation({worldId,townId,contextMapId,placementId,onAccepted,onCancel,onDirty}:{worldId:string;townId:string;contextMapId?:string;placementId?:string;onAccepted:(id:string)=>void;onCancel:()=>void;onDirty:(v:boolean)=>void}) {
+ const localStorage=accountWorldStorage();
  const worldApi=useNativeWorldApi(),historyRecovery=useNativeHistoryRecovery();const historicalScope=useNativeHistory();
  const [towns,setTowns]=useState<TownBundle>(),[load,setLoad]=useState(0),[available,setAvailable]=useState(true),[hierarchy,setHierarchy]=useState<RegionHierarchy>(),[anchorId,setAnchorId]=useState(placementId??""),[context,setContext]=useState(contextMapId??""),[name,setName]=useState(""),[width,setWidth]=useState(1500),[height,setHeight]=useState(1000),[rotation,setRotation]=useState(0),[settings,setSettings]=useState(()=>({...defaultTownGeneration(),seed:townId})),[proposal,setProposal]=useState<Proposal>(),[previewFrame,setPreviewFrame]=useState<TownFrame>(),[outdated,setOutdated]=useState(false),[error,setError]=useState(""),[pending,setPending]=useState(false),[attempt,setAttempt]=useState<TownMapCommand>(),[recovered,setRecovered]=useState<TownMapCommand>(),[options,setOptions]=useState(false),[recoveredSetup,setRecoveredSetup]=useState<Setup>();
  const [templateDrawing,setTemplateDrawing]=useState<TemplateDrawing>();
@@ -60,10 +62,10 @@ export function TownMapCreation({worldId,townId,contextMapId,placementId,onAccep
    else {const rawSetup=localStorage.getItem(key+":settings");if(rawSetup){const value=JSON.parse(rawSetup) as Setup;townGenerationSchema.parse(value.settings);if(value.templateDrawing){townDesignSchema.parse(value.templateDrawing.design);if(value.templateDrawing.images)compositionSchema.parse(value.templateDrawing.images);}queueMicrotask(()=>{if(alive){setRecoveredSetup(value);onDirty(true);}});}}
   } catch {queueMicrotask(()=>setError("Your saved maps are safe, but this browser could not read the unfinished setup. Keep this page open and try again."));}
   return()=>{alive=false;controller.current?.abort();};
- },[worldId,townId,key,onDirty,load,worldApi]);
+ },[worldId,townId,key,onDirty,load,worldApi,localStorage]);
  const placements=towns?.placements.filter(p=>p.townId===townId&&!p.removed&&!p.archived)??[],anchor=placements.find(p=>p.id===anchorId),source=anchor?.mapId,contexts=hierarchy?.nodes.filter(n=>n.sourceWorldMapId===source&&!n.archived&&n.sourceAvailable)??[],chosenContext=contexts.find(c=>c.id===context)?.id??(context?"":source),frame:TownFrame|undefined=anchor?{x:anchor.x-width/2,y:anchor.y-height/2,width,height,rotation}:undefined;
  const ready=available&&!!towns&&!!hierarchy&&!!anchor&&!!chosenContext&&!!name.trim()&&!recoveredSetup&&!recovered;
- useEffect(()=>{if(!setupTouched.current||recoveredSetup||attempt||recovered)return;try{localStorage.setItem(key+":settings",JSON.stringify({name,anchorId,context,width,height,rotation,settings,templateDrawing}));}catch{queueMicrotask(()=>setError("This browser could not keep your setup. Keep this page open until the map is saved."));}},[key,name,anchorId,context,width,height,rotation,settings,templateDrawing,recoveredSetup,attempt,recovered]);
+ useEffect(()=>{if(!setupTouched.current||recoveredSetup||attempt||recovered)return;try{localStorage.setItem(key+":settings",JSON.stringify({name,anchorId,context,width,height,rotation,settings,templateDrawing}));}catch{queueMicrotask(()=>setError("This browser could not keep your setup. Keep this page open until the map is saved."));}},[key,name,anchorId,context,width,height,rotation,settings,templateDrawing,recoveredSetup,attempt,recovered,localStorage]);
  function change(){setupTouched.current=true;controller.current?.abort();setOutdated(true);setError("");onDirty(true);}
  async function accept(original?:TownMapCommand,prepared?:Proposal,chosen=settings) {
   const result=prepared??proposal;

@@ -1,3 +1,4 @@
+import { worldOrdinaryContent } from "./world-access-service";
 import { geographicPrivatePlaces } from "./geographic-privacy";
 import "server-only";
 import { sql, and, eq } from "drizzle-orm";
@@ -32,7 +33,7 @@ export async function historyEntryInTransaction(tx:HistoryTx,worldId:string,time
   return {...record,...ordinary?{notes:""}: {}};
 }
 export async function historyEntry(userId:string,worldId:string,timelineId:string,id:string,review=false,ordinary=false,versionId?:string) {
-  await worldReadAccess(userId,worldId,review);
+  await worldReadAccess(userId,worldId,review,"history");ordinary=worldOrdinaryContent(worldId,ordinary);
   return db.transaction(async tx=>{
     await selectedTimeline(tx,worldId,timelineId);
     const current=await historyEntryInTransaction(tx,worldId,timelineId,id,ordinary);
@@ -47,7 +48,7 @@ export async function historyEntry(userId:string,worldId:string,timelineId:strin
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function searchHistory(userId:string,worldId:string,timelineId:string,input:unknown,review=false,ordinary=false):Promise<HistoryIndex> {
-  await worldReadAccess(userId,worldId,review);
+  await worldReadAccess(userId,worldId,review,"history");ordinary=worldOrdinaryContent(worldId,ordinary);
   const f=historyFilterSchema.parse(input);
   return db.transaction(async tx=>{
     await selectedTimeline(tx,worldId,timelineId);

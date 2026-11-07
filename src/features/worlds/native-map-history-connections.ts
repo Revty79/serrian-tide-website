@@ -1,3 +1,7 @@
+import { worldProtectedContent,worldScopeAllowed } from "./world-access-service";
+import { nativeWorldScope } from "./world-permissions";
+import { requireWorldNativeFamily } from "./world-resource-permissions";
+import { redactUnderground } from "./underground";
 import "server-only";
 import {nativeRelatedContext,nativeResource,type NativeContentContext} from "./native-map-history-context";
 import {nativeConditions} from "./native-map-history-conditions";
@@ -28,7 +32,8 @@ export async function nativeConnectionBundle(tx:NativeHistoryTx,c:NativeContentC
 /** Resolve geometry and presence exclusively from the destination's own dated
  * source. Canonical lookups below provide identity/URL bindings, never geometry. */
 export async function resolveNativeEndpoint(tx:NativeHistoryTx,source:NativeContentContext,endpoint:UndergroundEndpoint,pinned?:string,geographyVersionId?:string){
-  const target=nativeEntranceTarget(endpoint.map),c=pinned?await nativePinnedEntranceContext(tx,source,pinned,endpoint.map,geographyVersionId):await nativeRelatedContext(tx,source,target),year=source.scope.year;
+  const target=nativeEntranceTarget(endpoint.map);requireWorldNativeFamily(source.worldId,target.kind);
+  const c=pinned?await nativePinnedEntranceContext(tx,source,pinned,endpoint.map,geographyVersionId):await nativeRelatedContext(tx,source,target),year=source.scope.year;
   if(c.version.archived||c.version.startYear!>year||c.version.endYear!<year||c.authority&&(c.authority.version.archived||c.authority.version.startYear!>year||c.authority.version.endYear!<year))throw new WorldError("The destination's historical coverage is unknown at this year.",409);
   const conditions=(await nativeConditions(tx,c)).values;
   if(!nativeObjectPresent(conditions,target.id)||!nativeObjectPresent(conditions,endpoint.entranceId))throw new WorldError("This map or entrance is absent, destroyed, not established or unknown at this date.",409);
@@ -55,6 +60,7 @@ export async function resolveNativeEndpoint(tx:NativeHistoryTx,source:NativeCont
     url.searchParams.set("townMap",binding.townMapId!);url.searchParams.set("interiorBuilding",binding.featureId!);url.searchParams.set("interiorFloor",d.id);
   }else{
     const b=await nativeConnectionBundle(tx,c),d=b.document!,site=b.sites.find(s=>s.id===d.siteId),f=d.design.features.find(f=>f.id===endpoint.entranceId&&!f.archived&&f.kind==="transition");
+    if(!worldProtectedContent(c.worldId)&&!redactUnderground(d.design).features.some(feature=>feature.id===endpoint.entranceId))throw new WorldError("This retained historical connection is unavailable.",404);
     if(d.archived||!site||site.archived||!f||f.variant!=="object"||p.x<0||p.y<0||p.x>site.frame.width||p.y>site.frame.height)throw new WorldError("This dated underground entrance is unavailable.",409);
     point=f.point;revision=d.revision;locked=d.design.layers.transitions.locked;url.searchParams.set("undergroundLevel",d.id);
   }
@@ -64,6 +70,11 @@ export async function resolveNativeEndpoint(tx:NativeHistoryTx,source:NativeCont
   if(source.scope.connectionSourceVersionId){url.searchParams.set("atlasConnectionSource",source.scope.connectionSourceVersionId);url.searchParams.set("atlasConnection",source.scope.connectionSourceId!);}
   if(source.scope.edit&&!source.scope.versionId)url.searchParams.set("atlasEditing","1");
   return {context:c,point,revision,locked,url};
+}
+export async function nativeConnectionReadable(tx:NativeHistoryTx,c:NativeContentContext,connection:UndergroundConnection){
+ if(![connection.source,connection.destination].every(endpoint=>worldScopeAllowed(c.worldId,nativeWorldScope(nativeEntranceTarget(endpoint.map).kind))))return false;
+ if(worldProtectedContent(c.worldId))return true;
+ try{await resolveNativeEndpoint(tx,c,connection.source);await resolveNativeEndpoint(tx,c,connection.destination);return true;}catch(error){if(error instanceof WorldError)return false;throw error;}
 }
 export async function nativeConnectionView(tx:NativeHistoryTx,c:NativeContentContext,connection:UndergroundConnection):Promise<UndergroundConnection>{
   if(connection.archived)return {...connection,available:false,reason:"This dated connection is archived; its original endpoints remain retained."};

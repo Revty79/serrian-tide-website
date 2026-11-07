@@ -1,3 +1,5 @@
+import { worldOrdinaryContent } from "./world-access-service";
+import { worldContentEditor } from "./world-access-service";
 import "server-only";
 import { createHash } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -16,7 +18,7 @@ const id=z.string().uuid();
 const commandSchema=z.object({timelineId:id,geographyId:id,geographyRevision:z.number().int().positive(),requestId:id,entryId:id.optional(),revision:z.number().int().positive().optional(),eventType:z.string().trim().min(1).max(160),draft:entryDraftSchema}).strict().refine(c=>!!c.entryId===!!c.revision,"Choose an existing event with its revision, or author a new event.");
 export type PlaceMilestones={place:{id:string;name:string;revision:number;archived:boolean};timelineName:string;canEdit:boolean;events:(EntryRecord&{eventType:string})[]};
 export async function placeMilestones(userId:string,worldId:string,timelineId:string,placeId:string,review=false,ordinary=false):Promise<PlaceMilestones>{
-  const parent=await worldReadAccess(userId,worldId,review);
+  const parent=await worldReadAccess(userId,worldId,review,["history","settlements"]);const preview=ordinary;ordinary=worldOrdinaryContent(worldId,ordinary);
   return db.transaction(async tx=>{
     const timeline=await selectedTimeline(tx,worldId,timelineId);
     const [place]=await tx.select().from(worldGeography).where(and(eq(worldGeography.worldId,worldId),eq(worldGeography.id,placeId),ordinary?ordinaryPlace():undefined));
@@ -27,7 +29,7 @@ export async function placeMilestones(userId:string,worldId:string,timelineId:st
     const sources=rows.length?await tx.select({h:worldHistoryHead,v:worldHistoryVersion}).from(worldHistoryHead).innerJoin(worldHistoryVersion,eq(worldHistoryVersion.id,worldHistoryHead.versionId)).where(and(eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.worldId,worldId),inArray(worldHistoryHead.entityId,rows.map(r=>r.id)))):[];
     const types=new Map(rows.map(r=>[r.id,r.eventType]));
     const events=sources.map(({h,v})=>({...v.payload as EntryRecord,revision:h.revision,eventType:types.get(h.entityId)!,...ordinary?{notes:""}:{}}));
-    return {place:{id:place.id,name:place.name,revision:place.revision,archived:!!place.archivedAt},timelineName:timeline.name,canEdit:!review&&!ordinary&&parent.ownerId===userId&&!parent.archivedAt&&!timeline.archivedAt&&!place.archivedAt,events:chronologicalEntries(events) as PlaceMilestones["events"]};
+    return {place:{id:place.id,name:place.name,revision:place.revision,archived:!!place.archivedAt},timelineName:timeline.name,canEdit:!review&&!preview&&worldContentEditor(parent,userId)&&!parent.archivedAt&&!timeline.archivedAt&&!place.archivedAt,events:chronologicalEntries(events) as PlaceMilestones["events"]};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function savePlaceMilestone(userId:string,worldId:string,input:unknown){
@@ -48,5 +50,5 @@ export async function savePlaceMilestone(userId:string,worldId:string,input:unkn
     await tx.insert(links).values({versionId:head.versionId,worldId,entryId,targetId:place.id,geographyId:place.id,loreId:null,entityCategory:place.context==="place"?place.kind:place.context,eventType:c.eventType}).onConflictDoUpdate({target:[links.versionId,links.targetId],set:{eventType:c.eventType}});
     if(!c.entryId)await tx.insert(receipts).values({worldId,timelineId:timeline.id,requestId:c.requestId,geographyId:place.id,entryId,draftHash:hash});
     return entryId;
-  });
+  },["history","settlements"]);
 }

@@ -10,7 +10,7 @@ import {requireAppearanceMap,requireEngravedPersistence} from "./terrain-appeara
 type Connection=Pick<typeof db,"execute"|"select">;
 async function available(tx:Connection){return !!(await tx.execute<{present:boolean}>(sql`select to_regclass('public.world_map_style') is not null as present`)).rows[0].present;}
 export async function getMapStyles(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean}={}){
- await worldReadAccess(userId,worldId,options.review??false);if(options.ordinary)throw new WorldError("This terrain map is unavailable.",404);
+ await worldReadAccess(userId,worldId,options.review??false,"atlas");if(options.ordinary)throw new WorldError("This terrain map is unavailable.",404);
  return db.transaction(async tx=>{await requireAppearanceMap(tx,worldId,mapId);if(!await available(tx))return {available:false,presets:[]};const rows=await tx.select().from(worldMapStyle).where(eq(worldMapStyle.worldId,worldId)).orderBy(desc(worldMapStyle.createdAt));return {available:true,presets:rows.map(r=>({...r,spec:captureStyleSpec(mapAppearanceSchema.parse(r.spec))}))};},{accessMode:"read only",isolationLevel:"repeatable read"});
 }
 export async function saveMapStyle(userId:string,worldId:string,raw:unknown){
@@ -23,5 +23,5 @@ export async function saveMapStyle(userId:string,worldId:string,raw:unknown){
   const [head]=await tx.select({revision:worldMapAppearance.revision}).from(worldMapAppearance).where(and(eq(worldMapAppearance.worldId,worldId),eq(worldMapAppearance.mapId,c.mapId)));
   if((head?.revision??0)!==c.appearanceRevision)throw new WorldError("The saved appearance changed. Load it before capturing a new named style; your candidate is retained.",409);
   const [result]=await tx.insert(worldMapStyle).values({id:c.requestId,worldId,version:1,name:c.name,spec:snapshot,sourceMapId:c.mapId,sourceAppearanceRevision:c.appearanceRevision,createdBy:userId}).returning();return result;
- });
+ },"atlas");
 }

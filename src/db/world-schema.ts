@@ -9,7 +9,7 @@ const lifecycle = () => ({ revision: integer("revision").notNull().default(1), c
 export const world = pgTable("world", {
   id: text("id").primaryKey(), ownerId: text("owner_id").notNull().references(() => user.id, { onDelete: "restrict" }),
   name: text("name").notNull(), description: text("description").notNull().default(""), introduction: text("introduction").notNull().default(""), historicalOverview: text("historical_overview").notNull().default(""), tone: text("tone").notNull().default("primary"), ...lifecycle(),
-}, (t) => [index("world_owner_idx").on(t.ownerId, t.archivedAt, t.updatedAt), check("world_identity_valid", sql`length(trim(${t.name})) BETWEEN 1 AND 160 AND ${t.revision} > 0 AND ${t.tone} IN ('primary','secondary','info','muted')`)]);
+}, (t) => [unique("world_identity_owner").on(t.id,t.ownerId),index("world_owner_idx").on(t.ownerId, t.archivedAt, t.updatedAt),index("world_registry_name_idx").on(sql`lower(${t.name}) text_pattern_ops`,t.id),index("world_registry_name_sort_idx").on(sql`lower(${t.name})`,t.id),index("world_registry_created_idx").on(t.createdAt,t.id),index("world_registry_activity_idx").on(t.updatedAt,t.id), check("world_identity_valid", sql`length(trim(${t.name})) BETWEEN 1 AND 160 AND ${t.revision} > 0 AND ${t.tone} IN ('primary','secondary','info','muted')`)]);
 export const worldTimeline = pgTable("world_timeline", {
   id:text("id").primaryKey(), worldId:text("world_id").notNull().references(()=>world.id,{onDelete:"restrict"}),
   primary:boolean("is_primary").notNull().default(false), parentId:text("parent_id").references(():AnyPgColumn=>worldTimeline.id,{onDelete:"restrict"}),

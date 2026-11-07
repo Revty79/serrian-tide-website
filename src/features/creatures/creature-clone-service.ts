@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { creature, creatureAttribute, creatureHpPool, creatureHitLocation, challengeRatingReference } from "@/db/creature-schema";
-import { assertCanEditSharedLibraryRoot, type SharedLibraryActor } from "@/features/authorization/shared-library-access";
+import { assertCanUseSharedLibraryPattern, type SharedLibraryActor } from "@/features/authorization/shared-library-access";
 import { cloneCreatureFormsInTransaction } from "./creature-form-service";
 import { cloneCreatureEvolutionsInTransaction } from "./creature-evolution-service";
 import { normalizeInteractionRuleProfile } from "@/features/interaction-rules/interaction-rules";
@@ -228,7 +228,7 @@ export async function createDerivedCreatureForActor(parentCreatureId: number, va
       .where(eq(creature.id, parentCreatureId))
       .limit(1).for("no key update");
     if (!parent) throw new Error("Parent Creature not found.");
-    assertCanEditSharedLibraryRoot(
+    assertCanUseSharedLibraryPattern(
       actor,
       parent,
       "Creature",

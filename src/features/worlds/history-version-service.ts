@@ -1,4 +1,6 @@
+import { worldScopeAllowed } from "./world-access-service";
 import "server-only";
+import {recordWorldContribution} from "./world-authorization-context";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -15,7 +17,7 @@ export function timelineDto(row: typeof worldTimeline.$inferSelect): WorldTimeli
 }
 export async function selectedTimeline(tx:HistoryTx,worldId:string,id?:string|null) {
   const [row]=await tx.select().from(worldTimeline).where(and(eq(worldTimeline.worldId,worldId),id?eq(worldTimeline.id,id):eq(worldTimeline.primary,true))).limit(1);
-  if(!row)throw new WorldError("This historical timeline is unavailable.",404);
+  if(!row||!row.primary&&!worldScopeAllowed(worldId,"history"))throw new WorldError("This historical timeline is unavailable.",404);
   return row;
 }
 export async function insertHistoryVersion(tx:HistoryTx,timelineId:string,record:HistoricalSnapshot) {
@@ -23,6 +25,7 @@ export async function insertHistoryVersion(tx:HistoryTx,timelineId:string,record
   const payload={...record};delete payload.historyContext;
   const entry="time" in payload?payload:null;
   await tx.insert(worldHistoryVersion).values({id,worldId:record.worldId,entityId:record.id,timelineId,entryId:entry?record.id:null,eraId:entry?null:record.id,payload,datingSystemId:record.datingSystemId??null,startVersionId:entry?.calendarSource?.start.versionId??null,endVersionId:entry?.calendarSource?.end?.versionId??null});
+  recordWorldContribution({worldId:record.worldId,family:entry?"entry":"era",entityId:record.id,versionId:id,timelineId});
   if(entry?.eraIds.length)await tx.insert(worldHistoryVersionEra).values([...new Set(entry.eraIds)].map(eraId=>({versionId:id,worldId:record.worldId,entryId:record.id,eraId})));
   if(entry){const [previous]=await tx.select().from(worldHistoryHead).where(and(eq(worldHistoryHead.timelineId,timelineId),eq(worldHistoryHead.entityId,record.id)));if(previous){const links=await tx.select().from(worldHistoryVersionEntity).where(eq(worldHistoryVersionEntity.versionId,previous.versionId));if(links.length)await tx.insert(worldHistoryVersionEntity).values(links.map(link=>({...link,versionId:id})));}}
   return id;

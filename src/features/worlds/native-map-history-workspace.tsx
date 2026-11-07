@@ -1,10 +1,12 @@
 "use client";
+import { useWorldScope,useWorldCanEdit } from "./world-permission-context";
+import { accountWorldStorage } from "./world-draft-storage";
 import { useCallback, useEffect,useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {useSearchParams} from "next/navigation";
 import { worldApi } from "./client-api";
 import type { WorldBundle } from "./history";
 import { mapStateDetailsSchema } from "./map-states";
-import { nativeHistoryCommandSchema, nativeMapTargetSchema, nativeTargetKey, type NativeHistoryBundle, type NativeHistoryCommand, type NativeHistoryScope, type NativeMapTarget } from "./native-map-history";
+import { nativeHistoryUrl,nativeHistoryCommandSchema, nativeMapTargetSchema, nativeTargetKey, type NativeHistoryBundle, type NativeHistoryCommand, type NativeHistoryScope, type NativeMapTarget } from "./native-map-history";
 import { NativeHistoryProvider, replaceNativeAtlasUrl, type NativeHistoryLeave } from "./native-map-history-client";
 import historyStyles from "./native-map-history.module.css";
 import {floorRecoveryKey} from "./building-floor-recovery";
@@ -19,7 +21,7 @@ import {worldAtlasSourceSchema} from "./world-atlas-discovery";
 import {WorldAtlasDiscoveryPanel} from "./world-atlas-discovery-client";
 
 type HistoryContext = Pick<WorldBundle, "timelines" | "selectedTimeline" | "eras">;
-type LocationContext = { anchorUrl?:string;invalidYear?:boolean;invalidSource?:boolean;connectionSourceVersionId?:string;connectionSourceId?:string;geographyVersionId?:string;target?: NativeMapTarget; year?: number; timelineId: string; stateId?: string; versionId?: string; edit: boolean };
+type LocationContext = { reopenMap?:"requested"|"history";anchorUrl?:string;invalidYear?:boolean;invalidSource?:boolean;connectionSourceVersionId?:string;connectionSourceId?:string;geographyVersionId?:string;target?: NativeMapTarget; year?: number; timelineId: string; stateId?: string; versionId?: string; edit: boolean };
 function locationContext(timelineId: string,input?:string): LocationContext {
   const page=new URL(input??location.href,"https://atlas.invalid"),q=page.searchParams;
   const value = q.has("undergroundLevel") ? { kind: "underground", id: q.get("undergroundLevel") }
@@ -40,10 +42,12 @@ export function NativeHistoryWorkspace({ worldId, history, viewingContext, revie
   worldId: string; viewingContext?:import("./world-atlas-context").WorldAtlasContext; history?: HistoryContext; review: boolean; ordinary: boolean; onDirty: (v: boolean) => void;
   children: (options: { review: boolean; canEdit: boolean; onDirty: (v: boolean) => void }) => ReactNode;
 }) {
+ const localStorage=accountWorldStorage(),appearanceAllowed=useWorldScope(worldId,"appearances"),historyAllowed=useWorldScope(worldId,"history"),liveCanEdit=useWorldCanEdit(worldId);
   const primary = viewingContext?.timelineId ?? history?.selectedTimeline.id ?? "";
   const search=useSearchParams();
   const [context, setContext] = useState<LocationContext>(() => locationContext(primary,typeof window==="undefined"?`/worlds/${worldId}?${search}`:location.href));
-  const [bundle, setBundle] = useState<NativeHistoryBundle>(), [error, setError] = useState(""), [loading, setLoading] = useState(context.year!==undefined&&!!context.target&&!context.invalidYear&&!context.invalidSource), [epoch, setEpoch] = useState(0),[contentEpoch,setContentEpoch]=useState(0);
+  const [acceptedBundle, setBundle] = useState<NativeHistoryBundle>(), [error, setError] = useState(""), [loading, setLoading] = useState(context.year!==undefined&&!!context.target&&!context.invalidYear&&!context.invalidSource), [epoch, setEpoch] = useState(0),[contentEpoch,setContentEpoch]=useState(0);
+  const bundle=useMemo(()=>acceptedBundle?{...acceptedBundle,canEdit:acceptedBundle.canEdit&&liveCanEdit}:undefined,[acceptedBundle,liveCanEdit]);
   const [yearText, setYearText] = useState(context.year?.toString() ?? ""), [timeline, setTimeline] = useState(context.timelineId), [reference, setReference] = useState(false);
   const [draft, setDraft] = useState(()=>emptyNativeHistoryDetails(context.year));
   const [form, setForm] = useState(false), [metadataDirty, setMetadataDirty] = useState(false), [pending, setPending] = useState<NativeHistoryCommand>(), [busy, setBusy] = useState(false);
@@ -51,6 +55,7 @@ export function NativeHistoryWorkspace({ worldId, history, viewingContext, revie
   const [blocked, setBlocked] = useState<{ name: string; run: () => void }>(), [editorDirty, setEditorDirty] = useState(false);
   const preparing=useRef(false),approvedNavigation=useRef(false),handleLocation=useRef<((next:LocationContext)=>void)|undefined>(undefined),externalNavigation=useRef<NativeHistoryLeave|undefined>(undefined);
   function runApproved(run:()=>void){const old=approvedNavigation.current;approvedNavigation.current=true;try{run();}finally{approvedNavigation.current=old;}}
+  const sourceGeneration=useRef(0);
   const protectedWork=useRef(false),loadedQuery=useRef(""),dirty = useRef(false), leaves = useRef(new Map<symbol, NativeHistoryLeave>());
   const dialog = useRef<HTMLDialogElement>(null),dialogViewport=useRef<{width:number;height:number}|undefined>(undefined),[historyOpen,setHistoryOpen]=useState(false);
   const openHistory=useCallback(()=>{setHistoryOpen(true);setEpoch(v=>v+1);},[]);
@@ -84,22 +89,24 @@ export function NativeHistoryWorkspace({ worldId, history, viewingContext, revie
     return()=>window.removeEventListener("atlas:request-navigation",listener);
   },[]);
   useEffect(() => {
-    const changed=()=>handleLocation.current?.(locationContext(primary));
+    const changed=(event:Event)=>{const next=locationContext(primary);if(event.type==="popstate")next.reopenMap="history";else if((event as CustomEvent).detail?.reopenMap)next.reopenMap="requested";handleLocation.current?.(next);};
     window.addEventListener("atlas:navigate", changed); window.addEventListener("popstate", changed);
     return () => { window.removeEventListener("atlas:navigate", changed); window.removeEventListener("popstate", changed); };
   }, [primary]);
   useLayoutEffect(()=>{handleLocation.current=next=>{
-    const apply=()=>{if(next.anchorUrl)window.history.replaceState(null,"",next.anchorUrl);setContext(next);setLoading(next.year!==undefined&&!!next.target&&!next.invalidYear&&!next.invalidSource);setReference(false);setRetainedReference(false);setConditionDirty(false);setBundle(undefined);setError("");setYearText(next.year?.toString()??"");setTimeline(next.timelineId);};
+    const before=new URL(context.anchorUrl??location.href),after=new URL(next.anchorUrl??location.href),mapKeys=["terrainMap","townMap","townMapCreate","interiorBuilding","interiorFloor","undergroundLevel","undergroundNew","undergroundLibrary","undergroundSite","craft","craftNew","craftDeck","craftDeckNew","craftLibrary","craftRoute"];
+    const reopen=next.reopenMap==="requested"||next.reopenMap==="history"&&before.pathname===after.pathname&&after.searchParams.get("tab")==="atlas"&&mapKeys.some(key=>before.searchParams.get(key)!==after.searchParams.get(key));
+    const apply=()=>{if(reopen){setContentEpoch(value=>value+1);setEpoch(value=>value+1);}if(next.anchorUrl)window.history.replaceState(null,"",next.anchorUrl);setContext(next);setLoading(next.year!==undefined&&!!next.target&&!next.invalidYear&&!next.invalidSource);setReference(false);setRetainedReference(false);setConditionDirty(false);setBundle(undefined);setError("");setYearText(next.year?.toString()??"");setTimeline(next.timelineId);};
     if(approvedNavigation.current){apply();return;}
     // Current editors guard their own map/floor changes before updating the
     // URL. Synchronizing an accepted load must not start a second leave flow
     // after the destination editor has already begun receiving input.
-    if(context.year===undefined&&next.year===undefined&&!context.invalidYear&&!next.invalidYear&&!context.invalidSource&&!next.invalidSource&&!metadataDirty&&!conditionDirty&&!pending&&!busy){apply();return;}
+    if(!reopen&&context.year===undefined&&next.year===undefined&&!context.invalidYear&&!next.invalidYear&&!context.invalidSource&&!next.invalidSource&&!metadataDirty&&!conditionDirty&&!pending&&!busy){apply();return;}
     if(context.anchorUrl)window.history.replaceState(null,"",context.anchorUrl);
     requestChange("Open Selected Map Context",apply);
   };});
   const query = useMemo(() => {
-    if (!context.target || !context.timelineId || ordinary || context.invalidYear || context.invalidSource) return undefined;
+    if (!appearanceAllowed||!historyAllowed||!context.target || !context.timelineId || ordinary || context.invalidYear || context.invalidSource) return undefined;
     const q = new URLSearchParams({ kind: context.target.kind, id: context.target.id, timeline: context.timelineId });
     if (context.year !== undefined) q.set("year", String(context.year));
     if (context.stateId) q.set("state", context.stateId);
@@ -107,12 +114,12 @@ export function NativeHistoryWorkspace({ worldId, history, viewingContext, revie
     if(context.geographyVersionId)q.set("geographyVersion",context.geographyVersionId);
     if (review) q.set("review", "1");
     return `/api/worlds/${worldId}/atlas-history?${q}`;
-  }, [context, worldId, review, ordinary]);
+  }, [context, worldId, review, ordinary,appearanceAllowed,historyAllowed]);
   useEffect(() => {
     if (!query) return;
-    const controller=new AbortController(),key=`${query}:${context.edit}:${context.connectionSourceVersionId??""}:${context.connectionSourceId??""}`;let alive=true;const foreground=loadedQuery.current!==key;
+    const generation=++sourceGeneration.current,controller=new AbortController(),key=`${query}:${context.edit}:${context.connectionSourceVersionId??""}:${context.connectionSourceId??""}`;let alive=true;const foreground=loadedQuery.current!==key;
     if(foreground)queueMicrotask(()=>{if(alive)setLoading(true);});
-    void worldApi<NativeHistoryBundle>(query,"GET",undefined,controller.signal).then(value=>{if(alive){loadedQuery.current=key;setBundle(previous=>!foreground&&protectedWork.current&&previous?{...value,selected:previous.selected,coverage:previous.coverage,canEdit:previous.canEdit,geographySource:previous.geographySource,conditions:previous.conditions}:value);setError("");}}).catch(e=>{if(alive)setError(problem(e));}).finally(()=>{if(alive&&foreground)setLoading(false);});
+    void worldApi<NativeHistoryBundle>(query,"GET",undefined,controller.signal).then(value=>{if(alive&&generation===sourceGeneration.current){loadedQuery.current=key;setBundle(previous=>!foreground&&protectedWork.current&&previous?{...value,selected:previous.selected,coverage:previous.coverage,canEdit:previous.canEdit,geographySource:previous.geographySource,conditions:previous.conditions}:value);setError("");}}).catch(e=>{if(alive&&generation===sourceGeneration.current)setError(problem(e));}).finally(()=>{if(alive&&generation===sourceGeneration.current)setLoading(false);});
     return () => { alive = false; controller.abort(); };
   }, [query,epoch,context.edit,context.connectionSourceVersionId,context.connectionSourceId]);
   useEffect(() => {
@@ -129,12 +136,12 @@ export function NativeHistoryWorkspace({ worldId, history, viewingContext, revie
       recoveryReady.current=storage;
     });
     return()=>{live=false;};
-  },[storage,prefix,targetKey,context.timelineId,context.target,context.year,review,ordinary]);
+  },[storage,prefix,targetKey,context.timelineId,context.target,context.year,review,ordinary,localStorage]);
   useEffect(() => {
     if (review || ordinary || !targetKey || recoveryReady.current!==storage || unreadable) return;
     try { if (metadataDirty || pending) lastWritten.current=writeNativeDetails(localStorage,storage,lastWritten.current,JSON.stringify({ version:1,draft, pending })); }
     catch { queueMicrotask(() => setError("Browser recovery is unavailable. Export the historical details and keep this page open until saved.")); }
-  }, [storage, targetKey, draft, pending, metadataDirty, review, ordinary,unreadable]);
+  }, [storage, targetKey, draft, pending, metadataDirty, review, ordinary,unreadable,localStorage]);
   function chooseDate(year: number | undefined, selectedTimeline = timeline, stateId?: string, versionId?: string, edit = false) {
     const url = new URL(context.anchorUrl??location.href);
     url.searchParams.set("timeline",selectedTimeline);
@@ -193,13 +200,33 @@ export function NativeHistoryWorkspace({ worldId, history, viewingContext, revie
       recoveryOrigin.current=undefined;setUnreadable(undefined);setPending(undefined);setDraft(emptyNativeHistoryDetails(context.year));setMetadataDirty(false);setForm(true);lastWritten.current=localStorage.getItem(storage);setRetained(listRetainedNativeDetails(localStorage,prefix,context.timelineId,context.target!));recoveryReady.current=storage;setError("");
     }catch(e){setError(problem(e));}
   }
+  useEffect(()=>{
+    const readSource=(event:Event)=>{const detail=(event as CustomEvent<{worldId:string;reads:Promise<void>[]}>) .detail;if(detail?.worldId!==worldId||!context.target)return;
+      const generation=++sourceGeneration.current;detail.reads.push((async()=>{
+        const target=context.target!,current=new URL(location.href),q=current.searchParams;
+        const endpoint=target.kind==="terrain"?`terrain?terrainMap=${target.id}`:target.kind==="town"?`town-maps?map=${target.id}`:target.kind==="floor"?`building-floors?floor=${target.id}${q.get("townMap")?"&townMap="+q.get("townMap"):""}${q.get("interiorBuilding")?"&building="+q.get("interiorBuilding"):""}`:target.kind==="underground"?`underground?level=${target.id}`:`crafts?craft=${target.kind==="craft"?target.id:q.get("craft")??""}&surface=${target.kind==="deck"?target.id:"exterior"}`;
+        let url=`/api/worlds/${worldId}/${endpoint}`;
+        if(context.year!==undefined){
+          if(!query||context.invalidYear||context.invalidSource)return;
+          const fresh=await worldApi<NativeHistoryBundle>(query);
+          // Read current accepted heads without replacing a retained packet's
+          // original source or its editable drawing. Stale saves still fail.
+          if(generation===sourceGeneration.current)setBundle(previous=>protectedWork.current&&previous?{...fresh,selected:previous.selected,coverage:previous.coverage,geographySource:previous.geographySource,conditions:previous.conditions}:fresh);
+          if(!fresh.selected||fresh.coverage!=="established"&&!context.versionId)return;
+          url=nativeHistoryUrl(url,{timelineId:context.timelineId,year:context.year,target,stateId:fresh.selected.id,edit:false,versionId:context.versionId,geographyStateId:target.kind==="terrain"?fresh.geographySource?.stateId:undefined,geographyVersionId:context.geographyVersionId,connectionSourceId:context.connectionSourceId,connectionSourceVersionId:context.connectionSourceVersionId});
+        }
+        await worldApi(url);
+      })().finally(()=>{if(generation===sourceGeneration.current)setLoading(false);}));
+    };window.addEventListener("atlas:read-editor-source",readSource);return()=>window.removeEventListener("atlas:read-editor-source",readSource);
+  },[worldId,context,query]);
   const dated = context.year !== undefined||!!context.invalidYear||!!context.invalidSource, selected = bundle?.selected;
   const acceptedState=bundle?.states.find(state=>state.id===selected?.id);
   const selectedStateId=selected?.id,geographyStateId=context.target?.kind==="terrain"?bundle?.geographySource?.stateId:undefined,geographyVersionId=context.target?.kind==="terrain"?context.geographyVersionId??(context.edit&&!review?undefined:bundle?.geographySource?.versionId):undefined;
-  const scope = useMemo<NativeHistoryScope | undefined>(() => dated && context.year!==undefined && context.target && selectedStateId && (bundle?.coverage === "established" || context.versionId) ? {
-    timelineId: context.timelineId, year: context.year!, target: context.target, stateId: selectedStateId, versionId: context.versionId, edit: context.edit && !!bundle?.canEdit && !review && !context.connectionSourceVersionId&&!context.geographyVersionId,
+  const sourceCoverage=bundle?.coverage,canEditAppearance=!!bundle?.canEdit;
+  const scope = useMemo<NativeHistoryScope | undefined>(() => dated && context.year!==undefined && context.target && selectedStateId && (sourceCoverage === "established" || context.versionId) ? {
+    timelineId: context.timelineId, year: context.year!, target: context.target, stateId: selectedStateId, versionId: context.versionId, edit: context.edit && canEditAppearance && !review && !context.connectionSourceVersionId&&!context.geographyVersionId,
     connectionSourceVersionId:context.connectionSourceVersionId,connectionSourceId:context.connectionSourceId,geographyStateId,geographyVersionId,
-  } : undefined, [dated,context,selectedStateId,bundle?.coverage,bundle?.canEdit,geographyStateId,geographyVersionId,review]);
+  } : undefined, [dated,context,selectedStateId,sourceCoverage,canEditAppearance,geographyStateId,geographyVersionId,review]);
   const eras = history?.eras.filter(e => !e.archived && e.startYear !== null && e.endYear !== null) ?? [];
   const mapPresent=!context.target||nativeObjectPresent(bundle?.conditions??[],context.target.id);
   const sourceChoices=[...new Map([...(bundle?.states??[]),...(bundle?.revisions??[]),...selected?[selected]:[]].map(v=>[v.versionId,v])).values()];
@@ -242,10 +269,10 @@ export function NativeHistoryWorkspace({ worldId, history, viewingContext, revie
     {!ordinary&&bundle&&history&&<NativeMapComparisonPanel key={targetKey+context.timelineId} worldId={worldId} bundle={bundle} timelines={history.timelines} review={review}/>}
     {!ordinary&&!review&&<NativeOriginalRequests worldId={worldId} scope={scope} disabled={editorDirty||conditionDirty||metadataDirty||busy||!!pending} onAccepted={()=>{setEpoch(v=>v+1);setContentEpoch(v=>v+1);}}/>}
     </dialog>
-    {loading && dated ? <div style={{ minHeight: 720 }} role="status">Loading the exact dated map source…</div> : !content ? <div style={{ minHeight: 720 }}><h3>{mapPresent?"Historical appearance unknown":"This map is not present in this appearance"}</h3><p>{mapPresent?`No active appearance establishes this map at Year ${context.year} in the selected timeline.`:"This appearance records absence, destruction or uncertainty; its geometry remains retained."} Connected maps resolve their own coverage at this same date.</p>{!mapPresent&&scope&&<><p>The saved whole-map condition is {bundle?.conditions?.find(v=>v.id===context.target?.id)?.condition}. Its design remains retained.</p><button className="st-button" onClick={()=>setRetainedReference(true)}>View Retained Design as Read-only Reference</button></>}{mapPresent&&!reference && bundle?.baselineAvailable!==false && <button className="st-button" onClick={() => setReference(true)}>View Current Map as Read-only Reference</button>}{bundle?.parentStates.map(s => <p key={s.id}>{s.name} · parent timeline · {s.startYear}–{s.endYear} {bundle.canEdit && <button className="st-button" disabled={busy || editorDirty || !!pending} onClick={() => void submit({ action: "retain", requestId: crypto.randomUUID(), timelineId: context.timelineId, target: context.target!, stateId: s.id, sourceVersionId: s.versionId, sourceRevision: s.revision })}>Explicitly Retain Parent Appearance</button>}</p>)}</div> : <NativeHistoryProvider openRelated={openRelated} guardNavigation={requestChange} conditions={bundle?.conditions} scope={reference ? undefined : retainedReference&&scope?{...scope,edit:false}:scope} registerLeave={registerLeave} openHistory={openHistory} reference={reference} requestedYear={context.year} timelineName={bundle?.timelineName??history?.timelines.find(t=>t.id===context.timelineId)?.name} branchMode={selected?.mode} referenceLabel={retainedReference?"Retained design reference; the map is not present at the selected date.":scope&&bundle?.coverage!=="established"?`Retained source ${selected?.startYear} to ${selected?.endYear}; Year ${context.year} coverage unknown | ${bundle?.timelineName}`:reference?`Current map reference; Year ${context.year} coverage unknown | ${bundle?.timelineName}`:undefined}><div key={dated?`${targetKey}:${scope?.stateId ?? "baseline"}:${scope?.versionId ?? "head"}:${scope?.edit ?? false}:${reference}:${contentEpoch}`:`current:${contentEpoch}`}>
+    {dated&&(!appearanceAllowed||!historyAllowed)?<section style={{minHeight:400}}><h3>Historical appearances are outside this grant</h3><p>This viewing year has not been replaced by current-day geography. Ask the owner to include History and historical appearances, or deliberately open the current reference.</p><button className="st-button" onClick={()=>chooseDate(undefined,context.timelineId)}>Open current reference</button></section>:loading && dated ? <div style={{ minHeight: 720 }} role="status">Loading the exact dated map source…</div> : !content ? <div style={{ minHeight: 720 }}><h3>{mapPresent?"Historical appearance unknown":"This map is not present in this appearance"}</h3><p>{mapPresent?`No active appearance establishes this map at Year ${context.year} in the selected timeline.`:"This appearance records absence, destruction or uncertainty; its geometry remains retained."} Connected maps resolve their own coverage at this same date.</p>{!mapPresent&&scope&&<><p>The saved whole-map condition is {bundle?.conditions?.find(v=>v.id===context.target?.id)?.condition}. Its design remains retained.</p><button className="st-button" onClick={()=>setRetainedReference(true)}>View Retained Design as Read-only Reference</button></>}{mapPresent&&!reference && bundle?.baselineAvailable!==false && <button className="st-button" onClick={() => setReference(true)}>View Current Map as Read-only Reference</button>}{bundle?.parentStates.map(s => <p key={s.id}>{s.name} · parent timeline · {s.startYear}–{s.endYear} {bundle.canEdit && <button className="st-button" disabled={busy || editorDirty || !!pending} onClick={() => void submit({ action: "retain", requestId: crypto.randomUUID(), timelineId: context.timelineId, target: context.target!, stateId: s.id, sourceVersionId: s.versionId, sourceRevision: s.revision })}>Explicitly Retain Parent Appearance</button>}</p>)}</div> : <NativeHistoryProvider canEdit={liveCanEdit&&(!dated||!!scope?.edit&&!reference&&!retainedReference)} openRelated={openRelated} guardNavigation={requestChange} conditions={bundle?.conditions} scope={reference ? undefined : retainedReference&&scope?{...scope,edit:false}:scope} registerLeave={registerLeave} openHistory={openHistory} reference={reference} requestedYear={context.year} timelineName={bundle?.timelineName??history?.timelines.find(t=>t.id===context.timelineId)?.name} branchMode={selected?.mode} referenceLabel={retainedReference?"Retained design reference; the map is not present at the selected date.":scope&&bundle?.coverage!=="established"?`Retained source ${selected?.startYear} to ${selected?.endYear}; Year ${context.year} coverage unknown | ${bundle?.timelineName}`:reference?`Current map reference; Year ${context.year} coverage unknown | ${bundle?.timelineName}`:undefined}><div key={dated?`${targetKey}:${scope?.stateId ?? "baseline"}:${scope?.versionId ?? "head"}:${scope?.edit ?? false}:${reference}:${contentEpoch}`:`current:${contentEpoch}`}>
       {retainedReference&&<p role="status">Retained design reference. The map condition does not establish its presence at this year.</p>}
       {reference && <p role="status">Current map reference. Historical coverage remains unknown; this view is read-only.</p>}
-      <NativeEditorContent options={{review:review||retainedReference||dated&&(!scope?.edit||reference),canEdit:!dated||!!scope?.edit&&!reference&&!retainedReference,onDirty:markEditor}}>{children}</NativeEditorContent>
+      <NativeEditorContent options={{review,canEdit:liveCanEdit&&(!dated||!!scope?.edit&&!reference&&!retainedReference),onDirty:markEditor}}>{children}</NativeEditorContent>
     </div></NativeHistoryProvider>}
   </section>;
 }

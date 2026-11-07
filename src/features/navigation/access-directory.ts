@@ -54,12 +54,13 @@ export const CROSSROADS_ACCESS_CARD: AccessDestinationCard = {
 
 export function getAccessDestinationCards(
   roles: readonly SerrianAppRole[],
+  worldsInvitation=false,
 ): AccessDestinationCard[] {
   const roleSet = new Set(roles);
   if (roleSet.size === 0) return [];
   return [
     ...ROLE_ACCESS_CARDS.filter((card) => card.role && roleSet.has(card.role)),
-    ...(roleSet.has("god") || roleSet.has("admin") ? [WORLDS_ACCESS_CARD] : []),
+    ...(roleSet.has("god") || roleSet.has("admin") || worldsInvitation ? [WORLDS_ACCESS_CARD] : []),
     CROSSROADS_ACCESS_CARD,
   ];
 }

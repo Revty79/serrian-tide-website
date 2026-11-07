@@ -1,3 +1,9 @@
+import { lockWorldForWrite,worldProtectedContent } from "./world-access-service";
+import { projectWorldPinnedContent } from "./world-pinned-content";
+import { preservePrivateCreatorNotes } from "./world-content-projection";
+import { redactUnderground,undergroundDesignSchema } from "./underground";
+import type { WorldScope } from "./world-permissions";
+import { nativeWorldScope } from "./world-permissions";
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { worldMapStateHead as heads } from "@/db/world-map-state-schema";
@@ -18,6 +24,26 @@ export type NativeWriteResult = { updates: NativeComponentUpdate[]; result: Reco
 
 
 export async function commitNativeUpdates(tx: NativeHistoryTx, context: NativeContentContext, updates: NativeComponentUpdate[], input?: NativeManifest) {
+  const required=new Set<WorldScope>([nativeWorldScope(context.scope.target.kind)]);
+  for(const update of updates){
+    if(update.key==="composition")required.add("assets");
+    if(update.key==="territories"){required.add("politics");required.add("atlas");}
+    if(update.key==="places")required.add("settlements");
+    if(update.key==="craft-positions"){required.add("craft");required.add("atlas");}
+    if(update.key==="connections")required.add("underground");
+    if(["town","floor","underground","craft","deck","craft-context"].includes(update.key))required.add(nativeWorldScope(update.key==="craft-context"?"craft":update.key));
+    if(!worldProtectedContent(context.worldId)){
+      const previous=context.manifest.resources.some(r=>r.key===update.key)?(await nativeResource(tx,context,update.key)).payload:undefined;
+      if(previous&&JSON.stringify(await projectWorldPinnedContent(previous,context.worldId,context.scope.timelineId,tx))!==JSON.stringify(previous))throw new WorldError("This saved layer retains sources outside your current permission. Ask the owner to include those sources before editing this layer; the original remains retained.",403);
+      if(update.key==="underground"){
+        const old=(previous?.bundle as {document?:{design:unknown}}|undefined)?.document?.design;
+        const incoming=(update.payload.bundle as {document?:{design:unknown}}|undefined)?.document?.design;if(incoming){const design=undergroundDesignSchema.parse(incoming);if(JSON.stringify(redactUnderground(design).features)!==JSON.stringify(design.features))throw new WorldError("Hidden underground details require the owner's protected-content permission.",403);}
+        if(old){const design=undergroundDesignSchema.parse(old);if(JSON.stringify(redactUnderground(design).features)!==JSON.stringify(design.features))throw new WorldError("This dated level includes hidden content. Ask the owner for protected-content permission before changing it.",403);}
+      }
+      try{update.payload=preservePrivateCreatorNotes(update.payload,previous);}catch(error){throw new WorldError((error as Error).message,403);}
+    }
+  }
+  await lockWorldForWrite(tx,context.userId,context.worldId,[...required]);
   let manifest = input ?? nativeManifestOf(context.version);
   if(context.authority){
     const key=nativeTargetKey(context.authority.scope.target),before=nativeManifestOf(context.version).dependencies.find(d=>nativeTargetKey(d.target)===key),incoming=manifest.dependencies.find(d=>nativeTargetKey(d.target)===key);
@@ -103,5 +129,5 @@ export async function withNativeHistoryWrite(userId: string, worldId: string, ra
     await tx.insert(requests).values({ requestId: request.requestId, worldId, timelineId: scope.timelineId, targetKey, inputHash, authorId: userId, result,originalScope:scope });
     if(request.endpoint.startsWith("crafts")||scope.target.kind==="craft"||scope.target.kind==="deck")await assertCraftBudget(tx,worldId);
     return result;
-  });
+  },["history","appearances",nativeWorldScope(scope.target.kind)]);
 }

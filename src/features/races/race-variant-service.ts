@@ -7,7 +7,7 @@ import { user } from "@/db/auth-schema";
 import { userRole } from "@/db/authorization-schema";
 import { race, raceAttributeCap, raceMovementMode, raceSkillLink, raceNaturalAttack } from "@/db/race-schema";
 import { cloneRaceFormsInTransaction } from "./race-form-service";
-import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
+import { assertCanUseSharedLibraryPattern } from "@/features/authorization/shared-library-access";
 import { readRaceNaturalProtectionInTransaction, saveRaceNaturalProtectionInTransaction } from "./race-natural-protection-service";
 
 /** Copy the saved definition once. Parentage is provenance, never runtime inheritance. */
@@ -22,7 +22,7 @@ export async function createRaceVariantForActor(parentRaceId: number, variantNam
     // Race saves lock this same root before changing any owned child definitions.
     const [parent] = await tx.select().from(race).where(eq(race.id, parentRaceId)).for("share");
     if (!parent) throw new Error("Parent Race not found. Save a Race before creating a Variant.");
-    assertCanEditSharedLibraryRoot({ userId: actorUserId, roles: assignments.map(({ role }) => role) }, parent, "Race");
+    assertCanUseSharedLibraryPattern({ userId: actorUserId, roles: assignments.map(({ role }) => role) }, parent, "Race");
     if (parent.archivedAt) throw new Error("Restore the parent Race before creating a Variant.");
     return copyRaceDefinitionInTransaction(tx, parent, { name, actorUserId, parentRaceId, copyEvolutions: true });
   });

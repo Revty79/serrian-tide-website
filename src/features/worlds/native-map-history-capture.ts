@@ -1,3 +1,9 @@
+import { withWorldRetainedSourceRead } from "./world-retained-source-authority";
+import { nativeWorldScope } from "./world-permissions";
+import { worldReadAccess } from "./world-service";
+import { worldProtectedContent } from "./world-access-service";
+import { worldUndergroundLevel } from "@/db/world-underground-schema";
+import { redactUnderground } from "./underground";
 import "server-only";
 import { and, eq, sql } from "drizzle-orm";
 import { worldTerrainRefinementVersion } from "@/db/world-terrain-refinement-schema";
@@ -40,7 +46,11 @@ const object = (input: unknown) => JSON.parse(JSON.stringify(input)) as Record<s
 /** Call while the existing owned-World lock is held. All native map writers use
  * that same lock, so these established read services observe one accepted source.
  * No baseline writer, asset binary copy or numerical materialization is used. */
-export async function captureNativeBaseline(tx: NativeHistoryTx, authorId: string, worldId: string, info: NativeTargetInfo): Promise<CapturedNativeSource> {
+export async function captureNativeBaseline(tx: NativeHistoryTx, authorId: string, worldId: string, info: NativeTargetInfo,options:{review?:boolean}={}): Promise<CapturedNativeSource> {
+ const access=await worldReadAccess(authorId,worldId,!!options.review,["history","appearances",nativeWorldScope(info.target.kind)]);
+ return withWorldRetainedSourceRead(access,()=>captureRetainedNativeBaseline(tx,authorId,worldId,info));
+}
+async function captureRetainedNativeBaseline(tx: NativeHistoryTx, authorId: string, worldId: string, info: NativeTargetInfo): Promise<CapturedNativeSource> {
   const resources: CapturedNativeResource[] = [];
   let captureBytes = 0;
   const add = (key: string, kind: NativeResource["kind"], value: unknown) => {
@@ -130,6 +140,12 @@ export async function captureNativeBaseline(tx: NativeHistoryTx, authorId: strin
   } else if (info.target.kind === "underground") {
     const bundle = await getUnderground(authorId, worldId, { levelId: info.target.id });
     if (!bundle.document) throw nativeHistoryMissing();
+    const [retained]=await tx.select({design:worldUndergroundLevel.design}).from(worldUndergroundLevel).where(and(eq(worldUndergroundLevel.worldId,worldId),eq(worldUndergroundLevel.id,info.target.id)));
+    if(!retained)throw nativeHistoryMissing();
+    if(!worldProtectedContent(worldId)&&JSON.stringify(redactUnderground(retained.design).features)!==JSON.stringify(retained.design.features))throw new WorldError("This source includes hidden underground details. Ask its owner for protected-content permission before copying the whole source.",403);
+    // The accepted copy retains original creator notes. Only the read projection
+    // is redacted; an invited author never replaces source bytes with a preview.
+    bundle.document.design=retained.design;
     add("underground", "underground", { bundle });
   } else {
     if (!info.craftId) throw nativeHistoryMissing();

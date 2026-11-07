@@ -1,3 +1,5 @@
+import { worldOrdinaryContent, worldScopeAllowed } from "./world-access-service";
+import { worldLoreFamilyWhere } from "./world-resource-permissions";
 import { geographicPrivatePlaces } from "./geographic-privacy";
 import "server-only";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
@@ -10,11 +12,14 @@ export function ordinaryPlace() {
   return sql`${worldGeography.id} not in (${geographicPrivatePlaces(sql`${worldGeography.worldId}`)})`;
 }
 export async function lorePlaces(tx:HistoryTx, worldId:string, ordinary=false, ids?:string[]) {
-  if(ids&&!ids.length)return [];
+  ordinary=worldOrdinaryContent(worldId,ordinary);
+  if(!worldScopeAllowed(worldId,"settlements")||ids&&!ids.length)return [];
   return tx.select({id:worldGeography.id,name:worldGeography.name,archived:sql<boolean>`${worldGeography.archivedAt} is not null`})
     .from(worldGeography).where(and(eq(worldGeography.worldId,worldId),ids?inArray(worldGeography.id,ids):undefined,ordinary?ordinaryPlace():undefined)).orderBy(asc(worldGeography.name),asc(worldGeography.id)).limit(ids?200:2000);
 }
 export async function entityGeographies(tx:HistoryTx,worldId:string,versionId:string,ordinary=false) {
+  ordinary=worldOrdinaryContent(worldId,ordinary);
+  if(!worldScopeAllowed(worldId,"settlements"))return [];
   const rows=await tx.select().from(worldLoreGeography).where(and(eq(worldLoreGeography.worldId,worldId),eq(worldLoreGeography.versionId,versionId),ordinary?eq(worldLoreGeography.protected,false):undefined)).orderBy(asc(worldLoreGeography.position)).limit(100);
   const places=await lorePlaces(tx,worldId,ordinary,[...new Set(rows.flatMap(g=>[g.geographyId,...g.destinationId?[g.destinationId]:[]]))]);
   const names=new Map(places.map(p=>[p.id,p]));
@@ -24,7 +29,7 @@ export async function entitiesAtPlace(tx:HistoryTx,worldId:string,timelineId:str
   const rows=await tx.selectDistinct({id:worldLoreHead.entityId}).from(worldLoreGeography)
     .innerJoin(worldLoreHead,and(eq(worldLoreHead.versionId,worldLoreGeography.versionId),eq(worldLoreHead.timelineId,timelineId)))
     .innerJoin(worldLoreVersion,eq(worldLoreVersion.id,worldLoreHead.versionId))
-    .where(and(eq(worldLoreGeography.worldId,worldId),sql`(${worldLoreGeography.geographyId}=${placeId} or ${worldLoreGeography.destinationId}=${placeId})`,inArray(worldLoreHead.mode,["authored","inherited","interpretation"]),ordinary?ordinaryLoreSource(worldId,timelineId,sql`${worldLoreVersion.id}`):undefined,ordinary?eq(worldLoreGeography.protected,false):undefined,ordinary?sql`coalesce(${worldLoreGeography.geographyId},'') not in (${geographicPrivatePlaces(worldId)}) and coalesce(${worldLoreGeography.destinationId},'') not in (${geographicPrivatePlaces(worldId)})`:undefined)).limit(2000);
+    .where(and(eq(worldLoreGeography.worldId,worldId),worldLoreFamilyWhere(worldId,worldLoreVersion.family),sql`(${worldLoreGeography.geographyId}=${placeId} or ${worldLoreGeography.destinationId}=${placeId})`,inArray(worldLoreHead.mode,["authored","inherited","interpretation"]),ordinary?ordinaryLoreSource(worldId,timelineId,sql`${worldLoreVersion.id}`):undefined,ordinary?eq(worldLoreGeography.protected,false):undefined,ordinary?sql`coalesce(${worldLoreGeography.geographyId},'') not in (${geographicPrivatePlaces(worldId)}) and coalesce(${worldLoreGeography.destinationId},'') not in (${geographicPrivatePlaces(worldId)})`:undefined)).limit(2000);
   return new Set(rows.map(r=>r.id));
 }
 

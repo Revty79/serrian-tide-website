@@ -1,3 +1,4 @@
+import { worldProtectedContent } from "./world-access-service";
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
@@ -41,7 +42,7 @@ export function nativeManifestOf(version: Pick<NativeVersion, "payload">) {
 }
 export async function loadNativeVersion(tx: NativeHistoryTx, worldId: string, id: string, target?: NativeMapTarget) {
   const [version] = await tx.select().from(versions).where(and(eq(versions.id, id), eq(versions.worldId, worldId)));
-  if (!version || !("nativeAtlas" in version.payload)) throw nativeHistoryMissing();
+  if (!version || version.protected&&!worldProtectedContent(worldId) || !("nativeAtlas" in version.payload)) throw nativeHistoryMissing();
   const manifest = nativeManifestOf(version);
   if (target && nativeTargetKey(manifest.target) !== nativeTargetKey(target)) throw nativeHistoryMissing();
   return version;

@@ -1,3 +1,6 @@
+import { preservePrivateCreatorNotes } from "./world-content-projection";
+import { worldProtectedContent,worldScopeAllowed,lockWorldForWrite } from "./world-access-service";
+import { worldContentEditor } from "./world-access-service";
 import "server-only";
 import {createHash,randomUUID} from "node:crypto";
 import {and,asc,eq,ilike,isNull,or,sql} from "drizzle-orm";
@@ -32,19 +35,21 @@ async function saveLocation(tx:Tx,worldId:string,c:{id:string|null;revision:numb
 }
 
 export async function readWorldBusiness(userId:string,worldId:string,options:{review?:boolean;ordinary?:boolean}={}):Promise<BusinessBundle>{
- const parent=await worldReadAccess(userId,worldId,!!options.review);if(options.ordinary)throw unavailable();
+ const parent=await worldReadAccess(userId,worldId,!!options.review,"settlements");if(options.ordinary)throw unavailable();
  return db.transaction(async tx=>{
   const shops=await tx.select({id:worldShop.geographyId,revision:worldShop.revision,archived:sql<boolean>`${worldGeography.archivedAt} IS NOT NULL`,definition:worldShop.definition,godNotes:worldShop.godNotes,sortOrder:worldShop.sortOrder,archiveReason:worldShop.archiveReason}).from(worldShop).innerJoin(worldGeography,eq(worldGeography.id,worldShop.geographyId)).where(eq(worldShop.worldId,worldId)).orderBy(asc(worldShop.sortOrder),asc(worldGeography.name)).limit(2001);
   const shopLocations=await tx.select({id:worldShopLocation.id,shopId:worldShopLocation.shopId,townId:worldShopLocation.townId,placeId:worldShopLocation.placeId,note:worldShopLocation.note,sortOrder:worldShopLocation.sortOrder,revision:worldShopLocation.revision}).from(worldShopLocation).where(and(eq(worldShopLocation.worldId,worldId),isNull(worldShopLocation.removedAt))).orderBy(asc(worldShopLocation.sortOrder),asc(worldShopLocation.id)).limit(10001);
   const places=await tx.select({id:worldTownPlace.geographyId,revision:worldTownPlace.revision,archived:sql<boolean>`${worldGeography.archivedAt} IS NOT NULL`,townId:worldTownPlace.townId,placeKind:sql<"place-of-interest"|"building">`${worldTownPlace.placeKind}`,name:worldGeography.name,description:worldGeography.description,category:worldTownPlace.category,locationNotes:worldTownPlace.locationNotes,godNotes:worldTownPlace.godNotes,sortOrder:worldTownPlace.sortOrder,archiveReason:worldTownPlace.archiveReason}).from(worldTownPlace).innerJoin(worldGeography,eq(worldGeography.id,worldTownPlace.geographyId)).where(eq(worldTownPlace.worldId,worldId)).orderBy(asc(worldTownPlace.sortOrder),asc(worldGeography.name)).limit(2001);
-  const residents=(await tx.select().from(worldTownResident).where(eq(worldTownResident.worldId,worldId)).orderBy(asc(worldTownResident.name)).limit(2001)).map(({archivedAt,worldId:_,loreFamily:__,...r})=>{void _;void __;return {...r,archived:!!archivedAt};});
-  const people=await tx.select({id:worldPlacePerson.id,geographyId:worldPlacePerson.geographyId,residentId:sql<string>`coalesce(${worldPlacePerson.individualId},${worldPlacePerson.residentId})`,role:worldPlacePerson.role,note:worldPlacePerson.note,primaryContact:worldPlacePerson.primaryContact,sortOrder:worldPlacePerson.sortOrder,revision:worldPlacePerson.revision}).from(worldPlacePerson).where(eq(worldPlacePerson.worldId,worldId)).orderBy(asc(worldPlacePerson.sortOrder),asc(worldPlacePerson.id)).limit(10001);
+  const residents=!worldScopeAllowed(worldId,"individuals")?[]:(await tx.select().from(worldTownResident).where(eq(worldTownResident.worldId,worldId)).orderBy(asc(worldTownResident.name)).limit(2001)).map(({archivedAt,worldId:_,loreFamily:__,...r})=>{void _;void __;return {...r,archived:!!archivedAt};});
+  const readableIndividuals=await individuals(tx,worldId);
+  const peopleRaw=worldScopeAllowed(worldId,"individuals")?await tx.select({id:worldPlacePerson.id,individual:sql<boolean>`${worldPlacePerson.individualId} is not null`,geographyId:worldPlacePerson.geographyId,residentId:sql<string>`coalesce(${worldPlacePerson.individualId},${worldPlacePerson.residentId})`,role:worldPlacePerson.role,note:worldPlacePerson.note,primaryContact:worldPlacePerson.primaryContact,sortOrder:worldPlacePerson.sortOrder,revision:worldPlacePerson.revision}).from(worldPlacePerson).where(eq(worldPlacePerson.worldId,worldId)).orderBy(asc(worldPlacePerson.sortOrder),asc(worldPlacePerson.id)).limit(10001):[];
+  const people=peopleRaw.filter(row=>!row.individual||readableIndividuals.some(source=>source.id===row.residentId)).map(({individual:_,...row})=>{void _;return row;});
   const offerings=await tx.select({id:worldShopOffering.id,shopId:worldShopOffering.shopId,revision:worldShopOffering.revision,definition:worldShopOffering.definition,sortOrder:worldShopOffering.sortOrder,itemName:item.name,canonicalPrice:item.credits}).from(worldShopOffering).innerJoin(item,eq(item.id,worldShopOffering.itemId)).where(and(eq(worldShopOffering.worldId,worldId),isNull(worldShopOffering.removedAt))).orderBy(asc(worldShopOffering.sortOrder),asc(item.name)).limit(10001);
   if(shops.length>2000||places.length>2000||residents.length>2000||people.length>10000||offerings.length>10000||shopLocations.length>10000)throw new WorldError("This World exceeds the supported creation workspace size. All saved records are retained.",400);
-  return {shops,shopLocations,places,residents,people,offerings,individuals:await individuals(tx,worldId),canEdit:!options.review&&parent.ownerId===userId&&!parent.archivedAt};
+  return {shops,shopLocations,places,residents,people,offerings,individuals:readableIndividuals,canEdit:!options.review&&worldContentEditor(parent,userId)&&!parent.archivedAt};
  },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
-export async function worldShopCatalog(userId:string,worldId:string,search:string,group:string,review=false){const parent=await worldReadAccess(userId,worldId,review);return db.select({
+export async function worldShopCatalog(userId:string,worldId:string,search:string,group:string,review=false){await worldReadAccess(userId,worldId,review,"settlements");return db.select({
       id: item.id,
       canonicalId: item.canonicalId,
       name: item.name,
@@ -78,22 +83,23 @@ export async function worldShopCatalog(userId:string,worldId:string,search:strin
       armorDamageModifiers: armorProfile.damageModifiersSourceText,
       armorRulesText: armorProfile.rulesText,
       archivedAt: item.archivedAt,
-}).from(item).leftJoin(weaponProfile,eq(weaponProfile.itemId,item.id)).leftJoin(shopAmmunitionItem,eq(shopAmmunitionItem.id,weaponProfile.ammunitionItemId)).leftJoin(shopAmmunitionWeaponProfile,eq(shopAmmunitionWeaponProfile.itemId,shopAmmunitionItem.id)).leftJoin(armorProfile,eq(armorProfile.itemId,item.id)).where(await itemDiscoveryWhere(parent.ownerId,isNull(item.archivedAt),search?or(ilike(item.name,`%${search.slice(0,120)}%`),ilike(item.canonicalId,`%${search.slice(0,120)}%`)):undefined,group==="inventory"?eq(item.catalogScope,"inventory"):["weapon","armor","general"].includes(group)?eq(item.equipmentGroup,group):undefined)).orderBy(asc(item.name),asc(item.id)).limit(100);}
+}).from(item).leftJoin(weaponProfile,eq(weaponProfile.itemId,item.id)).leftJoin(shopAmmunitionItem,eq(shopAmmunitionItem.id,weaponProfile.ammunitionItemId)).leftJoin(shopAmmunitionWeaponProfile,eq(shopAmmunitionWeaponProfile.itemId,shopAmmunitionItem.id)).leftJoin(armorProfile,eq(armorProfile.itemId,item.id)).where(await itemDiscoveryWhere(userId,isNull(item.archivedAt),search?or(ilike(item.name,`%${search.slice(0,120)}%`),ilike(item.canonicalId,`%${search.slice(0,120)}%`)):undefined,group==="inventory"?eq(item.catalogScope,"inventory"):["weapon","armor","general"].includes(group)?eq(item.equipmentGroup,group):undefined)).orderBy(asc(item.name),asc(item.id)).limit(100);}
 
 export async function changeWorldBusiness(userId:string,worldId:string,input:unknown):Promise<BusinessResult>{
  const c=businessCommandSchema.parse(input),inputHash=createHash("sha256").update(JSON.stringify(c)).digest("hex");
  return worldWriteTransaction(userId,worldId,async tx=>{
+  if(c.action==="save-person"||c.action==="remove-person"||c.action==="save-resident"||c.action==="lifecycle"&&c.kind==="resident")await lockWorldForWrite(tx,userId,worldId,"individuals");
   const [retry]=await tx.select().from(worldCreationOperation).where(eq(worldCreationOperation.requestId,c.requestId));if(retry){if(retry.authorId!==userId||retry.worldId!==worldId||retry.inputHash!==inputHash)throw conflict();return retry.result;}
   let result:BusinessResult;
   if(c.action==="save-shop"){
    const current=c.id?await shop(tx,worldId,c.id):undefined;checkRevision(current,c.revision);if(current&&(c.townId||c.placeId))throw new WorldError("Edit the Shop location links separately from its shared business settings.",400);
-   const id=c.id??c.requestId;await saveGeography(tx,worldId,id,c.definition.name,c.definition.description,!!current);const values={worldId,definition:c.definition,godNotes:c.godNotes,sortOrder:c.sortOrder,revision:(current?.revision??0)+1};if(current)await tx.update(worldShop).set(values).where(eq(worldShop.geographyId,id));else await tx.insert(worldShop).values({geographyId:id,...values});if(!current&&c.townId)await saveLocation(tx,worldId,{id:null,revision:null,newId:randomUUID(),shopId:id,townId:c.townId,placeId:c.placeId,note:"",sortOrder:0});else if(!current&&c.placeId)throw new WorldError("Choose the Town for this building.",400);result={id,kind:"shop"};
+   if(!worldProtectedContent(worldId)){try{c.godNotes=preservePrivateCreatorNotes({godNotes:c.godNotes},current?{godNotes:current.godNotes}:undefined).godNotes;}catch(error){throw new WorldError((error as Error).message,403);}}const id=c.id??c.requestId;await saveGeography(tx,worldId,id,c.definition.name,c.definition.description,!!current);const values={worldId,definition:c.definition,godNotes:c.godNotes,sortOrder:c.sortOrder,revision:(current?.revision??0)+1};if(current)await tx.update(worldShop).set(values).where(eq(worldShop.geographyId,id));else await tx.insert(worldShop).values({geographyId:id,...values});if(!current&&c.townId)await saveLocation(tx,worldId,{id:null,revision:null,newId:randomUUID(),shopId:id,townId:c.townId,placeId:c.placeId,note:"",sortOrder:0});else if(!current&&c.placeId)throw new WorldError("Choose the Town for this building.",400);result={id,kind:"shop"};
   }else if(c.action==="save-location"){
    const id=await saveLocation(tx,worldId,{...c,newId:c.requestId});result={id,kind:"location"};
   }else if(c.action==="remove-location"){
    const [current]=await tx.select().from(worldShopLocation).where(and(eq(worldShopLocation.id,c.id),eq(worldShopLocation.worldId,worldId)));if(!current||current.removedAt)throw unavailable();checkRevision(current,c.revision);await shop(tx,worldId,current.shopId);await tx.update(worldShopLocation).set({removedAt:new Date(),revision:current.revision+1}).where(eq(worldShopLocation.id,c.id));result={id:c.id,kind:"location"};
   }else if(c.action==="save-place"){
-   await town(tx,worldId,c.draft.townId);const [current]=c.id?await tx.select().from(worldTownPlace).where(and(eq(worldTownPlace.geographyId,c.id),eq(worldTownPlace.worldId,worldId))):[];if(c.id&&!current)throw unavailable();checkRevision(current,c.revision);if(current&&current.townId!==c.draft.townId)throw new WorldError("A saved place retains its Town identity.",400);const id=c.id??c.requestId;await saveGeography(tx,worldId,id,c.draft.name,c.draft.description,!!current);const {name:_,description:__,...fields}=c.draft;void _;void __;const values={worldId,...fields,revision:(current?.revision??0)+1};if(current)await tx.update(worldTownPlace).set(values).where(eq(worldTownPlace.geographyId,id));else await tx.insert(worldTownPlace).values({geographyId:id,...values});result={id,kind:"place"};
+   await town(tx,worldId,c.draft.townId);const [current]=c.id?await tx.select().from(worldTownPlace).where(and(eq(worldTownPlace.geographyId,c.id),eq(worldTownPlace.worldId,worldId))):[];if(c.id&&!current)throw unavailable();checkRevision(current,c.revision);if(current&&current.townId!==c.draft.townId)throw new WorldError("A saved place retains its Town identity.",400);if(!worldProtectedContent(worldId)){try{c.draft=preservePrivateCreatorNotes(c.draft,current?{...c.draft,godNotes:current.godNotes}:undefined);}catch(error){throw new WorldError((error as Error).message,403);}}const id=c.id??c.requestId;await saveGeography(tx,worldId,id,c.draft.name,c.draft.description,!!current);const {name:_,description:__,...fields}=c.draft;void _;void __;const values={worldId,...fields,revision:(current?.revision??0)+1};if(current)await tx.update(worldTownPlace).set(values).where(eq(worldTownPlace.geographyId,id));else await tx.insert(worldTownPlace).values({geographyId:id,...values});result={id,kind:"place"};
   }else if(c.action==="save-resident"){
    throw new WorldError("Use the full World Individual creator, then associate that saved inhabitant with this Town, Shop or place.",400);
   }else if(c.action==="save-offering"){
@@ -122,5 +128,5 @@ export async function changeWorldBusiness(userId:string,worldId:string,input:unk
    result={id:c.id,kind:c.kind};
   }
   await tx.insert(worldCreationOperation).values({requestId:c.requestId,worldId,authorId:userId,inputHash,result,snapshot:{version:1,acceptedCommand:c}});return result;
- });
+ },"settlements");
 }

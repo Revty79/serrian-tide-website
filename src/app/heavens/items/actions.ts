@@ -90,7 +90,7 @@ import {
   encodeMechanicalEffect,
   type MechanicalEffect,
 } from "@/features/mechanical-effects";
-import { assertCanEditSharedLibraryRoot } from "@/features/authorization/shared-library-access";
+import { assertCanEditSharedLibraryRoot, assertCanUseSharedLibraryPattern } from "@/features/authorization/shared-library-access";
 import { requireGodOrAdminAccessContext } from "@/lib/server-access";
 
 import { magazineProfile, magazineAmmunition, weaponMagazine } from "@/db/magazine-schema";
@@ -1431,7 +1431,7 @@ export async function createItemVariant(parentItemId: number, variantName: strin
   const { session, roles } = await requireGodOrAdminAccessContext();
   const parent = await getItem(parentItemId);
   if (!parent) throw new Error("Parent Item not found.");
-  assertCanEditSharedLibraryRoot(
+  assertCanUseSharedLibraryPattern(
     { userId: session.user.id, roles },
     {
       createdByUserId: parent.createdByUserId,

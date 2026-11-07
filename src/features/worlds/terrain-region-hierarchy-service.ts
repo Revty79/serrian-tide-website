@@ -1,3 +1,4 @@
+import { worldContentEditor } from "./world-access-service";
 import "server-only";
 import {createHash} from "node:crypto";
 import {and,asc,eq,sql} from "drizzle-orm";
@@ -23,8 +24,8 @@ export async function regionHierarchyNodes(tx:Connection,worldId:string,availabl
  return rows.map(({m,c})=>{const link=links.find(r=>r.mapId===m.id),sourceId=c.purpose==="world"?m.id:link?.parentMapId??"",source=rows.find(r=>r.m.id===sourceId&&r.c.purpose==="world"),head=heads.find(h=>h.mapId===m.id);return {id:m.id,name:m.name,kind:c.purpose==="world"?"world":"region",worldId,terrainId:c.terrainId,sourceWorldMapId:sourceId,organizingParentId:head?.organizingParentId??null,revision:head?.revision??0,archived:!!m.archivedAt,sourceAvailable:!!source&&!source.m.archivedAt&&source.c.terrainId===c.terrainId&&source.m.scope==="world"&&source.m.mapKind==="generic"};});
 }
 export async function getRegionHierarchy(userId:string,worldId:string,options:{review?:boolean;ordinary?:boolean}={}):Promise<RegionHierarchy>{
- const world=await worldReadAccess(userId,worldId,!!options.review);if(options.ordinary)throw new WorldError("This map browser is unavailable in ordinary knowledge views.",404);
- return db.transaction(async tx=>{const available=await regionHierarchyAvailable(tx);return {available,canEdit:world.ownerId===userId&&!world.archivedAt&&!options.review,nodes:await regionHierarchyNodes(tx,worldId,available),maxDepth:REGION_HIERARCHY_DEPTH};},{isolationLevel:"repeatable read",accessMode:"read only"});
+ const world=await worldReadAccess(userId,worldId,!!options.review,"atlas");if(options.ordinary)throw new WorldError("This map browser is unavailable in ordinary knowledge views.",404);
+ return db.transaction(async tx=>{const available=await regionHierarchyAvailable(tx);return {available,canEdit:worldContentEditor(world,userId)&&!world.archivedAt&&!options.review,nodes:await regionHierarchyNodes(tx,worldId,available),maxDepth:REGION_HIERARCHY_DEPTH};},{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 function validate(nodes:RegionHierarchyNode[],mapId:string,parentId:string|null){try{validateRegionHierarchyMove(nodes,mapId,parentId);}catch(error){throw new WorldError((error as Error).message,400);}}
 /** Called inside the original geographic creation transaction, after immutable map rows exist. */
@@ -45,5 +46,5 @@ export async function moveRegionHierarchy(userId:string,worldId:string,raw:unkno
   if(node.revision)await tx.update(worldRegionHierarchy).set({organizingParentId:values.organizingParentId,revision,updatedBy:userId,updatedAt:values.updatedAt}).where(and(eq(worldRegionHierarchy.mapId,node.id),eq(worldRegionHierarchy.revision,node.revision)));else await tx.insert(worldRegionHierarchy).values(values);
   await tx.insert(worldRegionHierarchyChange).values({requestId:command.requestId,mapId:node.id,worldId,terrainId:node.terrainId,sourceWorldMapId:node.sourceWorldMapId,revision,previousRevision:node.revision,previousParentId:node.organizingParentId,organizingParentId:command.organizingParentId,action:"move",requestHash,createdBy:userId});
   return {id:node.id,revision,organizingParentId:command.organizingParentId};
- });
+ },"atlas");
 }

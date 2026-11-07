@@ -1,3 +1,4 @@
+import {claimOwnedWorldPage} from "./worlds-owned-world-api";
 /** Native UI interruption, regional and worker checks; HTTP requests only read evidence. */
 import assert from "node:assert/strict";
 import {readFile,writeFile} from "node:fs/promises";
@@ -32,7 +33,7 @@ export async function advancedTerrainSafety({f,context,page:p,base}:{f:RegionalF
   tiles=await get("/terrain/refinements?terrainMap="+seed.regionalMap+"&refinement="+seed.fine+"&lod=0&keys="+Array.from({length:fine.gridWidth*fine.gridHeight/1024},(_,i)=>i).join(","));
   return {index,fine,grid:createGrid(0,tiles.tiles.map((t:{x:number;y:number;samples:number[]})=>({x:t.x,y:t.y,samples:t.samples})),terrainGeometry({gridWidth:fine.gridWidth,gridHeight:fine.gridHeight,widthKm:fine.frame.width/1000,heightKm:fine.frame.height/1000,wrap:false,minElevation:-20000,maxElevation:20000}))};
  };
- await p.goto(fineURL);await canvas.waitFor();await p.getByTestId("terrain-active-detail").filter({hasText:"Shared contained numerical detail"}).waitFor({state:"attached"});
+ await p.goto(fineURL);if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);await canvas.waitFor();await p.getByTestId("terrain-active-detail").filter({hasText:"Shared contained numerical detail"}).waitFor({state:"attached"});
  let d=await open();const originalFine=await fineRead(),parentBefore=await document(ids.parent);
  await input(d,"Duration (erosion steps)",40);await d.getByLabel("Protect existing manual heights",{exact:true}).uncheck();
  await d.getByRole("button",{name:"Prepare Preview",exact:true}).click();const cancel=d.getByRole("button",{name:"Cancel Processing",exact:true});await cancel.waitFor();
@@ -41,7 +42,7 @@ export async function advancedTerrainSafety({f,context,page:p,base}:{f:RegionalF
  await d.getByRole("button",{name:"Keep settings & Close",exact:true}).click();
  await push("Worker cancellation stops a 65,536-cell regional erosion proposal and leaves accepted samples exact");
 
- await p.goto(fineURL+"&terrainWorker=off");await canvas.waitFor();await p.getByTestId("terrain-active-detail").filter({hasText:"Shared contained numerical detail"}).waitFor({state:"attached"});d=await open();
+ await p.goto(fineURL+"&terrainWorker=off");if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);await canvas.waitFor();await p.getByTestId("terrain-active-detail").filter({hasText:"Shared contained numerical detail"}).waitFor({state:"attached"});d=await open();
  await input(d,"Duration (erosion steps)",40);await d.getByLabel("Protect existing manual heights",{exact:true}).uncheck();
  await d.getByRole("button",{name:"Prepare Preview",exact:true}).click();await d.locator('[data-advanced-backend="Cooperative main-thread fallback"]').waitFor();
  let dc=d.getByLabel("Terrain map canvas",{exact:true});await dc.focus();const start=performance.now();for(let i=0;i<10;i++)await p.keyboard.press(i%2?"ArrowLeft":"ArrowRight");const keyboardMs=performance.now()-start;assert.ok(keyboardMs<1500);
@@ -52,7 +53,7 @@ export async function advancedTerrainSafety({f,context,page:p,base}:{f:RegionalF
  const point=async(x:number,y:number)=>{const b=(await dc.boundingBox())!,v=await dc.evaluate(e=>({x:Number(e.dataset.viewX),y:Number(e.dataset.viewY),s:Number(e.dataset.zoom)}));await p.mouse.click(b.x+v.x+x*v.s,b.y+v.y+y*v.s);};
  // Both native preview and persisted outlines use canonical World metres.
  for(const [x,y]of [[72000,42000],[83000,42000]])await point(x,y);
- await p.reload();await canvas.waitFor();await p.getByTestId("terrain-active-detail").filter({hasText:"Shared contained numerical detail"}).waitFor({state:"attached"});d=await open("Erode Selected Area",false);
+ await p.reload();if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);await canvas.waitFor();await p.getByTestId("terrain-active-detail").filter({hasText:"Shared contained numerical detail"}).waitFor({state:"attached"});d=await open("Erode Selected Area",false);
  await d.getByRole("button",{name:"Recover Operation Settings",exact:true}).click();await d.getByRole("button",{name:"Choose Area",exact:true}).click();dc=d.getByLabel("Terrain map canvas",{exact:true});
  assert.equal(await d.getByLabel("Operation selection method",{exact:true}).inputValue(),"points");
  for(const [x,y]of [[83000,53000],[72000,53000]])await point(x,y);
@@ -70,7 +71,7 @@ export async function advancedTerrainSafety({f,context,page:p,base}:{f:RegionalF
  assert.equal(sample.points[0].sourceId,seed.fine);assert.equal(sample.points[0].elevation,changed.grid[i]);await canvas.focus();await p.screenshot({path:f.out+"/regional-erosion-parent-world.png"});
  await push("Forced worker-unavailable fallback stays interactive; unfinished native polygon recovers after reload, saves in the Region, preserves exact outside samples and appears at identical coordinates in the canonical parent World");
 
- await p.goto(url+seed.browserMap);await canvas.waitFor();d=await open("Create Volcano");
+ await p.goto(url+seed.browserMap);if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);await canvas.waitFor();d=await open("Create Volcano");
  await input(d,"Volcano centre east (m)",45000);await input(d,"Volcano centre south (m)",28000);await input(d,"Volcano radius (m)",7000);await input(d,"Crater / caldera diameter (m)",3000);
  await input(d,"Height above existing land (m)",0);await d.getByRole("button",{name:"Prepare Preview",exact:true}).click();await d.getByRole("alert").filter({hasText:/Height|heightM|Too small/}).waitFor();assert.equal(await d.getByRole("button",{name:"Accept Numerical Change",exact:true}).isDisabled(),true);
  await input(d,"Height above existing land (m)",800);await prepare(d);const beforeLost=await document();let packet:string|undefined,done!:()=>void;const dropped=new Promise<void>(r=>{done=r;});
@@ -83,11 +84,18 @@ export async function advancedTerrainSafety({f,context,page:p,base}:{f:RegionalF
  await push("Invalid physical parameters cannot preview; accepted-but-lost numerical save retains the exact original request and retry creates one immutable revision");
 
  d=await open("Create Volcano");await input(d,"Volcano centre east (m)",47000);await input(d,"Volcano centre south (m)",28000);await d.getByLabel("Protect existing manual heights",{exact:true}).uncheck();await prepare(d);
- const other=await context.newPage();other.on("dialog",v=>v.accept());await other.goto(url+seed.browserMap);await other.getByLabel("Terrain map canvas",{exact:true}).waitFor();await terrainTool(other,"raise");
+ const collaboration=(await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok;
+ const other=await context.newPage();other.on("dialog",v=>v.accept());await other.goto(url+seed.browserMap);if(collaboration)await claimOwnedWorldPage(other,base);await other.getByLabel("Terrain map canvas",{exact:true}).waitFor();await terrainTool(other,"raise");
  const oc=other.getByLabel("Terrain map canvas",{exact:true}),b=(await oc.boundingBox())!;const response=other.waitForResponse(r=>r.request().method()==="POST"&&new URL(r.url()).pathname.endsWith("/terrain"));
  await other.mouse.move(b.x+b.width*.7,b.y+b.height*.5);await other.mouse.down();await other.mouse.move(b.x+b.width*.7+5,b.y+b.height*.5+3,{steps:3});await other.mouse.up();assert.equal((await response).status(),200);
  const concurrent=await document();await p.bringToFront();await p.evaluate(()=>dispatchEvent(new Event("focus")));await p.locator('[role="alert"]').filter({hasText:"Accepted numerical sources changed"}).waitFor({state:"attached"});
- await d.getByLabel("I reviewed the affected geography",{exact:true}).check();await d.getByRole("button",{name:"Accept Numerical Change",exact:true}).click();await d.getByRole("alert").filter({hasText:"active source changed"}).waitFor();assert.deepEqual(await document(),concurrent);
+ if(collaboration){
+  // A second tab must explicitly take control; the original proposal becomes read-only and remains exportable.
+  assert.equal(await d.getByRole("button",{name:"Accept Numerical Change",exact:true}).isDisabled(),true);
+ }else{
+  await d.getByLabel("I reviewed the affected geography",{exact:true}).check();await d.getByRole("button",{name:"Accept Numerical Change",exact:true}).click();await d.getByRole("alert").filter({hasText:"active source changed"}).waitFor();
+ }
+ assert.deepEqual(await document(),concurrent);
  const download=p.waitForEvent("download");await d.getByRole("button",{name:"Export Operation Settings",exact:true}).click();await(await download).saveAs(f.out+"/retained-conflict-settings.json");await d.getByRole("button",{name:"Keep settings & Close",exact:true}).click();await other.close();
  await push("A second native editor's sculpt is retained; the stale proposal stays recoverable/exportable and cannot overwrite the newer accepted terrain");
  await writeFile(f.out+"/advanced-safety.json",JSON.stringify({passed:true,groups,measurements,sharedDatabaseAccess:false},null,2));

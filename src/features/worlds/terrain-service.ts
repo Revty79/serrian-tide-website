@@ -1,3 +1,4 @@
+import { worldContentEditor } from "./world-access-service";
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
@@ -21,7 +22,7 @@ const conflict = () => new WorldError("Another tab saved a newer terrain revisio
 const hash = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
 const summary = (m: typeof worldAtlasMap.$inferSelect, t: typeof worldTerrain.$inferSelect): TerrainSummary => ({ id: m.id, name: m.name, revision: t.revision, seaLevel: t.seaLevel, updatedAt: t.updatedAt.toISOString(),mapRevision:m.revision });
 export async function getTerrain(userId: string, worldId: string, options: { review?: boolean; ordinary?: boolean; mapId?: string;knownTerrainId?:string;knownRevision?:number } = {}): Promise<{ maps: TerrainSummary[]; document: TerrainDocument | null; canEdit: boolean }> {
-  const parent = await worldReadAccess(userId, worldId, !!options.review);
+  const parent = await worldReadAccess(userId, worldId, !!options.review,"atlas");
   if (options.ordinary) throw unavailable();
   return db.transaction(async tx => {
     const rows = await tx.select({ m: worldAtlasMap, t: worldTerrain,c:worldMapCanvas }).from(worldMapCanvas)
@@ -32,7 +33,7 @@ export async function getTerrain(userId: string, worldId: string, options: { rev
     const parents=linked.length?await tx.select({id:worldAtlasMap.id,name:worldAtlasMap.name,archivedAt:worldAtlasMap.archivedAt}).from(worldAtlasMap).where(and(eq(worldAtlasMap.worldId,worldId),inArray(worldAtlasMap.id,[...new Set(linked.map(l=>l.parentMapId))]))):[];
     const footprints=linked.length&&await regionFootprintsAvailable(tx)?await tx.select().from(worldMapRegionFootprint).where(eq(worldMapRegionFootprint.worldId,worldId)):[],kinds=linked.length?(await tx.execute<{map_id:string;kind:string}>(sql`select map_id,coalesce(to_jsonb(r)->>'footprint_kind','rectangle') kind from world_map_region r where world_id=${worldId}`)).rows:[];
     const maps=rows.map(({m,t,c})=>{const link=linked.find(r=>r.mapId===m.id),source=link?parents.find(p=>p.id===link.parentMapId):undefined;let footprint,validFootprint=true;if(link&&kinds.find(k=>k.map_id===m.id)?.kind==="polygon"){try{footprint=regionFootprintSchema.parse(footprints.find(p=>p.mapId===m.id)?.footprint);validateRegionFootprint(footprint,{width:t.widthMetres,height:t.heightMetres,wrap:t.wrap},{x:link.x,y:link.y,width:link.width,height:link.height});}catch{validFootprint=false;}}return {...summary(m,t),purpose:c.purpose as "world"|"regional",...link?{parentMapId:link.parentMapId,parentName:source?.name??"Unavailable World map",frame:{x:link.x,y:link.y,width:link.width,height:link.height},...footprint?{footprint}:{},sourceAvailable:!!source&&!source.archivedAt&&validFootprint}:c.purpose==="regional"?{sourceAvailable:false}:{}};});
-    const canEdit = parent.ownerId === userId && !parent.archivedAt && !options.review;
+    const canEdit = worldContentEditor(parent,userId) && !parent.archivedAt && !options.review;
     const row = options.mapId ? rows.find(r => r.m.id === options.mapId) : undefined;
     if (options.mapId && !row) throw unavailable();
     let document: TerrainDocument | null = null;
@@ -110,5 +111,5 @@ export async function changeTerrain(userId: string, worldId: string, raw: unknow
     if (objects.length) await tx.insert(worldTerrainTile).values(objects.map(object => ({ terrainId: row.t.id, worldId, revision, ...object,manualProtection:masks.get(object.x+":"+object.y)! })));
     await tx.update(worldTerrain).set({ revision, seaLevel: command.seaLevel, updatedAt: new Date() }).where(eq(worldTerrain.id, row.t.id));
     return { id: command.mapId, revision };
-  });
+  },"atlas");
 }

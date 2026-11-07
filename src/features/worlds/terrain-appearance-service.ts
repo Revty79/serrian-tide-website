@@ -12,7 +12,7 @@ async function available(tx:Connection){return !!(await tx.execute<{present:bool
 export async function requireAppearanceMap(tx:Connection,worldId:string,mapId:string){await terrainMapContext(tx,worldId,mapId);}
 
 export async function getMapAppearance(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean}={}){
- await worldReadAccess(userId,worldId,options.review??false);
+ await worldReadAccess(userId,worldId,options.review??false,"atlas");
  if(options.ordinary)throw missing();
  return db.transaction(async tx=>{const context=await terrainMapContext(tx,worldId,mapId);if(!await available(tx))return {available:false,revision:0,spec:null};const [row]=await tx.select().from(worldMapAppearance).where(and(eq(worldMapAppearance.worldId,worldId),eq(worldMapAppearance.mapId,mapId)));const [inherited]=!row&&context.region?await tx.select().from(worldMapAppearance).where(and(eq(worldMapAppearance.worldId,worldId),eq(worldMapAppearance.mapId,context.sourceMapId))):[];return {available:true,revision:row?.revision??0,spec:row?mapAppearanceSchema.parse(row.spec):inherited?mapAppearanceSchema.parse(inherited.spec):null};},{accessMode:"read only",isolationLevel:"repeatable read"});
 }
@@ -28,5 +28,5 @@ export async function saveMapAppearance(userId:string,worldId:string,raw:unknown
   const [used]=await tx.select({id:worldMapAppearance.mapId}).from(worldMapAppearance).where(eq(worldMapAppearance.requestId,command.requestId));if(used)throw new WorldError("Use a fresh appearance request identity.",409);
   const values={revision:command.revision+1,spec:command.spec,requestId:command.requestId,updatedBy:userId,updatedAt:new Date()};
   await tx.insert(worldMapAppearance).values({mapId:command.mapId,worldId,...values}).onConflictDoUpdate({target:worldMapAppearance.mapId,set:values});return {revision:values.revision,spec:values.spec};
- });
+ },"atlas");
 }

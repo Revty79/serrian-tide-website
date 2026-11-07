@@ -1,4 +1,6 @@
+import { worldContentEditor,worldScopeAllowed } from "./world-access-service";
 import "server-only";
+import {authorizeTownBackdrop,townBackdropSamplePoints} from "./world-derived-reads";
 import {buildTownBackdrop} from "./town-backdrop";
 import {createTemplateImages} from "./map-template-images";
 import {createHash} from "node:crypto";
@@ -24,8 +26,8 @@ const stale=()=>new WorldError("This map changed in another tab. Your draft and 
 export async function townMapsAvailable(tx:Pick<typeof db,"execute">){return !!(await tx.execute<{ok:boolean}>(sql`select to_regclass('public.world_town_map') is not null and to_regclass('public.world_town_map_version') is not null ok`)).rows[0].ok;}
 async function activeTown(tx:Tx,worldId:string,townId:string){const [town]=await tx.select({g:worldGeography,p:worldSettlementProfile}).from(worldSettlementProfile).innerJoin(worldGeography,and(eq(worldGeography.id,worldSettlementProfile.geographyId),eq(worldGeography.worldId,worldSettlementProfile.worldId))).where(and(eq(worldSettlementProfile.worldId,worldId),eq(worldSettlementProfile.geographyId,townId)));if(!town)throw unavailable();return town;}
 export async function getTownMaps(userId:string,worldId:string,options:{historicalIdentities?:boolean;review?:boolean;ordinary?:boolean;mapId?:string;townId?:string;search?:string;offset?:number}={}):Promise<TownMapBundle>{
- const world=await worldReadAccess(userId,worldId,!!options.review);if(options.ordinary)throw unavailable();if(options.mapId)z.uuid().parse(options.mapId);if(options.townId)z.uuid().parse(options.townId);const offset=z.number().int().min(0).max(TOWN_MAP_LIMITS.maps).parse(options.offset??0);
- return db.transaction(async tx=>{const available=await townMapsAvailable(tx),canEdit=world.ownerId===userId&&!world.archivedAt&&!options.review;if(!available)return {available:false,maps:[],next:null,canEdit:false,document:null};
+ const world=await worldReadAccess(userId,worldId,!!options.review,"settlements");if(options.ordinary)throw unavailable();if(options.mapId)z.uuid().parse(options.mapId);if(options.townId)z.uuid().parse(options.townId);const offset=z.number().int().min(0).max(TOWN_MAP_LIMITS.maps).parse(options.offset??0);
+ return db.transaction(async tx=>{const available=await townMapsAvailable(tx),canEdit=worldContentEditor(world,userId)&&!world.archivedAt&&!options.review;if(!available)return {available:false,maps:[],next:null,canEdit:false,document:null};
   const rows=await tx.select({m:{id:maps.id,name:maps.name,townId:maps.townId,sourceMapId:maps.sourceMapId,contextMapId:maps.contextMapId,revision:maps.revision,archived:maps.archived},townName:worldGeography.name,townArchived:worldGeography.archivedAt}).from(maps).innerJoin(worldGeography,and(eq(worldGeography.id,maps.townId),eq(worldGeography.worldId,maps.worldId))).where(and(eq(maps.worldId,worldId),options.historicalIdentities&&!options.mapId?undefined:isNull(maps.nativeOriginVersionId),options.mapId?eq(maps.id,options.mapId):undefined,options.townId?eq(maps.townId,options.townId):undefined,options.search?ilike(maps.name,`%${options.search.slice(0,120).replaceAll("%","\\%").replaceAll("_","\\_")}%`):undefined)).orderBy(asc(maps.name),asc(maps.id)).limit(TOWN_MAP_LIMITS.page+1).offset(offset);
   const sources=await tx.select({id:worldAtlasMap.id,archived:worldAtlasMap.archivedAt}).from(worldAtlasMap).where(eq(worldAtlasMap.worldId,worldId));
   const summary=(r:typeof rows[number]):TownMapSummary=>({id:r.m.id,name:r.m.name,townId:r.m.townId,townName:r.townName,sourceMapId:r.m.sourceMapId,contextMapId:r.m.contextMapId,revision:r.m.revision,archived:r.m.archived,townArchived:!!r.townArchived,sourceAvailable:!!sources.find(s=>s.id===r.m.sourceMapId&&!s.archived)});
@@ -35,10 +37,12 @@ export async function getTownMaps(userId:string,worldId:string,options:{historic
 }
 
 export async function townBackdrop(userId:string,worldId:string,mapId:string,frame:TownFrame,options:{review?:boolean;ordinary?:boolean}={}):Promise<TownBackdrop>{
- await worldReadAccess(userId,worldId,!!options.review);if(options.ordinary)throw unavailable();z.uuid().parse(mapId);townFrameSchema.parse(frame);
- const water=await getTerrainHydrology(userId,worldId,mapId,options),sources=water.sources,world=sources.world;boundedRegionalLayer(()=>validateTownFrame(frame,world));const size=17,ps=Array.from({length:size*size},(_,i)=>townToWorld({x:i%size/(size-1)*frame.width,y:Math.floor(i/size)/(size-1)*frame.height},frame,world)),samples=[];
- for(let i=0;i<ps.length;i+=64)samples.push(...(await sampleWorldTerrain(userId,worldId,mapId,ps.slice(i,i+64),options)).points);
- const after=await getTerrainHydrology(userId,worldId,mapId,options);if(after.sources.fingerprint!==sources.fingerprint||after.revision!==water.revision)throw new WorldError("Source geography changed while sampling. Keep the draft and refresh its backdrop before previewing.",409);
+ await worldReadAccess(userId,worldId,!!options.review,"settlements");if(options.ordinary)throw unavailable();z.uuid().parse(mapId);townFrameSchema.parse(frame);
+ const bounded=!worldScopeAllowed(worldId,"atlas");if(bounded)await authorizeTownBackdrop(userId,worldId,mapId,frame,!!options.review);
+ const sourceOptions={...options,...bounded?{townBackdrop:frame}:{}};
+ const water=await getTerrainHydrology(userId,worldId,mapId,sourceOptions),sources=water.sources,world=sources.world;boundedRegionalLayer(()=>validateTownFrame(frame,world));const ps=townBackdropSamplePoints(frame,world),samples=[];
+ for(let i=0;i<ps.length;i+=64)samples.push(...(await sampleWorldTerrain(userId,worldId,mapId,ps.slice(i,i+64),sourceOptions)).points);
+ const after=await getTerrainHydrology(userId,worldId,mapId,sourceOptions);if(after.sources.fingerprint!==sources.fingerprint||after.revision!==water.revision)throw new WorldError("Source geography changed while sampling. Keep the draft and refresh its backdrop before previewing.",409);
  return buildTownBackdrop(frame,water,samples,hash({terrain:sources.fingerprint,water:water.revision}));
 }
 export const townPreviewSchema=z.object({sourceMapId:z.uuid(),frame:townFrameSchema,settings:townGenerationSchema,existing:townDesignSchema.optional()}).strict();
@@ -55,6 +59,7 @@ export async function changeTownMap(userId:string,worldId:string,raw:unknown){
   const [retry]=await tx.select().from(versions).where(eq(versions.requestId,c.requestId));if(retry){if(retry.worldId!==worldId||retry.authorId!==userId||retry.inputHash!==inputHash)throw stale();return {id:retry.mapId,revision:retry.revision};}
   let row:typeof maps.$inferSelect;
   if(c.action==="create"){
+   if(!worldScopeAllowed(worldId,"atlas"))throw new WorldError("Creating a new geographic Town Map requires Atlas permission. Existing Town Maps remain available.",403);
    const town=await activeTown(tx,worldId,c.townId);if(town.g.archivedAt)throw new WorldError("Restore this Town before creating its map.",409);const context=await terrainMapContext(tx,worldId,c.contextMapId);if(context.sourceMapId!==c.sourceMapId)throw unavailable();const t=context.terrain,w={width:t.widthMetres,height:t.heightMetres,wrap:t.wrap};boundedRegionalLayer(()=>validateTownFrame(c.frame,w));if(c.anchor.x>=w.width||c.anchor.y>w.height)throw new WorldError("Choose an anchor inside the source World.",400);
    const center=townToWorld({x:c.frame.width/2,y:c.frame.height/2},c.frame,w);if(Math.abs(waterDx(center.x,c.anchor.x,w))>.01||Math.abs(center.y-c.anchor.y)>.01)throw new WorldError("Center the Town Map on its selected anchor.",400);
    if(context.region&&!regionContainsPoint(context.region,c.anchor,{displayWidth:w.width,displayHeight:w.height,wrap:w.wrap}))throw new WorldError("Select a Town anchor inside the chosen regional view.",400);
@@ -68,5 +73,5 @@ export async function changeTownMap(userId:string,worldId:string,raw:unknown){
    row={...old,revision:old.revision+1,updatedAt:new Date(),...c.action==="save"?{name:c.name,design:c.design}:{archived:c.archived}};await tx.update(maps).set({name:row.name,design:row.design,revision:row.revision,archived:row.archived,updatedAt:row.updatedAt}).where(and(eq(maps.id,row.id),eq(maps.worldId,worldId)));
   }
   await tx.insert(versions).values({requestId:c.requestId,mapId:row.id,worldId,revision:row.revision,authorId:userId,inputHash,name:row.name,archived:row.archived,design:row.design});return {id:row.id,revision:row.revision};
- });
+ },"settlements");
 }

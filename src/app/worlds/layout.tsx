@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 
 import { AuthenticatedNavigation } from "@/app/authenticated-navigation";
-import { requireGodOrAdminAccessContext } from "@/lib/server-access";
+import { requireWorldsAccessContext } from "@/lib/server-access";
 
 export default async function WorldsLayout({ children }: { children: React.ReactNode }) {
-  const access = await requireGodOrAdminAccessContext().catch(() => redirect("/access"));
+  const access = await requireWorldsAccessContext().catch(() => redirect("/access"));
   return (
     <>
       <AuthenticatedNavigation

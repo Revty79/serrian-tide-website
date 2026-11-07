@@ -1,3 +1,6 @@
+import { worldRequestAuthority } from "./world-authorization-context";
+import { requireWorldNativeFamily } from "./world-resource-permissions";
+import { nativeWorldScope } from "./world-permissions";
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -19,6 +22,7 @@ export type NativeContentContext = {
 };
 export async function nativeContentContext(tx: NativeHistoryTx, userId: string, worldId: string, raw: NativeHistoryScope, permissions: { ownerId: string; archived: boolean; review: boolean; ordinary: boolean }): Promise<NativeContentContext> {
   const scope = nativeHistoryScopeSchema.parse(raw);
+  requireWorldNativeFamily(worldId,scope.target.kind);
   if (permissions.ordinary) throw nativeHistoryMissing();
   if (!await nativeHistoryAvailable(tx)) throw new WorldError("Migration 0158 is required for historical map content. Baseline maps and drafts remain intact.", 409);
   const timeline = await selectedTimeline(tx, worldId, scope.timelineId);
@@ -29,7 +33,7 @@ export async function nativeContentContext(tx: NativeHistoryTx, userId: string, 
   if (version.stateId !== selected.id) throw nativeHistoryMissing();
   const covered = !version.archived && version.startYear! <= scope.year && version.endYear! >= scope.year;
   if (!covered && !scope.versionId) throw new WorldError("This appearance does not establish active coverage for the selected year. Choose an explicit retained source or another year; baseline content was not substituted.", 409);
-  const canEdit = scope.edit && !scope.versionId && covered && permissions.ownerId === userId && !permissions.archived && !permissions.review && !timeline.archivedAt;
+  const canEdit = scope.edit && !scope.versionId && covered && (worldRequestAuthority()?.reads.get(worldId)?.permission.canEdit ?? permissions.ownerId === userId) && !permissions.archived && !permissions.review && !timeline.archivedAt;
   const context: NativeContentContext = { worldId, userId, scope, selected, version, manifest: nativeManifestOf(version), canEdit, components: new Map() };
   if(!context.manifest.resources.some(r=>r.key==="terrain-view")&&(scope.geographyStateId||scope.geographyVersionId))throw new WorldError("Only a dated Region selects separate parent World geography.",400);
   if (context.manifest.resources.some(r => r.key === "terrain-view")) {
@@ -74,7 +78,7 @@ export async function nativeRelatedContext(tx: NativeHistoryTx, context: NativeC
   context.related??=new Map();context.related.set(cacheKey,related);return related;
 }
 export async function withNativeHistoryRead<T>(userId: string, worldId: string, scope: NativeHistoryScope, options: { review?: boolean; ordinary?: boolean }, run: (tx: NativeHistoryTx, context: NativeContentContext) => Promise<T>) {
-  const access = await worldReadAccess(userId, worldId, !!options.review);
+  const access = await worldReadAccess(userId, worldId, !!options.review,["history","appearances",nativeWorldScope(scope.target.kind)]);
   if (options.ordinary) throw nativeHistoryMissing();
   return db.transaction(async tx => run(tx, await nativeContentContext(tx, userId, worldId, scope, { ownerId: access.ownerId, archived: !!access.archivedAt, review: !!options.review, ordinary: !!options.ordinary })), { isolationLevel: "repeatable read", accessMode: "read only" });
 }

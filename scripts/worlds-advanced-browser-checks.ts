@@ -1,3 +1,4 @@
+import {claimOwnedWorldPage} from "./worlds-owned-world-api";
 /** Actual native creator controls author every operation; API calls below only read evidence. */
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
@@ -59,7 +60,7 @@ export async function advancedTerrainBrowser({f,browser,context,page:p,base}:{f:
     await d.getByRole("button",{name:"Accept Numerical Change",exact:true}).click();await d.waitFor({state:"hidden"});
     const end=Date.now()+30000;for(;;){const saved=await terrainDocument();if(saved.revision>before)return saved;assert.ok(Date.now()<end,"Accepted numerical operation saved");await p.waitForTimeout(100);}
   };
-  await p.goto(url);await canvas.waitFor();await settle();const initial=await terrainDocument();
+  await p.goto(url);if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);await canvas.waitFor();await settle();const initial=await terrainDocument();
   await terrainPanel(p,"Water");const water=p.getByRole("region",{name:"Water authoring",exact:true});
   await water.getByRole("button",{name:"Start a river",exact:true}).click();
   await p.getByRole("button",{name:"Cancel water calculation",exact:true}).waitFor({state:"hidden",timeout:120000});
@@ -130,7 +131,7 @@ export async function advancedTerrainBrowser({f,browser,context,page:p,base}:{f:
   const [sculptSaved]=await Promise.all([p.waitForResponse(r=>r.request().method()==="POST"&&r.url().includes("/terrain")&&!r.url().includes("/hydrology")),p.mouse.move(flank.x,flank.y).then(()=>p.mouse.down()).then(()=>p.mouse.move(flank.x+4,flank.y+2,{steps:4})).then(()=>p.mouse.up())]);
   assert.equal(sculptSaved.status(),200,await sculptSaved.text());await settle();
   const sculpted=await terrainDocument();assert.ok(sculpted.revision>volcanic.revision);assert.notEqual(digest(grid(sculpted)),digest(volcanicGrid));
-  await p.reload();await canvas.waitFor();await push("Conical numerical volcano, revised crater, realistic/illustrated inspection, acceptance and later ordinary manual sculpting survive reopen");
+  await p.reload();if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);await canvas.waitFor();await push("Conical numerical volcano, revised crater, realistic/illustrated inspection, acceptance and later ordinary manual sculpting survive reopen");
 
   d=await open("eruption");await d.getByLabel("Eruption effect",{exact:true}).selectOption("ash");
   await input(d,"Maximum effect extent (m)",6000);const beforeAsh=await terrainDocument();
@@ -162,7 +163,7 @@ export async function advancedTerrainBrowser({f,browser,context,page:p,base}:{f:
 
   // Unaccepted settings survive actual navigation/reload. No proposal is silently applied.
   d=await open("volcano");await input(d,"Volcano radius (m)",6700);await input(d,"Height above existing land (m)",777);
-  const beforeRecovery=await terrainDocument();await p.reload();await canvas.waitFor();d=await open("volcano");
+  const beforeRecovery=await terrainDocument();await p.reload();if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);await canvas.waitFor();d=await open("volcano");
   await d.getByRole("button",{name:"Recover Operation Settings",exact:true}).click();
   assert.equal(await d.getByLabel("Height above existing land (m)",{exact:true}).inputValue(),"777");assert.deepEqual(await terrainDocument(),beforeRecovery);
   await d.getByRole("button",{name:"Keep settings & Close",exact:true}).click();
@@ -171,7 +172,7 @@ export async function advancedTerrainBrowser({f,browser,context,page:p,base}:{f:
   // Tablet and native phone operate the same workshop and retain the normal map canvas gate.
   for(const width of [820,390]){
     const c=await browser.newContext({viewport:{width,height:width===390?844:1000},isMobile:width===390,hasTouch:width===390,deviceScaleFactor:width===390?2:1,storageState:await context.storageState()}),page=await c.newPage();
-    page.on("dialog",dialog=>dialog.accept());await page.goto(url);await page.getByLabel("Terrain map canvas",{exact:true}).waitFor();
+    page.on("dialog",dialog=>dialog.accept());await page.goto(url);if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(page,base);await page.getByLabel("Terrain map canvas",{exact:true}).waitFor();
     await terrainTool(page,"raise");const tools=page.getByRole("complementary",{name:"Tool panel",exact:true}),summary=tools.getByText("Landforms & areas",{exact:true});
     if(!await summary.isVisible())await page.getByRole("button",{name:"Tools",exact:true}).click();
     if(!await summary.evaluate(e=>(e.parentElement as HTMLDetailsElement).open))await summary.click();
@@ -188,7 +189,10 @@ export async function advancedTerrainBrowser({f,browser,context,page:p,base}:{f:
     await modal.screenshot({path:f.out+"/advanced-native-layout-"+width+".png"});assert.ok(box.height>=400,JSON.stringify({width,box}));assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
     await modal.screenshot({path:f.out+"/advanced-native-layout-"+width+".png"});layouts.push({width,canvas:box,nativeTouch:width===390});
     if(width===390){const q=(await drawing.boundingBox())!;await page.touchscreen.tap(q.x+q.width*.6,q.y+q.height*.45);await modal.getByRole("button",{name:"Reject Preview",exact:true}).tap();}else await modal.getByRole("button",{name:"Reject Preview",exact:true}).click();
-    assert.deepEqual(await terrainDocument(),beforeRecovery);await c.close();
+    await c.close();
+    // Device editing deliberately fences the original tab; reacquire before comparing its full editable response.
+    if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);
+    assert.deepEqual(await terrainDocument(),beforeRecovery);
   }
   await push("Desktop/tablet/native phone use the shared collapsible workshop and retain the unchanged 400px drawing gate without page overflow");
   await writeFile(f.out+"/advanced-browser.json",JSON.stringify({passed:true,headed:true,groups,layouts,timings,numericalSaveCount:numericalPosts.length,sharedDatabaseAccess:false,ownerAcceptance:false,physicalDevice:false},null,2));

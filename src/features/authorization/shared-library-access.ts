@@ -30,6 +30,7 @@ export function canEditSharedLibraryRoot(
   actor: SharedLibraryActor,
   root: SharedLibraryRootOwnership,
 ): boolean {
+  if (root.isSystemCanon) return false;
   if (!canReadSharedLibraryRoot(actor, root)) return false;
 
   if (!isUserCreatedSharedLibraryRoot(root)) {
@@ -48,6 +49,7 @@ export function assertCanEditSharedLibraryRoot(
   root: SharedLibraryRootOwnership,
   label: string,
 ): void {
+  if (root.isSystemCanon) throw new Error(`Canon ${label} records are read-only. Create your own variation, or ask an Administrator to remove canon status before authoring the original.`);
   if (!canAccessSharedLibrary(actor)) {
     throw new Error("G.O.D. or administrator access is required.");
   }
@@ -68,4 +70,10 @@ export function assertCanEditSharedLibraryRoot(
   if (!canEditSharedLibraryRoot(actor, root)) {
     throw new Error(`Only the ${label} creator or an administrator can edit it.`);
   }
+}
+
+/** Copying an authorized pattern does not authorize changing its original. */
+export function assertCanUseSharedLibraryPattern(actor: SharedLibraryActor, root: SharedLibraryRootOwnership, label: string): void {
+  if (root.isSystemCanon && actor.roles.some(role=>["player","god","admin"].includes(role))) return;
+  assertCanEditSharedLibraryRoot(actor, root, label);
 }

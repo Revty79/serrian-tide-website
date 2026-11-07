@@ -1,4 +1,5 @@
 import "server-only";
+import {worldProtectedContent} from "./world-access-service";
 import {createHash,randomUUID} from "node:crypto";
 import {and,eq} from "drizzle-orm";
 import {worldAtlasMap,worldGeography} from "@/db/world-atlas-schema";
@@ -16,6 +17,7 @@ const conflict=()=>new WorldError("A newer geographic source or association exis
 export async function authorGeography(userId:string,worldId:string,input:unknown):Promise<{surfaceId:string;reused:boolean}|{featureId:string;versionId:string;revision:number;reused:boolean}>{
  const body=geographicAuthoringCommand.parse(input);
  return worldWriteTransaction(userId,worldId,async tx=>{
+  if("protected"in body&&body.protected&&!worldProtectedContent(worldId))throw new WorldError("Protected geographic sources require the owner's explicit permission.",403);
   const timeline=await selectedTimeline(tx,worldId,body.timelineId);if(timeline.archivedAt)throw new WorldError("Restore the selected timeline before authoring shared geography.",400);
   const [map]=await tx.select().from(worldAtlasMap).where(and(eq(worldAtlasMap.id,body.mapId),eq(worldAtlasMap.worldId,worldId)));
   if(!map||map.archivedAt||map.mapKind!=="generic")throw new WorldError("Choose an active generic Atlas map for shared geographic authoring.",404);
@@ -58,5 +60,5 @@ export async function authorGeography(userId:string,worldId:string,input:unknown
   const id=randomUUID(),revision=current.h.revision+1,row={...current.v,id,previousId:current.v.id,authorId:userId,requestId:body.requestId,revision,geometry,note:body.note,createdAt:new Date()};
   await tx.insert(version).values(row);await saveGeographicParts(tx,row,layer.surface.reference,current.d.provenance.display);await tx.update(head).set({versionId:id,revision}).where(and(eq(head.featureId,current.f.id),eq(head.worldId,worldId)));
   return {featureId:current.f.id,versionId:id,revision,reused:false};
- });
+ },"atlas");
 }

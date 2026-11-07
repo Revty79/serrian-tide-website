@@ -1,3 +1,6 @@
+import { preservePrivateCreatorNotes } from "./world-content-projection";
+import { worldProtectedContent,worldScopeAllowed,lockWorldForWrite } from "./world-access-service";
+import { worldContentEditor } from "./world-access-service";
 import "server-only";
 import {createHash,randomUUID} from "node:crypto";
 import {and,asc,eq,sql} from "drizzle-orm";
@@ -26,7 +29,7 @@ async function townRecord(tx:Tx,worldId:string,id:string):Promise<TownRecord>{
 }
 async function mapFrame(tx:Tx,worldId:string,mapId:string){const [r]=await tx.select({t:worldTerrain,m:worldAtlasMap}).from(worldMapCanvas).innerJoin(worldTerrain,eq(worldTerrain.id,worldMapCanvas.terrainId)).innerJoin(worldAtlasMap,eq(worldAtlasMap.id,worldMapCanvas.mapId)).where(and(eq(worldMapCanvas.worldId,worldId),eq(worldMapCanvas.mapId,mapId)));if(!r||r.m.archivedAt)throw missing();return r.t;}
 export async function getWorldTowns(userId:string,worldId:string,options:{review?:boolean;ordinary?:boolean;townId?:string;mapId?:string}={}):Promise<TownBundle>{
-  const parent=await worldReadAccess(userId,worldId,!!options.review);if(options.ordinary)throw missing();
+  const parent=await worldReadAccess(userId,worldId,!!options.review,"settlements");if(options.ordinary)throw missing();
   // Reuse normal Worlds initialization so a sparse new World also works by API.
   await getWorld(userId,worldId,!!options.review);
   return db.transaction(async tx=>{
@@ -35,10 +38,12 @@ export async function getWorldTowns(userId:string,worldId:string,options:{review
     const towns=await tx.select({id:worldGeography.id,name:worldGeography.name,description:worldGeography.description,locationNotes:worldSettlementProfile.locationNotes,category:worldSettlementProfile.category,revision:worldSettlementProfile.revision,geographyRevision:worldGeography.revision,archived:sql<boolean>`${worldGeography.archivedAt} IS NOT NULL`}).from(worldSettlementProfile).innerJoin(worldGeography,eq(worldGeography.id,worldSettlementProfile.geographyId)).where(eq(worldSettlementProfile.worldId,worldId)).orderBy(asc(worldGeography.name),asc(worldGeography.id));
     const placements=await tx.select({id:worldMapPlace.id,mapId:worldMapPlace.mapId,townId:worldMapPlace.geographyId,name:worldGeography.name,category:worldSettlementProfile.category,revision:worldMapPlace.revision,x:worldMapPlace.x,y:worldMapPlace.y,removed:sql<boolean>`${worldMapPlace.removedAt} IS NOT NULL`,archived:sql<boolean>`${worldGeography.archivedAt} IS NOT NULL`,mapName:worldAtlasMap.name}).from(worldMapPlace).innerJoin(worldGeography,eq(worldGeography.id,worldMapPlace.geographyId)).innerJoin(worldSettlementProfile,eq(worldSettlementProfile.geographyId,worldMapPlace.geographyId)).innerJoin(worldAtlasMap,eq(worldAtlasMap.id,worldMapPlace.mapId)).where(and(eq(worldMapPlace.worldId,worldId),sourceMapId?eq(worldMapPlace.mapId,sourceMapId):undefined)).orderBy(asc(worldMapPlace.id));
     const inside=(placement:{x:number;y:number})=>!context?.region||regionContainsPoint(context.region,placement,{displayWidth:context.terrain.widthMetres,displayHeight:context.terrain.heightMetres,wrap:context.terrain.wrap});
-    return {...context?.regional?{regional:context.regional}:{},...context?.region?{unavailableTownIds:placements.filter(placement=>!placement.removed&&!inside(placement)).map(placement=>placement.townId)}:{},towns,town:options.townId?await townRecord(tx,worldId,options.townId):null,placements:context?.region?placements.filter(placement=>placement.removed||inside(placement)):placements,references:await references(tx,worldId),canEdit:(!context?.region||!!context.regional)&&parent.ownerId===userId&&!parent.archivedAt&&!options.review};
+    return {...context?.regional?{regional:context.regional}:{},...context?.region?{unavailableTownIds:placements.filter(placement=>!placement.removed&&!inside(placement)).map(placement=>placement.townId)}:{},towns,town:options.townId?await townRecord(tx,worldId,options.townId):null,placements:context?.region?placements.filter(placement=>placement.removed||inside(placement)):placements,references:await references(tx,worldId),canEdit:(!context?.region||!!context.regional)&&worldContentEditor(parent,userId)&&!parent.archivedAt&&!options.review};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function saveTownInTransaction(tx:Tx,worldId:string,id:string,draft:TownDraft,current:TownRecord|null){
+  if(!worldProtectedContent(worldId)){try{draft=preservePrivateCreatorNotes(draft,current?.draft);}catch(error){throw new WorldError((error as Error).message,403);}}
+  if(!worldScopeAllowed(worldId,"peoples")&&draft.cultureId!==(current?.draft.cultureId??null)||!worldScopeAllowed(worldId,"politics")&&draft.governmentId!==(current?.draft.governmentId??null)||!worldScopeAllowed(worldId,"history")&&JSON.stringify([...draft.historyIds].sort())!==JSON.stringify([...(current?.draft.historyIds??[])].sort()))throw new WorldError("Changing these linked records requires their World sections. Existing links and your draft are retained.",403);
   const refs=await references(tx,worldId),allowed=(id:string|null,choices:{id:string;archived:boolean}[],retained:string|null)=>!id||id===retained||choices.some(c=>c.id===id&&!c.archived);
   if(!allowed(draft.cultureId,refs.cultures,current?.draft.cultureId??null)||!allowed(draft.governmentId,refs.governments,current?.draft.governmentId??null)||draft.historyIds.some(id=>!allowed(id,refs.history,current?.draft.historyIds.includes(id)?id:null)))throw new WorldError("Choose active culture, government and historical records from this World, or keep an existing association.",400);
   if(!current){const [collision]=await tx.select({id:worldGeography.id}).from(worldGeography).where(eq(worldGeography.id,id));if(collision)throw conflict();const [{count}]= (await tx.execute<{count:number}>(sql`select count(*)::int count from world_settlement_profile where world_id=${worldId}`)).rows;if(count>=2000)throw new WorldError("This World has reached the supported 2,000 retained settlements.",400);
@@ -51,6 +56,7 @@ export async function changeWorldTown(userId:string,worldId:string,input:unknown
   const c=townCommandSchema.parse(input),inputHash=createHash("sha256").update(JSON.stringify(c)).digest("hex");
   await getWorld(userId,worldId);
   return worldWriteTransaction(userId,worldId,async tx=>{
+    if("mapId"in c)await lockWorldForWrite(tx,userId,worldId,"atlas");
     const context="mapId" in c?await regionalAuthoringContext(tx,worldId,c.mapId):undefined;
     const [retry]=await tx.select().from(worldPlaceOperation).where(eq(worldPlaceOperation.requestId,c.requestId));if(retry){if(retry.worldId!==worldId||retry.authorId!==userId||retry.inputHash!==inputHash)throw conflict();return retry.result;}
     let result:TownResult,appearance:Record<string,unknown>|null=null,mapId:string|null=null,town:TownRecord;
@@ -72,5 +78,5 @@ export async function changeWorldTown(userId:string,worldId:string,input:unknown
         appearance={id,worldId,mapId,geographyId:town.id,...point,revision,removedAt:null,updatedAt:new Date()};if(old)await tx.update(worldMapPlace).set({x:point.x,y:point.y,revision,removedAt:null,updatedAt:new Date()}).where(eq(worldMapPlace.id,id));else await tx.insert(worldMapPlace).values({id,worldId,mapId,geographyId:town.id,...point,revision});result={townId:town.id,placementId:id,placementRevision:revision};}
     }
     await tx.insert(worldPlaceOperation).values({requestId:c.requestId,worldId,geographyId:town.id,mapId,authorId:userId,kind:c.action,inputHash,result,snapshot:{version:1,town,appearance}});return result;
-  });
+  },"settlements");
 }

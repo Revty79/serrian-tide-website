@@ -16,7 +16,7 @@ async function available(tx:Connection){return !!(await tx.execute<{present:bool
 function localPresentation(shared:LabelsLayer,local:LabelsLayer){return {...shared,visible:local.visible,suggestions:local.suggestions,composition:local.composition};}
 
 export async function getTerrainLabels(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean;revision?:number;suggestions?:boolean}={}){
- await worldReadAccess(userId,worldId,options.review??false);
+ await worldReadAccess(userId,worldId,options.review??false,"atlas");
  if(options.ordinary)throw new WorldError("This labels map is unavailable.",404);
  return db.transaction(async tx=>{
   const context=await regionalAuthoringContext(tx,worldId,mapId);mapId=context.sourceMapId;
@@ -84,5 +84,5 @@ export async function saveTerrainLabels(userId:string,worldId:string,raw:unknown
   }
   await finishRegionalEdit(tx,userId,worldId,"labels",command,access,{revision,geographyChanged,...regional?{compositionRevision:localRevision,compositionChanged}:{}});
   return {revision,layer:regional?localPresentation(layer,command.layer):layer,...command.regional?{regional:{...command.regional,compositionRevision:localRevision}}:{}};
- });
+ },"atlas");
 }

@@ -1,3 +1,4 @@
+import { worldContentEditor,worldOrdinaryContent,worldScopeAllowed } from "./world-access-service";
 import "server-only";
 import { createHash,randomUUID } from "node:crypto";
 import { and,asc,desc,eq,sql } from "drizzle-orm";
@@ -14,7 +15,8 @@ import { sourceBoundaryParts } from "./geographic-boundaries";
 import { WorldError,worldReadAccess,worldWriteTransaction } from "./world-service";
 
 type Tx=Parameters<Parameters<typeof db.transaction>[0]>[0];
-type Options={review?:boolean;ordinary?:boolean};
+type Options={review?:boolean;ordinary?:boolean;preview?:boolean};
+function sharedOptions(worldId:string,options:Options):Options{return {...options,preview:options.preview??!!options.ordinary,ordinary:worldOrdinaryContent(worldId,!!options.ordinary)};}
 const unavailable=()=>new WorldError("This geographic source is unavailable in this viewing context.",404);
 const conflict=()=>new WorldError("A newer geographic source was saved. Your draft is retained. Read the latest source before choosing a revision.",409);
 export function canonicalSource(value:unknown):string {if(Array.isArray(value))return `[${value.map(canonicalSource).join(',')}]`;if(value&&typeof value==="object")return `{${Object.entries(value).sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,v])=>`${JSON.stringify(k)}:${canonicalSource(v)}`).join(',')}}`;return JSON.stringify(value);}
@@ -23,25 +25,27 @@ function sourceFileIdentity(provenance:StoredGeographicProvenance){return canoni
 const dto=(row:typeof surface.$inferSelect):Surface=>({id:row.id,name:row.name,reference:row.reference,realmId:row.realmId,protected:row.protected});
 function checked<T>(run:()=>T){try{return run();}catch(error){if(error instanceof WorldError)throw error;throw new WorldError((error as Error).message,400);}}
 export async function layerAccess(tx:Tx,worldId:string,mapId:string,timelineId:string,options:Options,userId:string):Promise<GeographicLayer>{
-  const [row]=await tx.select({map:worldAtlasMap,surface}).from(view).innerJoin(surface,and(eq(surface.id,view.surfaceId),eq(surface.worldId,view.worldId))).innerJoin(worldAtlasMap,and(eq(worldAtlasMap.id,view.mapId),eq(worldAtlasMap.worldId,view.worldId))).where(and(eq(view.mapId,mapId),eq(view.worldId,worldId)));if(!row||row.map.archivedAt||options.ordinary&&(row.surface.protected||row.surface.realmId))throw unavailable();
+  options=sharedOptions(worldId,options);
+  const [row]=await tx.select({map:worldAtlasMap,surface}).from(view).innerJoin(surface,and(eq(surface.id,view.surfaceId),eq(surface.worldId,view.worldId))).innerJoin(worldAtlasMap,and(eq(worldAtlasMap.id,view.mapId),eq(worldAtlasMap.worldId,view.worldId))).where(and(eq(view.mapId,mapId),eq(view.worldId,worldId)));if(!row||row.map.archivedAt||options.ordinary&&row.surface.protected||row.surface.realmId&&(options.preview||!worldScopeAllowed(worldId,"cosmology")))throw unavailable();
   if(options.ordinary&&row.map.geographyId){const hidden=(await tx.execute(sql`select id from (${geographicPrivatePlaces(worldId)}) private_place(id) where id=${row.map.geographyId}`)).rows;if(hidden.length)throw unavailable();}
   if(row.surface.realmId){const {getPeople}=await import("./peoples-service");if((await getPeople(userId,worldId,timelineId,row.surface.realmId,!!options.review,false)).family!=="realm")throw unavailable();}
   return {mapId:row.map.id,mapName:row.map.name,surface:dto(row.surface)};
 }
 export async function geographicCatalog(userId:string,worldId:string,timelineId:string,options:Options={},offset=0):Promise<GeographicCatalog>{
-  const parent=await worldReadAccess(userId,worldId,!!options.review);if(!Number.isInteger(offset)||offset<0||offset>10000)throw new WorldError("Choose a valid source page.",400);
+  const parent=await worldReadAccess(userId,worldId,!!options.review,"atlas");options=sharedOptions(worldId,options);if(!Number.isInteger(offset)||offset<0||offset>10000)throw new WorldError("Choose a valid source page.",400);
   return db.transaction(async tx=>{await selectedTimeline(tx,worldId,timelineId);
-    const rows=await tx.select({map:worldAtlasMap,surface}).from(view).innerJoin(worldAtlasMap,and(eq(view.mapId,worldAtlasMap.id),eq(view.worldId,worldAtlasMap.worldId))).innerJoin(surface,and(eq(surface.id,view.surfaceId),eq(surface.worldId,view.worldId))).where(and(eq(view.worldId,worldId),sql`${worldAtlasMap.archivedAt} is null`,options.ordinary?sql`not ${surface.protected} and ${surface.realmId} is null and (${worldAtlasMap.geographyId} is null or ${worldAtlasMap.geographyId} not in (${geographicPrivatePlaces(worldId)})) and ${view.mapId} not in (${geographicPrivateMaps(worldId)})`:undefined)).orderBy(asc(view.mapId)).limit(21).offset(offset);
-    const surfaces=await tx.select().from(surface).where(and(eq(surface.worldId,worldId),options.ordinary?sql`not ${surface.protected} and ${surface.realmId} is null`:undefined)).orderBy(asc(surface.createdAt),asc(surface.id)).limit(100);
+    const rows=await tx.select({map:worldAtlasMap,surface}).from(view).innerJoin(worldAtlasMap,and(eq(view.mapId,worldAtlasMap.id),eq(view.worldId,worldAtlasMap.worldId))).innerJoin(surface,and(eq(surface.id,view.surfaceId),eq(surface.worldId,view.worldId))).where(and(eq(view.worldId,worldId),sql`${worldAtlasMap.archivedAt} is null`,options.ordinary?sql`not ${surface.protected} and (${options.preview||!worldScopeAllowed(worldId,"cosmology")} is false or ${surface.realmId} is null) and (${worldAtlasMap.geographyId} is null or ${worldAtlasMap.geographyId} not in (${geographicPrivatePlaces(worldId)})) and ${view.mapId} not in (${geographicPrivateMaps(worldId)})`:undefined)).orderBy(asc(view.mapId)).limit(21).offset(offset);
+    const surfaces=await tx.select().from(surface).where(and(eq(surface.worldId,worldId),options.ordinary?sql`not ${surface.protected} and (${options.preview||!worldScopeAllowed(worldId,"cosmology")} is false or ${surface.realmId} is null)`:undefined)).orderBy(asc(surface.createdAt),asc(surface.id)).limit(100);
     const maps=await tx.select({id:worldAtlasMap.id,name:worldAtlasMap.name}).from(worldAtlasMap).where(and(eq(worldAtlasMap.worldId,worldId),eq(worldAtlasMap.mapKind,"generic"),sql`${worldAtlasMap.archivedAt} is null`,options.ordinary?sql`false`:undefined)).orderBy(desc(worldAtlasMap.createdAt)).limit(100);
-    const {listPeoples}=await import("./peoples-service"),realms=options.ordinary?[]:(await listPeoples(userId,worldId,timelineId,!!options.review,false,"",0,"realm")).records.filter(r=>!r.archived).map(r=>({id:r.id,name:r.name}));
+    const {listPeoples}=await import("./peoples-service"),realms=options.preview||!worldScopeAllowed(worldId,"cosmology")?[]:(await listPeoples(userId,worldId,timelineId,!!options.review,false,"",0,"realm")).records.filter(r=>!r.archived).map(r=>({id:r.id,name:r.name}));
     const allowedSurfaces:typeof surfaces=[];for(const s of surfaces){if(s.realmId){try{const {getPeople}=await import("./peoples-service");if((await getPeople(userId,worldId,timelineId,s.realmId,!!options.review,false)).family!=="realm")continue;}catch(error){if(error instanceof WorldError&&error.status===404)continue;throw error;}}allowedSurfaces.push(s);}
     const layers:GeographicLayer[]=[];for(const row of rows.slice(0,20)){try{layers.push(await layerAccess(tx,worldId,row.map.id,timelineId,options,userId));}catch(error){if(!(error instanceof WorldError&&error.status===404))throw error;}}
-    return {canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.review&&!options.ordinary,layers,surfaces:allowedSurfaces.map(dto),maps,realms,nextOffset:rows.length>20?offset+20:null};
+    return {canEdit:worldContentEditor(parent,userId)&&!parent.archivedAt&&!options.review&&!options.preview,layers,surfaces:allowedSurfaces.map(dto),maps,realms,nextOffset:rows.length>20?offset+20:null};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 // Metadata-only eligibility: no source geometry, parts, projection or display simplification.
 function eligibleSources(worldId:string,surfaceId:string,lod:string,options:Options,kinds?:string[],selectedThemes?:string[]){
+  options=sharedOptions(worldId,options);
  const themeSql=sql`coalesce(gd.provenance->'display'->>'theme',case gf.semantic when 'administrative-boundary' then 'administrative' when 'physical-geography' then 'land' else 'authored' end)`,band=sql`(not (gd.provenance ? 'display') or (gd.provenance->'display'->'lods') ? ${lod})`;
  return sql`      select gf.id,gf.world_id,gf.geography_id,g.name,gf.semantic,gv.id version_id,gh.revision,gd.provenance->'display'->>'style' style,${themeSql} theme,coalesce((gd.provenance->'display'->>'labels')::boolean,false) labels,coalesce((gd.provenance->'display'->>'labelRank')::int,100) label_rank,coalesce((gd.provenance->'display'->>'priority')::int,0) priority,jsonb_build_object('label',coalesce(gd.provenance->>'attribution','Creator-authored geography: '||(gd.provenance->>'title')),'license',coalesce(gd.provenance->>'license','No external license asserted'),'url',coalesce(gd.provenance->>'licenseUrl','')) credit
       from world_geo_feature gf join world_geo_head gh on gh.feature_id=gf.id and gh.world_id=gf.world_id join world_geo_version gv on gv.id=gh.version_id join world_geo_dataset gd on gd.id=gv.dataset_id and gd.world_id=gv.world_id join world_geography g on g.id=gf.geography_id and g.world_id=gf.world_id
@@ -55,21 +59,21 @@ async function previewContext(tx:Tx,eligible:ReturnType<typeof eligibleSources>)
  return row.context;
 }
 export async function geographicPreviewStatus(userId:string,worldId:string,timelineId:string,mapId:string,options:Options={}):Promise<import("./thumbnail-refresh").GeographicPreviewStatus>{
- geoId.parse(mapId);const parent=await worldReadAccess(userId,worldId,!!options.review);
+ geoId.parse(mapId);const parent=await worldReadAccess(userId,worldId,!!options.review,"atlas");options=sharedOptions(worldId,options);
  return db.transaction(async tx=>{await selectedTimeline(tx,worldId,timelineId);const layer=await layerAccess(tx,worldId,mapId,timelineId,options,userId);
-  return {layer,previewReader:userId,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.ordinary&&!options.review,context:await previewContext(tx,eligibleSources(worldId,layer.surface.id,"overview",options,undefined,["land","authored"]))};
+  return {layer,previewReader:userId,canEdit:worldContentEditor(parent,userId)&&!parent.archivedAt&&!options.preview&&!options.review,context:await previewContext(tx,eligibleSources(worldId,layer.surface.id,"overview",options,undefined,["land","authored"]))};
  },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function geographicViewportStatus(userId:string,worldId:string,timelineId:string,mapId:string,lod:"overview"|"regional"|"detail"="overview",options:Options={},semantics?:string[],themes?:string[]):Promise<import("./geographic").GeographicViewportStatus>{
- geoId.parse(mapId);const parent=await worldReadAccess(userId,worldId,!!options.review);
+ geoId.parse(mapId);const parent=await worldReadAccess(userId,worldId,!!options.review,"atlas");options=sharedOptions(worldId,options);
  if(!["overview","regional","detail"].includes(lod))throw new WorldError("Choose a supported detail level.",400);
  const kinds=semantics===undefined?undefined:checked(()=>semantics.map(kind=>geographicSemanticSchema.parse(kind))),selectedThemes=themes===undefined?undefined:checked(()=>themes.map(theme=>geographicThemeSchema.parse(theme)));
  return db.transaction(async tx=>{await selectedTimeline(tx,worldId,timelineId);const layer=await layerAccess(tx,worldId,mapId,timelineId,options,userId);
-  return {layer,readerId:userId,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.ordinary&&!options.review,context:await previewContext(tx,eligibleSources(worldId,layer.surface.id,lod,options,kinds,selectedThemes))};
+  return {layer,readerId:userId,canEdit:worldContentEditor(parent,userId)&&!parent.archivedAt&&!options.preview&&!options.review,context:await previewContext(tx,eligibleSources(worldId,layer.surface.id,lod,options,kinds,selectedThemes))};
  },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function geographicViewport(userId:string,worldId:string,timelineId:string,mapId:string,bounds?:GeographicBounds,projection?:ProjectionKind,lod:"overview"|"regional"|"detail"="overview",options:Options={},cursor="",semantics?:string[],themes?:string[],preview=false):Promise<GeographicViewport>{
-  geoId.parse(mapId);const parent=await worldReadAccess(userId,worldId,!!options.review);
+  geoId.parse(mapId);const parent=await worldReadAccess(userId,worldId,!!options.review,"atlas");options=sharedOptions(worldId,options);
   return db.transaction(async tx=>{await selectedTimeline(tx,worldId,timelineId);const layer=await layerAccess(tx,worldId,mapId,timelineId,options,userId),extent=bounds??surfaceBounds(layer.surface.reference),kind=projection??(layer.surface.reference.kind==="plane"?"planar":"equirectangular");checked(()=>validateViewport(extent,layer.surface.reference));
     if(!["overview","regional","detail"].includes(lod))throw new WorldError("Choose a supported detail level.",400);
     const kinds=semantics===undefined?undefined:checked(()=>semantics.map(kind=>geographicSemanticSchema.parse(kind)));
@@ -94,11 +98,11 @@ export async function geographicViewport(userId:string,worldId:string,timelineId
     order by gf.id,gp.part,gp.algorithm_version desc,gp.box ${preview?sql`) display order by (east-west)*(north-south) desc,id,part limit 97`:sql`limit 65`}`)).rows;
     const shapes:GeographicViewport["shapes"]=[];const credits=new Map<string,GeographicViewport["attributions"][number]>();let bytes=0,last="",more=rows.length>64;
     for(const row of rows.slice(0,preview?96:64)){const display=checked(()=>boundedSourceDisplay(row.geometry,layer.surface.reference,extent,kind,row.style==="city"?2.4:row.style==="peak"?3:4,preview?8000:undefined,preview?2.8:undefined)),path=display.path;if(bytes+path.length>(preview?64_000:500_000)&&shapes.length){more=true;break;}bytes+=path.length;credits.set(JSON.stringify(row.credit),row.credit);last=`${row.id}:${row.part}`;const style=geographicDisplaySchema.shape.style.safeParse(row.style),theme=geographicThemeSchema.parse(row.theme),label=!preview&&row.labels?projectedSourceLabel(row.geometry,layer.surface.reference,extent,kind):undefined;shapes.push({id:row.id,versionId:row.version_id,geographyId:row.geography_id,name:row.name,semantic:row.semantic,revision:row.revision,part:row.part,geometryType:row.geometry.type,path,displayTolerance:display.tolerance,theme,...label?{label:{...label,rank:row.label_rank}}:{},sourceBounds:[row.west,row.south,row.east,row.north],...style.success?{style:style.data}:{}});}
-    return {layer,readerId:userId,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.ordinary&&!options.review,context:rows[0]?.context??await previewContext(tx,eligibleSources(worldId,layer.surface.id,lod,options,kinds,selectedThemes)),...preview?{previewReader:userId}:{},bounds:extent,projection:kind,lod,shapes,attributions:[...credits.values()],nextCursor:!preview&&more?last:null};
+    return {layer,readerId:userId,canEdit:worldContentEditor(parent,userId)&&!parent.archivedAt&&!options.preview&&!options.review,context:rows[0]?.context??await previewContext(tx,eligibleSources(worldId,layer.surface.id,lod,options,kinds,selectedThemes)),...preview?{previewReader:userId}:{},bounds:extent,projection:kind,lod,shapes,attributions:[...credits.values()],nextCursor:!preview&&more?last:null};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function geographicReading(userId:string,worldId:string,timelineId:string,mapId:string,featureId:string,versionId?:string,options:Options={}):Promise<GeographicReading>{
-  const parent=await worldReadAccess(userId,worldId,!!options.review);
+  const parent=await worldReadAccess(userId,worldId,!!options.review,"atlas");options=sharedOptions(worldId,options);
   return db.transaction(async tx=>{await selectedTimeline(tx,worldId,timelineId);const layer=await layerAccess(tx,worldId,mapId,timelineId,options,userId);
     const [current]=await tx.select({f:feature,h:head,v:version,g:worldGeography}).from(feature).innerJoin(head,and(eq(head.featureId,feature.id),eq(head.worldId,feature.worldId))).innerJoin(version,eq(version.id,head.versionId)).innerJoin(worldGeography,and(eq(worldGeography.id,feature.geographyId),eq(worldGeography.worldId,feature.worldId))).where(and(eq(feature.id,featureId),eq(feature.worldId,worldId),eq(feature.surfaceId,layer.surface.id)));
     if(!current||options.ordinary&&(current.v.protected||current.v.archived||current.g.archivedAt))throw unavailable();
@@ -107,7 +111,7 @@ export async function geographicReading(userId:string,worldId:string,timelineId:
     const [source]=await tx.select().from(dataset).where(and(eq(dataset.id,chosen.datasetId),eq(dataset.worldId,worldId)));
     const versions=await tx.select({id:version.id,revision:version.revision,createdAt:version.createdAt,archived:version.archived}).from(version).where(and(eq(version.featureId,featureId),eq(version.worldId,worldId),options.ordinary?sql`not ${version.protected} and not ${version.archived}`:undefined)).orderBy(desc(version.revision)).limit(100);
     const original=await tx.select({id:version.id,revision:version.revision,createdAt:version.createdAt,archived:version.archived}).from(version).where(and(eq(version.featureId,featureId),eq(version.worldId,worldId),eq(version.revision,1),options.ordinary?sql`not ${version.protected} and not ${version.archived}`:undefined));for(const v of original)if(!versions.some(r=>r.id===v.id))versions.push(v);if(!versions.some(v=>v.id===chosen.id))versions.push({id:chosen.id,revision:chosen.revision,createdAt:chosen.createdAt,archived:chosen.archived});
-    return {id:featureId,geographyId:current.g.id,name:current.g.name,semantic:current.f.semantic,revision:chosen.revision,versionId:chosen.id,geometry:chosen.geometry,bounds:geometryBounds(chosen.geometry,layer.surface.reference),protected:chosen.protected,archived:chosen.archived,note:chosen.note,createdAt:chosen.createdAt.toISOString(),source:options.ordinary?null:source.provenance,importedAt:options.ordinary?"":source.importedAt.toISOString(),contentSha256:options.ordinary?"":source.contentSha256,properties:options.ordinary?{}:chosen.properties,versions:versions.map(v=>({...v,createdAt:v.createdAt.toISOString()})),canEdit:parent.ownerId===userId&&!parent.archivedAt&&!options.ordinary&&!options.review&&chosen.id===current.v.id};
+    return {id:featureId,geographyId:current.g.id,name:current.g.name,semantic:current.f.semantic,revision:chosen.revision,versionId:chosen.id,geometry:chosen.geometry,bounds:geometryBounds(chosen.geometry,layer.surface.reference),protected:chosen.protected,archived:chosen.archived,note:chosen.note,createdAt:chosen.createdAt.toISOString(),source:options.ordinary?null:source.provenance,importedAt:options.ordinary?"":source.importedAt.toISOString(),contentSha256:options.ordinary?"":source.contentSha256,properties:options.ordinary?{}:chosen.properties,versions:versions.map(v=>({...v,createdAt:v.createdAt.toISOString()})),canEdit:worldContentEditor(parent,userId)&&!parent.archivedAt&&!options.preview&&!options.review&&chosen.id===current.v.id};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function saveGeographicParts(tx:Tx,row:typeof version.$inferInsert,reference:SpatialReference,display?:GeographicProvenance["display"]){const originals=geometryParts(row.geometry),outlines=display?.style==="outline"||display?.style==="disputed"?sourceBoundaryParts(row.geometry,reference):originals,rows:(typeof part.$inferInsert)[]=[];for(const [partIndex,source] of originals.entries()){const geometry=outlines[partIndex],overview=display?.exact?geometry:simplifySource(geometry,reference,"overview"),regional=display?.exact?geometry:simplifySource(geometry,reference,"regional");for(const [boxIndex,b] of partBounds(source,reference).entries())rows.push({versionId:row.id,worldId:row.worldId,featureId:row.featureId,algorithmVersion:3,part:partIndex,box:boxIndex,west:b[0],south:b[1],east:b[2],north:b[3],overview,regional,detail:geometry});}
@@ -119,7 +123,7 @@ export async function rebuildGeographicDisplays(userId:string,worldId:string,map
   const [frame]=await tx.select({surface}).from(view).innerJoin(surface,and(eq(surface.id,view.surfaceId),eq(surface.worldId,view.worldId))).where(and(eq(view.mapId,mapId),eq(view.worldId,worldId)));if(!frame)throw unavailable();
   const rows=await tx.select({v:version,d:dataset}).from(feature).innerJoin(head,and(eq(head.featureId,feature.id),eq(head.worldId,feature.worldId))).innerJoin(version,eq(version.id,head.versionId)).innerJoin(dataset,eq(dataset.id,version.datasetId)).where(and(eq(feature.worldId,worldId),eq(feature.surfaceId,frame.surface.id),sql`${dataset.provenance} ? 'display'`));
   let rebuilt=0;for(const row of rows){if((await tx.select({id:part.versionId}).from(part).where(and(eq(part.versionId,row.v.id),eq(part.algorithmVersion,3))).limit(1)).length)continue;await saveGeographicParts(tx,row.v,frame.surface.reference,row.d.provenance.display);rebuilt++;}return {rebuilt};
-});}
+},"atlas");}
 export async function changeGeography(userId:string,worldId:string,input:unknown,options:Options={}){
   if(options.review||options.ordinary)throw new WorldError("This preview is read-only.",403);
   const body=geographicCommandSchema.parse(input);
@@ -159,5 +163,5 @@ export async function changeGeography(userId:string,worldId:string,input:unknown
     const geometry=body.action==="revise"?body.geometry:record.v.geometry;checked(()=>validateSourceGeometry(geometry,record.s.reference,("validation"in source.provenance?source.provenance.validation:undefined)));
     const id=randomUUID(),revision=record.h.revision+1,row={id,worldId,surfaceId:record.f.surfaceId,featureId:record.f.id,authorId:userId,datasetId:record.v.datasetId,previousId:record.v.id,requestId:body.requestId,revision,geometry,properties:record.v.properties,note:body.action==="revise"?body.note:body.action==="archive"?"Source archived; original geometry and earlier versions retained.":"Source restored with retained geometry.",protected:body.action==="revise"?body.protected:record.v.protected,archived:body.action==="archive"};
     await tx.insert(version).values(row);await saveGeographicParts(tx,row,record.s.reference,source.provenance.display);await tx.update(head).set({versionId:id,revision}).where(and(eq(head.featureId,record.f.id),eq(head.worldId,worldId)));return {id,reused:false};
-  });
+  },"atlas");
 }

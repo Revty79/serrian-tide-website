@@ -1,35 +1,34 @@
 "use client";
+import { accountWorldDatabaseName,worldRecoveryDatabase,legacyWorldRecoveryRows } from "./world-draft-storage";
+import { accountWorldStorage } from "./world-draft-storage";
 import { nativeHistoryScopeSchema,nativeHistoryUrl,type NativeHistoryScope } from "./native-map-history";
 import { nativeOriginalScopePrefix,nativeOriginalScopeSchema,nativeTransportJson,nativeTransportPacket,assertNativeTransportRetry,nativeTransportPacketSchema,NATIVE_TRANSPORT_LIMITS,type NativeTransportPacket } from "./native-map-history-transport";
 
+import {currentWorldDraftActor} from "./world-editor-credentials";
+const scopeKey=(id:string)=>(currentWorldDraftActor()??"")+":"+id;
 const scopes=new Map<string,NativeHistoryScope>();
 type Sender=<T>(url:string,method?:string,body?:unknown,signal?:AbortSignal)=>Promise<T>;
 export type NativeTransportMeta=Omit<NativeTransportPacket,"body">;
 type PacketMeta=NativeTransportMeta;
 function changed(){window.dispatchEvent(new Event("atlas:original-requests"));}
-let opening:Promise<IDBDatabase>|undefined;
-function database(){
-  if(opening)return opening;
-  opening=new Promise<IDBDatabase>((resolve,reject)=>{
-    const request=indexedDB.open("serrian-native-original-requests-v1",1);
-    request.onupgradeneeded=()=>{request.result.createObjectStore("packets",{keyPath:"requestId"});request.result.createObjectStore("metadata",{keyPath:"requestId"});};
-    request.onsuccess=()=>{request.result.onversionchange=()=>request.result.close();resolve(request.result);};
-    request.onerror=()=>reject(Error("Original-request recovery storage is unavailable. Keep this editor open and export its draft before retrying."));
-    request.onblocked=()=>reject(Error("Another tab is blocking original-request recovery storage. Keep this editor open and retry after closing that tab."));
-  }).catch(error=>{opening=undefined;throw error;});
-  return opening;
+const openings=new Map<string,Promise<IDBDatabase>>();
+const create=(database:IDBDatabase)=>{database.createObjectStore("packets",{keyPath:"requestId"});database.createObjectStore("metadata",{keyPath:"requestId"});};
+function database(requestId=""){
+ const name=accountWorldDatabaseName("serrian-native-original-requests-v1"),key=name+":"+requestId,existing=openings.get(key);if(existing)return existing;
+ const opening=worldRecoveryDatabase("serrian-native-original-requests-v1",1,create,"packets",requestId).catch(error=>{openings.delete(key);throw error;});openings.set(key,opening);return opening;
 }
 const result=<T,>(request:IDBRequest<T>)=>new Promise<T>((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
 const finished=(transaction:IDBTransaction)=>{const complete=new Promise<void>((resolve,reject)=>{transaction.oncomplete=()=>resolve();transaction.onabort=()=>reject(transaction.error??Error("Original request recovery was not committed."));transaction.onerror=()=>reject(transaction.error);});void complete.catch(()=>{});return complete;};
 export function markNativeOriginalScope(requestId:string,scope?:NativeHistoryScope){
+ const localStorage=accountWorldStorage();
   if(!scope?.edit||scope.versionId||scope.geographyVersionId||scope.connectionSourceVersionId||typeof window==="undefined")return;
   const receipt=nativeOriginalScopeSchema.parse({version:1,requestId,scope});
-  const existing=scopes.get(requestId);if(existing)return;
+  const existing=scopes.get(scopeKey(requestId));if(existing)return;
   if(scopes.size>=NATIVE_TRANSPORT_LIMITS.scopeReceipts)scopes.delete(scopes.keys().next().value!);
-  scopes.set(requestId,receipt.scope);
+  scopes.set(scopeKey(requestId),receipt.scope);
   try{
     const key=nativeOriginalScopePrefix+requestId,old=localStorage.getItem(key);
-    if(old){const retained=nativeOriginalScopeSchema.parse(JSON.parse(old));scopes.set(requestId,retained.scope);return;}
+    if(old){const retained=nativeOriginalScopeSchema.parse(JSON.parse(old));scopes.set(scopeKey(requestId),retained.scope);return;}
     let count=0;for(let index=0;index<localStorage.length;index++)if(localStorage.key(index)?.startsWith(nativeOriginalScopePrefix))count++;
     if(count<NATIVE_TRANSPORT_LIMITS.scopeReceipts)localStorage.setItem(key,JSON.stringify(receipt));
   }catch{/* The pending transport packet must still commit before any HTTP write. */}
@@ -41,21 +40,23 @@ export function nativeOriginalRequestUuid(scope?:NativeHistoryScope){
 }
 export function nativeOriginalRequestUuidForUrl(endpoint:string){const raw=new URL(endpoint,"https://atlas.invalid").searchParams.get("historicalAtlas");return nativeOriginalRequestUuid(raw?nativeHistoryScopeSchema.parse(JSON.parse(raw)):undefined);}
 function storedScope(id:string){
-  if(scopes.has(id))return scopes.get(id);
+ const localStorage=accountWorldStorage();
+  if(scopes.has(scopeKey(id)))return scopes.get(scopeKey(id));
   const raw=localStorage.getItem(nativeOriginalScopePrefix+id);if(!raw)return;
   return nativeOriginalScopeSchema.parse(JSON.parse(raw)).scope;
 }
 export async function retainedNativeTransport(requestId:string){
-  const connection=await database(),transaction=connection.transaction("packets","readonly"),complete=finished(transaction),packet=await result(transaction.objectStore("packets").get(requestId));await complete;
+  const connection=await database(requestId),transaction=connection.transaction("packets","readonly"),complete=finished(transaction),packet=await result(transaction.objectStore("packets").get(requestId));await complete;
   return packet?nativeTransportPacketSchema.parse(packet):undefined;
 }
 export async function listNativeTransports(worldId:string):Promise<PacketMeta[]>{
   const connection=await database(),transaction=connection.transaction("metadata","readonly"),complete=finished(transaction),rows=await result(transaction.objectStore("metadata").getAll()) as PacketMeta[];await complete;
-  return rows.filter(row=>row.worldId===worldId).sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
+  const legacy=await legacyWorldRecoveryRows<PacketMeta>("serrian-native-original-requests-v1",1,create,"metadata",worldId);
+  return [...rows.filter(row=>row.worldId===worldId),...legacy.filter(old=>!rows.some(row=>row.requestId===old.requestId))].sort((a,b)=>a.createdAt.localeCompare(b.createdAt));
 }
 export async function retainNativeTransport(packet:NativeTransportPacket){
   nativeTransportPacketSchema.parse(packet);
-  const connection=await database(),transaction=connection.transaction(["packets","metadata"],"readwrite"),complete=finished(transaction);
+  const connection=await database(packet.requestId),transaction=connection.transaction(["packets","metadata"],"readwrite"),complete=finished(transaction);
   try{
     const packets=transaction.objectStore("packets"),metadata=transaction.objectStore("metadata"),existing=await result(packets.get(packet.requestId));
     if(existing){const old=nativeTransportPacketSchema.parse(existing);assertNativeTransportRetry(old,packet.worldId,packet.endpoint,packet.scope,JSON.parse(packet.body));transaction.abort();await complete.catch(()=>{});return old;}
@@ -65,15 +66,16 @@ export async function retainNativeTransport(packet:NativeTransportPacket){
   }catch(error){try{transaction.abort();}catch{/* already aborted or completed */}await complete.catch(()=>{});throw error;}
 }
 async function acknowledge(packet:NativeTransportPacket){
-  const connection=await database(),transaction=connection.transaction(["packets","metadata"],"readwrite"),complete=finished(transaction);
+ const localStorage=accountWorldStorage();
+  const connection=await database(packet.requestId),transaction=connection.transaction(["packets","metadata"],"readwrite"),complete=finished(transaction);
   transaction.objectStore("packets").delete(packet.requestId);transaction.objectStore("metadata").delete(packet.requestId);await complete;
-  scopes.delete(packet.requestId);
+  scopes.delete(scopeKey(packet.requestId));
   try{localStorage.removeItem(nativeOriginalScopePrefix+packet.requestId);}catch{/* The server also retains this accepted scope. */}
   changed();
 }
 /** Explicit local release never changes the server's immutable request ledger. */
 export async function releaseNativeTransport(packet:NativeTransportPacket){
-  const connection=await database(),transaction=connection.transaction(["packets","metadata"],"readwrite"),complete=finished(transaction);
+  const connection=await database(packet.requestId),transaction=connection.transaction(["packets","metadata"],"readwrite"),complete=finished(transaction);
   try{
     const packets=transaction.objectStore("packets"),existing=await result(packets.get(packet.requestId));
     if(!existing||nativeTransportJson(existing)!==nativeTransportJson(packet))throw Error("Another tab changed this retained request. Reload its original bytes before releasing it.");

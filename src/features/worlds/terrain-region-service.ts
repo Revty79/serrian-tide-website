@@ -37,5 +37,5 @@ export async function createRegionalMap(userId:string,worldId:string,raw:unknown
     else await tx.execute(sql`insert into world_map_region (map_id,world_id,terrain_id,parent_map_id,x_metres,y_metres,width_metres,height_metres,initial_source_revision,initial_source_state,initial_parent_revision,creation_hash,created_by_user_id) values (${values.mapId},${worldId},${values.terrainId},${values.parentMapId},${f.x},${f.y},${f.width},${f.height},${values.initialSourceRevision},${values.initialSourceState},${values.initialParentRevision},${creationHash},${userId})`);
     await recordCreatedRegionHierarchy(tx,userId,worldId,command,creationHash);
     return {id:command.requestId,parentMapId:source.map.id,terrainId:source.terrain.id,revision:1};
-  });
+  },"atlas");
 }

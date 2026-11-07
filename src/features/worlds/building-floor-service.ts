@@ -1,3 +1,4 @@
+import { worldContentEditor } from "./world-access-service";
 import "server-only";
 import {createTemplateImages} from "./map-template-images";
 import {createHash,randomUUID} from "node:crypto";
@@ -32,11 +33,11 @@ async function editReason(tx:Tx,b:Building){
  return active?"":"Restore a saved exterior building and its Town/source map before editing this interior. Saved floors remain available.";
 }
 export async function getBuildingFloors(userId:string,worldId:string,options:{townMapId:string;featureId:string;floorId?:string;review?:boolean;ordinary?:boolean}):Promise<FloorBundle>{
- const world=await worldReadAccess(userId,worldId,!!options.review);if(options.ordinary)throw unavailable();z.uuid().parse(options.townMapId);z.uuid().parse(options.featureId);if(options.floorId)z.uuid().parse(options.floorId);
+ const world=await worldReadAccess(userId,worldId,!!options.review,"interiors");if(options.ordinary)throw unavailable();z.uuid().parse(options.townMapId);z.uuid().parse(options.featureId);if(options.floorId)z.uuid().parse(options.floorId);
  return db.transaction(async tx=>{
   if(!await buildingFloorsAvailable(tx))return {available:false,canEdit:false,reason:"Migration 0152 is required for building interiors. Existing Town Maps and drafts are retained.",building:null,floors:[],document:null};
-  const s=await source(tx,worldId,options.townMapId,options.featureId);if(!s.building)return {available:true,canEdit:world.ownerId===userId&&!world.archivedAt&&!options.review&&!s.map.archived&&!s.feature.archived,reason:"",building:null,floors:[],document:null};
-  const reason=options.review?"Administrator review is read-only.":world.archivedAt?"Restore this World before editing its interiors.":await editReason(tx,s.building),canEdit=world.ownerId===userId&&!reason;
+  const s=await source(tx,worldId,options.townMapId,options.featureId);if(!s.building)return {available:true,canEdit:worldContentEditor(world,userId)&&!world.archivedAt&&!options.review&&!s.map.archived&&!s.feature.archived,reason:"",building:null,floors:[],document:null};
+  const reason=options.review?"Administrator review is read-only.":world.archivedAt?"Restore this World before editing its interiors.":await editReason(tx,s.building),canEdit=worldContentEditor(world,userId)&&!reason;
   const rows=await tx.select({id:floors.id,buildingId:floors.buildingId,name:floors.name,order:floors.order,elevation:floors.elevation,revision:floors.revision,archived:floors.archived}).from(floors).where(and(eq(floors.worldId,worldId),isNull(floors.nativeOriginVersionId),eq(floors.buildingId,s.building.id))).orderBy(asc(floors.order),asc(floors.id));
   const selection=options.floorId?rows.find(f=>f.id===options.floorId):rows.find(f=>f.order===0&&!f.archived)??rows.find(f=>!f.archived)??rows[0];if(options.floorId&&!selection)throw unavailable();const [selected]=selection?await tx.select().from(floors).where(and(eq(floors.id,selection.id),eq(floors.worldId,worldId))):[];
   const history=selected?await tx.select({revision:versions.revision,requestId:versions.requestId}).from(versions).where(and(eq(versions.worldId,worldId),eq(versions.floorId,selected.id))).orderBy(desc(versions.revision)).limit(30):[];
@@ -94,7 +95,7 @@ export async function changeBuildingFloor(userId:string,worldId:string,raw:unkno
   await tx.insert(operations).values({requestId:c.requestId,worldId,buildingId:building.id,authorId:userId,inputHash,result});
   for(const row of changed){const ids=row.design.features.map(f=>f.id);if(ids.length&&(await tx.execute(sql`select 1 from world_building_floor f cross join lateral jsonb_array_elements(f.design->'features') s where f.building_id=${building.id} and f.id<>${row.id} and s->>'id' in (select jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb)) limit 1`)).rows.length)throw new WorldError("Objects on different floors need independent identities. Copy the floor using Duplicate Floor.",400);if(!(c.action==="create"&&row.id===c.requestId))await tx.update(floors).set({name:row.name,order:row.order,elevation:row.elevation,revision:row.revision,archived:row.archived,design:row.design,updatedAt:row.updatedAt}).where(and(eq(floors.id,row.id),eq(floors.worldId,worldId)));await tx.insert(versions).values({id:randomUUID(),floorId:row.id,worldId,revision:row.revision,requestId:c.requestId,name:row.name,order:row.order,elevation:row.elevation,archived:row.archived,design:row.design});}
   return result;
- });
+ },"interiors");
 }
 
 // Image compositions share the existing transaction-authoritative parent guards.

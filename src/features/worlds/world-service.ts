@@ -4,7 +4,6 @@ import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { user } from "@/db/auth-schema";
-import { userRole } from "@/db/authorization-schema";
 import { itemTagCatalog } from "@/db/item-schema";
 import { itemTagDiscoveryWhere } from "@/features/catalog-visibility/item-catalog-service";
 import { world, worldEra, worldEntry, worldEntryEra, worldTag, worldDatingSystem, worldChronologyPreference, worldTimeline } from "@/db/world-schema";
@@ -17,34 +16,32 @@ import { saveEntryCalendarDate } from "./calendar-evolution-service";
 import { entryDraftSchema, eraDraftSchema, worldDraftSchema, type EntryRecord, type EraRecord, type Tone, type WorldBundle, type WorldRecord } from "./history";
 import { worldCreationSchema } from "./campaign-associations";
 import { initialCampaignAssociations, lockCreationCampaigns } from "./campaign-association-service";
+import { WorldError } from "./world-errors";
+import { worldScopeAllowed, authorizeWorldRead, authorizedWorldWrite, lockWorldForWrite, requireWorldCreator, worldActor, type AuthorizedWorld } from "./world-access-service";
+import { worldRequestAuthority } from "./world-authorization-context";
+import { hasWorldScope, type WorldOperationScope } from "./world-permissions";
 
-export class WorldError extends Error { constructor(message: string, public status: number) { super(message); } }
+export { WorldError } from "./world-errors";
 const notFound = () => new WorldError("This world or historical record is unavailable.", 404);
 const conflict = () => new WorldError("A newer version was saved in another tab. Your draft is still here. Load the latest version before editing again.", 409);
 const idSchema = z.string().uuid();
 const revisionSchema = z.number().int().positive();
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 async function actor(userId: string) {
-  const roles = await db.select({ role: userRole.role }).from(userRole).where(eq(userRole.userId, userId));
-  if (!roles.some(({role}) => role === "god" || role === "admin")) throw new WorldError("G.O.D. or administrator access is required.", 403);
-  return { userId, admin: roles.some(({role}) => role === "admin") };
+  return worldActor(userId);
 }
 async function readWorld(userId: string, worldId: string, review: boolean) {
-  const access = await actor(userId);
-  if (!idSchema.safeParse(worldId).success) throw notFound();
-  const [row] = await db.select().from(world).where(and(eq(world.id, worldId), review && access.admin ? undefined : eq(world.ownerId, userId))).limit(1);
-  if (!row) throw notFound();
-  return row;
+  return worldReadAccess(userId, worldId, review, "shell");
 }
-async function lockOwned(tx: Tx, userId: string, worldId: string, allowArchived = false) {
-  if (!idSchema.safeParse(worldId).success) throw notFound();
-  const [row] = await tx.select().from(world).where(and(eq(world.id, worldId), eq(world.ownerId, userId))).for("update");
-  if (!row) throw notFound();
-  if (row.archivedAt && !allowArchived) throw new WorldError("Restore this world before editing its history.", 400);
-  return row;
+export async function worldReadAccess(userId:string,worldId:string,review=false,scope:WorldOperationScope|readonly WorldOperationScope[]="owner"){
+  const authority=worldRequestAuthority();
+  if(authority)return authorizeWorldRead(userId,worldId,authority.review,scope);
+  // Established internal readers use review=true to request immutable owner
+  // sources. Only HTTP's authenticated explicit review context grants the
+  // administrator path; trusted owner reads retain their original identity.
+  try{return await authorizeWorldRead(userId,worldId,review,scope);}catch(error){if(review&&error instanceof WorldError&&error.status===403)return authorizeWorldRead(userId,worldId,false,scope);throw error;}
 }
-export async function worldReadAccess(userId:string,worldId:string,review=false){return readWorld(userId,worldId,review);}
-export async function worldWriteTransaction<T>(userId:string,worldId:string,run:(tx:Tx,parent:typeof world.$inferSelect)=>Promise<T>){await actor(userId);return db.transaction(async tx=>run(tx,await lockOwned(tx,userId,worldId)));}
+export async function worldWriteTransaction<T>(userId:string,worldId:string,run:(tx:Tx,parent:AuthorizedWorld)=>Promise<T>,scope:WorldOperationScope|readonly WorldOperationScope[]="owner"){return authorizedWorldWrite(userId,worldId,run,scope);}
 async function classificationWhere(userId: string, scope: "mine" | "review" = "mine", connection: typeof db | Tx = db) {
   // Retention comes only from server-read worlds in the authorized scope, never client IDs.
   const retained = await connection.selectDistinct({ id: worldTag.tagId }).from(worldTag)
@@ -56,7 +53,8 @@ async function classificationWhere(userId: string, scope: "mine" | "review" = "m
 async function tags(tx: Tx, userId: string, worldId: string, tagIds: number[]) {
   const ids = [...new Set(tagIds)];
   if (ids.length) {
-    const matches = await tx.select({ id: itemTagCatalog.id }).from(itemTagCatalog).where(and(inArray(itemTagCatalog.id, ids), await classificationWhere(userId, "mine", tx)));
+    const retained=await tx.select({id:worldTag.tagId}).from(worldTag).where(eq(worldTag.worldId,worldId));
+    const matches = await tx.select({ id: itemTagCatalog.id }).from(itemTagCatalog).where(and(inArray(itemTagCatalog.id, ids),sql`lower(trim(${itemTagCatalog.tagGroup})) in ('era','genre')`,await itemTagDiscoveryWhere(userId,retained.map(row=>row.id))));
     if (matches.length !== ids.length) throw new WorldError("Choose available Era or Genre classification tags.", 400);
   }
   await tx.delete(worldTag).where(eq(worldTag.worldId, worldId));
@@ -83,19 +81,30 @@ export async function worldReferences(userId: string, scope: "mine" | "review" =
   if (scope === "review" && !access.admin) throw new WorldError("Administrator review requires administrator access.", 403);
   return db.select({ id: itemTagCatalog.id, name: itemTagCatalog.name, tagGroup: itemTagCatalog.tagGroup, description: itemTagCatalog.description }).from(itemTagCatalog).where(await classificationWhere(userId, scope)).orderBy(asc(itemTagCatalog.tagGroup), asc(itemTagCatalog.name));
 }
+export async function scopedWorldReferences(userId:string,worldId:string,review=false){
+  await worldReadAccess(userId,worldId,review,"overview");
+  const retained=await db.select({id:worldTag.tagId}).from(worldTag).where(eq(worldTag.worldId,worldId));
+  return db.select({id:itemTagCatalog.id,name:itemTagCatalog.name,tagGroup:itemTagCatalog.tagGroup,description:itemTagCatalog.description}).from(itemTagCatalog).where(and(sql`lower(trim(${itemTagCatalog.tagGroup})) in ('era','genre')`,await itemTagDiscoveryWhere(userId,retained.map(row=>row.id)))).orderBy(asc(itemTagCatalog.tagGroup),asc(itemTagCatalog.name));
+}
 export async function getWorld(userId: string, worldId: string, review = false, timelineId?:string|null,ordinary=false): Promise<WorldBundle> {
   const row = await readWorld(userId, worldId, review);
+  const preview=ordinary;
   // Read one consistent snapshot even while another tab saves associations.
   return db.transaction(async (tx) => {
     const [fresh] = await tx.select().from(world).where(eq(world.id, row.id));
     const [owner] = await tx.select({ name: user.name }).from(user).where(eq(user.id, fresh.ownerId));
     const timeline=await selectedTimeline(tx,worldId,timelineId);
     const timelines=await tx.select().from(worldTimeline).where(eq(worldTimeline.worldId,worldId)).orderBy(desc(worldTimeline.primary),asc(worldTimeline.createdAt)).limit(TIMELINE_LIMIT);
-    const history=timeline.primary&&!ordinary?await primaryHistoryRows(tx,worldId,timeline.id):await effectiveHistory(tx,worldId,timeline,ordinary);
+    const permission=row.permission;
+    if (!timeline.primary&&!hasWorldScope(permission,"history")) throw notFound();
+    ordinary ||= !permission.protectedContent;
+    const history=hasWorldScope(permission,"history")?(timeline.primary&&!ordinary?await primaryHistoryRows(tx,worldId,timeline.id):await effectiveHistory(tx,worldId,timeline,ordinary)):{eras:[],entries:[],inheritanceReview:[]};
     const classifications = await tx.select().from(worldTag).where(eq(worldTag.worldId, worldId));
     const systems = await tx.select().from(worldDatingSystem).where(eq(worldDatingSystem.worldId,worldId)).orderBy(asc(worldDatingSystem.name),asc(worldDatingSystem.id));
     const [preference] = await tx.select().from(worldChronologyPreference).where(eq(worldChronologyPreference.worldId,worldId));
-    return { world: worldDto(fresh, owner.name, classifications.map((tag) => tag.tagId), history.eras.filter(era=>!era.archived).length, history.entries.filter(entry=>!entry.archived).length), ...history, canEdit: !ordinary && !review && fresh.ownerId === userId && !fresh.archivedAt && !timeline.archivedAt,canManageTimelines:!ordinary&&!review&&fresh.ownerId===userId&&!fresh.archivedAt, datingSystems:systems.map(datingDto),defaultDatingSystemId:preference?.defaultDatingSystemId ?? null,timelines:timelines.map(timelineDto),selectedTimeline:timelineDto(timeline),inheritanceReview:history.inheritanceReview };
+    const dto=worldDto(fresh,owner.name,classifications.map(tag=>tag.tagId),history.eras.filter(era=>!era.archived).length,history.entries.filter(entry=>!entry.archived).length);
+    if(!hasWorldScope(permission,"overview")){dto.description="";dto.introduction="";dto.historicalOverview="";dto.tagIds=[];}
+    return {world:dto,...history,permission,canEdit:!preview&&!review&&permission.canEdit&&hasWorldScope(permission,"history")&&!timeline.archivedAt,canManageTimelines:!preview&&!review&&permission.canEdit&&hasWorldScope(permission,"history"),datingSystems:hasWorldScope(permission,"timekeeping")?systems.map(datingDto):[],defaultDatingSystemId:hasWorldScope(permission,"timekeeping")?preference?.defaultDatingSystemId??null:null,timelines:timelines.filter(item=>item.primary||hasWorldScope(permission,"history")).map(item=>hasWorldScope(permission,"history")?timelineDto(item):{...timelineDto(item),name:"Primary History",description:"",explanation:""}),selectedTimeline:hasWorldScope(permission,"history")?timelineDto(timeline):{...timelineDto(timeline),name:"Primary History",description:"",explanation:""},inheritanceReview:history.inheritanceReview};
   }, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export async function primaryHistoryRows(tx:Tx,worldId:string,timelineId:string){
@@ -110,7 +119,7 @@ export async function primaryHistoryRows(tx:Tx,worldId:string,timelineId:string)
   return {eras:eras.map(eraDto),entries:entries.map(entry=>entryDto(entry,links.get(entry.id)??[],sources.get(entry.id)??null)),inheritanceReview:[] as InheritanceReview[]};
 }
 export async function createWorld(userId: string, input: unknown) {
-  await actor(userId);
+  await requireWorldCreator(userId);
   const { tagIds, associatedCampaigns, ...draft } = worldCreationSchema.parse(input);
   const id = randomUUID();
   await db.transaction(async (tx) => { await lockCreationCampaigns(tx,userId,associatedCampaigns); await tx.insert(world).values({ id, ownerId: userId, ...draft }); await tags(tx, userId, id, tagIds); await initialCampaignAssociations(tx,userId,id,associatedCampaigns); });
@@ -122,21 +131,22 @@ export async function changeWorld(userId: string, worldId: string, input: unknow
     z.object({ action: z.literal("save"), revision: revisionSchema, draft: worldDraftSchema }).strict(),
     z.object({ action: z.enum(["archive","restore"]), revision: revisionSchema }).strict(),
   ]).parse(input);
-  await db.transaction(async (tx) => {
-    const current = await lockOwned(tx, userId, worldId, command.action !== "save");
+  if(command.action!=="save")return (await import("./world-collaboration-service")).changeWorldLifecycle(userId,worldId,command.action,command.revision);
+  await worldWriteTransaction(userId,worldId,async (tx,current) => {
     if (current.revision !== command.revision) throw conflict();
     if (command.action === "save") {
       const { tagIds, ...draft } = command.draft;
       await tx.update(world).set({ ...draft, revision: current.revision + 1, updatedAt: new Date() }).where(eq(world.id, worldId));
       await tags(tx, userId, worldId, tagIds);
-    } else await tx.update(world).set({ archivedAt: command.action === "archive" ? new Date() : null, revision: current.revision + 1, updatedAt: new Date() }).where(eq(world.id, worldId));
-  });
+    }
+  },"overview");
 }
 const historyCommand = z.discriminatedUnion("entity", [
   z.object({ entity: z.literal("era"), timelineId:idSchema.optional(), id: idSchema.optional(), revision: revisionSchema.optional(), action: z.enum(["save","archive","restore"]), draft: eraDraftSchema.optional() }).strict(),
   z.object({ entity: z.literal("entry"), timelineId:idSchema.optional(), id: idSchema.optional(), revision: revisionSchema.optional(), action: z.enum(["save","archive","restore"]), draft: entryDraftSchema.optional() }).strict(),
 ]);
 export async function sourceDatingFor(tx:Tx,worldId:string,systemId:string|null|undefined,revision:number|undefined,years:(number|null)[],previous:{datingSystemId:string|null;sourceDating:SourceDating|null}|undefined) {
+  if(!worldScopeAllowed(worldId,"timekeeping")){if(systemId)throw new WorldError("Changing chronology sources requires Calendars and Chronology permission.",403);return {datingSystemId:previous?.datingSystemId??null,sourceDating:previous?.sourceDating??null};}
   if (!systemId || years.every((year)=>year === null)) return {datingSystemId:null,sourceDating:null};
   const [system] = await tx.select().from(worldDatingSystem).where(and(eq(worldDatingSystem.id,systemId),eq(worldDatingSystem.worldId,worldId))).for("update");
   if (!system) throw notFound();
@@ -149,15 +159,18 @@ export async function sourceDatingFor(tx:Tx,worldId:string,systemId:string|null|
   return {datingSystemId:systemId,sourceDating};
 }
 export async function changeHistory(userId: string, worldId: string, input: unknown) {
-  await actor(userId);
-  return db.transaction(tx=>changeHistoryInTransaction(tx,userId,worldId,input));
+  return worldWriteTransaction(userId,worldId,tx=>changeHistoryInTransaction(tx,userId,worldId,input),"history");
 }
 export async function changeHistoryInTransaction(tx:Tx,userId:string,worldId:string,input:unknown) {
   const command = historyCommand.parse(input);
   const id = command.id ?? randomUUID();
-    await lockOwned(tx, userId, worldId);
+    const access=await lockWorldForWrite(tx, userId, worldId,"history");
     const timeline=await selectedTimeline(tx,worldId,command.timelineId);
     if(timeline.archivedAt)throw new WorldError("Restore this timeline before editing its history.",400);
+    if(command.entity==="entry"&&!access.permission.protectedContent){
+      if(command.draft?.visibility==="protected"||command.draft?.notes.trim())throw new WorldError("Protected sources and creator notes require the owner's explicit permission.",403);
+      if(command.id){const {historyEntryInTransaction}=await import("./history-index-service");await historyEntryInTransaction(tx,worldId,timeline.id,command.id,true);const original=await historyEntryInTransaction(tx,worldId,timeline.id,command.id,false);if(command.draft)command.draft.notes=original.notes;}
+    }
     if(!timeline.primary){const {changeBranchHistory}=await import("./branching-history-service");await changeBranchHistory(tx,worldId,timeline,command,id);return id;}
     const table = command.entity === "era" ? worldEra : worldEntry;
     const [current] = command.id ? await tx.select({ revision: table.revision, archivedAt: table.archivedAt,datingSystemId:table.datingSystemId,sourceDating:table.sourceDating }).from(table).where(and(eq(table.id, id), eq(table.worldId, worldId),eq(table.timelineId,timeline.id))).for("update") : [];
@@ -206,8 +219,7 @@ const chronologyCommand = z.union([
 ]);
 export async function changeChronology(userId:string,worldId:string,input:unknown) {
   await actor(userId);const command = chronologyCommand.parse(input);
-  return db.transaction(async(tx)=>{
-    const parent = await lockOwned(tx,userId,worldId);
+  return worldWriteTransaction(userId,worldId,async(tx,parent)=>{
     if (command.action === "default") {
       if (parent.revision !== command.revision) throw conflict();
       if (command.systemId) {
@@ -235,5 +247,5 @@ export async function changeChronology(userId:string,worldId:string,input:unknow
       await tx.update(worldDatingSystem).set({archivedAt:command.action === "archive" ? new Date() : null,revision:current!.revision+1,updatedAt:new Date()}).where(eq(worldDatingSystem.id,id));
     }
     await tx.update(world).set({updatedAt:new Date()}).where(eq(world.id,worldId));return id;
-  });
+  },"timekeeping");
 }

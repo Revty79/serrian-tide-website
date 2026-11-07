@@ -1,4 +1,5 @@
 "use client";
+import {useWorldScope} from "./world-permission-context";
 import { ordinaryKnowledge } from "./knowledge-preview";
 import { formatTime } from "./chronology";
 
@@ -15,13 +16,14 @@ import type { CalendarEntryDraft } from "./calendar-dates";
 import styles from "./peoples.module.css";
 
 export function SkyWorkspace({worldId,timelineId,review}:{worldId:string;timelineId:string;review:boolean}) {
+  const timekeeping=useWorldScope(worldId,"timekeeping");
   const params=useSearchParams(),ordinary=ordinaryKnowledge(params),[open,setOpen]=useState(params.get("sky")==="1");
   const [bundle,setBundle]=useState<CalendarBundle|null>(null),[refs,setRefs]=useState<LoreReferences|null>(null),[data,setData]=useState<SkyChronicle|null>(null),[error,setError]=useState(""),[pending,setPending]=useState(false);
   const [query,setQuery]=useState<Partial<SkyQuery>>({scale:"elapsed-day",start:"0",end:"140",q:"",classification:"",accuracy:"",kind:"all",offset:0,observationOffset:0,resultOffset:0});
   const [calendarVersion,setCalendarVersion]=useState(""),[from,setFrom]=useState<CalendarEntryDraft["start"]|null>(null),[through,setThrough]=useState<CalendarEntryDraft["start"]|null>(null),[calendarSearch,setCalendarSearch]=useState("");
   const requestedCalendar=params.get("skyCalendarVersion");
   const context=new URLSearchParams({timeline:timelineId});if(review)context.set("review","1");if(ordinary)context.set("ordinary","1");const suffix=context.toString();
-  useEffect(()=>{let alive=true;if(open)Promise.all([worldApi<CalendarBundle>(`/api/worlds/${worldId}/calendars?${suffix}`),worldApi<LoreReferences>(`/api/worlds/${worldId}/peoples?${suffix}&refs=1`)]).then(([b,r])=>{if(alive){setBundle(b);setRefs(r);if(requestedCalendar&&b.versions.some(v=>v.id===requestedCalendar)){setCalendarVersion(requestedCalendar);const value=initialEndpoint(b,requestedCalendar);setFrom(value);setThrough(value);}}}).catch(error=>{if(alive)setError(error.message);});return()=>{alive=false;};},[worldId,suffix,open,requestedCalendar]);
+  useEffect(()=>{let alive=true;if(open)Promise.all([timekeeping?worldApi<CalendarBundle>(`/api/worlds/${worldId}/calendars?${suffix}`):Promise.resolve(null),worldApi<LoreReferences>(`/api/worlds/${worldId}/peoples?${suffix}&refs=1`)]).then(([b,r])=>{if(alive){setBundle(b);setRefs(r);if(requestedCalendar&&b?.versions.some(v=>v.id===requestedCalendar)){setCalendarVersion(requestedCalendar);const value=initialEndpoint(b!,requestedCalendar);setFrom(value);setThrough(value);}}}).catch(error=>{if(alive)setError(error.message);});return()=>{alive=false;};},[worldId,suffix,open,requestedCalendar,timekeeping]);
   const patch=(value:Partial<SkyQuery>)=>{setQuery(q=>({...q,...value,offset:0,observationOffset:0,resultOffset:0}));setData(null);};
   async function load(extra:Partial<SkyQuery>={}) {
     setPending(true);setError("");const input={...query,...extra,...calendarVersion&&from&&through?{calendarStart:from,calendarEnd:through,displayVersionId:calendarVersion}:{}};

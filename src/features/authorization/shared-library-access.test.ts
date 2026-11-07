@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   assertCanEditSharedLibraryRoot,
+  assertCanUseSharedLibraryPattern,
   canAccessSharedLibrary,
   canReadSharedLibraryRoot,
   canEditSharedLibraryRoot,
@@ -43,17 +44,21 @@ test("user-created shared roots are editable only by their creator or an adminis
   );
 });
 
-test("protected master content retains G.O.D. authoring without granting it to Admin-only users", () => {
+test("canon roots are read-only for every role while eligible accounts may use them as patterns", () => {
   for (const root of [canonical]) {
-    assert.equal(canEditSharedLibraryRoot(ownerGod, root), true);
-    assert.equal(canEditSharedLibraryRoot(otherGod, root), true);
-    assert.equal(canEditSharedLibraryRoot(godAdministrator, root), true);
+    assert.equal(canEditSharedLibraryRoot(ownerGod, root), false);
+    assert.equal(canEditSharedLibraryRoot(otherGod, root), false);
+    assert.equal(canEditSharedLibraryRoot(godAdministrator, root), false);
     assert.equal(canEditSharedLibraryRoot(administrator, root), false);
     assert.equal(canEditSharedLibraryRoot(player, root), false);
+    for (const actor of [ownerGod,otherGod,godAdministrator,administrator,player]) {
+      assert.throws(()=>assertCanEditSharedLibraryRoot(actor,root,"Item"),/Canon Item records are read-only/);
+      assert.doesNotThrow(()=>assertCanUseSharedLibraryPattern(actor,root,"Item"));
+    }
   }
   assert.throws(
     () => assertCanEditSharedLibraryRoot(administrator, canonical, "Item"),
-    /Only a G\.O\.D\. may edit protected/,
+    /Canon Item records are read-only/,
   );
 });
 
@@ -125,4 +130,9 @@ test("private and ownerless non-canon roots cannot be read or edited by another 
   }
   assert.equal(canReadSharedLibraryRoot(ownerGod, userCreated), true);
   assert.equal(canReadSharedLibraryRoot(otherGod, canonical), true);
+});
+
+test("pattern use cannot copy another creator's private root or grant access to a roleless account",()=>{
+  for(const actor of [otherGod,player])assert.throws(()=>assertCanUseSharedLibraryPattern(actor,userCreated,"Race"));
+  assert.throws(()=>assertCanUseSharedLibraryPattern({userId:"roleless",roles:[]},canonical,"Race"));
 });

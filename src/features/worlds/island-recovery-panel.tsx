@@ -1,4 +1,5 @@
 "use client";
+import { accountWorldStorage } from "./world-draft-storage";
 import {useEffect,useRef,useState} from "react";
 import type {MapStateBundle} from "./map-states";
 import {worldApi} from "./client-api";
@@ -24,6 +25,7 @@ export async function authorizeIslandRecovery(identity:Identity,expectedUser?:st
 }
 
 export function IslandRecoveryPanel({identity,allowed,blocked,token,statuses,readOnly=false,capture,restore,restoreView}:{identity:Identity;allowed:boolean;blocked:string;token:string;statuses:IslandSaveStatus[];readOnly?:boolean;capture:()=>{view:RecoveryView;domains:IslandRecoveryDomains};restore:(id:Domain,value:NonNullable<IslandRecoveryDomains[Domain]>)=>Promise<void>|void;restoreView:(view:RecoveryView)=>void}){
+ const localStorage=accountWorldStorage();
  const identityKey=JSON.stringify(identity),[access,setAccess]=useState<{key:string;context:IslandRecoveryContext}|null>(null),[enabled,setEnabled]=useState(false),[status,setStatus]=useState("Checking recovery access…"),[error,setError]=useState(""),[checkpointError,setCheckpointError]=useState(""),[held,setHeld]=useState(false),[local,setLocal]=useState<IslandRecoveryBundle|null>(null),[candidate,setCandidate]=useState<IslandRecoveryBundle|null>(null),[busy,setBusy]=useState(false),[include,setInclude]=useState<Domain[]>(domainIds);
  const callbacks=useRef({capture,restore,restoreView}),live=useRef(identityKey),dialog=useRef<HTMLDialogElement>(null);
  const context=access?.key===identityKey?access.context:null,key=context?islandRecoveryKey(context):"";
@@ -40,7 +42,7 @@ export function IslandRecoveryPanel({identity,allowed,blocked,token,statuses,rea
     else setStatus(opted?"Device recovery enabled; waiting for a completed operation.":"Device recovery is off. Unsaved edits are not guaranteed after a browser interruption; you can download a recovery bundle.");
    }catch(e){setHeld(true);setError(`Device recovery could not be read: ${(e as Error).message} The live draft is unchanged. Download a bundle to keep a copy.`);}
   }catch(e){if(!cancelled){setAccess(null);setError((e as Error).message);}}})();return()=>{cancelled=true;};
- },[allowed,identityKey]);
+ },[allowed,identityKey,localStorage]);
  useEffect(()=>{if(candidate)dialog.current?.showModal();},[candidate]);
  function build(current:IslandRecoveryContext,selected?:Domain[]):IslandRecoveryBundle{
   const snapshot=callbacks.current.capture(),domains=selected?Object.fromEntries(Object.entries(snapshot.domains).filter(([id])=>selected.includes(id as Domain))):snapshot.domains;
@@ -54,7 +56,7 @@ export function IslandRecoveryPanel({identity,allowed,blocked,token,statuses,rea
    catch(e){setCheckpointError(`Device checkpoint failed: ${(e as Error).message} Your live draft is retained. Download a recovery bundle for a separate copy.`);}
   },50);return()=>clearTimeout(timer);
   // Snapshot callbacks stay current without restarting the completed-operation timer.
- },[allowed,context,enabled,held,blocked,key,token]);
+ },[allowed,context,enabled,held,blocked,key,token,localStorage]);
  async function verify(){if(!context)throw new Error("Recovery access has not been verified.");const current=await authorizeIslandRecovery(JSON.parse(identityKey) as Identity,context.userId);if(live.current!==identityKey)throw new Error("The active map changed. Nothing was restored.");return current;}
  function downloadBundle(bundle:IslandRecoveryBundle){const text=encodeIslandRecovery(bundle),url=URL.createObjectURL(new Blob([text],{type:"application/json"})),a=document.createElement("a");a.href=url;a.download=`serrian-island-recovery-${bundle.context.mapId}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
  async function download(){setBusy(true);setError("");try{if(!context)throw new Error("Recovery access has not been verified.");downloadBundle(build(context,include));setStatus("Recovery bundle downloaded. Restore it here to stage drafts for review; it does not save the server map.");}catch(e){setError((e as Error).message);}finally{setBusy(false);}}

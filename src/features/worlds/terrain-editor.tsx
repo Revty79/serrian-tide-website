@@ -1,4 +1,9 @@
 "use client";
+import {refreshWorldResourceAuthority} from "./world-resource-authority";
+import {useRefreshWorldResourceAuthority} from "./world-permission-context";
+import { useWorldResourcePermission,useWorldScope } from "./world-permission-context";
+import { WorldScopedMapBrowser } from "./world-scoped-map-browser";
+import { BuildingInteriorWorkspace } from "./building-floor-editor";
 import {NativeTerritoryPanel} from "./native-map-history-territory-panel";
 import type {NativeTerritoryOverlay} from "./native-map-history-territory-painter";
 import {shouldUpdateAtlasViewport} from "./atlas-viewport-focus";
@@ -361,6 +366,9 @@ function TerrainMapsWorkspace({ worldId, review, ordinary, canEdit, onDirty }: {
   const q = new URLSearchParams(); if (review) q.set("review", "1"); if (ordinary) q.set("ordinary", "1");
   const bindApi=useNativeApiUrl();
   const api = bindApi(`/api/worlds/${worldId}/terrain${q.size ? `?${q}` : ""}`);
+  const readAuthority=useCallback(()=>ordinary||selected.startsWith("town:")||selected.startsWith("newtown:")?Promise.resolve(undefined):worldApi<Bundle>(`${api}${api.includes("?")?"&":"?"}${selected?`terrainMap=${encodeURIComponent(selected)}`:""}`),[ordinary,selected,worldApi,api]);
+  const acceptAuthority=useCallback((fresh:Bundle|undefined)=>{if(fresh)setBundle(previous=>previous?refreshWorldResourceAuthority(previous,fresh):previous);},[]);
+  useRefreshWorldResourceAuthority(worldId,readAuthority,acceptAuthority);
   const hierarchy=useWorldMapHierarchy(api,!ordinary);
   useEffect(() => { if (ordinary||selected.startsWith("town:")||selected.startsWith("newtown:")) return; let alive = true; const controller = new AbortController(); const previous=cacheSource.current,sourceId=previous?.document?.terrainId,known=sourceId?tileCache.current.get(sourceId):undefined,cacheQuery=known?`&knownTerrain=${sourceId}&knownRevision=${known.revision}`:"";worldApi<Bundle>(`${api}${api.includes("?") ? "&" : "?"}${selected ? `terrainMap=${encodeURIComponent(selected)}` : ""}${cacheQuery}`, "GET", undefined, controller.signal).then(value => { if (alive) { const doc=value.document;if(doc){const cached=tileCache.current.get(doc.terrainId);if(doc.tilesUnchanged){if(!cached||cached.revision!==doc.revision)throw Error("Cached terrain expired. Retry loading its accepted source.");doc.tiles=cached.tiles;}else{const bytes=doc.tiles.reduce((sum,t)=>sum+t.samples.length*8+64,0);tileCache.current.delete(doc.terrainId);tileCache.current.set(doc.terrainId,{revision:doc.revision,tiles:doc.tiles,bytes});while([...tileCache.current.values()].reduce((sum,c)=>sum+c.bytes,0)>16*1024*1024)tileCache.current.delete(tileCache.current.keys().next().value!);}}cacheSource.current=value;setBundle(value); setError(""); } }).catch(failure => { if (alive){setBundle(current=>current?{...current,document:null}:current);setError(message(failure));} }).finally(() => { if (alive) setPending(false); }); return () => { alive = false; controller.abort(); }; }, [api, selected, ordinary, generation,worldApi]);
   const dirtyChanged = useCallback((v: boolean) => { localDirty.current = v; onDirty(v||sourceDirty.current); }, [onDirty]);
@@ -373,14 +381,21 @@ function TerrainMapsWorkspace({ worldId, review, ordinary, canEdit, onDirty }: {
 }
 
 function ActiveTerrainWorkspace(props:{worldId:string;review:boolean;ordinary:boolean;canEdit:boolean;onDirty:(v:boolean)=>void}){
- const historyScope=useNativeHistory();
- const parentDirty=props.onDirty,[underground,setUnderground]=useState(false),[craft,setCraft]=useState(false),dirty=useRef(false),changed=useCallback((value:boolean)=>{dirty.current=value;parentDirty(value);},[parentDirty]);
- useEffect(()=>{queueMicrotask(()=>{const q=new URL(location.href).searchParams;setUnderground(["undergroundLevel","undergroundNew","undergroundLibrary"].some(k=>q.has(k)));setCraft(["craft","craftNew","craftLibrary"].some(k=>q.has(k)));});},[]);
-
- if(craft&&!props.ordinary)return <CraftWorkspace worldId={props.worldId} review={props.review} onDirty={changed}/>;
- if(underground&&!props.ordinary)return <UndergroundWorkspace worldId={props.worldId} review={props.review} onDirty={changed}/>;
- if(historyScope?.target.kind==="floor"&&!props.ordinary)return <NativeFloorHost worldId={props.worldId} review={props.review} onDirty={changed}/>;
- return <TerrainMapsWorkspace {...props} onDirty={changed}/>;
+ const historyScope=useNativeHistory(),atlas=useWorldScope(props.worldId,"atlas"),interiors=useWorldScope(props.worldId,"interiors"),underground=useWorldScope(props.worldId,"underground"),craft=useWorldScope(props.worldId,"craft"),settlements=useWorldScope(props.worldId,"settlements"),permission=useWorldResourcePermission(props.worldId);
+ const destination=()=>{if(typeof location==="undefined")return "";const q=new URL(location.href).searchParams;return ["craft","craftNew","craftLibrary"].some(k=>q.has(k))?"craft":["undergroundLevel","undergroundNew","undergroundLibrary"].some(k=>q.has(k))?"underground":q.has("interiorBuilding")?"floor":q.has("townMap")||q.has("townMapCreate")?"town":"terrain";};
+ const [view,setView]=useState(""),[locationKey,setLocationKey]=useState("");
+ useEffect(()=>{const update=()=>{setView(destination());setLocationKey(location.search);};queueMicrotask(update);window.addEventListener("atlas:navigate",update);window.addEventListener("popstate",update);return()=>{window.removeEventListener("atlas:navigate",update);window.removeEventListener("popstate",update);};},[]);
+ const q=new URLSearchParams(locationKey),browser=permission&&permission.role!=="owner"?<WorldScopedMapBrowser worldId={props.worldId} review={props.review}/>:null;
+ const exitInterior=()=>{const url=new URL(location.href);for(const key of ["interiorFloor","interiorBuilding","townMap","atlasState","atlasVersion"])url.searchParams.delete(key);replaceNativeAtlasUrl(url.pathname+url.search);};
+ let content:React.ReactNode;
+ if(!view)content=<div style={{minHeight:720}} role="status">Opening saved maps...</div>;
+ else if((view==="craft"||historyScope?.target.kind==="craft"||historyScope?.target.kind==="deck")&&craft&&!props.ordinary)content=<CraftWorkspace worldId={props.worldId} review={props.review} onDirty={props.onDirty}/>;
+ else if(view==="underground"&&underground&&!props.ordinary)content=<UndergroundWorkspace worldId={props.worldId} review={props.review} onDirty={props.onDirty}/>;
+ else if(historyScope?.target.kind==="floor"&&interiors&&!props.ordinary)content=<NativeFloorHost worldId={props.worldId} review={props.review} onDirty={props.onDirty}/>;
+ else if(view==="floor"&&interiors&&!settlements&&!props.ordinary&&q.has("townMap"))content=<BuildingInteriorWorkspace worldId={props.worldId} mapId={q.get("townMap")!} featureId={q.get("interiorBuilding")!} review={props.review} onDirty={props.onDirty} onReturn={exitInterior}/>;
+ else if((view==="terrain"&&atlas||(view==="town"||view==="floor")&&settlements)&&!props.ordinary)content=<TerrainMapsWorkspace {...props}/>;
+ else content=<section style={{minHeight:400}}><h3>Choose a permitted saved map</h3><p>{props.ordinary?"This explicit ordinary-knowledge preview is read-only.":"The selected map family is outside this World's grant. Open one of the shared families above; no replacement source or historical coverage has been inferred."}</p></section>;
+ return <>{browser}{content}</>;
 }
 
 export function TerrainWorkspace(props:{worldId:string;review:boolean;ordinary:boolean;canEdit:boolean;onDirty:(v:boolean)=>void;viewingContext?:import("./world-atlas-context").WorldAtlasContext;history?:Pick<WorldBundle,"timelines"|"selectedTimeline"|"eras">}){

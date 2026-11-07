@@ -1,4 +1,5 @@
 import "server-only";
+import {worldScopeAllowed,worldProtectedContent} from "./world-access-service";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { worldSkyRule, worldSkyPhase, worldSkyCalendarBinding } from "@/db/world-peoples-schema";
 import { worldDayReference } from "@/db/world-calendar-history-schema";
@@ -15,9 +16,10 @@ export async function readAstronomySource(tx: HistoryTx, worldId: string, versio
   const [rule] = await tx.select().from(worldSkyRule).where(and(eq(worldSkyRule.versionId, versionId), eq(worldSkyRule.worldId, worldId)));
   const phases = await tx.select({ id: worldSkyPhase.id, name: worldSkyPhase.name, duration: worldSkyPhase.duration, description: worldSkyPhase.description }).from(worldSkyPhase).where(eq(worldSkyPhase.versionId, versionId)).orderBy(asc(worldSkyPhase.position));
   const calendars = await tx.select().from(worldSkyCalendarBinding).where(and(eq(worldSkyCalendarBinding.versionId, versionId), eq(worldSkyCalendarBinding.worldId, worldId))).orderBy(asc(worldSkyCalendarBinding.position));
-  const calendarBindings = calendars.map(({ id, calendarVersionId, revision, role, account, protected: secret }) => ({ id, calendarVersionId, revision, role, account, protected: secret }));
-  const cycle: SkyCycle | null = rule ? { scale: rule.scale, unit: rule.unit, period: rule.period, anchor: rule.anchor, anchorCalendar: rule.anchorSource ? { versionId: rule.anchorSource.start.versionId, revision: rule.anchorSource.start.revision, date: rule.anchorSource.start.date } : null, approximate: rule.approximate, offset: rule.offset, window: rule.window, beginning: rule.beginning, ending: rule.ending, phases } : null;
-  return { cycle, calendarBindings, sources: { anchor: rule?.anchorSource ?? null, calendars: calendars.map((c, i) => ({ ...calendarBindings[i], calendarName: c.calendarName, versionTitle: c.versionTitle })) } satisfies AstronomySources };
+  const readableCalendars=worldScopeAllowed(worldId,"timekeeping")?calendars.filter(c=>worldProtectedContent(worldId)||!c.protected):[];
+  const calendarBindings = readableCalendars.map(({ id, calendarVersionId, revision, role, account, protected: secret }) => ({ id, calendarVersionId, revision, role, account, protected: secret }));
+  const cycle: SkyCycle | null = rule ? { scale: rule.scale, unit: rule.unit, period: rule.period, anchor: rule.anchor, anchorCalendar: worldScopeAllowed(worldId,"timekeeping")&&rule.anchorSource ? { versionId: rule.anchorSource.start.versionId, revision: rule.anchorSource.start.revision, date: rule.anchorSource.start.date } : null, approximate: rule.approximate, offset: rule.offset, window: rule.window, beginning: rule.beginning, ending: rule.ending, phases } : null;
+  return { cycle, calendarBindings, sources: { anchor: worldScopeAllowed(worldId,"timekeeping")?rule?.anchorSource??null:null, calendars: readableCalendars.map((c, i) => ({ ...calendarBindings[i], calendarName: c.calendarName, versionTitle: c.versionTitle })) } satisfies AstronomySources };
 }
 export async function appendAstronomySource(tx: HistoryTx, worldId: string, versionId: string, draft: LoreDraft, previous?: LoreRecord) {
   const cycle = draft.cycle === undefined ? previous?.draft.cycle : draft.cycle;

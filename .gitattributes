@@ -31,3 +31,4 @@ drizzle/0156_atlas_map_templates.sql text eol=lf
 
 # Keep the new historical migration identical in rehearsals and future hosts.
 drizzle/0158_native_map_history.sql text eol=lf
+drizzle/0159_world_collaboration.sql text eol=lf

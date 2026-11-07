@@ -1,4 +1,5 @@
 "use client";
+import { accountWorldStorage } from "./world-draft-storage";
 import {useNativeHistory} from "./native-map-history-client";
 import {nativeOriginalRequestUuidForUrl} from "./native-map-history-transport-client";
 import {templateImagePreview} from "./map-template-application";
@@ -15,13 +16,14 @@ import {townProblem} from "./town-map";
 import styles from "./building-floor.module.css";
 
 export function FloorStart({bundle,api,storageKey,source,recovery,onCancel,onSaved,onDirty}:{bundle:FloorBundle;api:string;storageKey:string;source?:FloorBundle["document"];recovery?:FloorRecoveryCandidate;onCancel:()=>void;onSaved:(id:string)=>Promise<void>;onDirty:(v:boolean)=>void}){
+ const localStorage=accountWorldStorage();
  const building=bundle.building!;const historicalScope=useNativeHistory();
  const defaults=()=>{const position=nextFloorOrder(bundle.floors),copied=source?copyFloor(source.design,()=>crypto.randomUUID()):null;return {version:1,buildingId:building.id,name:source?source.name+" copy":floorPositionName(position),position,mode:source?"copy":"outline",rooms:3,show:true,design:copied??initialFloor("outline",building.footprint,building.frame,()=>crypto.randomUUID()),copyDesign:copied,copyFloorId:source?.id??null,copyRevision:source?.revision??null} as FloorCreationDraft;};
  const [draft,setDraft]=useState<FloorCreationDraft>(defaults),[stored,setStored]=useState(()=>recovery??readFloorRecovery(localStorage,storageKey)),[dirty,setDirty]=useState(!!source),[pending,setPending]=useState<Extract<FloorCommand,{action:"create"}>>(),[saving,setSaving]=useState(false),[error,setError]=useState("");
  const handle=useRef<FloorCanvasHandle>(null),origin=useRef<FloorRecoveryCandidate|undefined>(undefined),copyRetained=useRef(false);
  const parsed=useMemo<{draft?:FloorCreationDraft;pending?:Extract<FloorCommand,{action:"create"}>;issue?:string}>(()=>{if(!stored)return {};try{return parseFloorCreationRecovery(stored.raw,building.id,building.frame);}catch(e){return {issue:townProblem(e)};}},[stored,building.id,building.frame]);
  useEffect(()=>{onDirty(dirty||!!pending||!!stored);},[dirty,pending,stored,onDirty]);
- useEffect(()=>{if(!source||stored||copyRetained.current)return;copyRetained.current=true;try{writeFloorRecovery(localStorage,storageKey,{creation:draft});}catch(e){queueMicrotask(()=>setError(townProblem(e)+" Keep this copy open and export it before leaving."));}},[source,stored,storageKey,draft]);
+ useEffect(()=>{if(!source||stored||copyRetained.current)return;copyRetained.current=true;try{writeFloorRecovery(localStorage,storageKey,{creation:draft});}catch(e){queueMicrotask(()=>setError(townProblem(e)+" Keep this copy open and export it before leaving."));}},[source,stored,storageKey,draft,localStorage]);
  useEffect(()=>{const before=(event:BeforeUnloadEvent)=>{if(dirty||pending||stored){event.preventDefault();event.returnValue="";}};window.addEventListener("beforeunload",before);return()=>window.removeEventListener("beforeunload",before);},[dirty,pending,stored]);
  function persist(value:FloorCreationDraft,request=pending){try{writeFloorRecovery(localStorage,storageKey,{creation:value,...request?{pending:request}:{}});setError("");}catch(e){setError(townProblem(e)+" Keep this preview open and export it before leaving.");}}
  function update(patch:Partial<FloorCreationDraft>,regenerate=false){if(pending||stored||saving)return;const next={...draft,...patch};if(regenerate)next.design=next.mode==="copy"?next.copyDesign!:initialFloor(next.mode,building.footprint,building.frame,()=>crypto.randomUUID(),next.rooms);setDraft(next);setDirty(true);persist(next);}

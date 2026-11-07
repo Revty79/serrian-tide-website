@@ -33,7 +33,7 @@ export type WorldRecord = WorldDraft & { id: string; ownerId: string; ownerName:
 export type EraRecord = EraDraft & { id: string; worldId: string; revision: number; archived: boolean; sourceDating?: SourceDating|null; historyContext?:HistoryContext };
 export type EntryRecord = EntryDraft & { id: string; worldId: string; revision: number; archived: boolean; updatedAt: string; sourceDating?: SourceDating|null; calendarSource?:CalendarSource|null; historyContext?:HistoryContext };
 export type TagReference = { id: number; name: string; tagGroup: string; description: string };
-export type WorldBundle = { world: WorldRecord; eras: EraRecord[]; entries: EntryRecord[]; canEdit: boolean; canManageTimelines:boolean; datingSystems:DatingSystem[]; defaultDatingSystemId:string|null; timelines:WorldTimeline[]; selectedTimeline:WorldTimeline; inheritanceReview:InheritanceReview[] };
+export type WorldBundle = { world: WorldRecord; eras: EraRecord[]; entries: EntryRecord[]; canEdit: boolean; canManageTimelines:boolean; datingSystems:DatingSystem[]; defaultDatingSystemId:string|null; timelines:WorldTimeline[]; selectedTimeline:WorldTimeline; inheritanceReview:InheritanceReview[]; permission?:import("./world-permissions").WorldPermission };
 export function yearLabel(year: number) { return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(year); }
 export function timeBounds(time: HistoricalTime): [number, number] | null {
   if (time.kind === "undated") return null;

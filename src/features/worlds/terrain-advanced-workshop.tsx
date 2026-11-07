@@ -1,4 +1,5 @@
 "use client";
+import { accountWorldStorage } from "./world-draft-storage";
 import {useEffect,useMemo,useRef,useState} from "react";
 import {ZodError} from "zod";
 import {CreatorWorkshop} from "./creator-workshop";
@@ -50,6 +51,7 @@ function download(value:string,name:string){
   a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 export function AdvancedTerrainWorkshop(p:Props){
+ const localStorage=accountWorldStorage();
   const worldApi=useNativeWorldApi(),historyRecovery=useNativeHistoryRecovery();
   const {onDirty}=p;
   const [op,setOp]=useState<AdvancedOperation>(()=>startingOperation(p.input)),[packet,setPacket]=useState<AdvancedContextPacket>(),
@@ -99,13 +101,13 @@ export function AdvancedTerrainWorkshop(p:Props){
     try{for(let n=0;n<localStorage.length;n++){const candidate=localStorage.key(n);if(candidate?.startsWith(prefix)&&candidate!==key){const raw=localStorage.getItem(candidate)!;queueMicrotask(()=>{if(live)setRecovery({key:candidate,raw});});break;}}}
     catch{queueMicrotask(()=>{if(live)setError("Browser recovery storage is unavailable. Keep this editor open or export the operation settings.");});}
     queueMicrotask(()=>{if(live)setRecoveryReady(true);});return()=>{live=false;};
-  },[doc.worldId,doc.id,doc.revision,doc.refinement,key,prefix,worldApi]);
+  },[doc.worldId,doc.id,doc.revision,doc.refinement,key,prefix,worldApi,localStorage]);
   useEffect(()=>{
     if(!recoveryReady||recovery||retired.current)return;
     const raw=JSON.stringify({version:1,mapId:doc.id,sourceId:doc.refinement?.id??null,revision:doc.revision,operation:op,visualOnly,outline,areaMode,drawing,simplificationM:outlineTolerance});
     try{if(raw.length>ADVANCED_TERRAIN_LIMITS.packetCharacters)throw Error("Operation recovery exceeds 250,000 characters.");localStorage.setItem(key,raw);retained.current=raw;exported.current=false;storageFailed.current=false;}
     catch{storageFailed.current=true;queueMicrotask(()=>{if(alive.current)setError("The settings could not be retained in browser recovery. Export them before closing; accepted terrain is unchanged.");});}
-  },[op,visualOnly,outline,areaMode,drawing,outlineTolerance,recoveryReady,recovery,key,doc]);
+  },[op,visualOnly,outline,areaMode,drawing,outlineTolerance,recoveryReady,recovery,key,doc,localStorage]);
   function close(){
     if(applying)return;
     if((storageFailed.current||!retained.current&&!recovery)&&!exported.current){setError("Export these settings before closing because browser recovery is unavailable.");return;}

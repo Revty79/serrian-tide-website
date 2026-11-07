@@ -1,3 +1,4 @@
+import { worldContentEditor } from "./world-access-service";
 import "server-only";
 import {createHash} from "node:crypto";
 import {and,eq,sql} from "drizzle-orm";
@@ -55,9 +56,9 @@ export async function advancedContextInTransaction(tx:Connection,worldId:string,
   return {pin,context,sourceId:sourceId??null,sourceRevision,rootRevision:root.revision,canEdit:true};
 }
 export async function getAdvancedTerrainContext(userId:string,worldId:string,mapId:string,sourceId?:string,options:{ordinary?:boolean;review?:boolean}={}){
-  z.uuid().parse(mapId);const access=await worldReadAccess(userId,worldId,!!options.review);
+  z.uuid().parse(mapId);const access=await worldReadAccess(userId,worldId,!!options.review,"atlas");
   if(options.ordinary)throw new WorldError("This numerical authoring context is private.",404);
-  return db.transaction(async tx=>({...await advancedContextInTransaction(tx,worldId,mapId,sourceId),canEdit:access.ownerId===userId&&!access.archivedAt&&!options.review}),{accessMode:"read only",isolationLevel:"repeatable read"});
+  return db.transaction(async tx=>({...await advancedContextInTransaction(tx,worldId,mapId,sourceId),canEdit:worldContentEditor(access,userId)&&!access.archivedAt&&!options.review}),{accessMode:"read only",isolationLevel:"repeatable read"});
 }
 
 /** Recompute under the existing owned-World write lock, before staging files.

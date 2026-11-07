@@ -36,12 +36,12 @@ test("all six preferences default independently and runtime payloads reject iden
   }
   assert.deepEqual(parseCatalogPreferenceChange({ catalog: "equipment", mode: "canon" }), { catalog: "equipment", mode: "canon" });
 });
-test("canon governance does not redefine existing shared-library edit permissions", () => {
+test("canon originals are locked while non-canon authoring retains existing ownership rules", () => {
   for (const isSystemCanon of [false, true]) {
     const imported = { createdByUserId: "me", sourceSystem: "import", isSystemCanon };
     const authored = { createdByUserId: "me", sourceSystem: null, isSystemCanon };
     assert.equal(canEditSharedLibraryRoot({ userId: "me", roles: ["admin"] }, imported), false);
-    assert.equal(canEditSharedLibraryRoot({ userId: "me", roles: ["god"] }, authored), true);
+    assert.equal(canEditSharedLibraryRoot({ userId: "me", roles: ["god"] }, authored), !isSystemCanon);
     assert.equal(canEditSharedLibraryRoot({ userId: "other", roles: ["god"] }, authored), false);
     assert.equal(canEditSharedLibraryRoot({ userId: "me", roles: ["player"] }, authored), false);
   }

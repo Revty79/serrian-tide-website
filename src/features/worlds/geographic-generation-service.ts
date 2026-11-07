@@ -24,10 +24,10 @@ async function context(tx:Tx,userId:string,worldId:string,body:z.infer<typeof co
  const [stamp]=(await tx.execute<{stamp:string}>(sql`select md5(coalesce(string_agg(h.feature_id||':'||h.version_id,'|' order by h.feature_id),'')) stamp from world_geo_head h join world_geo_feature f on f.id=h.feature_id and f.world_id=h.world_id where f.world_id=${worldId} and f.surface_id=${layer.surface.id}`)).rows;
  return {layer,context:digest([map.id,map.revision,body.timelineId,layer.surface,stamp.stamp])};
 }
-export async function geographicGenerationContext(userId:string,worldId:string,input:unknown){const body=contextSchema.parse(input);return worldWriteTransaction(userId,worldId,tx=>context(tx,userId,worldId,body));}
+export async function geographicGenerationContext(userId:string,worldId:string,input:unknown){const body=contextSchema.parse(input);return worldWriteTransaction(userId,worldId,tx=>context(tx,userId,worldId,body),"atlas");}
 /** Additive, all-or-nothing batch. Existing heads/artwork/places are never updated. */
 export async function saveGeographicGeneration(userId:string,worldId:string,input:unknown):Promise<GenerationSaved>{
- const body=generationSaveSchema.parse(input),requestHash=digest(body);await worldReadAccess(userId,worldId);
+ const body=generationSaveSchema.parse(input),requestHash=digest(body);await worldReadAccess(userId,worldId,false,"atlas");
  // Bounded deterministic verification before taking the World writer lock.
  let generated;try{generated=generateGeography(body.recipe);}catch(error){throw new WorldError((error as Error).message,400);}
  if(createHash("sha256").update(JSON.stringify(generated.features)).digest("hex")!==body.outputDigest)throw new WorldError("The geographic preview does not match this algorithm and recipe. Preview again before saving.",409);
@@ -49,5 +49,5 @@ export async function saveGeographicGeneration(userId:string,worldId:string,inpu
    await tx.insert(version).values(row);await saveGeographicParts(tx,row,body.recipe.reference,provenance.display);await tx.insert(head).values({featureId:m.id,worldId,versionId:m.versionId,revision:1});
   }
   return {features:members,reused:false};
- });
+ },"atlas");
 }

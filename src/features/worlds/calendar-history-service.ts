@@ -1,3 +1,4 @@
+import { worldOrdinaryContent } from "./world-access-service";
 import "server-only";
 import { and, asc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -13,7 +14,7 @@ import { WorldError, worldReadAccess } from "./world-service";
 // Filter the selected effective sources BEFORE paging. This is independent of
 // the History index's first visual page and never fills gaps from Primary.
 export async function calendarHistory(userId: string, worldId: string, timelineId: string, input: unknown, review = false, ordinary = false): Promise<CalendarHistoryPage> {
-  await worldReadAccess(userId, worldId, review);
+  await worldReadAccess(userId, worldId, review,["timekeeping","history"]);ordinary=worldOrdinaryContent(worldId,ordinary);
   const query = calendarHistoryQuerySchema.parse(input);
   return db.transaction(async tx => {
     await selectedTimeline(tx, worldId, timelineId);

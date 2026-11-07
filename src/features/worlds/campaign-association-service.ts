@@ -1,3 +1,5 @@
+import { lockWorldForWrite,finishWorldContentWrite } from "./world-access-service";
+import { worldActor,worldContentEditor } from "./world-access-service";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -53,9 +55,9 @@ async function contexts(connection: Connection, filter: { worldId?: string; camp
   return { contexts: records, homes: [...homes.values()] };
 }
 export async function worldCampaignAssociations(userId: string, worldId: string, review = false): Promise<AssociationBundle> {
-  const parent = await worldReadAccess(userId, worldId, review);
+  const parent = await worldReadAccess(userId, worldId, review,"campaigns");
   const result = await db.transaction(async tx => ({ ...await contexts(tx, { worldId }), selection: review ? { contextId: null, viewingYear: null, revision: 0 } : await selection(tx, userId) }), { isolationLevel: "repeatable read", accessMode: "read only" });
-  return { ...result, choices: review ? [] : await eligibleCampaigns(userId), canManage: !review && parent.ownerId === userId };
+  const ownerTools=!review&&parent.permission.role==="owner"&&parent.permission.canCreateWorld;return { ...result, choices: ownerTools ? await eligibleCampaigns(userId) : [], canManage: ownerTools && worldContentEditor(parent,userId) };
 }
 export async function campaignWorldAssociations(userId: string, campaignId: number): Promise<AssociationBundle> {
   await actor(userId);
@@ -64,7 +66,7 @@ export async function campaignWorldAssociations(userId: string, campaignId: numb
   return db.transaction(async tx => ({ ...await contexts(tx, { campaignId,creatorId:userId }), selection: await selection(tx, userId), choices: [], canManage: !owned.archivedAt }), { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 export async function authoringContextSummary(userId:string){
-  await actor(userId);
+  await worldActor(userId);
   return db.transaction(async tx=>{
     const current=await selection(tx,userId);
     const row=current.contextId?(await contexts(tx,{contextId:current.contextId,creatorId:userId})).contexts[0]??null:null;
@@ -103,6 +105,7 @@ export async function changeCampaignAssociation(userId: string, worldId: string,
   await actor(userId);
   const command = associationCommandSchema.parse(input);
   return db.transaction(async tx => {
+    const result=await (async()=>{
     const [ownedCampaign] = await tx.select().from(campaign).where(and(eq(campaign.id, command.campaignId), eq(campaign.createdByUserId, userId))).for("update");
     if (!ownedCampaign) throw unavailable();
     const replacementId = command.action === "remove" ? command.replacementId : null;
@@ -112,6 +115,7 @@ export async function changeCampaignAssociation(userId: string, worldId: string,
     const ownedWorlds = await tx.select().from(world).where(and(inArray(world.id, worldIds), eq(world.ownerId, userId))).orderBy(asc(world.id)).for("update");
     if (ownedWorlds.length !== worldIds.length) throw unavailable();
     const parent = ownedWorlds.find(row => row.id === worldId)!;
+    await lockWorldForWrite(tx,userId,worldId,["campaigns","owner"]);
     const availableContext = async (row: ContextRow, restoring = false) => {
       const [timeline] = await tx.select().from(worldTimeline).where(and(eq(worldTimeline.id, row.timelineId), eq(worldTimeline.worldId, row.worldId)));
       if (!timeline || row.creatorId !== userId) throw unavailable();
@@ -173,5 +177,8 @@ export async function changeCampaignAssociation(userId: string, worldId: string,
     const [saved] = await tx.update(worldCampaignContext).set({ revision: row.revision + 1, updatedAt: new Date(),
       ...(command.action === "edit" ? { startingYear: command.startingYear } : { removedAt: command.action === "remove" ? new Date() : null }) }).where(eq(worldCampaignContext.id, row.id)).returning();
     await audit(tx, userId, saved, command.action);
+    })();
+    await finishWorldContentWrite(tx,userId,worldId,["campaigns","owner"]);
+    return result;
   });
 }

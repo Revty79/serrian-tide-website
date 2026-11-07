@@ -1,3 +1,6 @@
+import { worldOrdinaryContent,worldScopeAllowed } from "./world-access-service";
+import { ordinaryLorePinnedSource } from "./ordinary-knowledge";
+import { sql } from "drizzle-orm";
 import "server-only";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { worldStoryContext, worldStorySource } from "@/db/world-story-schema";
@@ -19,13 +22,13 @@ export async function readStorySource(tx: HistoryTx, worldId: string, timelineId
   if (!context) throw new WorldError("This story's retained context is unavailable.", 404);
   const originals = await tx.select({ link: worldStorySource, source: worldLoreVersion, name: worldStoryVersion.name }).from(worldStorySource)
     .innerJoin(worldLoreVersion, eq(worldLoreVersion.id, worldStorySource.sourceVersionId)).innerJoin(worldStoryVersion, eq(worldStoryVersion.versionId, worldLoreVersion.id))
-    .where(and(eq(worldStorySource.worldId, worldId), eq(worldStorySource.versionId, versionId))).orderBy(asc(worldStorySource.position));
+    .where(and(eq(worldStorySource.worldId, worldId), eq(worldStorySource.versionId, versionId),worldOrdinaryContent(worldId)?eq(worldStorySource.protected,false):undefined,worldOrdinaryContent(worldId)?ordinaryLorePinnedSource(worldId,timelineId,sql`${worldLoreVersion.id}`):undefined)).orderBy(asc(worldStorySource.position));
   const heads = originals.length ? await tx.select({ id: worldLoreHead.entityId, mode: worldLoreHead.mode, archived: worldLoreVersion.archived }).from(worldLoreHead).innerJoin(worldLoreVersion, eq(worldLoreVersion.id, worldLoreHead.versionId))
     .where(and(eq(worldLoreHead.worldId, worldId), eq(worldLoreHead.timelineId, timelineId), inArray(worldLoreHead.entityId, originals.map(o => o.link.entityId)))) : [];
   const storySources = originals.map(({ link }) => ({ id: link.id, entityId: link.entityId, versionId: link.sourceVersionId, revision: link.sourceRevision, relationshipType: link.relationshipType, account: link.account, protected: link.protected }));
   return {
-    storyContext: { time: context.time, protected: context.protected, datingSystemId: context.datingSystemId, datingSystemRevision: context.sourceDating?.revision, calendarDate: calendarDraft(context.calendarSource) }, storySources,
-    sources: { context: { sourceDating: context.sourceDating, calendarSource: context.calendarSource }, originals: originals.map(({ source, name, link }, i) => {
+    storyContext: context.protected&&worldOrdinaryContent(worldId)?undefined:{ time: context.time, protected: context.protected, datingSystemId:worldScopeAllowed(worldId,"timekeeping")?context.datingSystemId:null, datingSystemRevision:worldScopeAllowed(worldId,"timekeeping")?context.sourceDating?.revision:undefined, calendarDate:worldScopeAllowed(worldId,"timekeeping")?calendarDraft(context.calendarSource):undefined }, storySources,
+    sources: { context: { sourceDating:worldScopeAllowed(worldId,"timekeeping")&&!(context.protected&&worldOrdinaryContent(worldId))?context.sourceDating:null, calendarSource:worldScopeAllowed(worldId,"timekeeping")&&!(context.protected&&worldOrdinaryContent(worldId))?context.calendarSource:null }, originals: originals.map(({ source, name, link }, i) => {
       const current = heads.find(h => h.id === link.entityId);
       return { ...storySources[i], name, sourceTimelineId: source.timelineId, archived: source.archived, unavailable: !current || current.archived || current.mode === "pending" || current.mode === "excluded" };
     }) } satisfies StorySources,

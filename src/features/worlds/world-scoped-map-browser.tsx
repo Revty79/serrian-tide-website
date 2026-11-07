@@ -1,0 +1,16 @@
+"use client";
+import { useCallback,useEffect,useState } from "react";
+import { useWorldScope } from "./world-permission-context";
+import { worldApi } from "./client-api";
+import type { WorldMapAccessIndex } from "./world-map-access";
+import { useNativeNavigate } from "./native-map-history-client";
+
+/** Lists existing bindings only; drawing remains in the established native editors. */
+export function WorldScopedMapBrowser({worldId,review}:{worldId:string;review:boolean}){
+ const interiors=useWorldScope(worldId,"interiors"),craft=useWorldScope(worldId,"craft"),underground=useWorldScope(worldId,"underground"),atlas=useWorldScope(worldId,"atlas"),settlements=useWorldScope(worldId,"settlements"),navigate=useNativeNavigate();
+ const [index,setIndex]=useState<WorldMapAccessIndex>(),[error,setError]=useState("");
+ const load=useCallback(async(offset=0)=>{try{setIndex(await worldApi<WorldMapAccessIndex>(`/api/worlds/${worldId}/map-access?offset=${offset}${review?"&review=1":""}`));setError("");}catch(error){setError(error instanceof Error?error.message:"Shared maps could not be loaded.");}},[worldId,review]);
+ useEffect(()=>{if(interiors)queueMicrotask(()=>void load());},[load,interiors]);
+ function open(_name:string,params:Record<string,string>){const url=new URL(location.href);for(const key of ["townMap","townMapCreate","interiorFloor","interiorBuilding","undergroundLibrary","undergroundLevel","undergroundNew","craftLibrary","craft","craftNew","craftDeck","atlasState","atlasVersion","atlasArrival"])url.searchParams.delete(key);for(const [key,value]of Object.entries(params))url.searchParams.set(key,value);navigate(url.pathname+url.search);}
+ return <section aria-label="Permitted map families"><h3>Maps shared with you</h3><p>Open saved maps in the sections the owner has shared. Their dates and selected World stay with this view.</p><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{atlas&&<button className="st-button" onClick={()=>open("World and Regional Atlas",{})}>World and Regional Atlas</button>}{craft&&<button className="st-button" onClick={()=>open("Craft Library",{craftLibrary:"1"})}>Craft and decks</button>}{underground&&<button className="st-button" onClick={()=>open("Underground maps",{undergroundLibrary:"1"})}>Underground maps</button>}{settlements&&<a className="st-button" onClick={event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();navigate(event.currentTarget.href);}} href={`/worlds/${worldId}?${new URLSearchParams({...Object.fromEntries(typeof location!=="undefined"?new URL(location.href).searchParams:[]),tab:"towns"})}`}>Towns and Places</a>}</div>{interiors&&<details open={!atlas}><summary>Saved building interiors</summary>{index?.interiors.map(item=><button className="st-button is-secondary" key={item.buildingId} onClick={()=>open(item.name,{townMap:item.townMapId,interiorBuilding:item.featureId})}>{item.name}</button>)}{index?.next!==null&&index?.next!==undefined&&<button className="st-button" onClick={()=>void load(index.next!)}>More interiors</button>}{index&&!index.interiors.length&&<p>No saved interior bindings are available.</p>}</details>}{error&&<p role="alert">{error}<button className="st-button" onClick={()=>void load()}>Retry shared maps</button></p>}</section>;
+}

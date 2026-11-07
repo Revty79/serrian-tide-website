@@ -18,6 +18,13 @@ export type UserAccountForeignKeyPlanEntry = {
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "world_access_invitation", columnName: "inviter_id", constraintName: "world_access_invitation_inviter_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "World invitation authorship" },
+  { tableName: "world_access_invitation", columnName: "invitee_id", constraintName: "world_access_invitation_invitee_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Retained World invitations" },
+  { tableName: "world_access_participant", columnName: "user_id", constraintName: "world_access_participant_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Retained World participant permissions" },
+  { tableName: "world_access_participant", columnName: "granted_by", constraintName: "world_access_participant_granted_by_user_id_fk", onDelete: "restrict", disposition: "block", label: "World permission attribution" },
+  { tableName: "world_editor_lease", columnName: "holder_id", constraintName: "world_editor_lease_holder_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "World editing-control identity" },
+  { tableName: "world_access_audit", columnName: "actor_id", constraintName: "world_access_audit_actor_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable World access audit authorship" },
+  { tableName: "world_access_audit", columnName: "target_id", constraintName: "world_access_audit_target_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Retained World access audit subjects" },
   { tableName: "world_map_state_component", columnName: "author_id", constraintName: "world_map_state_component_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable native historical map content" },
   { tableName: "world_map_state_native_request", columnName: "author_id", constraintName: "world_map_state_native_request_author_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Immutable native historical map requests" },
   { tableName: "atlas_template", columnName: "owner_id", constraintName: "atlas_template_owner_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Private Atlas templates" },
@@ -167,4 +174,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 147;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 154;

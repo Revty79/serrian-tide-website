@@ -1,4 +1,6 @@
 import "server-only";
+import {worldScopeAllowed,worldProtectedContent} from "./world-access-service";
+import {projectWorldPinnedContent} from "./world-pinned-content";
 import type {HistoryTx} from "./history-version-service";
 import {nativeResource,type NativeContentContext} from "./native-map-history-context";
 import {nativeTerritorySavedSchema,type NativeTerritory} from "./native-map-history-territories";
@@ -8,12 +10,13 @@ import {nativeObjectPresent} from "./native-map-history";
 /** Read only the geography this view actually consumes. Missing coverage never
  * falls back to a modern or legacy political layer. */
 export async function nativeTerritoriesForDiscovery(tx:HistoryTx,c:NativeContentContext){
+  if(!worldScopeAllowed(c.worldId,"politics"))return [];
   const authority=c.authority??c;
   if(!authority.manifest.resources.some(r=>r.key==="territories"))return [];
   const conditions=(await nativeConditions(tx,authority)).values;
   if(!nativeObjectPresent(conditions,authority.scope.target.id))return [];
-  const layer=nativeTerritorySavedSchema.parse((await nativeResource(tx,authority,"territories")).payload);
-  return layer.territories.filter(t=>!t.archived&&nativeObjectPresent(conditions,t.id)&&t.boundaries.some(b=>!b.archived&&!b.parentId)).map(territory=>({territory,relationships:activeTerritoryRelationships(territory,c.scope.year),mapVersionId:authority.version.id}));
+  const original=nativeTerritorySavedSchema.parse((await nativeResource(tx,authority,"territories")).payload),layer=await projectWorldPinnedContent(original,c.worldId,c.scope.timelineId,tx);
+  return layer.territories.filter(t=>!t.archived&&(worldProtectedContent(c.worldId)||!t.protected)&&nativeObjectPresent(conditions,t.id)&&t.boundaries.some(b=>!b.archived&&!b.parentId)).map(territory=>({territory,relationships:activeTerritoryRelationships(territory,c.scope.year),mapVersionId:authority.version.id}));
 }
 export function nativeTerritoryFocus(t:NativeTerritory){
   const points=t.boundaries.filter(b=>!b.archived&&!b.parentId).flatMap(b=>b.points);if(!points.length)return;

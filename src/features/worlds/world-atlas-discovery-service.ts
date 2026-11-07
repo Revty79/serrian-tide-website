@@ -1,3 +1,5 @@
+import { worldScopeAllowed,worldOrdinaryContent } from "./world-access-service";
+import { requireWorldNativeFamily,worldLoreFamilyWhere } from "./world-resource-permissions";
 import {worldCampaignAssociations} from "./campaign-association-service";
 import {nativeTerritoriesForDiscovery,nativeTerritoryFocus} from "./native-map-history-territory-discovery";
 import "server-only";
@@ -44,6 +46,8 @@ type NativeMapReading = { context?: NativeContentContext; coverage: AssociationC
 type Permissions = { ownerId: string; archived: boolean; review: boolean; ordinary: boolean };
 
 async function mapReading(tx: HistoryTx, userId: string, context: WorldAtlasContext, permissions: Permissions, target: NativeMapTarget, name: string, scope?: NativeHistoryScope): Promise<NativeMapReading> {
+  requireWorldNativeFamily(context.worldId,target.kind);
+  if(context.year!==undefined&&(!worldScopeAllowed(context.worldId,"history")||!worldScopeAllowed(context.worldId,"appearances")))return {coverage:"unknown",name};
   if (context.year === undefined) return { coverage: "current-reference", name };
   const choices = await nativeChoices(tx, context.worldId, context.timelineId, target);
   const selected = scope ? choices.find(choice => choice.id === scope.stateId) : resolveNativeHistory(choices, target, context.year);
@@ -82,7 +86,7 @@ async function placeRepresentations(tx: HistoryTx, userId: string, context: Worl
   const townIds = [...new Set([...ids, ...townPlaces.map(place => place.townId)])];
   // Native terrain maps have the existing 64-map bound. The position itself is
   // read from the selected dated component, never the mutable placement table.
-  const terrainMaps = bounded(await tx.select({ id: worldAtlasMap.id, name: worldAtlasMap.name, archived: worldAtlasMap.archivedAt }).from(worldMapCanvas)
+  const terrainMaps = !worldScopeAllowed(context.worldId,"atlas")?[]:bounded(await tx.select({ id: worldAtlasMap.id, name: worldAtlasMap.name, archived: worldAtlasMap.archivedAt }).from(worldMapCanvas)
     .innerJoin(worldAtlasMap, and(eq(worldAtlasMap.id, worldMapCanvas.mapId), eq(worldAtlasMap.worldId, context.worldId)))
     .where(and(eq(worldMapCanvas.worldId, context.worldId),sql`(
       exists(select 1 from world_map_place p where p.world_id=${context.worldId} and p.map_id=${worldMapCanvas.mapId} and p.geography_id in (${sql.join(townIds.map(id=>sql`${id}`),sql`,`)}))
@@ -99,7 +103,7 @@ async function placeRepresentations(tx: HistoryTx, userId: string, context: Worl
     const conditions = reading.context ? (await nativeConditions(tx, reading.context)).values : [];
     for (const account of accounts) for (const place of places.filter(place => place.townId === account.id && !place.removed && nativeObjectPresent(conditions, place.id))) maps.push(representation(context, { kind: "terrain", id: map.id }, reading, account, place, place.id,place.name||undefined));
   }
-  const townMaps = bounded(await tx.select().from(worldTownMap).where(and(eq(worldTownMap.worldId, context.worldId), inArray(worldTownMap.townId, townIds))).orderBy(asc(worldTownMap.id)).limit(201), 200, "Town map selection");
+  const townMaps = !worldScopeAllowed(context.worldId,"settlements")?[]:bounded(await tx.select().from(worldTownMap).where(and(eq(worldTownMap.worldId, context.worldId), inArray(worldTownMap.townId, townIds))).orderBy(asc(worldTownMap.id)).limit(201), 200, "Town map selection");
   for (const map of townMaps) {
     if(context.year===undefined&&map.nativeOriginVersionId)continue;
     const reading = await mapReading(tx, userId, context, permissions, { kind: "town", id: map.id }, map.name);
@@ -118,7 +122,7 @@ async function placeRepresentations(tx: HistoryTx, userId: string, context: Worl
   // Floors and underground levels use their existing saved Place/building
   // bindings. A dated component must establish the relationship itself; an
   // unavailable appearance never borrows a current floor or hidden endpoint.
-  const floors=bounded(await tx.select({floor:worldBuildingFloor,building:worldBuildingInterior,binding:worldBuildingInteriorSource,town:worldTownMap}).from(worldBuildingFloor)
+  const floors=!worldScopeAllowed(context.worldId,"interiors")?[]:bounded(await tx.select({floor:worldBuildingFloor,building:worldBuildingInterior,binding:worldBuildingInteriorSource,town:worldTownMap}).from(worldBuildingFloor)
     .innerJoin(worldBuildingInterior,and(eq(worldBuildingInterior.id,worldBuildingFloor.buildingId),eq(worldBuildingInterior.worldId,worldBuildingFloor.worldId)))
     .innerJoin(worldBuildingInteriorSource,and(eq(worldBuildingInteriorSource.buildingId,worldBuildingInterior.id),eq(worldBuildingInteriorSource.worldId,worldBuildingInterior.worldId)))
     .innerJoin(worldTownMap,and(eq(worldTownMap.id,worldBuildingInteriorSource.townMapId),eq(worldTownMap.worldId,worldBuildingInteriorSource.worldId)))
@@ -130,7 +134,7 @@ async function placeRepresentations(tx: HistoryTx, userId: string, context: Worl
     if(!building||bundle?.document?.archived)continue;
     for(const account of accounts.filter(a=>a.id===building.placeId&&!a.branchId))maps.push(representation(context,target,reading,account,undefined,undefined,building.name,undefined,{townMap:row.town.id,interiorBuilding:row.binding.featureId,terrainMap:row.town.sourceMapId,townReturnMap:row.town.contextMapId}));
   }
-  const levels=bounded(await tx.select({level:worldUndergroundLevel,site:worldUndergroundSite}).from(worldUndergroundLevel)
+  const levels=!worldScopeAllowed(context.worldId,"underground")?[]:bounded(await tx.select({level:worldUndergroundLevel,site:worldUndergroundSite}).from(worldUndergroundLevel)
     .innerJoin(worldUndergroundSite,and(eq(worldUndergroundSite.id,worldUndergroundLevel.siteId),eq(worldUndergroundSite.worldId,worldUndergroundLevel.worldId)))
     .where(and(eq(worldUndergroundLevel.worldId,context.worldId),inArray(worldUndergroundSite.placeId,ids))).orderBy(asc(worldUndergroundLevel.id)).limit(129),128,"linked underground selection");
   for(const row of levels){
@@ -144,10 +148,13 @@ async function placeRepresentations(tx: HistoryTx, userId: string, context: Worl
 }
 
 export async function discoverWorldAtlas(userId: string, worldId: string, input: unknown, options: { review?: boolean; ordinary?: boolean } = {}): Promise<WorldAtlasDiscovery> {
-  const parsed = worldAtlasDiscoverySchema.parse(input), access = await worldReadAccess(userId, worldId, !!options.review);
+  const parsed = worldAtlasDiscoverySchema.parse(input), access = await worldReadAccess(userId, worldId, !!options.review,"shell");
   const context: WorldAtlasContext = { worldId, timelineId: parsed.timelineId, year: parsed.year, review: !!options.review, ordinary: !!options.ordinary };
   const permissions = { ownerId: access.ownerId, archived: !!access.archivedAt, review: context.review, ordinary: context.ordinary };
   const subject = parsed.subject;
+  const subjectScope=subject.kind==="map"?undefined:["town","place","shop"].includes(subject.kind)?"settlements":subject.kind==="calendar"||subject.kind==="chronology"?"timekeeping":subject.kind==="campaign"?"campaigns":subject.kind==="history"?"history":undefined;
+  if(subjectScope)await worldReadAccess(userId,worldId,!!options.review,subjectScope);
+  if(subject.kind==="map")requireWorldNativeFamily(worldId,subject.target.kind);
   let sourceName = "World context", accounts: PlaceAccount[] = [];
   const records: WorldsRecordLink[] = [], directMaps: { id: string; name: string; account: PlaceAccount }[] = [];
   if (subject.kind === "lore") {
@@ -209,7 +216,7 @@ export async function discoverWorldAtlas(userId: string, worldId: string, input:
         records.push({...journeySource,coverage:found.coverage==="unknown"?"unknown":journeySource.coverage});
       }
     } else if (["town", "place", "shop"].includes(subject.kind) && "id" in subject) {
-      const [place] = await tx.select().from(worldGeography).where(and(eq(worldGeography.id, subject.id), eq(worldGeography.worldId, worldId), context.ordinary ? ordinaryPlace() : undefined));
+      const [place] = await tx.select().from(worldGeography).where(and(eq(worldGeography.id, subject.id), eq(worldGeography.worldId, worldId), worldOrdinaryContent(context.worldId,context.ordinary) ? ordinaryPlace() : undefined));
       if (!place) throw missing(); sourceName = place.name;
       if (subject.kind === "shop") {
         const [shop] = await tx.select().from(worldShop).where(and(eq(worldShop.geographyId, subject.id), eq(worldShop.worldId, worldId))); if (!shop) throw missing();
@@ -229,7 +236,7 @@ export async function discoverWorldAtlas(userId: string, worldId: string, input:
       for (const link of links.links.filter(link => !link.archived && link.mode !== "excluded" && link.draft.kind === "society-time" && (link.draft.calendarId === subject.id || link.draft.datingSystemId === subject.id))) records.push({ id: link.source.lore.id, kind: "lore", name: link.source.lore.name, relationship: link.draft.label, coverage: associationPeriodAtYear(link.draft.beginning, link.draft.ending, context.year), versionId: link.source.lore.versionId, associationId: link.id, associationVersionId: link.versionId, href: worldContextUrl(context, { tab: loreWorkspaceTab(link.source.lore.family), entity: link.source.lore.id, loreVersion: link.source.lore.versionId }) });
     }
     const maps = context.ordinary ? [] : await placeRepresentations(tx, userId, context, permissions, accounts.filter(account => account.coverage !== "outside"));
-    if(subject.kind==="lore"&&context.year!==undefined&&!context.ordinary){
+    if(subject.kind==="lore"&&context.year!==undefined&&!context.ordinary&&worldScopeAllowed(worldId,"atlas")&&worldScopeAllowed(worldId,"appearances")){
       const candidates=bounded((await tx.execute<{id:string;name:string}>(sql`select canvas.map_id id,m.name from world_map_canvas canvas join world_atlas_map m on m.id=canvas.map_id and m.world_id=canvas.world_id where canvas.world_id=${worldId} and exists(
         select 1 from world_map_state_head head join world_map_state_version v on v.id=head.version_id and v.world_id=head.world_id
         join world_map_state_component_ref ref on ref.version_id=v.id and ref.key='territories' join world_map_state_component component on component.id=ref.component_id and component.world_id=ref.world_id
@@ -312,7 +319,7 @@ async function relatedToMap(tx: HistoryTx, userId: string, context: WorldAtlasCo
     const rows = await tx.select().from(worldShopLocation).where(and(eq(worldShopLocation.worldId, context.worldId), inArray(worldShopLocation.id, [...branchIds])));
     for (const row of rows) { placeIds.add(row.shopId); if (row.placeId) placeIds.add(row.placeId); }
   }
-  const places = placeIds.size ? bounded(await tx.select().from(worldGeography).where(and(eq(worldGeography.worldId, context.worldId), inArray(worldGeography.id, [...placeIds]), context.ordinary ? ordinaryPlace() : undefined)).limit(2001), 2000, "mapped place selection") : [];
+  const places = placeIds.size&&worldScopeAllowed(context.worldId,"settlements") ? bounded(await tx.select().from(worldGeography).where(and(eq(worldGeography.worldId, context.worldId), inArray(worldGeography.id, [...placeIds]), worldOrdinaryContent(context.worldId,context.ordinary) ? ordinaryPlace() : undefined)).limit(2001), 2000, "mapped place selection") : [];
   for (const place of places) {
     const [town] = await tx.select({ id: worldSettlementProfile.geographyId }).from(worldSettlementProfile).where(and(eq(worldSettlementProfile.worldId, context.worldId), eq(worldSettlementProfile.geographyId, place.id)));
     const [shop] = await tx.select({ id: worldShop.geographyId }).from(worldShop).where(and(eq(worldShop.worldId, context.worldId), eq(worldShop.geographyId, place.id)));
@@ -324,15 +331,15 @@ async function relatedToMap(tx: HistoryTx, userId: string, context: WorldAtlasCo
     const loreRows = bounded(await tx.select({ h: worldLoreHead, v: worldLoreVersion, g: worldLoreGeography, name: worldLoreDisplay.name }).from(worldLoreGeography)
       .innerJoin(worldLoreHead, and(eq(worldLoreHead.versionId, worldLoreGeography.versionId), eq(worldLoreHead.timelineId, context.timelineId)))
       .innerJoin(worldLoreVersion, eq(worldLoreVersion.id, worldLoreHead.versionId)).innerJoin(worldLoreDisplay, eq(worldLoreDisplay.versionId, worldLoreVersion.id))
-      .where(and(eq(worldLoreGeography.worldId, context.worldId), sql`(${worldLoreGeography.geographyId} in (${sql.join(ids.map(id => sql`${id}`), sql`,`)}) or ${worldLoreGeography.destinationId} in (${sql.join(ids.map(id => sql`${id}`), sql`,`)}))`, inArray(worldLoreHead.mode, usable), context.ordinary ? ordinaryLoreSource(context.worldId, context.timelineId, sql`${worldLoreVersion.id}`) : undefined, context.ordinary ? eq(worldLoreGeography.protected, false) : undefined)).limit(2001), 2000, "World geographic relationships");
+      .where(and(eq(worldLoreGeography.worldId, context.worldId),worldLoreFamilyWhere(context.worldId,worldLoreVersion.family), sql`(${worldLoreGeography.geographyId} in (${sql.join(ids.map(id => sql`${id}`), sql`,`)}) or ${worldLoreGeography.destinationId} in (${sql.join(ids.map(id => sql`${id}`), sql`,`)}))`, inArray(worldLoreHead.mode, usable), worldOrdinaryContent(context.worldId,context.ordinary) ? ordinaryLoreSource(context.worldId, context.timelineId, sql`${worldLoreVersion.id}`) : undefined, worldOrdinaryContent(context.worldId,context.ordinary) ? eq(worldLoreGeography.protected, false) : undefined)).limit(2001), 2000, "World geographic relationships");
     for (const row of loreRows) {
       const coverage = associationAtYear(row.g.time, context.year); if (coverage === "outside") continue;
       records.push({ id: row.h.entityId, kind: "lore", name: row.name, relationship: row.g.relationshipType + (row.g.account ? `: ${row.g.account}` : ""), coverage, versionId: row.v.id, associationId: row.g.id, href: worldContextUrl(context, { tab: loreWorkspaceTab(row.v.family), entity: row.h.entityId, loreVersion: row.v.id }) });
     }
-    const events = bounded(await tx.select({ h: worldHistoryHead, v: worldHistoryVersion, type: worldHistoryVersionEntity.eventType }).from(worldHistoryVersionEntity)
+    const events = !worldScopeAllowed(context.worldId,"history")?[]:bounded(await tx.select({ h: worldHistoryHead, v: worldHistoryVersion, type: worldHistoryVersionEntity.eventType }).from(worldHistoryVersionEntity)
       .innerJoin(worldHistoryHead, and(eq(worldHistoryHead.versionId, worldHistoryVersionEntity.versionId), eq(worldHistoryHead.timelineId, context.timelineId)))
       .innerJoin(worldHistoryVersion, eq(worldHistoryVersion.id, worldHistoryHead.versionId))
-      .where(and(eq(worldHistoryVersionEntity.worldId, context.worldId), inArray(worldHistoryVersionEntity.geographyId, ids), inArray(worldHistoryHead.mode, [...usable, "partial"]), context.ordinary ? ordinaryHistorySource(context.worldId, context.timelineId, sql`${worldHistoryVersion.id}`) : undefined)).limit(2001), 2000, "place milestones");
+      .where(and(eq(worldHistoryVersionEntity.worldId, context.worldId), inArray(worldHistoryVersionEntity.geographyId, ids), inArray(worldHistoryHead.mode, [...usable, "partial"]), worldOrdinaryContent(context.worldId,context.ordinary) ? ordinaryHistorySource(context.worldId, context.timelineId, sql`${worldHistoryVersion.id}`) : undefined)).limit(2001), 2000, "place milestones");
     for (const event of events) {
       const entry = event.v.payload as EntryRecord;
       const coverage = context.year !== undefined && event.h.coveredUntil !== null && context.year > event.h.coveredUntil ? "unknown" : associationAtYear(entry.time, context.year); if (coverage === "outside") continue;
@@ -350,7 +357,7 @@ async function relatedToMap(tx: HistoryTx, userId: string, context: WorldAtlasCo
     const calendar=link.draft.kind==="society-time"&&link.draft.calendarId,kind=calendar?"calendar" as const:"chronology" as const;
     records.push({id:link.source.target.id,kind,name:link.source.target.name,relationship:`${link.draft.label}; timekeeping for ${link.source.lore.name}, without a physical calendar position`,coverage,associationId:link.id,associationVersionId:link.versionId,href:worldContextUrl(context,calendar?{tab:"calendars",calendar:link.source.target.id,calendarVersion:link.source.target.calendarVersionId}:{tab:"chronology",datingSystem:link.source.target.id})});
   }
-  if(!context.ordinary){
+  if(!context.ordinary&&worldScopeAllowed(context.worldId,"campaigns")){
     const associations=await worldCampaignAssociations(userId,context.worldId,context.review);
     for(const item of associations.contexts.filter(item=>item.available&&item.ownershipAvailable&&item.timelineId===context.timelineId))records.push({id:item.id,kind:"campaign",name:item.campaignName,relationship:"Campaign context associated with this World and timeline; no map position or historical existence period is inferred",coverage:"current-reference",associationId:item.id,href:worldContextUrl(context,{tab:"campaigns",worldCampaignContext:item.id})});
   }

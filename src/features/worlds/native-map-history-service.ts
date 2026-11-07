@@ -1,3 +1,5 @@
+import { worldContentEditor,worldProtectedContent,worldScopeAllowed } from "./world-access-service";
+import { nativeWorldScope } from "./world-permissions";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
@@ -14,6 +16,8 @@ import { captureNativeBaseline, retainCapturedNativeSource } from "./native-map-
 import { appendNativeVersion, loadNativeVersion, nativeChoices, nativeChoice, nativeContentHash, nativeHistoryAvailable, nativeHistoryConflict, nativeHistoryMissing, nativeManifestOf, nativeRevisionChoices, nativeVersionReachable, type NativeHistoryTx } from "./native-map-history-store";
 import { NATIVE_HISTORY_LIMITS, nativeHistoryCommandSchema, nativeMapTargetSchema, nativeTargetKey, resolveNativeHistory, type NativeHistoryBundle, type NativeMapTarget, type NativeStateChoice } from "./native-map-history";
 import type { MapStateDetails } from "./map-states";
+import {nativeConditions} from "./native-map-history-conditions";
+import {nativeContentContext} from "./native-map-history-context";
 import {bindNativeTownBackdrop} from "./native-map-history-backdrop";
 import { bindNativeRegion } from "./native-map-history-geography";
 
@@ -27,7 +31,7 @@ function checkPeriod(states: NativeStateChoice[], details: MapStateDetails, exce
 export async function getNativeMapHistory(userId: string, worldId: string, input: NativeMapTarget, timelineId: string, options: {
   review?: boolean; ordinary?: boolean; year?: number; stateId?: string; versionId?: string;geographyVersionId?:string; prepareBaseline?: boolean;
 } = {}): Promise<NativeHistoryBundle> {
-  const access = await worldReadAccess(userId, worldId, !!options.review);
+  const access = await worldReadAccess(userId, worldId, !!options.review,["history","appearances",nativeWorldScope(input.kind)]);
   if (options.ordinary) throw nativeHistoryMissing();
   const target = nativeMapTargetSchema.parse(input);
   if (options.year !== undefined) yearSchema.parse(options.year);
@@ -37,11 +41,11 @@ export async function getNativeMapHistory(userId: string, worldId: string, input
     const parent = timeline.parentId ? await selectedTimeline(tx, worldId, timeline.parentId) : null;
     const info = await nativeTargetInfo(tx, worldId, target);
     if(options.geographyVersionId&&target.kind!=="town"&&(target.kind!=="terrain"||target.id===info.anchorMapId))throw new WorldError("Choose a separate dated World source only for a Region.",400);
-    const states = await nativeChoices(tx, worldId, timelineId, target);
+    const states = (await nativeChoices(tx, worldId, timelineId, target)).filter(state=>worldProtectedContent(worldId)||!state.protected);
     let selected = options.stateId ? states.find(s => s.id === options.stateId) ?? null
       : options.year !== undefined ? resolveNativeHistory(states, target, options.year) : null;
     if (options.stateId && !selected) throw nativeHistoryMissing();
-    const revisions = selected ? await nativeRevisionChoices(tx, worldId, selected) : [];
+    const revisions = selected ? (await nativeRevisionChoices(tx, worldId, selected)).filter(state=>worldProtectedContent(worldId)||!state.protected) : [];
     if (options.versionId) {
       if (!selected || !await nativeVersionReachable(tx, worldId, timelineId, target, options.versionId)) throw nativeHistoryMissing();
       const retained = await loadNativeVersion(tx, worldId, options.versionId, target);
@@ -51,31 +55,32 @@ export async function getNativeMapHistory(userId: string, worldId: string, input
     const result: NativeHistoryBundle = {
       available: true,baselineAvailable:info.baselineAvailable!==false, target, anchorMapId: info.anchorMapId, targetName: info.name,
       timelineId, timelineName: timeline.name, parentTimelineName: parent?.name ?? null,
-      year: options.year ?? null, states, parentStates: parent ? await nativeChoices(tx, worldId, parent.id, target) : [],
+      year: options.year ?? null, states, parentStates: parent ? (await nativeChoices(tx, worldId, parent.id, target)).filter(state=>worldProtectedContent(worldId)||!state.protected) : [],
       revisions, selected, coverage: selected && !selected.archived && (options.year === undefined || selected.startYear <= options.year && selected.endYear >= options.year)
         ? "established" : options.year !== undefined ? "unknown" : "baseline",
-      canEdit: access.ownerId === userId && !access.archivedAt && !options.review && !timeline.archivedAt,
+      canEdit: worldContentEditor(access,userId) && !access.archivedAt && !options.review && !timeline.archivedAt,
     };
     if ((target.kind === "town" || target.kind === "terrain" && target.id !== info.anchorMapId) && options.year !== undefined) {
       const parentTarget = { kind: "terrain" as const, id: info.anchorMapId };
       const retained = options.versionId ? await loadNativeVersion(tx, worldId, options.versionId, target) : undefined;
       const dependency = options.geographyVersionId?{versionId:options.geographyVersionId}:retained ? nativeManifestOf(retained).dependencies.find(d => nativeTargetKey(d.target) === nativeTargetKey(parentTarget)) : undefined;
+      if(options.geographyVersionId&&!worldScopeAllowed(worldId,"atlas"))throw nativeHistoryMissing();
       if(options.geographyVersionId&&!await nativeVersionReachable(tx,worldId,timelineId,parentTarget,options.geographyVersionId))throw nativeHistoryMissing();
       if (dependency) {
         const exact = await loadNativeVersion(tx, worldId, dependency.versionId, parentTarget);
-        result.geographySource = exact.stateId ? { stateId: exact.stateId, versionId: exact.id, name: exact.name } : null;
+        result.geographySource = exact.stateId&&worldScopeAllowed(worldId,"atlas")&&(worldProtectedContent(worldId)||!exact.protected) ? { stateId: exact.stateId, versionId: exact.id, name: exact.name } : null;
         if(exact.archived||exact.startYear!>options.year||exact.endYear!<options.year){if(target.kind==="terrain")result.coverage="unknown";result.geographySource=null;}
         if(!await nativeVersionReachable(tx,worldId,timelineId,parentTarget,exact.id)){result.geographySource=null;if(target.kind==="terrain")result.coverage="unknown";}
       } else {
         const geography = retained&&target.kind==="town"?null:resolveNativeHistory(await nativeChoices(tx, worldId, timelineId, parentTarget), parentTarget, options.year);
-        result.geographySource = geography ? { stateId: geography.id, versionId: geography.versionId, name: geography.name } : null;
-        if(!geography&&target.kind==="terrain")result.coverage="unknown";
+        result.geographySource = geography&&worldScopeAllowed(worldId,"atlas")&&(worldProtectedContent(worldId)||!geography.protected) ? { stateId: geography.id, versionId: geography.versionId, name: geography.name } : null;
+        if(!result.geographySource&&target.kind==="terrain")result.coverage="unknown";
       }
     }
     if(selected){
       const version=await loadNativeVersion(tx,worldId,(target.kind==="terrain"?result.geographySource?.versionId:undefined)??selected.versionId);
       const ref=nativeManifestOf(version).resources.find(r=>r.key==="conditions");
-      if(ref){const [component]=await tx.select().from(worldMapStateComponent).where(and(eq(worldMapStateComponent.id,ref.componentId),eq(worldMapStateComponent.worldId,worldId)));if(component)result.conditions=nativeConditionsSchema.parse(component.payload.values);}
+      if(ref){const [component]=await tx.select().from(worldMapStateComponent).where(and(eq(worldMapStateComponent.id,ref.componentId),eq(worldMapStateComponent.worldId,worldId)));if(component){if(worldProtectedContent(worldId))result.conditions=nativeConditionsSchema.parse(component.payload.values);else if(!selected.archived&&(options.versionId||options.year===undefined||selected.startYear<=options.year&&selected.endYear>=options.year)){const context=await nativeContentContext(tx,userId,worldId,{target,timelineId,stateId:selected.id,year:options.year??selected.startYear,edit:false,versionId:options.versionId,geographyVersionId:options.geographyVersionId},{ownerId:access.ownerId,archived:!!access.archivedAt,review:!!options.review,ordinary:false});result.conditions=(await nativeConditions(tx,context)).values;}else result.conditions=[];}}
     }
     if (options.prepareBaseline&&info.baselineAvailable!==false) {
       if (!result.canEdit) throw new WorldError("Only the World owner can prepare a new historical authoring source.", 403);
@@ -86,7 +91,7 @@ export async function getNativeMapHistory(userId: string, worldId: string, input
   };
   // Deliberate baseline preparation holds the established World writer lock so
   // the native read services see a coherent exact source. It writes no records.
-  if (options.prepareBaseline) return worldWriteTransaction(userId, worldId, read);
+  if (options.prepareBaseline) return worldWriteTransaction(userId, worldId, read,["history","appearances",nativeWorldScope(input.kind)]);
   return db.transaction(read, { isolationLevel: "repeatable read", accessMode: "read only" });
 }
 
@@ -94,6 +99,7 @@ export async function changeNativeMapHistory(userId: string, worldId: string, ra
   const command = nativeHistoryCommandSchema.parse(raw), inputHash = nativeContentHash(command);
   return worldWriteTransaction(userId, worldId, async tx => {
     await requireAvailable(tx);
+    if("details"in command&&command.details.protected&&!worldProtectedContent(worldId))throw new WorldError("Protected appearances require the owner?s explicit permission.",403);
     const targetKey = nativeTargetKey(command.target);
     const [retry] = await tx.select().from(requests).where(eq(requests.requestId, command.requestId));
     if (retry) {
@@ -168,5 +174,5 @@ export async function changeNativeMapHistory(userId: string, worldId: string, ra
     }
     await tx.insert(requests).values({ requestId: command.requestId, worldId, timelineId: timeline.id, targetKey, inputHash, authorId: userId, result });
     return result;
-  });
+  },["history","appearances",nativeWorldScope(command.target.kind)]);
 }

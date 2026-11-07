@@ -1,6 +1,7 @@
+import { worldOrdinaryContent,worldContentEditor,worldProtectedContent } from "./world-access-service";
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { world } from "@/db/world-schema";
@@ -23,19 +24,24 @@ function versionDto(row:typeof worldCalendarVersion.$inferSelect):CalendarVersio
 const unavailable=()=>new WorldError("This calendar or version is unavailable.",404);
 const conflict=()=>new WorldError("A newer version was saved in another tab. Your draft is retained. Load the latest version before saving again.",409);
 export async function getCalendars(userId:string,worldId:string,review=false,ordinary=false,timelineId?:string):Promise<CalendarBundle>{
-  await worldReadAccess(userId,worldId,review);
+  const access=await worldReadAccess(userId,worldId,review,"timekeeping");ordinary=worldOrdinaryContent(worldId,ordinary);
   return db.transaction(async tx=>{
     const timeline=await selectedTimeline(tx,worldId,timelineId);
     const [parent]=await tx.select().from(world).where(eq(world.id,worldId));
     const calendars=await tx.select().from(worldCalendar).where(eq(worldCalendar.worldId,worldId)).orderBy(asc(worldCalendar.name),asc(worldCalendar.id));
     const versions=await tx.select().from(worldCalendarVersion).where(eq(worldCalendarVersion.worldId,worldId)).orderBy(asc(worldCalendarVersion.createdAt),asc(worldCalendarVersion.id));
     const [preference]=await tx.select().from(worldCalendarPreference).where(eq(worldCalendarPreference.worldId,worldId));
-    const visibleCalendars=calendars.filter(c=>!ordinary||c.visibility==="ordinary"),calendarIds=new Set(visibleCalendars.map(c=>c.id)),visibleVersions=versions.filter(v=>calendarIds.has(v.calendarId)),versionIds=new Set(visibleVersions.map(v=>v.id)),evolution=await evolutionRows(tx,worldId,{timelineId:timeline.id,primary:timeline.primary,ordinary});if(ordinary){evolution.anchors=evolution.anchors.filter(a=>versionIds.has(a.versionId));evolution.histories=evolution.histories.filter(h=>versionIds.has(h.versionId));evolution.adoptions=evolution.adoptions.filter(a=>versionIds.has(a.versionId));evolution.reforms=evolution.reforms.filter(r=>versionIds.has(r.predecessorId)&&versionIds.has(r.successorId));}return {calendars:visibleCalendars.map(calendarDto),versions:visibleVersions.map(versionDto),defaultVersionId:preference?.defaultVersionId&&versionIds.has(preference.defaultVersionId)?preference.defaultVersionId:null,worldRevision:parent.revision,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!review&&!ordinary,evolution};
+    const visibleCalendars=calendars.filter(c=>!ordinary||c.visibility==="ordinary"),calendarIds=new Set(visibleCalendars.map(c=>c.id)),visibleVersions=versions.filter(v=>calendarIds.has(v.calendarId)),versionIds=new Set(visibleVersions.map(v=>v.id)),evolution=await evolutionRows(tx,worldId,{timelineId:timeline.id,primary:timeline.primary,ordinary});if(ordinary){evolution.anchors=evolution.anchors.filter(a=>versionIds.has(a.versionId));evolution.histories=evolution.histories.filter(h=>versionIds.has(h.versionId));evolution.adoptions=evolution.adoptions.filter(a=>versionIds.has(a.versionId));evolution.reforms=evolution.reforms.filter(r=>versionIds.has(r.predecessorId)&&versionIds.has(r.successorId));}return {calendars:visibleCalendars.map(calendarDto),versions:visibleVersions.map(versionDto),defaultVersionId:preference?.defaultVersionId&&versionIds.has(preference.defaultVersionId)?preference.defaultVersionId:null,worldRevision:parent.revision,canEdit:worldContentEditor(access,userId)&&!parent.archivedAt&&!review,evolution};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function changeCalendar(userId:string,worldId:string,input:unknown){
   return worldWriteTransaction(userId,worldId,async(tx,parent)=>{
     const c=command.parse(input);const stamp={updatedAt:new Date()};
+    if(!worldProtectedContent(worldId)){
+      if("draft"in c&&c.draft.visibility==="protected")throw new WorldError("Protected calendars require the owner's explicit permission.",403);
+      const calendarId="id"in c?c.id:c.action==="default"?c.versionId:null;
+      if(calendarId){const hidden=await tx.select({id:worldCalendar.id}).from(worldCalendar).leftJoin(worldCalendarVersion,eq(worldCalendarVersion.calendarId,worldCalendar.id)).where(and(eq(worldCalendar.worldId,worldId),eq(worldCalendar.visibility,"protected"),sql`(${worldCalendar.id}=${calendarId} or ${worldCalendarVersion.id}=${calendarId})`)).limit(1);if(hidden.length)throw unavailable();}
+    }
     if(c.action==="create"){
       const calendarId=randomUUID(),versionId=randomUUID();await tx.insert(worldCalendar).values({id:calendarId,worldId,...c.draft});await tx.insert(worldCalendarVersion).values({id:versionId,calendarId,worldId,title:c.title,rules:c.rules});await tx.update(world).set(stamp).where(eq(world.id,worldId));return versionId;
     }
@@ -57,5 +63,5 @@ export async function changeCalendar(userId:string,worldId:string,input:unknown)
       await tx.update(table).set({...stamp,archivedAt:archiving?new Date():null,revision:current.revision+1}).where(eq(table.id,c.id));
     }
     await tx.update(world).set(stamp).where(eq(world.id,worldId));return c.id;
-  });
+  },"timekeeping");
 }

@@ -7,7 +7,7 @@ import {terrainSourceState} from "./terrain-regions";
 import {regionFootprintsAvailable} from "./terrain-region-footprint-service";
 import type {GeographyRevisions} from "./terrain-geography-notifications";
 export async function getTerrainRevisions(userId:string,worldId:string,mapId:string,options:{review?:boolean;ordinary?:boolean}={}):Promise<GeographyRevisions>{
- await worldReadAccess(userId,worldId,!!options.review);if(options.ordinary)throw new WorldError("This terrain map is unavailable.",404);
+ await worldReadAccess(userId,worldId,!!options.review,"atlas");if(options.ordinary)throw new WorldError("This terrain map is unavailable.",404);
  return db.transaction(async tx=>{
   const context=await regionalAuthoringContext(tx,worldId,mapId),source=context.sourceMapId;
   const details=(await tx.execute<{id:string;revision:number}>(sql`select id,revision from world_terrain_refinement where world_id=${worldId} and terrain_id=${context.terrain.id}`)).rows;

@@ -60,6 +60,14 @@ export async function requireGodOrAdminAccessContext(): Promise<{
   return context;
 }
 
+/** Participation never grants the global right to create Worlds. */
+export async function requireWorldsAccessContext() {
+  const context=await loadAccessContext();
+  if(context.roles.includes("god")||context.roles.includes("admin"))return context;
+  if(context.roles.length&&(await(await import("@/features/worlds/world-collaboration-service")).hasWorldsInvitationAccess(context.session.user.id)))return context;
+  throw new Error("A World invitation or creator access is required.");
+}
+
 export function requireAdmin() {
   return requireRole("admin");
 }

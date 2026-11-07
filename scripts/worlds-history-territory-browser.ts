@@ -1,3 +1,4 @@
+import {claimOwnedWorldPage} from "./worlds-owned-world-api";
 import assert from "node:assert/strict";
 import {readFile,writeFile} from "node:fs/promises";
 import path from "node:path";
@@ -20,7 +21,7 @@ export async function nativeTerritoryBrowser({f,browser,context,base,sourceHash}
       // The actual Politics tab offers the original territory representation,
       // even after a newer political head was authored.
       for(const year of [100,500]){
-        await p.goto(base+worldContextUrl(view(year),{tab:"politics",entity:fixture.polityId,...year===100?{loreVersion:fixture.originalPolityVersion}:{}}),{waitUntil:"networkidle"});
+        await p.goto(base+worldContextUrl(view(year),{tab:"politics",entity:fixture.polityId,...year===100?{loreVersion:fixture.originalPolityVersion}:{}}),{waitUntil:"networkidle"});if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);
         await p.locator("summary").filter({hasText:/^Find in Atlas$/}).filter({visible:true}).first().click();const find=p.getByRole("region",{name:"Find in Atlas",exact:true});
         const links=find.getByRole("link",{name:"Show in Atlas",exact:true});await links.first().waitFor();let selected:Locator|undefined;
         for(let i=0;i<await links.count();i++){const u=new URL((await links.nth(i).getAttribute("href"))!,base);if(u.searchParams.get("terrainMap")===fixture.target.id&&JSON.parse(u.searchParams.get("worldSource")??"null")?.territory?.id===fixture.territoryId){selected=links.nth(i);break;}}
@@ -36,7 +37,7 @@ export async function nativeTerritoryBrowser({f,browser,context,base,sourceHash}
         }finally{await map.close();}
       }
       const scope=fixture.scope100,mapUrl=worldContextUrl(view(100),{tab:"atlas",terrainMap:fixture.target.id,atlasState:scope.stateId,atlasEditing:"1"});
-      await p.goto(base+mapUrl,{waitUntil:"networkidle"});const canvas=p.getByLabel("Terrain map canvas",{exact:true});await canvas.waitFor();
+      await p.goto(base+mapUrl,{waitUntil:"networkidle"});if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);const canvas=p.getByLabel("Terrain map canvas",{exact:true});await canvas.waitFor();
       async function openPolitical(){const button=p.getByRole("button",{name:"Political Boundaries",exact:true});if(!await button.isVisible()){const toggle=p.getByRole("button",{name:"Settings",exact:true});await toggle.click();}await button.click();}
       await openPolitical();const panel=p.getByRole("region",{name:"Dated political boundaries",exact:true});
       const add=panel.getByRole("button",{name:"Add Territory",exact:true});await add.waitFor();await add.click();const name=`UI territory ${layout.name}`;await panel.getByLabel("Territory name",{exact:true}).fill(name);await panel.getByLabel("Territorial source account",{exact:true}).fill("Deliberately drawn and accepted through the real dated World map controls.");
@@ -47,7 +48,7 @@ export async function nativeTerritoryBrowser({f,browser,context,base,sourceHash}
       const corners=[[24000,26000],[40000,26000],[40000,42000],[24000,42000]];
       for(const [x,y] of corners){await canvas.scrollIntoViewIfNeeded();await canvas.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));const b=(await canvas.boundingBox())!,camera=await canvas.evaluate(el=>({zoom:Number((el as HTMLCanvasElement).dataset.zoom),x:Number((el as HTMLCanvasElement).dataset.viewX),y:Number((el as HTMLCanvasElement).dataset.viewY)})),px=b.x+camera.x+x*camera.zoom,py=b.y+camera.y+y*camera.zoom;assert.ok(px>b.x&&px<b.x+b.width&&py>b.y&&py<b.y+b.height);assert.equal(await canvas.evaluate((el,point)=>document.elementFromPoint(point.x,point.y)===el,{x:px,y:py}),true,"The boundary corner is clicked on the painted canvas");if(layout.hasTouch)await p.touchscreen.tap(px,py);else await p.mouse.click(px,py);}
       if(layout.hasTouch){await p.getByRole("button",{name:"Options",exact:true}).click();await openPolitical();}
-      await panel.getByRole("button",{name:"Finish Boundary",exact:true}).click();await p.reload({waitUntil:"networkidle"});await canvas.waitFor();await openPolitical();await panel.getByLabel("Territory name",{exact:true}).waitFor();assert.equal(await panel.getByLabel("Territory name",{exact:true}).inputValue(),name);
+      await panel.getByRole("button",{name:"Finish Boundary",exact:true}).click();await p.reload({waitUntil:"networkidle"});if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);await canvas.waitFor();await openPolitical();await panel.getByLabel("Territory name",{exact:true}).waitFor();assert.equal(await panel.getByLabel("Territory name",{exact:true}).inputValue(),name);
       const response=p.waitForResponse(r=>new URL(r.url()).pathname.endsWith("/atlas-history/territories")&&r.request().method()==="POST");await panel.getByRole("button",{name:"Save Political Boundaries",exact:true}).click();const saved=await response;assert.equal(saved.status(),200,await saved.text());await panel.getByText(/Political boundaries saved for this appearance/).waitFor();
       const bundle=await(await c.request.get(base+nativeHistoryUrl(`/api/worlds/${f.world}/atlas-history/territories`,{...scope,edit:false}))).json() as NativeTerritoryBundle;assert.ok(bundle.saved!.territories.some(t=>t.name===name&&t.boundaries[0].points.length===4&&t.relationships.some(r=>r.entityId===fixture.polityId)));
       const accepted=bundle.saved!.territories.find(t=>t.name===name)!.boundaries[0].points;assert.ok(corners.every(([x,y])=>accepted.some(point=>Math.hypot(point.x-x,point.y-y)<2)),"Every saved political corner retains its deliberate physical position");

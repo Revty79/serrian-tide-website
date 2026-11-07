@@ -1,3 +1,4 @@
+import {worldScopeAllowed} from "./world-access-service";
 import "server-only";
 import { buildTownBackdrop, townBackdropPoints, type TownBackdropSample } from "./town-backdrop";
 import { townFrameSchema, validateTownFrame, type TownMapBundle, type TownBackdrop, type TownFrame } from "./town-map";
@@ -21,6 +22,10 @@ export async function sampleNativeTownBackdrop(tx: NativeHistoryTx, context: Nat
 }
 const unknown = (): UnknownNativeBackdrop => ({ available: false, reason: "World ground and water coverage is unknown at this year in this timeline. The Town drawing remains available; current-day terrain was not substituted." });
 export async function readNativeTownBackdrop(tx: NativeHistoryTx, context: NativeContentContext): Promise<TownBackdrop | UnknownNativeBackdrop> {
+  if(!worldScopeAllowed(context.worldId,"atlas"))return unknown();
+  try{return await readableNativeTownBackdrop(tx,context);}catch(error){if(error instanceof WorldError&&error.status===404)return unknown();throw error;}
+}
+async function readableNativeTownBackdrop(tx: NativeHistoryTx, context: NativeContentContext): Promise<TownBackdrop | UnknownNativeBackdrop> {
   const town = ((await nativeResource(tx, context, "town")).payload as unknown as { bundle: TownMapBundle }).bundle.document!;
   if (context.scope.versionId) {
     const saved = (await nativeResource(tx, context, "backdrop")).payload as unknown as TownBackdrop | UnknownNativeBackdrop;

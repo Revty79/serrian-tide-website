@@ -1,4 +1,6 @@
 import "server-only";
+import {worldProtectedContent} from "./world-access-service";
+import {projectWorldPinnedContent} from "./world-pinned-content";
 import {and,eq,inArray,sql} from "drizzle-orm";
 import {worldGeography} from "@/db/world-atlas-schema";
 import {nativeResource,type NativeContentContext} from "./native-map-history-context";
@@ -21,8 +23,8 @@ async function territoryContext(tx:NativeHistoryTx,c:NativeContentContext){
   return {authority,source,saved};
 }
 export async function readNativeTerritories(tx:NativeHistoryTx,c:NativeContentContext):Promise<NativeTerritoryBundle>{
-  const {source,saved}=await territoryContext(tx,c),legacySourceCount=(await tx.execute<{n:number}>(sql`select count(distinct t->>'id')::int n from world_map_state_head h join world_map_state_version v on v.id=h.version_id and v.world_id=h.world_id cross join lateral jsonb_array_elements(coalesce(v.payload->'territories','[]'::jsonb)) t where h.world_id=${c.worldId} and h.map_id=${source.mapId} and h.timeline_id=${c.scope.timelineId} and not(v.payload ? 'nativeAtlas')`)).rows[0].n;
-  return {coverage:saved?"authored-layer":"unknown",canEdit:c.canEdit&&!c.authority,reason:c.authority?"Political boundaries share this Region's dated source World. Open that World to edit them; the Region's footprint remains independent.":c.canEdit?"Only authored boundaries and active dated relationships establish political coverage. Other areas and dates remain unknown.":"Read-only review of the exact retained political sources.",source,sourceChanged:!!saved&&saved.source.fingerprint!==source.fingerprint,saved,references:await territoryReferences(tx,c.worldId,c.scope.timelineId),legacySourceCount:legacySourceCount??0};
+  const context=await territoryContext(tx,c),source=context.source,rawSaved=context.saved,projected=rawSaved?await projectWorldPinnedContent(rawSaved,c.worldId,c.scope.timelineId,tx):null,saved=projected?{...projected,territories:projected.territories.filter(t=>worldProtectedContent(c.worldId)||!t.protected)}:null,redacted=JSON.stringify(rawSaved)!==JSON.stringify(saved),legacySourceCount=(await tx.execute<{n:number}>(sql`select count(distinct t->>'id')::int n from world_map_state_head h join world_map_state_version v on v.id=h.version_id and v.world_id=h.world_id cross join lateral jsonb_array_elements(coalesce(v.payload->'territories','[]'::jsonb)) t where h.world_id=${c.worldId} and h.map_id=${source.mapId} and h.timeline_id=${c.scope.timelineId} and not(v.payload ? 'nativeAtlas')`)).rows[0].n;
+  return {coverage:saved?"authored-layer":"unknown",canEdit:c.canEdit&&!c.authority&&!redacted,reason:c.authority?"Political boundaries share this Region's dated source World. Open that World to edit them; the Region's footprint remains independent.":c.canEdit?"Only authored boundaries and active dated relationships establish political coverage. Other areas and dates remain unknown.":"Read-only review of the exact retained political sources.",source,sourceChanged:!!saved&&saved.source.fingerprint!==source.fingerprint,saved,references:await territoryReferences(tx,c.worldId,c.scope.timelineId),legacySourceCount:legacySourceCount??0};
 }
 export async function saveNativeTerritories(tx:NativeHistoryTx,c:NativeContentContext,raw:unknown):Promise<NativeWriteResult>{
   if(c.authority)throw new WorldError("Open the dated source World before editing shared political boundaries. Your regional view and draft remain retained.",409);

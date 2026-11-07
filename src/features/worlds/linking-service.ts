@@ -1,3 +1,6 @@
+import { worldLoreFamilyWhere } from "./world-resource-permissions";
+import { loreWorldScope } from "./world-permissions";
+import { worldContentEditor,worldScopeAllowed,worldOrdinaryContent,worldProtectedContent,lockWorldForWrite } from "./world-access-service";
 import { geographicPrivatePlaces } from "./geographic-privacy";
 import "server-only";
 import { isDeepStrictEqual } from "node:util";
@@ -27,17 +30,18 @@ function ordinaryMap(worldId: string) {
     union select g.id from world_geography g join hidden h on g.parent_id=h.id where g.world_id=${worldId}
   ) select 1 from hidden where id=${worldAtlasMap.geographyId})`;
 }
-async function choices(tx: HistoryTx,worldId:string,timelineId:string,ordinary:boolean,primary:boolean):Promise<LinkBundle["choices"]> {
+async function choices(tx: HistoryTx,worldId:string,timelineId:string,ordinary:boolean,primary:boolean,nativeMaps=true):Promise<LinkBundle["choices"]> {
+  ordinary=worldOrdinaryContent(worldId,ordinary);
   const lore=await tx.select({id:worldLoreHead.entityId,versionId:worldLoreHead.versionId,revision:worldLoreHead.revision,name:worldLoreDisplay.name,family:worldLoreVersion.family,archived:worldLoreVersion.archived,mode:worldLoreHead.mode}).from(worldLoreHead)
     .innerJoin(worldLoreVersion,eq(worldLoreHead.versionId,worldLoreVersion.id)).innerJoin(worldLoreDisplay,eq(worldLoreDisplay.versionId,worldLoreVersion.id))
-    .where(and(eq(worldLoreHead.worldId,worldId),eq(worldLoreHead.timelineId,timelineId),inArray(worldLoreVersion.family,["realm",...societyFamilies]),inArray(worldLoreHead.mode,usableModes),ordinary?ordinaryLoreSource(worldId,timelineId,sql`${worldLoreVersion.id}`):undefined)).orderBy(asc(worldLoreDisplay.name)).limit(2001);
+    .where(and(eq(worldLoreHead.worldId,worldId),eq(worldLoreHead.timelineId,timelineId),worldLoreFamilyWhere(worldId,worldLoreVersion.family),inArray(worldLoreVersion.family,["realm",...societyFamilies]),inArray(worldLoreHead.mode,usableModes),ordinary?ordinaryLoreSource(worldId,timelineId,sql`${worldLoreVersion.id}`):undefined)).orderBy(asc(worldLoreDisplay.name)).limit(2001);
   // Active native Atlas maps have no ordinary-reader projection. Their names
   // and counts must not escape through otherwise public Realm connections.
-  const maps=ordinary?[]:await tx.select().from(worldAtlasMap).where(and(eq(worldAtlasMap.worldId,worldId),sql`exists(select 1 from world_map_canvas native where native.map_id=${worldAtlasMap.id} and native.world_id=${worldId})`)).orderBy(asc(worldAtlasMap.name)).limit(2001);
-  const calendars=await tx.select().from(worldCalendar).where(and(eq(worldCalendar.worldId,worldId),ordinary?eq(worldCalendar.visibility,"ordinary"):undefined)).orderBy(asc(worldCalendar.name)).limit(2001);
-  const versions=await tx.select().from(worldCalendarVersion).where(and(eq(worldCalendarVersion.worldId,worldId),ordinary?sql`exists(select 1 from world_calendar c where c.id=${worldCalendarVersion.calendarId} and c.world_id=${worldId} and c.visibility='ordinary')`:undefined)).orderBy(asc(worldCalendarVersion.createdAt)).limit(2001);
-  const dating=await tx.select().from(worldDatingSystem).where(eq(worldDatingSystem.worldId,worldId)).orderBy(asc(worldDatingSystem.name)).limit(2001);
-  const adoptions=primary?await tx.select().from(worldCalendarAdoption).where(and(eq(worldCalendarAdoption.worldId,worldId),ordinary?sql`exists(select 1 from world_calendar_version cv join world_calendar c on c.id=cv.calendar_id where cv.id=${worldCalendarAdoption.versionId} and c.world_id=${worldId} and c.visibility='ordinary')`:undefined)).orderBy(asc(worldCalendarAdoption.createdAt)).limit(2001):[];
+  const maps=ordinary&&!nativeMaps||!worldScopeAllowed(worldId,"atlas")?[]:await tx.select().from(worldAtlasMap).where(and(eq(worldAtlasMap.worldId,worldId),ordinary?ordinaryMap(worldId):undefined,sql`exists(select 1 from world_map_canvas native where native.map_id=${worldAtlasMap.id} and native.world_id=${worldId})`)).orderBy(asc(worldAtlasMap.name)).limit(2001);
+  const calendars=!worldScopeAllowed(worldId,"timekeeping")?[]:await tx.select().from(worldCalendar).where(and(eq(worldCalendar.worldId,worldId),ordinary?eq(worldCalendar.visibility,"ordinary"):undefined)).orderBy(asc(worldCalendar.name)).limit(2001);
+  const versions=!worldScopeAllowed(worldId,"timekeeping")?[]:await tx.select().from(worldCalendarVersion).where(and(eq(worldCalendarVersion.worldId,worldId),ordinary?sql`exists(select 1 from world_calendar c where c.id=${worldCalendarVersion.calendarId} and c.world_id=${worldId} and c.visibility='ordinary')`:undefined)).orderBy(asc(worldCalendarVersion.createdAt)).limit(2001);
+  const dating=!worldScopeAllowed(worldId,"timekeeping")?[]:await tx.select().from(worldDatingSystem).where(eq(worldDatingSystem.worldId,worldId)).orderBy(asc(worldDatingSystem.name)).limit(2001);
+  const adoptions=primary&&worldScopeAllowed(worldId,"timekeeping")?await tx.select().from(worldCalendarAdoption).where(and(eq(worldCalendarAdoption.worldId,worldId),ordinary?sql`exists(select 1 from world_calendar_version cv join world_calendar c on c.id=cv.calendar_id where cv.id=${worldCalendarAdoption.versionId} and c.world_id=${worldId} and c.visibility='ordinary')`:undefined)).orderBy(asc(worldCalendarAdoption.createdAt)).limit(2001):[];
   if([lore,maps,calendars,versions,dating,adoptions].some(rows=>rows.length>2000))throw new WorldError("Too many records to open these saved connections safely. Narrow the World archive before continuing.",409);
   const calendarIds=new Set(calendars.map(c=>c.id)),safeVersions=versions.filter(v=>calendarIds.has(v.calendarId)),versionIds=new Set(safeVersions.map(v=>v.id));
   return {
@@ -63,6 +67,7 @@ async function rows(tx:HistoryTx,worldId:string,timelineId:string,ordinary:boole
     const lore=refs.lore.find(l=>l.id===v.loreId),target=v.mapId?refs.maps.find(m=>m.id===v.mapId):v.calendarId?refs.calendars.find(c=>c.id===v.calendarId):refs.dating.find(d=>d.id===v.datingSystemId);
     const safeRules=!v.calendarVersionId||refs.versions.some(r=>r.id===v.calendarVersionId);
     // Do not resurrect Primary-only adoption accounts in a different timeline.
+    if(!worldScopeAllowed(worldId,loreWorldScope(v.source.lore.family))||!worldScopeAllowed(worldId,v.draft.kind==="realm-map"?"atlas":"timekeeping"))continue;
     if(ordinary&&(!lore||!target||!safeRules||v.source.target.visibility==="protected"||v.adoptionId&&!primary))continue;
     const adoption=v.adoptionId&&primary?(await tx.select().from(worldCalendarAdoption).where(and(eq(worldCalendarAdoption.id,v.adoptionId),eq(worldCalendarAdoption.worldId,worldId))))[0]:undefined;
     if(ordinary&&v.adoptionId&&!adoption)continue;
@@ -71,13 +76,13 @@ async function rows(tx:HistoryTx,worldId:string,timelineId:string,ordinary:boole
   return result;
 }
 export async function getWorldLinks(userId:string,worldId:string,timelineId:string,review=false,ordinary=false):Promise<LinkBundle> {
-  const parent=await worldReadAccess(userId,worldId,review);
+  const parent=await worldReadAccess(userId,worldId,review,"shell"),preview=ordinary;ordinary=worldOrdinaryContent(worldId,ordinary);
   return db.transaction(async tx=>{
-    const timeline=await selectedTimeline(tx,worldId,timelineId),refs=await choices(tx,worldId,timelineId,ordinary,timeline.primary);
+    const timeline=await selectedTimeline(tx,worldId,timelineId),refs=await choices(tx,worldId,timelineId,ordinary,timeline.primary,!preview);
     const links=await rows(tx,worldId,timelineId,ordinary,timeline.primary,refs);
     const parentLinks:WorldLink[]=[];
     if(!ordinary&&timeline.parentId){const sourceTimeline=await selectedTimeline(tx,worldId,timeline.parentId),sourceRefs=await choices(tx,worldId,sourceTimeline.id,false,sourceTimeline.primary);parentLinks.push(...(await rows(tx,worldId,sourceTimeline.id,false,sourceTimeline.primary,sourceRefs)).filter(l=>l.mode!=="excluded"&&!l.archived));}
-    return {worldId,timelineId,canEdit:parent.ownerId===userId&&!parent.archivedAt&&!timeline.archivedAt&&!review&&!ordinary,links,parentLinks,choices:refs};
+    return {worldId,timelineId,canEdit:worldContentEditor(parent,userId)&&!parent.archivedAt&&!timeline.archivedAt&&!review&&!ordinary,links,parentLinks,choices:refs};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 async function sourceFor(tx:HistoryTx,worldId:string,timelineId:string,draft:LinkDraft,primary:boolean):Promise<LinkSource> {
@@ -98,6 +103,11 @@ async function sourceFor(tx:HistoryTx,worldId:string,timelineId:string,draft:Lin
   return {lore:{id:lore.id,versionId:lore.versionId,revision:lore.revision,name:lore.name,family:lore.family},target};
 }
 function endpoints(draft:LinkDraft){return draft.kind==="realm-map"?{mapId:draft.mapId,calendarId:null,calendarVersionId:null,datingSystemId:null,adoptionId:null}:{mapId:null,calendarId:draft.calendarId,calendarVersionId:draft.calendarVersionId,datingSystemId:draft.datingSystemId,adoptionId:draft.adoptionId};}
+async function authorizeLinkWrite(tx:HistoryTx,userId:string,worldId:string,timelineId:string,draft:LinkDraft){
+ const refs=await choices(tx,worldId,timelineId,worldOrdinaryContent(worldId),true),lore=refs.lore.find(r=>r.id===draft.loreId);if(!lore?.family)throw unavailable();
+ await lockWorldForWrite(tx,userId,worldId,[loreWorldScope(lore.family),draft.kind==="realm-map"?"atlas":"timekeeping"]);
+ if(!worldProtectedContent(worldId)&&draft.visibility==="protected")throw new WorldError("Protected connections need the owner's permission.",403);
+}
 export async function changeWorldLink(userId:string,worldId:string,input:unknown){
   return worldWriteTransaction(userId,worldId,async tx=>{
     const c=linkCommandSchema.parse(input),timeline=await selectedTimeline(tx,worldId,c.timelineId);if(timeline.archivedAt)throw new WorldError("Restore this timeline before changing its connections.",409);
@@ -109,12 +119,14 @@ export async function changeWorldLink(userId:string,worldId:string,input:unknown
       const [source]=await tx.select({head,version}).from(head).innerJoin(version,eq(head.versionId,version.id)).where(and(eq(head.worldId,worldId),eq(head.timelineId,timeline.parentId),eq(head.linkId,c.id)));
       if(!source||source.head.versionId!==c.sourceVersionId||source.head.revision!==c.sourceRevision)throw conflict();
       if(source.version.archived||source.head.mode==="excluded"||source.version.adoptionId)throw new WorldError("This source cannot be included here. Primary adoption records remain in Primary; author a separate cultural interpretation in this timeline.",409);
+      await authorizeLinkWrite(tx,userId,worldId,timeline.id,source.version.draft);
       await sourceFor(tx,worldId,timeline.id,source.version.draft,timeline.primary);
       const next={worldId,timelineId:timeline.id,linkId:c.id,versionId:source.version.id,revision:(current?.head.revision??0)+1,mode:"inherited" as const};
       if(current)await tx.update(head).set(next).where(and(eq(head.timelineId,timeline.id),eq(head.linkId,c.id)));else await tx.insert(head).values(next);
       return c.id;
     }
     if(c.action==="exclude"){
+      if(current)await authorizeLinkWrite(tx,userId,worldId,timeline.id,current.version.draft);
       if(!current)throw unavailable();
       if(!timeline.parentId||current.head.mode!=="inherited"||current.version.timelineId===timeline.id||current.version.archived)throw new WorldError("Only an active connection included from the parent timeline can be excluded. Archive locally authored or interpreted connections instead.",409);
       await tx.update(head).set({mode:"excluded",revision:current.head.revision+1}).where(and(eq(head.timelineId,timeline.id),eq(head.linkId,c.id)));return c.id;
@@ -122,6 +134,7 @@ export async function changeWorldLink(userId:string,worldId:string,input:unknown
     if(c.action!=="save"&&!current)throw unavailable();
     if(c.action==="save"&&current&&(current.version.archived||current.head.mode==="excluded"))throw new WorldError("Restore or explicitly include this connection before editing it.",409);
     const draft=c.action==="save"?c.draft:current!.version.draft;
+    await authorizeLinkWrite(tx,userId,worldId,timeline.id,draft);
     const fresh=c.action==="save"?await sourceFor(tx,worldId,timeline.id,draft,timeline.primary):undefined;
     if(current&&(draft.kind!==current.version.draft.kind||draft.loreId!==current.version.loreId||JSON.stringify(endpoints(draft))!==JSON.stringify(endpoints(current.version.draft))))throw new WorldError("A saved connection keeps its participants and source. Archive it and create another connection to describe different participants or rules.",400);
     const source=current?.version.source??fresh!;
@@ -130,5 +143,5 @@ export async function changeWorldLink(userId:string,worldId:string,input:unknown
     const next={worldId,timelineId:timeline.id,linkId:c.id,versionId,revision:(current?.head.revision??0)+1,mode:current?.head.mode==="inherited"||current?.head.mode==="interpretation"?"interpretation" as const:"authored" as const};
     if(current)await tx.update(head).set(next).where(and(eq(head.timelineId,timeline.id),eq(head.linkId,c.id)));else await tx.insert(head).values(next);
     return c.id;
-  });
+  },"shell");
 }

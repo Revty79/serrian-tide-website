@@ -1,3 +1,4 @@
+import {worldClientUrl} from "./world-editor-credentials";
 import {z} from "zod";
 import {artworkAsset} from "./terrain-artwork-assets";
 
@@ -26,7 +27,7 @@ export type AssetCommand=z.infer<typeof assetCommandSchema>;
 export type AssetImport=Extract<AssetCommand,{action:"import"}>;
 export type AssetObject={sha256:string;bytes:number;type:"original"|"128"|"768"|"1536"};
 export type AssetVersion={assetId:string;version:number;metadata:AssetMetadata;filename:string;format:string;width:number;height:number;bytes:number;createdAt:string;objects:AssetObject[]};
-export type LibraryAsset={id:string;revision:number;headVersion:number;archived:boolean;versions:AssetVersion[];usage:{worldId:string;kind:string;mapId:string;revision:number}[]};
+export type LibraryAsset={canManage?:boolean;id:string;revision:number;headVersion:number;archived:boolean;versions:AssetVersion[];usage:{worldId:string;kind:string;mapId:string;revision:number}[]};
 export type AssetLibrary={available:boolean;canEdit:boolean;assets:LibraryAsset[];revision:number;favorites:string[];recent:string[];usedBytes:number};
 export type CompositionSaved={available:boolean;revision:number;layer:AssetComposition;history:{revision:number;createdAt:string}[]};
 export type AssetFrame={x:number;y:number;width:number;height:number;wrap?:boolean;wrapWidth?:number};
@@ -35,4 +36,4 @@ export function validateComposition(layer:AssetComposition,frame:AssetFrame){for
 export function placementLocal(p:AssetPlacement,q:{x:number;y:number}){const a=-p.rotation*Math.PI/180,dx=q.x-p.x,dy=q.y-p.y;return {x:dx*Math.cos(a)-dy*Math.sin(a),y:dx*Math.sin(a)+dy*Math.cos(a)};}
 export function hitComposition(layer:AssetComposition,q:{x:number;y:number},tolerance=0){return [...layer.placements].reverse().find(p=>{const v=placementLocal(p,q);return p.visible&&p.opacity>0&&Math.abs(v.x)<=p.width/2+tolerance&&Math.abs(v.y)<=p.height/2+tolerance;});}
 export function snapCompositionPoint(q:{x:number;y:number},grid:number,anchors:{x:number;y:number}[],tolerance:number){let distance=tolerance;const nearest=anchors.reduce<{x:number;y:number}|undefined>((best,p)=>{const d=Math.hypot(p.x-q.x,p.y-q.y);if(d<=distance){distance=d;return p;}return best;},undefined);return nearest??(grid>0?{x:Math.round(q.x/grid)*grid,y:Math.round(q.y/grid)*grid}:q);}
-export function assetImageUrl(worldId:string,assetId:string,version:number,size:"128"|"768"|"1536"="128",review=false){return `/api/worlds/${worldId}/assets/image?asset=${encodeURIComponent(assetId)}&version=${version}&size=${size}${review?"&review=1":""}`;}
+export function assetImageUrl(worldId:string,assetId:string,version:number,size:"128"|"768"|"1536"="128",review=false){return worldClientUrl(`/api/worlds/${worldId}/assets/image?asset=${encodeURIComponent(assetId)}&version=${version}&size=${size}${review?"&review=1":""}`);}

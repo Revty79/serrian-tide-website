@@ -1,4 +1,5 @@
 "use client";
+import {currentWorldDraftActor} from "./world-editor-credentials";
 import {useCallback,useEffect,useRef,useState,useSyncExternalStore} from "react";
 import {z} from "zod";
 import {GuidedField} from "@/components/field-guidance";
@@ -25,7 +26,7 @@ function updateLesson(key:string,change:(old:Progress)=>Progress){
 }
 export function IslandLearning({identity,allowed,facts,onDraw,onRiver}:{identity:string;allowed:boolean;facts:IslandLessonFacts;onDraw:()=>void;onRiver:()=>void}){
  const studio=useMapStudio(),[search,setSearch]=useState("");
- const visit=useRef(crypto.randomUUID()),key=`serrian-atlas-island-lesson:v1:${identity}`,factsToken=JSON.stringify(facts);
+ const visit=useRef(crypto.randomUUID()),key=`serrian-atlas-island-lesson:v1:${currentWorldDraftActor()??"legacy"}:${identity}`,factsToken=JSON.stringify(facts);
  const subscribe=useCallback((notify:()=>void)=>{if(!allowed)return()=>{};const set=listeners.get(key)??new Set<()=>void>();set.add(notify);listeners.set(key,set);return()=>{set.delete(notify);if(!set.size){listeners.delete(key);snapshots.delete(key);}};},[allowed,key]);
  const getSnapshot=useCallback(()=>allowed?lessonSnapshot(key):serverSnapshot,[allowed,key]);
  const {progress,ready,error:storageError}=useSyncExternalStore(subscribe,getSnapshot,()=>serverSnapshot);

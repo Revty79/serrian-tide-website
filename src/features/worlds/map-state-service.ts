@@ -1,3 +1,4 @@
+import { worldContentEditor,worldOrdinaryContent,worldProtectedContent } from "./world-access-service";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -20,7 +21,7 @@ const metadata={id:heads.stateId,versionId:heads.versionId,revision:heads.revisi
 const ordinaryGeographicState=(worldId:string,id:ReturnType<typeof sql>)=>sql`not exists (select 1 from world_map_state_geography mg where mg.version_id=${id} and mg.world_id=${worldId} and mg.geography_id in (${geographicPrivatePlaces(worldId)}))`;
 function choice(row:Omit<MapStateChoice,"startYear"|"endYear"|"authoredAt">&{startYear:number|null;endYear:number|null;authoredAt:Date}):MapStateChoice{return {...row,startYear:row.startYear!,endYear:row.endYear!,authoredAt:row.authoredAt.toISOString()};}
 async function choices(tx:Tx,worldId:string,mapId:string,timelineId:string,ordinary:boolean){return (await tx.select(metadata).from(heads).innerJoin(versions,eq(versions.id,heads.versionId)).where(and(eq(heads.worldId,worldId),eq(heads.mapId,mapId),eq(heads.timelineId,timelineId),sql`NOT (${versions.payload} ? 'nativeAtlas')`,ordinary?sql`world_map_state_is_ordinary(${versions.id},${worldId}) AND ${ordinaryGeographicState(worldId,sql`${versions.id}`)} AND ${ordinaryTerritorySource(worldId,timelineId,sql`${versions.id}`)}`:undefined)).orderBy(versions.startYear,versions.createdAt).limit(129)).map(row=>({...choice(row),...(ordinary?{account:""}:{})}));}
-async function getVersion(tx:Tx,worldId:string,mapId:string,id:string){const [v]=await tx.select().from(versions).where(and(eq(versions.id,id),eq(versions.worldId,worldId),eq(versions.mapId,mapId)));if(!v||"nativeAtlas" in v.payload)throw missing();return v;}
+async function getVersion(tx:Tx,worldId:string,mapId:string,id:string){const [v]=await tx.select().from(versions).where(and(eq(versions.id,id),eq(versions.worldId,worldId),eq(versions.mapId,mapId)));if(!v||"nativeAtlas" in v.payload)throw missing();if(!worldProtectedContent(worldId)){const visible=await tx.execute(sql`select 1 where world_map_state_is_ordinary(${id},${worldId}) and ${ordinaryGeographicState(worldId,sql`${id}`)} and ${ordinaryTerritorySource(worldId,v.timelineId,sql`${id}`)}`);if(!visible.rows.length)throw missing();}return v;}
 async function belongs(tx:Tx,worldId:string,timelineId:string,mapId:string,versionId:string){const rows=await tx.execute(sql`WITH RECURSIVE sources(id) AS (SELECT version_id FROM world_map_state_head WHERE world_id=${worldId} AND timeline_id=${timelineId} AND map_id=${mapId} UNION SELECT n.id FROM sources s JOIN world_map_state_version v ON v.id=s.id CROSS JOIN LATERAL (SELECT v.source_version_id AS id UNION SELECT v.previous_version_id) n WHERE v.world_id=${worldId} AND n.id IS NOT NULL) SELECT id FROM sources WHERE id=${versionId}`);return rows.rows.length>0;}
 function project(bundle:AtlasBundle,map:AtlasMap,v:Version,ordinary=false):AtlasBundle {
   const {geographies:localPlaces,...mapPayload}=v.payload;
@@ -31,7 +32,7 @@ function project(bundle:AtlasBundle,map:AtlasMap,v:Version,ordinary=false):Atlas
 }
 export async function getMapStates(userId:string,worldId:string,mapId:string,timelineId:string,options:{review?:boolean;ordinary?:boolean;stateId?:string;versionId?:string;year?:number;uncoordinated?:boolean}={}):Promise<MapStateBundle> {
   if(![mapId,timelineId,...[options.stateId,options.versionId].filter(Boolean)].every(id=>atlasId.safeParse(id).success))throw missing();
-  const access=await worldReadAccess(userId,worldId,!!options.review);
+  const access=await worldReadAccess(userId,worldId,!!options.review,["history","appearances","atlas"]);options={...options,ordinary:worldOrdinaryContent(worldId,!!options.ordinary)};
   // getAtlas supplies the established server-side geography projection and existing destinations.
   const baseline=await getAtlas(userId,worldId,!!options.review,mapId,!!options.ordinary);
   const map=baseline.maps.find(m=>m.id===mapId);if(!map)throw missing();
@@ -54,7 +55,7 @@ export async function getMapStates(userId:string,worldId:string,mapId:string,tim
       const added=missingIds.length?await tx.select().from(worldGeography).where(and(eq(worldGeography.worldId,worldId),inArray(worldGeography.id,missingIds))):[];
       bundle=project({...baseline,geographies:[...baseline.geographies,...added.map(g=>({id:g.id,name:g.name,description:g.description,kind:g.kind as MapDraft["geographies"][number]["kind"],context:g.context as MapDraft["geographies"][number]["context"],parentId:g.parentId,revision:g.revision,archived:!!g.archivedAt}))]},map,v,!!options.ordinary);
     }else if(options.versionId)throw missing();
-    return {bundle,states,parentStates,revisions,selected,coverage:selected?"established":options.year!==undefined?"unknown":"baseline",canEdit:baseline.canEdit&&access.ownerId===userId&&!timeline.archivedAt&&["generic","settlement"].includes(map.mapKind??"generic")&&!options.ordinary,timelineId,timelineName:timeline.name,parentTimelineName:parent?.name??null};
+    return {bundle,states,parentStates,revisions,selected,coverage:selected?"established":options.year!==undefined?"unknown":"baseline",canEdit:baseline.canEdit&&worldContentEditor(access,userId)&&!timeline.archivedAt&&["generic","settlement"].includes(map.mapKind??"generic")&&!options.ordinary,timelineId,timelineName:timeline.name,parentTimelineName:parent?.name??null};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
   if(options.year!==undefined&&!options.uncoordinated){const {coordinateHistoricalMap}=await import("./historical-connection-service");return coordinateHistoricalMap(userId,worldId,mapId,timelineId,options.year,result,options);}
   return result;
@@ -98,7 +99,7 @@ async function saveSource(tx:Tx,userId:string,worldId:string,map:typeof worldAtl
   return id;
 }
 export async function changeMapState(userId:string,worldId:string,input:unknown){
-  const c=mapStateCommandSchema.parse(input);
+  const c=mapStateCommandSchema.parse(input);if("details"in c&&c.details.protected&&!worldProtectedContent(worldId))throw new WorldError("Protected map appearances require the owner's explicit permission.",403);
   // Authorization/read occur before obtaining a snapshot; revision is rechecked under the World lock.
   const baseline=c.action==="create"&&!c.sourceVersionId?await getAtlas(userId,worldId,false,c.mapId):null;
   return worldWriteTransaction(userId,worldId,async tx=>{
@@ -132,5 +133,5 @@ export async function changeMapState(userId:string,worldId:string,input:unknown)
     if(!archived)await coverage(details,c.id);
     const versionId=await saveSource(tx,userId,worldId,map,timeline.id,c.id,c.action==="save"?c.draft:source.payload,details,source,archived);
     await tx.update(heads).set({versionId,revision:head.revision+1,mode:head.mode==="retained"?"interpretation":head.mode}).where(and(eq(heads.timelineId,timeline.id),eq(heads.stateId,c.id)));return {id:c.id};
-  });
+  },["history","appearances","atlas"]);
 }

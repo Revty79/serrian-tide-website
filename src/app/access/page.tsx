@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { userRole } from "@/db/authorization-schema";
+import { hasWorldsInvitationAccess } from "@/features/worlds/world-collaboration-service";
 import {
   getAccessDestinationCards,
 } from "@/features/navigation/access-directory";
@@ -30,6 +31,7 @@ export default async function AccessPage() {
 
   const availableOptions = getAccessDestinationCards(
     assignedRoles.map((entry) => entry.role),
+    assignedRoles.some(entry=>entry.role==="god"||entry.role==="admin")?false:await hasWorldsInvitationAccess(session.user.id),
   );
 
   return (

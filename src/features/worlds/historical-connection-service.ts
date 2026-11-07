@@ -1,3 +1,4 @@
+import { worldContentEditor } from "./world-access-service";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
@@ -31,7 +32,7 @@ async function rows(tx:HistoryTx,worldId:string,mapId:string,timelineId:string,o
 }
 export async function getHistoricalConnections(userId:string,worldId:string,mapId:string,timelineId:string,options:Options={}):Promise<HistoricalConnectionBundle>{
   if(![mapId,timelineId,options.id,options.versionId].filter(Boolean).every(v=>atlasId.safeParse(v).success))throw missing();
-  const access=await worldReadAccess(userId,worldId,!!options.review),atlas=await getAtlas(userId,worldId,!!options.review,mapId,!!options.ordinary);
+  const access=await worldReadAccess(userId,worldId,!!options.review,["history","appearances"]),atlas=await getAtlas(userId,worldId,!!options.review,mapId,!!options.ordinary);
   if(!atlas.maps.some(m=>m.id===mapId))throw missing();
   return db.transaction(async tx=>{
     const timeline=await selectedTimeline(tx,worldId,timelineId),parent=timeline.parentId?await selectedTimeline(tx,worldId,timeline.parentId):null;
@@ -48,7 +49,7 @@ export async function getHistoricalConnections(userId:string,worldId:string,mapI
     const safePlaces=new Set(atlas.geographies.map(g=>g.id)),safeMaps=new Set(atlas.maps.map(m=>m.id));
     const safe=(r:HistoricalConnection)=>!options.ordinary||safePlaces.has(r.geographyId)&&(!r.draft.destinationMapId||safeMaps.has(r.draft.destinationMapId))&&(!r.draft.destinationGeographyId||safePlaces.has(r.draft.destinationGeographyId));
     if(selected&&!safe(selected))throw missing();
-    return {records:records.filter(safe),parentRecords,revisions:revisions.filter(safe),selected,canEdit:atlas.canEdit&&access.ownerId===userId&&!timeline.archivedAt&&["generic","settlement"].includes(atlas.maps.find(m=>m.id===mapId)?.mapKind??"generic"),timelineName:timeline.name,parentTimelineName:options.ordinary?null:parent?.name??null,choices:{maps:atlas.maps.map(m=>({...m,features:[],drawings:[],settlementEntities:undefined,settlementShapes:undefined,territories:undefined})),geographies:atlas.geographies,connections:atlas.connections?.filter(c=>c.sourceMapId===mapId)}};
+    return {records:records.filter(safe),parentRecords,revisions:revisions.filter(safe),selected,canEdit:atlas.canEdit&&worldContentEditor(access,userId)&&!timeline.archivedAt&&["generic","settlement"].includes(atlas.maps.find(m=>m.id===mapId)?.mapKind??"generic"),timelineName:timeline.name,parentTimelineName:options.ordinary?null:parent?.name??null,choices:{maps:atlas.maps.map(m=>({...m,features:[],drawings:[],settlementEntities:undefined,settlementShapes:undefined,territories:undefined})),geographies:atlas.geographies,connections:atlas.connections?.filter(c=>c.sourceMapId===mapId)}};
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 async function reachableSource(tx:HistoryTx,worldId:string,mapId:string,timelineId:string,id:string){
@@ -95,7 +96,7 @@ export async function changeHistoricalConnection(userId:string,worldId:string,in
     const next={versionId,revision:(old?.h.revision??0)+1,mode:old?.h.mode==="retained"||old?.h.mode==="interpretation"?"interpretation" as const:"authored" as const};
     if(old)await tx.update(heads).set(next).where(and(eq(heads.timelineId,c.timelineId),eq(heads.connectionId,connectionId)));else await tx.insert(heads).values({...next,worldId,mapId:c.mapId,geographyId,timelineId:c.timelineId,connectionId});
     return {id:connectionId};
-  });
+  },["history","appearances"]);
 }
 
 export async function coordinateHistoricalMap(userId:string,worldId:string,mapId:string,timelineId:string,year:number,state:MapStateBundle,options:{ordinary?:boolean;review?:boolean}):Promise<MapStateBundle>{

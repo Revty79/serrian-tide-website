@@ -1,4 +1,5 @@
 import "server-only";
+import {worldScopeAllowed,worldProtectedContent} from "./world-access-service";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -21,7 +22,7 @@ const command=z.discriminatedUnion("action",[
   z.object({action:z.enum(["archive","restore"]),entity:z.enum(["adoption","reform"]),id,revision}).strict(),
 ]);
 const conflict=()=>new WorldError("A newer calendar history was saved in another tab. Your draft is retained. Load the latest calendar history before saving again.",409);
-async function available(tx:Tx,worldId:string,versionId:string){const [row]=await tx.select({v:worldCalendarVersion,c:worldCalendar}).from(worldCalendarVersion).innerJoin(worldCalendar,eq(worldCalendar.id,worldCalendarVersion.calendarId)).where(and(eq(worldCalendarVersion.id,versionId),eq(worldCalendarVersion.worldId,worldId)));if(!row)throw new WorldError("This calendar version is unavailable.",404);return row;}
+async function available(tx:Tx,worldId:string,versionId:string){const [row]=await tx.select({v:worldCalendarVersion,c:worldCalendar}).from(worldCalendarVersion).innerJoin(worldCalendar,eq(worldCalendar.id,worldCalendarVersion.calendarId)).where(and(eq(worldCalendarVersion.id,versionId),eq(worldCalendarVersion.worldId,worldId),!worldProtectedContent(worldId)?eq(worldCalendar.visibility,"ordinary"):undefined));if(!row)throw new WorldError("This calendar version is unavailable.",404);return row;}
 function active(row:Awaited<ReturnType<typeof available>>){if(row.v.archivedAt||row.c.archivedAt)throw new WorldError("Restore this calendar and version before creating new historical uses.",400);}
 export async function evolutionRows(tx:Tx,worldId:string,context:{timelineId:string;primary:boolean;ordinary:boolean}):Promise<CalendarEvolution>{
   const [reference]=await tx.select().from(worldDayReference).where(eq(worldDayReference.worldId,worldId));
@@ -30,7 +31,7 @@ export async function evolutionRows(tx:Tx,worldId:string,context:{timelineId:str
   const adoptions=context.primary?await tx.select().from(worldCalendarAdoption).where(eq(worldCalendarAdoption.worldId,worldId)).orderBy(asc(worldCalendarAdoption.createdAt),asc(worldCalendarAdoption.id)):[];
   // A reform's free prose can reveal its linked event. Withhold the entire
   // account, including its ID, cutover and reason, when that source is unsafe.
-  const reforms=context.primary?await tx.select().from(worldCalendarReform).where(and(eq(worldCalendarReform.worldId,worldId),context.ordinary?sql`(${worldCalendarReform.entryId} is null or exists(select 1 from world_history_head h join world_history_version v on v.id=h.version_id where h.world_id=${worldId} and h.timeline_id=${context.timelineId} and h.entity_id=${worldCalendarReform.entryId} and v.entry_id is not null and ${ordinaryHistorySource(worldId,context.timelineId,sql`v.id`)}))`:undefined)).orderBy(asc(worldCalendarReform.createdAt),asc(worldCalendarReform.id)):[];
+  const reforms=context.primary&&worldScopeAllowed(worldId,"history")?await tx.select().from(worldCalendarReform).where(and(eq(worldCalendarReform.worldId,worldId),context.ordinary?sql`(${worldCalendarReform.entryId} is null or exists(select 1 from world_history_head h join world_history_version v on v.id=h.version_id where h.world_id=${worldId} and h.timeline_id=${context.timelineId} and h.entity_id=${worldCalendarReform.entryId} and v.entry_id is not null and ${ordinaryHistorySource(worldId,context.timelineId,sql`v.id`)}))`:undefined)).orderBy(asc(worldCalendarReform.createdAt),asc(worldCalendarReform.id)):[];
   return {reference:reference?{label:reference.label,description:reference.description}:null,anchors:anchors.map(({versionId,date,elapsedDay})=>({versionId,date,elapsedDay})),histories:histories.map(({versionId,period,revision})=>({versionId,period,revision})),adoptions:adoptions.map(({archivedAt,...row})=>({...row,archived:!!archivedAt})),reforms:reforms.map(({archivedAt,...row})=>({...row,archived:!!archivedAt}))};
 }
 async function endpoint(tx:Tx,worldId:string,input:z.infer<typeof endpointSchema>,retained?:CalendarEndpoint):Promise<CalendarEndpoint>{
@@ -43,6 +44,7 @@ async function endpoint(tx:Tx,worldId:string,input:z.infer<typeof endpointSchema
   return {versionId:row.v.id,revision:row.v.revision,calendarId:row.c.id,calendarName:row.c.name,versionTitle:row.v.title,date:input.date,elapsedDay,notation:endpointNotation(row.v.rules,input.date)};
 }
 export async function saveEntryCalendarDate(tx:Tx,worldId:string,entryId:string,draft:CalendarEntryDraft|null|undefined){
+  if(!worldScopeAllowed(worldId,"timekeeping")){if(draft)throw new WorldError("Changing calendar dates requires Calendars and Chronology permission.",403);return;}
   if(draft===undefined)return; // Older clients retain precise context; no inferred day is ever added.
   if(draft===null){await tx.delete(worldCalendarEntryDate).where(eq(worldCalendarEntryDate.entryId,entryId));return;}
   const [previous]=await tx.select().from(worldCalendarEntryDate).where(and(eq(worldCalendarEntryDate.entryId,entryId),eq(worldCalendarEntryDate.worldId,worldId)));
@@ -51,6 +53,7 @@ export async function saveEntryCalendarDate(tx:Tx,worldId:string,entryId:string,
   await tx.insert(worldCalendarEntryDate).values({entryId,...values}).onConflictDoUpdate({target:worldCalendarEntryDate.entryId,set:values});
 }
 export async function resolveHistoryCalendarSource(tx:Tx,worldId:string,draft:CalendarEntryDraft|null|undefined,previous?:CalendarSource|null):Promise<CalendarSource|null>{
+  if(!worldScopeAllowed(worldId,"timekeeping")){if(draft)throw new WorldError("Changing calendar dates requires Calendars and Chronology permission.",403);return previous??null;}
   if(draft===undefined)return previous??null;
   if(draft===null)return null;
   const start=await endpoint(tx,worldId,draft.start,previous?.start),end="end"in draft?await endpoint(tx,worldId,draft.end,previous?.end):undefined;
@@ -76,12 +79,13 @@ export async function changeCalendarEvolution(userId:string,worldId:string,input
       active(await available(tx,worldId,c.draft.versionId));result=randomUUID();await tx.insert(worldCalendarAdoption).values({id:result,worldId,...c.draft});
     }else if(c.action==="reform"){
       active(await available(tx,worldId,c.draft.predecessorId));active(await available(tx,worldId,c.draft.successorId));
-      if(c.draft.entryId){const [entry]=await tx.select().from(worldEntry).where(and(eq(worldEntry.id,c.draft.entryId),eq(worldEntry.worldId,worldId)));if(!entry)throw new WorldError("This historical entry is unavailable.",404);const [entryTimeline]=await tx.select().from(worldTimeline).where(eq(worldTimeline.id,entry.timelineId));if(!entryTimeline?.primary)throw new WorldError("Calendar reforms currently reference Primary History. Write alternate reform accounts in the selected timeline's History.",400);if(entry.archivedAt)throw new WorldError("Restore this historical entry before linking a new reform.",400);}
+      if(c.draft.entryId&&!worldScopeAllowed(worldId,"history"))throw new WorldError("Linking a reform requires History permission.",403);
+      if(c.draft.entryId){const [entry]=await tx.select().from(worldEntry).where(and(eq(worldEntry.id,c.draft.entryId),eq(worldEntry.worldId,worldId)));if(!entry||!worldProtectedContent(worldId)&&entry.visibility==="protected")throw new WorldError("This historical entry is unavailable.",404);const [entryTimeline]=await tx.select().from(worldTimeline).where(eq(worldTimeline.id,entry.timelineId));if(!entryTimeline?.primary)throw new WorldError("Calendar reforms currently reference Primary History. Write alternate reform accounts in the selected timeline's History.",400);if(entry.archivedAt)throw new WorldError("Restore this historical entry before linking a new reform.",400);}
       let cutover=null;if(c.draft.cutover){if(c.draft.cutover.before.versionId!==c.draft.predecessorId||c.draft.cutover.after.versionId!==c.draft.successorId)throw new WorldError("Cutover dates must use the selected predecessor and successor versions.",400);const before=await endpoint(tx,worldId,c.draft.cutover.before),after=await endpoint(tx,worldId,c.draft.cutover.after);try{validateCutover(before.elapsedDay,after.elapsedDay);}catch(failure){throw new WorldError((failure as Error).message,400);}cutover={before,after};}
       result=randomUUID();await tx.insert(worldCalendarReform).values({id:result,worldId,...c.draft,cutover});
     }else{
       const table=c.entity==="adoption"?worldCalendarAdoption:worldCalendarReform;const [row]=await tx.select().from(table).where(and(eq(table.id,c.id),eq(table.worldId,worldId)));if(!row)throw new WorldError("This calendar history is unavailable.",404);if(row.revision!==c.revision)throw conflict();await tx.update(table).set({archivedAt:c.action==="archive"?new Date():null,revision:row.revision+1}).where(eq(table.id,c.id));result=c.id;
     }
     await tx.update(world).set({updatedAt:new Date()}).where(eq(world.id,worldId));return result;
-  });
+  },"timekeeping");
 }

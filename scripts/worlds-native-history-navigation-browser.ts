@@ -1,3 +1,4 @@
+import {claimOwnedWorldPage} from "./worlds-owned-world-api";
 import assert from "node:assert/strict";
 import {readFile,writeFile} from "node:fs/promises";
 import path from "node:path";
@@ -6,8 +7,9 @@ import type {RegionalFixture} from "./worlds-regional-editing-fixture";
 
 export async function nativeNavigationBrowser({f,browser,context,base,sourceHash}:{f:RegionalFixture;browser:Browser;context:BrowserContext;base:string;sourceHash:string}){
   const fixture=JSON.parse(await readFile(path.join(f.out,"native-world-contexts.json"),"utf8")).fixture;
+  const setup=(await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok?await context.newPage():null;if(setup){await setup.goto(`${base}/worlds/${f.world}?tab=history`);await claimOwnedWorldPage(setup,base);}
   const created=await context.request.post(`${base}/api/worlds/${f.world}/history`,{headers:{Origin:base},data:{timelineId:fixture.timelineId,entity:"era",action:"save",draft:{name:"Harbor era with unknown intervals",description:"An era is navigation, not invented map coverage",startYear:100,endYear:500,tone:"primary"}}});
-  assert.equal(created.status(),200,await created.text());
+  assert.equal(created.status(),200,await created.text());await setup?.close();
   const before=(await f.pool.query("select count(*)::int n from world_map_state where world_id=$1",[f.world])).rows[0].n,receipts:unknown[]=[],errors:string[]=[];
   for(const viewport of [{width:1440,height:1000},{width:390,height:844}]){
     const network:unknown[]=[],dialogs:string[]=[];let delayedBranchRequests=0;
@@ -17,7 +19,7 @@ export async function nativeNavigationBrowser({f,browser,context,base,sourceHash
     const nav=p.getByRole("navigation",{name:"World workspace",exact:true});
     const openHistory=async()=>{const buttons=p.getByRole("button",{name:"History / Era",exact:true});for(let i=0;i<await buttons.count();i++)if(await buttons.nth(i).isVisible()){await buttons.nth(i).click();return p.getByRole("dialog",{name:"History / Era",exact:true});}throw Error("History controls unavailable");};
     try{
-      await p.goto(`${base}/worlds/${f.world}?tab=overview&terrainMap=${fixture.target.id}&timeline=${fixture.timelineId}`,{waitUntil:"networkidle"});
+      await p.goto(`${base}/worlds/${f.world}?tab=overview&terrainMap=${fixture.target.id}&timeline=${fixture.timelineId}`,{waitUntil:"networkidle"});if((await f.pool.query("select to_regclass('public.world_access_participant') is not null ok")).rows[0].ok)await claimOwnedWorldPage(p,base);
       const year=p.getByRole("form",{name:"World viewing year",exact:true});await year.getByLabel("World viewing year",{exact:true}).fill("100");await year.getByRole("button",{name:"View year",exact:true}).click();
       await nav.getByRole("button",{name:"Atlas",exact:true}).click();await p.getByLabel("Terrain map canvas",{exact:true}).waitFor();assert.match(await p.getByTestId("atlas-date-context").innerText(),/Year 100/);
       await nav.getByRole("button",{name:"Overview",exact:true}).click();assert.equal(await year.getByLabel("World viewing year",{exact:true}).inputValue(),"100");

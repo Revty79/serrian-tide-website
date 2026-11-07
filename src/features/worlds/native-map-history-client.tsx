@@ -1,5 +1,7 @@
 "use client";
+import {navigateNativeMap} from "./native-map-navigation";
 import { createContext, useCallback, useContext, useEffect,useLayoutEffect, useMemo, useRef, type ReactNode } from "react";
+import {WorldPermissionContext} from "./world-permission-context";
 import { worldApi as request } from "./client-api";
 import { nativeHistoryRecoveryScope, nativeHistoryUrl, type NativeCondition, type NativeHistoryScope } from "./native-map-history";
 import {nativeOriginalRequestUuid} from "./native-map-history-transport-client";
@@ -9,10 +11,10 @@ export function requestNativeWorkspaceNavigation(name: string, proceed: () => vo
   const event = new CustomEvent("atlas:request-navigation", { cancelable: true, detail: { name, proceed } });
   if (window.dispatchEvent(event)) proceed();
 }
-type NativeClient = { openRelated?:(objectId?:string)=>void;guardNavigation?:NativeHistoryLeave;conditions?:NativeCondition[];scope?: NativeHistoryScope; registerLeave?: (handler: NativeHistoryLeave) => () => void; openHistory?: () => void; reference?: boolean; timelineName?:string;branchMode?:string;referenceLabel?:string;requestedYear?:number };
+type NativeClient = { canEdit?:boolean; openRelated?:(objectId?:string)=>void;guardNavigation?:NativeHistoryLeave;conditions?:NativeCondition[];scope?: NativeHistoryScope; registerLeave?: (handler: NativeHistoryLeave) => () => void; openHistory?: () => void; reference?: boolean; timelineName?:string;branchMode?:string;referenceLabel?:string;requestedYear?:number };
 const NativeHistoryContext = createContext<NativeClient>({});
-export function NativeHistoryProvider({ openRelated,guardNavigation,conditions,scope, registerLeave, openHistory, reference, timelineName,branchMode,referenceLabel,requestedYear,children }: NativeClient & { children: ReactNode }) {
-  const value = useMemo(() => ({ openRelated,guardNavigation,conditions,scope, registerLeave, openHistory, reference,timelineName,branchMode,referenceLabel,requestedYear }), [openRelated,guardNavigation,conditions,scope, registerLeave, openHistory, reference,timelineName,branchMode,referenceLabel,requestedYear]);
+export function NativeHistoryProvider({ canEdit,openRelated,guardNavigation,conditions,scope, registerLeave, openHistory, reference, timelineName,branchMode,referenceLabel,requestedYear,children }: NativeClient & { children: ReactNode }) {
+  const value = useMemo(() => ({ canEdit,openRelated,guardNavigation,conditions,scope, registerLeave, openHistory, reference,timelineName,branchMode,referenceLabel,requestedYear }), [canEdit,openRelated,guardNavigation,conditions,scope, registerLeave, openHistory, reference,timelineName,branchMode,referenceLabel,requestedYear]);
   return <NativeHistoryContext.Provider value={value}>{children}</NativeHistoryContext.Provider>;
 }
 export function useNativeNavigationGuard(){
@@ -21,6 +23,7 @@ export function useNativeNavigationGuard(){
   return useCallback((name:string,run:()=>void)=>{if(!live.current)return;const guard=current.current;if(guard)guard(name,run);else run();},[]);
 }
 export function useNativeConditions(){return useContext(NativeHistoryContext).conditions??[];}
+export function useNativeCanEdit(){const context=useContext(NativeHistoryContext);return context.canEdit??(!context.reference&&(!context.scope||context.scope.edit));}
 export function useNativeHistory() { return useContext(NativeHistoryContext).scope; }
 export function useNativeRequestUuid(){const scope=useNativeHistory();return useCallback(()=>nativeOriginalRequestUuid(scope),[scope]);}
 export function useNativeHistoryRecovery() { return nativeHistoryRecoveryScope(useNativeHistory()); }
@@ -32,7 +35,8 @@ export function NativeHistoryBadge() {
   return <span data-testid="atlas-date-context" title={referenceLabel??label} style={{position:"absolute",zIndex:20,bottom:54,right:12,maxWidth:"calc(100% - 24px)",padding:"3px 6px",border:"1px solid var(--st-border)",borderRadius:4,background:"var(--st-surface)",color:"var(--st-text-strong)",fontSize:12,fontWeight:400,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"normal",overflowWrap:"anywhere",lineHeight:1.15,pointerEvents:"none"}}>{label}</span>;
 }
 export function NativeRelatedRecordsButton({objectId}:{objectId?:string}){const {openRelated}=useContext(NativeHistoryContext);return openRelated?<button type="button" data-native-history-action className="st-button is-secondary" onClick={()=>openRelated(objectId)}>Related Worlds Records</button>:null;}
-export function NativeHistoryButton(){const {openHistory}=useContext(NativeHistoryContext);return openHistory?<><button type="button" data-native-history-action className="st-button" onClick={openHistory}>History / Era</button><NativeRelatedRecordsButton/></>:null;}
+export function NativeHistoryButton(){const {openHistory}=useContext(NativeHistoryContext),world=useContext(WorldPermissionContext);return <>{openHistory&&<><button type="button" data-native-history-action className="st-button" onClick={openHistory}>History / Era</button><NativeRelatedRecordsButton/></>}{world&&world.permission.role!=="administrator-review"&&<button type="button" data-native-history-action className="st-button is-secondary" onClick={()=>window.dispatchEvent(new CustomEvent("atlas:collaboration",{detail:{worldId:world.worldId}}))}>Editing control</button>}</>;}
+
 export function useNativeHistoryLeave(handler: NativeHistoryLeave, enabled = true) {
   const { registerLeave } = useContext(NativeHistoryContext), current = useRef(handler);
   useEffect(() => { current.current = handler; });
@@ -87,5 +91,5 @@ export function nativeBrowseUrl(input: string, scope?: Pick<NativeHistoryScope, 
 }
 export function useNativeNavigate() {
   const scope=useNativeHistory(),guard=useNativeNavigationGuard();
-  return useCallback((url:string)=>guard("Open Selected Map",()=>location.assign(nativeBrowseUrl(url,scope))),[scope,guard]);
+  return useCallback((url:string)=>guard("Open Selected Map",()=>navigateNativeMap(nativeBrowseUrl(url,scope))),[scope,guard]);
 }

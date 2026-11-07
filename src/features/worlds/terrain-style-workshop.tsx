@@ -1,4 +1,5 @@
 "use client";
+import { accountWorldStorage } from "./world-draft-storage";
 import {nativeOriginalRequestUuidForUrl} from "./native-map-history-transport-client";
 import {MapTemplateLauncher} from "./map-template-launcher";
 import {EngravingControls} from "./terrain-engraving-controls";
@@ -27,6 +28,7 @@ const ranges:[keyof TerrainStyle,string,number,number,number,string][]=[
 ];
 type State=ReturnType<typeof useMapAppearance>[2];
 export function TerrainStyleWorkshop({state,onEditing}:{state:State;onEditing:(open:boolean)=>void}){
+ const localStorage=accountWorldStorage();
  const [draft,setDraft]=useState<MapAppearance>(),[preview,setPreview]=useState(false),[presets,setPresets]=useState<StylePreset[]>([]),[available,setAvailable]=useState(false),[notice,setNotice]=useState(""),[name,setName]=useState(""),[busy,setBusy]=useState(false),[pending,setPending]=useState<ReturnType<typeof import("./terrain-style-preset").stylePresetSaveSchema.parse>>();
  const recoveryKey="st:named-terrain-style:"+state.stylesBase;
  async function load(){try{const result=await worldApi<{available:boolean;presets:StylePreset[]}>(state.stylesBase,"GET");setPresets(result.presets);setAvailable(result.available);setNotice(result.available?"Named styles are immutable snapshots available to this World's terrain maps.":"MIGRATION 0143 REQUIRED for named styles. Preview and map appearance saves remain available.");}catch(e){setNotice((e as Error).message);}}
