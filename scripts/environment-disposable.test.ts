@@ -17,13 +17,14 @@ process.env.DATABASE_URL="postgresql://operator_inert:unused@127.0.0.1:1/no_impl
 const out=path.resolve(process.env.SERRIAN_INFRA_TEST_OUT??`artifacts/infrastructure-dr-${randomUUID()}`);
 assert.ok(out.startsWith(path.resolve("artifacts")+path.sep)&&path.basename(out).startsWith("infrastructure-"));
 assert.equal(await access(out).then(()=>true,()=>false),false);
-const files=await import("./environment/private-files"),snap=await import("./environment/snapshot"),restore=await import("./environment/restore"),ops=await import("./environment/operations"),db=await import("./environment/database");
+const files=await import("./environment/private-files");let snap:typeof import("./environment/snapshot"),restore:typeof import("./environment/restore"),ops:typeof import("./environment/operations"),db:typeof import("./environment/database");
 await files.createPrivateDirectory(out);
 const keyFile=path.join(out,"operator.key"),trustFile=path.join(out,"trust.json");await files.keygen(keyFile,trustFile);const trust=await files.trustKey(trustFile);
 const freeze="ALL_APPLICATION_JOB_IMPORT_AND_DIRECT_WRITERS_STOPPED",checks:string[]=[];
 async function check(name:string,fn:()=>Promise<unknown>){await fn();checks.push(name);console.log("PASS "+name);}
 const bin=process.env.SERRIAN_TEST_POSTGRES_BIN??"C:/Program Files/PostgreSQL/18/bin";
 async function exercise(sourceUrl:string,roots:EnvironmentProfile["roots"],rich:boolean){
+ snap=await import("./environment/snapshot");restore=await import("./environment/restore");ops=await import("./environment/operations");db=await import("./environment/database");
  const u=new URL(sourceUrl);assert.equal(u.hostname,"127.0.0.1");assert.notEqual(u.port,"5432");
  process.env.SERRIAN_INFRA_SOURCE=sourceUrl;const admin=new URL(u);admin.pathname="/postgres";process.env.SERRIAN_INFRA_ADMIN=admin.toString();
  const p:EnvironmentProfile={version:1,environmentId:"owned-source",purpose:"source",database:{urlEnv:"SERRIAN_INFRA_SOURCE",expectedName:u.pathname.slice(1),expectedHost:u.hostname,expectedPort:Number(u.port),expectedRole:"postgres",adminUrlEnv:"SERRIAN_INFRA_ADMIN"},roots,pgBin:bin,application:{directory:path.resolve(process.env.SERRIAN_INFRA_TEST_RELEASE??process.cwd()),origin:"http://127.0.0.1:1",trustFile,hosting:"local"},reserveBytes:0};
