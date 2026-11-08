@@ -168,3 +168,29 @@ Published correction **`1ea6d704bdb3507c73f3c9b11d222939309fcaef`** passed both 
 The correction publishes only `.gitignore`, the Git guard and focused test, this report and repository guidance. Application sources, data, public assets and all SQL/snapshots/journal remain unchanged from the starting checkpoint. This following documentation receipt preserves the exact tested correction code; final clean-tree and local/origin/remote/GitHub parity are verified at handoff. No private storage, environment files, keys or per-file inventories were staged or pushed.
 
 **Stop result: Project Earth authoring is not yet ready.** Safe next work requires the owner to stop the existing DEV website through its normal controls, establish the full database/file writer freeze and review effective DEV website containment. Then reverify the original configuration and prepared copies, activate only the reviewed DEV storage variables, capture/verify/encrypt the complete actual DEV snapshot, independently restore it only into new disposable database/storage, compare all records/constraints/sequences/files and verify legitimate application access. Preserve current DEV and all original roots throughout. Do not reset/restore over DEV, clear authentication data, create Earth, activate Canon, access Production or deploy anything to bypass this gate.
+
+## Overnight Pass 2: prerequisite reviewed; Earth foundation not started
+
+Owner brief `fe2f030a-4249-4b5f-97ff-df7ff677b523` starts from the final validated Pass 1 checkpoint, `1020e4700b452912a4c60a75e9d26b3766d94e89`. That main checkpoint is clean and matches origin/remote; [its exact validation42448844785 passed](https://github.com/Revty79/serrian-tide-website/actions/runs/42448844785). The correction code remains covered by the successful normal and Docker workflows recorded above.
+
+The Pass 2 brief requires complete Pass 1 readiness before any persistent Earth content and states: **"If any mandatory condition failed, do not create Earth."** It also expressly rejects synthetic backup tests as proof of a real DEV recovery baseline. Pass 1 did not pass that environment gate, so this is a blocked prerequisite review, not foundation acceptance.
+
+Fresh checks on **2026-11-07, America/Denver** used guarded read-only startup/transactions and closed their connections after rollback. No browser authentication or application save was attempted.
+
+| Mandatory prerequisite | Fresh evidence / decision |
+| --- | --- |
+| Independent DEV identity | Pass: actual `serrian_tide_dev`, `serrian_tide_app`, server `::1/128:5432`, `transaction_read_only=on`. |
+| Migration compatibility | Pass: all161 hashes/timestamps match the release through0160. No migration applied. |
+| Existing authentic creator | Pass at database level: exactly one Revty79 account with admin/god/player roles. No account, credential or session modification. Normal browser authentication remains unverified. |
+| pgAdmin/session status | Corrected guard returns `NO_OTHER_CLIENTS`; pgAdmin remains disconnected. This does not establish a full application/file writer freeze. |
+| Complete private storage configuration | Not passed: protected, verified copies are retained, but have not been activated. The active configuration still matches the original Pass 1 protected backup byte-for-byte. |
+| Writer freeze / website containment | Not passed: the existing website still accepts TCP connections on loopback port3000. Owner processes remain untouched; earlier private-interface observations and containment limitations remain unresolved. |
+| Actual DEV backup and independent restore | Not passed: Pass 1 has no accepted actual DEV snapshot ID and no independent restore of actual DEV. Successful disposable CI is separate evidence. |
+| Normal Worlds/Atlas browser access | Not attempted after the failed prerequisite gate. No assertion of successful creator login, editor access or UI acceptance. |
+| No remaining safety blocker | Failed for the reasons above. Permanent Earth creation is not permitted by this prompt. |
+
+The fresh World count is **zero**. Earth World ID, Modern Earth timeline ID and primary Atlas map ID are all **none**. No dimensions, continental geography, native terrain revisions, appearance variants, save/reopen journeys, exports, performance measurements or new recovery checkpoint were produced. No disposable fixture is counted as Earth. Those Pass 2 requirements remain unstarted, rather than failed editor tests or completed geography.
+
+Protected evidence is `artifacts/project-earth-overnight-1/pass2-prerequisite-check.json`. It records the actual identity, migration/role checks, zero Worlds, inactive configuration, missing real baseline, live TCP observation and zero permanent DEV writes without exposing credentials or private account IDs. An initial inspection wrapper did not complete; the corrected explicit-inert-import wrapper completed successfully. Neither performed permanent writes. No application implementation defect or source change was required in this pass, so application/browser/performance suites were not rerun for this documentation-only stop decision. Final documentation is published on main with `[skip render]` and its actual GitHub validation is verified before handoff.
+
+**Pass 2 stop:** resolve the existing Pass 1 writer/containment gate safely, activate verified storage only under that reviewed boundary, complete the actual paired DEV snapshot and independent restore, and verify normal creator authentication before beginning the already described Earth foundation. Do not stop owner processes, change the active configuration or bypass any of those prerequisites on the authority of this failed gate review. Existing DEV records, original files, prepared copies, services and Production remain untouched.
