@@ -49,3 +49,10 @@ Large private evidence remains ignored under `artifacts/infrastructure-*`; archi
 - [Future Render plan and unverified provider requirements](environment-render.md)
 
 Next action after acceptance is a separately owner-authorized, step-by-step Production freeze/backup/DEV-clone session. This implementation does not perform it.
+
+
+## Project Earth readiness follow-up (2026-11-07)
+
+The subsequently authorized real DEV read-only preflight exposed restricted and transaction-cached session statistics that the original superuser-based recovery fixtures did not cover. The writer-freeze guard now refreshes its connection-local statistics snapshot and refuses other database sessions with unknown backend types. It requires no extra privileges and changes no persistent records. A dedicated low-privilege, late-connection regression was added inside the existing disposable recovery suite. The original receipts above remain historical evidence for their identified source versions.
+
+See [Project Earth progress and readiness](project-earth-progress.md) for the actual DEV identity, successful schema/account checks, remaining storage/session/separation/baseline blockers and current validation. No real DEV/Production backup or restore was performed by this follow-up. Earth authoring and Canon activation remain unstarted; the mandatory readiness gate is not accepted.

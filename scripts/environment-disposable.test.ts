@@ -51,6 +51,23 @@ async function exercise(sourceUrl:string,roots:EnvironmentProfile["roots"],rich:
  if(rich)for(const f of families)assert.ok(Number(f.n)>0,f.family);
  }finally{await seed.end();}
  const snapshot=path.join(out,"snapshot");
+ await check("late other-role sessions block freeze despite cached and restricted statistics",async()=>{
+  const administrator=new pg.Client({connectionString:sourceUrl}),suffix=randomUUID().replaceAll("-",""),role="infra_visibility_"+suffix,database="infra_visibility_"+suffix;
+  let observerPool:pg.Pool|undefined,holder:pg.Client|undefined,adminEnded=false;await administrator.connect();
+  try{
+   await administrator.query(`create role "${role}" login`);await administrator.query(`create database "${database}"`);await administrator.end();adminEnded=true;
+   const observerUrl=new URL(u);observerUrl.username=role;observerUrl.password="";observerUrl.pathname="/"+database;
+   observerPool=new pg.Pool({connectionString:observerUrl.toString(),password:"unused-explicit-password-for-trust-auth",max:1});const observer=await observerPool.connect();
+   try{
+    await observer.query("begin read only");assert.equal((await observer.query("select pg_has_role(current_user,'pg_read_all_stats','member') allowed")).rows[0].allowed,false);
+    await db.noOtherClients(observer); // Establish an empty transaction-local activity snapshot.
+    const holderUrl=new URL(u);holderUrl.pathname="/"+database;holder=new pg.Client({connectionString:holderUrl.toString()});await holder.connect();const held=(await holder.query("select pg_backend_pid() pid")).rows[0].pid;
+    await assert.rejects(db.noOtherClients(observer),/clients|restricted metadata/i);
+    assert.equal((await observer.query("select backend_type from pg_stat_activity where pid=$1",[held])).rows[0].backend_type,null,"Fixture must reproduce restricted visibility of the newly connected role");
+    await observer.query("rollback");
+   }finally{observer.release();}
+  }finally{await holder?.end();await observerPool?.end();if(!adminEnded)await administrator.end();}
+ });
  await check("unwritable destination cannot publish a backup",async()=>{const parent=path.join(out,"read-only-parent");await files.createPrivateDirectory(parent);if(process.platform==="win32"){const sid=execFileSync("powershell.exe",["-NoProfile","-NonInteractive","-Command","[Security.Principal.WindowsIdentity]::GetCurrent().User.Value"],{encoding:"utf8",windowsHide:true}).trim();execFileSync("icacls.exe",[parent,"/grant:r",`*${sid}:(OI)(CI)R`],{windowsHide:true,stdio:"pipe"});}else await chmod(parent,0o500);await assert.rejects(snap.backupEnvironment(p,path.join(parent,"refused"),keyFile,"test",freeze));assert.equal(await access(path.join(parent,"refused/complete.json")).then(()=>true,()=>false),false);});
  await check("active clients and absent writer-freeze are refused",async()=>{await assert.rejects(snap.backupEnvironment(p,snapshot,keyFile,"test",""),/freeze/i);const writer=new pg.Client({connectionString:sourceUrl});await writer.connect();try{await assert.rejects(snap.backupEnvironment(p,snapshot,keyFile,"test",freeze),/clients/i);}finally{await writer.end();}assert.equal(await access(snapshot).then(()=>true,()=>false),false);});
  await check("capacity failure leaves source and destination untouched",async()=>{await assert.rejects(snap.backupEnvironment({...p,reserveBytes:Number.MAX_SAFE_INTEGER},snapshot,keyFile,"test",freeze),/space/i);assert.equal(await access(snapshot).then(()=>true,()=>false),false);});

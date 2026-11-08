@@ -159,3 +159,6 @@ next-env.d.ts
 # Owned pre-Earth infrastructure rehearsal, private archives and generated evidence
 /artifacts/infrastructure-*
 /.serrian-build.json
+
+# Project Earth private readiness receipts and editor evidence (never World content in Git).
+/artifacts/project-earth-*
