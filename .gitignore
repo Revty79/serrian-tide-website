@@ -162,3 +162,6 @@ next-env.d.ts
 
 # Project Earth private readiness receipts and editor evidence (never World content in Git).
 /artifacts/project-earth-*
+
+# Inactive, owner-protected DEV storage copies for Project Earth readiness.
+/storage/project-earth-dev-overnight-1/

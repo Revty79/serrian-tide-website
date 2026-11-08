@@ -8,6 +8,20 @@ import {canonicalJson,digest,safeKey,type SnapshotManifest} from "./environment/
 
 // Any legacy class imported by an integrity helper sees only this inert URL.
 process.env.DATABASE_URL="postgresql://unit_only:unused@127.0.0.1:1/no_database";
+test("Git exclusion refuses CRLF blank matches and re-included paths",async()=>{
+  const f=await import("./environment/private-files"),out=path.resolve(`artifacts/infrastructure-git-ignore-${randomUUID()}`),repository=path.join(out,"repository");
+  await f.createPrivateDirectory(out);await mkdir(repository);execFileSync("git",["init","--quiet",repository],{windowsHide:true,stdio:"pipe"});
+  await writeFile(path.join(repository,".gitignore"),"\r\n# Private destinations\r\n\r\n/private/\r\n/exposed/\r\n!/exposed/\r\n");
+  await assert.rejects(f.refuseGitPublication(path.join(repository,"unignored"),true),/Git/i);
+  await mkdir(path.join(repository,"unignored"));await writeFile(path.join(repository,"unignored","retained.txt"),"retained source fixture");
+  await assert.rejects(f.refuseGitPublication(path.join(repository,"unignored"),true),/Git/i);
+  await assert.rejects(f.refuseGitPublication(path.join(repository,"unignored","new.key")),/Git/i);
+  await assert.rejects(f.refuseGitPublication(path.join(repository,"exposed"),true),/Git/i);
+  const privateRoot=path.join(repository,"private");await f.refuseGitPublication(privateRoot,true);await f.createPrivateDirectory(privateRoot);
+  await f.refuseGitPublication(path.join(privateRoot,"recovery.key"));
+  const listed=execFileSync("git",["-C",repository,"ls-files","--others","--exclude-standard"],{encoding:"utf8",windowsHide:true});
+  assert.ok(listed.includes("unignored/retained.txt"));assert.ok(!listed.includes("private/"));
+});
 test("portable environment signatures, private files, encrypted transfer and fail-closed verification",async t=>{
   const f=await import("./environment/private-files"),s=await import("./environment/snapshot"),transfer=await import("./environment/transfer");
   const out=path.resolve(process.env.SERRIAN_INFRA_UNIT_OUT??`artifacts/infrastructure-unit-${randomUUID()}`);await f.createPrivateDirectory(out);const keyFile=path.join(out,"operator.key"),trustFile=path.join(out,"trust.json");await f.keygen(keyFile,trustFile);const key=await f.privateKey(keyFile),trust=await f.trustKey(trustFile),snapshot=path.join(out,"snapshot");await f.createPrivateDirectory(snapshot);await f.createPrivateDirectory(path.join(snapshot,"files"));const roots=s.snapshotRoots(snapshot);for(const r of Object.values(roots))await f.createPrivateDirectory(r);

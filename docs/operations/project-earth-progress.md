@@ -2,6 +2,8 @@
 
 Status on **2026-11-07, America/Denver: blocked at milestone A, before Earth authoring**. Starting checkout `6f9e01d3d7b361a77a87f5ecba95ec79b14e57d3` was clean, on main, synchronized with GitHub, and had successful normal/recovery CI. All work remains in the normal main checkout.
 
+**Overnight Pass 1 update:** the owner explicitly selected the existing DEV database; a Production clone is not required. Protected storage copies are now prepared and checksum-verified, but remain inactive because the owner's DEV website is still running. No complete current-DEV recovery snapshot or real-DEV Atlas readiness result is claimed. The Overnight Pass 1 receipt below supersedes the earlier correction-planning status.
+
 No Earth World, map, timeline, settlement, image, terrain object or Canon designation has been created. No existing application record or private storage permission was changed. This report is a readiness finding, not a completed Earth or Atlas acceptance result.
 
 ## Verified DEV facts
@@ -109,3 +111,51 @@ Recommended sequence, still proposed rather than applied:
 4. **Capture and prove this exact DEV baseline after those gates.** Keep all writers fenced, take a signed paired PostgreSQL dump plus all three complete roots, and verify the archive, all file hashes, historical references and hardlink relationships. Include all retained unassociated originals, even though current World counts are zero. Restore only into newly owned disposable PostgreSQL 18/database/storage locations, never over DEV or Production; compare records, schema, ledger, sequences, large objects and files and perform restored application read checks. Recheck the source for change and retain encrypted recovery material off-device with its keys separately protected. A new disposable restore test is recovery evidence, not another working DEV or another repository. Earlier synthetic test passes and a successful dump alone are insufficient.
 
 The current request completes the read-only connection check and correction planning. Actual permission changes, new artwork storage preparation, service configuration and the real baseline remain pending the reviewed safety sequence. Earth milestones B-I remain unstarted, and no Production promotion or Canon action is authorized. Local ignored follow-up evidence is `artifacts/project-earth-readiness-followup-2026-11-07.json`; it supersedes the initial pgAdmin finding without overwriting that earlier receipt.
+
+## Overnight Pass 1: protected DEV preparation and remaining writer gate
+
+Owner brief `fdf4a92e-0a3d-4e64-8bc9-29cb4a120b84` authorizes this readiness pass only. Work continues in normal main from `6f35da5bfdc95e812d78c245939186a354ee3269`, the documentation-only descendant of the brief's specified `2cdfbd43016aa05826ad3533f200edfd05b1b64d`. No source checkout, branch or worktree was created. Tiny disposable Git fixtures used by security regressions are not alternate project checkouts. Existing DEV is intentionally retained, with no assertion that it is a Production clone.
+
+Fresh read-only connections again positively verified `localhost:5432/serrian_tide_dev`, SQL role `serrian_tide_app`, PostgreSQL 18.0, all 161 immutable migration hashes/timestamps through0160, the authentic existing Revty79 with admin/god/player roles, and zero Worlds. The complete read-only infrastructure state check covers 401 non-system tables, including the migration ledger. The role is not a superuser and has no CREATEDB, CREATEROLE or BYPASSRLS privilege; no privilege was granted. Repeated corrected checks found zero other DEV sessions and `NO_OTHER_CLIENTS`. PgAdmin remains disconnected. No DEV session was terminated, and no existing record, migration, credential or account was changed.
+
+### Local containment and the real freeze blocker
+
+The local PostgreSQL service's on-disk `pg_hba.conf` contains only loopback IPv4/IPv6 TCP entries with SCRAM-SHA-256, plus local entries; no active include directive was found in its main configuration. The postmaster PID file's port/start time matches the independently observed DEV server. The HBA file predates the running server's start. The application role cannot query `pg_hba_file_rules` (`42501`); this is recorded as a visibility limit, not bypassed. `listen_addresses=*` is unchanged. These are local configuration observations, not a connection test from a separate machine or an inspection of deployed Production.
+
+The owner's existing Next.js DEV process tree remains running under the local owner account. TCP checks accept connections to port3000 via loopback IPv4, loopback IPv6 and this PC's own private-interface address. The last observation is not an external-host/firewall test, but prevents claiming loopback-only website containment. No Production session was observed at the DEV database; no named local tunnel process was found. Production credentials, databases, home-server services and Render resources were not accessed. Effective remote service separation remains uncertified from the permitted local evidence.
+
+**The live owner website is a genuine writer-freeze blocker.** A moment with zero database sessions does not fence a running application or its future database/file writes. The brief prohibits terminating owner processes. No service was stopped, restarted, reconfigured or placed into maintenance, and no freeze statement was falsely supplied to the backup CLI. Existing `.env.local` was not changed: switching roots beneath this live development service could make the active database/files pairing uncertain.
+
+### New private storage, preserved originals and inactive configuration
+
+The preferred copy approach was used. All original terrain/raster files and ACLs remain in place. Only NEW DEV-only directories received restrictive owner access. The Windows account executing the preparation is the same owner account used by the existing Next.js processes; the SQL role is not treated as a Windows principal. The unified permission checks accept the new roots. A read-only descendant ACL audit checked 67,722 new storage/operator entries and found zero violations of the operator/SYSTEM/Administrators allowlist.
+
+| Kind | Still-active configured default | Prepared, NOT ACTIVE root | Verified files / logical bytes |
+| --- | --- | --- | ---: |
+| Terrain | `storage/world-terrain` | `storage/project-earth-dev-overnight-1/terrain` | 6,798 / 14,309,561 |
+| Artwork | `storage/atlas-assets` remains absent | `storage/project-earth-dev-overnight-1/artwork` | 0 / 0 |
+| Raster | `storage/world-raster` | `storage/project-earth-dev-overnight-1/raster` | 60,308 / 1,215,585,589 |
+
+All paths above are relative to `D:\serrian-tide-website`. The new empty artwork root contains no placeholders or invented associations. All 67,106 copied files match the originals by relative path, byte size and SHA256; the 30,913 internal raster hardlink aliases match too. Source inventories before and after copying are identical. Directory structure, including empty directories, was preserved. The copies do not replace or remove any original file, and no cleanup/GC occurred.
+
+A protected byte-exact backup of the existing configuration, separately protected signing/encryption keys, a prepared source profile and an inactive candidate configuration are retained under ignored, owner-only operator storage. Only the three storage variables differ in the candidate; all other parsed values match the original. The original active configuration remains byte-exact. No secret or per-file inventory is published. The prepared copies are explicitly ignored by Git. A full read-only database/reference check confirms zero current terrain/artwork/raster references, with all accepted references resolving against the prepared roots; it invents no association for retained unreferenced files.
+
+### Narrow infrastructure correction found during preparation
+
+An actual Git exclusion defect was reproduced in a disposable fixture before correction: a successful `git check-ignore` trailing-slash directory probe could identify an empty CRLF pattern while files underneath remained untracked. The old guard treated command success alone as proof of privacy. The prepared storage was never staged or committed; an explicit `.gitignore` rule now covers its exact root.
+
+`scripts/environment/private-files.ts` now requires a nonempty positive ignore rule using NUL-delimited verbose output, rejects negated matches, and independently checks a child pathname without a trailing slash. No probe file is written. The focused regression covers absent/existing unignored directories, CRLF blank lines, re-included paths and genuinely ignored directories/files. It fails against the original implementation and passes after correction. No validator, authentication rule or performance threshold was weakened. Application sources, numerical engines, private-data formats and migration history are unchanged.
+
+### Recovery, Atlas readiness and validation
+
+**Actual current-DEV snapshot ID: none. Actual independent restore of current DEV: not performed.** No dump or misleading completion manifest was created while the owner website remained live. Storage preparation, protected keys and successful synthetic recovery tests do not constitute a coordinated recoverable database-plus-files baseline. Real-DEV authentication and Worlds/Atlas creation controls remain untested after the gate; no password guessing, replacement account, session injection or real-DEV test World was used.
+
+Local evidence is protected or ignored under `artifacts/project-earth-overnight-*`. Key receipts are `storage-preparation-verified.json`, `new-storage-acl-audit.json`, `local-service-findings.json`, `read-only-database-reference-check.json` and `git-exclusion-final.json` inside the protected pass directory. Detailed record/file inventories and account identifiers remain local.
+
+- Full TypeScript and full lint passed again on the final Git-guard sources. Lint retains the existing unused `LoreFamily` warning.
+- The initial unit run passed 2,860/2,862; two authentication child processes exceeded their unchanged 30-second limits while copy/type/lint work competed. The failed log is retained. The unchanged focused authentication recheck passed11/11; the second complete default-concurrency run passed all2,862 in364 files.
+- Initial Windows infrastructure integrity passed14/14; the expanded final guard suite passed15/15, including the new Git regression. The original-code failure and the final passing logs remain retained.
+- Windows portable raster validation passed2, with1 expected POSIX-only skip and zero failures.
+- [Ubuntu/Docker recovery rerun42440242973, attempt2](https://github.com/Revty79/serrian-tide-website/actions/runs/42440242973/attempts/2) passed all15 recovery groups and14 integrity tests at unchanged pre-correction implementation `2cdfbd43016aa05826ad3533f200edfd05b1b64d`. This is inherited machinery evidence, not final-source validation of the new Git guard or an actual DEV baseline. Final-source normal and Docker CI must pass before handoff; exact publication receipts follow.
+
+**Stop result: Project Earth authoring is not yet ready.** Safe next work requires the owner to stop the existing DEV website through its normal controls, establish the full database/file writer freeze and review effective DEV website containment. Then reverify the original configuration and prepared copies, activate only the reviewed DEV storage variables, capture/verify/encrypt the complete actual DEV snapshot, independently restore it only into new disposable database/storage, compare all records/constraints/sequences/files and verify legitimate application access. Preserve current DEV and all original roots throughout. Do not reset/restore over DEV, clear authentication data, create Earth, activate Canon, access Production or deploy anything to bypass this gate.

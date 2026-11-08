@@ -22,7 +22,25 @@ export async function createPrivateDirectory(directory:string){
   if(process.platform==="win32")execFileSync("icacls.exe",[directory,"/inheritance:r","/grant:r",`*${windowsSid()}:(OI)(CI)F`],{windowsHide:true,stdio:"pipe"});
   await privatePermissions(directory);
 }
-export async function refuseGitPublication(file:string,directory=false){await safeDirectory(path.dirname(path.resolve(file)));let parent=path.dirname(path.resolve(file));for(;;){if(await lstat(path.join(parent,".git")).then(()=>true,()=>false)){let ignored=false;try{execFileSync("git",["-C",parent,"check-ignore","--no-index","--quiet","--",path.resolve(file)+(directory?path.sep:"")],{windowsHide:true,stdio:"pipe"});ignored=true;}catch{}requireCondition(ignored,"GIT_PRIVATE_DATA","Private snapshots/keys must be outside Git working files or in an explicitly ignored private rehearsal directory.");return;}const next=path.dirname(parent);if(next===parent)return;parent=next;}}
+function positivelyIgnored(repository:string,target:string){
+  try{
+    const fields=execFileSync("git",["-C",repository,"check-ignore","--no-index","--verbose","--stdin","-z"],{input:target+"\0",encoding:"utf8",windowsHide:true,stdio:"pipe"}).split("\0");
+    return fields.length===5&&!!fields[0]&&/^[1-9][0-9]*$/.test(fields[1])&&!!fields[2]&&!fields[2].startsWith("!")&&fields[4]==="";
+  }catch{return false;}
+}
+export async function refuseGitPublication(file:string,directory=false){
+  const resolved=path.resolve(file);await safeDirectory(path.dirname(resolved));let parent=path.dirname(resolved);
+  for(;;){
+    if(await lstat(path.join(parent,".git")).then(()=>true,()=>false)){
+      // A successful trailing-slash probe can report an empty CRLF pattern
+      // while actual children remain untracked. Require a positive rule and
+      // independently check a child path without a trailing slash; write no probe.
+      const targets=directory?[resolved+path.sep,path.join(resolved,"serrian-private-probe-"+randomBytes(16).toString("hex"))]:[resolved];
+      requireCondition(targets.every(target=>positivelyIgnored(parent,target)),"GIT_PRIVATE_DATA","Private snapshots/keys must be outside Git working files or in an explicitly ignored private rehearsal directory.");return;
+    }
+    const next=path.dirname(parent);if(next===parent)return;parent=next;
+  }
+}
 export async function durableJson(file:string,value:unknown){const handle=await open(file,"wx",0o600);try{await handle.writeFile(JSON.stringify(value,null,2)+"\n");await handle.sync();}finally{await handle.close();}}
 export function within(parent:string,candidate:string){const relative=path.relative(path.resolve(parent),path.resolve(candidate));return relative===""||relative!==".."&&!relative.startsWith(".."+path.sep)&&!path.isAbsolute(relative);}
 export async function absent(file:string){requireCondition(!await lstat(file).then(()=>true,e=>{if(e.code==="ENOENT")return false;throw e;}),"DESTINATION_EXISTS","Use a new, absent destination. Existing files or environments are never overwritten.");}
