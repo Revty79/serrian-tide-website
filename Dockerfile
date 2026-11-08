@@ -15,9 +15,9 @@ FROM node:22-bookworm-slim AS runtime
 RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates locales git && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=postgres-tools /usr/lib/postgresql/18 /usr/lib/postgresql/18
-COPY --from=postgres-tools /usr/share/postgresql/18 /usr/share/postgresql/18
+COPY --from=postgres-tools /usr/share/postgresql /usr/share/postgresql
 COPY --from=postgres-tools /runtime-libs/ /usr/local/lib/
-RUN ldconfig
+RUN ldconfig && /usr/lib/postgresql/18/bin/pg_dump --version && /usr/lib/postgresql/18/bin/pg_restore --version && /usr/lib/postgresql/18/bin/psql --version
 ENV PATH="/usr/lib/postgresql/18/bin:${PATH}" NEXT_TELEMETRY_DISABLED=1
 COPY --from=build /app /app
 # Image remains public-code only. The service user owns only explicitly mounted data/cache.
@@ -30,7 +30,7 @@ FROM runtime AS recovery-test
 ENV SERRIAN_TEST_POSTGRES_BIN=/usr/lib/postgresql/18/bin
 WORKDIR /tmp/serrian-recovery
 USER root
-RUN mkdir -p artifacts && chown -R node:node /tmp/serrian-recovery && ln -s /app/node_modules node_modules && ln -s /app/drizzle drizzle && ln -s /app/src src && ln -s /app/scripts scripts && ln -s /app/ops ops && ln -s /app/tsconfig.json tsconfig.json
+RUN install -d -o node -g node -m 0700 /var/run/postgresql && printf '\njit = off\n' >> /usr/share/postgresql/postgresql.conf.sample && mkdir -p artifacts && chown -R node:node /tmp/serrian-recovery && ln -s /app/node_modules node_modules && ln -s /app/drizzle drizzle && ln -s /app/src src && ln -s /app/scripts scripts && ln -s /app/ops ops && ln -s /app/tsconfig.json tsconfig.json
 USER node
 ENV SERRIAN_INFRA_TEST_RELEASE=/app
 CMD ["node", "--conditions=react-server", "--import", "tsx", "scripts/environment-disposable.test.ts"]
