@@ -30,7 +30,7 @@ FROM runtime AS recovery-test
 ENV SERRIAN_TEST_POSTGRES_BIN=/usr/lib/postgresql/18/bin
 WORKDIR /tmp/serrian-recovery
 USER root
-RUN mkdir -p artifacts && chown -R node:node /tmp/serrian-recovery && ln -s /app/node_modules node_modules && ln -s /app/drizzle drizzle && ln -s /app/src src && ln -s /app/scripts scripts && ln -s /app/ops ops
+RUN mkdir -p artifacts && chown -R node:node /tmp/serrian-recovery && ln -s /app/node_modules node_modules && ln -s /app/drizzle drizzle && ln -s /app/src src && ln -s /app/scripts scripts && ln -s /app/ops ops && ln -s /app/tsconfig.json tsconfig.json
 USER node
 ENV SERRIAN_INFRA_TEST_RELEASE=/app
 CMD ["node", "--conditions=react-server", "--import", "tsx", "scripts/environment-disposable.test.ts"]
