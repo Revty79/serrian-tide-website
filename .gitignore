@@ -165,3 +165,6 @@ next-env.d.ts
 
 # Inactive, owner-protected DEV storage copies for Project Earth readiness.
 /storage/project-earth-dev-overnight-1/
+
+# Local Playwright MCP browser snapshots, logs and downloads.
+/.playwright-mcp/

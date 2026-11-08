@@ -1,10 +1,64 @@
 # Project Earth — Modern Day: progress and readiness
 
-Status on **2026-11-07, America/Denver: DEV backup/recovery readiness passed; website remains stopped; Earth authoring has not started**. The owner-directed readiness completion below supersedes the earlier blocked environment findings. All work remains in the normal main checkout.
+Status on **2026-11-08, America/Denver: Earth 1 foundation saved, reopened and verified through the actual authenticated Worlds/Atlas interface; stopped for owner/Ember review**. The owner started DEV and signed into the dedicated visible Playwright browser as `revty79`. The completed DEV recovery point is retained. All work remains in the normal main checkout.
 
 **Historical Overnight Pass 1 status, superseded by the completion below:** the owner explicitly selected the existing DEV database; a Production clone is not required. Storage preparation originally remained inactive while the owner's website was running. Those earlier blocked attempts remain recorded below.
 
-No Earth World, map, timeline, settlement, image, terrain object or Canon designation has been created. No existing application record or private storage permission was changed. This report is a readiness finding, not a completed Earth or Atlas acceptance result.
+The new private **Earth — Modern Day** World and its **Earth — Global Physical Map** are saved in actual `serrian_tide_dev`. The map has **34 accepted terrain revisions**, coarse continental silhouettes, selected major islands and initial ocean/bay separations. This is an editable foundation for review, with intentionally flat placeholder elevations and substantial geographic detail still missing. No Canon designation or Production operation is authorized or performed.
+
+## Earth 1 — saved World foundation: 2026-11-08
+
+This pass follows the owner's explicit instruction to create the first saved foundation in existing DEV, using ordinary visible controls and preserving all existing data. It supersedes prior authoring stops only for this bounded pass. The signed paired baseline `cd875f88-4dda-4ef4-9d0e-60f1e1dbda95` and verified independent restore are already complete; no backup or infrastructure preparation is repeated.
+
+Fresh read-only preflight confirms actual loopback `serrian_tide_dev:5432`, `serrian_tide_app`, all 161 exact migrations, all three configured private roots and authentic `revty79` with display name Brannan and admin/god/player roles. There were zero Worlds immediately before the UI creation. The browser visibly identifies **revty79 Profile**. Original accounts, storage configuration and recovery material remain unchanged. Protected preflight receipt: `artifacts/project-earth-readiness-1/earth1-start.json`; browser snapshots/logs/exports remain ignored in `.playwright-mcp/`.
+
+The first workshop snapshot briefly displayed its initial collaboration-unavailable message while the live status loaded. Ordinary **Check editing status** resolved to **You are editing** with exclusive control in this tab; no migration, access-policy change or bypass was used. No persistent editor defect is established by that transient state.
+
+### Actual identities and accepted saves
+
+| Item | Saved identity or result |
+| --- | --- |
+| Private World | `Earth — Modern Day`, `e4e53d98-fa6f-4c4a-a5d6-a94205f59db4`, owned by the authentic existing Revty79. |
+| Primary timeline | `Primary History`, `86c4f681-7370-40bc-bb34-ea76bf1aa6e6`, established by normal World creation. |
+| Editable continental map | `Earth — Global Physical Map`, `d3e9869c-1c77-4a38-a823-327ad43a252a`. |
+| Physical frame | 40,075 km east/west × 20,004 km north/south; east/west wrapping and fixed north/south edges. |
+| Numerical foundation | 1,024 × 512 samples, 39.135742 km × 39.070313 km spacing; sea level 0 m, blank ocean -500 m and continental target 250 m. These elevations are authoring placeholders, not surveyed relief or bathymetry. |
+| Accepted terrain | Revision 1 accepts the blank-ocean preview; revisions 2–12 establish the continents and Greenland; revisions 13–30 add selected bays, straits and islands; revisions 31–34 separate the Mediterranean, Red Sea and Persian Gulf. Final status is **World · revision 34**, saved, with no pending terrain save. |
+| Appearance | Topographic is the accepted saved current appearance. An additional Engraved Fantasy rendering is exported using the normal export style control; it does not replace the saved Topographic appearance or create a second numerical map. |
+| Dated retained checkpoint | `Earth 1 — Modern reference 2026`, inclusive year 2026, state `89b83993-2407-4467-90bc-b60478bdedba`. Explicitly copied through **Create/Copy Appearance** with the account documenting coarse coverage and placeholder heights. Protection remains enabled and the retained source is locked. This is private historical source protection, not Canon activation. |
+
+Every permanent Earth change was made through accepted ordinary UI controls in the visible Playwright Chrome session: **Create world**, native blank-ocean generation preview, **Accept preview**, canvas Flatten strokes, native autosave, **Save map appearance**, and **Create/Copy Appearance**. Canvas gestures used ordinary Playwright mouse input; no finished map, heightmap, dataset, SQL insertion, private endpoint, direct tile write or React state manipulation authored this geography. No external source was imported. Geographic silhouettes were manually approximated for this bounded foundation and must not be represented as surveyed accuracy.
+
+The map establishes North America, South America, Europe/Asia, Africa, Australia and Antarctica; selected features include Greenland, Great Britain/Ireland, Iceland, Madagascar, New Guinea, two principal Japanese islands, Sumatra/Borneo/Java, New Zealand, Tasmania, Cuba and Sri Lanka. Coastlines, Arctic islands, archipelagos and narrow water connections remain incomplete or oversimplified. No mountain chains, realistic elevation field, rivers, climate, ground materials, administrative boundaries, country hierarchy, settlements or connected regional/local maps are claimed. There are no historical eras or narrative History entries; the saved Atlas appearance is separate from those record types. The other six native map families remain for later passes.
+
+### Reopening, output and retained findings
+
+The browser returned to **World registry**, where the private World appeared under **My Worlds**, **Active 1**, and **Your World**. Opening it again, selecting **Atlas**, and choosing the saved map restored the same map ID, revision 34, dimensions and Topographic cartography. **Start editing** re-established Revty79's exclusive editing control and native editing controls; **Save terrain** remained disabled because all terrain was already accepted. The final expanded-editor screenshot records that reopened map. **Release control** then left the authenticated workshop at **Viewing saved work**, with the same revision 34, ready for owner review. This is technical persistence/editability evidence; owner artistic, usability and physical-device acceptance remain pending.
+
+Normal **Export / Print** produced and downloaded two 2,000 × 1,178 PNG review files, with a 2,000 × 998 physical map area plus source footer. The initial output visibly identifies **Built by Revty79**, the World and map, accepted revision 34 and physical extent. Both retained PNGs independently contain schema-1 `serrian-atlas-output` metadata, actual World identity, revision 34, canonical-metre coordinates, authored-world provenance and the exact same accepted-source pin `9764588f8d1e08de777514f82588b4cec7573cda472b97986ad3a186b8ab9b01`.
+
+Protected local review files under `artifacts/project-earth-readiness-1/earth1-review/` are `earth1-topographic-r34.png`, `earth1-engraved-r34.png` and `earth1-final-reopened-r34.png`. Raw browser logs and snapshots remain ignored under `.playwright-mcp/`; generated files, private geography, inventories and recovery material are excluded from Git. These are actual UI exports and an editor screenshot, not substitute authored map assets.
+
+Two retained navigation/privacy observations are explicit:
+
+- The protected historical checkpoint was deliberately retained after discovering that **Protect this appearance as a retained source** was still selected in the creation form. A later unsaved details preview was cancelled; no protection was removed. The owner can inspect the checkpoint through permitted History controls. Exporting that protected source returned the existing ordinary-content privacy refusal (HTTP 404); inspection of the accepted exporter confirms that even owner/Administrator exports cannot include protected history. Current ordinary map exports succeeded without weakening this guard. The one browser console resource error is that retained refusal.
+- Returning from the historical editor invoked **Pending Work** for an unsaved appearance preview. Ordinary **Load saved appearance**, its explicit preview-only discard confirmation, and **Continue to Return to Current Map** resolved the preview while preserving accepted geography and the protected checkpoint. The later registry round trip succeeded with no pending terrain work. No bypass or permanent-source deletion was used.
+
+### Independent read-only preservation check
+
+The final checker opened an explicitly read-only, repeatable-read transaction against the freshly checked loopback DEV identity. It compared all 401 table hashes/counts, schema/constraints and the exact migration ledger against the signed pre-Earth baseline, verified actual terrain references, independently inventoried the configured roots, and parsed both downloaded PNGs. Protected receipt: `artifacts/project-earth-readiness-1/earth1-verification.json`.
+
+- **384 tables remain exact**, including the original user, account and role-assignment tables. No credential or account change occurred. All 161 migrations and the schema remain exact.
+- The **17 changed tables** consist of 16 Earth-specific tables that were empty before this pass, plus the session table reflecting the owner's normal browser sign-ins (158 to 161 rows). Earth tables contain the one new World/timeline/map, terrain revisions/tiles, appearance/history components and ordinary editing/access audit records. There was no existing World content to replace. No unrelated catalog, Campaign or other application data changed.
+- **All 67,106 pre-existing configured files match** the signed baseline by root/path, size, SHA256 and recorded hardlink layout. The only added files are **291 terrain files** produced by native authoring/history. All 258 distinct currently referenced terrain objects verify. No retained source file was deleted or overwritten; original retained roots were not used as authoring destinations.
+- Active `.env.local` remains byte-identical to the signed readiness configuration; the same three private prepared roots are selected. There was no ACL, service, SQL-role, migration, restore or environment change. The check did not lock or freeze the running website, and it is not a new coordinated backup.
+- Both exported images resolve to the same revision-34 accepted source pin and actual World. Topographic PNG SHA256: `0133906fe8062ab30125ddae6281eb102fa1509b4bce14d22bf6fe993ac7564a`; Engraved PNG SHA256: `74ca0bbb0dc844f005ef4e89f92170659b504572db398fa38ab529253ee66ce5`.
+
+The first read-only checker completed the database/reference/file comparisons but failed its own export-metadata parser because it initially expected `tEXt` rather than the exporter's actual uncompressed `iTXt`. Only the ignored verification script was corrected; the full check was rerun and passed. The initial failed tool receipt remains retained and is not counted as a complete pass. No application fix or source-data rewrite was needed.
+
+No persistent application defect has been established by these observations. Application, authentication, rendering, infrastructure and migration sources are unchanged. Only this report, current repository guidance and the ignore rule for local Playwright output are prepared for main publication with `[skip render]`; exact CI and clean parity are verified before handoff. Full original Atlas/performance suites were not rerun locally for this content/documentation pass, and no CPU benchmark, physical-device, printer or complete Earth acceptance is claimed.
+
+**Stop boundary:** this is the first saved Earth foundation. Stop for owner/Ember review. Detailed refinement, administrative geography, settlements, additional map families, later Earth passes, Production promotion and Canon activation require the next owner direction. The signed recovery snapshot remains the verified **pre-Earth** baseline; no new post-authoring paired backup or independent restore is claimed, and the earlier backup/preparation was not repeated. The owner's website remains running under the owner's control.
 
 ## Owner-directed DEV readiness completion: 2026-11-07
 
@@ -94,7 +148,7 @@ Validation for the guard correction:
 - `project-earth-guard-disposable-2.log`: all 14 Windows rich-fixture groups passed, including the new other-role visibility case, genuine backup/restore, exact records/files, interruption/resume, DEV isolation, old-ledger upgrade and authenticated retained-content reads. Owned services are stopped; this fixture is not a baseline of real DEV.
 - Exact published-main normal and Ubuntu Docker recovery gates are verified before handoff; the delivery message supplies their final commit/run links. No Atlas/renderer/source migration changes were made; existing numerical/geometry/performance thresholds remain unchanged.
 
-## Milestone inventory
+## Historical milestone inventory before readiness resolution
 
 | Milestone | Status |
 | --- | --- |
@@ -108,7 +162,7 @@ Validation for the guard correction:
 | H. End-to-end acceptance | Not started in the real creator World. No UI or artistic acceptance is claimed from technical preflight. |
 | I. Owner/Ember review | Readiness blocker review required. Earth completion and Official Canon activation remain pending owner acceptance. |
 
-## Required next gate
+## Historical required gate before readiness resolution
 
 Before any Earth content write, resolve the intended DEV/storage ownership and Production separation explicitly; prepare the missing empty private artwork root without removing retained files; keep pgAdmin closed and fence all writers in an approved maintenance window; then capture, verify and independently restore the complete current database-plus-three-root baseline using the [unified workflow](environment-portability.md). Retain encrypted recovery material separately from its keys and arrange independent off-device retention.
 
