@@ -4,6 +4,7 @@ import {z} from "zod";
 import {physicalBrushGeometry} from "./terrain-physical-brush";
 import {brushWeight,type TerrainGeometry,type TerrainPatch} from "./terrain";
 import {terrainAreaSchema,type TerrainArea} from "./terrain-source";
+import {terrainPolygonSelection} from "./terrain-polygon-selection";
 
 export type TerrainPathPoint={x:number;y:number};
 const point=z.object({x:z.number().finite(),y:z.number().finite()}).strict();
@@ -11,6 +12,7 @@ export const terrainOperationSchema=z.discriminatedUnion("kind",[
  ...advancedOperationOptions,
  z.object({kind:z.enum(["ridge","valley"]),points:z.array(point).min(2).max(256),radius:z.number().min(1).max(128),radiusMetres:z.number().finite().positive().max(1e9).optional(),height:z.number().int().min(1).max(30000),hardness:z.number().min(0).max(1)}).strict(),
  z.object({kind:z.literal("area"),area:terrainAreaSchema,tool:z.enum(["level","smooth","raise","lower"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32)}).strict(),
+ z.object({kind:z.literal("polygon-area"),points:z.array(point).min(3).max(256),tool:z.enum(["level","smooth","raise","lower"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32)}).strict(),
 ]);
 export type TerrainOperation=z.infer<typeof terrainOperationSchema>;
 export function validateArea(area:TerrainArea,shape:TerrainGeometry){terrainAreaSchema.parse(area);if(area.x+area.width>shape.width||area.y+area.height>shape.height)throw Error("Keep the selected rectangle inside this map's sample grid.");}
@@ -24,13 +26,15 @@ export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,ra
  const operation=terrainOperationSchema.parse(raw);if(base.length!==shape.width*shape.height)throw Error("The terrain buffer does not match this map.");
  if("selection" in operation){if(!advancedContext)throw Error("An advanced operation requires its accepted geographic context.");const r=prepareAdvancedTerrain(base,shape,operation,advancedContext,blocked,manual,progress);return {...r,...r.metrics};}
  const grid=base.slice();
- if(operation.kind==="area"){
-  validateArea(operation.area,shape);if(operation.tool==="level"&&(operation.target<shape.min||operation.target>shape.max))throw Error("Choose a target elevation within this saved map's limits.");
-  const a=operation.area,passes=operation.tool==="smooth"?operation.passes:1;let source=base;
+ if(operation.kind==="area"||operation.kind==="polygon-area"){
+  const polygon=operation.kind==="polygon-area"?terrainPolygonSelection(operation.points,shape):undefined;
+  if(operation.kind==="area")validateArea(operation.area,shape);if(operation.tool==="level"&&(operation.target<shape.min||operation.target>shape.max))throw Error("Choose a target elevation within this saved map's limits.");
+  const a=operation.kind==="area"?operation.area:polygon!.area,edgeDistances=polygon&&operation.feather?polygon.interiorDistances(operation.feather):undefined,passes=operation.tool==="smooth"?operation.passes:1;let source=base;
   for(let pass=0;pass<passes;pass++){
    if(pass)source=grid.slice();
    for(let y=a.y;y<a.y+a.height;y++)for(let x=a.x;x<a.x+a.width;x++){
-    const i=y*shape.width+x,value=source[i],edge=Math.min(x-a.x+.5,a.x+a.width-x-.5,y-a.y+.5,a.y+a.height-y-.5),t=operation.feather?Math.min(1,edge/operation.feather):1,weight=t*t*(3-2*t)*operation.strength/100;
+    if(polygon&&!polygon.mask[(y-a.y)*a.width+x-a.x])continue;
+    const i=polygon?indexAt(x,y,shape):y*shape.width+x,value=source[i],edge=polygon?edgeDistances?.[(y-a.y)*a.width+x-a.x]??0:Math.min(x-a.x+.5,a.x+a.width-x-.5,y-a.y+.5,a.y+a.height-y-.5),t=operation.feather?Math.min(1,edge/operation.feather):1,weight=t*t*(3-2*t)*operation.strength/100;
     if(blocked?.[i])continue;
     let target=operation.tool==="raise"?value+operation.amount:operation.tool==="lower"?value-operation.amount:operation.target;
     if(operation.tool==="smooth"){target=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)target+=source[indexAt(x+dx,y+dy,shape)];target/=9;}
