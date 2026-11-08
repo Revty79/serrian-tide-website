@@ -1,0 +1,22 @@
+# Deny by default: Render also injects secret files into the build context.
+**
+!package.json
+!package-lock.json
+!next.config.ts
+!next-env.d.ts
+!tsconfig.json
+!postcss.config.mjs
+!eslint.config.mjs
+!src
+!src/**
+!data
+!data/**
+!public
+!public/**
+!drizzle
+!drizzle/**
+!scripts
+!scripts/**
+!ops
+!ops/**
+!Dockerfile

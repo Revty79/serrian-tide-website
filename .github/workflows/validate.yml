@@ -2,7 +2,7 @@ name: Validate conversion
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/pre-earth-infrastructure]
   pull_request:
     branches: [main]
 
@@ -36,3 +36,6 @@ jobs:
 
       - name: Portable raster provisioning regressions
         run: npm run validate:raster-deployment
+
+      - name: Portable environment integrity regressions
+        run: npm run validate:environment

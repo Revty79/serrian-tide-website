@@ -1,0 +1,21 @@
+name: Environment disaster recovery
+on:
+  push:
+    branches: [main, codex/pre-earth-infrastructure]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build exact release and owned PG18 recovery image
+        run: docker build --target recovery-test --build-arg SERRIAN_BUILD_COMMIT="$(git rev-parse HEAD)" -t serrian-recovery .
+      - name: Real database plus all storage roots, offline runtime
+        run: docker run --network none --name serrian-owned-recovery serrian-recovery
+      - name: Signature, transfer, permission and corruption regressions
+        run: docker run --network none --name serrian-owned-integrity serrian-recovery node --conditions=react-server --import tsx --test scripts/environment.test.ts
+      # No backup, keys, source data or database files are uploaded as CI artifacts.

@@ -1,0 +1,22 @@
+# Review and copy OUTSIDE Git. Does not provision a database or change live traffic.
+services:
+  candidate:
+    image: serrian-tide:REPLACE_WITH_REVIEWED_COMMIT
+    user: "1000:1000"
+    read_only: true
+    ports:
+      - "127.0.0.1:3100:3000"
+    volumes:
+      - /srv/serrian/candidates/REPLACE_ENV:/var/data:rw
+      - /srv/serrian/operator/REPLACE_ENV:/operator:ro
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=700
+      - /app/.next/cache:uid=1000,gid=1000,mode=700
+    environment:
+      # Supply only the NEW target connection via a protected external Compose env file.
+      SERRIAN_INFRA_CANDIDATE: ${SERRIAN_INFRA_CANDIDATE:?new reviewed candidate required}
+    command: ["node", "--conditions=react-server", "--import", "tsx", "scripts/environment.ts", "start", "--profile", "/operator/candidate.json", "--port", "3000", "--listen", "127.0.0.1"]
+# For a bridge-network container, loopback startup is checked using `docker exec`
+# inside that container. To expose the host-only mapping, first review a signed
+# cutover plan and add --listen 0.0.0.0 --plan /operator/plan.json --approve-plan SHA.
+# Host binding remains 127.0.0.1. Reverse-proxy/DNS switching stays a separate approval.

@@ -155,3 +155,7 @@ next-env.d.ts
 
 # Owned Atlas Stage 8 export/print fixtures and generated output
 /artifacts/exports-s8-*/
+
+# Owned pre-Earth infrastructure rehearsal, private archives and generated evidence
+/artifacts/infrastructure-*
+/.serrian-build.json
