@@ -11,7 +11,7 @@ const point=z.object({x:z.number().finite(),y:z.number().finite()}).strict();
 const heightFilter=z.object({mode:z.enum(["above","at-or-below"]),level:z.number().int().min(-30000).max(30000)}).strict().optional();
 export const terrainOperationSchema=z.discriminatedUnion("kind",[
  ...advancedOperationOptions,
- z.object({kind:z.enum(["ridge","valley"]),points:z.array(point).min(2).max(256),radius:z.number().min(1).max(128),radiusMetres:z.number().finite().positive().max(1e9).optional(),height:z.number().int().min(1).max(30000),hardness:z.number().min(0).max(1),heightFilter}).strict(),
+ z.object({kind:z.enum(["ridge","valley"]),points:z.array(point).min(2).max(256),radius:z.number().min(1).max(128),radiusMetres:z.number().finite().positive().max(1e9).optional(),height:z.number().int().min(1).max(30000),target:z.number().int().min(-30000).max(30000).optional(),hardness:z.number().min(0).max(1),heightFilter}).strict(),
  z.object({kind:z.literal("area"),area:terrainAreaSchema,tool:z.enum(["level","smooth","raise","lower","minimum","maximum"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32),heightFilter}).strict(),
  z.object({kind:z.literal("polygon-area"),points:z.array(point).min(3).max(256),tool:z.enum(["level","smooth","raise","lower","minimum","maximum"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32),heightFilter}).strict(),
 ]);
@@ -44,6 +44,7 @@ export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,ra
    progress?.((pass+1)/passes);
   }
  }else{
+  if(operation.target!==undefined&&(operation.target<shape.min||operation.target>shape.max))throw Error("Choose a target elevation within this saved map's limits.");
   if(operation.points.some(p=>p.x<0||p.x>=shape.width||p.y<0||p.y>=shape.height))throw Error("Keep the path's control points on this map.");
   const physical=operation.radiusMetres===undefined?null:physicalBrushGeometry(shape,operation.radiusMetres,128);if(operation.radiusMetres!==undefined&&!physical)throw Error("The requested physical width is below practical sample spacing or above the bounded landform width. Choose an explicit supported width.");
   const points=unwrapTerrainPath(operation.points,shape),weights=new Float32Array(base.length),radius=physical?.x??Math.min(operation.radius,shape.width/2),radiusY=physical?.y??radius,sign=operation.kind==="ridge"?1:-1;
@@ -58,7 +59,12 @@ export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,ra
    }
    progress?.(n/points.length*.85);
   }
-  for(let i=0;i<grid.length;i++)if(weights[i]&&!blocked?.[i]&&eligible(i))grid[i]=bounded(base[i]+sign*operation.height*weights[i],shape);
+  for(let i=0;i<grid.length;i++)if(weights[i]&&!blocked?.[i]&&eligible(i)){
+   // An explicit bound approaches one elevation without piling height onto an
+   // already higher ridge (or cutting an already deeper valley).
+   const delta=operation.target===undefined?sign*operation.height:operation.kind==="ridge"?Math.max(0,operation.target-base[i]):Math.min(0,operation.target-base[i]);
+   grid[i]=bounded(base[i]+delta*weights[i],shape);
+  }
  }
  let changed=0,minimum=Infinity,maximum=-Infinity;for(let i=0;i<grid.length;i++){if(grid[i]!==base[i])changed++;minimum=Math.min(minimum,grid[i]);maximum=Math.max(maximum,grid[i]);}
  const indices=new Uint32Array(changed),before=new Int16Array(changed),after=new Int16Array(changed);let n=0;
