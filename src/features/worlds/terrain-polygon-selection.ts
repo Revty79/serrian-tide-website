@@ -10,9 +10,7 @@ function touches(a:TerrainPolygonPoint,b:TerrainPolygonPoint,c:TerrainPolygonPoi
  const on=(v:number,p:TerrainPolygonPoint,q:TerrainPolygonPoint,r:TerrainPolygonPoint)=>Math.abs(v)<=epsilon&&between(q.x,r.x,p.x)&&between(q.y,r.y,p.y);
  return on(abC,c,a,b)||on(abD,d,a,b)||on(cdA,a,c,d)||on(cdB,b,c,d);
 }
-/** One simple polygon, sampled at cell centres. Wrapping follows the same short
- * segments as the native path tool; larger selections must be split deliberately. */
-export function terrainPolygonSelection(raw:TerrainPolygonPoint[],shape:TerrainGeometry){
+function normalizedRing(raw:TerrainPolygonPoint[],shape:TerrainGeometry){
  if(raw.length<3||raw.length>256||raw.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)||p.x<0||p.x>shape.width||p.y<0||p.y>shape.height))throw Error("Choose 3 to 256 polygon corners inside this map's sample grid.");
  const points:TerrainPolygonPoint[]=[];
  for(const p of raw){const last=points.at(-1),x=shape.wrap&&last?p.x+Math.round((last.x-p.x)/shape.width)*shape.width:p.x;if(!last||Math.hypot(x-last.x,p.y-last.y)>epsilon)points.push({x,y:p.y});}
@@ -27,11 +25,27 @@ export function terrainPolygonSelection(raw:TerrainPolygonPoint[],shape:TerrainG
   for(let j=i+1;j<points.length;j++)if(j!==i+1&&!(i===0&&j===points.length-1)&&touches(a,b,points[j],points[(j+1)%points.length]))throw Error("The polygon crosses or touches itself. Adjust its corners before previewing.");
  }
  if(Math.abs(area2)<=epsilon)throw Error("The polygon needs a non-zero area.");
+ return points;
+}
+const inside=(p:TerrainPolygonPoint,ring:TerrainPolygonPoint[])=>{let result=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const a=ring[i],b=ring[j];if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)result=!result;}return result;};
+/** Simple outer outline and disjoint interior exclusions, sampled at cell centres.
+ * All outlines share the original 256-corner budget and short wrapping rules. */
+export function terrainPolygonSelection(raw:TerrainPolygonPoint[],shape:TerrainGeometry,rawHoles:TerrainPolygonPoint[][]=[]){
+ if(rawHoles.length>32||raw.length+rawHoles.reduce((n,p)=>n+p.length,0)>256)throw Error("Keep the outer outline and all exclusions within 256 total polygon corners and 32 exclusions.");
+ const points=normalizedRing(raw,shape),holes=rawHoles.map(raw=>{const ring=normalizedRing(raw,shape),shift=shape.wrap?Math.round((points[0].x-ring[0].x)/shape.width)*shape.width:0;return ring.map(p=>({...p,x:p.x+shift}));}),rings=[points,...holes];
+ for(let i=1;i<rings.length;i++){
+  for(let j=0;j<i;j++){
+   const a=rings[i],b=rings[j];for(let n=0;n<a.length;n++)for(let m=0;m<b.length;m++)if(touches(a[n],a[(n+1)%a.length],b[m],b[(m+1)%b.length]))throw Error("Exclusion outlines must not cross or touch another outline.");
+   if(j===0&&!inside(a[0],b))throw Error("Keep each exclusion strictly inside the outer outline.");
+   if(j>0&&(inside(a[0],b)||inside(b[0],a)))throw Error("Keep exclusions separate; nested or overlapping exclusions are not supported.");
+  }
+ }
+ const minX=Math.min(...points.map(p=>p.x)),maxX=Math.max(...points.map(p=>p.x));
  const area={x:Math.floor(minX),y:Math.floor(Math.min(...points.map(p=>p.y))),width:Math.ceil(maxX)-Math.floor(minX),height:Math.ceil(Math.max(...points.map(p=>p.y)))-Math.floor(Math.min(...points.map(p=>p.y)))};
  const mask=new Uint8Array(area.width*area.height);let samples=0;
  for(let y=area.y;y<area.y+area.height;y++){
   const at=y+.5,xs:number[]=[];
-  for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length];if((a.y>at)!==(b.y>at))xs.push(a.x+(at-a.y)/(b.y-a.y)*(b.x-a.x));}xs.sort((a,b)=>a-b);
+  for(const ring of rings)for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length];if((a.y>at)!==(b.y>at))xs.push(a.x+(at-a.y)/(b.y-a.y)*(b.x-a.x));}xs.sort((a,b)=>a-b);
   for(let n=0;n+1<xs.length;n+=2)for(let x=Math.max(area.x,Math.ceil(xs[n]-.5));x<Math.min(area.x+area.width,Math.ceil(xs[n+1]-.5));x++){mask[(y-area.y)*area.width+x-area.x]=1;samples++;}
  }
  if(!samples)throw Error("This polygon contains no sample centres. Add finer terrain detail or adjust its corners.");
@@ -39,8 +53,8 @@ export function terrainPolygonSelection(raw:TerrainPolygonPoint[],shape:TerrainG
  // samples retain the full effect without a points-times-area distance loop.
  const interiorDistances=(feather:number)=>{
   const distances=new Float32Array(mask.length).fill(feather);
-  for(let n=0;n<points.length;n++){
-   const a=points[n],b=points[(n+1)%points.length],dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy;
+  for(const ring of rings)for(let n=0;n<ring.length;n++){
+   const a=ring[n],b=ring[(n+1)%ring.length],dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy;
    const left=Math.max(area.x,Math.floor(Math.min(a.x,b.x)-feather)),right=Math.min(area.x+area.width,Math.ceil(Math.max(a.x,b.x)+feather)),top=Math.max(area.y,Math.floor(Math.min(a.y,b.y)-feather)),bottom=Math.min(area.y+area.height,Math.ceil(Math.max(a.y,b.y)+feather));
    for(let y=top;y<bottom;y++)for(let x=left;x<right;x++){
     const i=(y-area.y)*area.width+x-area.x;if(!mask[i])continue;
@@ -50,5 +64,5 @@ export function terrainPolygonSelection(raw:TerrainPolygonPoint[],shape:TerrainG
   }
   return distances;
  };
- return {points,area,mask,samples,interiorDistances};
+ return {points,holes,area,mask,samples,interiorDistances};
 }

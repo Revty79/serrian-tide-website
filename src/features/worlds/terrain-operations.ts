@@ -13,7 +13,7 @@ export const terrainOperationSchema=z.discriminatedUnion("kind",[
  ...advancedOperationOptions,
  z.object({kind:z.enum(["ridge","valley"]),points:z.array(point).min(2).max(256),radius:z.number().min(1).max(128),radiusMetres:z.number().finite().positive().max(1e9).optional(),height:z.number().int().min(1).max(30000),target:z.number().int().min(-30000).max(30000).optional(),hardness:z.number().min(0).max(1),heightFilter}).strict(),
  z.object({kind:z.literal("area"),area:terrainAreaSchema,tool:z.enum(["level","smooth","raise","lower","minimum","maximum"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32),heightFilter}).strict(),
- z.object({kind:z.literal("polygon-area"),points:z.array(point).min(3).max(256),tool:z.enum(["level","smooth","raise","lower","minimum","maximum"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32),heightFilter}).strict(),
+ z.object({kind:z.literal("polygon-area"),points:z.array(point).min(3).max(256),holes:z.array(z.array(point).min(3).max(256)).max(32).optional(),tool:z.enum(["level","smooth","raise","lower","minimum","maximum"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32),heightFilter}).strict(),
 ]);
 export type TerrainOperation=z.infer<typeof terrainOperationSchema>;
 export function validateArea(area:TerrainArea,shape:TerrainGeometry){terrainAreaSchema.parse(area);if(area.x+area.width>shape.width||area.y+area.height>shape.height)throw Error("Keep the selected rectangle inside this map's sample grid.");}
@@ -28,7 +28,7 @@ export function prepareTerrainOperation(base:Int16Array,shape:TerrainGeometry,ra
  if("selection" in operation){if(!advancedContext)throw Error("An advanced operation requires its accepted geographic context.");const r=prepareAdvancedTerrain(base,shape,operation,advancedContext,blocked,manual,progress);return {...r,...r.metrics};}
  const grid=base.slice(),filter=operation.heightFilter,eligible=(i:number)=>!filter||(filter.mode==="above"?base[i]>filter.level:base[i]<=filter.level);
  if(operation.kind==="area"||operation.kind==="polygon-area"){
-  const polygon=operation.kind==="polygon-area"?terrainPolygonSelection(operation.points,shape):undefined;
+  const polygon=operation.kind==="polygon-area"?terrainPolygonSelection(operation.points,shape,operation.holes):undefined;
   if(operation.kind==="area")validateArea(operation.area,shape);if(["level","minimum","maximum"].includes(operation.tool)&&(operation.target<shape.min||operation.target>shape.max))throw Error("Choose a target elevation within this saved map's limits.");
   const a=operation.kind==="area"?operation.area:polygon!.area,edgeDistances=polygon&&operation.feather?polygon.interiorDistances(operation.feather):undefined,passes=operation.tool==="smooth"?operation.passes:1;let source=base;
   for(let pass=0;pass<passes;pass++){

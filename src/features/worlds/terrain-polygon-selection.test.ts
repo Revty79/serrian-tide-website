@@ -51,3 +51,27 @@ test("invalid, empty, self-crossing or ambiguous polygons fail before touching t
  for(const points of bad)assert.throws(()=>prepareTerrainOperation(base,shape,{...operation,points}));assert.ok(base.every(v=>v===123));
  assert.throws(()=>terrainPolygonSelection([{x:0,y:0},{x:40,y:0},{x:80,y:10},{x:0,y:20}],{...shape,wrap:true}),/half the wrapping/);
 });
+
+const outer=[{x:10,y:10},{x:40,y:10},{x:40,y:40},{x:10,y:40}],hole=[{x:20,y:20},{x:25,y:20},{x:25,y:25},{x:20,y:25}];
+test("interior exclusions preserve enclosed terrain and protection through a reversible numerical operation",()=>{
+ const base=Int16Array.from({length:96*64},(_,i)=>i%113),before=base.slice(),blocked=new Uint8Array(base.length);blocked[15*96+15]=1;
+ const r=prepareTerrainOperation(base,shape,{...operation,points:outer,holes:[hole]},undefined,blocked);
+ for(let y=0;y<64;y++)for(let x=0;x<96;x++){const selected=x>=10&&x<40&&y>=10&&y<40&&!(x>=20&&x<25&&y>=20&&y<25)&&!(x===15&&y===15);assert.equal(r.grid[y*96+x],selected?900:base[y*96+x]);}
+ assert.equal(r.changed,874);assert.deepEqual(base,before);applyPatch(r.grid,r.patch,"before",shape);assert.deepEqual(r.grid,base);
+ const smooth=prepareTerrainOperation(base,shape,{...operation,points:outer,holes:[hole],tool:"smooth",passes:3});for(let y=20;y<25;y++)for(let x=20;x<25;x++)assert.equal(smooth.grid[y*96+x],base[y*96+x]);
+});
+test("interior feathering follows exclusion boundaries without changing excluded samples",()=>{
+ const base=new Int16Array(96*64).fill(100),r=prepareTerrainOperation(base,shape,{...operation,points:outer,holes:[hole],feather:2});
+ assert.equal(r.grid[22*96+19],225);assert.equal(r.grid[22*96+20],100);assert.equal(r.grid[15*96+15],900);assert.equal(r.grid[15*96+10],225);
+ const reversed=prepareTerrainOperation(base,shape,{...operation,points:[...outer].reverse(),holes:[[...hole].reverse()],feather:2});assert.deepEqual(reversed.grid,r.grid);
+});
+test("wrapping exclusions align with the outer outline across the canonical seam",()=>{
+ const s={...shape,wrap:true},base=new Int16Array(96*64).fill(100),points=[{x:92,y:10},{x:4,y:10},{x:4,y:30},{x:92,y:30}],holes=[[{x:0,y:15},{x:2,y:15},{x:2,y:25},{x:0,y:25}]],r=prepareTerrainOperation(base,s,{...operation,points,holes});
+ assert.equal(r.changed,140);assert.equal(r.grid[20*96],100);assert.equal(r.grid[20*96+95],900);assert.equal(r.grid[20*96+48],100);assert.equal(r.grid[12*96],900);
+});
+test("outside, touching, intersecting, nested and over-budget exclusions fail before input mutation",()=>{
+ const base=new Int16Array(96*64).fill(123),square=(a:number,b:number,c:number,d:number)=>[{x:a,y:b},{x:c,y:b},{x:c,y:d},{x:a,y:d}];
+ for(const holes of [[square(5,5,8,8)],[square(10,15,15,20)],[square(5,15,15,20)],[hole,square(24,21,30,28)],[hole,square(21,21,24,24)],[[{x:20,y:20},{x:25,y:25},{x:20,y:25},{x:25,y:20}]]])assert.throws(()=>prepareTerrainOperation(base,shape,{...operation,points:outer,holes}));
+ const many=Array.from({length:253},(_,i)=>({x:25+Math.cos(i/253*Math.PI*2)*2,y:25+Math.sin(i/253*Math.PI*2)*2}));assert.throws(()=>terrainPolygonSelection(outer,shape,[many]),/256 total/);assert.throws(()=>terrainPolygonSelection(outer,shape,Array(33).fill(hole)),/32 exclusions/);assert.ok(base.every(v=>v===123));
+ const tiny=prepareTerrainOperation(base,shape,{...operation,points:outer,holes:[square(20.1,20.1,20.2,20.2)]});assert.equal(tiny.changed,900);
+});
