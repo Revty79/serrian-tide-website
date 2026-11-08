@@ -24,6 +24,13 @@ Retained validation failures are separate: the first default Windows full-unit r
 
 The new private **Earth — Modern Day** World and its **Earth — Global Physical Map** are saved in actual `serrian_tide_dev`. The map has **34 accepted terrain revisions**, coarse continental silhouettes, selected major islands and initial ocean/bay separations. This is an editable foundation for review, with intentionally flat placeholder elevations and substantial geographic detail still missing. No Canon designation or Production operation is authorized or performed.
 
+### Further Stage 2 work in progress
+
+The accepted base grid now reaches revision70: South American coast corrections55-60, African mainland/Atlantic/Indian/Mediterranean groups61-64, European mainland and Atlantic/Baltic/North Sea/White Sea groups65-68, and Mediterranean continental support/sea separation69-70. Each native polygon preview was checked before its ordinary Apply and native saved acknowledgment. These are still intermediate coast edits; island refinement, global relief, hydrography and deserts are not complete. An initial Mediterranean support outline self-intersected and was rejected before any mutation; the corrected independent outline became69. The protected2026 history and prior accepted terrain versions are retained.
+
+The same native workshop now offers minimum/maximum target operations, preserving already higher land or deeper water. An optional original-elevation filter limits a proposal to above or at/below the saved sea level, including path operations. Eligibility stays pinned to original heights through smoothing passes, and is explicitly numerical rather than a wet/dry basin classification. Existing omitted-filter operations retain their original behavior. Nine polygon cases and the32-test focused terrain group pass, direct types/focused lint pass, and the owned actual-component/worker browser fixture also verifies minimum no-op and maximum capping. Full feature tests pass2871/2871 with concurrency4 in53.6s; the earlier default-concurrency timeouts remain retained above. Published polygon checkpointd68bda43 passed exact normal CI42503220175. Further source and geography work continues; this is not a Stage2 completion receipt.
+
+
 ## Earth 1 — saved World foundation: 2026-11-08
 
 This pass follows the owner's explicit instruction to create the first saved foundation in existing DEV, using ordinary visible controls and preserving all existing data. It supersedes prior authoring stops only for this bounded pass. The signed paired baseline `cd875f88-4dda-4ef4-9d0e-60f1e1dbda95` and verified independent restore are already complete; no backup or infrastructure preparation is repeated.

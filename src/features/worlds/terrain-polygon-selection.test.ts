@@ -15,6 +15,24 @@ test("polygon operations retain all protected samples and feather only inside th
  const base=new Int16Array(96*64).fill(100),blocked=new Uint8Array(base.length);blocked[15*96+15]=1;
  for(const tool of ["level","raise","lower","smooth"] as const){const input=base.slice();input[17*96+17]=2000;const r=prepareTerrainOperation(input,shape,{...operation,tool,passes:3,feather:3},undefined,blocked);assert.equal(r.grid[15*96+15],100);assert.equal(r.grid[30*96+30],input[30*96+30]);assert.ok([...r.patch.indices].every(i=>!blocked[i]));if(tool==="level"){assert.equal(r.grid[15*96+17],900);assert.ok(r.grid[10*96+10]>100&&r.grid[10*96+10]<900);}}
 });
+test("minimum and maximum preserve completed high relief and deeper water while correcting coast samples",()=>{
+ const base=new Int16Array(96*64).fill(100);base[15*96+15]=3000;base[15*96+16]=-1800;
+ const minimum=prepareTerrainOperation(base,shape,{...operation,tool:"minimum",target:20});assert.equal(minimum.grid[15*96+15],3000);assert.equal(minimum.grid[15*96+16],20);assert.equal(minimum.grid[15*96+17],100);assert.equal(minimum.grid[0],100);
+ const maximum=prepareTerrainOperation(base,shape,{...operation,tool:"maximum",target:-100});assert.equal(maximum.grid[15*96+15],-100);assert.equal(maximum.grid[15*96+16],-1800);assert.equal(maximum.grid[15*96+17],-100);assert.equal(maximum.grid[0],100);
+ const rectangle=prepareTerrainOperation(base,shape,{kind:"area",area:{x:10,y:10,width:20,height:20},tool:"minimum",target:20,amount:1,strength:100,passes:1,feather:0});assert.equal(rectangle.grid[15*96+15],3000);assert.equal(rectangle.grid[15*96+16],20);
+ assert.throws(()=>prepareTerrainOperation(base,shape,{...operation,tool:"minimum",target:6000}),/saved map/);
+});
+test("explicit elevation filtering preserves islands during bathymetry and leaves other source heights exact",()=>{
+ const base=new Int16Array(96*64).fill(-500);base[15*96+15]=250;base[15*96+16]=0;base[15*96+17]=-1800;
+ const r=prepareTerrainOperation(base,shape,{...operation,tool:"maximum",target:-1500,heightFilter:{mode:"at-or-below",level:0}});assert.equal(r.grid[15*96+15],250);assert.equal(r.grid[15*96+16],-1500);assert.equal(r.grid[15*96+17],-1800);assert.equal(r.grid[0],-500);
+ const raised=prepareTerrainOperation(base,shape,{...operation,target:900,heightFilter:{mode:"above",level:0}});assert.equal(raised.grid[15*96+15],900);assert.equal(raised.grid[15*96+16],0);assert.equal(raised.grid[15*96+17],-1800);
+ const ridge=prepareTerrainOperation(base,shape,{kind:"ridge",points:[{x:10,y:15},{x:30,y:15}],radius:5,height:1000,hardness:0,heightFilter:{mode:"above",level:0}});assert.equal(ridge.grid[15*96+15],1250);assert.equal(ridge.grid[15*96+14],-500);
+});
+test("multi-pass smoothing keeps eligibility pinned to original heights even when the result crosses sea level",()=>{
+ const base=new Int16Array(96*64).fill(-1000);base[15*96+15]=1;
+ const job={kind:"area",area:{x:15,y:15,width:1,height:1},tool:"smooth",target:0,amount:1,strength:100,passes:1,feather:0,heightFilter:{mode:"above",level:0}} as const;
+ const one=prepareTerrainOperation(base,shape,job),three=prepareTerrainOperation(base,shape,{...job,passes:3});assert.ok(three.grid[15*96+15]<one.grid[15*96+15]);assert.ok(three.patch.indices.length===1);assert.equal(three.grid[15*96+14],-1000);
+});
 test("polygon membership is independent of winding, retains fractional outlines and includes outer grid boundaries",()=>{
  const a=terrainPolygonSelection(operation.points,shape),b=terrainPolygonSelection([...operation.points].reverse(),shape);assert.deepEqual(a.mask,b.mask);
  const edge=prepareTerrainOperation(new Int16Array(96*64),shape,{...operation,points:[{x:90.2,y:60.2},{x:96,y:60.2},{x:96,y:64},{x:90.2,y:64}]});assert.equal(edge.changed,24);assert.equal(edge.grid[63*96+95],900);assert.equal(edge.grid[60*96+89],0);
