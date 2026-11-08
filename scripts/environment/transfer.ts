@@ -5,7 +5,7 @@ import {Readable} from "node:stream";
 import {pipeline} from "node:stream/promises";
 import {createCipheriv,createDecipheriv,randomBytes,randomUUID,createHash} from "node:crypto";
 import {manifestSchema,MAX_MANIFEST_BYTES,ROOT_KINDS,fileIdentity,safeKey,requireCondition} from "./model";
-import {absent,safeDirectory,privatePermissions,privateKey,createPrivateDirectory,verifiedJson,capacity,retainedFile,refuseGitPublication} from "./private-files";
+import {absent,safeDirectory,privatePermissions,privateKey,createPrivateDirectory,verifiedJson,capacity,retainedFile,refuseGitPublication,within} from "./private-files";
 import {verifySnapshot,physicalBytes,snapshotRoots} from "./snapshot";
 import {publishRasterFile} from "../../src/features/worlds/raster-storage";
 
@@ -13,7 +13,7 @@ const MAGIC=Buffer.from("STENV001"),HEADER_BYTES=52,TAG_BYTES=16;
 const metadataNames=["manifest.json","manifest.json.signature","complete.json","complete.json.signature"];
 function frame(name:string,size:number){const key=Buffer.from(name),header=Buffer.alloc(12);header.writeUInt32BE(key.length);header.writeBigUInt64BE(BigInt(size),4);return Buffer.concat([header,key]);}
 export async function sealSnapshot(directory:string,keyFile:string,destination:string,signal?:AbortSignal){
-  const key=await privateKey(keyFile),manifest=await verifySnapshot(directory,key);requireCondition(!path.resolve(destination).startsWith(path.resolve(directory)+path.sep)&&!path.resolve(keyFile).startsWith(path.resolve(directory)+path.sep),"PRIVATE_TRANSFER","Keep encrypted transfers and private keys outside the immutable snapshot.");await refuseGitPublication(destination);await absent(destination);await safeDirectory(path.dirname(destination));await privatePermissions(path.dirname(destination));await capacity(path.dirname(destination),physicalBytes(manifest.files)+manifest.archive.bytes+MAX_MANIFEST_BYTES);
+  const key=await privateKey(keyFile),manifest=await verifySnapshot(directory,key);requireCondition(!within(directory,destination)&&!within(directory,keyFile),"PRIVATE_TRANSFER","Keep encrypted transfers and private keys outside the immutable snapshot.");await refuseGitPublication(destination);await absent(destination);await safeDirectory(path.dirname(destination));await privatePermissions(path.dirname(destination));await capacity(path.dirname(destination),physicalBytes(manifest.files)+manifest.archive.bytes+MAX_MANIFEST_BYTES);
   const iv=randomBytes(12),header=Buffer.concat([MAGIC,iv,Buffer.from(key.keyId,"hex")]),cipher=createCipheriv("aes-256-gcm",Buffer.from(key.encryptionKey,"base64"),iv);cipher.setAAD(header);await writeFile(destination,header,{flag:"wx",mode:0o600});
   async function* payload(){for(const name of metadataNames){const b=await readFile(path.join(directory,name));yield frame(name,b.length);yield b;}
     for(const item of [{name:"database.dump",bytes:manifest.archive.bytes,sha256:manifest.archive.sha256},...manifest.files.filter(f=>!f.linkTo).map(f=>({name:"files/"+fileIdentity(f),bytes:f.bytes,sha256:f.sha256}))]){

@@ -4,13 +4,13 @@ import {randomUUID} from "node:crypto";
 import {createHash} from "node:crypto";
 import {createReadStream} from "node:fs";
 import {canonicalJson,profileSchema,manifestSchema,ROOT_KINDS,digest,fileIdentity,safeKey,requireCondition,type EnvironmentProfile,type SnapshotManifest,type StoredFile} from "./model";
-import {absent,safeDirectory,privatePermissions,createPrivateDirectory,durableJson,capacity,writable,inventoryFiles,copyFiles,privateKey,trustKey,signJson,verifiedJson,retainedFile,type TrustKey} from "./private-files";
+import {absent,safeDirectory,privatePermissions,createPrivateDirectory,durableJson,capacity,writable,inventoryFiles,copyFiles,privateKey,trustKey,signJson,verifiedJson,retainedFile,within,checkRootLayout,type TrustKey} from "./private-files";
 import {poolFor,identity,toolVersions,databaseState,comparableDatabase,verifyReferences,lockWriters,noOtherClients,runPostgres} from "./database";
 
 export async function loadProfile(file:string){await privatePermissions(file);const p=profileSchema.parse(JSON.parse(await readFile(file,"utf8")));for(const root of ROOT_KINDS)requireCondition(path.isAbsolute(p.roots[root]),"ABSOLUTE_PATH","Use absolute storage paths.");requireCondition(path.isAbsolute(p.application.directory)&&path.isAbsolute(p.application.trustFile),"ABSOLUTE_PATH","Use absolute application and trust-file paths.");return p;}
 export function snapshotRoots(directory:string){return {terrain:path.join(directory,"files","terrain"),artwork:path.join(directory,"files","artwork"),raster:path.join(directory,"files","raster")};}
 export function physicalBytes(files:StoredFile[]){const total=files.filter(f=>!f.linkTo).reduce((n,f)=>n+Math.ceil(f.bytes/4096)*4096,0)+files.length*1024;requireCondition(Number.isSafeInteger(total),"CAPACITY_LIMIT","The snapshot size exceeds safe integer capacity.");return total;}
-async function treePrivate(roots:EnvironmentProfile["roots"]){for(const root of ROOT_KINDS)await privatePermissions(roots[root]);}
+async function treePrivate(roots:EnvironmentProfile["roots"]){await checkRootLayout(roots);for(const root of ROOT_KINDS)await privatePermissions(roots[root]);}
 export async function checkBinding(p:EnvironmentProfile,marker:string|null,key:TrustKey){
   if(marker?.startsWith("serrian-environment:")){requireCondition(p.environmentDirectory,"ENVIRONMENT_BINDING","A restored database requires its matching environment directory.");const binding=await verifiedJson(path.join(p.environmentDirectory,"environment.json"),key);requireCondition(binding.databaseMarker===marker&&binding.environmentId===p.environmentId&&JSON.stringify(binding.roots)===JSON.stringify(p.roots)&&binding.databaseName===p.database.expectedName,"ENVIRONMENT_BINDING","Database, environment and storage roots do not belong to the same restored environment.");return binding;}
   requireCondition(!p.environmentDirectory,"ENVIRONMENT_BINDING","The selected environment has no matching restore binding.");return null;
@@ -21,7 +21,7 @@ export async function inspectEnvironment(p:EnvironmentProfile){
 export async function backupEnvironment(p:EnvironmentProfile,destination:string,keyFile:string,operator:string,freezeStatement:string,signal?:AbortSignal){
   requireCondition(freezeStatement==="ALL_APPLICATION_JOB_IMPORT_AND_DIRECT_WRITERS_STOPPED"&&operator.trim().length>0&&operator.length<=160,"WRITER_FREEZE","Explicitly confirm the complete application/job/import/direct-writer freeze.");
   await absent(destination);await safeDirectory(path.dirname(destination));await privatePermissions(path.dirname(destination));await treePrivate(p.roots);const key=await privateKey(keyFile),trust=await trustKey(p.application.trustFile);requireCondition(key.keyId===trust.keyId,"KEY_IDENTITY","Signing and trusted verification keys differ.");
-  for(const r of Object.values(p.roots))requireCondition(!path.resolve(destination).startsWith(path.resolve(r)+path.sep),"OVERLAPPING_ROOTS","A backup must be outside all source roots.");
+  for(const r of Object.values(p.roots)){requireCondition(!within(r,keyFile),"KEY_LOCATION","Keep the private signing/encryption key outside all captured application roots.");requireCondition(!within(r,destination),"OVERLAPPING_ROOTS","A backup must be outside all source roots.");}
   const pool=poolFor(p),client=await pool.connect();let created=false;
   try{
     signal?.throwIfAborted();await client.query("begin isolation level repeatable read");const who=await identity(client,p);await checkBinding(p,who.marker,trust);await lockWriters(client);const before=await databaseState(client,p);await toolVersions(p,before.serverMajor);await verifyReferences(before,p.roots);const files=await inventoryFiles(p.roots);await capacity(path.dirname(destination),physicalBytes(files)+before.databaseBytes*2+p.reserveBytes);await writable(path.dirname(destination));

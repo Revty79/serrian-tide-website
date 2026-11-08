@@ -24,6 +24,7 @@ export async function createPrivateDirectory(directory:string){
 }
 export async function refuseGitPublication(file:string,directory=false){let parent=path.dirname(path.resolve(file));for(;;){if(await lstat(path.join(parent,".git")).then(()=>true,()=>false)){let ignored=false;try{execFileSync("git",["-C",parent,"check-ignore","--no-index","--quiet","--",path.resolve(file)+(directory?path.sep:"")],{windowsHide:true,stdio:"pipe"});ignored=true;}catch{}requireCondition(ignored,"GIT_PRIVATE_DATA","Private snapshots/keys must be outside Git working files or in an explicitly ignored private rehearsal directory.");return;}const next=path.dirname(parent);if(next===parent)return;parent=next;}}
 export async function durableJson(file:string,value:unknown){const handle=await open(file,"wx",0o600);try{await handle.writeFile(JSON.stringify(value,null,2)+"\n");await handle.sync();}finally{await handle.close();}}
+export function within(parent:string,candidate:string){const relative=path.relative(path.resolve(parent),path.resolve(candidate));return relative===""||relative!==".."&&!relative.startsWith(".."+path.sep)&&!path.isAbsolute(relative);}
 export async function absent(file:string){requireCondition(!await lstat(file).then(()=>true,e=>{if(e.code==="ENOENT")return false;throw e;}),"DESTINATION_EXISTS","Use a new, absent destination. Existing files or environments are never overwritten.");}
 export async function safeDirectory(directory:string){
   requireCondition(path.isAbsolute(directory),"ABSOLUTE_PATH","Use explicit absolute private paths.");
