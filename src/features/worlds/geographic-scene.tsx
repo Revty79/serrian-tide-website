@@ -1,4 +1,5 @@
 import {geographicDrawOrder,layoutGeographicLabels,shapeTheme} from "./geographic-themes";
+import {geographicSourceChoiceLabels} from "./geographic-source-choices";
 import type {GeographicViewport} from "./geographic";
 import styles from "./geographic.module.css";
 
@@ -9,6 +10,7 @@ export function GeographicScene({viewport,elevation,landCover,labelsVisible=true
  const visible=viewport.shapes.filter(s=>!themes||themes.includes(shapeTheme(s)));
  for(const shape of [...visible].filter(s=>s.path).sort((a,b)=>geographicDrawOrder(a)-geographicDrawOrder(b))){const group=groups.get(shape.id)??[];group.push(shape);groups.set(shape.id,group);}
  const labels=labelsVisible?layoutGeographicLabels(visible,canvasWidth):[];
+ const choiceLabels=geographicSourceChoiceLabels(visible);
  // Draft/generation previews are visible geometry, not addressable saved sources.
  const transientIds=new Set(viewport.shapes.filter(s=>s.versionId==="transient").map(s=>s.id));
  const first=[...groups.keys()].find(id=>!transientIds.has(id));
@@ -17,7 +19,7 @@ export function GeographicScene({viewport,elevation,landCover,labelsVisible=true
   <g transform={flipY?"translate(0 600) scale(1 -1)":undefined}>
   {elevation&&<image data-raster-image="relief" href={elevation.url} opacity={elevation.opacity} width={1000} height={600} pointerEvents="none"/>}
   {landCover&&<image data-raster-image="land-cover" href={landCover.url} opacity={landCover.opacity} width={1000} height={600} pointerEvents="none"/>}
-  {[...groups].map(([id,shapes])=><g key={id} data-source={transientIds.has(id)?undefined:id} aria-label={transientIds.has(id)?undefined:`Read geographic source: ${shapes[0].name}`} {...transientIds.has(id)?{}:keyboard(id)}>{shapes.map(s=><path key={`${s.part}:${s.versionId}`} d={s.path} className={styles.shape} fillRule="evenodd" data-semantic={s.semantic} data-geometry-type={s.geometryType} data-source-style={s.style}/>)}</g>)}
-  </g>{labels.map(label=><g key={label.id} data-source={transientIds.has(label.id)?undefined:label.id} aria-label={transientIds.has(label.id)?undefined:`Read labeled source: ${label.text}`} {...transientIds.has(label.id)?{}:keyboard(label.id,true)}><text className={styles.mapLabel} x={label.x} y={flipY?600-label.y:label.y} fontSize={label.fontSize} data-theme={label.theme}>{label.text}</text></g>)}
+  {[...groups].map(([id,shapes])=><g key={id} data-source={transientIds.has(id)?undefined:id} aria-label={transientIds.has(id)?undefined:`Read geographic source: ${choiceLabels.get(id)??shapes[0].name}`} {...transientIds.has(id)?{}:keyboard(id)}>{shapes.map(s=><path key={`${s.part}:${s.versionId}`} d={s.path} className={styles.shape} fillRule="evenodd" data-semantic={s.semantic} data-geometry-type={s.geometryType} data-source-style={s.style}/>)}</g>)}
+  </g>{labels.map(label=><g key={label.id} data-source={transientIds.has(label.id)?undefined:label.id} aria-label={transientIds.has(label.id)?undefined:`Read labeled source: ${choiceLabels.get(label.id)??label.text}`} {...transientIds.has(label.id)?{}:keyboard(label.id,true)}><text className={styles.mapLabel} x={label.x} y={flipY?600-label.y:label.y} fontSize={label.fontSize} data-theme={label.theme}>{label.text}</text></g>)}
  </g>;
 }

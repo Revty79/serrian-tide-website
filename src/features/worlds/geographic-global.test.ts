@@ -5,6 +5,7 @@ import {automaticGeographicDetail,focusedGeographicExtent,geographicDisplaySchem
 import {partBounds,validateSourceGeometry} from "./geographic-geometry";
 import {projectedSourcePath,sphericalCopy} from "./geographic-projection";
 const sphere:SpatialReference={version:1,kind:"sphere",crs:"EPSG:4326",units:"degrees"};
+test("small boundary sources focus at their own scale while points retain context",()=>{const source:[number,number,number,number]=[10,10,10.0015,10.0009],view=focusedGeographicExtent(source,sphere);assert.ok(view[2]-view[0]<.003,"A short boundary must not receive an eight-kilometre minimum margin");assert.ok(view[0]<source[0]&&view[2]>source[2]&&view[1]<source[1]&&view[3]>source[3]);const point=focusedGeographicExtent([2,3,2,3],sphere);assert.ok(point[2]>point[0]&&point[3]>point[1]);});
 const cap:SourceGeometry={type:"Polygon",coordinates:[[[180,-80],[180,-90],[-180,-90],[-180,-80],[-90,-75],[0,-80],[90,-75],[180,-80]]]};
 
 test("southern polar seam keeps Antarctica-like source coordinates and orientation",()=>{
