@@ -1,6 +1,7 @@
 import { worldScopeAllowed,worldOrdinaryContent } from "./world-access-service";
 import { requireWorldNativeFamily,worldLoreFamilyWhere } from "./world-resource-permissions";
 import {worldCampaignAssociations} from "./campaign-association-service";
+import {nativeGeographicRepresentations,nativeGeographicPlaceIds} from "./native-geographic-discovery";
 import {nativeTerritoriesForDiscovery,nativeTerritoryFocus} from "./native-map-history-territory-discovery";
 import "server-only";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
@@ -82,6 +83,10 @@ async function placeRepresentations(tx: HistoryTx, userId: string, context: Worl
   const maps: AtlasRepresentation[] = [];
   if (!accounts.length || context.ordinary) return maps;
   const ids = [...new Set(accounts.map(account => account.id))];
+  for(const reference of await nativeGeographicRepresentations(tx,userId,context,ids)){
+    const reading={coverage:"current-reference" as const,name:reference.map_name},frame=reference.frame;
+    for(const account of accounts.filter(a=>a.id===reference.geography_id&&!a.branchId))maps.push(representation(context,{kind:"terrain",id:reference.map_id},reading,account,frame?{x:frame.x+frame.width/2,y:frame.y+frame.height/2}:undefined,reference.feature_id,reference.place_name,frame,{referenceBoundaries:"1"}));
+  }
   const townPlaces = await tx.select().from(worldTownPlace).where(and(eq(worldTownPlace.worldId, context.worldId), inArray(worldTownPlace.geographyId, ids)));
   const townIds = [...new Set([...ids, ...townPlaces.map(place => place.townId)])];
   // Native terrain maps have the existing 64-map bound. The position itself is
@@ -224,7 +229,10 @@ export async function discoverWorldAtlas(userId: string, worldId: string, input:
         accounts = branches.map(branch => ({ id: branch.placeId ?? branch.townId, branchId: branch.id, shopId: subject.id, relationship: "Saved Shop branch; its dated map appearance is independent of current commerce settings", coverage: context.year === undefined ? "current-reference" : "established" }));
       } else {
         const table = subject.kind === "town" ? worldSettlementProfile : worldTownPlace;
-        const [identity] = await tx.select().from(table).where(and(eq(table.geographyId, subject.id), eq(table.worldId, worldId))); if (!identity) throw missing();
+        const [identity] = await tx.select().from(table).where(and(eq(table.geographyId, subject.id), eq(table.worldId, worldId)));
+        // Regional World geography is already a saved identity. It does not
+        // require creating a Town/settlement wrapper to discover its boundaries.
+        if (!identity&&!(subject.kind==="place"&&["place","region","local area"].includes(place.context))) throw missing();
         accounts = [{ id: subject.id, relationship: `Saved ${subject.kind} identity`, coverage: context.year === undefined ? "current-reference" : "established" }];
       }
     } else if (subject.kind === "calendar" || subject.kind === "chronology") {
@@ -265,7 +273,7 @@ export async function discoverWorldAtlas(userId: string, worldId: string, input:
 }
 
 async function relatedToMap(tx: HistoryTx, userId: string, context: WorldAtlasContext, permissions: Permissions, target: NativeMapTarget, scope?: NativeHistoryScope, objectId?: string) {
-  const records: WorldsRecordLink[] = [], placeIds = new Set<string>(), branchIds = new Set<string>();
+  const records: WorldsRecordLink[] = [], placeIds = new Set<string>(), branchIds = new Set<string>(),referencePlaceIds=new Set<string>();
   let name = "Selected map",mapCoverage:AssociationCoverage=context.year===undefined?"current-reference":"unknown";
   if (target.kind === "terrain") {
     const [map] = await tx.select().from(worldAtlasMap).innerJoin(worldMapCanvas, eq(worldMapCanvas.mapId, worldAtlasMap.id)).where(and(eq(worldAtlasMap.id, target.id), eq(worldAtlasMap.worldId, context.worldId)));
@@ -287,6 +295,7 @@ async function relatedToMap(tx: HistoryTx, userId: string, context: WorldAtlasCo
     } else if (context.year === undefined) {
       const values = await tx.select().from(worldMapPlace).where(and(eq(worldMapPlace.worldId, context.worldId), eq(worldMapPlace.mapId, target.id), isNull(worldMapPlace.removedAt), objectId ? eq(worldMapPlace.id, objectId) : undefined));
       for (const place of values) placeIds.add(place.geographyId);
+      for(const id of await nativeGeographicPlaceIds(tx,userId,context,target.id,objectId)){placeIds.add(id);referencePlaceIds.add(id);}
     }
   } else if (target.kind === "town") {
     const [map] = await tx.select().from(worldTownMap).where(and(eq(worldTownMap.id, target.id), eq(worldTownMap.worldId, context.worldId)));
@@ -324,7 +333,7 @@ async function relatedToMap(tx: HistoryTx, userId: string, context: WorldAtlasCo
     const [town] = await tx.select({ id: worldSettlementProfile.geographyId }).from(worldSettlementProfile).where(and(eq(worldSettlementProfile.worldId, context.worldId), eq(worldSettlementProfile.geographyId, place.id)));
     const [shop] = await tx.select({ id: worldShop.geographyId }).from(worldShop).where(and(eq(worldShop.worldId, context.worldId), eq(worldShop.geographyId, place.id)));
     const kind = town ? "town" : shop ? "shop" : "place";
-    records.push({ id: place.id, kind, name: place.name, relationship: "Original saved World identity", coverage: context.year === undefined ? "current-reference" : "established", href: worldContextUrl(context, { tab: "towns", town: town ? place.id : undefined, townSection: shop ? "shops" : town ? "towns" : "places", worldRecord: place.id }) });
+    records.push({ id: place.id, kind, name: place.name, relationship: "Original saved World identity", coverage: context.year === undefined ? "current-reference" : "established", href: referencePlaceIds.has(place.id)&&["place","region","local area"].includes(place.context)?worldContextUrl(context,{tab:"atlas",terrainMap:target.id,geographyDirectory:"1",geographyPlace:place.id}):worldContextUrl(context, { tab: "towns", town: town ? place.id : undefined, townSection: shop ? "shops" : town ? "towns" : "places", worldRecord: place.id }) });
   }
   if (places.length) {
     const ids = places.map(place => place.id);

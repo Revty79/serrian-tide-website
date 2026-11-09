@@ -205,7 +205,10 @@ async function validateCollaboratorLoreDraft(tx:HistoryTx,userId:string,worldId:
   }
   const refs=await peoplesReferencesInTransaction(tx,worldId,timelineId,worldOrdinaryContent(worldId));
   const retained=previous?.draft;
-  if(draft.participants.some(p=>p.targetId&&!refs.entities.some(e=>e.id===p.targetId))||draft.historyRefs.some(h=>!refs.history.some(e=>e.entityId===h.entityId&&e.versionId===h.versionId))||draft.geographies.some(g=>!refs.places.some(p=>p.id===g.geographyId)||g.destinationId&&!refs.places.some(p=>p.id===g.destinationId)))throw new WorldError("A linked record is outside your current World permission. The original source and draft are retained.",403);
+  // Validate the bounded actual selection, not the first page of a directory.
+  // A later alphabetical place remains valid under the same scope/privacy guard.
+  const selectedPlaceIds=[...new Set(draft.geographies.flatMap(g=>[g.geographyId,...g.destinationId?[g.destinationId]:[]]))],selectedPlaces=await lorePlaces(tx,worldId,worldOrdinaryContent(worldId),selectedPlaceIds);
+  if(draft.participants.some(p=>p.targetId&&!refs.entities.some(e=>e.id===p.targetId))||draft.historyRefs.some(h=>!refs.history.some(e=>e.entityId===h.entityId&&e.versionId===h.versionId))||draft.geographies.some(g=>!selectedPlaces.some(p=>p.id===g.geographyId)||g.destinationId&&!selectedPlaces.some(p=>p.id===g.destinationId)))throw new WorldError("A linked record is outside your current World permission. The original source and draft are retained.",403);
   if(!worldScopeAllowed(worldId,"history")){
     if(draft.milestones.length||draft.historyRefs.length)throw new WorldError("Changing historical links requires History access.",403);
     draft.milestones=retained?.milestones??[];draft.historyRefs=retained?.historyRefs??[];

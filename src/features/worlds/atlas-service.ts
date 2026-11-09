@@ -1,4 +1,4 @@
-import { worldContentEditor } from "./world-access-service";
+import { worldContentEditor,worldOrdinaryContent } from "./world-access-service";
 import { geographicPrivateMaps,geographicPrivatePlaces } from "./geographic-privacy";
 import { activeMapDungeon, changeDungeon, dungeonCommandSchema, dungeonSource, guardDungeonGeographies, saveDungeon } from "./dungeon-service";
 import { duplicatePlanSource } from "./dungeon";
@@ -77,12 +77,26 @@ export async function getAtlas(userId:string,worldId:string,review=false,mapId?:
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 async function saveGeographies(tx:Tx,worldId:string,drafts:GeographyDraft[]) {
+  if(!drafts.length)return;
   await guardDungeonGeographies(tx,worldId,drafts);
-  const existing=await tx.select().from(worldGeography).where(eq(worldGeography.worldId,worldId));
-  const floors=await tx.select().from(worldInteriorFloor).where(eq(worldInteriorFloor.worldId,worldId));
-  const interiorEntities=await tx.select().from(worldInteriorEntity).where(eq(worldInteriorEntity.worldId,worldId));
+  // Only edited identities and their old/proposed ancestors participate in
+  // parent validation. Descendants are reached when a proposed parent is one,
+  // so a cycle is still detected without loading every place in the World.
+  const ids=drafts.map(d=>d.id),needed=[...new Set(drafts.flatMap(d=>d.parentId?[d.id,d.parentId]:[d.id]))];
+  if(worldOrdinaryContent(worldId)){
+    const hidden=(await tx.execute(sql`select id from (${geographicPrivatePlaces(worldId)}) private_place(id) where id in (${sql.join(needed.map(id=>sql`${id}`),sql`,`)})`)).rows;
+    if(hidden.length)throw unavailable();
+  }
+  const ancestry=(await tx.execute<{id:string}>(sql`with recursive ancestry(id,parent_id) as (
+    select id,parent_id from world_geography where world_id=${worldId} and id in (${sql.join(needed.map(id=>sql`${id}`),sql`,`)})
+    union select g.id,g.parent_id from world_geography g join ancestry a on g.id=a.parent_id where g.world_id=${worldId}
+  ) select id from ancestry`)).rows.map(g=>g.id);
+  const existing=ancestry.length?await tx.select().from(worldGeography).where(and(eq(worldGeography.worldId,worldId),inArray(worldGeography.id,ancestry))):[];
+  const interiorEntities=await tx.select().from(worldInteriorEntity).where(and(eq(worldInteriorEntity.worldId,worldId),inArray(worldInteriorEntity.geographyId,ids)));
+  const floorIds=[...new Set([...ids,...interiorEntities.map(e=>e.floorId)])];
+  const floors=await tx.select().from(worldInteriorFloor).where(and(eq(worldInteriorFloor.worldId,worldId),inArray(worldInteriorFloor.geographyId,floorIds)));
   for(const d of drafts){const floor=floors.find(f=>f.geographyId===d.id),entity=interiorEntities.find(e=>e.geographyId===d.id);if(floor?.archivedAt||entity&&floors.find(f=>f.geographyId===entity.floorId)?.archivedAt)throw new WorldError("Restore the floor before editing its place information.",400);if((floor&&d.parentId!==floor.buildingId)||(entity&&d.parentId!==entity.floorId)||((floor||entity)&&d.context!==undefined&&d.context!=="interior"))throw new WorldError("Interior places retain their building or floor parent and interior context.",400);}
-  const settlementEntities=await tx.select().from(worldSettlementEntity).where(eq(worldSettlementEntity.worldId,worldId));
+  const settlementEntities=await tx.select().from(worldSettlementEntity).where(and(eq(worldSettlementEntity.worldId,worldId),inArray(worldSettlementEntity.geographyId,ids)));
   for(const d of drafts){const e=settlementEntities.find(e=>e.geographyId===d.id);if(e&&d.parentId!==e.settlementId)throw new WorldError("A settlement place retains its settlement parent. District membership is separate and may overlap.",400);}
   // Old generators/editors omit context; retain existing classification instead of resetting it.
   drafts=drafts.map(d=>({...d,context:d.context??existing.find(g=>g.id===d.id)?.context as GeographyDraft["context"]??"place"}));
@@ -236,4 +250,15 @@ export async function changeAtlas(userId:string,worldId:string,input:unknown) {
     }
     await tx.update(world).set({updatedAt:new Date()}).where(eq(world.id,worldId));return result;
   },"atlas");
+}
+
+/** Native regional metadata authoring cannot mutate specialized place families. */
+export async function saveRegionalGeography(userId:string,worldId:string,input:unknown){
+ const draft=geographyDraftSchema.parse(input),contexts=new Set(["place","region","local area"]);
+ if(draft.context&&!contexts.has(draft.context))throw new WorldError("Use the specialized editor for settlement, building, interior or dungeon places.",400);
+ return worldWriteTransaction(userId,worldId,async tx=>{
+  const ids=[draft.id,...draft.parentId?[draft.parentId]:[]],related=await tx.select({id:worldGeography.id,context:worldGeography.context}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),inArray(worldGeography.id,ids)));
+  if(related.some(g=>!contexts.has(g.context)))throw new WorldError("Use the specialized editor for this saved place or parent.",400);
+  await saveGeographies(tx,worldId,[draft]);await tx.update(world).set({updatedAt:new Date()}).where(eq(world.id,worldId));return draft.id;
+ },"owner");
 }

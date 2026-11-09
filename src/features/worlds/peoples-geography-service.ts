@@ -2,7 +2,12 @@ import { worldOrdinaryContent, worldScopeAllowed } from "./world-access-service"
 import { worldLoreFamilyWhere } from "./world-resource-permissions";
 import { geographicPrivatePlaces } from "./geographic-privacy";
 import "server-only";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, ilike, inArray, sql } from "drizzle-orm";
+import {db} from "@/db";
+import {worldReadAccess} from "./world-service";
+import {selectedTimeline} from "./history-version-service";
+import {geographySearchPattern} from "./geography-directory";
+import {lorePlaceChoiceQuery,LORE_PLACE_PAGE_SIZE,type LorePlaceChoices} from "./lore-place-choices";
 import { worldGeography } from "@/db/world-atlas-schema";
 import { worldLoreGeography, worldLoreHead, worldLoreVersion } from "@/db/world-peoples-schema";
 import type { HistoryTx } from "./history-version-service";
@@ -16,6 +21,17 @@ export async function lorePlaces(tx:HistoryTx, worldId:string, ordinary=false, i
   if(!worldScopeAllowed(worldId,"settlements")||ids&&!ids.length)return [];
   return tx.select({id:worldGeography.id,name:worldGeography.name,archived:sql<boolean>`${worldGeography.archivedAt} is not null`})
     .from(worldGeography).where(and(eq(worldGeography.worldId,worldId),ids?inArray(worldGeography.id,ids):undefined,ordinary?ordinaryPlace():undefined)).orderBy(asc(worldGeography.name),asc(worldGeography.id)).limit(ids?200:2000);
+}
+
+/** The picker searches the actual directory, retaining only bounded selected headers. */
+export async function lorePlaceChoices(userId:string,worldId:string,timelineId:string,input:unknown,review=false,ordinary=false):Promise<LorePlaceChoices>{
+ await worldReadAccess(userId,worldId,review,"shell");const q=lorePlaceChoiceQuery.parse(input);ordinary=worldOrdinaryContent(worldId,ordinary);
+ return db.transaction(async tx=>{
+  await selectedTimeline(tx,worldId,timelineId);
+  if(!worldScopeAllowed(worldId,"settlements"))return {records:[],selected:[],nextAfter:null};
+  const records=await tx.select({id:worldGeography.id,name:worldGeography.name,archived:sql<boolean>`${worldGeography.archivedAt} is not null`}).from(worldGeography).where(and(eq(worldGeography.worldId,worldId),q.search?ilike(worldGeography.name,geographySearchPattern(q.search)):undefined,q.after?gt(worldGeography.id,q.after):undefined,ordinary?ordinaryPlace():undefined)).orderBy(asc(worldGeography.id)).limit(LORE_PLACE_PAGE_SIZE+1);
+  return {records:records.slice(0,LORE_PLACE_PAGE_SIZE),selected:await lorePlaces(tx,worldId,ordinary,[...new Set(q.selected)]),nextAfter:records.length>LORE_PLACE_PAGE_SIZE?records[LORE_PLACE_PAGE_SIZE-1].id:null};
+ },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 export async function entityGeographies(tx:HistoryTx,worldId:string,versionId:string,ordinary=false) {
   ordinary=worldOrdinaryContent(worldId,ordinary);
