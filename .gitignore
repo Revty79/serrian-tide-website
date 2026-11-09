@@ -1,5 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Owner-authorized clean DEV recovery: private data and recovery receipts.
+/artifacts/project-earth-clean-dev-recovery-1/
+/storage/project-earth-dev-clean-1/
+
 # dependencies
 /node_modules
 /.pnp
