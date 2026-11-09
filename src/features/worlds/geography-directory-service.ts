@@ -22,6 +22,10 @@ export async function geographyDirectory(userId:string,worldId:string,input:unkn
    ancestors.unshift(dto(row));id=row.parentId;
   }
   const rows=q.headersOnly?[]:await tx.select({record:worldGeography,hasChildren:sql<boolean>`exists(select 1 from world_geography child where child.world_id=${worldId} and child.parent_id=${worldGeography.id} and child.archived_at is null and child.context in ('place','region','local area') ${ordinary?sql`and child.id not in (${geographicPrivatePlaces(worldId)})`:sql``})`}).from(worldGeography).where(and(readable,q.search?ilike(worldGeography.name,geographySearchPattern(q.search)):q.parentId?eq(worldGeography.parentId,q.parentId):isNull(worldGeography.parentId),q.after?gt(worldGeography.id,q.after):undefined)).orderBy(asc(worldGeography.id)).limit(GEOGRAPHY_PAGE_SIZE+1);
-  return {canEdit:access.permission.role==="owner"&&worldContentEditor(access,userId)&&!access.archivedAt&&!options.review&&!ordinary,parent:ancestors.at(-1)??null,ancestors,records:rows.slice(0,GEOGRAPHY_PAGE_SIZE).map(r=>({...dto(r.record),hasChildren:r.hasChildren})),nextAfter:rows.length>GEOGRAPHY_PAGE_SIZE?rows[GEOGRAPHY_PAGE_SIZE-1].record.id:null};
+  // A global search can return children whose actual parents are outside the
+  // displayed ancestry/page. Include only those bounded, readable parent headers.
+  const records=rows.slice(0,GEOGRAPHY_PAGE_SIZE).map(r=>({...dto(r.record),hasChildren:r.hasChildren})),known=new Set([...ancestors,...records].map(g=>g.id)),parentIds=[...new Set(records.map(g=>g.parentId).filter((id):id is string=>!!id&&!known.has(id)))];
+  const relatedParents=parentIds.length?(await tx.select().from(worldGeography).where(and(eq(worldGeography.worldId,worldId),inArray(worldGeography.id,parentIds),inArray(worldGeography.context,[...REGIONAL_GEOGRAPHY_CONTEXTS]),ordinary?sql`${worldGeography.id} not in (${geographicPrivatePlaces(worldId)})`:undefined))).map(dto):[];
+  return {canEdit:access.permission.role==="owner"&&worldContentEditor(access,userId)&&!access.archivedAt&&!options.review&&!ordinary,parent:ancestors.at(-1)??null,ancestors,relatedParents,records,nextAfter:rows.length>GEOGRAPHY_PAGE_SIZE?rows[GEOGRAPHY_PAGE_SIZE-1].record.id:null};
  },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
