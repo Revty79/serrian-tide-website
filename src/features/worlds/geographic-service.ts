@@ -15,7 +15,7 @@ import { sourceBoundaryParts } from "./geographic-boundaries";
 import { WorldError,worldReadAccess,worldWriteTransaction } from "./world-service";
 
 type Tx=Parameters<Parameters<typeof db.transaction>[0]>[0];
-type Options={review?:boolean;ordinary?:boolean;preview?:boolean};
+type Options={review?:boolean;ordinary?:boolean;preview?:boolean;sourceNamespace?:string};
 function sharedOptions(worldId:string,options:Options):Options{return {...options,preview:options.preview??!!options.ordinary,ordinary:worldOrdinaryContent(worldId,!!options.ordinary)};}
 const unavailable=()=>new WorldError("This geographic source is unavailable in this viewing context.",404);
 const conflict=()=>new WorldError("A newer geographic source was saved. Your draft is retained. Read the latest source before choosing a revision.",409);
@@ -44,15 +44,24 @@ export async function geographicCatalog(userId:string,worldId:string,timelineId:
   },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 // Metadata-only eligibility: no source geometry, parts, projection or display simplification.
-function eligibleSources(worldId:string,surfaceId:string,lod:string,options:Options,kinds?:string[],selectedThemes?:string[]){
+function eligibleSources(worldId:string,surfaceId:string,lod:string|undefined,options:Options,kinds?:string[],selectedThemes?:string[]){
   options=sharedOptions(worldId,options);
- const themeSql=sql`coalesce(gd.provenance->'display'->>'theme',case gf.semantic when 'administrative-boundary' then 'administrative' when 'physical-geography' then 'land' else 'authored' end)`,band=sql`(not (gd.provenance ? 'display') or (gd.provenance->'display'->'lods') ? ${lod})`;
+ const themeSql=sql`coalesce(gd.provenance->'display'->>'theme',case gf.semantic when 'administrative-boundary' then 'administrative' when 'physical-geography' then 'land' else 'authored' end)`,band=lod===undefined?sql`true`:sql`(not (gd.provenance ? 'display') or (gd.provenance->'display'->'lods') ? ${lod})`;
  return sql`      select gf.id,gf.world_id,gf.geography_id,g.name,gf.semantic,gv.id version_id,gh.revision,gd.provenance->'display'->>'style' style,${themeSql} theme,coalesce((gd.provenance->'display'->>'labels')::boolean,false) labels,coalesce((gd.provenance->'display'->>'labelRank')::int,100) label_rank,coalesce((gd.provenance->'display'->>'priority')::int,0) priority,jsonb_build_object('label',coalesce(gd.provenance->>'attribution','Creator-authored geography: '||(gd.provenance->>'title')),'license',coalesce(gd.provenance->>'license','No external license asserted'),'url',coalesce(gd.provenance->>'licenseUrl','')) credit
       from world_geo_feature gf join world_geo_head gh on gh.feature_id=gf.id and gh.world_id=gf.world_id join world_geo_version gv on gv.id=gh.version_id join world_geo_dataset gd on gd.id=gv.dataset_id and gd.world_id=gv.world_id join world_geography g on g.id=gf.geography_id and g.world_id=gf.world_id
       where gf.world_id=${worldId} and gf.surface_id=${surfaceId} and not gv.archived and g.archived_at is null and ${band}
+      ${options.sourceNamespace?sql`and gf.namespace=${options.sourceNamespace}`:sql``}
       ${kinds===undefined?sql``:kinds.length?sql`and gf.semantic in (${sql.join(kinds.map(kind=>sql`${kind}`),sql`,`)})`:sql`and false`}
       ${selectedThemes===undefined?sql``:selectedThemes.length?sql`and ${themeSql} in (${sql.join(selectedThemes.map(theme=>sql`${theme}`),sql`,`)})`:sql`and false`}
       ${options.ordinary?sql`and not gv.protected and g.id not in (${geographicPrivatePlaces(worldId)})`:sql``}`;
+}
+/** Bounded source-family discovery under the same current-head privacy rules. */
+export async function geographicSourceChoices(userId:string,worldId:string,timelineId:string,mapId:string,options:Options={},after?:string):Promise<import("./geographic").GeographicSourceChoices>{
+ const {geographicNamespaceSchema}=await import("./geographic");if(after)checked(()=>geographicNamespaceSchema.parse(after));await worldReadAccess(userId,worldId,!!options.review,"atlas");options=sharedOptions(worldId,options);
+ return db.transaction(async tx=>{await selectedTimeline(tx,worldId,timelineId);const layer=await layerAccess(tx,worldId,mapId,timelineId,options,userId),eligible=eligibleSources(worldId,layer.surface.id,undefined,{...options,sourceNamespace:undefined},["administrative-boundary"]);
+  const rows=(await tx.execute<{namespace:string;provider:string;dataset:string;edition:string;editionCount:number;features:number}>(sql`with eligible as (${eligible}) select gf.namespace,min(coalesce(gd.provenance->>'provider','Creator-authored geography')) provider,min(coalesce(gd.provenance->>'dataset',gd.provenance->>'title','Authored sources')) dataset,min(coalesce(gd.provenance->>'edition','Creator-authored')) edition,count(distinct coalesce(gd.provenance->>'edition','Creator-authored'))::int "editionCount",count(*)::int features from eligible e join world_geo_feature gf on gf.id=e.id and gf.world_id=e.world_id join world_geo_version gv on gv.id=e.version_id and gv.world_id=e.world_id join world_geo_dataset gd on gd.id=gv.dataset_id and gd.world_id=e.world_id ${after?sql`where gf.namespace>${after}`:sql``} group by gf.namespace order by gf.namespace limit 41`)).rows;
+  return {records:rows.slice(0,40),nextAfter:rows.length>40?rows[39].namespace:null};
+ },{isolationLevel:"repeatable read",accessMode:"read only"});
 }
 async function previewContext(tx:Tx,eligible:ReturnType<typeof eligibleSources>){
  const [row]=(await tx.execute<{context:string}>(sql`with eligible as (${eligible}) select case when count(*)=0 then 'empty' else md5(string_agg(id::text||version_id::text||name,'|' order by id)) end context from eligible`)).rows;
