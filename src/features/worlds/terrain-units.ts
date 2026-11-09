@@ -28,8 +28,8 @@ export function formatViewportDistance(metres:number,preference:DistancePreferen
 export function formatArea(squareMetres:number,preference:DistancePreference){const u=convenientUnit(Math.sqrt(Math.abs(squareMetres)),preference);return `${number(squareMetres/distanceUnits[u].metres**2)} ${distanceUnits[u].symbol}\u00b2`;}
 export function formatHeight(metres:number,unit:HeightUnit){return `${fromMetres(metres,unit).toLocaleString(undefined,{maximumFractionDigits:unit==="ft"?2:0})} ${unit}`;}
 export function formatCoordinate(metres:number,preference:DistancePreference){const unit=convenientUnit(metres,preference);return `${fromMetres(metres,unit).toLocaleString(undefined,{maximumFractionDigits:unit==="km"||unit==="mi"?6:3})} ${unit}`;}
-export type TerrainInspection={elevation:number;seaLevel:number;column:number;row:number;x:number;y:number};
-export function formatTerrainInspection(value:string|TerrainInspection,p:MeasurementPreferences){return typeof value==="string"?value:`Elevation ${formatHeight(value.elevation,p.height)} \u00b7 ${value.elevation<=value.seaLevel?"water":"land"} \u00b7 sample ${value.column}, ${value.row} \u00b7 east ${formatCoordinate(value.x,p.distance)}, south ${formatCoordinate(value.y,p.distance)}`;}
+export type TerrainInspection={surface?:"dry land";elevation:number;seaLevel:number;column:number;row:number;x:number;y:number};
+export function formatTerrainInspection(value:string|TerrainInspection,p:MeasurementPreferences){return typeof value==="string"?value:`Elevation ${formatHeight(value.elevation,p.height)} \u00b7 ${value.surface??(value.elevation<=value.seaLevel?"water":"land")} \u00b7 sample ${value.column}, ${value.row} \u00b7 east ${formatCoordinate(value.x,p.distance)}, south ${formatCoordinate(value.y,p.distance)}`;}
 
 /** Preserve metre-field validation; only feet entry is rounded to the whole-metre store. */
 export function toStoredHeight(value:number,unit:"m"|"ft"){return unit==="m"?value:Math.round(toMetres(value,unit));}

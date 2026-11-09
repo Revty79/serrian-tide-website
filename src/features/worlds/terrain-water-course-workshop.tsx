@@ -12,6 +12,7 @@ import type {HydroLayer,HydroPoint} from "./terrain-hydrology";
 import type {TerrainPathPoint} from "./terrain-operations";
 import type {TerrainRelief} from "./terrain-relief";
 import styles from "./terrain.module.css";
+import {TerrainCoordinateList} from "./terrain-coordinate-list-controls";
 
 export type WaterCourseInput={document:TerrainDocument;base:Int16Array;world:TerrainPreviewWorld;layer:HydroLayer};
 export type DrawnWaterCourse={name:string;points:HydroPoint[];widthM:number|null;seaOutlet:boolean};
@@ -34,6 +35,7 @@ export function TerrainWaterCourseWorkshop({input,relief,onDirty,onClose,onAdd}:
   <GuidedField label="Drawn river width (m)" help="Optional representative geographic width. Blank retains an unspecified width; display detail is symbolic. No measured discharge is inferred." controlClassName="st-control"><input type="number" min={.01} max={100000} step="any" value={width} onChange={e=>setWidth(e.target.value)}/></GuidedField>
   <GuidedField label="Course downstream end" help="Choose a sea outlet only when the checked course reaches the sea. Other ends remain open until deliberately joined to a river or lake." controlClassName="st-control"><select value={seaOutlet?"sea":"open"} onChange={e=>setSeaOutlet(e.target.value==="sea")}><option value="open">Open geographic end</option><option value="sea">Sea outlet</option></select></GuidedField>
   <p>Coordinates use the selected source: {shape.width}×{shape.height} sample frame. Switching sources adds no precision to heights by itself. The accepted course keeps World metre coordinates across sources.</p>
+  <TerrainCoordinateList width={shape.width} height={shape.height} onChange={setPoints}/>
   <div className={styles.actions}><button className="st-button is-secondary" type="button" disabled={points.length>=256} onClick={()=>setPoints(p=>[...p,{x:Math.min(shape.width-1,(p.at(-1)?.x??shape.width/2)+1),y:p.at(-1)?.y??shape.height/2}])}>Add course point</button><button className="st-button is-secondary" type="button" onClick={()=>setPoints([])}>Clear course draft</button></div>
   {points.map((p,i)=><div className={styles.controls} key={i}>{(["x","y"] as const).map(axis=><GuidedField key={axis} label={`Course point ${i+1} ${axis==="x"?"column":"row"}`} controlClassName="st-control"><input type="number" step="any" min={0} max={(axis==="x"?shape.width:shape.height)-1} value={p[axis]} onChange={e=>setPoints(all=>all.map((v,n)=>n===i?{...v,[axis]:Number(e.target.value)}:v))}/></GuidedField>)}<button className="st-button is-secondary" type="button" onClick={()=>setPoints(p=>p.filter((_,n)=>n!==i))}>Remove course point {i+1}</button></div>)}
  </CreatorWorkshop>;

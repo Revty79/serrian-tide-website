@@ -26,9 +26,9 @@ export function automaticSurface(field:SurfaceField,sea:number,out:number[]=[0,0
 }
 /** Original procedural surface artwork. Texture normals affect light only and are
  * never exposed as measured relief. Snow is explicit paint, never a climate inference. */
-export function surfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null,textures?:SurfaceTextureSet,profile?:TerrainSurfaceProfile,work?:SurfacePixelWork,art?:TerrainStyle):[number,number,number]{
+export function surfacePixel(field:SurfaceField,x:number,y:number,footprint:number,sea:number,relief:number,layer:TerrainMaterials,strokes:MaterialStroke[],period:number|null,textures?:SurfaceTextureSet,profile?:TerrainSurfaceProfile,work?:SurfacePixelWork,art?:TerrainStyle,explicitDry=false):[number,number,number]{
  const style=terrainStyle(art);relief=Math.max(1,relief*style.relief);
- const band=(scale:number)=>smooth(scale/(footprint*2)-.4),n=(scale:number,ox=0,oy=0)=>{const weight=band(scale);return weight ? .5+(surfaceNoise(x+ox,y+oy,scale,period)-.5)*weight:.5;},slope=Math.hypot(field.gx,field.gy),depth=sea-field.waterHeight,water=work?.water??[0,0,0],landFraction=slope<1e-6?(depth>=0?0:1):clamp(.5-depth/(slope*footprint));
+ const band=(scale:number)=>smooth(scale/(footprint*2)-.4),n=(scale:number,ox=0,oy=0)=>{const weight=band(scale);return weight ? .5+(surfaceNoise(x+ox,y+oy,scale,period)-.5)*weight:.5;},slope=Math.hypot(field.gx,field.gy),depth=sea-field.waterHeight,water=work?.water??[0,0,0],landFraction=explicitDry?1:slope<1e-6?(depth>=0?0:1):clamp(.5-depth/(slope*footprint));
  if(landFraction<1){const shallow=Math.exp(-Math.max(0,depth)/45),shelf=Math.exp(-Math.max(0,depth)/700),ripple=Math.sin(n(4)*6+n(320)*5)*band(5)*.25;water[0]=12+shallow*56+shelf*9+ripple;water[1]=39+shallow*94+shelf*22+ripple*2;water[2]=57+shallow*74+shelf*24+ripple*2;}else water[0]=water[1]=water[2]=0;
  if(landFraction===0)return (art?styleColor(water,true,style,water):water) as [number,number,number];
  const density=(style?.detail??1)*(style?.scale??1),broad=style?.texture===0?.5:.5+(n(2700/density)-.5)*.6+(n(320/density)-.5)*.4;

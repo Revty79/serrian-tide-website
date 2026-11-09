@@ -3,8 +3,10 @@ import type {RegionalScope} from "./terrain-regional-scope";
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import {useTerrainHydrology} from "./terrain-hydrology-client";
 import {type HydroAnalysis,type HydroCatchment,type HydroLake,type HydroLayer,type HydroPoint} from "./terrain-hydrology";
-import {acceptLake,affectedWater,alignWaterPorts,closeWaterLake,connectWaterLake,connectedWater,disconnectWater,editWaterLake,insertWaterControl,joinWaterRivers,removeWaterControl,removeWaterLake,waterNetwork} from "./terrain-water-network";
-import {insideWaterRings,waterBounds,waterPoint} from "./terrain-water-geometry";
+import {acceptLake,affectedWater,alignWaterPorts,closeWaterLake,connectWaterLake,connectedWater,disconnectWater,editWaterLake,insertWaterControl,joinWaterRivers,joinWaterwayAtDownstreamEnd,removeWaterControl,removeWaterLake,waterNetwork} from "./terrain-water-network";
+import {insideWaterRings,waterBounds} from "./terrain-water-geometry";
+import {interiorLakeSeed} from "./terrain-water-manual";
+import {nearestWaterShore} from "./terrain-water-geometry";
 import {hitHydrology} from "./terrain-hydrology-overlay";
 import type {TerrainFrame} from "./terrain-refinement";
 import type {HydroWorkerRequest} from "./terrain-hydrology-worker";
@@ -31,14 +33,14 @@ export function useTerrainWater(api:string,mapId:string,editable:boolean,sourceE
   const waterSettings=(f:TerrainFrame)=>({lakeMinimumAreaM2:Math.max(1,f.width*f.height/10000),lakeMinimumDepthM:2});
   function request(action:(analysis:HydroAnalysis)=>HydroWorkerRequest,f?:TerrainFrame){if(!world)return;const area=f??frame??{x:0,y:0,width:world.width,height:world.height};void base.suggest(area,Math.max(1,area.width*area.height/2000),waterSettings(area),action);}
   const authoredPins=()=>sources?.sources.map(s=>({id:s.id,revision:s.revision,lod:0,contentHash:s.contentHash,spacingX:s.frame.width/s.gridWidth,spacingY:s.frame.height/s.gridHeight}));
-  function finishLake(name:string,levelM:number){if(!world||drawing.length<3)return;const seed=waterPoint({x:drawing.reduce((n,p)=>n+p.x,0)/drawing.length,y:drawing.reduce((n,p)=>n+p.y,0)/drawing.length},world),id="lake:"+crypto.randomUUID(),newLake:HydroLake={id,name:name.trim()||"Authored lake",rings:[drawing],seed,levelM,spillM:null,condition:"standing",mode:"closed",inletNodeIds:[],outletNodeId:null,flowKind:"manual",exceptionReason:"",protected:true,analysisId:null,sourceIds:[],authoredPins:authoredPins(),review:false};try{if(base.change({...connectedWater(layer),lakes:[...layer.lakes??[],newLake]})){setDrawing([]);setMode("select");selectLake(id,false);base.reportNotice("Lake added to the water draft. Its level and shoreline are creator-defined; save waterways to retain it.");}}catch(e){base.reportError(e);}}
+  function finishLake(name:string,levelM:number){if(!world||drawing.length<3)return;try{const seed=interiorLakeSeed([drawing],world),id="lake:"+crypto.randomUUID(),newLake:HydroLake={id,name:name.trim()||"Authored lake",rings:[drawing],seed,levelM,spillM:null,condition:"standing",mode:"closed",inletNodeIds:[],outletNodeId:null,flowKind:"manual",exceptionReason:"",protected:true,analysisId:null,sourceIds:[],authoredPins:authoredPins(),review:false};if(base.change({...connectedWater(layer),lakes:[...layer.lakes??[],newLake]})){setDrawing([]);setMode("select");selectLake(id,false);base.reportNotice("Lake added to the water draft. Its level and shoreline are creator-defined; save waterways to retain it.");}}catch(e){base.reportError(e);}}
   function pick(point:HydroPoint,tolerance:number){
     if(!world)return;
     if(mode==="draw-lake"){if(drawing.length>=512){base.reportError(Error("Finish this shoreline within its 512-point drawing budget."));return;}setDrawing(p=>[...p,point]);return;}
     if(mode==="watershed"){setMode("select");request(analysis=>({type:"watershed",analysis,point}));return;}
     if((mode==="move-shore"||mode==="insert-shore")&&lake&&!lakePreview){const rings=lake.rings.map((r,i)=>i!==ringIndex?r:mode==="move-shore"?r.map((p,j)=>j===vertex?point:p):[...r.slice(0,vertex+1),point,...r.slice(vertex+1)]);perform(()=>editWaterLake(layer,lake.id,{rings,authoredPins:authoredPins()}),"Shoreline changed in the draft. Connected ports are retained and marked for review.");setMode("select");return;}
     if(mode==="insert-control"&&base.selected&&!base.selectedPreview){perform(()=>insertWaterControl(layer,base.selected!,vertex,point),"River control point added. This course is creator-authored and protected.");setMode("select");return;}
-    if(mode==="join-river"&&base.selected){const hit=hitHydrology(layer,point,world,tolerance);if(!hit){base.reportError(Error("Choose another visible authored river to join."));return;}perform(()=>joinWaterRivers(layer,base.selected!,hit,point,world,"junction:"+crypto.randomUUID()),"Tributary joined through a shared junction. Undo and save remain independent of terrain.");setMode("select");return;}
+    if(mode==="join-river"&&base.selected){const hit=hitHydrology({...layer,edges:layer.edges.filter(e=>e.id!==base.selected)},point,world,tolerance);if(!hit){base.reportError(Error("Choose another visible authored river to join."));return;}perform(()=>joinWaterRivers(layer,base.selected!,hit,point,world,"junction:"+crypto.randomUUID()),"Tributary joined through a shared junction. Undo and save remain independent of terrain.");setMode("select");return;}
     if(base.mode!=="select"){base.pick(point,tolerance);return;}
     const river=hitHydrology(layer,point,world,tolerance),suggested=base.preview?.lakes?.find(l=>insideWaterRings(point,l.rings,world)),authored=layer.lakes?.find(l=>insideWaterRings(point,l.rings,world));
     if(!river&&(suggested||authored)){selectLake((suggested??authored)!.id,!!suggested);return;}setLakeId(null);setLakePreview(false);base.pick(point,tolerance);
@@ -56,7 +58,8 @@ export function useTerrainWater(api:string,mapId:string,editable:boolean,sourceE
     suggest:(f:TerrainFrame,minArea:number,lakeArea:number,depth:number)=>{setFrame(f);void base.suggest(f,minArea,{lakeMinimumAreaM2:lakeArea,lakeMinimumDepthM:depth});},
     acceptLake:()=>lake&&base.preview&&perform(()=>acceptLake(layer,base.preview!,lake.id,world!),"Lake and its connected river network accepted into the draft. Save waterways to retain them."),
     rejectLake:()=>{if(lake&&base.preview){base.changePreview(removeWaterLake(base.preview,lake.id));setLakeId(null);setLakePreview(false);}},
-    editLake:(values:Partial<HydroLake>)=>lake&&perform(()=>editWaterLake(layer,lake.id,{...values,authoredPins:authoredPins()}),"Lake details changed in the draft. Geometry and level changes mark ports for review."),
+    joinDownstream:(targetId:string)=>world&&base.selected&&perform(()=>joinWaterwayAtDownstreamEnd(layer,base.selected!,targetId,world,"junction:"+crypto.randomUUID()),"Downstream end joined to the chosen course. Review the draft, then save waterways."),
+    editLake:(values:Partial<HydroLake>)=>lake&&perform(()=>editWaterLake(layer,lake.id,{...values,...world&&(values.rings||!insideWaterRings(lake.seed,lake.rings,world)||nearestWaterShore(lake.seed,lake.rings,world).distance<1e-5)?{seed:interiorLakeSeed(values.rings??lake.rings,world!)}:{},authoredPins:authoredPins()}),"Lake details changed in the draft. Geometry and level changes mark ports for review."),
     deleteLake:()=>lake&&perform(()=>removeWaterLake(layer,lake.id),"Lake removed; related rivers were retained with explicit detached endpoints for review."),
     closeLake:()=>lake&&perform(()=>closeWaterLake(layer,lake.id),"Lake closed. Its former downstream channel remains as a separate authored course."),
     alignPorts:()=>lake&&world&&perform(()=>alignWaterPorts(layer,lake.id,world),"Ports deliberately aligned to the shoreline; affected river paths are creator-authored."),

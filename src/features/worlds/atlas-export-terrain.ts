@@ -1,3 +1,4 @@
+import {hasExplicitDrySurface} from "./terrain-dry-surface";
 import type {AtlasExportData} from "./atlas-export-client";
 import type {ExportOptions} from "./atlas-export";
 import type {ConsumptionGeometry} from "./atlas-map-consumption";
@@ -49,8 +50,8 @@ export class TerrainExportPainter{
     this.engraved.sync(root,shape,scene,viewport,g.seaLevel,spec,environmentLayer,water,materialLayer,density,true);await this.wait(()=>this.engraved.paint(4),()=>this.engraved.pending>0);this.engraved.draw(ctx,view,shape);
    }else{this.detail.sync(scene,shape,g.seaLevel,relief,viewport,root,density);await this.wait(()=>this.detail.paint(shape,g.seaLevel,relief,4),()=>this.detail.pending>0);this.detail.draw(ctx,view,shape,scene);}
   }
-  if(layers.has("environment")||layers.has("materials")){
-   this.environment.sync(root,shape,scene,viewport,g.seaLevel,spec.style,layers.has("environment")?{layer:environmentLayer}:undefined,water,materialLayer,density,spec.art,spec.relief,128);await this.wait(()=>this.environment.paint(4),()=>this.environment.pending>0);this.environment.draw(ctx,view);
+  if(layers.has("environment")||layers.has("materials")||layers.has("terrain")&&hasExplicitDrySurface(water)){
+   this.environment.sync(root,shape,scene,viewport,g.seaLevel,spec.style,layers.has("environment")?{layer:environmentLayer}:undefined,water,materialLayer,density,spec.art,spec.relief,128,spec,layers.has("terrain"));await this.wait(()=>this.environment.paint(4),()=>this.environment.pending>0);this.environment.draw(ctx,view);
   }
   await composition("reference");if(layers.has("hydrology"))drawHydrology(ctx,view,{width:shape.displayWidth,height:shape.displayHeight,wrap:shape.wrap},{layer:water,suggestions:null,selected:null,selectedPreview:false},spec.style,spec.art,spec.engraving);
   if(layers.has("artwork")){const layer=art?.kind==="artwork"?art.value:EMPTY_ARTWORK;this.artwork.draw(ctx,view,shape,viewport,root,scene,g.seaLevel,{layer:spec.style==="engraved-fantasy"?{...layer,automatic:false}:layer},environmentLayer,water,spec.style,spec.art,materialLayer,spec.engraving);for(const id of this.artwork.visibleAssets)this.assets.add(id);}

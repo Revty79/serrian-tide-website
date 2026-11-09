@@ -7,6 +7,9 @@ import {materialCoverage,type TerrainMaterials} from "./terrain-materials";
 import type {HydroLayer,HydroGeometry} from "./terrain-hydrology";
 import type {SurfaceField} from "./terrain-surface-field";
 import {surfaceNoise} from "./terrain-surface-art";
+import {explicitDrySurfaceIndex} from "./terrain-dry-surface";
+import {drySurfaceArtist} from "./terrain-dry-surface-color";
+import type {MapAppearance} from "./terrain-appearance";
 
 /** Geographic render materials, deliberately independent of interface colors. */
 export const environmentalPalette:Record<Biome,[number,number,number]>={water:[35,91,105],rainforest:[34,76,43],seasonal:[76,103,48],deciduous:[66,103,50],conifer:[49,82,65],boreal:[57,82,69],savanna:[145,144,72],grassland:[110,137,67],scrub:[125,126,79],steppe:[154,145,100],hotDesert:[206,178,123],coldDesert:[163,157,128],tundra:[125,139,117],alpine:[143,151,134],ice:[228,235,232],wetland:[67,111,91]};
@@ -26,10 +29,10 @@ function canopy(x:number,y:number,scale:number,seed:number,kind:Vegetation,illus
     const angle=Math.atan2(dy,dx),elongation=.7+randomAt(cx+43,cy+89)*.7,d=Math.sqrt(dx*dx*elongation+dy*dy/elongation),lobes=1+.10*Math.sin(angle*(kind==="conifer"?9:4+Math.floor(random*4))+random*17)+.055*Math.sin(angle*11+random*31),r=radius*lobes,height=1-(d/r)**2;if(d<r&&height>highest){highest=height;coverage=1;shade=.61+clamp(height)*.48+(-dx-dy)*.27+(random-.5)*.29;edge=d>r-.028?1:0;}else if((dx-.15)**2+(dy-.22)**2<radius*radius*.75&&coverage===0){coverage=.4;shade=.42;}}
   out.coverage=coverage;out.shade=shade;out.edge=edge;return out;
 }
-export function createEnvironmentArtist(layer:EnvironmentLayer,world:HydroGeometry,water:HydroLayer,materials:TerrainMaterials,style:string,sea=0,art?:TerrainStyle,relief=20){
+export function createEnvironmentArtist(layer:EnvironmentLayer,world:HydroGeometry,water:HydroLayer,materials:TerrainMaterials,style:string,sea=0,art?:TerrainStyle,relief=20,appearance?:MapAppearance,showDry=true){
   const styleSpec=terrainStyle(art);
   const sample=environmentSampler(layer,world,environmentalPalette),waterAt=environmentalWaterIndex(water,world),work=environmentSampleWork(),canopyWork={coverage:0,shade:1,edge:0},period=world.wrap?world.width:null,seed=seedCode(layer.settings.seed),illustrated=style==="illustrated-fantasy",realistic=style==="realistic-terrain";
-  return (x:number,y:number,footprint:number,field:SurfaceField,out:number[]=[0,0,0,0])=>{
+  const artist=(x:number,y:number,footprint:number,field:SurfaceField,out:number[]=[0,0,0,0])=>{
     out[0]=out[1]=out[2]=out[3]=0;if(!layer.visible||!layer.opacity||field.waterHeight<=sea||waterAt(x,y)==="water")return out;const e=sample(x,y,work);if(!e||e.biome==="water")return out;
     const authority=manualMaterialAuthority(materials,x,y,period);if(authority>.999)return out;
     const n=(scale:number,offset=0)=>surfaceNoise(x+offset,y,Math.max(.1,scale),period),band=(scale:number)=>smooth(scale/(footprint*2)-.4),slope=Math.hypot(field.gx,field.gy),light=realistic||illustrated?artLight(field.gx,field.gy,footprint,relief,styleSpec.relief):clamp(.92-.24*Math.atan(field.gx*3)-.2*Math.atan(field.gy*3),.55,1.22),broad=n(16000),clumps=.5+(n(Math.max(60,e.scaleM*17))-.5)*band(Math.max(60,e.scaleM*17))+(n(12000)-.5)*.5,ground=.5+(n(800)-.5)*.4*band(800)+(n(32)-.5)*.35*band(32)+(n(4)-.5)*.25*band(4),scale=Math.max(2,e.scaleM/(styleSpec.detail*styleSpec.scale)),forest=e.woody>.001,treeKind:Vegetation=e.conifers>e.woody*.5?"conifer":e.tropics>e.woody*.5?"tropical":"deciduous",cluster=smooth((clumps-(1-e.density)*e.clustering*.65)*1.8),cover=clamp(e.density*(1-e.clustering*.45)+cluster*e.density*.65)*e.woody,resolved=smooth(scale/(footprint*1.5)-.2);
@@ -63,5 +66,15 @@ export function createEnvironmentArtist(layer:EnvironmentLayer,world:HydroGeomet
       alpha*=1+(Math.min(1.3,styleSpec.vegetation)-1)*e.woody;if(art){out[0]=r;out[1]=g;out[2]=b;styleColor(out,false,styleSpec,out);r=out[0];g=out[1];b=out[2];}
     }
     out[0]=clamp(r,0,255);out[1]=clamp(g,0,255);out[2]=clamp(b,0,255);out[3]=clamp(alpha*layer.opacity*e.coverage*(1-authority))*255;return out;
+  };
+  const dry=explicitDrySurfaceIndex(water,world);if(!showDry||!dry.has)return artist;
+  const ground=drySurfaceArtist(style,sea,relief,materials,period,art,appearance),base=[0,0,0,0],overlay=[0,0,0,0];
+  return (x:number,y:number,footprint:number,field:SurfaceField,out:number[]=[0,0,0,0])=>{
+    if(field.waterHeight>sea||!dry.at(x,y,field.height))return artist(x,y,footprint,field,out);
+    ground(field,x,y,footprint,base);
+    // This temporary presentation field only admits the existing environment
+    // overlay. The saved height, gradient and caller's field remain exact.
+    artist(x,y,footprint,{...field,waterHeight:sea+1},overlay);const alpha=overlay[3]/255;
+    for(let c=0;c<3;c++)out[c]=base[c]*(1-alpha)+overlay[c]*alpha;out[3]=255*water.opacity;return out;
   };
 }
