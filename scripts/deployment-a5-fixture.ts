@@ -34,6 +34,8 @@ async function main(){
  const {createGrid,readTile,terrainGeometry}=await import("../src/features/worlds/terrain"),doc=(await terrain.getTerrain("a5-owner",world,{mapId})).document!,shape=terrainGeometry(doc.settings),grid=createGrid(doc.baseElevation,doc.tiles,shape);grid[65]=777;await terrain.changeTerrain("a5-owner",world,{action:"save",requestId:randomUUID(),mapId,revision:1,seaLevel:0,tiles:[readTile(grid,0,shape)]});
  await(await import("../src/db")).pool.end();await writeFile("/owned/artwork/retained-diagnostic","Synthetic complete-root retention\n",{mode:0o600});await writeFile("/owned/raster/retained-diagnostic","Synthetic complete-root retention\n",{mode:0o600});
  await writeFile("/owned/info.json",JSON.stringify({databaseUrl,world,mapId,port,roots:{terrain:"/owned/terrain",artwork:"/owned/artwork",raster:"/owned/raster"}}),{mode:0o600});await pool.end();console.log("OWNED_A5_FIXTURE_READY");
- await new Promise<void>(resolve=>{for(const signal of["SIGINT","SIGTERM"])process.once(signal,()=>{command("pg_ctl",["-D",data,"-m","fast","-w","stop"]);resolve();});});
+ // Signal listeners alone do not keep Node's event loop alive after pool.end().
+ // Retain a handle until Docker stops this explicitly owned fixture service.
+ await new Promise<void>(resolve=>{const keepAlive=setInterval(()=>{},60000);for(const signal of["SIGINT","SIGTERM"])process.once(signal,()=>{clearInterval(keepAlive);command("pg_ctl",["-D",data,"-m","fast","-w","stop"]);resolve();});});
 }
 void main().catch(error=>{const code=error&&typeof error==="object"&&"code"in error&&/^[A-Z0-9_]+$/.test(String(error.code))?String(error.code):"OPERATION";console.error(`OWNED_A5_FIXTURE_FAILED stage=${stage} code=${code}`);process.exitCode=1;}).finally(async()=>{if(!pool.ended)await pool.end();});
