@@ -1,6 +1,6 @@
 # Ubuntu website updates: Stage A5
 
-Implementation and isolated verification are in progress. This document does not authorize a live rollout. A3 remains held. The existing `serriantide` container, working `serriantide:0c42d1eceaece99125574bae250f5b01932dbfbe` image and earlier rollback container must remain intact until a separately approved operation.
+Implementation and isolated verification pass at `9b8bda8c6fd02bec800b941b99e5120b339d958a`; see the [delivery receipt](deployment-a5-delivery.md). This document does not authorize a live rollout. A3 remains held. The existing `serriantide` container, working `serriantide:0c42d1eceaece99125574bae250f5b01932dbfbe` image and earlier rollback container must remain intact until a separately approved operation.
 
 ## Established causes
 
@@ -20,14 +20,14 @@ The repair keeps normal website startup and environment operations separate. The
 
 ## Read-only owner host preflight
 
-After reviewing the published A5 implementation, replace `REVIEWED_A5_SHA` below with its full implementation SHA. Run this from the Ubuntu terminal only when the owner elects to gather the report. The agent has not SSHed into or changed that host.
+The blocks below pin the fully tested A5 implementation. Run this preflight from the Ubuntu terminal only when the owner elects to gather the report. The agent has not SSHed into or changed that host.
 
 ```bash
 (
   set -euo pipefail
   umask 077
   cd /apps/serrian-tide-next
-  RELEASE='REVIEWED_A5_SHA'
+  RELEASE='9b8bda8c6fd02bec800b941b99e5120b339d958a'
   git fetch --no-tags origin main
   git merge-base --is-ancestor "$RELEASE" origin/main
   LAUNCHER=$(mktemp /tmp/serrian-a5-preflight.XXXXXX.py)
@@ -54,7 +54,7 @@ This is the reviewed procedure for a later **separately authorized live update**
   set -euo pipefail
   umask 077
   cd /apps/serrian-tide-next
-  RELEASE='REVIEWED_A5_SHA'
+  RELEASE='9b8bda8c6fd02bec800b941b99e5120b339d958a'
   HOST_APPROVAL='REVIEWED_HOST_APPROVAL_SHA256'
   git fetch --no-tags origin main
   git merge-base --is-ancestor "$RELEASE" origin/main
@@ -107,4 +107,4 @@ Authentication credentials and sessions are retained. Existing base URL/trusted 
 
 ## Delivery and acceptance
 
-Pending full local tests, exact hosted normal/DR/deployment workflows, reviewed inventory and final publication receipt. The actual owner Ubuntu image/container, memory, mounts, PostgreSQL ledger/TLS/privileges, existing env format and tester tunnel remain uninspected. Synthetic success will not be represented as live rollout success. Stop after technical delivery for Ember/owner review; no A3, Earth, Tabletop or live migration follows automatically.
+Full local checks and exact hosted normal/DR/deployment workflows pass; the [delivery receipt](deployment-a5-delivery.md) records all runs, resources, 26 reviewed paths and retained failures. The actual owner Ubuntu image/container, memory, mounts, PostgreSQL ledger/TLS/privileges, existing env format and tester tunnel remain uninspected. Isolated success is not live rollout success. Stop after technical delivery for Ember/owner review; no A3, Earth, Tabletop or live migration follows automatically.
