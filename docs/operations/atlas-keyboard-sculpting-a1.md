@@ -2,7 +2,7 @@
 
 Technical recommendation: **PASS for owner/Ember review**. Usability, artistic and physical-device acceptance remain with the owner. This milestone stops here; no Earth construction, graphics milestone, source import, deployment or Production work is included.
 
-Starting reviewed main: `2b64e73faae109d3e366972c545845d44ff2911c`. The exact ending publication commit and its Actions result are recorded in the delivery response. The application fingerprint below identifies the production build used for validation, independently of documentation commits.
+Starting reviewed main: `2b64e73faae109d3e366972c545845d44ff2911c`. Ending implementation commit: [`44c98b3752610a62458bfe73f6a7e4600d8743e3`](https://github.com/Revty79/serrian-tide-website/commit/44c98b3752610a62458bfe73f6a7e4600d8743e3). The final documentation-only publication commit and its Actions result are recorded in the delivery response. The application fingerprint below identifies the production build used for validation, independently of documentation commits.
 
 ## What a creator can do
 
@@ -75,7 +75,7 @@ Production build ID: `Tyid5D9VC_nB1ZwfwmAPw`. The source proof covers `src`, `da
 | Focused keyboard tests | 9 passed, including 21 native brush/precision combinations, coordinate seams, source changes, focus/repeat/IME, protection, cancellation and existing point callbacks. |
 | Full normal unit suite | 2,921/2,921 across 377 files; `artifacts/atlas-keyboard-1/unit-final.log`. |
 | TypeScript / full ESLint | Passed; final release logs are `artifacts/atlas-keyboard-1/{types,lint}-release.log`. One existing unused `LoreFamily` warning in `scripts/worlds-stories-checks.ts` remains. |
-| Environment / raster integrity | All 15 environment-integrity checks passed. Windows raster checks passed 2 with 1 explicit POSIX-permission skip; Linux coverage is verified separately in publication CI. `artifacts/atlas-keyboard-1/{environment,raster}-release.log`. |
+| Environment / raster integrity | All 15 environment-integrity checks passed. Windows raster checks passed 2 with 1 explicit POSIX-permission skip. Exact implementation CI independently passed all 3 Linux raster checks, including POSIX permissions, with no skips. `artifacts/atlas-keyboard-1/{environment,raster}-release.log` and publication CI below. |
 | Production browser | All ten A1 groups passed on exact source/build above, installed Chrome 134.0.6998.166, headed and GPU disabled, no page errors. `artifacts/regions-s43-keyboard-a1-6/{browser-results,keyboard-results}.json`. |
 | Numerical pointer equivalence | An actual mouse stamp and equivalent keyboard stamp produced identical persisted grids; save/reload preserved their exact values. All seven brushes also match native `TerrainStroke` across original/fine/single precision in the focused suite. |
 | Controlled edits/history | Single and continuous strokes, cancel, one-step Undo/Redo, invalid input, source boundaries, zoom/pan and forms passed. |
@@ -115,3 +115,9 @@ The ignored logs preserve failed/incomplete attempts rather than merging them in
 All failed receipts and screenshots remain private. No claim is made that every historical Atlas suite was rerun, that all map families now support keyboard sculpting, or that software/browser emulation proves physical accessibility. Keyboard focus, labeled controls, live state, modifier/IME safety and narrow/touch workflows were checked; screen readers, operating-system key remapping and physical keyboards/touchscreens still require acceptance testing.
 
 Owner/Ember should assess discoverability, instruction clarity, map-space tradeoffs, cursor visibility and comfort of deliberate strokes on their actual devices. Technical verification does not settle those judgments. Stop for that review before another milestone.
+
+## Publication receipt
+
+Implementation `44c98b3752610a62458bfe73f6a7e4600d8743e3` is published on `main` with `[skip render]`. Its exact [normal validation 42735066603](https://github.com/Revty79/serrian-tide-website/actions/runs/42735066603) passed TypeScript, ESLint, all 2,921 unit tests across 377 files, all three Linux raster checks and all 15 environment-integrity checks. Its exact [Linux/Docker recovery 42735066549](https://github.com/Revty79/serrian-tide-website/actions/runs/42735066549) passed the release build, offline PostgreSQL/storage backup/restore, native application reads and all 15 signature/transfer/permission/corruption checks. These use owned synthetic fixtures and do not touch the owner's Ubuntu server.
+
+The following documentation-only receipt changes this report and `AGENTS.md`; it preserves every tested application, test, configuration, asset and migration byte. Its final exact commit, successful normal CI and clean local/origin/official-GitHub parity must be verified before delivery. No deployment or later milestone is authorized by this receipt.
