@@ -113,7 +113,8 @@ function Sculptor({ document: rootDocument, api:baseApi, editable, review, onDir
   const [viewport,setViewport]=useState<TerrainViewport>(),[refinementPreview,setRefinementPreview]=useState<TerrainRefinementPreview>(),[refinementFrame,setRefinementFrame]=useState<TerrainFrame>(),[sourceLoading,setSourceLoading]=useState(false);
   const referenceEligible=!historyScope&&referenceContext?.year===undefined&&!!referenceContext?.timelineId;
   const boundaryReferences=useTerrainReferenceBoundaries(rootDocument.worldId,region?.parentMapId??rootDocument.id,referenceContext?.timelineId,rootShape,viewport,referenceEligible&&referenceBoundaries,review,referenceNamespace);
-  const details=useTerrainRefinements(rootAccepted.current,rootShape,viewport,review,saved.refinement?.id);
+  const deviceQuality=useTerrainRenderQuality();
+  const details=useTerrainRefinements(rootAccepted.current,rootShape,viewport,review,saved.refinement?.id,deviceQuality.detailScale);
   const sourceController=useRef<AbortController|null>(null),sessions=useRef(new Map<string,{loaded:LoadedTerrainDetail;baseline:Int16Array;sea:number;undo:History[];redo:History[]}>());
   useEffect(()=>()=>sourceController.current?.abort(),[]);
   const alive=useRef(true),surface=useRef<HTMLElement>(null);
@@ -213,7 +214,6 @@ function Sculptor({ document: rootDocument, api:baseApi, editable, review, onDir
   const switchSource=useRef(selectSource);useEffect(()=>{switchSource.current=selectSource;});
   const detailIndexReady=!!details.index;
   useEffect(()=>{if(!resumeDetail||!detailIndexReady||resumeStarted.current)return;resumeStarted.current=true;void Promise.resolve().then(()=>switchSource.current(resumeDetail,true)).finally(()=>setResumeDetail(null));},[resumeDetail,detailIndexReady]);
-  const deviceQuality=useTerrainRenderQuality();
   const [precision,setPrecision]=useState<NonNullable<Brush["precision"]>>(ui?.precision??"original");
   useEffect(()=>{const stable=!["region","refine","locations","water","artwork","labels"].includes(tool);preferences.current={expanded,hardness,sizeMode,requestedDiameter,tool:stable?tool:preferences.current?.tool??"inspect",family:stable?family:preferences.current?.family??"inspect",tools:toolsPanel,options:inspector,radius,strength,precision,surface:surfaceMaterial,diameter:materialDiameter,paintStrength:materialStrength,environment:{mode:environment.mode==="paint"?"paint":"select",kind:environment.kind,biome:environment.biome,vegetation:environment.vegetation,diameter:environment.diameter,strength:environment.strength,density:environment.density,scaleM:environment.scaleM,clustering:environment.clustering,erase:environment.erase}};},[preferences,expanded,hardness,sizeMode,requestedDiameter,tool,family,toolsPanel,inspector,radius,strength,precision,surfaceMaterial,materialDiameter,materialStrength,environment.mode,environment.kind,environment.biome,environment.vegetation,environment.diameter,environment.strength,environment.density,environment.scaleM,environment.clustering,environment.erase]);
   useEffect(()=>{extraDirty.current.organization=organization.dirty||!!organization.recovered;onDirty(terrainDirtyNow.current||locationDirty.current||operationDirty.current||materialDirtyNow.current||waterDirtyNow.current||environmentDirtyNow.current||artworkDirtyNow.current||labelsDirtyNow.current);},[organization.dirty,organization.recovered,onDirty]);

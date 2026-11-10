@@ -4,31 +4,26 @@ import {useCallback,useEffect,useMemo,useState} from "react";
 
 import type {TerrainDocument,TerrainGeometry} from "./terrain";
 import {protectionGrid,type TerrainSource} from "./terrain-source";
-import {chooseTerrainLod,frameGeometry,framesOverlap,lodGeometry,tileKeysForView,type RefinementMeta,type TerrainViewport} from "./terrain-refinement";
+import {frameGeometry,type RefinementMeta,type TerrainViewport} from "./terrain-refinement";
 import {TerrainDetailCache,type DetailBatch,type DetailPlan} from "./terrain-refinement-cache";
 import {sharedTerrainDetails} from "./terrain-shared-detail-cache";
+import {detailViewPlan} from "./terrain-detail-presentation";
+export {detailViewPlan} from "./terrain-detail-presentation";
 
 export type RefinementIndex={sourceState?:string;available:boolean;refinements:RefinementMeta[];rootRevision:number;seaLevel:number;canEdit:boolean};
 export type LoadedTerrainDetail={document:TerrainDocument;grid:Int16Array;protection:Uint8Array};
 export function refinementApi(worldId:string,mapId:string,review=false){return `/api/worlds/${worldId}/terrain/refinements?terrainMap=${encodeURIComponent(mapId)}${review?"&review=1":""}`;}
 
-export function detailViewPlan(metas:RefinementMeta[],view:TerrainViewport,world:TerrainGeometry,previous:Map<string,number>=new Map(),budget=1024){
- const bounds={x:view.left,y:view.top,width:view.right-view.left,height:view.bottom-view.top};
- const plans:DetailPlan[]=metas.filter(m=>Math.min(m.frame.width,m.frame.height)*view.scale>=2&&framesOverlap(m.frame,bounds,world.displayWidth,world.wrap)).sort((a,b)=>b.level-a.level).map(meta=>{const shape=frameGeometry(meta,world),lod=chooseTerrainLod(shape,view.scale,previous.get(meta.id));return {meta,lod,keys:[...tileKeysForView(meta.frame,lodGeometry(shape,lod),view,world)]};}).filter(p=>p.keys.length);
- while(plans.reduce((n,p)=>n+p.keys.length,0)>budget){const candidate=plans.filter(p=>p.lod<p.meta.overviewLevels).sort((a,b)=>b.keys.length-a.keys.length)[0];if(!candidate)break;candidate.lod++;candidate.keys=[...tileKeysForView(candidate.meta.frame,lodGeometry(frameGeometry(candidate.meta,world),candidate.lod),view,world)];}
- for(const p of plans)previous.set(p.meta.id,p.lod);return plans;
-}
-
-export function useTerrainRefinements(root:TerrainDocument,world:TerrainGeometry,view:TerrainViewport|undefined,review:boolean,activeId?:string){
+export function useTerrainRefinements(root:TerrainDocument,world:TerrainGeometry,view:TerrainViewport|undefined,review:boolean,activeId?:string,density=1){
  const worldApi=useNativeWorldApi();
  const bindApi=useNativeApiUrl(),namespace=useNativeHistoryRecovery();
  const api=bindApi(refinementApi(root.worldId,root.id,review)),[index,setIndex]=useState<RefinementIndex>(),[error,setError]=useState(""),[cacheTick,setCacheTick]=useState(0),[plans,setPlans]=useState<DetailPlan[]>([]),[loadProgress,setLoadProgress]=useState<number|null>(null);
  const fetcher=useCallback((plan:DetailPlan,signal:AbortSignal)=>worldApi<DetailBatch>(`${api}&refinement=${plan.meta.id}&revision=${plan.meta.revision}&lod=${plan.lod}&keys=${plan.keys.join(",")}`,"GET",undefined,signal),[api,worldApi]);
- const cache=useMemo(()=>new TerrainDetailCache(fetcher,2048,2,sharedTerrainDetails(root.worldId,root.terrainId,namespace)),[fetcher,root.worldId,root.terrainId,namespace]),previous=useMemo(()=>new Map<string,number>(),[]);
+ const cache=useMemo(()=>new TerrainDetailCache(fetcher,2048,2,sharedTerrainDetails(root.worldId,root.terrainId,namespace)),[fetcher,root.worldId,root.terrainId,namespace]),previous=useMemo(()=>({density,lods:new Map<string,number>()}),[density]);
  useEffect(()=>{const unsubscribe=cache.subscribe(()=>setCacheTick(v=>v+1));return()=>{unsubscribe();cache.dispose();};},[cache]);
  const reload=useCallback(async()=>{try{const result=await worldApi<RefinementIndex>(api);setIndex(result);setError("");return result;}catch(e){setError(e instanceof Error?e.message:"Terrain detail could not be read.");throw e;}},[api,worldApi]);
  useEffect(()=>{const controller=new AbortController();let alive=true;const run=()=>{void worldApi<RefinementIndex>(api,"GET",undefined,controller.signal).then(value=>{if(alive){setIndex(value);setError("");}}).catch(e=>{if(alive&&!controller.signal.aborted)setError(e.message);});};run();window.addEventListener("focus",run);return()=>{alive=false;controller.abort();window.removeEventListener("focus",run);};},[api,worldApi]);
- useEffect(()=>{if(!view||!index?.available||loadProgress!==null)return;const timer=setTimeout(()=>{const next=detailViewPlan(index.refinements,view,world,previous);setPlans(next);cache.schedule(next.filter(p=>p.meta.id!==activeId));},100);return()=>clearTimeout(timer);},[view,index,world,previous,cache,activeId,loadProgress]);
+ useEffect(()=>{if(!view||!index?.available||loadProgress!==null)return;const timer=setTimeout(()=>{const next=detailViewPlan(index.refinements,view,world,previous.lods,1024,previous.density);setPlans(next);cache.schedule(next.filter(p=>p.meta.id!==activeId));},100);return()=>clearTimeout(timer);},[view,index,world,previous,cache,activeId,loadProgress]);
  const load=useCallback(async(meta:RefinementMeta,signal:AbortSignal,revision=meta.revision):Promise<LoadedTerrainDetail>=>{
   const chosen={...meta,revision},shape=frameGeometry(chosen,world),grid=new Int16Array(shape.width*shape.height),masks:{x:number;y:number;mask:string}[]=[],groups:number[][]=[];let acceptedRequestId="",source:TerrainSource={kind:"manual"},seaLevel=root.seaLevel,done=0,rootPin:number|undefined;
   for(let key=0;key<shape.width*shape.height/1024;key+=64)groups.push(Array.from({length:Math.min(64,shape.width*shape.height/1024-key)},(_,n)=>key+n));

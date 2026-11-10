@@ -26,6 +26,24 @@ test("fine interiors replace hidden parents while collars, nested coverage and w
  const nested=terrainSurfaceSampler(root,world,{...scene,plans:[...scene.plans,{meta:child,lod:0,keys:[0]}],preview:{meta:child,shape:{...shape,displayWidth:100,displayHeight:100},grid:new Int16Array(1024).fill(2000)}});assert.equal(nested(250,250).height,2000);assert.equal(nested(201.5625,250).height,1156.25);
  const wrapped={...meta,frame:{x:950,y:100,width:100,height:100}},seam=terrainSurfaceSampler(root,world,{...scene,plans:[{meta:wrapped,lod:0,keys:[0]}],active:{...scene.active,meta:wrapped,shape:{...shape,displayWidth:100,displayHeight:100}}});assert.deepEqual(seam(20,150),seam(1020,150));assert.equal(seam(20,150).height,1000);
 });
+
+test("saved surface snapshots index pinned tiles once, including cached neighborhood halos",()=>{
+ const world={width:32,height:32,tileSize:32,displayWidth:1000,displayHeight:1000,min:-30000,max:30000,wrap:true},root=new Int16Array(1024).fill(100),meta:RefinementMeta={id:"saved",worldId:"world",terrainId:"terrain",mapId:"map",name:"Saved",parentId:null,parentRevision:1,level:1,revision:7,frame:{x:100,y:100,width:640,height:640},gridWidth:64,gridHeight:64,overviewLevels:1,updatedAt:"fixed"};
+ const values=Int16Array.from({length:4096},(_,i)=>Math.round(Math.sin(i%64*.2)*200+Math.cos(Math.floor(i/64)*.15)*120+600)),tiles=new Map<number,{samples:Int16Array}>();
+ for(let key=0;key<4;key++)tiles.set(key,{samples:Int16Array.from({length:1024},(_,i)=>values[(Math.floor(key/2)*32+Math.floor(i/32))*64+key%2*32+i%32])});
+ let reads=0;const cache={peek:(id:string,revision:number,lod:number,key:number)=>{reads++;assert.equal(id,meta.id);assert.equal(revision,7);assert.equal(lod,0);return tiles.get(key);}},sample=terrainSurfaceSampler(root,world,{cache,tick:0,plans:[{meta,lod:0,keys:[0]}]});
+ const read=(x:number,y:number)=>values[Math.max(0,Math.min(63,y))*64+Math.max(0,Math.min(63,x))];
+ for(let i=0;i<100;i++){const x=30.25+i%8*.125,y=31.5+Math.floor(i/8)*.125;assert.deepEqual(sample(100+x*10,100+y*10),reconstructSurface(read,x,y,10,10));}
+ assert.ok(reads<=4,`Expected one pinned lookup per tile, got ${reads}`);
+});
+
+test("new surface snapshots observe arriving and revised tiles without changing prior samples",()=>{
+ const world={width:32,height:32,tileSize:32,displayWidth:1000,displayHeight:1000,min:-30000,max:30000,wrap:true},root=new Int16Array(1024).fill(100),meta:RefinementMeta={id:"saved",worldId:"world",terrainId:"terrain",mapId:"map",name:"Saved",parentId:null,parentRevision:1,level:1,revision:1,frame:{x:100,y:100,width:400,height:400},gridWidth:32,gridHeight:32,overviewLevels:0,updatedAt:"fixed"},tiles=new Map<number,{samples:Int16Array}>(),cache={peek:(_id:string,revision:number)=>tiles.get(revision)},scene={cache,tick:0,plans:[{meta,lod:0,keys:[0]}]},missing=terrainSurfaceSampler(root,world,scene);
+ assert.equal(missing(300,300).height,100);tiles.set(1,{samples:new Int16Array(1024).fill(1000)});
+ const arrived=terrainSurfaceSampler(root,world,{...scene,tick:1});assert.equal(arrived(300,300).height,1000);assert.equal(missing(300,300).height,100);
+ tiles.set(2,{samples:new Int16Array(1024).fill(2000)});const revised=terrainSurfaceSampler(root,world,{...scene,plans:[{meta:{...meta,revision:2},lod:0,keys:[0]}]});
+ assert.equal(revised(300,300).height,2000);assert.equal(arrived(300,300).height,1000);assert.ok(root.every(z=>z===100));assert.ok(tiles.get(1)!.samples.every(z=>z===1000));
+});
 test("reused pixel buffers retain material composition across water, painted land and later pixels",()=>{
  const set=fixture(),work=surfacePixelWork(),layer={...EMPTY_TERRAIN_MATERIALS,strokes:[{id:"paint",material:"sand" as const,radiusM:40,strength:.6,points:[{x:20,y:30}]}]};
  for(const [x,y,z] of [[20,30,400],[25,35,-40],[90,130,1000],[20,30,400]]){const field={height:z,waterHeight:z,gx:.4,gy:.2,rough:.1,spacing:20},expected=surfacePixel(field,x,y,.2,0,20,layer,layer.strokes,null,set),actual=surfacePixel(field,x,y,.2,0,20,layer,layer.strokes,null,set,undefined,work);assert.ok(actual.every((v,i)=>Math.abs(v-expected[i])<1e-9));}

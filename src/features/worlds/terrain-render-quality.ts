@@ -10,3 +10,8 @@ export function environmentPixelTarget(scale:number,quality:TerrainRenderQuality
  const close=scale>=.02;
  return ({fast:128,balanced:128,detailed:close?64:96,maximum:close?32:64})[quality];
 }
+/** Visible scalar raster payload only. Existing Fast/Balanced bounds remain
+ * exact; richer device choices opt into more pixels without expanding terrain. */
+export function scalarRasterBytes(quality:TerrainRenderQuality="balanced"){
+ return ({fast:8,balanced:8,detailed:16,maximum:24}[quality])*1048576;
+}

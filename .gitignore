@@ -1,6 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 /artifacts/atlas-keyboard-1/
+/artifacts/atlas-graphics-a2/
 /artifacts/keyboard-editor-index.txt
 
 # Owner-authorized clean DEV recovery: private data and recovery receipts.

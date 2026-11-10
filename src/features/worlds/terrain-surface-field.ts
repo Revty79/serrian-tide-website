@@ -36,7 +36,11 @@ export function terrainSurfaceSampler(root:Int16Array,world:TerrainGeometry,scen
  const rootRead=(x:number,y:number)=>root[Math.max(0,Math.min(world.height-1,y))*world.width+(world.wrap?((x%world.width)+world.width)%world.width:Math.max(0,Math.min(world.width-1,x)))];
  const cellLimit=Math.max(1,Math.floor(8192/((scene?.plans.length??0)+1))),rootSample=cachedSurfaceReconstructor(rootRead,world.displayWidth/world.width,world.displayHeight/world.height,cellLimit,world.width+2);
  const plans=[...(scene?.plans??[])].sort((a,b)=>a.meta.level-b.meta.level).map(plan=>{const active=[scene?.preview,scene?.active].find(a=>a?.meta.id===plan.meta.id),shape=active?.shape??lodGeometry(frameGeometry(plan.meta,world),plan.lod),cols=shape.width/32;
-  const read=(x:number,y:number)=>{x=Math.max(0,Math.min(shape.width-1,x));y=Math.max(0,Math.min(shape.height-1,y));return active?active.grid[y*shape.width+x]:scene?.cache.peek(plan.meta.id,plan.meta.revision,plan.lod,Math.floor(y/32)*cols+Math.floor(x/32))?.samples[y%32*32+x%32];};return {plan,shape,sample:cachedSurfaceReconstructor(read,plan.meta.frame.width/shape.width,plan.meta.frame.height/shape.height,cellLimit,shape.width+2),work:surfaceFieldWork()};
+  // Pin borrowed immutable tiles once per synchronization. Include cached halos
+  // outside the request plan; workers expose the same peek-only cache contract.
+  // A subsequent tile arrival, revision or edit creates a fresh sampler.
+  const tiles=new Map<number,Int16Array>();if(!active)for(let key=0;key<cols*(shape.height/32);key++){const tile=scene?.cache.peek(plan.meta.id,plan.meta.revision,plan.lod,key);if(tile)tiles.set(key,tile.samples);}
+  const read=(x:number,y:number)=>{x=Math.max(0,Math.min(shape.width-1,x));y=Math.max(0,Math.min(shape.height-1,y));return active?active.grid[y*shape.width+x]:tiles.get(Math.floor(y/32)*cols+Math.floor(x/32))?.[y%32*32+x%32];};return {plan,shape,sample:cachedSurfaceReconstructor(read,plan.meta.frame.width/shape.width,plan.meta.frame.height/shape.height,cellLimit,shape.width+2),work:surfaceFieldWork()};
  });
  return (east:number,south:number,profile?:TerrainSurfaceProfile,out:SurfaceField=surfaceFieldWork()):SurfaceField=>{
   const x=world.wrap?((east%world.displayWidth)+world.displayWidth)%world.displayWidth:Math.max(0,Math.min(world.displayWidth,east)),y=Math.max(0,Math.min(world.displayHeight,south));
