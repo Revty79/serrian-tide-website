@@ -53,7 +53,13 @@ def main():
             if info.returncode == 0:
                 info = json.loads(info.stdout)
                 break
-            require(basic.inspect(db_name)["State"]["Running"], "Synthetic PG fixture exited")
+            if not basic.inspect(db_name)["State"]["Running"]:
+                # Fixture prints only fixed stage/code, never URLs, secrets or SQL.
+                log = docker("logs", db_name, allow_failure=True)
+                for line in (log.stdout + log.stderr).decode().splitlines():
+                    if line.startswith("OWNED_A5_FIXTURE_FAILED "):
+                        print(line, flush=True)
+                raise Refused("Synthetic PG fixture exited; see its redacted stage/code")
             time.sleep(1)
         else:
             raise Refused("Synthetic PG fixture timeout")
