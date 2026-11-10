@@ -8,15 +8,16 @@ import pg from "pg";
 import {drizzle} from "drizzle-orm/node-postgres";
 import {migrate} from "drizzle-orm/node-postgres/migrator";
 import {hashPassword} from "better-auth/crypto";
-assert.equal(process.env.SERRIAN_A5_OWNED_FIXTURE,"1");
-assert.equal(await readFile("/owned/.a5-fixture","utf8"),"OWNED_SYNTHETIC_A5_ONLY\n");
-const port=Number(process.env.SERRIAN_A5_PG_PORT),password=process.env.SERRIAN_A5_PG_PASSWORD!;assert(port>1024&&! [3000,3003,5432,5433].includes(port));assert(password?.length>=32);
+const port=Number(process.env.SERRIAN_A5_PG_PORT),password=process.env.SERRIAN_A5_PG_PASSWORD!;
 const root="/owned",data=path.join(root,"postgres"),bin="/usr/lib/postgresql/18/bin",databaseUrl=`postgresql://postgres:${password}@127.0.0.1:${port}/serrian_deployment_fixture`;
 const command=(name:string,args:string[])=>execFileSync(path.join(bin,name),args,{stdio:"pipe",windowsHide:true,maxBuffer:16*1024*1024});
 const pool=new pg.Pool({connectionString:databaseUrl});
-let stage="initialization";
+let stage="ownership-guard";
 async function rows(){const names=(await pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows;const result:Record<string,string>={};for(const {tablename}of names){const text=JSON.stringify((await pool.query(`select to_jsonb(t) value from "${tablename.replaceAll('"','""')}" t order by to_jsonb(t)::text collate "C"`)).rows);result[tablename]=createHash("sha256").update(text).digest("hex");}return result;}
 async function main(){
+ assert.equal(process.env.SERRIAN_A5_OWNED_FIXTURE,"1");
+ assert(port>1024&&! [3000,3003,5432,5433].includes(port));assert(password?.length>=32);
+ assert.equal(await readFile("/owned/.a5-fixture","utf8"),"OWNED_SYNTHETIC_A5_ONLY\n");
  if(process.argv.includes("--upgrade")){const before=await rows();await migrate(drizzle(pool),{migrationsFolder:"drizzle"});const after=await rows();for(const [name,value]of Object.entries(before))assert.equal(after[name],value,name);assert.equal((await pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,162);console.log(JSON.stringify({passed:true,explicitUpgrade:true,originalTablesExact:Object.keys(before).length}));return;}
  if(process.argv.includes("--mutate")){await pool.query("update \"user\" set name='Synthetic accepted post-start write' where id='a5-owner'");return;}
  stage="initdb";await writeFile(path.join(root,"pg-password"),password,{mode:0o600,flag:"wx"});
@@ -35,4 +36,4 @@ async function main(){
  await writeFile("/owned/info.json",JSON.stringify({databaseUrl,world,mapId,port,roots:{terrain:"/owned/terrain",artwork:"/owned/artwork",raster:"/owned/raster"}}),{mode:0o600});await pool.end();console.log("OWNED_A5_FIXTURE_READY");
  await new Promise<void>(resolve=>{for(const signal of["SIGINT","SIGTERM"])process.once(signal,()=>{command("pg_ctl",["-D",data,"-m","fast","-w","stop"]);resolve();});});
 }
-try{await main();}catch(error){const code=error&&typeof error==="object"&&"code"in error&&/^[A-Z0-9_]+$/.test(String(error.code))?String(error.code):"OPERATION";console.error(`OWNED_A5_FIXTURE_FAILED stage=${stage} code=${code}`);process.exitCode=1;}finally{if(!pool.ended)await pool.end();}
+void main().catch(error=>{const code=error&&typeof error==="object"&&"code"in error&&/^[A-Z0-9_]+$/.test(String(error.code))?String(error.code):"OPERATION";console.error(`OWNED_A5_FIXTURE_FAILED stage=${stage} code=${code}`);process.exitCode=1;}).finally(async()=>{if(!pool.ended)await pool.end();});

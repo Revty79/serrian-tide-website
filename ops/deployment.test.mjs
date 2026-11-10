@@ -7,6 +7,11 @@ import {sourceFingerprint,stampBuild,verifyBuild,RELEASE_FILES,RELEASE_DIRECTORI
 import {origins} from "./host-probe.mjs";
 import {spawnSync} from "node:child_process";
 import {buildWebsite} from "./build-website.mjs";
+test("CI fixture loads under the repository runtime and refuses without explicit ownership",()=>{
+ const environment={...process.env};delete environment.SERRIAN_A5_OWNED_FIXTURE;
+ const result=spawnSync(process.execPath,["--conditions=react-server","--import","tsx","scripts/deployment-a5-fixture.ts"],{env:environment,encoding:"utf8",windowsHide:true});
+ assert.equal(result.status,1);assert.match(result.stderr,/OWNED_A5_FIXTURE_FAILED stage=ownership-guard code=ERR_ASSERTION/);assert.doesNotMatch(result.stderr,/Transform failed/);
+});
 test("strict production TypeScript remains mandatory before any completed build receipt",async()=>{
  const calls=[],environment={SERRIAN_BUILD_COMMIT:"a".repeat(40),SERRIAN_BUILD_HEAP_MIB:"3328",SERRIAN_BUILD_CPUS:"1"};let stamped=0;
  await assert.rejects(buildWebsite({environment,metrics:false,run:async args=>{calls.push(args);if(args.includes("node_modules/typescript/bin/tsc"))throw Error("real type error");},stamp:async()=>{stamped++;}}));assert.equal(stamped,0);assert.equal(calls.length,3);assert(calls[1].includes("typegen"));assert(calls[2].includes("--noEmit"));assert(calls[2].includes("tsconfig.website.json"));
