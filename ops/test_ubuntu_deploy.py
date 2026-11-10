@@ -146,6 +146,19 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(events[-1], ("buildx", "rm", "serrian-a5-" + op.run_id))
         self.assertFalse(any(e[0] in ("stop", "prune", "rmi") for e in events))
 
+    def test_tool_failure_retains_private_diagnostics_without_printing_secret(self):
+        with tempfile.TemporaryDirectory(prefix="serrian-a5-error-") as directory:
+            op = Operator(directory, "a" * 40)
+            op.output = Path(directory)
+            error = subprocess.CompletedProcess([], 1, b"", b"synthetic-private-tool-error")
+            with patch("subprocess.run", return_value=error):
+                with self.assertRaisesRegex(Refused, "COMMAND_FAILED") as result:
+                    op.run(["synthetic"])
+            self.assertNotIn("synthetic-private-tool-error", str(result.exception))
+            receipts = list(op.output.glob("command-failure-*.json"))
+            self.assertEqual(len(receipts), 1)
+            self.assertIn("synthetic-private-tool-error", receipts[0].read_text())
+
     def test_daemon_wide_lock_is_never_started_and_releases_only_its_exact_id(self):
         op = Operator(".", "a" * 40)
         events = []

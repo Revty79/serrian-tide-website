@@ -25,6 +25,7 @@ def main():
     owned.mkdir(mode=0o700)
     (owned / ".a5-fixture").write_text("OWNED_SYNTHETIC_A5_ONLY\n")
     basic = Operator(repo, commit, task / "runtime.env")
+    operators = [basic]
     require(basic.docker("inspect", "serriantide", allow_failure=True).returncode != 0, "Never replace a pre-existing CI container")
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 3003))
@@ -42,6 +43,7 @@ def main():
         print("PASS " + label, flush=True)
     def new_op(cls=Operator):
         op = cls(repo, commit, basic.env_file)
+        operators.append(op)
         owned_runs.add(op.run_id)
         return op
     try:
@@ -81,7 +83,8 @@ def main():
         try:
             basic.check(host, candidate_id, source_hash)
             raise AssertionError("Missing migration was accepted")
-        except Refused:
+        except Refused as error:
+            require("SCHEMA_MIGRATION_REQUIRED" in str(error), "Schema refusal must come from the exact migration gate")
             require(basic.inspect(old_id)["State"]["Running"], "Missing schema stopped old writer")
         say("missing schema refused before cutover; exact old website remains running")
         docker("stop", old_id)
@@ -231,6 +234,23 @@ def main():
         say("actual accepted PostgreSQL write prevents automatic code rollback; both containers retained")
         require(basic.inspect(bystander)["Id"] == bystander_id and basic.inspect(bystander)["State"]["Running"], "Unrelated service changed")
         say("unrelated service identity/running state preserved")
+    except Exception:
+        # Only this explicit synthetic fixture exists on the hosted daemon.
+        # Never copy raw private tool diagnostics into CI output.
+        redactions = [password]
+        if basic.env_file.exists():
+            redactions.extend(line.partition("=")[2] for line in basic.env_file.read_text().splitlines() if "SECRET=" in line or "DATABASE_URL=" in line)
+        for op in operators:
+            failure = getattr(op, "last_failure", None)
+            if failure:
+                diagnostic = failure["stderr"]
+                for value in redactions:
+                    if value:
+                        diagnostic = diagnostic.replace(value, "[REDACTED]")
+                diagnostic = re.sub(r"[a-zA-Z][a-zA-Z0-9+.-]*://[^\s'\"<>]+", "[REDACTED_URL]", diagnostic)
+                for line in diagnostic.splitlines()[-25:]:
+                    print("OWNED_COMMAND_DIAGNOSTIC " + line, flush=True)
+        raise
     finally:
         # Stop only positively identified CI-owned containers, preserving their data/images.
         listed = docker("ps", "-a", "--format", "{{json .}}", allow_failure=True)

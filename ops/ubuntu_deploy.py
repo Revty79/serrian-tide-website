@@ -114,6 +114,10 @@ class Operator:
             with (self.output / "build.log").open("ab") as stream:
                 stream.write(p.stdout + p.stderr)
         if p.returncode and not allow_failure:
+            # Raw tool errors may contain credentials. Retain them only in the
+            # new protected run directory; the terminal receives fixed codes.
+            self.last_failure = {"stage": self.stage, "returncode": p.returncode, "stdout": p.stdout.decode(errors="replace"), "stderr": p.stderr.decode(errors="replace")}
+            self.save("command-failure-" + uuid.uuid4().hex + ".json", self.last_failure)
             safe = re.search(rb"(?:HOST_PROBE_FAILED|WEBSITE_PREFLIGHT_FAILED): ([A-Z_]+)(?:\r?\n|$)", p.stderr)
             if safe:
                 raise Refused("PREFLIGHT_REFUSED: " + safe.group(1).decode() + "; current data is retained")
@@ -234,7 +238,7 @@ class Operator:
 
     def check(self, host, image, source_hash, frozen=False):
         self.stage = "frozen rollback witness" if frozen else "read-only database/storage/auth/schema preflight"
-        args = ["run", "--rm", "--network", "host", "--read-only", "--memory", "2048m", "--memory-swap", "2048m", "--env-file", str(self.env_file), "-e", "SERRIAN_RELEASE_COMMIT=" + self.commit, "-e", "SERRIAN_EXPECTED_SOURCE_HASH=" + source_hash, "-e", "SERRIAN_PROBE_READ_ONLY_ROOTS=1", *self.mount_args(host), image, "node", "--conditions=react-server", "--import", "tsx", "ops/website-check.ts", "--frozen" if frozen else "--check"]
+        args = ["run", "--rm", "--network", "host", "--read-only", "--memory", "2048m", "--memory-swap", "2048m", "--tmpfs", "/tmp:uid=1000,gid=1000,mode=700", "--env-file", str(self.env_file), "-e", "SERRIAN_RELEASE_COMMIT=" + self.commit, "-e", "SERRIAN_EXPECTED_SOURCE_HASH=" + source_hash, "-e", "SERRIAN_PROBE_READ_ONLY_ROOTS=1", *self.mount_args(host), image, "node", "--conditions=react-server", "--import", "tsx", "ops/website-check.ts", "--frozen" if frozen else "--check"]
         result = json.loads(self.docker(*args).stdout)
         require(result.get("passed") and result.get("commit") == self.commit, "PREFLIGHT_RESULT: candidate refused")
         require(result["roots"] == host["report"]["roots"] and result["auth"] == host["report"]["auth"], "TARGET_CHANGED: root/auth identity differs")
