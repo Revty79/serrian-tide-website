@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {mkdtemp,mkdir,writeFile,readFile} from "node:fs/promises";
+import {mkdtemp,mkdir,writeFile,readFile,symlink,unlink} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import path from "node:path";
 import {sourceFingerprint,stampBuild,verifyBuild,RELEASE_FILES,RELEASE_DIRECTORIES} from "./stamp-build.mjs";
@@ -28,4 +28,8 @@ test("v2 binds operational code, migrations and real output; legacy v1 remains r
  const old={version:1,commit,buildId:"synthetic-build",sourceHash:await sourceFingerprint(root,1)};await writeFile(path.join(root,".serrian-build.json"),JSON.stringify(old));await verifyBuild(root,commit);
  await writeFile(path.join(root,".serrian-build.json"),JSON.stringify({...stamped,sourceHash:await sourceFingerprint(root,2)}));await writeFile(path.join(root,".next/compiled-route.js"),"changed build output");await assert.rejects(verifyBuild(root,commit));assert((await readFile(operation,"utf8")).includes("changed"));
  // Retain the newly owned public-only fixture for failure inspection; no owner files used.
+});
+test("compiled native links bind only immutable in-release dependency targets",async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),"serrian-native-link-"));for(const name of[...RELEASE_DIRECTORIES,".next",".next/node_modules","node_modules","node_modules/pg"])await mkdir(path.join(root,name));for(const file of RELEASE_FILES)await writeFile(path.join(root,file),file);await writeFile(path.join(root,"next-env.d.ts"),"types");await writeFile(path.join(root,".next/BUILD_ID"),"owned");
+ const link=path.join(root,".next/node_modules/pg-native"),kind=process.platform==="win32"?"junction":"dir";await symlink(path.join(root,"node_modules/pg"),link,kind);const commit="a".repeat(40);await stampBuild(root,commit);await verifyBuild(root,commit);await unlink(link);const outside=await mkdtemp(path.join(tmpdir(),"serrian-outside-link-"));await symlink(outside,link,kind);await assert.rejects(verifyBuild(root,commit),/inside this release/);
 });

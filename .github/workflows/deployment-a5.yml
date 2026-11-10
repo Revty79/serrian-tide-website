@@ -41,6 +41,8 @@ jobs:
           operator.build(archive, 'serriantide:' + commit)
           operator.checked_image('serriantide:' + commit, source)
           print((operator.output / 'build-resources.json').read_text())
+          metadata = operator.docker('run', '--rm', '--network', 'none', '--read-only', 'serriantide:' + commit, 'node', '--input-type=module', '-e', "import fs from 'node:fs';console.log(JSON.stringify({receipt:JSON.parse(fs.readFileSync('.serrian-build.json')),metrics:JSON.parse(fs.readFileSync('.serrian-build-metrics.json'))}));")
+          print(metadata.stdout.decode())
           PY
       - name: Real PG18, actual Next.js, authentication, cutover and rollback
         run: python3 ops/integration_deployment_a5.py
