@@ -39,3 +39,6 @@ jobs:
 
       - name: Portable environment integrity regressions
         run: npm run validate:environment
+
+      - name: Website deployment safety regressions (no daemon or owner environment)
+        run: npm run validate:deployment

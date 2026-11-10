@@ -1,4 +1,6 @@
 # Review and copy OUTSIDE Git. Does not provision a database or change live traffic.
+# This remains the signed environment-management workflow. Ordinary existing-site
+# updates use ops/ubuntu_deploy.py and docs/operations/deployment-a5-ubuntu.md.
 services:
   candidate:
     image: serrian-tide:REPLACE_WITH_REVIEWED_COMMIT

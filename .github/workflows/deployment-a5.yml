@@ -1,0 +1,50 @@
+name: Ubuntu website deployment regression
+on:
+  push:
+    branches: [main]
+    paths: ["Dockerfile", ".dockerignore", "ops/**", "scripts/deployment-a5*", "scripts/run-deployment-tests.mjs", "next.config.ts", ".github/workflows/deployment-a5.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["Dockerfile", ".dockerignore", "ops/**", "scripts/deployment-a5*", "next.config.ts", ".github/workflows/deployment-a5.yml"]
+permissions:
+  contents: read
+jobs:
+  website:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      SERRIAN_A5_OWNED_DOCKER: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Isolated Git, configuration, identity and rollback regressions
+        run: node scripts/run-deployment-tests.mjs
+      - name: Bounded exact-source website build (4 GiB, one CPU, 2560 MiB Node heap)
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, sys, subprocess
+          sys.path.insert(0, 'ops')
+          from ubuntu_deploy import Operator
+          os.umask(0o077)
+          commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          operator = Operator(pathlib.Path.cwd(), commit)
+          operator.output = pathlib.Path('artifacts/deployment-a5/ci').resolve()
+          operator.output.mkdir(parents=True, mode=0o700)
+          archive, source = operator.expected_source()
+          operator.build(archive, 'serriantide:' + commit)
+          operator.checked_image('serriantide:' + commit, source)
+          print((operator.output / 'build-resources.json').read_text())
+          PY
+      - name: Real PG18, actual Next.js, authentication, cutover and rollback
+        run: python3 ops/integration_deployment_a5.py
+      - name: Public-source build diagnostics only
+        if: failure()
+        run: tail -n 100 artifacts/deployment-a5/ci/build.log || true
+      # No host credential, private fixture, environment, snapshot or key is uploaded.

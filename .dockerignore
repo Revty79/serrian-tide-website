@@ -20,3 +20,16 @@
 !ops
 !ops/**
 !Dockerfile
+!.dockerignore
+# Defense in depth even inside an allowlisted source directory.
+**/.env*
+**/*.key
+**/*.pem
+**/__pycache__
+**/__pycache__/**
+**/node_modules
+**/node_modules/**
+**/.git
+**/.git/**
+**/artifacts
+**/artifacts/**

@@ -179,3 +179,7 @@ next-env.d.ts
 
 # Owned Stage A4 resolution fixtures, build copies and private validation evidence.
 /artifacts/atlas-resolution-a4/
+
+# Owned A5 deployment fixtures, private diagnostics and build measurements.
+/artifacts/deployment-a5/
+/ops/**/__pycache__/
