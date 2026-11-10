@@ -11,6 +11,8 @@ const eslintConfig = defineConfig([
     ".next/**",
     ".next-*/**",
     "artifacts/**",
+    // Private database/storage files and local operator launchers are not application source.
+    "storage/**",
     "out/**",
     "build/**",
     "next-env.d.ts",
