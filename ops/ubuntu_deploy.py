@@ -213,13 +213,13 @@ class Operator:
             self.docker("buildx", "inspect", builder, "--bootstrap")
             limits = self.inspect("buildx_buildkit_" + builder + "0")["HostConfig"]
             require(limits["Memory"] == 4096 * MIB and limits["MemorySwap"] == 4096 * MIB and limits["CpuPeriod"] == 100000 and limits["CpuQuota"] == 100000, "BUILDER_LIMITS: bounded container driver configuration was not applied")
-            self.docker("buildx", "build", "--builder", builder, "--load", "--target", "website", "--build-arg", "SERRIAN_BUILD_COMMIT=" + self.commit, "--build-arg", "SERRIAN_BUILD_HEAP_MIB=2560", "--build-arg", "SERRIAN_BUILD_CPUS=1", "--tag", image, "-", data=archive, log=True)
+            self.docker("buildx", "build", "--builder", builder, "--load", "--target", "website", "--build-arg", "SERRIAN_BUILD_COMMIT=" + self.commit, "--build-arg", "SERRIAN_BUILD_HEAP_MIB=3328", "--build-arg", "SERRIAN_BUILD_CPUS=1", "--tag", image, "-", data=archive, log=True)
             completed = True
         finally:
             if created:
                 observed = self.docker("exec", "buildx_buildkit_" + builder + "0", "cat", "/sys/fs/cgroup/memory.peak", allow_failure=True)
                 events = self.docker("exec", "buildx_buildkit_" + builder + "0", "cat", "/sys/fs/cgroup/memory.events", allow_failure=True)
-                self.save("build-resources.json", {"completed": completed, "memoryLimitBytes": 4096 * MIB, "nodeHeapMiB": 2560, "cpuQuota": 1, "observedBuilderPeakBytes": observed.stdout.decode().strip() if observed.returncode == 0 else None, "memoryEvents": events.stdout.decode().strip() if events.returncode == 0 else None})
+                self.save("build-resources.json", {"completed": completed, "memoryLimitBytes": 4096 * MIB, "nodeHeapMiB": 3328, "cpuQuota": 1, "observedBuilderPeakBytes": observed.stdout.decode().strip() if observed.returncode == 0 else None, "memoryEvents": events.stdout.decode().strip() if events.returncode == 0 else None})
                 # Only the new task-owned builder/cache; never prune images or services.
                 self.docker("buildx", "rm", builder, allow_failure=True)
 

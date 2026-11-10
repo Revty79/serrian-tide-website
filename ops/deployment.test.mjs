@@ -6,6 +6,12 @@ import path from "node:path";
 import {sourceFingerprint,stampBuild,verifyBuild,RELEASE_FILES,RELEASE_DIRECTORIES} from "./stamp-build.mjs";
 import {origins} from "./host-probe.mjs";
 import {spawnSync} from "node:child_process";
+import {buildWebsite} from "./build-website.mjs";
+test("sequential full TypeScript remains mandatory before any completed build receipt",async()=>{
+ const calls=[],environment={SERRIAN_BUILD_COMMIT:"a".repeat(40),SERRIAN_BUILD_HEAP_MIB:"3328",SERRIAN_BUILD_CPUS:"1"};let stamped=0;
+ await assert.rejects(buildWebsite({environment,metrics:false,run:async args=>{calls.push(args);if(args.includes("node_modules/typescript/bin/tsc"))throw Error("real type error");},stamp:async()=>{stamped++;}}));assert.equal(stamped,0);assert.equal(calls.length,3);assert(calls[1].includes("typegen"));assert(calls[2].includes("--noEmit"));
+ await buildWebsite({environment,metrics:false,run:async()=>{},stamp:async()=>{stamped++;}});assert.equal(stamped,1);
+});
 test("invalid build commit fails before Next or runtime credentials are used",()=>{
  const result=spawnSync(process.execPath,["ops/build-website.mjs"],{env:{...process.env,SERRIAN_BUILD_COMMIT:"incorrect",DATABASE_URL:"synthetic-sensitive-value-must-not-print"},encoding:"utf8",windowsHide:true});assert.notEqual(result.status,0);assert(!result.stderr.includes("synthetic-sensitive-value-must-not-print"));
 });

@@ -20,7 +20,7 @@ These are source-established facts. The actual server's local file contents, his
 
 - Default/final `website` and runtime start the actual Next.js application after release, DB, ledger, critical A4 schema, storage and origin checks. Explicit maintenance and recovery targets remain. Existing signed environment CLI/guards remain unchanged.
 - Public-only Git archive context, deny-by-default Docker exclusions and explicit nonsecret build arguments keep production credentials/data out of the image. Receipt v2 binds source including ops/scripts/migrations and compiled output; retained v1 receipts remain readable.
-- Build profile: 4096 MiB BuildKit memory/swap cap, one CPU, one Next worker and 2560 MiB Node heap. Admission requires another 2048 MiB host reserve and 12 GiB free on checkout/Docker storage. This is a tested profile only after actual hosted evidence is recorded, not a universal sufficient limit.
+- Build profile: 4096 MiB BuildKit memory/swap cap, one CPU, one Next worker and 3328 MiB Node heap. Admission requires another 2048 MiB host reserve and 12 GiB free on checkout/Docker storage. This is a tested profile only after actual hosted evidence is recorded, not a universal sufficient limit.
 - Read-only host probe uses the old exact image in a separate 512 MiB container, overridden entrypoint and read-only mounts. It never runs another Node process inside the working website container. Real target checks use explicit read-only SQL and read-only file mounts. Real Next.js candidate smoke has no network or Production credentials.
 - Cutover preserves exact DB/env/root/origin/listen identity and retains the old container with automatic restart disabled. The new site uses port3003, original trusted origins/secret, private mounted roots, read-only image and writable temporary/cache filesystems. Its 2048 MiB runtime limit is a bounded rollout profile, not a benchmark certification of every advanced Atlas workload.
 - Failed replacement is stopped before full logical database/file witness comparison. Only exact equality permits automatic return of the former container. Accepted writes, schema/files changes or an unavailable witness fence automatic rollback. No database restoration/migration or account/session reset occurs in normal deployment.
@@ -34,7 +34,7 @@ These are source-established facts. The actual server's local file contents, his
 | Existing unit runner | 2,942/2,942, 380 files, `units-1.log` |
 | Existing environment integrity | 15/15, `environment-1.log` |
 | Raster portability | 3/3, `raster-1.log` |
-| Deployment local regressions | Fourteen Python cases plus three Node cases, covering actual disposable Git transition/dirty preservation, private config, build/identity/origins, resource refusal, exclusive lock and safe/unsafe modeled rollback; `deployment-10.log` |
+| Deployment local regressions | Fourteen Python cases plus four Node cases, covering actual disposable Git transition/dirty preservation, private config, build/identity/origins, resource refusal, exclusive lock and safe/unsafe modeled rollback; `deployment-10.log` |
 | Bounded real Docker build | Pending exact hosted evidence |
 | Real Next/PG18 rollout | Pending hosted deployment workflow: old ledger refusal, explicit synthetic upgrade, real website vs maintenance, missing roots/auth drift, full successful preservation, existing synthetic login/session/permissions, successful/repeated rollout, safe startup/HTTP rollback, unsafe rollback after actual DB write and unrelated-service preservation |
 | Original offline Linux/Docker DR | Pending exact implementation run; original assertions retained |
@@ -83,3 +83,7 @@ scripts/run-deployment-tests.mjs
 ```
 
 The container resource mechanism follows the documented [Docker container-driver limits](https://docs.docker.com/build/builders/drivers/docker-container/). Heap alone is not a total memory budget; the enclosing container cap and measured peak are recorded separately. The [Next.js memory guide](https://nextjs.org/docs/app/guides/memory-usage) likewise distinguishes build memory from source validity; TypeScript checks remain enabled.
+
+## Retained first hosted build failure
+
+Implementation candidate `135c4dceec808357e72305f5c56c2a0b214330d9`, DR run `42885484931`, compiles successfully but its integrated Next TypeScript worker exhausts the proposed 2560 MiB heap. This is an actual measured failure, retained in `github-dr-135c4dce-failed.log`, not an inferred host OOM. The correction runs compilation, explicit Next type generation and a mandatory full non-incremental `tsc --noEmit` in separate terminated processes, with a 3328 MiB per-process heap inside the original 4096 MiB enclosing cap. Only this controlled Docker path skips Next's duplicate integrated checker; no image receipt can be produced until the full standalone checker passes. Ordinary builds and normal full TypeScript CI remain unchanged. An injected typecheck failure proves the completion stamp is refused. The larger heap and sequential profile remain pending real bounded-build validation.

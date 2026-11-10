@@ -26,7 +26,7 @@ jobs:
       - run: npm ci
       - name: Isolated Git, configuration, identity and rollback regressions
         run: node scripts/run-deployment-tests.mjs
-      - name: Bounded exact-source website build (4 GiB, one CPU, 2560 MiB Node heap)
+      - name: Bounded exact-source website build (4 GiB, one CPU, 3328 MiB Node heap)
         run: |
           python3 - <<'PY'
           import os, pathlib, sys, subprocess
@@ -46,5 +46,7 @@ jobs:
         run: python3 ops/integration_deployment_a5.py
       - name: Public-source build diagnostics only
         if: failure()
-        run: tail -n 100 artifacts/deployment-a5/ci/build.log || true
+        run: |
+          tail -n 100 artifacts/deployment-a5/ci/build.log || true
+          cat artifacts/deployment-a5/ci/build-resources.json || true
       # No host credential, private fixture, environment, snapshot or key is uploaded.
