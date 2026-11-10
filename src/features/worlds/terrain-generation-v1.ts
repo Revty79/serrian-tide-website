@@ -1,3 +1,4 @@
+import {runGenerationSteps,type GenerationSteps} from "./terrain-generation-steps";
 import type {TerrainGeometry} from "./terrain";
 import {generationRecipeV1Schema as generationRecipeSchema,terrainAreaSchema,type GenerationRecipeV1 as GenerationRecipe,type TerrainArea} from "./terrain-source";
 
@@ -32,7 +33,7 @@ function masses(recipe:GenerationRecipe,seed:number,wrap:boolean):Mass[]{
 }
 
 /** Numerical samples are authoritative. This version never runs during ordinary sculpting. */
-export function generateTerrain(shape:TerrainGeometry,raw:GenerationRecipe,seaLevel:number,progress?:(done:number)=>void){
+export function* legacyTerrainSteps(shape:TerrainGeometry,raw:GenerationRecipe,seaLevel:number):GenerationSteps{
  if(seaLevel<=shape.min||seaLevel>=shape.max)throw new Error("Choose a sea level strictly between the lowest and highest elevations so both land and water are possible.");
  const original=generationRecipeSchema.parse(raw),seed=seedHash(original.seed),recipe={...original};
  if(recipe.preset==="random")recipe.preset=(["continent","continents","archipelago","island","land"] as const)[seed%5];
@@ -47,9 +48,9 @@ export function generateTerrain(shape:TerrainGeometry,raw:GenerationRecipe,seaLe
    if(recipe.preset!=="land"){const edge=Math.min(v,1-v,shape.wrap?1:u,shape.wrap?1:1-u);value-=Math.max(0,.045-edge)*18;}
    field[y*shape.width+x]=value;
   }
-  if(y%32===0)progress?.(y/shape.height*.55);
+  if(y%32===0)yield{progress:y/shape.height*.55};
  }
- const ordered=field.slice().sort(),threshold=ordered[Math.floor((1-recipe.landCoverage/100)*(ordered.length-1))],above=Math.max(.00001,ordered[ordered.length-1]-threshold),below=Math.max(.00001,threshold-ordered[0]);
+ const ordered=(yield{progress:.55,sort:field.slice()})!,threshold=ordered[Math.floor((1-recipe.landCoverage/100)*(ordered.length-1))],above=Math.max(.00001,ordered[ordered.length-1]-threshold),below=Math.max(.00001,threshold-ordered[0]);
  const grid=new Int16Array(field.length),variation=.1+recipe.elevationVariation/100*.9,mountain=recipe.mountains/100,ruggedness=recipe.ruggedness/100;
  const high=(shape.max-seaLevel)*variation,deep=(seaLevel-shape.min)*variation;
  for(let y=0;y<shape.height;y++){
@@ -60,12 +61,13 @@ export function generateTerrain(shape:TerrainGeometry,raw:GenerationRecipe,seaLe
    const shore=smooth(Math.min(1,inland*18)),plains=.015+.24*Math.pow(inland,.85),ranges=mountain*.85*ridge*belt*smooth(Math.min(1,inland*5)),rough=fine*ruggedness*.1*Math.sqrt(inland);
    grid[index]=Math.max(seaLevel+1,Math.min(shape.max,Math.round(seaLevel+high*Math.max(.0001,(plains+ranges+rough)*shore))));
   }
-  if(y%32===0)progress?.(.55+y/shape.height*.45);
+  if(y%32===0)yield{progress:.55+y/shape.height*.45};
  }
- progress?.(1);return {grid,resolvedPreset:recipe.preset};
+ yield{progress:1};return {grid,resolvedPreset:recipe.preset};
 }
 
 export function regenerateArea(base:Int16Array,proposed:Int16Array,shape:TerrainGeometry,area:TerrainArea,protectedCells:Uint8Array,preserveManual:boolean,feather:number){
+ if(area.width*area.height>1048576)throw new Error("Select at most 1,048,576 samples for one regeneration. Work in smaller selected areas; the saved terrain is unchanged.");
  area=terrainAreaSchema.parse(area);if(base.length!==shape.width*shape.height||proposed.length!==base.length||protectedCells.length!==base.length)throw new Error("The regeneration buffers do not match this map.");
  if(area.x+area.width>shape.width||area.y+area.height>shape.height)throw new Error("Choose an area inside this map.");
  const output=base.slice();let changed=0,protectedCount=0;
@@ -76,3 +78,5 @@ export function regenerateArea(base:Int16Array,proposed:Int16Array,shape:Terrain
  }
  return {grid:output,changed,protectedCount};
 }
+
+export function generateTerrain(shape:TerrainGeometry,raw:GenerationRecipe,seaLevel:number,progress?:(n:number)=>void){return runGenerationSteps(legacyTerrainSteps(shape,raw,seaLevel),progress);}

@@ -1,3 +1,4 @@
+import {runGenerationSteps,type GenerationSteps} from "./terrain-generation-steps";
 import type {TerrainGeometry} from "./terrain";
 import {generationRecipeV2Schema,type GenerationRecipeV2} from "./terrain-source";
 import {sampleSpacingKm,validatePhysicalHeights} from "./terrain-scale";
@@ -57,7 +58,7 @@ function rangeInfluence(x:number,y:number,range:Range,wrap:number){
  for(let n=1;n<range.points.length;n++){const a=range.points[n-1],b=range.points[n],dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy,t=length?Math.max(0,Math.min(1,((px-a.x)*dx+(y-a.y)*dy)/length)):0,distance=Math.hypot(px-a.x-t*dx,y-a.y-t*dy)/range.radius;if(distance>=1)continue;const along=(n-1+t)/(range.points.length-1),end=Math.pow(Math.max(0,Math.sin(Math.PI*along)),.45),weight=(1-distance*distance)**2*end;influence=Math.max(influence,weight);}
  return influence;
 }
-export function generatePhysicalTerrain(shape:TerrainGeometry,raw:GenerationRecipeV2,sea:number,progress?:(p:number)=>void){
+export function* physicalTerrainSteps(shape:TerrainGeometry,raw:GenerationRecipeV2,sea:number):GenerationSteps{
  const original=generationRecipeV2Schema.parse(raw);validatePhysicalHeights(shape,original,sea);const seed=physicalSeed(original.seed),r={...original};if(r.preset==="random")r.preset=(["continent","continents","archipelago","island","land"] as const)[seed%5];
  const w=shape.displayWidth/1000,h=shape.displayHeight/1000,wrap=shape.wrap?w:0,spacing=sampleSpacingKm(shape),plan=makeFeatures(shape,r,seed),ranges=makeRanges(plan.features,r,seed),landIndex=new PhysicalIndex(shape,1),ridgeIndex=new PhysicalIndex(shape,6);
  plan.features.forEach((f,i)=>{const radius=f.span*.62+r.coastScaleKm*3+r.coastalPlainKm*2;landIndex.add(i,{left:f.x-radius,right:f.x+radius,top:f.y-radius,bottom:f.y+radius});});
@@ -76,7 +77,9 @@ export function generatePhysicalTerrain(shape:TerrainGeometry,raw:GenerationReci
    for(const id of nearRanges){const range=ranges[id],influence=rangeInfluence(x,y,range,wrap);if(influence>0){const texture=noise(x-w/2,y-h/2,range.radius*1.5,seed+id*391+2017,wrap);above=Math.max(above,r.lowlandHeightM+(range.height-r.lowlandHeightM)*influence*(.91+texture*.09)+texture*r.ruggedness/100*r.mountainHeightM*.1*influence);}}
    grid[index]=Math.max(sea+1,Math.min(intendedMax,Math.round(sea+Math.max(1,above)*shore)));
   }
-  progress?.((key+1)/lands.length);
+  yield{progress:(key+1)/lands.length};
  }
- progress?.(1);return {grid,resolvedPreset:r.preset,layoutWarnings:plan.warnings,featureCount:plan.features.length,rangeCount:ranges.length};
+ yield{progress:1};return {grid,resolvedPreset:r.preset,layoutWarnings:plan.warnings,featureCount:plan.features.length,rangeCount:ranges.length};
 }
+
+export function generatePhysicalTerrain(shape:TerrainGeometry,raw:GenerationRecipeV2,sea:number,progress?:(n:number)=>void){return runGenerationSteps(physicalTerrainSteps(shape,raw,sea),progress);}

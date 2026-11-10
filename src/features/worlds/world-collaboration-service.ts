@@ -105,8 +105,28 @@ export async function getWorldCollaboration(userId: string, worldId: string, rev
   }
   return base;
 }
+/** Renewal changes only the existing lease deadline. Holding the World row
+ * during a long native write must not prevent a live holder from renewing.
+ * All ownership/handoff/release actions retain their original World lock. */
+async function renewActiveControl(userId:string,worldId:string,command:{requestId:string;action:string;proof:WorldEditorProof},sessionId:string){
+ return db.transaction(async tx=>{
+  await requireTables(tx);
+  const parent=await authorizeWorldRead(userId,worldId,false,"shell",tx,true);
+  if(parent.archivedAt||parent.permission.canon||parent.permission.role==="viewer")return false;
+  // A retained denial/request identity still follows the original audited path.
+  if(await receipt(tx,worldId,userId,command.requestId,command))return false;
+  const [lease]=await tx.select().from(leases).where(eq(leases.worldId,worldId)).for("update"),now=await databaseClock(tx);
+  if(!lease||!editorProofMatches(lease,userId,sessionId,command.proof)||!await editorLeaseAlive(tx,parent,lease,now))return false;
+  if(!await activeWorldSession(tx,userId,sessionId,now))throw new WorldError("Sign in again. Your draft is retained.",401);
+  await tx.update(leases).set({expiresAt:new Date(now.getTime()+WORLD_LEASE_SECONDS*1000),updatedAt:now}).where(eq(leases.worldId,worldId));
+  await worldActor(userId,tx);
+  if(!await activeWorldSession(tx,userId,sessionId,await databaseClock(tx)))throw new WorldError("Sign in again. Your draft is retained.",401);
+  return true;
+ });
+}
 export async function changeWorldCollaboration(userId: string, worldId: string, input: unknown) {
   const command = collaborationCommandSchema.parse(input), authority = authorityFor(userId);
+  if(command.action==="renew-control"&&await renewActiveControl(userId,worldId,command,authority.sessionId))return{saved:true,access:await getWorldCollaboration(userId,worldId,false,true)};
   const outcome = await db.transaction(async tx => {
     await requireTables(tx);
     // Serialize the protected exact-username workflow across all of this

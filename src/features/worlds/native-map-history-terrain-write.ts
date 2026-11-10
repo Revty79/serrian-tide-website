@@ -4,7 +4,9 @@ import { z } from "zod";
 import { terrainCommandSchema, type TerrainTile } from "./terrain";
 import { EMPTY_PROTECTION, isProtected, protectSamples, type TerrainSource } from "./terrain-source";
 import { validateGenerationAcceptance } from "./terrain-generation-acceptance";
-import { frameGeometry, rootFrame, terrainEditMask, overviewTile, refinementCreateSchema, validateRefinement, initializeRefinement, framesOverlap, overviewLevels, gridTile, isRefinementBoundary, REFINEMENT_DEPTH, REFINEMENT_LIMIT, type RefinementMeta } from "./terrain-refinement";
+import {assertTerrainTransferRequest} from "./terrain-transfer-authority";
+import {withTerrainResourceBudget} from "./terrain-resource-budget";
+import { frameGeometry, rootFrame, terrainEditMask, overviewTile, refinementCreateSchema, validateRefinement, initializeRefinement, initializeRefinementAsync, framesOverlap, overviewLevels, gridTile, isRefinementBoundary, REFINEMENT_DEPTH, REFINEMENT_LIMIT, type RefinementMeta } from "./terrain-refinement";
 import { regionContainsFrame } from "./terrain-regions";
 import { readTerrainTile, stageTerrainTiles } from "./terrain-storage";
 import { nativeResource, type NativeContentContext } from "./native-map-history-context";
@@ -74,7 +76,8 @@ async function nativeGrid(tx: NativeHistoryTx, context: NativeContentContext, id
   }));
   return { grid, shape, frame: fine?.meta.frame ?? rootFrame(root.shape), fine };
 }
-export async function createNativeRefinement(tx: NativeHistoryTx, context: NativeContentContext, raw: unknown): Promise<NativeWriteResult> {
+export async function createNativeRefinement(tx: NativeHistoryTx, context: NativeContentContext, raw: unknown): Promise<NativeWriteResult> {const c=refinementCreateSchema.parse(raw);return withTerrainResourceBudget(c.gridWidth*c.gridHeight,()=>createNativeRefinementChecked(tx,context,raw));}
+async function createNativeRefinementChecked(tx: NativeHistoryTx, context: NativeContentContext, raw: unknown): Promise<NativeWriteResult> {
   const c = refinementCreateSchema.parse(raw);
   assertNativeTarget(context, c.mapId, "terrain");
   const root = await nativeTerrainSource(tx, context), index = await nativeAllRefinementIndex(tx, context);
@@ -87,7 +90,7 @@ export async function createNativeRefinement(tx: NativeHistoryTx, context: Nativ
   if (index.refinements.some(r => r.parentId === c.parentId && framesOverlap(r.frame, c.frame, root.shape.displayWidth, root.shape.wrap))) throw new WorldError("Choose adjacent coverage or use the overlapping retained source as parent.", 409);
   const inherited = await nativeGrid(tx, context, c.parentId ?? undefined);
   let grid: Int16Array;
-  try { validateRefinement(c.frame, c.gridWidth, c.gridHeight, inherited.shape, inherited.frame, root.shape); grid = initializeRefinement(inherited.grid, inherited.shape, inherited.frame, c.frame, c.gridWidth, c.gridHeight, root.shape); }
+  try { validateRefinement(c.frame, c.gridWidth, c.gridHeight, inherited.shape, inherited.frame, root.shape); grid = c.gridWidth*c.gridHeight>1048576?await initializeRefinementAsync(inherited.grid,inherited.shape,inherited.frame,c.frame,c.gridWidth,c.gridHeight,root.shape):initializeRefinement(inherited.grid,inherited.shape,inherited.frame,c.frame,c.gridWidth,c.gridHeight,root.shape); }
   catch (error) { throw new WorldError((error as Error).message, 400); }
   const bytes = Buffer.alloc(grid.length * 2); for (let i = 0; i < grid.length; i++) bytes.writeInt16LE(grid[i], i * 2);
   if (createHash("sha256").update(bytes).digest("hex") !== c.previewHash) throw new WorldError("The dated parent no longer matches this numerical preview. Retain the bounds and prepare it again.", 409);
@@ -119,6 +122,7 @@ export async function restoreNativeRefinement(tx: NativeHistoryTx, context: Nati
 
 export async function saveNativeTerrain(tx: NativeHistoryTx, context: NativeContentContext, raw: unknown, sourceId?: string): Promise<NativeWriteResult> {
   const command = terrainCommandSchema.parse(raw);
+  await assertTerrainTransferRequest(tx,context.userId,context.worldId,command.requestId);
   if (command.action !== "save") throw new WorldError("Choose an established dated map before changing its terrain.", 400);
   assertNativeTarget(context, command.mapId, "terrain");
   const root = await nativeTerrainSource(tx, context), index = await nativeAllRefinementIndex(tx, context);

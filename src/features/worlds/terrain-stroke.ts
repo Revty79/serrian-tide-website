@@ -8,14 +8,16 @@ export class TerrainStroke{
  private position:TerrainPathPoint;
  private touched=new Set<number>();
  private workspace:SculptWorkspace={halo:new Int16Array(0)};
+ private resourceRefused=false;
  readonly spacing:number;
  private metric:{x:number;y:number}|null;
  constructor(private grid:Int16Array,private shape:TerrainGeometry,private brush:Brush,start:TerrainPathPoint,blocked?:Uint8Array){this.workspace.blocked=blocked;const fine=brush.precision==="fine"||brush.precision==="single";if(fine){this.workspace.residuals=new Map();this.workspace.visited=new Set();}this.workspace.unsupported=brush.precision!=="single"&&brush.radiusMetres!==undefined&&!physicalBrushGeometry(shape,brush.radiusMetres);if(this.workspace.unsupported&&!fine)throw Error("Choose a supported physical brush radius before starting a stroke.");this.position={...start};this.metric=brush.precision==="single"||brush.radiusMetres===undefined?null:{x:shape.displayWidth/shape.width,y:shape.displayHeight/shape.height};this.spacing=brush.precision==="single"?.5:this.metric?Math.max(Math.min(this.metric.x,this.metric.y)/4,brush.radiusMetres!/3):Math.max(fine?.25:1,brushRadius(shape,brush.radius)/3);if(!this.workspace.unsupported)this.targets.push({...start});}
- get noChangeReason(){return this.workspace.unsupported?"Choose a supported physical footprint; this brush is below the source resolution or above its work limit.":!this.workspace.eligible&&this.blockedCount?"Protected terrain was retained. Choose its finer editing source or paint inside the permitted extent.":this.workspace.outside&&!this.workspace.eligible?"The stroke is outside the permitted numerical source extent.":this.brush.precision==="single"?"No whole-metre change. Single sample applies once per sample; check the level target or increase strength. Choose Fine stroke for accumulated weighted influence.":this.brush.tool==="level"?"No whole-metre change; terrain already matches or approaches the level target. A longer gentle stroke may accumulate a metre.":this.brush.tool.includes("smooth")?"Smoothing produced no whole-metre change in this terrain.":"No whole-metre change. Use a longer gentle stroke or increase strength; zoom adds no numerical samples.";}
+ get noChangeReason(){return this.resourceRefused?"This stroke exceeded 1,048,576 samples and was rolled back. Use shorter strokes or a smaller brush; accepted terrain is unchanged.":this.workspace.unsupported?"Choose a supported physical footprint; this brush is below the source resolution or above its work limit.":!this.workspace.eligible&&this.blockedCount?"Protected terrain was retained. Choose its finer editing source or paint inside the permitted extent.":this.workspace.outside&&!this.workspace.eligible?"The stroke is outside the permitted numerical source extent.":this.brush.precision==="single"?"No whole-metre change. Single sample applies once per sample; check the level target or increase strength. Choose Fine stroke for accumulated weighted influence.":this.brush.tool==="level"?"No whole-metre change; terrain already matches or approaches the level target. A longer gentle stroke may accumulate a metre.":this.brush.tool.includes("smooth")?"Smoothing produced no whole-metre change in this terrain.":"No whole-metre change. Use a longer gentle stroke or increase strength; zoom adds no numerical samples.";}
  get residualCount(){return this.workspace.residuals?.size??0;}
  get blockedCount(){return this.workspace.blockedHits??0;}
  get pending(){return this.targets.length>0;}
  enqueue(point:TerrainPathPoint){
+  if(this.resourceRefused)return;
   if(!Number.isFinite(point.x)||!Number.isFinite(point.y))return;
   const previous=this.targets.at(-1)??this.position,x=this.shape.wrap?point.x+Math.round((previous.x-point.x)/this.shape.width)*this.shape.width:point.x;
   if(Math.hypot(x-previous.x,point.y-previous.y)>Math.hypot(this.shape.width,this.shape.height)*2)return;
@@ -28,6 +30,7 @@ export class TerrainStroke{
    const target=this.targets[0],dx=target.x-this.position.x,dy=target.y-this.position.y,distance=this.metric?Math.hypot(dx*this.metric.x,dy*this.metric.y):Math.hypot(dx,dy);
    if(distance>this.spacing){const t=this.spacing/distance;this.position.x+=dx*t;this.position.y+=dy*t;}else{this.position.x=target.x;this.position.y=target.y;this.targets.shift();}
    sculpt(this.grid,this.position.x,this.position.y,this.brush,this.before,this.shape,this.workspace,this.touched);dabs++;
+   if(Math.max(this.before.size,this.workspace.residuals?.size??0,this.workspace.visited?.size??0)>1048576){this.resourceRefused=true;return this.cancel();}
    if(performance.now()-started>=budgetMs)break;
   }
   return this.touched;

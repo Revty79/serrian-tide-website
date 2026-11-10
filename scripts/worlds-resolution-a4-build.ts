@@ -1,0 +1,20 @@
+/** Exact source-only A4 production copy. No owner configuration or Git repository. */
+import assert from "node:assert/strict";
+import {execFileSync,spawn} from "node:child_process";
+import {createHash} from "node:crypto";
+import {createWriteStream} from "node:fs";
+import {access,copyFile,mkdir,readFile,writeFile} from "node:fs/promises";
+import path from "node:path";
+export async function prepareResolutionA4Runtime(databaseUrl="postgresql://owned:unused@127.0.0.1:1/atlas_resolution_build_unavailable"){
+ const target=new URL(databaseUrl);assert.equal(target.hostname,"127.0.0.1");assert(!["5432","5433"].includes(target.port));assert(["/atlas_resolution_build_unavailable","/serrian_regional_editing"].includes(target.pathname));
+ const checkout=path.resolve("artifacts/atlas-resolution-a4/runtime"),dist=".next-resolution-a4",out=path.resolve(process.env.SERRIAN_A4_BUILD_OUT??"artifacts/atlas-resolution-a4/build-1");assert(out.startsWith(path.resolve("artifacts/atlas-resolution-a4")+path.sep));await mkdir(out,{recursive:true});await mkdir(checkout,{recursive:true});
+ for(const file of[".env",".env.local",".env.production",".env.production.local",".env.development",".env.development.local"])assert.equal(await access(path.join(checkout,file)).then(()=>true,()=>false),false);
+ const inventory=execFileSync("git",["ls-files","--cached","--others","--exclude-standard","-z"],{encoding:"utf8",windowsHide:true}).split("\0").filter(Boolean),files=inventory.filter(f=>["src/","data/","public/","ops/"].some(p=>f.startsWith(p))||["package.json","package-lock.json","next.config.ts","postcss.config.mjs","tsconfig.json"].includes(f)).sort(),hash=createHash("sha256");
+ for(const file of[...files,...inventory.filter(f=>f.startsWith("scripts/"))]){const bytes=await readFile(file),destination=path.join(checkout,file);await mkdir(path.dirname(destination),{recursive:true});await copyFile(file,destination);if(files.includes(file))hash.update(file+"\0").update(bytes);}
+ const mock=path.resolve("artifacts/regions-s42-build-error/cached-font-responses.cjs"),sourceHash=hash.digest("hex"),log=createWriteStream(path.join(out,"build.log")),env:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",DATABASE_URL:databaseUrl,BETTER_AUTH_URL:"http://127.0.0.1:49991",BETTER_AUTH_SECRET:"resolution-a4-owned-build-only-secret",SERRIAN_TERRAIN_ROOT:path.join(checkout,"owned-build-terrain"),SERRIAN_ASSET_ROOT:path.join(checkout,"owned-build-artwork"),SERRIAN_RASTER_ROOT:path.join(checkout,"owned-build-raster"),SERRIAN_TEST_NEXT_DIST_DIR:dist,NEXT_TELEMETRY_DISABLED:"1",NEXT_FONT_GOOGLE_MOCKED_RESPONSES:await access(mock).then(()=>mock,()=>undefined)};
+ const execute=(args:string[])=>new Promise<void>((resolve,reject)=>{const child=spawn(process.execPath,args,{cwd:checkout,env,windowsHide:true,stdio:["ignore","pipe","pipe"]});child.stdout!.pipe(log,{end:false});child.stderr!.pipe(log,{end:false});child.once("error",reject);child.once("exit",code=>code===0?resolve():reject(Error("Owned A4 build failed: "+code)));});
+ try{if(!await access(path.join(checkout,"node_modules/next/dist/bin/next")).then(()=>true,()=>false)){const npm=process.env.npm_execpath??path.join(path.dirname(process.execPath),"node_modules/npm/bin/npm-cli.js");await access(npm);await execute([npm,"ci","--include=dev","--no-audit"]);}
+  await execute(["node_modules/next/dist/bin/next","build"]);const buildId=(await readFile(path.join(checkout,dist,"BUILD_ID"),"utf8")).trim();await writeFile(path.join(checkout,dist,"s43-source-sha256"),sourceHash+"\n");const result={passed:true,checkout,dist,sourceHash,buildId,files:files.length,noOwnerEnvironment:true};await writeFile(path.join(out,"results.json"),JSON.stringify(result,null,2));console.log(JSON.stringify(result));return result;
+ }catch(error){await writeFile(path.join(out,"failure.json"),JSON.stringify({passed:false,sourceHash,message:error instanceof Error?error.message:String(error)},null,2));throw error;}finally{log.end();}
+}
+if(process.argv.includes("--build"))void prepareResolutionA4Runtime().catch(error=>{console.error(error);process.exitCode=1;});

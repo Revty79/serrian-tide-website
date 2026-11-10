@@ -176,3 +176,6 @@ next-env.d.ts
 
 # Local Playwright MCP browser snapshots, logs and downloads.
 /.playwright-mcp/
+
+# Owned Stage A4 resolution fixtures, build copies and private validation evidence.
+/artifacts/atlas-resolution-a4/

@@ -23,7 +23,7 @@ import {nativeTerritorySavedSchema} from "./native-map-history-territories";
 import {projectWorldPinnedContent} from "./world-pinned-content";
 import {getAssetImage} from "./atlas-asset-service";
 import {WorldError} from "./world-errors";
-import type {ConsumptionGeometry} from "./atlas-map-consumption";
+import {parseConsumptionResource,type ConsumptionGeometry} from "./atlas-map-consumption";
 import {regionAreaContainsPath} from "./terrain-region-geometry";
 import {terrainGeometry} from "./terrain";
 import {z} from "zod";
@@ -56,7 +56,7 @@ async function snapshot(userId:string,worldId:string,raw:unknown){
    // An editing UI can request its accepted head without a version ID. Resolve
    // it once, then apply the exact-version rules before projecting anything.
    const pinContext=(c:NativeContentContext)=>{if(c.authority)pinContext(c.authority);c.scope={...c.scope,edit:false,versionId:c.version.id,...c.authority?{geographyVersionId:c.authority.version.id,geographyStateId:c.authority.scope.stateId}:{}};c.canEdit=false;};pinContext(context);request.historical=context.scope;
-   const projected=await projectAtlasMapConsumption(tx,context),m=projected.manifest;resources=new Map([...projected.resources].map(([key,value])=>[key,value.value]));const g=resources.get("geometry");if(g?.kind!=="geometry")throw exportUnavailable();geometry=g.value;revision=m.sourceRevision;
+   const projected=await projectAtlasMapConsumption(tx,context,request.contractVersion??1),m=projected.manifest;resources=new Map([...projected.resources].map(([key,value])=>[key,value.value]));const g=resources.get("geometry");if(g?.kind!=="geometry")throw exportUnavailable();geometry=g.value;revision=m.sourceRevision;
    if(context.authority){const parent=context.authority,version=parent.version;dependencies.push({target:parent.scope.target,versionId:version.id,timelineId:parent.scope.timelineId,originTimelineId:version.timelineId,startYear:version.startYear!,endYear:version.endYear!,coverage:!version.archived&&version.startYear!<=m.source.year&&version.endYear!>=m.source.year?"established":"unknown"});}
    title=context.version.name;historical={...m.history,primaryCoverage:m.history.coverage,coverage:m.history.coverage==="established"&&dependencies.every(d=>d.coverage==="established")?"established":"unknown",timelineId:m.source.timelineId,year:m.source.year,versionId:m.source.versionId};provenance=m.provenance;
    const size="settings" in geometry?terrainGeometry(geometry.settings):null;extent="settings" in geometry?geometry.region?.frame??{x:0,y:0,width:size!.displayWidth,height:size!.displayHeight}:{x:0,y:0,...geometry.frame};wrapWidth=size?.wrap?size.displayWidth:null;
@@ -80,6 +80,7 @@ async function snapshot(userId:string,worldId:string,raw:unknown){
    const [copy]=await tx.select().from(worldCanonCopy).where(and(eq(worldCanonCopy.targetWorldId,worldId),eq(worldCanonCopy.status,"accepted"))).limit(1),[origin]=copy?await tx.select({id:worldCanonCopyIdentity.sourceId}).from(worldCanonCopyIdentity).where(and(eq(worldCanonCopyIdentity.requestId,copy.requestId),eq(worldCanonCopyIdentity.targetId,request.target.id))).limit(1):[];
    provenance={kind:copy?"personal-variation":access.permission.canon?"canon-source":"authored-world",sourceWorldId:copy?.sourceWorldId??null,sourceTimelineId:null,sourceTarget:origin?{...request.target,id:origin.id}:null,sourceVersionId:null};
   }
+  for(const value of resources.values())if(value.kind==="geometry"||value.kind==="numerical"){try{parseConsumptionResource(value,request.contractVersion??1);}catch(error){throw new WorldError((error as Error).message,409);}}
   const creator=await exportCreator(tx,worldId,request.target,"terrainId" in geometry?geometry.terrainId:undefined),images=await imageReferences(tx,resources),appearance=resources.get("appearance"),credits:string[]=[],warnings:string[]=[];
   const savedLabels=resources.get("labels");if(savedLabels?.kind==="labels"&&savedLabels.value.composition.notes.attribution){try{credits.push(publicExportCredit(savedLabels.value.composition.notes.attribution));}catch(error){throw new WorldError((error as Error).message,409);}}
   let bytes=0;const descriptors=[...resources].map(([key,value])=>{const size=Buffer.byteLength(JSON.stringify(value));bytes+=size;return{key,kind:value.kind,sha256:nativeContentHash(value),bytes:size};});if(bytes>ATLAS_EXPORT_LIMITS.metadataBytes)throw new WorldError("This source exceeds the 24 MiB export metadata allowance. Export a smaller saved Region or reduce source complexity; no map data or credits were truncated.",413);
@@ -95,7 +96,7 @@ async function checked(userId:string,worldId:string,raw:unknown){const pin=expor
 export async function prepareAtlasExport(userId:string,worldId:string,request:ExportSourceRequest){return(await snapshot(userId,worldId,request)).manifest;}
 export async function readAtlasExportResource(userId:string,worldId:string,pin:ExportPin,key:string){const value=await checked(userId,worldId,pin),resource=value.resources.get(key);if(!resource)throw exportUnavailable();return resource;}
 export async function readAtlasExportTiles(userId:string,worldId:string,pin:ExportPin,key:string,raw:unknown){
- const indexes=z.array(z.number().int().min(0).max(8191)).min(1).max(ATLAS_EXPORT_LIMITS.tileBatch).refine(a=>new Set(a).size===a.length).parse(raw),source=await checked(userId,worldId,pin),value=source.resources.get(key),tiles=value?.kind==="geometry"&&"tiles" in value.value?value.value.tiles:value?.kind==="numerical"?value.tiles:null;if(!tiles||indexes.some(i=>!tiles[i]))throw exportUnavailable();
+ const indexes=z.array(z.number().int().min(0).max(32767)).min(1).max(ATLAS_EXPORT_LIMITS.tileBatch).refine(a=>new Set(a).size===a.length).parse(raw),source=await checked(userId,worldId,pin),value=source.resources.get(key),tiles=value?.kind==="geometry"&&"tiles" in value.value?value.value.tiles:value?.kind==="numerical"?value.tiles:null;if(!tiles||indexes.some(i=>!tiles[i]))throw exportUnavailable();
  const output=[];for(const index of indexes){const tile=tiles[index];try{output.push({...tile,index,samples:await readTerrainTile(tile)});}catch{throw new WorldError("A pinned numerical object is missing or corrupt. Restore its paired backup before exporting; no incomplete image was produced.",409);}}await revalidateWorldResponse();return output;
 }
 let exportImageDecoding=false;

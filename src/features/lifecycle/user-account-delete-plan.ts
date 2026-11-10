@@ -18,6 +18,7 @@ export type UserAccountForeignKeyPlanEntry = {
  * database FK would otherwise cascade or set itself to null.
  */
 export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
+  { tableName: "world_terrain_transfer", columnName: "actor_id", constraintName: "world_terrain_transfer_actor_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Retained numerical terrain transfer authorship" },
   { tableName: "world_canon_copy", columnName: "actor_id", constraintName: "world_canon_copy_actor_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Retained personal canon World preparation" },
   { tableName: "world_access_invitation", columnName: "inviter_id", constraintName: "world_access_invitation_inviter_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "World invitation authorship" },
   { tableName: "world_access_invitation", columnName: "invitee_id", constraintName: "world_access_invitation_invitee_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Retained World invitations" },
@@ -175,4 +176,4 @@ export const USER_ACCOUNT_FOREIGN_KEY_PLAN = [
   { tableName: "tabletop_closeout_award_decision", columnName: "awarded_by_user_id", constraintName: "tabletop_closeout_award_decision_awarded_by_user_id_user_id_fk", onDelete: "restrict", disposition: "block", label: "Scene and Session award decisions" },
 ] as const satisfies readonly UserAccountForeignKeyPlanEntry[];
 
-export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 155;
+export const USER_ACCOUNT_FOREIGN_KEY_COUNT = 156;

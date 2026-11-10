@@ -10,7 +10,7 @@ const identity=z.string().min(1).max(160).regex(/^[a-zA-Z0-9:._-]+$/);
 export const hydroPointSchema=z.object({x:z.number().finite().min(0).max(1e9),y:z.number().finite().min(0).max(1e9)}).strict();
 export type HydroPoint=z.infer<typeof hydroPointSchema>;
 const frameSchema=z.object({x:z.number().finite().min(0),y:z.number().finite().min(0),width:z.number().finite().positive(),height:z.number().finite().positive()}).strict();
-export const hydroPinSchema=z.object({id:z.string().uuid(),revision:z.number().int().positive(),lod:z.number().int().min(0).max(5),contentHash:z.string().regex(/^[a-f0-9]{64}$/),spacingX:z.number().finite().positive(),spacingY:z.number().finite().positive()}).strict();
+export const hydroPinSchema=z.object({id:z.string().uuid(),revision:z.number().int().positive(),lod:z.number().int().min(0).max(7),contentHash:z.string().regex(/^[a-f0-9]{64}$/),spacingX:z.number().finite().positive(),spacingY:z.number().finite().positive()}).strict();
 export const hydroAnalysisSchema=z.object({
   id:identity,method:z.enum(["terrain-drainage-v1","terrain-water-v2","terrain-natural-v3"]),fingerprint:z.string().regex(/^[a-f0-9]{64}$/),rootRevision:z.number().int().positive(),
   runoff:z.literal("uniform-contributing-land-area"),minimumAreaM2:z.number().finite().positive().max(1e18),focus:frameSchema,

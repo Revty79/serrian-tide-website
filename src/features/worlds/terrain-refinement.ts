@@ -1,15 +1,16 @@
 import {z} from "zod";
 import type {TerrainDocument,TerrainGeometry,TerrainTile} from "./terrain";
+import {DETAIL_RESOLUTIONS} from "./terrain-resolution";
 
 export const REFINEMENT_LIMIT=128;
 export const REFINEMENT_DEPTH=8;
 export const REFINEMENT_COLLAR=4;
-export const refinementSizes=[32,64,128,256,512,1024] as const;
+export const refinementSizes=DETAIL_RESOLUTIONS;
 const finite=z.number().finite(),dimension=finite.min(100).max(1e9);
 export const refinementFrameSchema=z.object({x:finite.min(0).max(1e9),y:finite.min(0).max(1e9),width:dimension,height:dimension}).strict();
 export type TerrainFrame=z.infer<typeof refinementFrameSchema>;
-export const refinementGridSize=z.number().int().refine(n=>(refinementSizes as readonly number[]).includes(n),"Choose 32, 64, 128, 256, 512 or 1024 samples.");
-export const refinementCreateSchema=z.object({action:z.literal("create"),requestId:z.uuid(),mapId:z.uuid(),parentId:z.uuid().nullable(),parentRevision:z.number().int().positive(),name:z.string().trim().min(1).max(160),frame:refinementFrameSchema,gridWidth:refinementGridSize,gridHeight:refinementGridSize,previewHash:z.string().regex(/^[a-f0-9]{64}$/)}).strict();
+export const refinementGridSize=z.number().int().refine(n=>(refinementSizes as readonly number[]).includes(n),"Choose 32, 64, 128, 256, 512, 1024, 2048 or advanced 4096 samples.");
+export const refinementCreateSchema=z.object({action:z.literal("create"),requestId:z.uuid(),mapId:z.uuid(),parentId:z.uuid().nullable(),parentRevision:z.number().int().positive(),name:z.string().trim().min(1).max(160),frame:refinementFrameSchema,gridWidth:refinementGridSize,gridHeight:refinementGridSize,advancedConfirmed:z.literal(true).optional(),previewHash:z.string().regex(/^[a-f0-9]{64}$/)}).strict().refine(v=>v.gridWidth<=2048&&v.gridHeight<=2048||v.advancedConfirmed===true,"Confirm the advanced terrain requirements before accepting a 4096-axis source.");
 export type RefinementCreate=z.infer<typeof refinementCreateSchema>;
 export type RefinementMeta={id:string;worldId:string;terrainId:string;mapId:string;name:string;parentId:string|null;parentRevision:number;level:number;revision:number;frame:TerrainFrame;gridWidth:number;gridHeight:number;overviewLevels:number;updatedAt:string};
 export type RefinementDocument=TerrainDocument&{refinement:RefinementMeta};
@@ -54,8 +55,18 @@ export function sampleTerrainGrid(grid:Int16Array,shape:TerrainGeometry,x:number
 /** Initial inherited heights, not invented detail. Deterministic whole-metre samples. */
 export function initializeRefinement(parent:Int16Array,parentShape:TerrainGeometry,parentFrame:TerrainFrame,frame:TerrainFrame,width:number,height:number,world:TerrainGeometry){
  validateRefinement(frame,width,height,parentShape,parentFrame,world);const grid=new Int16Array(width*height);
- for(let y=0;y<height;y++)for(let x=0;x<width;x++){const p=frameLocalPoint({x:frame.x+x/width*frame.width,y:frame.y+y/height*frame.height},parentFrame,world.displayWidth,world.wrap);grid[y*width+x]=Math.round(sampleTerrainGrid(parent,parentShape,p.x,p.y));}
+ inheritRows(grid,parent,parentShape,parentFrame,frame,width,height,world,0,height);
  return grid;
+}
+function inheritRows(grid:Int16Array,parent:Int16Array,parentShape:TerrainGeometry,parentFrame:TerrainFrame,frame:TerrainFrame,width:number,height:number,world:TerrainGeometry,start:number,end:number){
+ if(parent.length!==parentShape.width*parentShape.height)throw Error("The inherited parent buffer is incomplete. No source was created.");
+ for(let y=start;y<end;y++)for(let x=0;x<width;x++){const p=frameLocalPoint({x:frame.x+x/width*frame.width,y:frame.y+y/height*frame.height},parentFrame,world.displayWidth,world.wrap);grid[y*width+x]=Math.round(sampleTerrainGrid(parent,parentShape,p.x,p.y));}
+}
+let preparingDetail=false;
+/** Same native kernel, yielding rows for responsive fallback and server processing. */
+export async function initializeRefinementAsync(parent:Int16Array,parentShape:TerrainGeometry,parentFrame:TerrainFrame,frame:TerrainFrame,width:number,height:number,world:TerrainGeometry,progress:(value:number)=>void=()=>{},signal?:AbortSignal){
+ if(preparingDetail)throw Error("Another numerical source is being prepared. Keep these settings and retry shortly.");preparingDetail=true;
+ try{validateRefinement(frame,width,height,parentShape,parentFrame,world);const grid=new Int16Array(width*height);for(let y=0;y<height;y+=8){if(signal?.aborted)throw new DOMException("Numerical preview canceled before acceptance.","AbortError");inheritRows(grid,parent,parentShape,parentFrame,frame,width,height,world,y,Math.min(height,y+8));progress(Math.min(1,(y+8)/height));await new Promise<void>(resolve=>setTimeout(resolve,0));}return grid;}finally{preparingDetail=false;}
 }
 export function isRefinementBoundary(x:number,y:number,width:number,height:number){return x<REFINEMENT_COLLAR||y<REFINEMENT_COLLAR||x>=width-REFINEMENT_COLLAR||y>=height-REFINEMENT_COLLAR;}
 /** Lock inherited boundary samples and parent interpolation support beneath children. */

@@ -6,7 +6,7 @@ import {numericalChecksum} from "./terrain-refinement-cache";
 export type ExportProgress=(message:string)=>void;
 export function exportRequestUrl(worldId:string,review:boolean,params:Record<string,string>){return `/api/worlds/${encodeURIComponent(worldId)}/exports?${new URLSearchParams({...params,...review?{review:"1"}:{}})}`;}
 export async function prepareExportSource(worldId:string,review:boolean,request:ExportSourceRequest,signal:AbortSignal){
- const raw=await worldApi<unknown>(exportRequestUrl(worldId,review,{op:"prepare",source:JSON.stringify(request)}),"GET",undefined,signal),manifest=exportManifestSchema.parse(raw),{pin,...body}=manifest;
+ const raw=await worldApi<unknown>(exportRequestUrl(worldId,review,{op:"prepare",source:JSON.stringify({...request,contractVersion:2})}),"GET",undefined,signal),manifest=exportManifestSchema.parse(raw),{pin,...body}=manifest;
  if(manifest.worldId!==worldId||manifest.target.id!==request.target.id||manifest.target.kind!==request.target.kind||await exportJsonHash(body)!==pin.sha256)throw Error("This export source failed its identity or integrity check. Prepare the saved map again.");return manifest;
 }
 export type ExportTile={index:number;x:number;y:number;lod:number;sha256:string;bytes:number;encoding:string;samples:number[]};

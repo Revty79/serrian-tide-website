@@ -58,7 +58,7 @@ export function* advancedTerrainSteps(
   blocked?:Uint8Array,manual?:Uint8Array,
 ):Generator<number,AdvancedResult,void>{
   const op=advancedOperationSchema.parse(raw),n=shape.width*shape.height;
-  if(base.length!==n||n>1048576||blocked&&blocked.length!==n||manual&&manual.length!==n)throw Error("The accepted terrain buffers do not match this bounded source.");
+  if(base.length!==n||n>16777216||blocked&&blocked.length!==n||manual&&manual.length!==n)throw Error("The accepted terrain buffers do not match this bounded source.");
   const {frame,world,seaLevel}=context,selection=op.selection,sx=frame.width/shape.width,sy=frame.height/shape.height;
   if(![sx,sy,world.width,world.height].every(v=>Number.isFinite(v)&&v>0)||!Number.isFinite(seaLevel))throw Error("The accepted physical terrain frame is invalid.");
   if(selection.footprint)validateRegionFootprint(selection.footprint,world,selection.frame);

@@ -2,7 +2,7 @@ import {z} from "zod";
 
 const id=z.string().min(1).max(160).regex(/^[a-zA-Z0-9:._-]+$/);
 const point=z.object({x:z.number().finite().min(0).max(1e9),y:z.number().finite().min(0).max(1e9)}).strict();
-const pin=z.object({id:z.string().uuid(),revision:z.number().int().positive(),lod:z.number().int().min(0).max(5),contentHash:z.string().regex(/^[a-f0-9]{64}$/),spacingX:z.number().finite().positive(),spacingY:z.number().finite().positive()}).strict();
+const pin=z.object({id:z.string().uuid(),revision:z.number().int().positive(),lod:z.number().int().min(0).max(7),contentHash:z.string().regex(/^[a-f0-9]{64}$/),spacingX:z.number().finite().positive(),spacingY:z.number().finite().positive()}).strict();
 export const naturalDetailSchema=z.enum(["sparse","balanced","fine"]);
 export type NaturalDetail=z.infer<typeof naturalDetailSchema>;
 export const courseKindSchema=z.enum(["automatic","river","tributary","stream","intermittent","artificial","fictional"]);

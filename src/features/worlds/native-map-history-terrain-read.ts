@@ -63,7 +63,7 @@ export async function nativeRefinementIndex(tx: NativeHistoryTx, context: Native
   return value;
 }
 export async function readNativeRefinement(tx: NativeHistoryTx, context: NativeContentContext, id: string, input: { lod: number; keys: number[]; revision?: number; historical?: boolean }) {
-  const request = z.object({ lod: z.number().int().min(0).max(5), keys: z.array(z.number().int().min(0).max(1023)).min(1).max(64).refine(v => new Set(v).size === v.length), revision: z.number().int().positive().optional(), historical: z.boolean().optional() }).strict().parse(input);
+  const request = z.object({ lod: z.number().int().min(0).max(7), keys: z.array(z.number().int().min(0).max(16383)).min(1).max(64).refine(v => new Set(v).size === v.length), revision: z.number().int().positive().optional(), historical: z.boolean().optional() }).strict().parse(input);
   const root = await nativeTerrainSource(tx, context), index = await nativeAllRefinementIndex(tx, context);
   const head = index.refinements.find(r => r.id === id);
   if (!head) throw new WorldError("This finer source is not retained by the selected historical appearance.", 404);

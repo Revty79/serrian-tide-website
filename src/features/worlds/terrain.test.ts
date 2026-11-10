@@ -30,7 +30,7 @@ test("height bounds, outside pointers, malformed and duplicate tiles fail safely
   assert.equal(sculpt(grid, NaN, 0, { tool: "lower", radius: 4, strength: 200 }, new Map()).size, 0);
   const tile = readTile(grid, 0), command = { action: "save", requestId: "00000000-0000-4000-8000-000000000001", mapId: "00000000-0000-4000-8000-000000000002", revision: 1, seaLevel: 0, tiles: [tile] };
   assert.ok(terrainCommandSchema.safeParse(command).success);
-  for (const tiles of [[tile, tile], [{ ...tile, x: 32 }], [{ ...tile, samples: [1] }], [{ ...tile, samples: new Array(1024).fill(30001) }], [{ ...tile, samples: new Array(1024).fill(1.5) }]]) assert.equal(terrainCommandSchema.safeParse({ ...command, tiles }).success, false);
+  for (const tiles of [[tile, tile], [{ ...tile, x: 128 }], [{ ...tile, samples: [1] }], [{ ...tile, samples: new Array(1024).fill(30001) }], [{ ...tile, samples: new Array(1024).fill(1.5) }]]) assert.equal(terrainCommandSchema.safeParse({ ...command, tiles }).success, false);
 });
 test("fit and cursor-anchored zoom keep grid coordinates distinct from display space", () => {
   const view = fitTerrain(1000, 600), point = terrainPoint(view, 500, 300); assert.equal(point.x, 320); assert.equal(point.y, 192);

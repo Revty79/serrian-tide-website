@@ -1,0 +1,35 @@
+/** Native A4 integration in newly owned PG18/storage only; no .env is loaded. */
+import assert from "node:assert/strict";
+import {createHash,randomUUID} from "node:crypto";
+import {writeFile} from "node:fs/promises";
+import path from "node:path";
+import {withRegionalEditingFixture} from "./worlds-regional-editing-fixture";
+import {createGrid,readTile,terrainGeometry} from "../src/features/worlds/terrain";
+process.env.SERRIAN_REGIONAL_EDIT_EVIDENCE??="artifacts/regions-s43-resolution-a4-database-1";
+withRegionalEditingFixture(async f=>{
+ const worlds=await import("../src/features/worlds/world-service"),terrain=await import("../src/features/worlds/terrain-service"),transfer=await import("../src/features/worlds/terrain-transfer-service");
+ const world=await worlds.createWorld("world-god",{name:"A4 synthetic numerical transfer verification"}),mapId=randomUUID();
+ await terrain.changeTerrain("world-god",world,{action:"create",requestId:mapId,name:"Optional 2048 World",initial:"ocean",settings:{gridWidth:2048,gridHeight:2048,widthKm:2048,heightKm:2048,wrap:true}});
+ const original=(await terrain.getTerrain("world-god",world,{mapId})).document!,shape=terrainGeometry(original.settings),grid=createGrid(original.baseElevation,original.tiles,shape);
+ const leaseChecks=await(await import("./worlds-resolution-a4-lease-checks")).resolutionLeaseChecks(f,world);
+ for(let y=0;y<shape.height;y++)for(let x=0;x<shape.width;x++)grid[y*shape.width+x]=Math.round(400*Math.sin(x/37)+300*Math.cos(y/43)+(x*17+y*31)%101);
+ const tiles=Array.from({length:grid.length/1024},(_,key)=>readTile(grid,key,shape)),manifest=tiles.map(t=>{const b=Buffer.alloc(2048);t.samples.forEach((n,i)=>b.writeInt16LE(n,i*2));return{x:t.x,y:t.y,sha256:createHash("sha256").update(b).digest("hex")};}),requestId=randomUUID(),command={action:"save",requestId,mapId,revision:1,seaLevel:0};
+ const begin={op:"begin",command,tiles:manifest},started=performance.now();await transfer.changeTerrainTransfer("world-god",world,begin);
+ await assert.rejects(terrain.changeTerrain("world-god",world,{...command,tiles:[]}),/retained|transfer/i);
+ await transfer.changeTerrainTransfer("world-god",world,{op:"retain",requestId});
+ await assert.rejects(transfer.changeTerrainTransfer("world-god",world,{op:"finish",requestId}),/retained/i);
+ assert.equal((await transfer.changeTerrainTransfer("world-god",world,begin)).state,"receiving");
+ await assert.rejects(transfer.changeTerrainTransfer("other-god",world,{op:"status",requestId}));
+ await assert.rejects(transfer.changeTerrainTransfer("world-god",world,{...begin,command:{...command,seaLevel:1}}),/different original/);
+ await transfer.changeTerrainTransfer("world-god",world,{op:"chunk",requestId,tiles:tiles.slice(-64)});await transfer.changeTerrainTransfer("world-god",world,{op:"chunk",requestId,tiles:tiles.slice(-64)});
+ await(await import("./worlds-resolution-a4-portability-checks")).resolutionPortabilityChecks(f,manifest.at(-1)!.sha256);
+ await assert.rejects(transfer.changeTerrainTransfer("world-god",world,{op:"finish",requestId}),/incomplete/);
+ const corrupt={...tiles[0],samples:[...tiles[0].samples]};corrupt.samples[0]++;await assert.rejects(transfer.changeTerrainTransfer("world-god",world,{op:"chunk",requestId,tiles:[corrupt]}),/differs from the original/);
+ assert.equal((await terrain.getTerrain("world-god",world,{mapId})).document!.revision,1);
+ for(let offset=0;offset<tiles.length-64;offset+=64)await transfer.changeTerrainTransfer("world-god",world,{op:"chunk",requestId,tiles:tiles.slice(offset,Math.min(tiles.length-64,offset+64))});
+ const accepted=await transfer.changeTerrainTransfer("world-god",world,{op:"finish",requestId});assert.equal(accepted.result?.revision,2);assert.deepEqual(await transfer.changeTerrainTransfer("world-god",world,{op:"finish",requestId}),accepted);
+ const reopened=(await terrain.getTerrain("world-god",world,{mapId})).document!,actual=createGrid(reopened.baseElevation,reopened.tiles,shape);assert.deepEqual(actual,grid);assert.equal(reopened.revision,2);assert.equal(reopened.acceptedRequestId,requestId);
+ const result={passed:true,world,mapId,samples:grid.length,storedTiles:reopened.tiles.length,exactAllSamples:true,logicalEditOneRevision:true,duplicateAndOutOfOrderChunksSafe:true,interruptedTransferUnaccepted:true,corruptionAndChangedRequestRejected:true,unauthorizedActorRejected:true,elapsedMs:performance.now()-started,peakProcessRssBytes:process.resourceUsage().maxRSS*1024,sharedAccess:false};
+ await writeFile(path.join(f.out,"resolution-results.json"),JSON.stringify({...result,leaseChecks},null,2));console.log(JSON.stringify({...result,leaseChecks}));
+ if(process.env.SERRIAN_A4_DETAIL==="1")await(await import("./worlds-resolution-a4-refinement-checks")).resolutionA4RefinementChecks(f,world,mapId);
+}).catch(error=>{console.error(error);process.exitCode=1;});

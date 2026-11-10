@@ -3,6 +3,7 @@ import type {RefinementMeta} from "./terrain-refinement";
 import {terrainSourceSchema,type TerrainSource,type ProtectedTile} from "./terrain-source";
 import { z } from "zod";
 import {physicalBrushGeometry} from "./terrain-physical-brush";
+import {TERRAIN_RESOLUTION} from "./terrain-resolution";
 
 // Terrain samples and physical coordinates are independent. The active editor
 // always supplies the saved geometry; defaults support small pure calculations.
@@ -10,20 +11,22 @@ export type TerrainGeometry = { width: number; height: number; tileSize: number;
 export const TERRAIN = { wrap: false, width: 640, height: 384, tileSize: 32, displayWidth: 20000000, displayHeight: 12000000, min: -12000, max: 12000 } as const;
 export const TILE_COLUMNS = TERRAIN.width / TERRAIN.tileSize;
 export const TILE_ROWS = TERRAIN.height / TERRAIN.tileSize;
-export const MAX_TILE_COUNT = 1024;
+export const MAX_TILE_COUNT = TERRAIN_RESOLUTION.detailTiles;
 export const TILE_COUNT = TILE_COLUMNS * TILE_ROWS;
 export type TerrainTile = { x: number; y: number; samples: number[] };
 export const terrainSettingsSchema = z.object({
-  gridWidth: z.number().int().min(32).max(1024).multipleOf(32).default(640), gridHeight: z.number().int().min(32).max(1024).multipleOf(32).default(384),
+  gridWidth: z.number().int().min(32).max(TERRAIN_RESOLUTION.worldAxis).multipleOf(32).default(640), gridHeight: z.number().int().min(32).max(TERRAIN_RESOLUTION.worldAxis).multipleOf(32).default(384),
   widthKm: z.number().min(.1).max(1000000).default(20000), heightKm: z.number().min(.1).max(1000000).default(12000),
   wrap: z.boolean().default(false), minElevation: z.number().int().min(-30000).max(-1).default(-12000), maxElevation: z.number().int().min(1).max(30000).default(12000),
 }).strict();
+/** Selected refinement geometry; World creation still uses terrainSettingsSchema. */
+export const numericalSettingsSchema=terrainSettingsSchema.extend({gridWidth:z.number().int().min(32).max(TERRAIN_RESOLUTION.detailAxis).multipleOf(32),gridHeight:z.number().int().min(32).max(TERRAIN_RESOLUTION.detailAxis).multipleOf(32)});
 export type TerrainSettings = z.infer<typeof terrainSettingsSchema>;
 export function terrainGeometry(s: TerrainSettings): TerrainGeometry { return { width: s.gridWidth, height: s.gridHeight, tileSize: 32, displayWidth: s.widthKm * 1000, displayHeight: s.heightKm * 1000, min: s.minElevation, max: s.maxElevation, wrap: s.wrap }; }
 export type TerrainSummary = { id: string; name: string; revision: number; seaLevel: number; updatedAt: string;mapRevision?:number;purpose?:"world"|"regional";footprint?:RegionFootprint;parentMapId?:string;parentName?:string;frame?:import("./terrain-refinement").TerrainFrame;sourceAvailable?:boolean };
 export type TerrainDocument = TerrainSummary & { region?:import("./terrain-regions").TerrainRegion;sourceMapId?:string;tilesUnchanged?:boolean;refinement?:RefinementMeta; terrainId: string; settings: TerrainSettings; worldId: string; format: 1; width: number; height: number; tileSize: number; baseElevation: number; tiles: TerrainTile[]; canEdit: boolean; acceptedRequestId: string;protection?:ProtectedTile[];source?:TerrainSource;origin?:TerrainSource };
 export const elevationSchema = z.number().int().min(-30000).max(30000);
-export const tileSchema = z.object({ x: z.number().int().min(0).max(31), y: z.number().int().min(0).max(31), samples: z.array(elevationSchema).length(TERRAIN.tileSize ** 2) }).strict();
+export const tileSchema = z.object({ x: z.number().int().min(0).max(TERRAIN_RESOLUTION.detailAxis/32-1), y: z.number().int().min(0).max(TERRAIN_RESOLUTION.detailAxis/32-1), samples: z.array(elevationSchema).length(TERRAIN.tileSize ** 2) }).strict();
 export const terrainCommandSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("create"), requestId: z.uuid(), name: z.string().trim().min(1).max(160), initial: z.enum(["ocean", "land","generated","imported"]),seaLevel:elevationSchema.optional(),source:terrainSourceSchema.optional(),tiles:z.array(tileSchema).max(MAX_TILE_COUNT).optional(), settings: terrainSettingsSchema.default(() => terrainSettingsSchema.parse({})) }).strict().superRefine((v,ctx)=>{const generated=v.initial==="generated"||v.initial==="imported";if(generated&&(!v.source||v.source.kind!==v.initial))ctx.addIssue({code:"custom",message:"The numerical source must match this starting option."});if(!generated&&(v.tiles?.length||v.source&&(v.source.kind!=="blank"||v.source.surface!==v.initial)))ctx.addIssue({code:"custom",message:"A blank surface cannot contain an unrelated numerical source."});if(generated&&(!v.tiles||v.tiles.length!==(v.settings.gridWidth/32)*(v.settings.gridHeight/32)||new Set(v.tiles.map(t=>`${t.x}:${t.y}`)).size!==v.tiles.length))ctx.addIssue({code:"custom",message:"Accept the complete preview grid exactly once, without missing or repeated tiles."});}),
   z.object({ action: z.literal("save"), requestId: z.uuid(), mapId: z.uuid(), revision: z.number().int().positive(),sourceState:z.string().max(8192).optional(), seaLevel: elevationSchema,source:terrainSourceSchema.optional(), tiles: z.array(tileSchema).max(MAX_TILE_COUNT) }).strict().superRefine((v, ctx) => {

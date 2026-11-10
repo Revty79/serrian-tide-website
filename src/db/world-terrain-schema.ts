@@ -13,7 +13,7 @@ export const worldTerrain = pgTable("world_terrain", {
   minElevation: integer("min_elevation").notNull(), maxElevation: integer("max_elevation").notNull(), baseElevation: integer("base_elevation").notNull(), seaLevel: integer("sea_level").notNull().default(0),
   revision: integer("revision").notNull().default(1), creationHash: text("creation_hash").notNull(), updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, t => [unique("world_terrain_id_world_uq").on(t.id, t.worldId),
-  check("world_terrain_valid", sql`${t.format}=1 AND ${t.gridWidth} BETWEEN 32 AND 1024 AND ${t.gridHeight} BETWEEN 32 AND 1024 AND ${t.gridWidth}%32=0 AND ${t.gridHeight}%32=0 AND ${t.tileSize}=32 AND ${t.widthMetres} BETWEEN 100 AND 1000000000 AND ${t.heightMetres} BETWEEN 100 AND 1000000000 AND ${t.coordinateReference}='LOCAL:METRES' AND ${t.minElevation} BETWEEN -30000 AND -1 AND ${t.maxElevation} BETWEEN 1 AND 30000 AND ${t.baseElevation} BETWEEN ${t.minElevation} AND ${t.maxElevation} AND ${t.seaLevel} BETWEEN ${t.minElevation} AND ${t.maxElevation} AND ${t.revision}>0 AND ${t.creationHash} ~ '^[a-f0-9]{64}$'`)]);
+  check("world_terrain_valid", sql`${t.format}=1 AND ${t.gridWidth} BETWEEN 32 AND 2048 AND ${t.gridHeight} BETWEEN 32 AND 2048 AND ${t.gridWidth}%32=0 AND ${t.gridHeight}%32=0 AND ${t.tileSize}=32 AND ${t.widthMetres} BETWEEN 100 AND 1000000000 AND ${t.heightMetres} BETWEEN 100 AND 1000000000 AND ${t.coordinateReference}='LOCAL:METRES' AND ${t.minElevation} BETWEEN -30000 AND -1 AND ${t.maxElevation} BETWEEN 1 AND 30000 AND ${t.baseElevation} BETWEEN ${t.minElevation} AND ${t.maxElevation} AND ${t.seaLevel} BETWEEN ${t.minElevation} AND ${t.maxElevation} AND ${t.revision}>0 AND ${t.creationHash} ~ '^[a-f0-9]{64}$'`)]);
 
 export const worldMapCanvas = pgTable("world_map_canvas", {
   mapId: text("map_id").primaryKey(), worldId: text("world_id").notNull(), terrainId: text("terrain_id").notNull(),
@@ -39,4 +39,4 @@ export const worldTerrainTile = pgTable("world_terrain_tile", {
 }, t => [primaryKey({ columns: [t.terrainId, t.level, t.x, t.y, t.revision] }),
   foreignKey({ name: "world_terrain_tile_version_fk", columns: [t.terrainId, t.worldId, t.revision], foreignColumns: [worldTerrainVersion.terrainId, worldTerrainVersion.worldId, worldTerrainVersion.revision] }).onDelete("restrict"),
   check("world_terrain_tile_protection_valid",sql`${t.manualProtection}='legacy' OR (${t.manualProtection} ~ '^[a-f0-9]+$' AND length(${t.manualProtection})=256)`),
-  check("world_terrain_tile_valid", sql`${t.level}=0 AND ${t.x} BETWEEN 0 AND 31 AND ${t.y} BETWEEN 0 AND 31 AND ${t.sha256} ~ '^[a-f0-9]{64}$' AND ${t.bytes}=2048 AND ${t.encoding}='i16le-v1'`)]);
+  check("world_terrain_tile_valid", sql`${t.level}=0 AND ${t.x} BETWEEN 0 AND 63 AND ${t.y} BETWEEN 0 AND 63 AND ${t.sha256} ~ '^[a-f0-9]{64}$' AND ${t.bytes}=2048 AND ${t.encoding}='i16le-v1'`)]);

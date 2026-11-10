@@ -1,4 +1,6 @@
 import { worldContentEditor } from "./world-access-service";
+import {assertTerrainTransferRequest} from "./terrain-transfer-authority";
+import {expandedTerrainAvailable} from "./terrain-resolution-service";
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
@@ -55,7 +57,9 @@ export async function getTerrain(userId: string, worldId: string, options: { rev
 export async function changeTerrain(userId: string, worldId: string, raw: unknown) {
   const command = terrainCommandSchema.parse(raw);
   return worldWriteTransaction(userId, worldId, async tx => {
+    await assertTerrainTransferRequest(tx,userId,worldId,command.requestId);
     if (command.action === "create") {
+      if((command.settings.gridWidth>1024||command.settings.gridHeight>1024)&&!await expandedTerrainAvailable(tx))throw new WorldError("Migration 0161 is required before accepting optional 2048 World terrain. Existing maps and drafts are unchanged.",503);
       const creationHash = hash(command);
       const [existing] = await tx.select({ c: worldMapCanvas, t: worldTerrain }).from(worldMapCanvas).innerJoin(worldTerrain, eq(worldTerrain.id, worldMapCanvas.terrainId)).where(eq(worldMapCanvas.mapId, command.requestId));
       if (existing) { if (existing.c.worldId !== worldId || existing.t.creationHash !== creationHash) throw conflict(); return { id: existing.c.mapId, revision: existing.t.revision }; }

@@ -5,6 +5,7 @@ import {intentWarnings} from "./terrain-intent";
 import {validateIntentHeights} from "./terrain-generation-v3";
 /** Shared admission rules. They never resize a feature or regenerate heights. */
 export function validateGenerationAcceptance(shape:TerrainGeometry,source:TerrainSource,sea:number,frame={x:0,y:0,periodX:shape.wrap?shape.displayWidth:null as number|null}){
+ if(source.kind==="regenerated"&&source.area.width*source.area.height>1048576)throw Error("Select at most 1,048,576 samples for one regeneration. Work in smaller selected areas; the saved terrain is unchanged.");
  if((source.kind==="generated"||source.kind==="regenerated")&&source.recipe.version==="world-heightmap-v3"){
   const r=source.recipe,p=r.plan;validateIntentHeights(shape,r,sea);
   if(!r.planConfirmed||r.interpretationIssues.some(i=>!i.resolved||!i.decision.trim()))throw Error("Confirm the geographic plan and explicitly resolve every uncertain or unsupported instruction before accepting.");

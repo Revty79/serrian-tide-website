@@ -36,7 +36,7 @@ export async function worldRequest(request: Request, mutation: boolean, run: (us
     return await withWorldRequestAuthority({userId:session.user.id,sessionId:session.session.id,proof,review:url.searchParams.get("review")==="1",operationId:randomUUID(),reads:new Map()},async()=>{
       const worldId=url.pathname.match(/^\/api\/worlds\/([a-f0-9-]{36})(?:\/|$)/i)?.[1];
       if(worldId){const parent=await authorizeWorldRead(session.user.id,worldId,url.searchParams.get("review")==="1","shell");if(mutation&&(parent.permission.role==="viewer"||parent.permission.role==="administrator-review"))throw new WorldError("This World access is read-only.",403);}
-      const result=url.searchParams.has("historicalAtlas")
+      const result=url.searchParams.has("historicalAtlas")&&!url.pathname.endsWith("/terrain/transfers")
         ?await (await import("./native-map-history-api")).nativeContentRequest(request,session.user.id)
         :await run(session.user.id);
       const permission=worldId?worldRequestAuthority()?.reads.get(worldId)?.permission:undefined;

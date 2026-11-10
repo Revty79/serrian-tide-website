@@ -13,7 +13,7 @@ export const worldTerrainRefinement=pgTable("world_terrain_refinement",{
  unique("world_terrain_refinement_identity_uq").on(t.id,t.terrainId,t.worldId),index("world_terrain_refinement_parent_idx").on(t.terrainId,t.parentId),
  foreignKey({name:"world_terrain_refinement_root_fk",columns:[t.terrainId,t.worldId],foreignColumns:[worldTerrain.id,worldTerrain.worldId]}).onDelete("restrict"),
  foreignKey({name:"world_terrain_refinement_parent_fk",columns:[t.parentId,t.terrainId,t.worldId],foreignColumns:[t.id,t.terrainId,t.worldId]}).onDelete("restrict"),
- check("world_terrain_refinement_valid",sql`${t.level} BETWEEN 1 AND 8 AND ${t.parentRevision}>0 AND ${t.revision}>0 AND length(${t.name}) BETWEEN 1 AND 160 AND ${t.x}>=0 AND ${t.x}<1000000000 AND ${t.y}>=0 AND ${t.y}<1000000000 AND ${t.width} BETWEEN 100 AND 1000000000 AND ${t.height} BETWEEN 100 AND 1000000000 AND ${t.gridWidth} IN (32,64,128,256,512,1024) AND ${t.gridHeight} IN (32,64,128,256,512,1024) AND ${t.creationHash} ~ '^[a-f0-9]{64}$'`),
+ check("world_terrain_refinement_valid",sql`${t.level} BETWEEN 1 AND 8 AND ${t.parentRevision}>0 AND ${t.revision}>0 AND length(${t.name}) BETWEEN 1 AND 160 AND ${t.x}>=0 AND ${t.x}<1000000000 AND ${t.y}>=0 AND ${t.y}<1000000000 AND ${t.width} BETWEEN 100 AND 1000000000 AND ${t.height} BETWEEN 100 AND 1000000000 AND ${t.gridWidth} IN (32,64,128,256,512,1024,2048,4096) AND ${t.gridHeight} IN (32,64,128,256,512,1024,2048,4096) AND ${t.creationHash} ~ '^[a-f0-9]{64}$'`),
 ]);
 
 export const worldTerrainRefinementVersion=pgTable("world_terrain_refinement_version",{
@@ -34,5 +34,5 @@ export const worldTerrainRefinementTile=pgTable("world_terrain_refinement_tile",
 },t=>[
  primaryKey({name:"world_terrain_refinement_tile_pk",columns:[t.refinementId,t.lod,t.x,t.y,t.revision]}),
  foreignKey({name:"world_terrain_refinement_tile_version_fk",columns:[t.refinementId,t.terrainId,t.worldId,t.revision],foreignColumns:[worldTerrainRefinementVersion.refinementId,worldTerrainRefinementVersion.terrainId,worldTerrainRefinementVersion.worldId,worldTerrainRefinementVersion.revision]}).onDelete("restrict"),
- check("world_terrain_refinement_tile_valid",sql`${t.lod} BETWEEN 0 AND 5 AND ${t.x} BETWEEN 0 AND 31 AND ${t.y} BETWEEN 0 AND 31 AND ${t.sha256} ~ '^[a-f0-9]{64}$' AND ${t.bytes}=2048 AND ${t.encoding}='i16le-v1' AND ${t.manualProtection} ~ '^[a-f0-9]+$' AND length(${t.manualProtection})=256`),
+ check("world_terrain_refinement_tile_valid",sql`${t.lod} BETWEEN 0 AND 7 AND ${t.x} BETWEEN 0 AND 127 AND ${t.y} BETWEEN 0 AND 127 AND ${t.sha256} ~ '^[a-f0-9]{64}$' AND ${t.bytes}=2048 AND ${t.encoding}='i16le-v1' AND ${t.manualProtection} ~ '^[a-f0-9]+$' AND length(${t.manualProtection})=256`),
 ]);

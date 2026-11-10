@@ -12,6 +12,7 @@
     "validate:environment": "node --conditions=react-server --import tsx --test scripts/environment.test.ts",
     "validate:atlas-keyboard": "node --conditions=react-server --import tsx scripts/worlds-keyboard-disposable.test.ts",
     "validate:atlas-graphics": "node --conditions=react-server --import tsx scripts/worlds-graphics-a2-disposable.test.ts",
+    "validate:atlas-resolution": "node --conditions=react-server --import tsx scripts/worlds-resolution-a4-disposable.test.ts",
     "validate:environment-disposable": "node --conditions=react-server --import tsx scripts/environment-disposable.test.ts",
     "validate:profile-browser": "node --import tsx scripts/profile-disposable-browser.test.ts",
     "validate:password-recovery": "node --conditions=react-server --import tsx scripts/password-recovery-disposable-browser.test.ts",

@@ -1,3 +1,4 @@
+import {runGenerationSteps,type GenerationSteps} from "./terrain-generation-steps";
 import type {TerrainGeometry} from "./terrain";
 import {intentPlanSchema,intentPoint,intentWarnings,landKind,type IntentFeature,type IntentPlan} from "./terrain-intent";
 import type {GenerationRecipeV3} from "./terrain-source";
@@ -15,13 +16,13 @@ export function validateIntentHeights(shape:TerrainGeometry,r:GenerationRecipeV3
   if(problem){const message=`${f.name}: ${problem}. Adjust the feature height explicitly.`;throw Object.assign(Error(message),{issues:[{path:["plan","features",i,"elevation"],message}]});}
  }
 }
-export function generateAuthoredTerrain(shape:TerrainGeometry,r:GenerationRecipeV3,sea:number,progress?:(p:number)=>void){
+export function* authoredTerrainSteps(shape:TerrainGeometry,r:GenerationRecipeV3,sea:number):GenerationSteps{
  const plan=intentPlanSchema.parse(r.plan);validateIntentHeights(shape,r,sea);if(plan.space.width!==shape.displayWidth||plan.space.height!==shape.displayHeight)throw Error("This geographic plan belongs to different physical terrain dimensions. Reinterpret or adjust its frame explicitly.");
  const seed=physicalSeed(r.seed),compiled=compile(plan,seed),columns=shape.width/32,rows=shape.height/32,candidates:Array<number[]>=Array.from({length:columns*rows},()=>[]),sx=shape.displayWidth/shape.width,sy=shape.displayHeight/shape.height,period=plan.space.periodX??0;
  // Bounded per-tile spatial candidates, in physical coordinates. No whole-World feature scan per sample.
  for(const [i,f] of compiled.entries()){const radius=Math.hypot(f.width,f.height)*.65;for(const offset of period?[-period,0,period]:[0]){const left=Math.max(0,Math.floor((f.x+offset-radius-plan.space.x)/sx/32)),right=Math.min(columns-1,Math.floor((f.x+offset+radius-plan.space.x)/sx/32)),top=Math.max(0,Math.floor((f.y-radius-plan.space.y)/sy/32)),bottom=Math.min(rows-1,Math.floor((f.y+radius-plan.space.y)/sy/32));for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)if(!candidates[y*columns+x].includes(i))candidates[y*columns+x].push(i);}}
  const grid=new Int16Array(shape.width*shape.height).fill(Math.round(sea-r.oceanDepthM));
- for(let key=0;key<candidates.length;key++){const list=candidates[key];if(!list.length){progress?.((key+1)/candidates.length);continue;}const lands=list.filter(i=>landKind(compiled[i].feature.kind)),modifiers=list.filter(i=>!landKind(compiled[i].feature.kind)).sort((a,b)=>(compiled[a].feature.kind==="bay"?1:0)-(compiled[b].feature.kind==="bay"?1:0));
+ for(let key=0;key<candidates.length;key++){const list=candidates[key];if(!list.length){yield{progress:(key+1)/candidates.length};continue;}const lands=list.filter(i=>landKind(compiled[i].feature.kind)),modifiers=list.filter(i=>!landKind(compiled[i].feature.kind)).sort((a,b)=>(compiled[a].feature.kind==="bay"?1:0)-(compiled[b].feature.kind==="bay"?1:0));
   for(let y=Math.floor(key/columns)*32;y<(Math.floor(key/columns)+1)*32;y++)for(let x=key%columns*32;x<(key%columns+1)*32;x++){
    const wx=plan.space.x+(x+.5)*sx,wy=plan.space.y+(y+.5)*sy,a=plan.area;if(wx<a.x||wx>a.x+a.width||wy<a.y||wy>a.y+a.height)continue;let value=sea-r.oceanDepthM;
    const geometry=(f:Compiled)=>{const dx=wrappedDistance(wx,f.x,period),dy=wy-f.y,c=Math.cos(f.angle),s=Math.sin(f.angle);return {u:(dx*c+dy*s)/(f.width/2),v:(-dx*s+dy*c)/(f.height/2),dx,dy};};
@@ -33,7 +34,9 @@ export function generateAuthoredTerrain(shape:TerrainGeometry,r:GenerationRecipe
     else{if(kind==="plateau"||kind==="plains")weight=smooth01((1-distance)*4);if(kind==="bay")weight=smooth01((1-distance)*5);if(kind==="valley"||kind==="depression"||kind==="bay")value=Math.min(value,value+(target-value)*weight);else value+= (target-value)*weight;}
    }
    grid[y*shape.width+x]=Math.round(Math.max(shape.min,Math.min(shape.max,value)));
-  }progress?.((key+1)/candidates.length);
+  }yield{progress:(key+1)/candidates.length};
  }
  return {grid,resolvedPreset:r.preset,layoutWarnings:intentWarnings(shape,plan),featureCount:compiled.filter(f=>landKind(f.feature.kind)).length,rangeCount:compiled.filter(f=>f.feature.kind==="mountains").length};
 }
+
+export function generateAuthoredTerrain(shape:TerrainGeometry,r:GenerationRecipeV3,sea:number,progress?:(n:number)=>void){return runGenerationSteps(authoredTerrainSteps(shape,r,sea),progress);}
