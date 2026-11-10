@@ -24,7 +24,7 @@ GIB = 1024 ** 3
 MIB = 1024 ** 2
 ROOT_KEYS = ("SERRIAN_TERRAIN_ROOT", "SERRIAN_ASSET_ROOT", "SERRIAN_RASTER_ROOT")
 RELEASE_DIRS = ("src/", "data/", "public/", "ops/", "scripts/", "drizzle/")
-RELEASE_FILES = ("package.json", "package-lock.json", "next.config.ts", "tsconfig.json", "postcss.config.mjs", "eslint.config.mjs", "Dockerfile", ".dockerignore")
+RELEASE_FILES = ("package.json", "package-lock.json", "next.config.ts", "tsconfig.json", "tsconfig.website.json", "postcss.config.mjs", "eslint.config.mjs", "Dockerfile", ".dockerignore")
 FROZEN = "ALL_APPLICATION_JOB_IMPORT_AND_DIRECT_WRITERS_STOPPED"
 
 

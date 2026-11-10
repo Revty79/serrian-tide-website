@@ -5,6 +5,7 @@
 !next.config.ts
 !next-env.d.ts
 !tsconfig.json
+!tsconfig.website.json
 !postcss.config.mjs
 !eslint.config.mjs
 !src

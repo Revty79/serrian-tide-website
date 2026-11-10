@@ -52,7 +52,7 @@ Stop after A5 technical delivery for Ember/owner review. Do not resume A3, build
 
 ## Exact reviewed inventory
 
-The following 25 paths are the bounded A5 source/test/documentation set. All 324 published SQL/snapshots, 162 journal entries and 114 public assets remain unchanged; all original application/data/Atlas/authentication and environment-management implementation/assertion paths have no Git diff. The older 322 migration/snapshot files also match their retained pre-A4 raw-byte hashes. No new migration is introduced.
+The following 26 paths are the bounded A5 source/test/documentation set. All 324 published SQL/snapshots, 162 journal entries and 114 public assets remain unchanged; all original application/data/Atlas/authentication and environment-management implementation/assertion paths have no Git diff. The older 322 migration/snapshot files also match their retained pre-A4 raw-byte hashes. No new migration is introduced.
 
 ```text
 .dockerignore
@@ -80,6 +80,7 @@ ops/website-start.mjs
 package.json
 scripts/deployment-a5-fixture.ts
 scripts/run-deployment-tests.mjs
+tsconfig.website.json
 ```
 
 The container resource mechanism follows the documented [Docker container-driver limits](https://docs.docker.com/build/builders/drivers/docker-container/). Heap alone is not a total memory budget; the enclosing container cap and measured peak are recorded separately. The [Next.js memory guide](https://nextjs.org/docs/app/guides/memory-usage) likewise distinguishes build memory from source validity; TypeScript checks remain enabled.
@@ -87,3 +88,9 @@ The container resource mechanism follows the documented [Docker container-driver
 ## Retained first hosted build failure
 
 Implementation candidate `135c4dceec808357e72305f5c56c2a0b214330d9`, DR run `42885484931`, compiles successfully but its integrated Next TypeScript worker exhausts the proposed 2560 MiB heap. This is an actual measured failure, retained in `github-dr-135c4dce-failed.log`, not an inferred host OOM. The correction runs compilation, explicit Next type generation and a mandatory full non-incremental `tsc --noEmit` in separate terminated processes, with a 3328 MiB per-process heap inside the original 4096 MiB enclosing cap. Only this controlled Docker path skips Next's duplicate integrated checker; no image receipt can be produced until the full standalone checker passes. Ordinary builds and normal full TypeScript CI remain unchanged. An injected typecheck failure proves the completion stamp is refused. The larger heap and sequential profile remain pending real bounded-build validation.
+
+## Runtime type-program boundary
+
+Candidate `1e9a7dcf030dd01607d34b3d1cfcd2aa43060313`, DR run `42887173340`, proves that process separation alone is insufficient: the full program still exhausts a 3328 MiB heap after compilation and type generation pass. Its exact failure log remains retained. The build now uses `tsconfig.website.json`, which extends every original compiler option unchanged and checks all application/worker sources, generated route types, website preflight and environment/raster runtime entry points plus their transitive imports. Only non-runtime test/fixture roots are excluded from this duplicate server-build program. The original full-project TypeScript, lint and all unit tests remain required unchanged in normal CI. No TypeScript diagnostic is ignored in the production checker and any failure prevents stamping.
+
+The local fresh non-incremental production check passes under the 3328 MiB heap in 55.09 seconds, reporting 3,012,325 KiB of TypeScript memory; this is a compiler observation on the development machine, not Docker/host peak certification. Real generated-route and total container memory acceptance remain mandatory hosted gates.

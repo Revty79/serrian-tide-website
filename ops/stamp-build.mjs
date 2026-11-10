@@ -4,7 +4,7 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import {fileURLToPath} from "node:url";
 export const RELEASE_DIRECTORIES=["src","data","public","ops","scripts","drizzle"];
-export const RELEASE_FILES=["package.json","package-lock.json","next.config.ts","tsconfig.json","postcss.config.mjs","eslint.config.mjs","Dockerfile",".dockerignore"];
+export const RELEASE_FILES=["package.json","package-lock.json","next.config.ts","tsconfig.json","tsconfig.website.json","postcss.config.mjs","eslint.config.mjs","Dockerfile",".dockerignore"];
 async function fingerprint(directory,directories,initial=[],skip=()=>false){const files=[...initial];async function walk(relative){for(const e of(await readdir(path.join(directory,relative),{withFileTypes:true})).sort((a,b)=>a.name<b.name?-1:1)){const name=relative+"/"+e.name;if(skip(name))continue;assert.ok(!e.isSymbolicLink(),"Release code cannot traverse symbolic links");if(e.isDirectory())await walk(name);else{assert.ok(e.isFile());files.push(name);}}}for(const name of directories)await walk(name);const h=createHash("sha256");for(const file of files.sort())h.update(file+"\0").update(await readFile(path.join(directory,file)));return h.digest("hex");}
 export async function sourceFingerprint(directory,version=2){return fingerprint(directory,version===1?["src","data","public"]:RELEASE_DIRECTORIES,version===1?["package.json","package-lock.json","next.config.ts"]:RELEASE_FILES,n=>n.split("/").includes("__pycache__"));}
 export async function artifactFingerprint(directory){return fingerprint(directory,[".next"],["next-env.d.ts"],n=>n===".next/cache"||n.startsWith(".next/trace")||n===".next/diagnostics");}

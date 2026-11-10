@@ -77,6 +77,8 @@ The tool checks capacity before building, creates a public-code-only tar context
 
 The bounded profile uses one CPU quota, one Next build worker, a 3328 MiB Node heap and a 4096 MiB enclosing BuildKit memory/swap limit. At least another 2048 MiB of currently available host memory and 12 GiB free on both checkout and Docker storage are required. An existing verified image skips rebuilding but still requires the 2048 MiB application allowance plus host reserve. These are conservative admission rules, not a guarantee that every server can build the release. If insufficient or a build fails, the old website stays running. Actual bounded-build peak/time evidence is recorded in the delivery receipt.
 
+Compilation, type generation and strict production-program checking run sequentially; the production config inherits all original compiler options and includes every runtime entry and generated route. The original full-project TypeScript and tests, including test/fixture code, remain required CI before the owner selects the reviewed release. A type error cannot produce a completed image receipt.
+
 Only a new uniquely named task Buildx builder/cache is removed after the build. Working images, old containers, volumes, unrelated caches and services are never pruned. Source tar context is held transiently; useful build/resource/cutover/failure diagnostics are retained privately under `.git/serrian-deployment/RUN`. Completed release images and rollback containers remain useful recovery material. Monitor their disk use; any later image retirement requires its own reviewed selection. Capacity failure stops rather than deleting a working image to make room.
 
 Candidate verification is deliberately split:

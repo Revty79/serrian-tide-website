@@ -7,9 +7,9 @@ import {sourceFingerprint,stampBuild,verifyBuild,RELEASE_FILES,RELEASE_DIRECTORI
 import {origins} from "./host-probe.mjs";
 import {spawnSync} from "node:child_process";
 import {buildWebsite} from "./build-website.mjs";
-test("sequential full TypeScript remains mandatory before any completed build receipt",async()=>{
+test("strict production TypeScript remains mandatory before any completed build receipt",async()=>{
  const calls=[],environment={SERRIAN_BUILD_COMMIT:"a".repeat(40),SERRIAN_BUILD_HEAP_MIB:"3328",SERRIAN_BUILD_CPUS:"1"};let stamped=0;
- await assert.rejects(buildWebsite({environment,metrics:false,run:async args=>{calls.push(args);if(args.includes("node_modules/typescript/bin/tsc"))throw Error("real type error");},stamp:async()=>{stamped++;}}));assert.equal(stamped,0);assert.equal(calls.length,3);assert(calls[1].includes("typegen"));assert(calls[2].includes("--noEmit"));
+ await assert.rejects(buildWebsite({environment,metrics:false,run:async args=>{calls.push(args);if(args.includes("node_modules/typescript/bin/tsc"))throw Error("real type error");},stamp:async()=>{stamped++;}}));assert.equal(stamped,0);assert.equal(calls.length,3);assert(calls[1].includes("typegen"));assert(calls[2].includes("--noEmit"));assert(calls[2].includes("tsconfig.website.json"));
  await buildWebsite({environment,metrics:false,run:async()=>{},stamp:async()=>{stamped++;}});assert.equal(stamped,1);
 });
 test("invalid build commit fails before Next or runtime credentials are used",()=>{
