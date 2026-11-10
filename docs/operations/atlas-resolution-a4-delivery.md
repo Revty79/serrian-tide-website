@@ -1,6 +1,6 @@
 # Atlas Stage A4: expanded numerical terrain
 
-Status: **local technical PASS recommendation** for optional 2048 World terrain and 2048/advanced 4096 refinements. Native workflows and all 36 unchanged serial CPU gates pass. Publication and exact hosted CI are recorded separately below; owner/Ember acceptance and deployment remain separate.
+Status: **technical PASS recommendation** for optional 2048 World terrain and 2048/advanced 4096 refinements. Native workflows, all 36 unchanged serial CPU gates and both exact implementation CI workflows pass. Owner/Ember acceptance and deployment remain separate.
 
 Starting checkpoint: `6e00a946fb94679bf0532ab6d4e6e98a4eaa350e`. Owner briefs: `d11322d7-d7f5-415f-991a-d6a7ee062b55` and advanced-resolution supplement `8dfd0e60-f424-4a1f-8156-6ae6127a1dfc`. These supersede A2's migration prohibition only for A4 source development and newly owned disposable databases. A3 had read-only auditing only and remains paused pending separate authorization after A4 review.
 
@@ -20,7 +20,7 @@ Only source files and newly owned synthetic fixtures are used. No clean/original
 
 ## Verification and delivery receipt
 
-The final application is the exact source-only production build identified below. Creation, native editing, protections, save/reopen, original-request recovery, immutable history, explicit consumption capability, native PNG/PDF and independent paired restoration pass in newly owned synthetic environments. Existing-resolution, permission, keyboard, rendering and all 36 matched CPU regressions pass. The exact reviewed inventory and preservation proof are recorded below. No owner database migration or deployment is performed. Hosted publication/CI are pending until the publication receipt is appended.
+The final application is the exact source-only production build identified below. Creation, native editing, protections, save/reopen, original-request recovery, immutable history, explicit consumption capability, native PNG/PDF and independent paired restoration pass in newly owned synthetic environments. Existing-resolution, permission, keyboard, rendering and all 36 matched CPU regressions pass. The exact reviewed inventory and preservation proof are recorded below. No owner database migration or deployment is performed. Exact implementation publication and hosted results are recorded in the final receipt.
 
 ## Numerical capacity and bounded work
 
@@ -89,6 +89,8 @@ All log names without an explicit prefix are relative to ignored `artifacts/atla
 ## Final-build numerical observations
 
 These are single observations on Windows with installed GPU-disabled Chrome 134. Browser creation/editing phases ran without concurrent agent builds or numerical benchmarks; later export/restore work overlapped additional correctness validation. Database benchmark 5 therefore is not a quiesced comparative performance baseline. The original 36 matched CPU gates are evaluated separately, with their original inputs, metrics and rules.
+
+The local host reports an AMD Ryzen 5 5600G, six cores/twelve logical processors and 33,687,609,344 bytes of physical memory. Chrome is explicitly run with GPU acceleration disabled. This identifies the measured machine; it is not a minimum hardware specification or a claim that Atlas can reliably infer processor suitability for customers. Keep Standard World terrain for routine work, select 2048 when additional samples are useful, and choose advanced 4096 deliberately for bounded regional/local detail on a machine with sufficient working memory.
 
 | Actual workflow | Observation | What is measured |
 | --- | --- | --- |
@@ -260,3 +262,14 @@ The local observations do not certify all hardware, fleet-wide resource coordina
 Migration 0161 has been applied only to newly owned disposable databases. Owner clean/original DEV, retained recovery points, private roots/accounts, Production, Ubuntu, Render and port 3003 remain untouched. The owner's running site has not been restarted. Publishing source is not deployment authorization or proof of a migrated owner ledger. A separate authorized migration/rollout and Ember/owner acceptance remain required before use there.
 
 Stop after A4 technical delivery for Ember/owner review. A3 remains on hold; no Earth, imported geography, Canon activation, Tabletop or later milestone follows from this receipt.
+
+## Main publication and exact hosted validation
+
+Starting main: `6e00a946fb94679bf0532ab6d4e6e98a4eaa350e`. Ending implementation: `bafeaa8d269ac57f7c8bf5ace1dc1de12924ce9f`, published directly to `origin/main` with `[skip render]`. The application commit contains exactly the 83 reviewed paths above. This following delivery receipt changes only this report and `AGENTS.md`, preserving every tested application, test, configuration and migration byte.
+
+- [Exact implementation normal validation](https://github.com/Revty79/serrian-tide-website/actions/runs/42861880308): SUCCESS. Full TypeScript, ESLint, all 2,942 tests in 380 feature files, three raster regressions and fifteen environment integrity tests pass.
+- [Exact implementation Linux/Docker disaster recovery](https://github.com/Revty79/serrian-tide-website/actions/runs/42861880630): SUCCESS. Exact release build, fifteen offline PostgreSQL 18/database/storage recovery groups, fresh restored authentication/native reads, explicit older-ledger upgrade through 162 migrations, and fifteen signature/permission/corruption regressions pass. No private backup or key is uploaded.
+
+The full hosted logs and exact-head workflow metadata are retained privately beside the local receipts. The normal main-push workflows are verified through authenticated GitHub CLI because the available connector's commit-workflow listing is restricted to pull-request events. Final documentation-head CI and clean local/`origin/main`/remote/official GitHub parity are checked separately after this receipt is published; its final SHA is reported in the delivery message.
+
+Technical recommendation: **PASS for A4 review**, including advanced 4096 local support. Deployment and owner usability/artistic acceptance are not inferred. Stop here; A3 remains held.
