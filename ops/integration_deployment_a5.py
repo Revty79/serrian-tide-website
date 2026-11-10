@@ -54,11 +54,13 @@ def main():
                 info = json.loads(info.stdout)
                 break
             if not basic.inspect(db_name)["State"]["Running"]:
-                # Fixture prints only fixed stage/code, never URLs, secrets or SQL.
+                # No owner data is selected by this fixture. Redact its random
+                # password and all URLs even for errors before its main handler.
                 log = docker("logs", db_name, allow_failure=True)
-                for line in (log.stdout + log.stderr).decode().splitlines():
-                    if line.startswith("OWNED_A5_FIXTURE_FAILED "):
-                        print(line, flush=True)
+                diagnostic = (log.stdout + log.stderr).decode(errors="replace").replace(password, "[REDACTED]")
+                diagnostic = re.sub(r"[a-zA-Z][a-zA-Z0-9+.-]*://[^\s'\"<>]+", "[REDACTED_URL]", diagnostic)
+                for line in diagnostic.splitlines()[-35:]:
+                    print("OWNED_FIXTURE_DIAGNOSTIC " + line, flush=True)
                 raise Refused("Synthetic PG fixture exited; see its redacted stage/code")
             time.sleep(1)
         else:
@@ -114,6 +116,15 @@ def main():
                 require(basic.inspect(old_id)["State"]["Running"], "Missing root stopped working app")
         finally:
             docker("exec", db_name, "node", "-e", "require('fs').renameSync('/owned/artwork-held','/owned/artwork')")
+        docker("exec", db_name, "node", "-e", "require('fs').chmodSync('/owned/artwork',0)")
+        try:
+            try:
+                basic.host()
+                raise AssertionError("Inaccessible private root accepted")
+            except Refused:
+                require(basic.inspect(old_id)["State"]["Running"], "Inaccessible root stopped working app")
+        finally:
+            docker("exec", db_name, "node", "-e", "require('fs').chmodSync('/owned/artwork',0o700)")
         original_env = basic.env_file.read_bytes()
         try:
             basic.env_file.write_bytes(original_env.replace(b"http://localhost:3003", b"https://mismatched.example.invalid"))
@@ -124,7 +135,17 @@ def main():
                 require(basic.inspect(old_id)["State"]["Running"], "Config mismatch stopped working app")
         finally:
             basic.env_file.write_bytes(original_env)
-        say("missing private storage and authentication-origin/config mismatch leave current website untouched")
+        say("missing/inaccessible private storage and authentication-origin/config mismatch leave current website untouched")
+        # Create a real signed-in session on the OLD website; retain its cookie
+        # across stop/replacement, proving actual continuity rather than an empty table.
+        cookies = http.cookiejar.CookieJar()
+        client = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(cookies))
+        payload = json.dumps({"email": "a5-owner@example.invalid", "password": "Synthetic-Deployment-Only-Password!"}).encode()
+        req = urllib.request.Request("http://127.0.0.1:3003/api/auth/sign-in/email", data=payload, headers={"Content-Type": "application/json", "Origin": "http://127.0.0.1:3003"})
+        require(client.open(req).status == 200 and len(cookies) > 0, "Prior website synthetic sign-in failed")
+        with client.open("http://127.0.0.1:3003/api/auth/get-session") as response:
+            prior_session = json.load(response)
+        require(prior_session["user"]["id"] == "a5-owner", "Prior session identity differs")
         docker("stop", old_id)
         complete_before = basic.check(host, candidate_id, source_hash, frozen=True)["stateHash"]
         docker("start", old_id)
@@ -141,11 +162,15 @@ def main():
         repeated = new_op()
         require(repeated.deploy(basic.host()["approval"], FROZEN)["unchanged"], "Repeated deployment was not a no-op")
         say("successful single-writer cutover, preserved rollback container/image and repeated update")
-        # Exercise existing credentials, session and permission through normal HTTP.
-        cookies = http.cookiejar.CookieJar()
-        client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookies))
-        payload = json.dumps({"email": "a5-owner@example.invalid", "password": "Synthetic-Deployment-Only-Password!"}).encode()
-        req = urllib.request.Request("http://127.0.0.1:3003/api/auth/sign-in/email", data=payload, headers={"Content-Type": "application/json", "Origin": "http://127.0.0.1:3003"})
+        # Reuse the same old cookie BEFORE another login on the replacement.
+        with client.open("http://127.0.0.1:3003/api/auth/get-session") as response:
+            continued = json.load(response)
+        require(continued["user"]["id"] == "a5-owner" and continued["session"]["id"] == prior_session["session"]["id"], "Existing session did not survive replacement")
+        with client.open("http://127.0.0.1:3003/api/worlds") as response:
+            saved_worlds = json.load(response)
+        require(any(world["id"] == info["world"] for world in saved_worlds["worlds"]), "Existing authenticated World is missing")
+        say("old signed-in cookie, exact session identity and existing World access survive container replacement")
+        # Exercise the existing password and origin guards again on the new app.
         require(client.open(req).status == 200 and len(cookies) > 0, "Existing synthetic sign-in failed")
         require(client.open("http://127.0.0.1:3003/api/auth/get-session").status == 200, "Saved session failed")
         require(client.open("http://127.0.0.1:3003/api/worlds").status == 200, "Authenticated Worlds permissions failed")
