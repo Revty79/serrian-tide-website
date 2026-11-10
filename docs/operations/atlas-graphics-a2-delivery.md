@@ -1,8 +1,8 @@
 # Atlas Stage A2: CPU graphics and numerical-detail assessment
 
-**Local technical recommendation: PASS for the bounded A2 implementation, with the explicit stress and visual limits below.** Main publication and exact CI are recorded in the publication receipt. Owner artistic/usability acceptance and physical-device/printer acceptance remain deferred. No later milestone is started.
+**Technical recommendation: PASS for the bounded A2 implementation, with the explicit stress and visual limits below.** Main publication and exact CI are recorded in the publication receipt. Owner artistic/usability acceptance and physical-device/printer acceptance remain deferred. No later milestone is started.
 
-Starting reviewed main: `37291c8a78c7f084018b9a45984e8f1bccf989cc`. Owner brief: `4b46f78e-7c19-45e2-80a1-a2643c27e847`, plus the numerical-resolution supplement. Ending implementation commit: **pending the publication receipt**. All work remains on the normal local main checkout.
+Starting reviewed main: `37291c8a78c7f084018b9a45984e8f1bccf989cc`. Owner brief: `4b46f78e-7c19-45e2-80a1-a2643c27e847`, plus the numerical-resolution supplement. Ending implementation commit: [`24b4417afa89700d457a15173b0dd8e01edc50d8`](https://github.com/Revty79/serrian-tide-website/commit/24b4417afa89700d457a15173b0dd8e01edc50d8). All work remains on the normal local main checkout.
 
 Final production input SHA-256: `dccac8ff4331a23a109593d7a485a8843336ce5dc761dde4e0ae32687b4d9bdd`; build `08XT3YBerqP1WKc59wf0E`; 2,140 exact inputs. The frozen A1 control has SHA-256 `04ec7e8ff1a3cb7a64a7d2d9da6f9c8f7f073d7ecdf97ddfb252428047a6ad91`, build `Tyid5D9VC_nB1ZwfwmAPw`. Runtime copies contain no Git repository or owner environment. The complete earlier tested build 2 remains separately frozen; its receipts are earlier-candidate evidence.
 
@@ -211,4 +211,6 @@ Technical PASS applies to the implemented, tested A2 correction and its unchange
 
 ## Publication receipt
 
-Local implementation, source/evidence review and required checks are complete. Ending implementation commit, exact CI runs and final clean local/origin/official-main parity are filled after authorized publication with `[skip render]`. No deployment is authorized.
+The 32 reviewed implementation files are published on main as [`24b4417afa89700d457a15173b0dd8e01edc50d8`](https://github.com/Revty79/serrian-tide-website/commit/24b4417afa89700d457a15173b0dd8e01edc50d8), with `[skip render]`. Exact push-triggered [GitHub validation 42782941571](https://github.com/Revty79/serrian-tide-website/actions/runs/42782941571) completed successfully on that SHA. All job steps pass: TypeScript, full ESLint, **2,934/2,934 feature tests across 379 files**, **3/3 Linux raster tests** and **15/15 environment integrity tests**, with zero failed or skipped tests in those Linux suites. The official GitHub commit matches the local and origin implementation identity and reviewed file inventory.
+
+The following publication receipt changes only this report and `AGENTS.md`; every tested application, test, numerical-assessment and migration byte remains identical to that implementation. Its exact successful CI and final clean local/origin/remote/official-GitHub main identity are verified after publication and supplied with the delivery response, avoiding a self-referential commit identifier in this report. No deployment is authorized. Work stops for Ember/owner review with the stress, numerical and acceptance limits above intact.
