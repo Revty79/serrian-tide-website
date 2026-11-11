@@ -67,6 +67,8 @@ jobs:
       - name: Installed one-command updater against two real releases and populated PG18
         run: python3 ops/integration_update_a5.py
       - name: Same-image trusted-origin addition, real TLS login and preserved sessions
+        # Configuration-only changes retain the deployed image and still require
+        # actual TLS/session preservation and frozen-state rollback evidence.
         run: python3 ops/integration_trusted_origin_a5.py
       - name: Actual legacy public-HTTP auth transition, verified TLS proxies and recovery
         run: python3 ops/integration_bootstrap_a5.py --legacy-auth
