@@ -12,6 +12,8 @@ from bootstrap_tls_fixture import OwnedTLSProxy, require_fixture_listener_availa
 from ubuntu_deploy import Operator, Refused, require
 from ubuntu_trusted_origin import OriginUpdate, ORIGIN, KEY, append_origin
 
+RUNTIME_COMMIT = "1d9fe69d0c2073ea5acd23408585540028928c22"
+
 
 def main():
     require(os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted" and os.environ.get("SERRIAN_A5_OWNED_DOCKER") == "1", "OWNED_ORIGIN_CI_REQUIRED")
@@ -22,7 +24,10 @@ def main():
     roots = task / "roots"
     roots.mkdir(mode=0o700)
     (roots / ".a5-fixture").write_text("OWNED_SYNTHETIC_A5_ONLY\n")
-    base = Operator(repo, commit, task / "runtime.env")
+    # The preceding updater regression builds this genuine earlier release.
+    # Prove that the new tool retains an older deployed image without requiring
+    # a checkout update or rebuilding that website.
+    base = Operator(repo, RUNTIME_COMMIT, task / "runtime.env")
     docker = base.docker
     image = "serriantide:" + commit
     require(docker("inspect", "serriantide", allow_failure=True).returncode != 0, "OWNED_ORIGIN_NAME_OCCUPIED")
@@ -65,8 +70,8 @@ def main():
         base.env_file.write_bytes(original)
         base.env_file.chmod(0o600)
         _archive, source_hash = base.expected_source()
-        image_id = base.checked_image(image, source_hash)
-        docker("create", "--name", "serriantide", "--network", "host", "--restart=unless-stopped", "--read-only", "--memory", "2048m", "--memory-swap", "2048m", "--env-file", str(base.env_file), "-e", "PORT=3003", "-e", "SERRIAN_WEBSITE_LISTEN=127.0.0.1", "-e", "SERRIAN_RELEASE_COMMIT=" + commit, "-e", "SERRIAN_EXPECTED_SOURCE_HASH=" + source_hash, "--mount", f"type=bind,src={roots},dst=/owned", "--tmpfs", "/tmp:uid=1000,gid=1000,mode=700", "--tmpfs", "/app/.next/cache:uid=1000,gid=1000,mode=700", image_id)
+        image_id = base.checked_image("serriantide:" + RUNTIME_COMMIT, source_hash)
+        docker("create", "--name", "serriantide", "--network", "host", "--restart=unless-stopped", "--read-only", "--memory", "2048m", "--memory-swap", "2048m", "--env-file", str(base.env_file), "-e", "PORT=3003", "-e", "SERRIAN_WEBSITE_LISTEN=127.0.0.1", "-e", "SERRIAN_RELEASE_COMMIT=" + RUNTIME_COMMIT, "-e", "SERRIAN_EXPECTED_SOURCE_HASH=" + source_hash, "--mount", f"type=bind,src={roots},dst=/owned", "--tmpfs", "/tmp:uid=1000,gid=1000,mode=700", "--tmpfs", "/app/.next/cache:uid=1000,gid=1000,mode=700", image_id)
         old = base.inspect("serriantide")
         owned_ids.add(old["Id"])
         docker("start", old["Id"])
@@ -131,7 +136,7 @@ def main():
         say("real auth-canary failure and post-atomic-activation failure safely restore the exact old container and original config")
         passed = operation()
         result = passed.apply(lambda _message: "y")
-        require(result["configurationOnly"] and not result["secretChanged"] and not result["authBaseChanged"], "Operation scope differs")
+        require(result["configurationOnly"] and result["commit"] == RUNTIME_COMMIT and not result["secretChanged"] and not result["authBaseChanged"], "Operation scope differs")
         current = base.inspect("serriantide")
         owned_ids.add(current["Id"])
         candidate = append_origin(original)
