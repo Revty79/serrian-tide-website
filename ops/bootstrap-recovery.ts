@@ -1,10 +1,6 @@
 /** Explicit bootstrap recovery proof. Source reads only; restore always uses a new owned cluster. */
 import path from "node:path";
 import {readFile,writeFile,lstat,readdir,chown} from "node:fs/promises";
-import {backupEnvironment,verifySnapshotArchive} from "../scripts/environment/snapshot";
-import {restoreEnvironment,checkRestored} from "../scripts/environment/restore";
-import {sealSnapshot,openSnapshot} from "../scripts/environment/transfer";
-import {keygen,trustKey,privatePermissions} from "../scripts/environment/private-files";
 import {requireCondition,type EnvironmentProfile} from "../scripts/environment/model";
 
 async function main(){
@@ -12,6 +8,17 @@ async function main(){
  const input=JSON.parse(text),root=String(input.directory),key=path.join(root,"recovery.key.json"),trust=path.join(root,"trust.json"),snapshot=path.join(root,"snapshot"),opened=path.join(root,"opened");
  requireCondition(path.isAbsolute(root)&&/^[a-f0-9]{32}$/.test(input.runId)&&path.basename(root)===input.runId,"BOOTSTRAP_RECOVERY_PATH","Use the newly owned bootstrap recovery directory.");
  requireCondition(await readFile(path.join(root,"ownership"),"utf8")===`serrian-bootstrap:${input.runId}\n`,"BOOTSTRAP_RECOVERY_OWNER","The recovery directory is not owned by this operation.");
+ const suppliedDatabaseUrl=process.env.DATABASE_URL;
+ if(input.action==="restore"){
+  requireCondition(!suppliedDatabaseUrl&&process.env.SERRIAN_INFRA_BOOTSTRAP_TARGET&&process.env.SERRIAN_INFRA_BOOTSTRAP_ADMIN,"BOOTSTRAP_RESTORE_CONTEXT","Restore must receive only its new cluster credentials.");
+  // Existing artwork readers import the application pool. Satisfy module loading
+  // with an unreachable sentinel, never a Production or implicit restore target.
+  process.env.DATABASE_URL="postgresql://operator_inert:unused@127.0.0.1:1/no_implicit_database";
+ }
+ const {backupEnvironment,verifySnapshotArchive}=await import("../scripts/environment/snapshot");
+ const {restoreEnvironment,checkRestored}=await import("../scripts/environment/restore");
+ const {sealSnapshot,openSnapshot}=await import("../scripts/environment/transfer");
+ const {keygen,trustKey,privatePermissions}=await import("../scripts/environment/private-files");
  await privatePermissions(root);
  const application={directory:process.cwd(),origin:input.origin,trustFile:trust,hosting:"ubuntu" as const};
  let result:unknown;
@@ -30,7 +37,7 @@ async function main(){
   requireCondition(reopened.snapshotId===backup.snapshotId,"BOOTSTRAP_SNAPSHOT_PAIR","The independently opened snapshot differs.");
   result={passed:true,backup,sealed:true,independentlyOpened:true,sourceDatabase:profile.database.expectedName};
  }else if(input.action==="restore"){
-  requireCondition(!process.env.DATABASE_URL&&process.env.SERRIAN_INFRA_BOOTSTRAP_TARGET&&process.env.SERRIAN_INFRA_BOOTSTRAP_ADMIN,"BOOTSTRAP_RESTORE_CONTEXT","Restore must receive only its new cluster credentials.");
+  requireCondition(!suppliedDatabaseUrl,"BOOTSTRAP_RESTORE_CONTEXT","Production credentials may not enter the restore helper.");
   const source=JSON.parse(await readFile(path.join(root,"source-profile.json"),"utf8")) as EnvironmentProfile,target=path.join(root,"restored"),databaseName="serrian_bootstrap_"+input.runId;
   requireCondition(input.port!==source.database.expectedPort&&input.port>1024&&![3000,3003,5432,5433].includes(input.port),"BOOTSTRAP_RESTORE_PORT","A new independent restore listener is required.");
   const profile:EnvironmentProfile={version:1,environmentId:"bootstrap-restore-"+input.runId,purpose:"production-candidate",database:{urlEnv:"SERRIAN_INFRA_BOOTSTRAP_TARGET",adminUrlEnv:"SERRIAN_INFRA_BOOTSTRAP_ADMIN",expectedName:databaseName,expectedHost:"127.0.0.1",expectedPort:input.port,expectedRole:"postgres"},roots:{terrain:path.join(target,"terrain"),artwork:path.join(target,"artwork"),raster:path.join(target,"raster")},environmentDirectory:target,application,reserveBytes:1024**3};
