@@ -183,3 +183,5 @@ next-env.d.ts
 # Owned A5 deployment fixtures, private diagnostics and build measurements.
 /artifacts/deployment-a5/
 /ops/**/__pycache__/
+# Private first-time Ubuntu bootstrap validation receipts.
+/artifacts/deployment-a5-bootstrap/

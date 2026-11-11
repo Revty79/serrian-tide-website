@@ -8,6 +8,7 @@ import {canonicalJson,digest,quoteIdentifier as q,requireCondition,type Database
 import {loadBundle,verifyBundle} from "../raster-bundles";
 import {readTerrainTile} from "../../src/features/worlds/terrain-storage";
 import {readAssetObject} from "../../src/features/worlds/atlas-asset-storage";
+import {migrationHashes} from "./migration-hashes";
 
 const execute=promisify(execFile);
 export function databaseUrl(p:EnvironmentProfile,admin=false){
@@ -28,7 +29,7 @@ export async function toolVersions(p:EnvironmentProfile,serverMajor:number){cons
 export async function migrationHistory(client:pg.Pool|pg.PoolClient){
   const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8"));const exists=(await client.query("select to_regclass('drizzle.__drizzle_migrations') present")).rows[0].present;requireCondition(exists,"MIGRATION_HISTORY","No supported migration ledger was found.");
   const rows=(await client.query("select hash,created_at::text from drizzle.__drizzle_migrations order by id")).rows;requireCondition(rows.length>0&&rows.length<=journal.entries.length,"MIGRATION_HISTORY","The migration ledger is newer than, or incompatible with, this release.");
-  for(const [i,r]of rows.entries()){const bytes=await readFile(`drizzle/${journal.entries[i].tag}.sql`);requireCondition([digest(bytes),digest(bytes.toString("utf8").replaceAll("\r\n","\n"))].includes(r.hash)&&String(journal.entries[i].when)===r.created_at,"MIGRATION_HISTORY","A recorded migration differs from the immutable release history.");}return rows.map(r=>({hash:r.hash,createdAt:r.created_at}));
+  for(const [i,r]of rows.entries()){const bytes=await readFile(`drizzle/${journal.entries[i].tag}.sql`);requireCondition(migrationHashes(bytes).includes(r.hash)&&String(journal.entries[i].when)===r.created_at,"MIGRATION_HISTORY","A recorded migration differs from the immutable release history.");}return rows.map(r=>({hash:r.hash,createdAt:r.created_at}));
 }
 export async function tables(client:pg.Pool|pg.PoolClient){return (await client.query("select n.nspname schema,c.relname name,c.relkind kind from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname !~ '^pg_' and n.nspname<>'information_schema' and c.relkind in ('r','p','m','f') order by n.nspname collate \"C\",c.relname collate \"C\"" )).rows as {schema:string;name:string;kind:string}[];}
 // Non-superusers can see another role's session but not its backend_type.

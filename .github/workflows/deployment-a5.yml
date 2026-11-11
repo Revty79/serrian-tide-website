@@ -2,16 +2,16 @@ name: Ubuntu website deployment regression
 on:
   push:
     branches: [main]
-    paths: ["Dockerfile", ".dockerignore", "ops/**", "scripts/deployment-a5*", "scripts/run-deployment-tests.mjs", "next.config.ts", ".github/workflows/deployment-a5.yml"]
+    paths: ["Dockerfile", ".dockerignore", "ops/**", "scripts/deployment-a5*", "scripts/deployment-bootstrap*", "scripts/environment/**", "scripts/run-deployment-tests.mjs", "next.config.ts", ".github/workflows/deployment-a5.yml"]
   pull_request:
     branches: [main]
-    paths: ["Dockerfile", ".dockerignore", "ops/**", "scripts/deployment-a5*", "next.config.ts", ".github/workflows/deployment-a5.yml"]
+    paths: ["Dockerfile", ".dockerignore", "ops/**", "scripts/deployment-a5*", "scripts/deployment-bootstrap*", "scripts/environment/**", "next.config.ts", ".github/workflows/deployment-a5.yml"]
 permissions:
   contents: read
 jobs:
   website:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       SERRIAN_A5_OWNED_DOCKER: "1"
       PYTHONDONTWRITEBYTECODE: "1"
@@ -46,6 +46,20 @@ jobs:
           PY
       - name: Real PG18, actual Next.js, authentication, cutover and rollback
         run: python3 ops/integration_deployment_a5.py
+      - name: Native PG18 tools for the independently owned Ubuntu restore cluster
+        run: |
+          if [ ! -x /usr/lib/postgresql/18/bin/initdb ]; then
+            curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$RUNNER_TEMP/pgdg-bootstrap.asc"
+            test "$(gpg --show-keys --with-colons "$RUNNER_TEMP/pgdg-bootstrap.asc" | awk -F: '$1=="fpr" {print $10; exit}')" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+            sudo install -m 0644 "$RUNNER_TEMP/pgdg-bootstrap.asc" /usr/share/keyrings/pgdg-bootstrap.asc
+            printf '%s\n' 'deb [signed-by=/usr/share/keyrings/pgdg-bootstrap.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg-bootstrap.list >/dev/null
+            printf '%s\n' 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf >/dev/null
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends postgresql-18
+          fi
+          /usr/lib/postgresql/18/bin/initdb --version
+      - name: Actual no-mount first-time bootstrap and independent source restoration
+        run: python3 ops/integration_bootstrap_a5.py
       - name: Public-source build diagnostics only
         if: failure()
         run: |
