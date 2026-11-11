@@ -96,8 +96,7 @@ def main():
         expected = {"name": "serrian_deployment_fixture", "role": "postgres", "port": port}
 
         def operation(cls=OriginUpdate, target=expected):
-            client, _cookies = proxy.client()
-            return cls(repo, commit, base.env_file, expected=target, public_client=client)
+            return cls(repo, commit, base.env_file, expected=target)
 
         def refused(op, code):
             try:

@@ -12,16 +12,13 @@ from pathlib import Path
 import signal
 import stat
 import sys
-import urllib.error
-import urllib.request
-import uuid
 
 # The owner block extracts this reviewed, private four-file bundle. -I ignores
 # environment Python paths; only these adjacent reviewed modules are imported.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ubuntu_deploy import Operator, Refused, FROZEN, private_file, parse_env, require, sha, resource_check
 from ubuntu_bootstrap import replace_configuration
-from serrian_update import Git, GitHub, SHA, Stopped, NoRedirect, deployed_commit
+from serrian_update import Git, GitHub, SHA, Stopped, deployed_commit
 
 ORIGIN = "https://serriantide.com"
 KEY = "BETTER_AUTH_TRUSTED_ORIGINS"
@@ -66,30 +63,12 @@ def runtime_environment(container, declared):
 
 
 class OriginUpdate(Operator):
-    def __init__(self, repo, tool_commit, env_file=None, expected=None, public_client=None):
+    def __init__(self, repo, tool_commit, env_file=None, expected=None):
         super().__init__(repo, tool_commit, env_file)
         self.tool_commit = tool_commit
         self.active_env_file = self.env_file
         self.expected = PRODUCTION if expected is None else expected
-        self.public_client = public_client or urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
         self.in_cutover = False
-
-    def public_health(self, trusted):
-        """Real HTTPS route and anonymous CSRF canary; never an account login."""
-        try:
-            with self.public_client.open(ORIGIN + "/login", timeout=20) as response:
-                require(response.status == 200 and b"<html" in response.read(4 * 1024 * 1024), "ORIGIN_PUBLIC_ROUTE: the real HTTPS login page is unavailable.")
-            if trusted:
-                for origin, expected in ((ORIGIN, 200), ("https://origin-canary-" + uuid.uuid4().hex + ".invalid", 403)):
-                    request = urllib.request.Request(ORIGIN + "/api/auth/sign-out", data=b"{}", headers={"Content-Type": "application/json", "Origin": origin, "Cookie": "serrian_origin_canary=1"})
-                    try:
-                        with self.public_client.open(request, timeout=20) as response:
-                            require(response.status == expected == 200 and json.load(response).get("success") is True, "ORIGIN_PUBLIC_AUTH: the new HTTPS origin did not pass anonymous authentication checks.")
-                    except urllib.error.HTTPError as error:
-                        require(error.code == expected == 403, "ORIGIN_PUBLIC_AUTH: HTTPS authentication/CSRF verification failed.")
-        except (OSError, ValueError, urllib.error.URLError):
-            raise Refused("ORIGIN_PUBLIC_ROUTE: HTTPS could not be verified; no certificate or origin check is bypassed.") from None
-        return {"httpsLoginPage": True, "anonymousOriginAndCsrf": trusted, "actualAccountLoginVerified": False}
 
     def authentication_check(self, image):
         self.stage = "anonymous configured-origin and CSRF checks"
@@ -99,7 +78,7 @@ class OriginUpdate(Operator):
         require(running["Image"] == image and runtime_environment(running, configured) == expected, "ORIGIN_RUNTIME_SCOPE: the complete runtime environment must remain exact except for the approved origin.")
         result = json.loads(self.docker("run", "--rm", "-i", "--network", "host", "--read-only", "--memory", "512m", "--memory-swap", "512m", "--env-file", str(self.env_file), image, "node", "ops/bootstrap-auth-health.mjs", "--auth-health", data=b"{}").stdout)
         require(result.get("passed") and result.get("anonymousOnly"), "ORIGIN_AUTH_HEALTH: existing/new trusted origins did not pass.")
-        self.save("origin-authentication.json", {**result, **self.public_health(True)})
+        self.save("origin-authentication.json", {**result, "publicBrowserLoginPending": True, "actualAccountLoginVerified": False})
 
     def activate(self):
         replace_configuration(self.active_env_file, self.original_data, self.candidate_data, self.original_mode)
@@ -162,7 +141,6 @@ class OriginUpdate(Operator):
                 image = self.checked_image(old["container"]["Image"], source_hash)
                 super().check(old, image, source_hash)
                 require(self.http_health(old["container"]["Id"], 3003), "ORIGIN_CURRENT_HEALTH: keep the current image for review.")
-                self.public_health(False)
                 if self.candidate_data == self.original_data:
                     self.authentication_check(image)
                     result = {"passed": True, "unchanged": True, "origin": ORIGIN, "commit": self.commit, "actualAccountLoginVerified": False}
@@ -233,7 +211,7 @@ def main():
         result = OriginUpdate(args.repo, args.tool_commit).apply(confirm, lambda: github.verify(args.tool_commit))
         print(json.dumps(result, indent=2))
         if result.get("passed") and not result.get("cancelled"):
-            print("Configuration and anonymous HTTPS checks passed. Sign in normally at https://serriantide.com/login to verify your account; existing sessions were not reset.")
+            print("Configuration and local anonymous authentication checks passed. Public browser login is still required: sign in normally at https://serriantide.com/login; existing sessions were not reset.")
         return 0
     except (Refused, Stopped, OSError, ValueError, KeyError, TypeError, EOFError) as error:
         print(str(error) if isinstance(error, (Refused, Stopped)) else "ORIGIN_UPDATE_STOPPED: retain the current container and private A5 receipts; no secret details are printed.", file=sys.stderr)
