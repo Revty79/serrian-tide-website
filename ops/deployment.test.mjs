@@ -56,7 +56,7 @@ test("LAN origin authorization is exact, non-internal, and rejects unassigned ad
  }
 });
 test("every origin is canonical and exact; parsing failures never disclose supplied values",()=>{
- for(const value of ["not-a-url","*","https://*.trycloudflare.com","https://user:synthetic-secret@example.invalid","https://example.invalid/path","https://example.invalid/","https://example.invalid?x=1","https://example.invalid#x","http://example.invalid:3003","ftp://example.invalid","https://bad_host.invalid","https://-bad.invalid","https://example.invalid.","http://10.0.0.242:03003","http://10.0.0.242:65536","http://0x0a0000f2:3003","http://10.0.0.242:3003\n"]){
+ for(const value of ["not-a-url","*","https://*.trycloudflare.com","https://user:synthetic-secret@example.invalid","https://example.invalid/path","https://example.invalid/","https://example.invalid?x=1","https://example.invalid#x","http://example.invalid:3003","ftp://example.invalid","https://bad_host.invalid","https://-bad.invalid","https://example.invalid.","https://example.invalid:0","http://10.0.0.242:03003","http://10.0.0.242:65536","http://0x0a0000f2:3003","http://10.0.0.242:3003\n"]){
   const env={...originEnvironment(value),BETTER_AUTH_TRUSTED_ORIGINS:"http://localhost:3003"};
   assert.throws(()=>origins(env,assignedInterfaces("10.0.0.242")),error=>/^AUTH_/.test(safeProbeFailure(error))&&!error.message.includes(value));
  }

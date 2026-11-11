@@ -18,7 +18,7 @@ export function origins(env,interfaces=networkInterfaces()){
  const parse=value=>{
   if(value.includes("*"))throw Error("AUTH_WILDCARD");
   let u;try{u=new URL(value);}catch{throw Error("AUTH_ORIGIN");}
-  if(u.origin!==value||u.username||u.password||!["http:","https:"].includes(u.protocol))throw Error("AUTH_ORIGIN");
+  if(u.origin!==value||u.username||u.password||!["http:","https:"].includes(u.protocol)||(u.port!==""&&Number(u.port)<1))throw Error("AUTH_ORIGIN");
   return u;
  };
  const base=parse(env.BETTER_AUTH_URL??""),trusted=(env.BETTER_AUTH_TRUSTED_ORIGINS??"").split(",").map(v=>v.trim()).filter(Boolean).map(parse);
