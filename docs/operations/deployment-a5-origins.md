@@ -1,5 +1,7 @@
 # A5 bootstrap LAN-origin correction
 
+This receipt is historical. The subsequently confirmed legacy public-HTTP base requires the separate [final authentication transition correction](deployment-a5-auth-transition.md); the LAN-only validation below did not cover that source configuration.
+
 Starting checkpoint: `376faf85baf5c45365a33711e5c1959df7bd1dea`. Owner brief: `225d757c-3ff4-4189-a006-19eaa4c89224`. This is a source correction and isolated verification assignment. The owner's reported migration/storage readiness and live LAN/tunnel configuration are not independently certified by this report.
 
 **Technical PASS** at implementation `bad60d02e826cfefc553284f586a8e3f5f3c151a`. Exact normal validation, original disaster recovery and complete Ubuntu deployment/bootstrap CI all pass. Live server execution and owner/Ember acceptance remain separate.
