@@ -190,3 +190,5 @@ next-env.d.ts
 /artifacts/deployment-a5-auth-transition/
 /artifacts/deployment-a5-update/
 /artifacts/deployment-a5-trusted-origin/
+/artifacts/prebuilt-public-image/
+/artifacts/deployment-a5-prebuilt/

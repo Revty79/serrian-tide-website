@@ -15,7 +15,7 @@ RUN mkdir /runtime-libs && ldd /usr/lib/postgresql/18/bin/postgres /usr/lib/post
 
 FROM node:22-bookworm-slim AS runtime
 ARG SERRIAN_BUILD_COMMIT
-LABEL org.opencontainers.image.revision="$SERRIAN_BUILD_COMMIT" org.serriantide.mode="website"
+LABEL org.opencontainers.image.revision="$SERRIAN_BUILD_COMMIT" org.serriantide.mode="website" org.opencontainers.image.source="https://github.com/Revty79/serrian-tide-website"
 RUN apt-get update && apt-get install --no-install-recommends -y ca-certificates locales git && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=postgres-tools /usr/lib/postgresql/18 /usr/lib/postgresql/18

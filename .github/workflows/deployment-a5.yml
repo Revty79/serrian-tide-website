@@ -74,6 +74,18 @@ jobs:
         run: python3 ops/integration_bootstrap_a5.py --legacy-auth
       - name: Actual no-mount first-time bootstrap and independent source restoration
         run: python3 ops/integration_bootstrap_a5.py
+      - name: Package the exact tested public-code image (main pushes only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: python3 ops/ci_prebuilt_release.py export
+      - name: Short-lived transport for the independently gated registry publisher
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: website-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/prebuilt-public-image/
+          retention-days: 1
+          compression-level: 1
+          if-no-files-found: error
       - name: Public-source build diagnostics only
         if: failure()
         run: |

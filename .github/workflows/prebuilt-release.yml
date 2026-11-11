@@ -1,0 +1,62 @@
+name: Verified prebuilt website release
+on:
+  push:
+    branches: [main]
+    paths: ["Dockerfile", ".dockerignore", ".github/workflows/**", "ops/**", "scripts/**", "src/**", "data/**", "public/**", "drizzle/**", "package*.json", "*config*", "next-env.d.ts"]
+permissions:
+  contents: read
+jobs:
+  publish:
+    if: github.repository == 'Revty79/serrian-tide-website'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      SERRIAN_A5_OWNED_DOCKER: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Require all exact source CI and recovery/deployment tests
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ops/ci_prebuilt_release.py wait
+      - name: Download only the tested image from the verified source run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ steps.source.outputs.artifact }}
+          run-id: ${{ steps.source.outputs.run }}
+          github-token: ${{ github.token }}
+          path: artifacts/prebuilt-public-image
+      - name: Authenticate only for this ephemeral publication job
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
+        run: printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Verify pristine image, exact build and application before publication
+        id: image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ops/ci_prebuilt_release.py publish
+      - name: Sign the immutable image digest with GitHub-hosted provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a
+        with:
+          subject-name: ghcr.io/revty79/serrian-tide-website
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+      - name: Independent digest/provenance and real prebuilt deployment acceptance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SERRIAN_TEST_IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: python3 ops/integration_prebuilt_a5.py
+      - name: Remove only this job's registry credential
+        if: always()
+        run: docker logout ghcr.io
+      # Success of this entire workflow is an additional mandatory updater gate.
+      # No host, private fixtures, recovery archives or credentials are uploaded.

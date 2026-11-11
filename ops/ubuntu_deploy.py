@@ -317,9 +317,14 @@ class Operator:
         finally:
             self.docker("rm", identity, allow_failure=True)
 
+    def release_image(self):
+        # Recovery/local-build default. Verified registry adapters override only
+        # this reference and prohibit build(); cutover/rollback remain shared.
+        return "serriantide:" + self.commit
+
     def deploy_locked(self, host, approval):
         require(host["approval"] == approval, "HOST_APPROVAL: run the read-only preflight and review its exact identity first")
-        image = "serriantide:" + self.commit
+        image = self.release_image()
         existing_image = self.docker("image", "inspect", image, allow_failure=True).returncode == 0
         resource_check(host["resources"]["memoryAvailable"], host["resources"]["diskFree"], build_mib=2048 if existing_image else 4096)
         self.update()

@@ -1,0 +1,29 @@
+name: Installed prebuilt updater acceptance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+  packages: read
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      SERRIAN_A5_OWNED_DOCKER: "1"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Require main and completed exact image publication before acceptance
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          python3 -c 'import os,sys;sys.path.insert(0,"ops");from prebuilt_release import GitHub;GitHub().verify(os.environ["GITHUB_SHA"])'
+      - name: Ephemeral read-only registry access
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Literal installed command with real GitHub CI and GHCR verification
+        run: python3 ops/integration_prebuilt_a5.py --real-github
+      - if: always()
+        run: docker logout ghcr.io
