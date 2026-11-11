@@ -1,8 +1,10 @@
 """Fail-closed identity, eligibility, transport and shared-engine regressions."""
 import copy
+import hashlib
 import json
 from pathlib import Path
 import subprocess
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -154,6 +156,20 @@ class PrebuiltTests(unittest.TestCase):
         import io
         with patch.object(installer.urllib.request, "urlopen", return_value=io.BytesIO(b"corrupt or interrupted archive")), self.assertRaises(installer.Stopped):
             installer.download_verifier()
+
+    def test_corrupt_or_truncated_image_archive_never_reaches_docker_load(self):
+        import ci_prebuilt_release as publisher
+        original = b"public synthetic Docker image transport bytes"
+        metadata = {"version": 1, "commit": GOOD, "imageId": DIGEST,
+                    "tarSha256": hashlib.sha256(original).hexdigest(), "bytes": len(original)}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "transport.json").write_text(json.dumps(metadata))
+            for damaged in (original[:-1], b"X" + original[1:]):
+                (root / "website.tar").write_bytes(damaged)
+                with patch.object(publisher, "Operator") as operator, self.assertRaisesRegex(release.Stopped, "TRANSPORT_CORRUPT"):
+                    publisher.load_image(GOOD, root)
+                operator.assert_not_called()
 
 
 if __name__ == "__main__":
