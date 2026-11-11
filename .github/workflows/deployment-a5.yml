@@ -38,7 +38,8 @@ jobs:
             printf '%s\n' 'deb [signed-by=/usr/share/keyrings/pgdg-bootstrap.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg-bootstrap.list >/dev/null
             printf '%s\n' 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf >/dev/null
             sudo apt-get -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/pgdg-bootstrap.list -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=false update
-            sudo apt-get install -y --no-install-recommends postgresql-18
+            VERIFIED_LIBURING=$(python3 -c 'import json,os,pathlib;print(json.loads((pathlib.Path(os.environ["RUNNER_TEMP"])/"serrian-native-dependency.json").read_text())["cachePath"])')
+            sudo apt-get install -y --no-install-recommends postgresql-18 "$VERIFIED_LIBURING"
           fi
           /usr/lib/postgresql/18/bin/initdb --version
       - name: Bounded exact-source website build (4 GiB, one CPU, 3328 MiB Node heap)
