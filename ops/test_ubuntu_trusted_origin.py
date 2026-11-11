@@ -1,7 +1,7 @@
 """Bounded origin changes preserve existing configuration byte-for-byte."""
 import unittest
 from ubuntu_deploy import Refused, parse_env
-from ubuntu_trusted_origin import append_origin, ORIGIN, KEY
+from ubuntu_trusted_origin import append_origin, runtime_environment, ORIGIN, KEY
 
 
 class OriginConfigurationTests(unittest.TestCase):
@@ -33,6 +33,15 @@ class OriginConfigurationTests(unittest.TestCase):
         for data in ((KEY + "=a\n" + KEY + "=b\n").encode(), b"export EXTRA=a\n", b"EXTRA=one\0two\n"):
             with self.assertRaises(Refused):
                 append_origin(data)
+
+    def test_complete_runtime_keeps_secret_and_unrelated_overrides(self):
+        container = {"Config": {"Env": ["BETTER_AUTH_SECRET=synthetic", "EXTRA=exact", "HOSTNAME=explicit"], "Hostname": "generated"}}
+        self.assertEqual(runtime_environment(container, {}), {"BETTER_AUTH_SECRET": "synthetic", "EXTRA": "exact", "HOSTNAME": "explicit"})
+
+    def test_only_undeclared_docker_generated_hostname_is_excluded(self):
+        container = {"Config": {"Env": ["HOSTNAME=generated", "EXTRA=exact"], "Hostname": "generated"}}
+        self.assertEqual(runtime_environment(container, {}), {"EXTRA": "exact"})
+        self.assertEqual(runtime_environment(container, {"HOSTNAME": "generated"}), {"HOSTNAME": "generated", "EXTRA": "exact"})
 
 
 if __name__ == "__main__":

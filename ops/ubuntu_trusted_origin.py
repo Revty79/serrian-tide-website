@@ -56,6 +56,15 @@ def append_origin(data):
     return candidate
 
 
+def runtime_environment(container, declared):
+    values = dict(value.split("=", 1) for value in container["Config"].get("Env", []) if "=" in value)
+    # Docker may generate this per-container identity; never ignore an explicit
+    # configured HOSTNAME or any other setting.
+    if "HOSTNAME" not in declared and values.get("HOSTNAME") == container["Config"].get("Hostname"):
+        values.pop("HOSTNAME", None)
+    return values
+
+
 class OriginUpdate(Operator):
     def __init__(self, repo, tool_commit, env_file=None, expected=None, public_client=None):
         super().__init__(repo, tool_commit, env_file)
@@ -84,6 +93,10 @@ class OriginUpdate(Operator):
 
     def authentication_check(self, image):
         self.stage = "anonymous configured-origin and CSRF checks"
+        running = self.inspect("serriantide")
+        configured = parse_env(self.candidate_data)
+        expected = {**self.original_runtime, KEY: configured[KEY]}
+        require(running["Image"] == image and runtime_environment(running, configured) == expected, "ORIGIN_RUNTIME_SCOPE: the complete runtime environment must remain exact except for the approved origin.")
         result = json.loads(self.docker("run", "--rm", "-i", "--network", "host", "--read-only", "--memory", "512m", "--memory-swap", "512m", "--env-file", str(self.env_file), image, "node", "ops/bootstrap-auth-health.mjs", "--auth-health", data=b"{}").stdout)
         require(result.get("passed") and result.get("anonymousOnly"), "ORIGIN_AUTH_HEALTH: existing/new trusted origins did not pass.")
         self.save("origin-authentication.json", {**result, **self.public_health(True)})
@@ -94,6 +107,7 @@ class OriginUpdate(Operator):
     def check(self, host, image, source_hash, frozen=False):
         if self.in_cutover:
             require(private_file(self.active_env_file) in (self.original_data, self.candidate_data), "ORIGIN_CONFIG_CHANGED: retain concurrent configuration changes and both containers.")
+            require(private_file(self.candidate_env_file) == self.candidate_data, "ORIGIN_STAGED_CHANGED: staged settings changed; retain the evidence.")
         result = super().check(host, image, source_hash, frozen)
         if self.in_cutover and not frozen:
             self.authentication_check(image)
@@ -142,6 +156,7 @@ class OriginUpdate(Operator):
                 info = self.active_env_file.lstat()
                 require(info.st_uid == os.getuid() and info.st_gid == os.getgid(), "ORIGIN_CONFIG_OWNER: preserve the existing configuration owner/group.")
                 self.original_mode = stat.S_IMODE(info.st_mode)
+                self.original_runtime = runtime_environment(old["container"], parse_env(self.original_data))
                 self.candidate_data = append_origin(self.original_data)
                 _archive, source_hash = self.expected_source()
                 image = self.checked_image(old["container"]["Image"], source_hash)
@@ -164,6 +179,8 @@ class OriginUpdate(Operator):
                 self.env_file = self.output / "candidate.env"
                 with self.env_file.open("xb") as stream:
                     stream.write(self.candidate_data)
+                self.env_file.chmod(0o400)
+                self.candidate_env_file = self.env_file
                 candidate = self.candidate_host(old)
                 super().check(candidate, image, source_hash)
                 # Re-read through the original active configuration immediately
@@ -179,7 +196,9 @@ class OriginUpdate(Operator):
                 try:
                     result = super().cutover(candidate, image, source_hash)
                 except Exception:
-                    if private_file(self.active_env_file) == self.candidate_data and self.inspect(old["container"]["Id"])["State"]["Running"]:
+                    proof_file = self.output / "rollback.json"
+                    proof = json.loads(private_file(proof_file)) if proof_file.exists() else {}
+                    if proof.get("automaticRollback") is True and proof.get("databaseAndFilesUnchanged") is True and proof.get("oldContainer") == old["container"]["Id"] and private_file(self.active_env_file) == self.candidate_data and self.inspect(old["container"]["Id"])["State"]["Running"]:
                         replace_configuration(self.active_env_file, self.candidate_data, self.original_data, self.original_mode)
                         self.save("origin-configuration-restored.json", {"originalRestored": True})
                     raise
