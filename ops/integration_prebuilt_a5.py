@@ -30,6 +30,10 @@ BASELINE = "1d9fe69d0c2073ea5acd23408585540028928c22"
 def main():
     require(os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted" and os.environ.get("SERRIAN_A5_OWNED_DOCKER") == "1", "OWNED_HOSTED_CI_REQUIRED")
     os.umask(0o077)
+    # Hosted runners have an intentionally writable /usr/local/bin. Exercise
+    # the production refusal, then prepare only this owned fixture directory.
+    from integration_update_launcher import main as launcher_fixture
+    launcher_fixture()
     repo = Path.cwd()
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     real = "--real-github" in sys.argv
