@@ -111,6 +111,7 @@ def main():
         class RestoreFailure(Bootstrap):
             def recovery_helper(self, action, host, **extra):
                 if action == "restore":
+                    self.restore_failure_injected = True
                     raise Refused("INJECTED_INDEPENDENT_RESTORE_FAILURE")
                 return super().recovery_helper(action, host, **extra)
 
@@ -118,6 +119,7 @@ def main():
         refused(failed, "DEPLOY_FAILED_ROLLED_BACK")
         require(env_file.read_bytes() == original and base.inspect(old_id)["State"]["Running"], "Failed restore did not retain original configuration/website")
         require(not (failed.output / "bootstrap-success.json").exists(), "Incomplete recovery reported success")
+        require(getattr(failed, "restore_failure_injected", False) and json.loads((failed.output / "bootstrap-backup.json").read_text())["passed"], "Restore failure must follow a real completed backup and new running restore cluster")
         say("fresh signed backup followed by failed independent restore prevents cutover and restarts exact old writer")
 
         class StartupFailure(Bootstrap):
@@ -195,6 +197,17 @@ def main():
     except Exception:
         # Only fixed safe probe codes/stages are printed; snapshots, keys, account rows and URLs stay private.
         for instance in operators:
+            if instance.output and (instance.output / "bootstrap-recovery-failure.json").exists():
+                failure = json.loads((instance.output / "bootstrap-recovery-failure.json").read_text())
+                print("OWNED_BOOTSTRAP_RECOVERY_FAILURE " + json.dumps(failure), flush=True)
+                for diagnostic in instance.output.glob("native-pg-failure-*.json"):
+                    print("OWNED_BOOTSTRAP_NATIVE_FAILURE " + diagnostic.read_text(), flush=True)
+                # This entrypoint is restricted to a newly owned synthetic CI fixture.
+                # Native server diagnostics never contain the source env, key or archive.
+                if hasattr(instance, "recovery") and (instance.recovery / "postgres.log").exists():
+                    for line in (instance.recovery / "postgres.log").read_text().splitlines():
+                        if any(level in line for level in ("FATAL:", "PANIC:", "ERROR:")):
+                            print("OWNED_BOOTSTRAP_NATIVE_SERVER " + line, flush=True)
             failure = getattr(instance, "last_failure", None)
             if failure:
                 for line in failure["stderr"].splitlines():

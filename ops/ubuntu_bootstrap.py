@@ -143,6 +143,7 @@ class Bootstrap(Operator):
         return {"container": old["container"], "env": parse_env(self.candidate_data), "mounts": mounts, "report": {"listen": probe["websiteListen"], "roots": probe["roots"], "auth": probe["auth"], "envSha256": sha(self.candidate_data), "database": probe["database"]}}
 
     def native_pg(self, command, *args, allow_failure=False):
+        self.stage = "independent native PostgreSQL " + command
         try:
             result = subprocess.run([str(self.pg_bin / command), *args], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env={key: value for key, value in os.environ.items() if key in ("PATH", "LANG", "LC_ALL")}, timeout=180)
         except (OSError, subprocess.TimeoutExpired):
@@ -198,7 +199,12 @@ class Bootstrap(Operator):
             changes = self.docker("diff", host["container"]["Id"]).stdout.decode().splitlines()
             protected = ("/app/storage/world-terrain", "/app/storage/atlas-assets", "/app/storage/world-raster")
             require(not any(any(line[2:] == root or line[2:].startswith(root + "/") for root in protected) for line in changes), "BOOTSTRAP_OLD_STORAGE_CHANGED: retain newly created old-container storage for review")
-            self.prove_recovery(host)
+            try:
+                self.prove_recovery(host)
+            except Exception as error:
+                import traceback
+                self.save("bootstrap-recovery-failure.json", {"stage": self.stage, "type": type(error).__name__, "trace": traceback.format_exc()})
+                raise
             after = super().check(host, image, source_hash, frozen=True)
             require(after["stateHash"] == result["stateHash"], "BOOTSTRAP_SOURCE_CHANGED: source differs after independent restoration")
             self.recovery_verified = True
