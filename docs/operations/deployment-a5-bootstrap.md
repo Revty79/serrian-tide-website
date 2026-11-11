@@ -1,5 +1,7 @@
 # First-time Ubuntu storage bootstrap
 
+**LAN-origin correction:** the original implementation below assumed a localhost authentication origin. See [the A5 origin correction report](deployment-a5-origins.md) for the targeted fix and current verification. Use the newly delivered corrected commit, not the historical command pin, for a LAN/tunnel configuration.
+
 **PASS for implementation and isolated technical verification** at `95ffc0bf256a33886912164f2ea55ad575de58ce`, starting from `3e97191957cf78ed100fa146f7c1a8706b9be323`. Exact normal, original disaster-recovery and complete Ubuntu deployment/bootstrap workflows pass. No live-server execution or success is claimed.
 
 The actual owner-supplied read-only reports show a working host-network `serriantide` website on 3003, no mounts or three-root settings, absent `/app/storage/{world-terrain,atlas-assets,world-raster}`, and zero Worlds/checked Atlas reference rows in `serrian_tide_prod`. Its observed 161 migrations through 0160 preceded an owner-reported IDE migration. A pgAdmin backup was reported; an independent restore was not evidenced. Neither report substitutes for current server verification.

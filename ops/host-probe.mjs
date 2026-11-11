@@ -2,13 +2,43 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {constants} from "node:fs";
-export function origins(env){
- const parse=value=>{const u=new URL(value);if(u.origin!==value||u.username||u.password||!["http:","https:"].includes(u.protocol))throw Error("AUTH_ORIGIN");return u;};
- const base=parse(env.BETTER_AUTH_URL??""),trusted=(env.BETTER_AUTH_TRUSTED_ORIGINS??"").split(",").map(v=>v.trim()).filter(Boolean).map(v=>parse(v).origin);
+import {networkInterfaces} from "node:os";
+import {isIP} from "node:net";
+
+function privateIPv4(address){
+ if(isIP(address)!==4)return false;
+ const [a,b]=address.split(".").map(Number);
+ return a===10||(a===172&&b>=16&&b<=31)||(a===192&&b===168);
+}
+
+// Linux host-network probes and the website see the same actual interfaces.
+// Interface injection is only a pure-test argument, never an environment override.
+// This validates explicit configuration; it never adds an origin to Better Auth.
+export function origins(env,interfaces=networkInterfaces()){
+ const parse=value=>{
+  if(value.includes("*"))throw Error("AUTH_WILDCARD");
+  let u;try{u=new URL(value);}catch{throw Error("AUTH_ORIGIN");}
+  if(u.origin!==value||u.username||u.password||!["http:","https:"].includes(u.protocol))throw Error("AUTH_ORIGIN");
+  return u;
+ };
+ const base=parse(env.BETTER_AUTH_URL??""),trusted=(env.BETTER_AUTH_TRUSTED_ORIGINS??"").split(",").map(v=>v.trim()).filter(Boolean).map(parse);
  if(!env.BETTER_AUTH_SECRET||env.BETTER_AUTH_SECRET.length<32)throw Error("AUTH_SECRET");
- if(![base.origin,...trusted].some(value=>["http://localhost:3003","http://127.0.0.1:3003"].includes(value)))throw Error("AUTH_LOCAL_ORIGIN");
- if([base.origin,...trusted].some(v=>v.includes("*")))throw Error("AUTH_WILDCARD");
- return {base:base.origin,trusted,quickTunnelConfigured:[base.origin,...trusted].some(v=>new URL(v).hostname.endsWith(".trycloudflare.com"))};
+ const assigned=new Set(Object.values(interfaces).flatMap(entries=>entries??[])
+  .filter(entry=>entry.family==="IPv4"&&entry.internal===false&&privateIPv4(entry.address)).map(entry=>entry.address));
+ let local=false;
+ for(const u of [base,...trusted]){
+  if(u.hostname==="localhost"||isIP(u.hostname.replace(/^\[|\]$/g,""))){
+   if(u.protocol!=="http:"||u.port!=="3003"||!(u.hostname==="localhost"||u.hostname==="127.0.0.1"||assigned.has(u.hostname)))throw Error("AUTH_LOCAL_ORIGIN");
+   local=true;
+  }else{
+   // External origins (including Quick Tunnels) must be exact HTTPS DNS names.
+   // No DNS lookup can confer local-server identity or wildcard authorization.
+   const labels=u.hostname.split(".");
+   if(u.protocol!=="https:"||u.hostname.length>253||labels.length<2||labels.some(label=>! /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))||u.hostname.endsWith(".localhost"))throw Error("AUTH_ORIGIN");
+  }
+ }
+ if(!local)throw Error("AUTH_LOCAL_ORIGIN");
+ return {base:base.origin,trusted:trusted.map(u=>u.origin),quickTunnelConfigured:[base,...trusted].some(u=>u.hostname.endsWith(".trycloudflare.com"))};
 }
 export async function probe(env=process.env){
  const auth=origins(env);
@@ -32,4 +62,4 @@ export async function probe(env=process.env){
 }
 // stdin execution is used by the non-destructive host preflight.
 export function safeProbeFailure(error){const allowed=new Set(["AUTH_ORIGIN","AUTH_SECRET","AUTH_LOCAL_ORIGIN","AUTH_WILDCARD","EXPLICIT_PRIVATE_ROOTS","PRIVATE_ROOT_PERMISSIONS","ROOT_NOT_WRITABLE","OVERLAPPING_ROOTS","DATABASE_CONFIG","DATABASE_TLS","DATABASE_IDENTITY"]);if(allowed.has(error?.message))return error.message;return({ENOENT:"PRIVATE_ROOT_MISSING",EACCES:"PRIVATE_ROOT_ACCESS",ECONNREFUSED:"DATABASE_UNAVAILABLE",ETIMEDOUT:"DATABASE_UNAVAILABLE","28P01":"DATABASE_AUTHENTICATION","42P01":"MIGRATION_LEDGER_UNAVAILABLE",ERR_INVALID_URL:"ORIGIN_OR_DATABASE_URL"})[error?.code]??"CONFIGURATION_OR_DATABASE_CHECK";}
-if(process.argv[1]==="--input-type=module"||process.argv.includes("--probe"))probe().then(v=>console.log(JSON.stringify(v))).catch(error=>{console.error("HOST_PROBE_FAILED: "+safeProbeFailure(error));process.exitCode=1;});
+if(process.argv.includes("--auth-probe")||process.argv[1]==="--input-type=module"||process.argv.includes("--probe"))Promise.resolve().then(()=>process.argv.includes("--auth-probe")?origins(process.env):probe()).then(v=>console.log(JSON.stringify(v))).catch(error=>{console.error("HOST_PROBE_FAILED: "+safeProbeFailure(error));process.exitCode=1;});

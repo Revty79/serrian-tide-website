@@ -1,5 +1,6 @@
 """Actual first-time bootstrap on an ephemeral hosted runner; never an owner daemon."""
 import http.cookiejar
+import ipaddress
 import json
 import os
 import re
@@ -10,6 +11,7 @@ import subprocess
 import tempfile
 import time
 import urllib.request
+import urllib.error
 from unittest.mock import patch
 from ubuntu_bootstrap import Bootstrap, replace_configuration
 from ubuntu_deploy import Operator, Refused, FROZEN, require
@@ -21,6 +23,15 @@ def main():
     repo = Path.cwd()
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     image = "serriantide:" + commit
+    # Observe the hosted runner's real assigned LAN address; never inject an
+    # address override into the application or validator under test.
+    networks = [ipaddress.ip_network(value) for value in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")]
+    interfaces = json.loads(subprocess.check_output(["ip", "-j", "-4", "address", "show"], text=True))
+    assigned = [entry["local"] for interface in interfaces for entry in interface.get("addr_info", []) if entry.get("scope") == "global" and any(ipaddress.ip_address(entry["local"]) in network for network in networks)]
+    require(assigned, "CI_ASSIGNED_LAN_REQUIRED")
+    lan_origin = "http://" + assigned[0] + ":3003"
+    wrong_lan = next(address for address in ("10.255.255.254", "192.168.255.254", "172.31.255.254") if address not in assigned)
+    tunnel_origin = "https://bootstrap-test.trycloudflare.com"
     task = Path(tempfile.mkdtemp(prefix="serrian-bootstrap-docker-"))
     source, storage, env_file = task / "source", task / "data", task / "production.env"
     source.mkdir(mode=0o700)
@@ -78,10 +89,25 @@ def main():
             time.sleep(1)
         else:
             raise AssertionError("Bootstrap fixture startup timed out")
-        original = "\n".join(["# Keep this protected configuration exactly", "DATABASE_URL=" + info["databaseUrl"], "BETTER_AUTH_URL=http://localhost:3003", "BETTER_AUTH_SECRET=" + secrets.token_hex(32), "BETTER_AUTH_TRUSTED_ORIGINS=http://127.0.0.1:3003,https://bootstrap-test.trycloudflare.com", "PORT=3003", ""]).encode()
+        original = "\n".join(["# Keep this protected configuration exactly", "DATABASE_URL=" + info["databaseUrl"], "BETTER_AUTH_URL=" + lan_origin, "BETTER_AUTH_SECRET=" + secrets.token_hex(32), "BETTER_AUTH_TRUSTED_ORIGINS=" + tunnel_origin, "PORT=3003", ""]).encode()
+        # Real legacy containers with invalid explicit origins must stay running
+        # and keep their configuration when the initial bootstrap gate refuses.
+        for invalid, code in [("http://" + wrong_lan + ":3003", "AUTH_LOCAL_ORIGIN"), (lan_origin.replace(":3003", ":3004"), "AUTH_LOCAL_ORIGIN"), ("https://*.trycloudflare.com", "AUTH_WILDCARD")]:
+            invalid_data = original.replace(("BETTER_AUTH_URL=" + lan_origin).encode(), ("BETTER_AUTH_URL=" + invalid).encode())
+            env_file.write_bytes(invalid_data)
+            env_file.chmod(0o600)
+            docker("run", "-d", "--name", "serriantide", "--network", "host", "--env-file", str(env_file), image, "node", "node_modules/next/dist/bin/next", "start", "--hostname", "0.0.0.0", "--port", "3003")
+            invalid_id = base.inspect("serriantide")["Id"]
+            owned_ids.add(invalid_id)
+            require(base.await_health(invalid_id, 3003), "Invalid-origin legacy fixture must actually serve Next.js")
+            refused(op(), code)
+            require(base.inspect("serriantide")["Id"] == invalid_id and base.inspect(invalid_id)["State"]["Running"] and env_file.read_bytes() == invalid_data, "Origin preflight refusal changed the old container or configuration")
+            docker("stop", invalid_id)  # Newly owned fixture only; preserve each refused container.
+            docker("rename", invalid_id, "bootstrap-origin-refused-" + secrets.token_hex(8))
+        say("wrong LAN, wrong port and wildcard origins refuse before build/stop; exact legacy containers and configuration retained")
         env_file.write_bytes(original)
         env_file.chmod(0o600)
-        docker("run", "-d", "--name", "serriantide", "--network", "host", "--restart", "unless-stopped", "--env-file", str(env_file), image, "node", "node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", "3003")
+        docker("run", "-d", "--name", "serriantide", "--network", "host", "--restart", "unless-stopped", "--env-file", str(env_file), image, "node", "node_modules/next/dist/bin/next", "start", "--hostname", "0.0.0.0", "--port", "3003")
         old_id = base.inspect("serriantide")["Id"]
         owned_ids.add(old_id)
         require(base.await_health(old_id, 3003), "Actual unmounted legacy Next.js did not start")
@@ -106,9 +132,27 @@ def main():
         cookies = http.cookiejar.CookieJar()
         client = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(cookies))
         payload = json.dumps({"email": "bootstrap-owner@example.invalid", "password": "Synthetic-Bootstrap-Only-Password!"}).encode()
-        request = urllib.request.Request("http://127.0.0.1:3003/api/auth/sign-in/email", data=payload, headers={"Content-Type": "application/json", "Origin": "http://localhost:3003"})
+        request = urllib.request.Request(lan_origin + "/api/auth/sign-in/email", data=payload, headers={"Content-Type": "application/json", "Origin": lan_origin})
         require(client.open(request).status == 200 and len(cookies) > 0, "Original authenticated session failed")
-        prior_session = json.load(client.open("http://127.0.0.1:3003/api/auth/get-session"))
+        prior_session = json.load(client.open(lan_origin + "/api/auth/get-session"))
+
+        def verify_auth_origins():
+            independent = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+            for allowed in (lan_origin, tunnel_origin):
+                time.sleep(4)  # Respect the unchanged production sign-in limit (3 per 10 seconds).
+                request = urllib.request.Request(lan_origin + "/api/auth/sign-in/email", data=payload, headers={"Content-Type": "application/json", "Origin": allowed})
+                require(independent.open(request).status == 200, "Explicit LAN or exact HTTPS tunnel origin refused")
+            for denied in ("https://attacker.example.invalid", "http://" + wrong_lan + ":3003", lan_origin.replace(":3003", ":3004"), "https://different-bootstrap-test.trycloudflare.com", "http://localhost:3003", "http://127.0.0.1:3003"):
+                time.sleep(4)
+                request = urllib.request.Request(lan_origin + "/api/auth/sign-in/email", data=payload, headers={"Content-Type": "application/json", "Origin": denied})
+                try:
+                    independent.open(request)
+                    raise AssertionError("Unconfigured origin accepted")
+                except urllib.error.HTTPError as error:
+                    require(error.code == 403, "Origin denial changed")
+
+        verify_auth_origins()
+        say("actual assigned LAN-only local configuration accepts LAN and exact HTTPS tunnel login; unconfigured origins remain forbidden")
 
         class RestoreFailure(Bootstrap):
             def recovery_helper(self, action, host, **extra):
@@ -155,11 +199,13 @@ def main():
         require(not base.inspect(old_id)["State"]["Running"] and base.inspect(old_id)["Image"] == base.inspect(new_id)["Image"], "Previous exact fixture image/container not retained")
         require(len(base.inspect(new_id)["Mounts"]) >= 3, "Persistent mounts missing")
         require(env_file.read_bytes().startswith(original), "Existing auth/configuration bytes changed")
-        continued = json.load(client.open("http://127.0.0.1:3003/api/auth/get-session"))
+        continued = json.load(client.open(lan_origin + "/api/auth/get-session"))
         require(continued["session"]["id"] == prior_session["session"]["id"] and continued["user"]["id"] == "bootstrap-owner", "Existing session/account did not survive")
-        require(json.load(client.open("http://127.0.0.1:3003/api/worlds"))["worlds"] == [], "Empty World state changed")
+        require(json.load(client.open(lan_origin + "/api/worlds"))["worlds"] == [], "Empty World state changed")
         normal = Operator(repo, commit, env_file)
         require(normal.deploy(normal.host()["approval"], FROZEN)["unchanged"], "Normal updater cannot handle the bootstrapped deployment")
+        verify_auth_origins()
+        require(json.load(client.open(lan_origin + "/api/auth/get-session"))["session"]["id"] == prior_session["session"]["id"], "Post-deployment login/origin checks disturbed the retained session")
         say("complete signed recovery, real Next.js on 3003, exact existing session, three mounts, retained config/image/container and normal A5 repeat")
 
         # Return only this synthetic unchanged fixture to its preserved legacy shape to exercise unsafe rollback.

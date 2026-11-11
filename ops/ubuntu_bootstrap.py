@@ -122,6 +122,10 @@ class Bootstrap(Operator):
         require("SERRIAN_PROBE_READ_ONLY_ROOTS" not in env, "BOOTSTRAP_CONFIG: remove no safeguards through the runtime environment")
         resources, daemon = self.resources()
         require(resources["memoryAvailable"] >= 1024 * MIB, "PREFLIGHT_MEMORY: retain the working website; reserve for the bounded probe is unavailable")
+        # Run the same built-in-only validator in the old image's host network
+        # before a build, database probe or writer stop. No auth value is rewritten.
+        auth_code = self.git("show", self.commit + ":ops/host-probe.mjs")
+        auth = json.loads(self.docker("run", "--rm", "-i", "--entrypoint", "node", "--network", "host", "--read-only", "--memory", "512m", "--memory-swap", "512m", "--env-file", str(self.active_env_file), old["Image"], "--max-old-space-size=256", "--input-type=module", "-", "--auth-probe", data=auth_code.encode()).stdout)
         code = self.git("show", self.commit + ":ops/bootstrap-probe.mjs")
         result = json.loads(self.docker("exec", "-i", "--workdir", "/app", old["Id"], "node", "--max-old-space-size=64", "--input-type=module", "-e", code, "--", "--bootstrap-probe", data=b'{"mode":"old-storage"}').stdout)
         require(result.get("oldDefaultDirectoriesAbsent"), "BOOTSTRAP_OLD_STORAGE: no existing files may be concealed by new mounts")
@@ -132,7 +136,7 @@ class Bootstrap(Operator):
         storage = self.probe("storage", old["Image"], {"root": str(root)}, mounts=["--mount", f"type=bind,src={root},dst={root},readonly"])
         require(self.http_health(old["Id"], 3003), "BOOTSTRAP_OLD_HEALTH: existing port 3003 must serve the actual Next.js website")
         database["database"].pop("bytes", None)  # Physical allocation can change while the old website remains available.
-        report = {"container": old["Id"], "image": old["Image"], "runtimeHash": sha(canonical({"config": old["Config"], "host": old["HostConfig"]})), "envSha256": sha(data), "database": database, "roots": storage["roots"], "daemonId": daemon}
+        report = {"container": old["Id"], "image": old["Image"], "runtimeHash": sha(canonical({"config": old["Config"], "host": old["HostConfig"]})), "envSha256": sha(data), "auth": auth, "database": database, "roots": storage["roots"], "daemonId": daemon}
         return {"container": old, "data": data, "env": env, "report": report, "approval": sha(canonical(report)), "resources": resources}
 
     def candidate_host(self, old):
@@ -140,6 +144,7 @@ class Bootstrap(Operator):
         code = self.git("show", self.commit + ":ops/host-probe.mjs")
         probe = json.loads(self.docker("run", "--rm", "-i", "--entrypoint", "node", "--network", "host", "--read-only", "--memory", "512m", "--memory-swap", "512m", "--env-file", str(self.env_file), "-e", "SERRIAN_PROBE_READ_ONLY_ROOTS=1", *self.mount_args({"mounts": mounts}), self.image_id, "--input-type=module", "-", "--probe", data=code.encode()).stdout)
         require(probe["roots"] == old["report"]["roots"] and probe["websiteListen"] in ("127.0.0.1", "0.0.0.0", "::"), "BOOTSTRAP_TARGET_CHANGED: storage or port identity differs")
+        require(probe["auth"] == old["report"]["auth"], "BOOTSTRAP_AUTH_CHANGED: preserve the original authentication configuration")
         return {"container": old["container"], "env": parse_env(self.candidate_data), "mounts": mounts, "report": {"listen": probe["websiteListen"], "roots": probe["roots"], "auth": probe["auth"], "envSha256": sha(self.candidate_data), "database": probe["database"]}}
 
     def native_pg(self, command, *args, allow_failure=False):

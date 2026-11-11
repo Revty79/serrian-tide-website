@@ -185,3 +185,5 @@ next-env.d.ts
 /ops/**/__pycache__/
 # Private first-time Ubuntu bootstrap validation receipts.
 /artifacts/deployment-a5-bootstrap/
+# Private A5 LAN-origin correction test receipts.
+/artifacts/deployment-a5-origins/

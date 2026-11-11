@@ -107,6 +107,8 @@ Normal deployment never invokes migrate, restore, isolate-dev, secret generation
 
 Authentication credentials and sessions are retained. Existing base URL/trusted origins must include the intended local origin and exact current tester origin where used. The probe does not hardcode a temporary tunnel hostname or grant wildcard trust. Changing a Quick Tunnel URL requires an explicit protected-config review; this tool does not change Cloudflare, DNS, Porkbun, Caddy, Render or subscriptions. Existing application CSRF/session/permission/client-IP logic is unchanged.
 
+The [A5 LAN-origin correction](deployment-a5-origins.md) recognizes explicit HTTP3003 origins on localhost, 127.0.0.1 or an RFC1918 IPv4 address actually assigned to a non-internal host interface. It retains exact configured HTTPS DNS origins, including Quick Tunnels, and refuses unassigned LAN addresses, wrong local ports and malformed/wildcard origins. Use a reviewed release containing that correction for LAN/tunnel configurations. The same validator runs during bootstrap, normal preflight, candidate checks and runtime startup; it never adds an origin to application trust or rewrites authentication settings.
+
 ## Delivery and acceptance
 
 Full local checks and exact hosted normal/DR/deployment workflows pass; the [delivery receipt](deployment-a5-delivery.md) records all runs, resources, 26 reviewed paths and retained failures. The actual owner Ubuntu image/container, memory, mounts, PostgreSQL ledger/TLS/privileges, existing env format and tester tunnel remain uninspected. Isolated success is not live rollout success. Stop after technical delivery for Ember/owner review; no A3, Earth, Tabletop or live migration follows automatically.
