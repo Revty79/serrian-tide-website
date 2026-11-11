@@ -182,7 +182,10 @@ class Bootstrap(Operator):
         attempted = False
         try:
             attempted = True
-            self.native_pg("pg_ctl", "-D", str(cluster), "-l", str(self.recovery / "postgres.log"), "-o", f"-h 127.0.0.1 -p {port} -k '' -c jit=off -c shared_buffers=64MB -c max_connections=12 -c max_parallel_workers=0 -c max_parallel_maintenance_workers=0 -c max_worker_processes=0 -c autovacuum=off -c maintenance_work_mem=64MB -c work_mem=4MB", "-w", "start")
+            # A complete constrained restore holds thousands of relation locks in
+            # one transaction. The small connection budget must not shrink the
+            # new cluster's lock table below the full schema's requirement.
+            self.native_pg("pg_ctl", "-D", str(cluster), "-l", str(self.recovery / "postgres.log"), "-o", f"-h 127.0.0.1 -p {port} -k '' -c jit=off -c shared_buffers=64MB -c max_connections=12 -c max_locks_per_transaction=1024 -c max_parallel_workers=0 -c max_parallel_maintenance_workers=0 -c max_worker_processes=0 -c autovacuum=off -c maintenance_work_mem=64MB -c work_mem=4MB", "-w", "start")
             self.recovery_helper("restore", host, port=port)
         finally:
             if attempted:

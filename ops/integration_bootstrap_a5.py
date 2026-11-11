@@ -210,6 +210,12 @@ def main():
                     for line in (instance.recovery / "postgres.log").read_text().splitlines():
                         if any(level in line for level in ("FATAL:", "PANIC:", "ERROR:")):
                             print("OWNED_BOOTSTRAP_NATIVE_SERVER " + line, flush=True)
+                if hasattr(instance, "recovery"):
+                    for diagnostic in instance.recovery.glob("helper-failure-*.json"):
+                        detail = json.loads(diagnostic.read_text())
+                        # Only synthetic CI diagnostics; raw dumps, credentials and account rows remain private.
+                        errors = [line for line in detail.get("stderr", "").splitlines() if "ERROR:" in line or "HINT:" in line][:3]
+                        print("OWNED_BOOTSTRAP_HELPER " + json.dumps({"phase": detail.get("phase"), "name": detail.get("name"), "code": detail.get("code"), "postgresErrors": errors, "message": detail.get("message", "").splitlines()[0][:200] if not errors else None}), flush=True)
             failure = getattr(instance, "last_failure", None)
             if failure:
                 for line in failure["stderr"].splitlines():

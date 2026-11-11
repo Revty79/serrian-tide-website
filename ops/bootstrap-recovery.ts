@@ -3,6 +3,7 @@ import path from "node:path";
 import {readFile,writeFile,lstat,readdir,chown} from "node:fs/promises";
 import {requireCondition,type EnvironmentProfile} from "../scripts/environment/model";
 
+let diagnostic:{root:string;uid:number;gid:number;action:string;phase:string}|undefined;
 async function main(){
  let text="";for await(const chunk of process.stdin){text+=chunk;requireCondition(text.length<100000,"BOOTSTRAP_INPUT","Invalid recovery input.");}
  const input=JSON.parse(text),root=String(input.directory),key=path.join(root,"recovery.key.json"),trust=path.join(root,"trust.json"),snapshot=path.join(root,"snapshot"),opened=path.join(root,"opened");
@@ -20,6 +21,8 @@ async function main(){
  const {sealSnapshot,openSnapshot}=await import("../scripts/environment/transfer");
  const {keygen,trustKey,privatePermissions}=await import("../scripts/environment/private-files");
  await privatePermissions(root);
+ requireCondition(["backup","restore"].includes(input.action)&&Number.isSafeInteger(input.uid)&&input.uid>=0&&Number.isSafeInteger(input.gid)&&input.gid>=0,"BOOTSTRAP_RECOVERY_OWNER","Explicit operator ownership is required.");
+ diagnostic={root,uid:input.uid,gid:input.gid,action:input.action,phase:"validated recovery context"};
  const application={directory:process.cwd(),origin:input.origin,trustFile:trust,hosting:"ubuntu" as const};
  let result:unknown;
  if(input.action==="backup"){
@@ -28,10 +31,10 @@ async function main(){
   const profile:EnvironmentProfile={version:1,environmentId:"bootstrap-source-"+input.runId,purpose:"source",database:{urlEnv:"SERRIAN_INFRA_BOOTSTRAP_SOURCE",expectedName:input.expected.name,expectedRole:input.expected.role,expectedPort:input.expected.port,expectedHost:input.expected.host},roots:input.roots,application,reserveBytes:1024**3};
   await keygen(key,trust);
   await writeFile(path.join(root,"source-profile.json"),JSON.stringify(profile),{mode:0o600,flag:"wx"});
-  const backup=await backupEnvironment(profile,snapshot,key,"Ubuntu bootstrap",input.frozen);
+  diagnostic.phase="signed source backup";const backup=await backupEnvironment(profile,snapshot,key,"Ubuntu bootstrap",input.frozen);
   const manifest=await verifySnapshotArchive(profile,snapshot,await trustKey(trust));
   requireCondition(manifest.database.migrations.length===162&&manifest.files.length===0,"BOOTSTRAP_SOURCE_CHANGED","The verified empty Atlas source changed.");
-  await sealSnapshot(snapshot,key,path.join(root,"snapshot.stenv"));
+  diagnostic.phase="encrypted snapshot verification";await sealSnapshot(snapshot,key,path.join(root,"snapshot.stenv"));
   await openSnapshot(path.join(root,"snapshot.stenv"),key,opened);
   const reopened=await verifySnapshotArchive(profile,opened,await trustKey(trust));
   requireCondition(reopened.snapshotId===backup.snapshotId,"BOOTSTRAP_SNAPSHOT_PAIR","The independently opened snapshot differs.");
@@ -42,8 +45,8 @@ async function main(){
   requireCondition(input.port!==source.database.expectedPort&&input.port>1024&&![3000,3003,5432,5433].includes(input.port),"BOOTSTRAP_RESTORE_PORT","A new independent restore listener is required.");
   const profile:EnvironmentProfile={version:1,environmentId:"bootstrap-restore-"+input.runId,purpose:"production-candidate",database:{urlEnv:"SERRIAN_INFRA_BOOTSTRAP_TARGET",adminUrlEnv:"SERRIAN_INFRA_BOOTSTRAP_ADMIN",expectedName:databaseName,expectedHost:"127.0.0.1",expectedPort:input.port,expectedRole:"postgres"},roots:{terrain:path.join(target,"terrain"),artwork:path.join(target,"artwork"),raster:path.join(target,"raster")},environmentDirectory:target,application,reserveBytes:1024**3};
   await writeFile(path.join(root,"restore-profile.json"),JSON.stringify(profile),{mode:0o600,flag:"wx"});
-  const restored=await restoreEnvironment(profile,opened,key,profile.environmentId+"/"+databaseName);
-  const checked=await checkRestored(profile);
+  diagnostic.phase="independent database and storage restore";const restored=await restoreEnvironment(profile,opened,key,profile.environmentId+"/"+databaseName);
+  diagnostic.phase="independent restored-state verification";const checked=await checkRestored(profile);
   requireCondition(checked.migrations===162,"BOOTSTRAP_RESTORE_SCHEMA","The independently restored ledger is incomplete.");
   result={passed:true,independentRestore:restored,independentCheck:checked};
  }else throw Error("Unsupported bootstrap recovery operation");
@@ -52,4 +55,7 @@ async function main(){
  for(const name of["recovery.key.json","trust.json","source-profile.json","snapshot","snapshot.stenv","opened","restore-profile.json","restored"]){const file=path.join(root,name);if(await lstat(file).then(()=>true,e=>{if(e.code==="ENOENT")return false;throw e;}))await own(file);}
  console.log(JSON.stringify(result));
 }
-void main().catch(error=>{const code=typeof error?.code==="string"&&/^[A-Z_]+$/.test(error.code)?error.code:"BOOTSTRAP_RECOVERY_FAILED";console.error("HOST_PROBE_FAILED: "+code);process.exitCode=1;});
+void main().catch(async error=>{
+ if(diagnostic){const file=path.join(diagnostic.root,"helper-failure-"+diagnostic.action+".json");await writeFile(file,JSON.stringify({phase:diagnostic.phase,name:error?.name,code:error?.code,message:error?.message,stack:error?.stack,stderr:error?.stderr?.toString()},null,2),{flag:"wx",mode:0o600}).then(()=>chown(file,diagnostic!.uid,diagnostic!.gid)).catch(()=>{});}
+ const code=typeof error?.code==="string"&&/^[A-Z_]+$/.test(error.code)?error.code:"BOOTSTRAP_RECOVERY_FAILED";console.error("HOST_PROBE_FAILED: "+code);process.exitCode=1;
+});
