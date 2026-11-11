@@ -1,5 +1,7 @@
 # Ubuntu website updates: Stage A5
 
+For the owner's first transition from **no mounts and no storage variables**, use the separately tested [first-time storage bootstrap](deployment-a5-bootstrap.md). After that succeeds, use the normal preflight/deploy flow below with the current reviewed release; the older pinned A5 SHA below is a historical implementation receipt, not a downgrade instruction.
+
 Implementation and isolated verification pass at `9b8bda8c6fd02bec800b941b99e5120b339d958a`; see the [delivery receipt](deployment-a5-delivery.md). This document does not authorize a live rollout. A3 remains held. The existing `serriantide` container, working `serriantide:0c42d1eceaece99125574bae250f5b01932dbfbe` image and earlier rollback container must remain intact until a separately approved operation.
 
 ## Established causes
