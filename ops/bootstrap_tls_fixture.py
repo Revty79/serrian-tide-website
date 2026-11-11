@@ -18,6 +18,15 @@ from urllib.parse import urlsplit
 from ubuntu_deploy import require
 
 
+def require_fixture_listener_available(port):
+    # Like Node's TCP server, allow reuse after a previously owned listener has
+    # closed. TIME_WAIT is not an active writer. An active listener still refuses.
+    with socket.socket() as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        probe.bind(("127.0.0.1", port))
+        probe.listen(1)
+
+
 class OwnedTLSProxy:
     def __init__(self, directory, origins, public_origin, upstream_port=3003):
         self.origins = origins

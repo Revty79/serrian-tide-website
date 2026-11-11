@@ -67,9 +67,9 @@ A fresh comparison against the starting checkpoint confirms unchanged applicatio
 
 No imported geography, database, credential, generated certificate, private configuration or backup is included in Git. The local launcher is syntax-checked and the two Git-extracted Python files load independently without requiring a repository-wide checkout change first.
 
-## Hosted verification receipt (in progress)
+## Retained first hosted attempt
 
-Tested implementation: `1cd2d9c23c6b1be281b1ae84689158a30351cf06`.
+First attempted implementation: `1cd2d9c23c6b1be281b1ae84689158a30351cf06`.
 
 | Evidence | Result |
 | --- | --- |
@@ -77,8 +77,22 @@ Tested implementation: `1cd2d9c23c6b1be281b1ae84689158a30351cf06`.
 | [Original recovery CI 42966280349](https://github.com/Revty79/serrian-tide-website/actions/runs/42966280349) | PASS: all 15 original real PG18/storage recovery groups and all 15 signature/transfer/permission/corruption tests. |
 | [Ubuntu deployment CI 42966280523](https://github.com/Revty79/serrian-tide-website/actions/runs/42966280523) | Retained failure: bounded build, all 11 original deployment groups and all 13 original bootstrap groups pass. The second scenario refused before creating its source because the first scenario correctly retained its stopped container under the shared name. This does not establish legacy/TLS success. |
 
-The canonical LF Git release-input fingerprint is `69afc6582b281e836a7220580e404fd8f0b4a4e808c80f49ef25173ad9cd2160`, across 3,354 files. Final documentation publication must retain those exact application/operation/build input bytes. The owner host and its existing database remain untouched and uncertified by the agent.
+The first attempted canonical LF Git release-input fingerprint was `69afc6582b281e836a7220580e404fd8f0b4a4e808c80f49ef25173ad9cd2160`, across 3,354 files. The subsequent fixture corrections change the final release-input fingerprint; they do not change application or operator behavior. The owner host and its existing database remain untouched and uncertified by the agent.
 
 The first hosted aggregate run stopped with `CI_SOURCE_NAME_OCCUPIED` before the additional legacy scenario could start. The existing bootstrap fixture retained its stopped source as `serriantide`; invoking it twice exposed that test-lifecycle collision. Only the owned CI fixture's finalization changes: after proving exact owned ID and stopped state, it renames that retained container to a unique fixture name. The container, image, data, diagnostics and all production bootstrap code remain preserved. The full workflow must rerun; earlier partial passes are not the final acceptance receipt.
 
 Review before the rerun also found that the older email-only synthetic fixture stored a mixed-case `username`, whereas the unchanged Better Auth username plugin normalizes sign-in lookup to lowercase. The owned fixture now stores a lowercase username and retains its display name, matching ordinary account creation. The real proxy fixture uses username login before as well as after the transition, so a malformed synthetic account cannot survive to a late post-cutover assertion. No real account, app authentication behavior or normalization rule changes. The intermediate rerun is cancelled in favor of the complete corrected-fixture run; cancellation is not a PASS.
+
+The intermediate source `7b74aa56c89d7688f91bff607b392c155034f564` had [deployment run 42968344696](https://github.com/Revty79/serrian-tide-website/actions/runs/42968344696), normal run42968344802 and recovery run42968344688 cancelled deliberately for the normalized fixture correction. These are retained incomplete attempts.
+
+## Corrected complete verification (in progress)
+
+Corrected source: `47c01dc50363cc5c6f4027d86f7875492bab307f`; canonical LF release fingerprint `6dd065445564be6f63a5fe9458b59cd227cd4d0a7adde54fa170f0d502210471`, 3,354 files. The unchanged application/operator source is accompanied by the corrected independent CI fixture lifecycle and normalized synthetic username.
+
+| Evidence | Result |
+| --- | --- |
+| [Normal CI 42968506328](https://github.com/Revty79/serrian-tide-website/actions/runs/42968506328) | PASS: full TypeScript/ESLint, 2,942 feature tests, three raster tests, 15 integrity tests and all 42 deployment unit cases, zero Ubuntu skips. |
+| [Recovery CI 42968506312](https://github.com/Revty79/serrian-tide-website/actions/runs/42968506312) | PASS: all 15 original PG18/storage recovery groups and 15 integrity tests. |
+| [Ubuntu CI 42968506528](https://github.com/Revty79/serrian-tide-website/actions/runs/42968506528) | Retained failure: build, original deployment and original 13 bootstrap groups pass. The second fixture stopped before source creation with a lingering-TCP port-probe failure; legacy/TLS coverage is still incomplete. |
+
+Run42968506528 resolved the retained-container name collision and again passed the original deployment and bootstrap. Its second fixture then reproduced `OSError: [Errno 98] Address already in use` in the old plain-bind availability probe after the prior owned listener was stopped. The fixture now uses the same address-reuse behavior as a TCP server and actually binds/listens before releasing its probe. An active listener still refuses. A Linux-only regression creates a real connection, proves active-listener refusal, reproduces the old probe's TIME_WAIT failure after shutdown, and proves successful new-listener availability. No production operator, port requirement, readiness timeout, rollback witness or permission changes. The new legacy scenario now runs before the original bootstrap so it is tested earlier; all original scenarios remain required. Final counts include 26 Python cases (43 deployment units total); Windows skips the Linux TCP and POSIX directory-fsync cases, while Ubuntu must pass all cases.

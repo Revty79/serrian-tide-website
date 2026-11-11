@@ -16,7 +16,7 @@ import urllib.error
 from unittest.mock import patch
 from ubuntu_bootstrap import Bootstrap, replace_configuration
 from ubuntu_deploy import Operator, Refused, FROZEN, require, parse_env
-from bootstrap_tls_fixture import OwnedTLSProxy
+from bootstrap_tls_fixture import OwnedTLSProxy, require_fixture_listener_available
 
 
 def main(legacy_auth=False):
@@ -48,8 +48,7 @@ def main(legacy_auth=False):
     with socket.socket() as port_socket:
         port_socket.bind(("127.0.0.1", 0))
         port = port_socket.getsockname()[1]
-    with socket.socket() as probe:
-        probe.bind(("127.0.0.1", 3003))
+    require_fixture_listener_available(3003)
     password = secrets.token_hex(32)
     db_name = "serrian-bootstrap-source-" + secrets.token_hex(8)
     bystander = "serrian-bootstrap-bystander-" + secrets.token_hex(8)

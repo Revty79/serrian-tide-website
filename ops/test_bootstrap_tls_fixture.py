@@ -2,13 +2,36 @@ import http.server
 import json
 from pathlib import Path
 import shutil
+import socket
+import sys
 import tempfile
 import threading
 import unittest
-from bootstrap_tls_fixture import OwnedTLSProxy
+from bootstrap_tls_fixture import OwnedTLSProxy, require_fixture_listener_available
 
 
 class TLSFixtureTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux TCP reuse semantics")
+    def test_sequential_fixture_reuses_time_wait_but_refuses_an_active_listener(self):
+        with socket.socket() as listener:
+            listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            listener.bind(("127.0.0.1", 0))
+            port = listener.getsockname()[1]
+            listener.listen(1)
+            with self.assertRaises(OSError):
+                require_fixture_listener_available(port)
+            with socket.create_connection(("127.0.0.1", port), timeout=5) as client:
+                accepted, _address = listener.accept()
+                with accepted:
+                    accepted.shutdown(socket.SHUT_WR)
+                    self.assertEqual(client.recv(1), b"")
+        # A real server-side active close retains TIME_WAIT after its listener
+        # has stopped. Reproduce the old probe failure before checking the fix.
+        with socket.socket() as old_probe:
+            with self.assertRaises(OSError):
+                old_probe.bind(("127.0.0.1", port))
+        require_fixture_listener_available(port)
+
     @unittest.skipUnless(shutil.which("openssl"), "Owned TLS certificate generation requires OpenSSL")
     def test_verified_tls_forwarding_and_real_cookie_host_boundaries(self):
         class Echo(http.server.BaseHTTPRequestHandler):
