@@ -26,6 +26,42 @@ jobs:
       - run: npm ci
       - name: Isolated Git, configuration, identity and rollback regressions
         run: node scripts/run-deployment-tests.mjs
+      - name: Native PG18 tools for the independently owned Ubuntu restore cluster
+        run: |
+          test "$GITHUB_ACTIONS" = true
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          if [ ! -x /usr/lib/postgresql/18/bin/initdb ]; then
+            # Hosted-runner mirror+file repeatedly reported an unresolved Azure
+            # endpoint even when displaying archive/security fallbacks. Use the
+            # canonical HTTPS archives, keeping every suite/component/key exact.
+            python3 - <<'PY'
+          import os, pathlib, subprocess
+          source = pathlib.Path('/etc/apt/sources.list.d/ubuntu.sources')
+          assert source.resolve() == source and source.stat().st_uid == 0
+          original = source.read_bytes()
+          sections = original.decode().split('\n\n')
+          count = 0
+          for index, section in enumerate(sections):
+              if 'URIs: mirror+file:/etc/apt/apt-mirrors.txt' in section:
+                  assert 'Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg' in section
+                  archive = 'security' if 'noble-security' in section else 'archive'
+                  sections[index] = section.replace('URIs: mirror+file:/etc/apt/apt-mirrors.txt', 'URIs: https://' + archive + '.ubuntu.com/ubuntu')
+                  count += 1
+          assert count > 0, 'Review the changed hosted Ubuntu source layout'
+          backup = pathlib.Path(os.environ['RUNNER_TEMP']) / 'serrian-ubuntu-sources-original'
+          with backup.open('xb') as stream: stream.write(original)
+          subprocess.run(['sudo', 'tee', str(source)], input='\n\n'.join(sections).encode(), stdout=subprocess.PIPE, check=True)
+          print('Owned Ubuntu runner: original archive configuration retained; official HTTPS archives and original signing keys required.')
+          PY
+            curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$RUNNER_TEMP/pgdg-bootstrap.asc"
+            test "$(gpg --show-keys --with-colons "$RUNNER_TEMP/pgdg-bootstrap.asc" | awk -F: '$1=="fpr" {print $10; exit}')" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
+            sudo install -m 0644 "$RUNNER_TEMP/pgdg-bootstrap.asc" /usr/share/keyrings/pgdg-bootstrap.asc
+            printf '%s\n' 'deb [signed-by=/usr/share/keyrings/pgdg-bootstrap.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg-bootstrap.list >/dev/null
+            printf '%s\n' 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf >/dev/null
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends postgresql-18
+          fi
+          /usr/lib/postgresql/18/bin/initdb --version
       - name: Bounded exact-source website build (4 GiB, one CPU, 3328 MiB Node heap)
         run: |
           python3 - <<'PY'
@@ -46,18 +82,6 @@ jobs:
           PY
       - name: Real PG18, actual Next.js, authentication, cutover and rollback
         run: python3 ops/integration_deployment_a5.py
-      - name: Native PG18 tools for the independently owned Ubuntu restore cluster
-        run: |
-          if [ ! -x /usr/lib/postgresql/18/bin/initdb ]; then
-            curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$RUNNER_TEMP/pgdg-bootstrap.asc"
-            test "$(gpg --show-keys --with-colons "$RUNNER_TEMP/pgdg-bootstrap.asc" | awk -F: '$1=="fpr" {print $10; exit}')" = B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8
-            sudo install -m 0644 "$RUNNER_TEMP/pgdg-bootstrap.asc" /usr/share/keyrings/pgdg-bootstrap.asc
-            printf '%s\n' 'deb [signed-by=/usr/share/keyrings/pgdg-bootstrap.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg-bootstrap.list >/dev/null
-            printf '%s\n' 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf >/dev/null
-            sudo apt-get update
-            sudo apt-get install -y --no-install-recommends postgresql-18
-          fi
-          /usr/lib/postgresql/18/bin/initdb --version
       - name: Actual legacy public-HTTP auth transition, verified TLS proxies and recovery
         run: python3 ops/integration_bootstrap_a5.py --legacy-auth
       - name: Actual no-mount first-time bootstrap and independent source restoration
