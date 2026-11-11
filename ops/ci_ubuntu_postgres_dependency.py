@@ -59,7 +59,10 @@ def main():
     require('VERSION_ID="24.04"' in Path("/etc/os-release").read_text() and subprocess.check_output(["dpkg", "--print-architecture"], text=True).strip() == "amd64", "OWNED_UBUNTU_NOBLE_REQUIRED")
     os.umask(0o077)
     task = Path(tempfile.mkdtemp(prefix="serrian-native-dependency-", dir=os.environ["RUNNER_TEMP"]))
-    base = "https://archive.ubuntu.com/ubuntu/dists/noble/"
+    # Linux Kernel Archives mirrors the unchanged Ubuntu archive. Ubuntu's
+    # preinstalled signing key, not the mirror's identity, authenticates bytes.
+    archive = "https://mirrors.edge.kernel.org/ubuntu/"
+    base = archive + "dists/noble/"
     release_source = task / "InRelease"
     release_source.write_bytes(download(base + "InRelease", 1024 * 1024))
     signed = task / "authenticated-release"
@@ -72,7 +75,7 @@ def main():
     packages = decoder.decompress(compressed, max_length=64 * 1024 * 1024 + 1)
     require(decoder.eof and len(packages) <= 64 * 1024 * 1024, "UBUNTU_INDEX_BOUNDS")
     record = authenticate_index(release, packages)
-    url = "https://archive.ubuntu.com/ubuntu/" + record["Filename"]
+    url = archive + record["Filename"]
     data = download(url, int(record["Size"]))
     require(len(data) == int(record["Size"]) and hashlib.sha256(data).hexdigest() == record["SHA256"], "UBUNTU_PACKAGE_HASH")
     source = task / Path(record["Filename"]).name
