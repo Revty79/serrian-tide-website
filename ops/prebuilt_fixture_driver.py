@@ -12,6 +12,7 @@ import signal
 import subprocess
 import sys
 import time
+import tempfile
 import urllib.request
 
 
@@ -30,6 +31,51 @@ def main():
     original_open, original_run = urllib.request.OpenerDirector.open, subprocess.run
     events = []
     run_id, attempt = int(os.environ["SERRIAN_TEST_PUBLICATION_RUN"]), int(os.environ["SERRIAN_TEST_PUBLICATION_ATTEMPT"])
+
+    def interrupt_download(command):
+        # Keep partially downloaded layers out of the later cold-candidate
+        # timing. Only this fault's network transfer uses a third owned daemon;
+        # the actual updater's host/preflight/writer remain on its normal daemon.
+        directory = Path(tempfile.mkdtemp(prefix="interrupted-pull-", dir=task))
+        root = directory / "data"
+        endpoint = "unix://" + str(directory / "docker.sock")
+        environment = {**os.environ, "DOCKER_HOST": endpoint}
+        with (directory / "daemon.log").open("wb") as log:
+            daemon = subprocess.Popen(["sudo", "dockerd", "--data-root", str(root), "--exec-root", str(directory / "exec"), "--host", endpoint, "--pidfile", str(directory / "pid"), "--bridge=none", "--iptables=false", "--ip6tables=false", "--ip-masq=false", "--group=docker"], stdout=log, stderr=subprocess.STDOUT)
+            try:
+                for _ in range(60):
+                    if original_run(["docker", "info"], env=environment, capture_output=True).returncode == 0:
+                        break
+                    time.sleep(1)
+                else:
+                    raise AssertionError("Owned interrupted-transfer daemon failed")
+                master, slave = pty.openpty()
+                process = subprocess.Popen(command, env=environment, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave)
+                os.close(slave)
+                progress, interrupted = bytearray(), False
+                try:
+                    deadline = time.monotonic() + 60
+                    while time.monotonic() < deadline and process.poll() is None:
+                        if select.select([master], [], [], .05)[0]:
+                            progress.extend(os.read(master, 65536))
+                            if b"Downloading" in progress:
+                                process.send_signal(signal.SIGINT)
+                                interrupted = True
+                                events.append("real-download-interrupted")
+                                break
+                    if not interrupted:
+                        process.terminate()
+                    process.wait(timeout=30)
+                finally:
+                    os.close(master)
+                assert interrupted, "No actual registry download was interrupted"
+                return subprocess.CompletedProcess(command, 130, b"", b"owned real interrupted transfer")
+            finally:
+                if daemon.poll() is None and (directory / "pid").exists():
+                    pid = int((directory / "pid").read_text())
+                    assert str(root).encode() in Path(f"/proc/{pid}/cmdline").read_bytes()
+                    original_run(["sudo", "kill", "-TERM", str(pid)], check=True)
+                    daemon.wait(timeout=60)
 
     def transport(opener, request, *more, **kwargs):
         url = request.full_url if isinstance(request, urllib.request.Request) else request
@@ -56,27 +102,7 @@ def main():
             if args.scenario in ("registry-unavailable", "install-registry-unavailable") and operation == "manifest":
                 return subprocess.CompletedProcess(command, 1, b"", b"owned registry outage")
             if args.scenario == "interrupted-download" and operation == "pull":
-                master, slave = pty.openpty()
-                process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave)
-                os.close(slave)
-                progress, interrupted = bytearray(), False
-                try:
-                    deadline = time.monotonic() + 60
-                    while time.monotonic() < deadline and process.poll() is None:
-                        if select.select([master], [], [], .05)[0]:
-                            progress.extend(os.read(master, 65536))
-                            if b"Downloading" in progress:
-                                process.send_signal(signal.SIGINT)
-                                interrupted = True
-                                events.append("real-download-interrupted")
-                                break
-                    if not interrupted:
-                        process.terminate()
-                    process.wait(timeout=30)
-                finally:
-                    os.close(master)
-                assert interrupted, "No actual registry download was interrupted"
-                return subprocess.CompletedProcess(command, 130, b"", b"owned real interrupted transfer")
+                return interrupt_download(command)
             if args.scenario == "startup-failure" and operation == "create" and "--name" in command and command[command.index("--name") + 1] == "serriantide":
                 command = [*command[:-1], "-e", "DATABASE_URL=postgresql://inert:unused@127.0.0.1:1/unavailable", command[-1]]
             result = original_run(command, *more, **kwargs)
