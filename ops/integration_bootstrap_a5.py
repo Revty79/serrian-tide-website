@@ -139,11 +139,13 @@ def main():
         def verify_auth_origins():
             independent = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
             for allowed in (lan_origin, tunnel_origin):
-                time.sleep(4)  # Respect the unchanged production sign-in limit (3 per 10 seconds).
+                # The unchanged limiter resets after 10 quiet seconds since the
+                # last accepted attempt, rather than dropping individual old requests.
+                time.sleep(11)
                 request = urllib.request.Request(lan_origin + "/api/auth/sign-in/email", data=payload, headers={"Content-Type": "application/json", "Origin": allowed})
                 require(independent.open(request).status == 200, "Explicit LAN or exact HTTPS tunnel origin refused")
             for denied in ("https://attacker.example.invalid", "http://" + wrong_lan + ":3003", lan_origin.replace(":3003", ":3004"), "https://different-bootstrap-test.trycloudflare.com", "http://localhost:3003", "http://127.0.0.1:3003"):
-                time.sleep(4)
+                time.sleep(11)
                 request = urllib.request.Request(lan_origin + "/api/auth/sign-in/email", data=payload, headers={"Content-Type": "application/json", "Origin": denied})
                 try:
                     independent.open(request)
