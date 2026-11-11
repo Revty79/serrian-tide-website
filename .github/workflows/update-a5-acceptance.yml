@@ -38,6 +38,8 @@ jobs:
           # Only the new hosted test checkout; no user checkout is changed.
           subprocess.run(['git','checkout','-B','main',commit], check=True)
           PY
+      - name: Root-launcher safety and owned Ubuntu permission fixture
+        run: python3 ops/integration_update_launcher.py
       - name: Build the exact already-tested candidate within original A5 limits
         run: |
           python3 - <<'PY'

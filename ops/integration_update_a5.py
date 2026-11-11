@@ -231,6 +231,10 @@ def main():
                 owned_ids.add(item["ID"])
         for identity in owned_ids:
             docker("stop", "--time", "15", identity, allow_failure=True)
+        if docker("inspect", "serriantide", allow_failure=True).returncode == 0:
+            # Retain our stopped source under a unique name for the next owned
+            # bootstrap suite; never delete the container or its storage.
+            docker("rename", "serriantide", "retained-" + task.name)
 
 
 if __name__ == "__main__":

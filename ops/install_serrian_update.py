@@ -28,15 +28,17 @@ import hashlib, os, pathlib, stat, sys, uuid
 source, expected, owner = pathlib.Path(sys.argv[1]), sys.argv[2], int(sys.argv[3])
 target = pathlib.Path('/usr/local/bin/serrian-update')
 parent = target.parent
-assert os.geteuid() == 0 and parent.resolve() == parent
+def require(condition, code):
+    if not condition: sys.exit(code)
+require(os.geteuid() == 0 and parent.resolve() == parent, 'INSTALL_ROOT_PATH: a real root-owned launcher directory is required.')
 info = parent.stat()
-assert stat.S_ISDIR(info.st_mode) and info.st_uid == 0 and info.st_mode & 0o022 == 0
+require(stat.S_ISDIR(info.st_mode) and info.st_uid == 0 and info.st_mode & 0o022 == 0, 'INSTALL_ROOT_PERMISSIONS: /usr/local/bin must be root-owned and not group/world writable; no permissions were changed.')
 fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
 with os.fdopen(fd, 'rb') as stream:
     info = os.fstat(stream.fileno())
-    assert stat.S_ISREG(info.st_mode) and info.st_uid == owner and info.st_mode & 0o077 == 0 and info.st_size < 4096
+    require(stat.S_ISREG(info.st_mode) and info.st_uid == owner and info.st_mode & 0o077 == 0 and info.st_size < 4096, 'INSTALL_STAGED_PERMISSIONS: the private owner launcher did not pass verification.')
     data = stream.read()
-assert hashlib.sha256(data).hexdigest() == expected and data.startswith(b'#!/bin/sh\n# Serrian Tide managed updater v1\n')
+require(hashlib.sha256(data).hexdigest() == expected and data.startswith(b'#!/bin/sh\n# Serrian Tide managed updater v1\n'), 'INSTALL_STAGED_IDENTITY: the staged launcher did not match its expected bytes.')
 temporary = parent / ('.serrian-update-' + uuid.uuid4().hex)
 try:
     fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o755)

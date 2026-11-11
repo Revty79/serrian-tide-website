@@ -19,6 +19,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Fast root-launcher safety and owned Ubuntu permission fixture
+        run: python3 ops/integration_update_launcher.py
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -62,12 +64,12 @@ jobs:
           PY
       - name: Real PG18, actual Next.js, authentication, cutover and rollback
         run: python3 ops/integration_deployment_a5.py
+      - name: Installed one-command updater against two real releases and populated PG18
+        run: python3 ops/integration_update_a5.py
       - name: Actual legacy public-HTTP auth transition, verified TLS proxies and recovery
         run: python3 ops/integration_bootstrap_a5.py --legacy-auth
       - name: Actual no-mount first-time bootstrap and independent source restoration
         run: python3 ops/integration_bootstrap_a5.py
-      - name: Installed one-command updater against two real releases and populated PG18
-        run: python3 ops/integration_update_a5.py
       - name: Public-source build diagnostics only
         if: failure()
         run: |
