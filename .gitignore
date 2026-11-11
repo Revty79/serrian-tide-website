@@ -189,3 +189,4 @@ next-env.d.ts
 /artifacts/deployment-a5-origins/
 /artifacts/deployment-a5-auth-transition/
 /artifacts/deployment-a5-update/
+/artifacts/deployment-a5-trusted-origin/

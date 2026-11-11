@@ -64,6 +64,8 @@ jobs:
           PY
       - name: Real PG18, actual Next.js, authentication, cutover and rollback
         run: python3 ops/integration_deployment_a5.py
+      - name: Same-image trusted-origin addition, real TLS login and preserved sessions
+        run: python3 ops/integration_trusted_origin_a5.py
       - name: Installed one-command updater against two real releases and populated PG18
         run: python3 ops/integration_update_a5.py
       - name: Actual legacy public-HTTP auth transition, verified TLS proxies and recovery
