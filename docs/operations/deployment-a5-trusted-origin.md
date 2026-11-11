@@ -1,6 +1,6 @@
 # One-time Production origin addition
 
-Status: corrected revision `973d4f57e10df5231f02ff6efeb1e1ad3ac04b45` passes the real same-image trusted-origin/TLS/session/preservation/rollback scenario in Ubuntu run43093829474, along with the original deployment and older-image updater scenarios. Final bootstrap regression is still running. Normal validation finished every step successfully but GitHub has not closed its overall status; the evidence below remains unaccepted for command eligibility. This report and a descriptive CI comment are published to obtain fresh exact CI without changing any executable source or relaxing a gate. No live configuration change or account login success is claimed. The public `https://serriantide.com/login` page was observed in the visible browser; available SSH key authentication to the owner server was refused.
+Status at2026-11-11T20:54UTC: every normal and complete Ubuntu test step at corrected revision `973d4f57e10df5231f02ff6efeb1e1ad3ac04b45` reports success, including the real same-image trusted-origin/TLS/session/preservation/rollback scenario, original deployment/updater, legacy authentication and complete bootstrap/independent restoration. The failure-only diagnostic step is correctly skipped. Recovery CI is formally successful. GitHub still reports normal and Ubuntu runs/jobs as unfinished with no conclusion, so command eligibility remains blocked. Fresh publication `bbbf3e657d45c5185bfb834348edb404761d37be` preserves every executable source and has three queued workflows with no jobs assigned. This is a technical progress receipt, **not a READY or live-deployment receipt**. No live configuration change or account login success is claimed. The public HTTPS login page was observed in the visible browser; available SSH key authentication to the owner server was refused.
 
 The requested change appends only `https://serriantide.com` to `BETTER_AUTH_TRUSTED_ORIGINS`. Existing values, comments and line endings are preserved. `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, other origins, cookie settings, database settings and private-root settings remain exact. `www.serriantide.com`, HTTP variants and wildcards are not added.
 
@@ -20,7 +20,9 @@ Exact [normal CI43089435094](https://github.com/Revty79/serrian-tide-website/act
 
 That baseline used a fresh non-browser username request with no cookie. The installed Better Auth origin middleware does not require the cookie-based validation path for that request, so it successfully authenticated the owned synthetic account instead of returning the fixture's expected403. The correction adds the same unrelated, non-authentication canary cookie used by the unchanged existing A5 authentication probe to both before/after credential requests. The denied-origin assertion stays403, and the accepted-origin assertion stays200. No authentication code, middleware, dependency, security setting or operator guard changes. All eight focused unit tests and fixture syntax checks pass locally; new complete Ubuntu evidence is still required.
 
-The corrected [Ubuntu run43093829474](https://github.com/Revty79/serrian-tide-website/actions/runs/43093829474) passes the original deployment group20:17:41–20:20:18UTC, full updater group20:20:18–20:28:48UTC, and complete new origin group20:28:48–20:31:41UTC on2026-11-11. Exact [recovery43093829407](https://github.com/Revty79/serrian-tide-website/actions/runs/43093829407) succeeds. [Normal43093829523](https://github.com/Revty79/serrian-tide-website/actions/runs/43093829523) finishes every step including Complete job successfully at20:18:09UTC, but REST, GraphQL, the connected GitHub tool and the actual updater API reader continue reporting an unfinished run/job. Cancellation is refused as completed/not in progress, while workflow/job rerun is refused as already running; no cancellation or rerun is accepted. The normal result is not treated as a successful required check. Private status receipts retain that inconsistency. GitHub reports a concurrent webhook incident; a causal connection is unconfirmed. Fresh publication retains the exact operator/tests and obtains new CI evidence, rather than changing the eligibility policy.
+The corrected [Ubuntu run43093829474](https://github.com/Revty79/serrian-tide-website/actions/runs/43093829474) passes the original deployment group20:17:41–20:20:18UTC, full updater group20:20:18–20:28:48UTC, complete new origin group20:28:48–20:31:41UTC, legacy/TLS group through20:40:15UTC and standard bootstrap/independent restore through20:46:41UTC on2026-11-11. Complete job reports success at20:46:42UTC. Exact [recovery43093829407](https://github.com/Revty79/serrian-tide-website/actions/runs/43093829407) succeeds. [Normal43093829523](https://github.com/Revty79/serrian-tide-website/actions/runs/43093829523) finishes every step including Complete job successfully at20:18:09UTC, but REST, GraphQL, the connected GitHub tool and the actual updater API reader continue reporting unfinished normal/Ubuntu runs/jobs. Cancellation is refused as completed/not in progress, while workflow/job rerun is refused as already running; no cancellation or rerun is accepted. Neither unfinished run is accepted as a successful required check. Full-log download attempts return404; the retained files with `.zip` suffix are JSON error responses, not valid log archives. The connected log reader also times out. Private step/status receipts preserve the available evidence. GitHub's short concurrent webhook incident is subsequently resolved; no causal connection or service-wide Actions outage is claimed.
+
+Fresh `bbbf3e65` [normal43097507685](https://github.com/Revty79/serrian-tide-website/actions/runs/43097507685), [recovery43097507688](https://github.com/Revty79/serrian-tide-website/actions/runs/43097507688) and [Ubuntu43097507726](https://github.com/Revty79/serrian-tide-website/actions/runs/43097507726) remain queued with empty job lists at the last check. No policy, permission, conclusion or required check has been overridden. Recheck these actual statuses before publishing a READY command; do not manufacture success from the step receipts or repeatedly create replacement runs.
 
 The final local deployment run passes67 of69 cases, with two inherited POSIX-only permission cases skipped on Windows; hosted Ubuntu normal CI passes all69. All three new Python files parse. The exact extracted four-file bundle launches with isolated Python `-I -B`, and the owner block passes Bash syntax checking without being executed locally. Private evidence stays ignored under `artifacts/deployment-a5-trusted-origin/`.
 
@@ -41,3 +43,32 @@ The owner identifies validation delay as the next operational problem. This conf
 ## Resume gate for queued work
 
 The owner's latest clarification is to finish the tested fix and keep working on already authorized queued assignments while the owner is away, carrying the exact trusted-origin command into the final handoff so it is easy to find after later work. Do not introduce an extra owner-approval pause for independent queued work. Finish exact CI/publication before labeling the command READY. Keep actual host application and public login explicitly pending until evidenced; isolated success, `CI_NOT_PASSED`, a public login page, or a new queued prompt does not certify live completion. Any work dependent on changed Production configuration must respect that unverified state. No owner password, authentication secret, session token, environment-file contents or automatic approval is needed. If the actual host refuses, diagnose that exact refusal. The owner is also consulting Ember about the live setting; the agent has no authenticated server transport and no live operation in progress. Coordinate any reported Ember result before suggesting another mutation. Carry the pinned command and pending actual-host/login verification forward in every final handoff until resolved. Other existing held assignments retain their own gates; do not invent or start an unprovided milestone.
+
+## Durable pending owner command
+
+This preserved block is **not yet eligible**: its exact normal and Ubuntu run conclusions must first become successful. Verify that using the actual `GitHub().verify()` policy from `ops/serrian_update.py`, including every required latest-attempt job. If the unchanged-source `bbbf3e65` release obtains all three required successes first, substitute its full SHA only after verifying its exact bundle/source and CI. Never reuse the failed78805432 block. Put the final verified block in the final handoff after queued work; the owner should not have to scroll back to find it.
+
+Once explicitly marked READY, run as `brannan`, without sudo, leave the website/tunnel running, close pgAdmin and other writers, then answer `y` at the one confirmation. This operation does not rebuild the website. After success, normal sign-in at `https://serriantide.com/login` and authenticated navigation/reload remain the actual-host acceptance step. A healthy already-configured installation exits unchanged.
+
+```bash
+(
+  set -eu
+  umask 077
+  cd /apps/serrian-tide-next
+
+  RELEASE='973d4f57e10df5231f02ff6efeb1e1ad3ac04b45'
+  git fetch --no-tags origin main
+  git merge-base --is-ancestor "$RELEASE" origin/main
+
+  ORIGIN_DIR=$(mktemp -d /tmp/serrian-origin-update.XXXXXX)
+  trap 'rm -f -- "$ORIGIN_DIR/ubuntu_trusted_origin.py" "$ORIGIN_DIR/ubuntu_deploy.py" "$ORIGIN_DIR/ubuntu_bootstrap.py" "$ORIGIN_DIR/serrian_update.py"; rmdir -- "$ORIGIN_DIR"' EXIT
+
+  for MODULE in ubuntu_trusted_origin.py ubuntu_deploy.py ubuntu_bootstrap.py serrian_update.py
+  do
+    git show "$RELEASE:ops/$MODULE" > "$ORIGIN_DIR/$MODULE"
+  done
+
+  python3 -I -B "$ORIGIN_DIR/ubuntu_trusted_origin.py" \
+    --repo "$PWD" --tool-commit "$RELEASE"
+)
+```
