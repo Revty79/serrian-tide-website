@@ -53,7 +53,7 @@ def main():
             operation = command[1]
             events.append(operation)
             assert operation not in ("build", "buildx"), "Prebuilt command attempted a local build"
-            if args.scenario == "registry-unavailable" and operation == "manifest":
+            if args.scenario in ("registry-unavailable", "install-registry-unavailable") and operation == "manifest":
                 return subprocess.CompletedProcess(command, 1, b"", b"owned registry outage")
             if args.scenario == "interrupted-download" and operation == "pull":
                 master, slave = pty.openpty()

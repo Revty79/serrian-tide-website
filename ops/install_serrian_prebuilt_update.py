@@ -128,7 +128,8 @@ def install(repo, commit, github=None):
     for name, data in sources.items():
         require(data.replace(b"\r\n", b"\n") == Path(__file__).with_name(name).read_bytes().replace(b"\r\n", b"\n"), "INSTALL_SOURCE: extracted files differ from the reviewed source.")
     print("Verifying exact source CI and signed-image release readiness...", flush=True)
-    evidence = (github or runtime.release.GitHub()).verify(commit)
+    github = github or runtime.release.GitHub()
+    evidence = github.verify(commit)
     root = legacy.private_directory(Path.home() / ".local/share/serrian-update", create=True)
     parent = legacy.private_directory(root / "prebuilt", create=True)
     package = parent / commit
@@ -158,6 +159,12 @@ def install(repo, commit, github=None):
             (package / name).chmod(0o700 if name == "gh" else 0o600)
         with (package / "installation.json").open("x", encoding="utf-8") as stream:
             json.dump(config, stream, indent=2)
+    # Installation must not strand the owner with a command that cannot read
+    # its registry. This is a registry-only read, with no image pull or daemon,
+    # website, protected environment, storage or account mutation.
+    registry = runtime.release.Registry(package / "gh")
+    image_digest = registry.resolve(commit)
+    registry.verify(commit, image_digest, github.publication(commit))
     with tempfile.TemporaryDirectory(prefix="serrian-prebuilt-install-") as directory:
         staged = Path(directory) / "launcher"
         staged.write_bytes(content)

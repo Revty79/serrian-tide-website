@@ -19,7 +19,7 @@ MODULES = ("serrian_prebuilt_update.py", "prebuilt_release.py", "serrian_update.
 GH_BINARY_SHA = "b768184570b12536be4ac1528893f6340d1c6a7b40b56ad45bca9cd0e87ad34d"
 
 
-def adapter(base, module, git, github, registry, confirm, emit, metrics):
+def adapter(base, module, git, github, registry, confirm, emit, metrics, publication=None):
     class PrebuiltOperator(base):
         def release_image(self):
             return release.IMAGE + "@" + self.registry_digest
@@ -47,7 +47,7 @@ def adapter(base, module, git, github, registry, confirm, emit, metrics):
             module.resource_check(host["resources"]["memoryAvailable"], host["resources"]["diskFree"], build_mib=2048)
             started = time.monotonic()
             self.registry_digest = registry.resolve(self.commit)
-            evidence = registry.verify(self.commit, self.registry_digest, github.publication(self.commit))
+            evidence = registry.verify(self.commit, self.registry_digest, publication or github.publication(self.commit))
             metrics["registryAndProvenanceSeconds"] = time.monotonic() - started
             self.save("registry-provenance.json", evidence)
             emit("Verified signed image " + self.release_image())
@@ -84,7 +84,6 @@ def adapter(base, module, git, github, registry, confirm, emit, metrics):
             if answer.strip().lower() not in ("y", "yes"):
                 emit("Cancelled. The running website and checkout are unchanged.")
                 return {"passed": True, "cancelled": True, "commit": self.commit}
-            github.verify(self.commit)
             fresh = self.host()
             require(fresh["approval"] == host["approval"], "HOST_CHANGED: the writer/configuration changed while awaiting confirmation.")
             module.resource_check(fresh["resources"]["memoryAvailable"], fresh["resources"]["diskFree"], build_mib=2048)
@@ -112,7 +111,8 @@ def update(config, github=None, registry=None, confirm=input, emit=print):
     emit("Selected " + commit + " - " + title)
     metrics = {}
     with legacy.selected_operator(git, commit, github) as (original, module):
-        cls = adapter(type(original), module, git, github, registry, confirm, emit, metrics)
+        publication = next(check for check in checks if check["workflow"] == release.WORKFLOW)
+        cls = adapter(type(original), module, git, github, registry, confirm, emit, metrics, publication)
         operator = cls(git.repo, commit)
         try:
             host = operator.host()

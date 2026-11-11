@@ -169,6 +169,8 @@ def main():
         code, text, _ = invoke(repo / "ops/install_serrian_update.py", ["--repo", str(repo), "--commit", commit], "legacy-install", original=True)
         require(code == 0, "ORIGINAL_INSTALLER_FAILED")
         original_launcher = command_path.read_bytes()
+        code, text, _ = invoke(repo / "ops/install_serrian_prebuilt_update.py", ["--repo", str(repo), "--commit", commit], "install-registry-unavailable")
+        require(code != 0 and command_path.read_bytes() == original_launcher and op.inspect(old_id)["State"]["Running"], "INACCESSIBLE_REGISTRY_REPLACED_UPDATER")
         for scenario in ("install", "install-repeat"):
             code, text, _ = invoke(repo / "ops/install_serrian_prebuilt_update.py", ["--repo", str(repo), "--commit", commit], scenario)
             require(code == 0 and op.inspect(old_id)["State"]["Running"], "PREBUILT_INSTALLER_FAILED")
