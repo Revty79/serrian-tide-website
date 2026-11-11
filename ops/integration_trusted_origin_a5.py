@@ -84,11 +84,16 @@ def main():
         proxy = OwnedTLSProxy(task, [old_origin, ORIGIN], "http://203.0.113.25:3003")
         old_client, _old_cookies = proxy.client()
         credentials = {"username": "SyntheticOwner", "password": "Synthetic-Deployment-Only-Password!"}
-        require(proxy.post(old_client, old_origin, "sign-in/username", credentials).status == 200, "Existing synthetic username login failed")
+        # Like the unchanged anonymous A5 auth probe, include an unrelated
+        # cookie so the username endpoint exercises cookie-based origin/CSRF
+        # validation. A bare non-browser request can skip that middleware path.
+        # This is not an authentication cookie and carries no account identity.
+        canary = {"Cookie": "serrian_origin_canary=1"}
+        require(proxy.post(old_client, old_origin, "sign-in/username", credentials, canary).status == 200, "Existing synthetic username login failed")
         old_session = json.load(old_client.open(old_origin + "/api/auth/get-session"))
         new_client, new_cookies = proxy.client()
         try:
-            proxy.post(new_client, ORIGIN, "sign-in/username", credentials)
+            proxy.post(new_client, ORIGIN, "sign-in/username", credentials, canary)
             raise AssertionError("Unconfigured domain unexpectedly allowed login")
         except urllib.error.HTTPError as error:
             require(error.code == 403, "New-origin baseline must fail origin validation")
@@ -149,7 +154,7 @@ def main():
         require(base.await_health(current["Id"], 3003), "Candidate after witness")
         require(json.load(old_client.open(old_origin + "/api/auth/get-session"))["session"]["id"] == old_session["session"]["id"], "Existing host session was invalidated")
         time.sleep(11)
-        require(proxy.post(new_client, ORIGIN, "sign-in/username", credentials).status == 200, "New exact HTTPS origin username login failed")
+        require(proxy.post(new_client, ORIGIN, "sign-in/username", credentials, canary).status == 200, "New exact HTTPS origin username login failed")
         require(json.load(new_client.open(ORIGIN + "/api/auth/get-session"))["user"]["id"] == "a5-owner", "New HTTPS login did not persist")
         require(any(cookie.domain == "serriantide.com" and not cookie.domain_specified for cookie in new_cookies), "Cookie boundary changed")
         require(any(world["id"] == info["world"] for world in json.load(new_client.open(ORIGIN + "/api/worlds"))["worlds"]), "Existing World read failed")
