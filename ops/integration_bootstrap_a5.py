@@ -65,6 +65,8 @@ def main():
     try:
         for directory in (source, storage):
             docker("run", "--rm", "--network", "none", "--user", "0", "--mount", f"type=bind,src={directory},dst=/owned", image, "chown", "-R", "1000:1000", "/owned")
+        # A normal root-owned parent is compatible; only the three application roots are private UID/GID 1000.
+        docker("run", "--rm", "--network", "none", "--user", "0", "--mount", f"type=bind,src={storage},dst=/owned", image, "node", "-e", "const f=require('fs');f.chownSync('/owned',0,0);f.chmodSync('/owned',0o755)")
         docker("run", "-d", "--name", db_name, "--network", "host", "--mount", f"type=bind,src={source},dst=/owned", "-e", "SERRIAN_A5_OWNED_FIXTURE=1", "-e", "SERRIAN_A5_PG_PORT=" + str(port), "-e", "SERRIAN_A5_PG_PASSWORD=" + password, image, "node", "--conditions=react-server", "--import", "tsx", "scripts/deployment-bootstrap-fixture.ts")
         owned_ids.add(base.inspect(db_name)["Id"])
         for _ in range(180):

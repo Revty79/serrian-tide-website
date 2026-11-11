@@ -10,8 +10,9 @@ export async function storageProbe(root){
  const result={};
  for(const kind of["","terrain","artwork","raster"]){
   const directory=kind?path.join(root,kind):root,s=await fs.lstat(directory);
-  requireValue(s.isDirectory()&&!s.isSymbolicLink()&&await fs.realpath(directory)===directory&&s.uid===1000&&s.gid===1000&&(s.mode&0o777)===0o700,"BOOTSTRAP_STORAGE_PERMISSIONS");
-  if(kind){requireValue((await fs.readdir(directory)).length===0,"BOOTSTRAP_STORAGE_NOT_EMPTY");result[kind]={path:directory,device:s.dev,inode:s.ino,uid:s.uid,gid:s.gid,mode:s.mode&0o777};}
+  requireValue(s.isDirectory()&&!s.isSymbolicLink()&&await fs.realpath(directory)===directory,"BOOTSTRAP_STORAGE_PERMISSIONS");
+  if(kind){requireValue(s.uid===1000&&s.gid===1000&&(s.mode&0o777)===0o700,"BOOTSTRAP_STORAGE_PERMISSIONS");requireValue((await fs.readdir(directory)).length===0,"BOOTSTRAP_STORAGE_NOT_EMPTY");result[kind]={path:directory,device:s.dev,inode:s.ino,uid:s.uid,gid:s.gid,mode:s.mode&0o777};}
+  else requireValue([0,1000].includes(s.uid)&&(s.mode&0o022)===0,"BOOTSTRAP_STORAGE_PARENT");
  }
  return {passed:true,roots:result};
 }
