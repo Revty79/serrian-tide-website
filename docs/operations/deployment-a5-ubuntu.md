@@ -1,6 +1,8 @@
 # Ubuntu website updates: Stage A5
 
-For the owner's first transition from **no mounts and no storage variables**, use the separately tested [first-time storage bootstrap](deployment-a5-bootstrap.md). After that succeeds, use the normal preflight/deploy flow below with the current reviewed release; the older pinned A5 SHA below is a historical implementation receipt, not a downgrade instruction.
+For an already-bootstrapped website, use the permanent [`serrian-update` command](deployment-a5-one-command.md). Its delivery report contains verification status and the one-time installation instructions. It selects an eligible tested release, obtains the existing read-only preflight approval and asks for simple confirmation. The manual flow below remains an operator reference for separately reviewed operations; its older pinned SHA is a historical implementation receipt, not a downgrade instruction.
+
+For the owner's first transition from **no mounts and no storage variables**, use the separately tested [first-time storage bootstrap](deployment-a5-bootstrap.md).
 
 Implementation and isolated verification pass at `9b8bda8c6fd02bec800b941b99e5120b339d958a`; see the [delivery receipt](deployment-a5-delivery.md). This document does not authorize a live rollout. A3 remains held. The existing `serriantide` container, working `serriantide:0c42d1eceaece99125574bae250f5b01932dbfbe` image and earlier rollback container must remain intact until a separately approved operation.
 
@@ -71,7 +73,7 @@ This is the reviewed procedure for a later **separately authorized live update**
 
 The bootstrap works before the new scripts exist in the old checkout. It uses reviewed Git objects rather than asking the owner to edit conflicting Docker files. The operator requires `main`, the official origin, a fast-forward relationship and no tracked/staged edits. It moves only positively identified untracked `Dockerfile`/`.dockerignore` conflicts into a new private `.git/serrian-deployment/RUN/preserved-*`, verifies their hashes and fast-forwards. Unrelated untracked drafts remain. Other Git conflicts stop safely; there is no reset, clean, stash, review branch or worktree.
 
-Use the same block for subsequent reviewed updates, changing only the release and current host approval. Once A5 is installed, the shorter equivalent is `python3 ops/ubuntu_deploy.py deploy --commit FULL_SHA --approve-host HASH --frozen ALL_APPLICATION_JOB_IMPORT_AND_DIRECT_WRITERS_STOPPED`; prefer the bootstrap whenever the deployment code itself has changed, so the exact newly reviewed launcher is used. A repeat of an already verified running release is a health-checked no-op.
+For ordinary subsequent updates, use `serrian-update`; no SHA or host approval needs to be entered manually. The lower-level equivalent, `python3 ops/ubuntu_deploy.py deploy --commit FULL_SHA --approve-host HASH --frozen ALL_APPLICATION_JOB_IMPORT_AND_DIRECT_WRITERS_STOPPED`, remains a separately reviewed operator procedure, especially for approved configuration changes. Use the exact reviewed operator version for those operations. A repeat of an already verified running release is a health-checked no-op.
 
 ## Build and startup behavior
 
