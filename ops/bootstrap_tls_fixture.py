@@ -112,7 +112,7 @@ class OwnedTLSProxy:
         for origin in [*self.origins, self.public_origin]:
             time.sleep(11)
             client, cookies = self.client()
-            with self.post(client, origin, "sign-in/email", payload) as response:
+            with self.post(client, origin, "sign-in/username", {"username": "BootstrapOwner", "password": payload["password"]}) as response:
                 require(response.status == 200, "Legacy real proxy/public login failed")
                 require(json.load(response).get("redirect") is False, "Password login unexpectedly redirected to canonical public HTTP")
             session = json.load(client.open(origin + "/api/auth/get-session"))

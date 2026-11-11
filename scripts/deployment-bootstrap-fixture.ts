@@ -31,7 +31,7 @@ async function main(){
   const admin=new pg.Pool({connectionString:databaseUrl.replace("serrian_bootstrap_fixture","postgres")});await admin.query("create database serrian_bootstrap_fixture");await admin.end();
   const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")),entries=journal.entries.slice(0,161),folder="/owned/migrations";
   await mkdir(path.join(folder,"meta"),{recursive:true});await writeFile(path.join(folder,"meta/_journal.json"),JSON.stringify({...journal,entries}));for(const entry of entries)await copyFile(`drizzle/${entry.tag}.sql`,path.join(folder,entry.tag+".sql"));await migrate(drizzle(pool),{migrationsFolder:folder});
-  await pool.query('insert into "user"(id,name,email,email_verified,username,display_username) values ($1,$2,$3,true,$2,$2)',["bootstrap-owner","BootstrapOwner","bootstrap-owner@example.invalid"]);
+  await pool.query('insert into "user"(id,name,email,email_verified,username,display_username) values ($1,$2,$3,true,lower($2),$2)',["bootstrap-owner","BootstrapOwner","bootstrap-owner@example.invalid"]);
   await pool.query("insert into account(id,issuer,account_id,provider_id,user_id,password,updated_at) values('bootstrap-credential','local:credential','bootstrap-owner','credential','bootstrap-owner',$1,now())",[await hashPassword("Synthetic-Bootstrap-Only-Password!")]);
   for(const role of["admin","god","player"])await pool.query("insert into user_role(user_id,role) values('bootstrap-owner',$1)",[role]);
   await writeFile("/owned/info.json",JSON.stringify({databaseUrl,port}),{mode:0o600});await pool.end();console.log("OWNED_BOOTSTRAP_FIXTURE_READY");
