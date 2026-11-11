@@ -2,10 +2,10 @@ name: Ubuntu website deployment regression
 on:
   push:
     branches: [main]
-    paths: ["Dockerfile", ".dockerignore", "ops/**", "scripts/deployment-a5*", "scripts/deployment-bootstrap*", "scripts/environment/**", "scripts/run-deployment-tests.mjs", "next.config.ts", ".github/workflows/deployment-a5.yml"]
+    paths: ["Dockerfile", ".dockerignore", ".github/workflows/**", "ops/**", "scripts/**", "src/**", "data/**", "public/**", "drizzle/**", "package*.json", "*config*", "next-env.d.ts"]
   pull_request:
     branches: [main]
-    paths: ["Dockerfile", ".dockerignore", "ops/**", "scripts/deployment-a5*", "scripts/deployment-bootstrap*", "scripts/environment/**", "next.config.ts", ".github/workflows/deployment-a5.yml"]
+    paths: ["Dockerfile", ".dockerignore", ".github/workflows/**", "ops/**", "scripts/**", "src/**", "data/**", "public/**", "drizzle/**", "package*.json", "*config*", "next-env.d.ts"]
 permissions:
   contents: read
 jobs:
@@ -62,6 +62,8 @@ jobs:
         run: python3 ops/integration_bootstrap_a5.py --legacy-auth
       - name: Actual no-mount first-time bootstrap and independent source restoration
         run: python3 ops/integration_bootstrap_a5.py
+      - name: Installed one-command updater against two real releases and populated PG18
+        run: python3 ops/integration_update_a5.py
       - name: Public-source build diagnostics only
         if: failure()
         run: |

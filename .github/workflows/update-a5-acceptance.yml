@@ -1,0 +1,63 @@
+name: Installed updater live-CI acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Exact main commit with all three required push workflows already successful
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  installed-command:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      SERRIAN_A5_OWNED_DOCKER: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      GH_TOKEN: ${{ github.token }}
+      ACCEPTANCE_COMMIT: ${{ inputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+      - name: Verify published main identity and real CI before any Docker work
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess, sys
+          sys.path.insert(0, 'ops')
+          from serrian_update import GitHub
+          commit = os.environ['ACCEPTANCE_COMMIT']
+          assert re.fullmatch('[a-f0-9]{40}', commit)
+          assert subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip() == commit
+          subprocess.run(['git','fetch','--no-tags','origin','main'], check=True)
+          subprocess.run(['git','merge-base','--is-ancestor',commit,'origin/main'], check=True)
+          GitHub().verify(commit)
+          # Only the new hosted test checkout; no user checkout is changed.
+          subprocess.run(['git','checkout','-B','main',commit], check=True)
+          PY
+      - name: Build the exact already-tested candidate within original A5 limits
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, sys
+          sys.path.insert(0, 'ops')
+          from ubuntu_deploy import Operator
+          os.umask(0o077)
+          commit = os.environ['ACCEPTANCE_COMMIT']
+          op = Operator(pathlib.Path.cwd(), commit)
+          op.output = pathlib.Path('artifacts/deployment-a5/ci').resolve()
+          op.output.mkdir(parents=True, mode=0o700)
+          archive, source = op.expected_source()
+          op.build(archive, 'serriantide:' + commit)
+          op.checked_image('serriantide:' + commit, source)
+          print((op.output / 'build-resources.json').read_text())
+          PY
+      - name: Full installer and literal permanent command with real GitHub checks
+        run: python3 ops/integration_update_a5.py --real-github
+      - name: Public-source build diagnostics only
+        if: failure()
+        run: |
+          tail -n 100 artifacts/deployment-a5/ci/build.log || true
+          cat artifacts/deployment-a5/ci/build-resources.json || true

@@ -2,10 +2,10 @@ name: Environment disaster recovery
 on:
   push:
     branches: [main]
-    paths: ["Dockerfile", ".dockerignore", ".github/workflows/environment-recovery.yml", "ops/**", "scripts/**", "src/**", "data/**", "public/**", "drizzle/**", "package*.json", "*config*", "next-env.d.ts"]
+    paths: ["Dockerfile", ".dockerignore", ".github/workflows/**", "ops/**", "scripts/**", "src/**", "data/**", "public/**", "drizzle/**", "package*.json", "*config*", "next-env.d.ts"]
   pull_request:
     branches: [main]
-    paths: ["Dockerfile", ".dockerignore", ".github/workflows/environment-recovery.yml", "ops/**", "scripts/**", "src/**", "data/**", "public/**", "drizzle/**", "package*.json", "*config*", "next-env.d.ts"]
+    paths: ["Dockerfile", ".dockerignore", ".github/workflows/**", "ops/**", "scripts/**", "src/**", "data/**", "public/**", "drizzle/**", "package*.json", "*config*", "next-env.d.ts"]
 permissions:
   contents: read
 jobs:
