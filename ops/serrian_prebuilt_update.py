@@ -52,14 +52,21 @@ def adapter(base, module, git, github, registry, confirm, emit, metrics):
             self.save("registry-provenance.json", evidence)
             emit("Verified signed image " + self.release_image())
             cached = self.docker("image", "inspect", self.release_image(), allow_failure=True).returncode == 0
-            metrics["downloadSeconds"] = 0 if cached else registry.pull(self.registry_digest)
             metrics["imageAlreadyCached"] = cached
-            image_id = registry.identity(self, self.registry_digest)
             if current == self.commit:
                 _archive, source_hash = self.expected_source()
-                require(host["container"]["Image"] == image_id and self.checked_image(image_id, source_hash) == image_id and self.http_health(host["container"]["Id"], 3003), "CURRENT_IDENTITY: matching source is not the verified healthy registry image; review separately.")
+                image_id = host["container"]["Image"]
+                require(self.checked_image(image_id, source_hash) == image_id and self.http_health(host["container"]["Id"], 3003), "CURRENT_IDENTITY: existing managed source/build or website health differs.")
+                metrics["downloadSeconds"] = 0
+                registry_match = self.release_image() in self.inspect(image_id, image=True).get("RepoDigests", [])
+                if registry_match:
+                    require(registry.identity(self, self.registry_digest) == image_id, "CURRENT_IDENTITY: registry identity differs.")
                 emit("Already deployed and healthy. No download, build or restart.")
-                return {"passed": True, "unchanged": True, "commit": self.commit, "image": image_id}
+                if not registry_match:
+                    emit("The existing managed local build is retained; the next new release will use the verified registry path.")
+                return {"passed": True, "unchanged": True, "commit": self.commit, "image": image_id, "runningImageHasRegistryProvenance": registry_match}
+            metrics["downloadSeconds"] = 0 if cached else registry.pull(self.registry_digest)
+            image_id = registry.identity(self, self.registry_digest)
             started = time.monotonic()
             result = super().deploy_locked(host, approval)
             metrics["applicationChecksAndCutoverSeconds"] = time.monotonic() - started - metrics.get("confirmationSeconds", 0)

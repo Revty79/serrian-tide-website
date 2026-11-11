@@ -5,9 +5,13 @@ import io
 import json
 import os
 from pathlib import Path
+import pty
 import runpy
+import select
+import signal
 import subprocess
 import sys
+import time
 import urllib.request
 
 
@@ -52,7 +56,27 @@ def main():
             if args.scenario == "registry-unavailable" and operation == "manifest":
                 return subprocess.CompletedProcess(command, 1, b"", b"owned registry outage")
             if args.scenario == "interrupted-download" and operation == "pull":
-                return subprocess.CompletedProcess(command, 130, b"", b"owned interrupted transfer")
+                master, slave = pty.openpty()
+                process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=slave, stderr=slave)
+                os.close(slave)
+                progress, interrupted = bytearray(), False
+                try:
+                    deadline = time.monotonic() + 60
+                    while time.monotonic() < deadline and process.poll() is None:
+                        if select.select([master], [], [], .05)[0]:
+                            progress.extend(os.read(master, 65536))
+                            if b"Downloading" in progress:
+                                process.send_signal(signal.SIGINT)
+                                interrupted = True
+                                events.append("real-download-interrupted")
+                                break
+                    if not interrupted:
+                        process.terminate()
+                    process.wait(timeout=30)
+                finally:
+                    os.close(master)
+                assert interrupted, "No actual registry download was interrupted"
+                return subprocess.CompletedProcess(command, 130, b"", b"owned real interrupted transfer")
             if args.scenario == "startup-failure" and operation == "create" and "--name" in command and command[command.index("--name") + 1] == "serriantide":
                 command = [*command[:-1], "-e", "DATABASE_URL=postgresql://inert:unused@127.0.0.1:1/unavailable", command[-1]]
             result = original_run(command, *more, **kwargs)

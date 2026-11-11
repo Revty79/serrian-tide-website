@@ -129,6 +129,27 @@ class PrebuiltTests(unittest.TestCase):
         self.assertIn(b"-I -B", command)
         self.assertIn(b"managed prebuilt updater v2", command)
 
+    def test_matching_managed_local_version_does_not_download_rebuild_or_restart(self):
+        class Existing:
+            commit = GOOD
+            def docker(self, *_a, **_k): return SimpleNamespace(returncode=1)
+            def save(self, *_a): pass
+            def expected_source(self): return b"", "source"
+            def checked_image(self, image, _source): return image
+            def http_health(self, *_a): return True
+            def inspect(self, *_a, **_k): return {"RepoDigests": []}
+        def forbidden(*_a, **_k): raise AssertionError("Unexpected download or replacement")
+        registry = SimpleNamespace(resolve=lambda _c: DIGEST, verify=lambda *_a: {}, pull=forbidden, identity=forbidden)
+        github = SimpleNamespace(publication=lambda _c: PUBLICATION)
+        git = SimpleNamespace(ancestor=lambda *_a: True)
+        module = SimpleNamespace(resource_check=lambda *_a, **_k: None)
+        cls = updater.adapter(Existing, module, git, github, registry, forbidden, lambda *_a: None, {})
+        host = {"approval": "same", "report": {"database": {"ledger": []}}, "resources": {"memoryAvailable": 1, "diskFree": 1}, "container": {"Image": "existing", "Id": "old"}}
+        with patch.object(updater.legacy, "deployed_commit", return_value=GOOD), patch.object(updater.legacy, "verify_ledger"), patch.object(updater.legacy, "expected_ledger", return_value=[]), patch.object(updater.legacy, "configuration_epoch", return_value=1):
+            result = cls().deploy_locked(host, "same")
+        self.assertTrue(result["unchanged"])
+        self.assertFalse(result["runningImageHasRegistryProvenance"])
+
     def test_verifier_download_hash_precedes_extraction_or_installation(self):
         import io
         with patch.object(installer.urllib.request, "urlopen", return_value=io.BytesIO(b"corrupt or interrupted archive")), self.assertRaises(installer.Stopped):

@@ -48,6 +48,13 @@ def main():
     digest = registry.resolve(commit)
     require(not os.environ.get("SERRIAN_TEST_IMAGE_DIGEST") or digest == os.environ["SERRIAN_TEST_IMAGE_DIGEST"], "CI_DIGEST_CHANGED")
     verified = registry.verify(commit, digest, publication)
+    from prebuilt_release import Stopped
+    try:
+        registry.verify(BASELINE, digest, publication)
+    except Stopped:
+        pass
+    else:
+        raise AssertionError("Genuine signed image was accepted for a different source")
     print("PASS PREBUILT real GHCR manifest and cryptographic exact-source/run provenance", flush=True)
     baseline = Operator(repo, BASELINE)
     baseline.output = task / "old-build"
@@ -174,6 +181,8 @@ def main():
             require(code != 0 and op.inspect(old_id)["State"]["Running"] and env_file.read_bytes() == original, "UNVERIFIED_IMAGE_CHANGED_WRITER")
             events = json.loads((task / (scenario + "-events.json")).read_text())
             require(not any(e in events for e in ("stop", "rename", "buildx", "build")), "FAILED_TRANSPORT_MUTATED_SOURCE")
+            if scenario == "interrupted-download":
+                require("real-download-interrupted" in events and op.docker("image", "inspect", IMAGE + "@" + digest, allow_failure=True).returncode != 0, "INTERRUPTION_NOT_ACTUAL")
         say("registry outage, digest mismatch, cryptographically corrupted signature and interrupted download leave original writer unchanged")
         # Capture a real old session and complete frozen witness, without owner data.
         cookies = http.cookiejar.CookieJar()
@@ -240,6 +249,9 @@ def main():
         metrics["localBuildResources"] = json.loads((build.output / "build-resources.json").read_text())
         code, text, deploy_seconds = invoke(old_package / "serrian_update.py", ["--installation", str(old_package / "installation.json")], "local-comparison", "y", original=True)
         require(code == 0 and "Update complete" in text, "LOCAL_COMPARISON_FAILED")
+        local_container = op.inspect("serriantide")["Id"]
+        code, text, _ = invoke(entry, arguments, "existing-local-noop")
+        require(code == 0 and "Already deployed and healthy" in text and op.inspect("serriantide")["Id"] == local_container, "EXISTING_LOCAL_VERSION_REBUILT")
         metrics["localDeploymentSeconds"] = deploy_seconds
         metrics["localBuildAndDeploySeconds"] = metrics["sameSourceLocalBuildSeconds"] + deploy_seconds
         metrics["ratio"] = metrics["localBuildAndDeploySeconds"] / metrics["coldCandidateCompleteSeconds"]
