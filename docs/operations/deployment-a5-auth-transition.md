@@ -51,3 +51,32 @@ Full TypeScript, full ESLint (the inherited unused `LoreFamily` warning), and al
 The first local TLS unit attempt failed because Git for Windows OpenSSL could not use its machine-default configuration. The helper now creates an owned minimal certificate configuration explicitly; the transport test and complete deployment unit rerun pass. That failed log remains in ignored `artifacts/deployment-a5-auth-transition/`; no test or security assertion was relaxed.
 
 A fresh comparison against the starting checkpoint confirms unchanged application/authentication sources, data/assets, migration history, dependency versions, Dockerfile, normal origin validator/updater, original deployment integration and environment recovery implementation. Hosted real PostgreSQL/Next.js/rollback verification is still required before delivery.
+
+## Review inventory
+
+| Files | Purpose |
+| --- | --- |
+| `ops/ubuntu_bootstrap.py` | Verify the legacy source, stage the approved base-only change, require real anonymous authentication checks before activation. |
+| `ops/bootstrap-auth-source.mjs`, `ops/bootstrap-auth-health.mjs` | Built-in-only source planner and account-free live Next.js canary. |
+| `ops/bootstrap-auth.test.mjs`, `ops/test_ubuntu_bootstrap.py` | Strict-validator separation, exact environment preservation, old-image composition and real Better Auth zero-DB-call checks. |
+| `ops/bootstrap_tls_fixture.py`, `ops/test_bootstrap_tls_fixture.py` | Owned verified TLS reverse proxy, cookie jars, existing/fresh logins and transport isolation. |
+| `ops/integration_bootstrap_a5.py` | Preserve the original fixture and add the full legacy source, two TLS hosts and authentication/backup failure recovery. |
+| `scripts/run-deployment-tests.mjs`, `.github/workflows/deployment-a5.yml` | Run the additional units and the additional real legacy integration scenario. |
+| `.gitignore` | Keep local diagnostics and generated certificates private. |
+| `AGENTS.md`, this report, `deployment-a5-bootstrap.md`, `deployment-a5-origins.md` | Bounded authorization, exact delivery evidence and distinction from earlier historical coverage. |
+
+No imported geography, database, credential, generated certificate, private configuration or backup is included in Git. The local launcher is syntax-checked and the two Git-extracted Python files load independently without requiring a repository-wide checkout change first.
+
+## Hosted verification receipt (in progress)
+
+Tested implementation: `1cd2d9c23c6b1be281b1ae84689158a30351cf06`.
+
+| Evidence | Result |
+| --- | --- |
+| [Normal CI 42966280455](https://github.com/Revty79/serrian-tide-website/actions/runs/42966280455) | PASS: full TypeScript and ESLint (one inherited warning), 2,942 feature tests, three raster tests, 15 integrity tests, and all 42 deployment unit cases with zero Ubuntu skips. |
+| [Original recovery CI 42966280349](https://github.com/Revty79/serrian-tide-website/actions/runs/42966280349) | PASS: all 15 original real PG18/storage recovery groups and all 15 signature/transfer/permission/corruption tests. |
+| [Ubuntu deployment CI 42966280523](https://github.com/Revty79/serrian-tide-website/actions/runs/42966280523) | Retained failure: bounded build, all 11 original deployment groups and all 13 original bootstrap groups pass. The second scenario refused before creating its source because the first scenario correctly retained its stopped container under the shared name. This does not establish legacy/TLS success. |
+
+The canonical LF Git release-input fingerprint is `69afc6582b281e836a7220580e404fd8f0b4a4e808c80f49ef25173ad9cd2160`, across 3,354 files. Final documentation publication must retain those exact application/operation/build input bytes. The owner host and its existing database remain untouched and uncertified by the agent.
+
+The first hosted aggregate run stopped with `CI_SOURCE_NAME_OCCUPIED` before the additional legacy scenario could start. The existing bootstrap fixture retained its stopped source as `serriantide`; invoking it twice exposed that test-lifecycle collision. Only the owned CI fixture's finalization changes: after proving exact owned ID and stopped state, it renames that retained container to a unique fixture name. The container, image, data, diagnostics and all production bootstrap code remain preserved. The full workflow must rerun; earlier partial passes are not the final acceptance receipt.

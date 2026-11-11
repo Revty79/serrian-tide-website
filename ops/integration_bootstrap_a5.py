@@ -330,6 +330,12 @@ def main(legacy_auth=False):
             owned_ids.add(json.loads(current.stdout)[0]["Id"])
         for identity in owned_ids:
             docker("stop", "--time", "15", identity, allow_failure=True)
+        if current.returncode == 0:
+            identity = json.loads(current.stdout)[0]["Id"]
+            require(identity in owned_ids and not base.inspect(identity)["State"]["Running"], "CI_RETAINED_SOURCE_IDENTITY")
+            # Retain this fixture's source/data/image under a unique name so the
+            # next independent scenario can create its own serriantide source.
+            docker("rename", identity, "retained-" + task.name)
 
 
 if __name__ == "__main__":
