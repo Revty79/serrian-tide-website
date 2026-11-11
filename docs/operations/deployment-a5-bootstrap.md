@@ -1,6 +1,6 @@
 # First-time Ubuntu storage bootstrap
 
-**LAN-origin correction:** the original implementation below assumed a localhost authentication origin. See [the A5 origin correction report](deployment-a5-origins.md) for the targeted fix and current verification. Use the newly delivered corrected commit, not the historical command pin, for a LAN/tunnel configuration.
+**LAN-origin correction PASS:** [the A5 origin correction report](deployment-a5-origins.md) records implementation `bad60d02e826cfefc553284f586a8e3f5f3c151a` and its successful exact normal, original recovery and full Ubuntu CI. It accepts explicitly configured actual LAN addresses without rewriting authentication. The command below now pins that corrected implementation; the final owner delivery may pin its following documentation-only receipt after complete source equality is proved. The older bootstrap receipt below remains historical.
 
 **PASS for implementation and isolated technical verification** at `95ffc0bf256a33886912164f2ea55ad575de58ce`, starting from `3e97191957cf78ed100fa146f7c1a8706b9be323`. Exact normal, original disaster-recovery and complete Ubuntu deployment/bootstrap workflows pass. No live-server execution or success is claimed.
 
@@ -35,7 +35,7 @@ The block pins the validated implementation. The final owner delivery may pin it
   set -euo pipefail
   umask 077
   cd /apps/serrian-tide-next
-  RELEASE='95ffc0bf256a33886912164f2ea55ad575de58ce'
+  RELEASE='bad60d02e826cfefc553284f586a8e3f5f3c151a'
   git fetch --no-tags origin main
   git merge-base --is-ancestor "$RELEASE" origin/main
   LAUNCHER_DIR=$(mktemp -d /tmp/serrian-bootstrap.XXXXXX)
