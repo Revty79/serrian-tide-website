@@ -187,3 +187,4 @@ next-env.d.ts
 /artifacts/deployment-a5-bootstrap/
 # Private A5 LAN-origin correction test receipts.
 /artifacts/deployment-a5-origins/
+/artifacts/deployment-a5-auth-transition/

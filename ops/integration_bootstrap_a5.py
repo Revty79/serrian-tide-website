@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 import secrets
 import socket
+import sys
 import subprocess
 import tempfile
 import time
@@ -14,10 +15,11 @@ import urllib.request
 import urllib.error
 from unittest.mock import patch
 from ubuntu_bootstrap import Bootstrap, replace_configuration
-from ubuntu_deploy import Operator, Refused, FROZEN, require
+from ubuntu_deploy import Operator, Refused, FROZEN, require, parse_env
+from bootstrap_tls_fixture import OwnedTLSProxy
 
 
-def main():
+def main(legacy_auth=False):
     require(os.environ.get("GITHUB_ACTIONS") == "true" and os.environ.get("RUNNER_ENVIRONMENT") == "github-hosted" and os.environ.get("SERRIAN_A5_OWNED_DOCKER") == "1", "CI_OWNERSHIP_REQUIRED")
     os.umask(0o077)
     repo = Path.cwd()
@@ -32,6 +34,8 @@ def main():
     lan_origin = "http://" + assigned[0] + ":3003"
     wrong_lan = next(address for address in ("10.255.255.254", "192.168.255.254", "172.31.255.254") if address not in assigned)
     tunnel_origin = "https://bootstrap-test.trycloudflare.com"
+    second_tunnel = "https://second-bootstrap-test.trycloudflare.com"
+    legacy_origin = "http://198.51.100.10:3003"  # Documentation address; never contacted on a public network.
     task = Path(tempfile.mkdtemp(prefix="serrian-bootstrap-docker-"))
     source, storage, env_file = task / "source", task / "data", task / "production.env"
     source.mkdir(mode=0o700)
@@ -72,7 +76,7 @@ def main():
     def say(message):
         print("PASS BOOTSTRAP " + message, flush=True)
 
-    old_id = None
+    old_id, tls_proxy = None, None
     try:
         for directory in (source, storage):
             docker("run", "--rm", "--network", "none", "--user", "0", "--mount", f"type=bind,src={directory},dst=/owned", image, "chown", "-R", "1000:1000", "/owned")
@@ -89,11 +93,13 @@ def main():
             time.sleep(1)
         else:
             raise AssertionError("Bootstrap fixture startup timed out")
-        original = "\n".join(["# Keep this protected configuration exactly", "DATABASE_URL=" + info["databaseUrl"], "BETTER_AUTH_URL=" + lan_origin, "BETTER_AUTH_SECRET=" + secrets.token_hex(32), "BETTER_AUTH_TRUSTED_ORIGINS=" + tunnel_origin, "PORT=3003", ""]).encode()
+        configured_base = legacy_origin if legacy_auth else lan_origin
+        configured_trusted = ",".join([lan_origin, tunnel_origin, second_tunnel]) if legacy_auth else tunnel_origin
+        original = "\n".join(["# Keep this protected configuration exactly", "DATABASE_URL=" + info["databaseUrl"], "BETTER_AUTH_URL=" + configured_base, "BETTER_AUTH_SECRET=" + secrets.token_hex(32), "BETTER_AUTH_TRUSTED_ORIGINS=" + configured_trusted, "PORT=3003", ""]).encode()
         # Real legacy containers with invalid explicit origins must stay running
         # and keep their configuration when the initial bootstrap gate refuses.
         for invalid, code in [("http://" + wrong_lan + ":3003", "AUTH_LOCAL_ORIGIN"), (lan_origin.replace(":3003", ":3004"), "AUTH_LOCAL_ORIGIN"), ("https://*.trycloudflare.com", "AUTH_WILDCARD")]:
-            invalid_data = original.replace(("BETTER_AUTH_URL=" + lan_origin).encode(), ("BETTER_AUTH_URL=" + invalid).encode())
+            invalid_data = original.replace(("BETTER_AUTH_URL=" + configured_base).encode(), ("BETTER_AUTH_URL=" + invalid).encode())
             env_file.write_bytes(invalid_data)
             env_file.chmod(0o600)
             docker("run", "-d", "--name", "serriantide", "--network", "host", "--env-file", str(env_file), image, "node", "node_modules/next/dist/bin/next", "start", "--hostname", "0.0.0.0", "--port", "3003")
@@ -135,6 +141,10 @@ def main():
         request = urllib.request.Request(lan_origin + "/api/auth/sign-in/email", data=payload, headers={"Content-Type": "application/json", "Origin": lan_origin})
         require(client.open(request).status == 200 and len(cookies) > 0, "Original authenticated session failed")
         prior_session = json.load(client.open(lan_origin + "/api/auth/get-session"))
+        if legacy_auth:
+            tls_proxy = OwnedTLSProxy(task, [tunnel_origin, second_tunnel], legacy_origin)
+            tls_proxy.establish_legacy_sessions(json.loads(payload))
+            say("legacy public-HTTP base authenticates through two verified TLS proxies; real host-only sessions and original cookie policy recorded")
 
         def verify_auth_origins():
             independent = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -154,7 +164,20 @@ def main():
                     require(error.code == 403, "Origin denial changed")
 
         verify_auth_origins()
-        say("actual assigned LAN-only local configuration accepts LAN and exact HTTPS tunnel login; unconfigured origins remain forbidden")
+        say("actual explicitly trusted assigned LAN and exact HTTPS origins accept login; unconfigured origins remain forbidden")
+
+        if legacy_auth:
+            class BackupFailure(Bootstrap):
+                def recovery_helper(self, action, host, **extra):
+                    if action == "backup":
+                        extra["frozen"] = "MISSING_REQUIRED_FREEZE"
+                    return super().recovery_helper(action, host, **extra)
+
+            failed = op(BackupFailure)
+            refused(failed, "DEPLOY_FAILED_ROLLED_BACK")
+            require(env_file.read_bytes() == original and base.inspect(old_id)["State"]["Running"] and not (failed.output / "bootstrap-backup.json").exists(), "Real backup refusal lost legacy state")
+            require((failed.output / "bootstrap-recovery-failure.json").exists(), "Real backup helper did not reach its failure path")
+            say("real signed-backup helper refuses invalid freeze and safely restores exact legacy website/configuration")
 
         class RestoreFailure(Bootstrap):
             def recovery_helper(self, action, host, **extra):
@@ -182,6 +205,22 @@ def main():
         require(json.loads((failed.output / "bootstrap-restore.json").read_text())["passed"], "Rollback test did not perform a real restore")
         say("real backup/independent restore plus failed new startup restores old container and configuration")
 
+        if legacy_auth:
+            class AuthenticationFailure(Bootstrap):
+                def docker(self, *args, **kwargs):
+                    if args and args[0] == "create" and "serriantide" in args:
+                        # Actual healthy new Next.js process with missing tunnel trust.
+                        # The real anonymous auth probe must catch its HTTPS Origin denial.
+                        args = (*args[:-1], "-e", "BETTER_AUTH_TRUSTED_ORIGINS=" + lan_origin, args[-1])
+                    return super().docker(*args, **kwargs)
+
+            failed = op(AuthenticationFailure)
+            refused(failed, "DEPLOY_FAILED_ROLLED_BACK")
+            require(env_file.read_bytes() == original and base.inspect(old_id)["State"]["Running"], "Authentication failure lost legacy state")
+            require(json.loads((failed.output / "bootstrap-restore.json").read_text())["passed"], "Authentication failure did not follow verified restoration")
+            require("BOOTSTRAP_AUTH_HEALTH" in failed.last_failure["stderr"], "Real auth endpoint failure was not observed")
+            say("actual new HTTPS-origin authentication failure prevents config activation and safely restarts exact legacy writer")
+
         def fail_after_replace(file, expected, replacement, mode):
             replace_configuration(file, expected, replacement, mode)
             if b"SERRIAN_TERRAIN_ROOT" in replacement:
@@ -200,7 +239,12 @@ def main():
         owned_ids.add(new_id)
         require(not base.inspect(old_id)["State"]["Running"] and base.inspect(old_id)["Image"] == base.inspect(new_id)["Image"], "Previous exact fixture image/container not retained")
         require(len(base.inspect(new_id)["Mounts"]) >= 3, "Persistent mounts missing")
-        require(env_file.read_bytes().startswith(original), "Existing auth/configuration bytes changed")
+        expected_original = original.replace(("BETTER_AUTH_URL=" + legacy_origin).encode(), ("BETTER_AUTH_URL=" + lan_origin).encode()) if legacy_auth else original
+        require(env_file.read_bytes().startswith(expected_original), "Unapproved authentication/configuration bytes changed")
+        require(result["authenticationBaseTransition"] is legacy_auth, "Wrong legacy authentication transition classification")
+        runtime_env = dict(item.split("=", 1) for item in base.inspect(new_id)["Config"]["Env"] if "=" in item)
+        require(all(runtime_env.get(key) == value for key, value in parse_env(env_file.read_bytes()).items()), "Active environment differs from the new running container")
+        require(json.loads((successful.output / "bootstrap-authentication.json").read_text())["passed"], "Actual new authentication was not verified before configuration activation")
         continued = json.load(client.open(lan_origin + "/api/auth/get-session"))
         require(continued["session"]["id"] == prior_session["session"]["id"] and continued["user"]["id"] == "bootstrap-owner", "Existing session/account did not survive")
         require(json.load(client.open(lan_origin + "/api/worlds"))["worlds"] == [], "Empty World state changed")
@@ -209,6 +253,9 @@ def main():
         verify_auth_origins()
         require(json.load(client.open(lan_origin + "/api/auth/get-session"))["session"]["id"] == prior_session["session"]["id"], "Post-deployment login/origin checks disturbed the retained session")
         say("complete signed recovery, real Next.js on 3003, exact existing session, three mounts, retained config/image/container and normal A5 repeat")
+        if tls_proxy:
+            tls_proxy.verify_transition(json.loads(payload), lan_origin)
+            say("both real HTTPS host sessions survive public-to-LAN base change; username reauthentication, cookie boundaries, CSRF and retired-public-Origin refusal pass")
 
         # Return only this synthetic unchanged fixture to its preserved legacy shape to exercise unsafe rollback.
         docker("stop", new_id)
@@ -271,6 +318,8 @@ def main():
                         print("OWNED_BOOTSTRAP_DIAGNOSTIC " + line, flush=True)
         raise
     finally:
+        if tls_proxy:
+            tls_proxy.close()
         for instance in operators:
             for name in ("serriantide-rollback-" + instance.run_id, "serriantide-failed-" + instance.run_id):
                 found = docker("inspect", name, allow_failure=True)
@@ -284,4 +333,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(legacy_auth="--legacy-auth" in sys.argv)

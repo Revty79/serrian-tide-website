@@ -8,6 +8,21 @@ from ubuntu_deploy import Refused, parse_env
 
 
 class BootstrapTests(unittest.TestCase):
+    def test_legacy_auth_transition_preserves_secret_trusted_origins_and_unrelated_bytes(self):
+        for ending in (b"\n", b"\r\n"):
+            original = ending.join([b"\xef\xbb\xbf# retained", b"BETTER_AUTH_URL=http://198.51.100.10:3003", b"BETTER_AUTH_SECRET=keep-exact", b"BETTER_AUTH_TRUSTED_ORIGINS=http://10.23.4.5:3003,https://one.trycloudflare.com,https://two.trycloudflare.com", b"DATABASE_URL=keep-db", b"UNRELATED=keep-this", b""])
+            plan = {"transition": True, "originalBase": "http://198.51.100.10:3003", "candidate": {"base": "http://10.23.4.5:3003"}}
+            candidate = candidate_configuration(original, PurePosixPath("/apps/data"), plan)
+            self.assertTrue(candidate.startswith(original.replace(b"BETTER_AUTH_URL=http://198.51.100.10:3003", b"BETTER_AUTH_URL=http://10.23.4.5:3003")))
+            for key, value in parse_env(original).items():
+                self.assertEqual(parse_env(candidate)[key], plan["candidate"]["base"] if key == "BETTER_AUTH_URL" else value)
+
+    def test_legacy_auth_plan_cannot_inject_settings_or_select_an_unconfigured_origin(self):
+        original = b"BETTER_AUTH_URL=http://198.51.100.10:3003\nBETTER_AUTH_TRUSTED_ORIGINS=http://10.23.4.5:3003\n"
+        for target in ("http://10.23.4.6:3003", "http://10.23.4.5:3003\nDATABASE_URL=other"):
+            with self.assertRaisesRegex(Refused, "BOOTSTRAP_AUTH_PLAN"):
+                candidate_configuration(original, PurePosixPath("/apps/data"), {"transition": True, "originalBase": "http://198.51.100.10:3003", "candidate": {"base": target}})
+
     def test_configuration_preserves_every_existing_byte_and_adds_only_storage(self):
         original = b"# retained comment\r\nDATABASE_URL=synthetic\r\nBETTER_AUTH_SECRET=keep-this-exact\r\nPORT=3003"
         result = candidate_configuration(original, PurePosixPath("/apps/serrian-tide-data"))

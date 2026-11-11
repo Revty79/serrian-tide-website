@@ -24,10 +24,30 @@ def real_directory(directory):
     return directory
 
 
-def candidate_configuration(data, storage):
+def candidate_configuration(data, storage, auth_plan=None):
     env = parse_env(data)
     require(all(key not in env for key in ROOT_KEYS), "BOOTSTRAP_ALREADY_CONFIGURED: use the normal updater for configured storage")
     require(not any(ord(character) < 32 for character in str(storage)) and "," not in str(storage), "BOOTSTRAP_STORAGE_PATH: storage paths cannot inject environment entries or mount options")
+    if auth_plan and auth_plan["transition"]:
+        replacement = auth_plan["candidate"]["base"]
+        require(env.get("BETTER_AUTH_URL") == auth_plan["originalBase"] and replacement in [value.strip() for value in env.get("BETTER_AUTH_TRUSTED_ORIGINS", "").split(",")] and not any(ord(c) < 32 for c in replacement), "BOOTSTRAP_AUTH_PLAN: preserve the verified original and select only its explicit trusted origin")
+        # Replace exactly the one validated value, retaining BOM/comments/endings
+        # and every unrelated byte. No auth secret or trusted-origin list changes.
+        old_line = ("BETTER_AUTH_URL=" + env["BETTER_AUTH_URL"]).encode()
+        new_line = ("BETTER_AUTH_URL=" + replacement).encode()
+        changed = 0
+        lines = []
+        for line in data.splitlines(keepends=True):
+            prefix = b"\xef\xbb\xbf" if line.startswith(b"\xef\xbb\xbf") else b""
+            content = line[len(prefix):]
+            if content.rstrip(b"\r\n") == old_line:
+                line = prefix + new_line + content[len(old_line):]
+                changed += 1
+            lines.append(line)
+        require(changed == 1, "BOOTSTRAP_AUTH_PLAN: expected one exact original base URL")
+        data = b"".join(lines)
+        revised = parse_env(data)
+        require(revised == {**env, "BETTER_AUTH_URL": replacement}, "BOOTSTRAP_AUTH_PLAN: unrelated configuration must remain exact")
     additions = "".join(f"{key}={storage / kind}\n" for key, kind in zip(ROOT_KEYS, KINDS))
     return data + (b"" if data.endswith(b"\n") else b"\n") + additions.encode()
 
@@ -119,13 +139,17 @@ class Bootstrap(Operator):
         actual = dict(item.split("=", 1) for item in old["Config"].get("Env", []) if "=" in item)
         require(all(key not in env and key not in actual for key in ROOT_KEYS), "BOOTSTRAP_ALREADY_CONFIGURED: use the normal A5 updater")
         require(all(actual.get(key) == value for key, value in env.items()), "CONFIG_DRIFT: protected configuration differs from the existing container")
+        require(all(env.get(key) == actual.get(key) for key in ("DATABASE_URL", "BETTER_AUTH_URL", "BETTER_AUTH_TRUSTED_ORIGINS", "BETTER_AUTH_SECRET")), "CONFIG_DRIFT: authentication or database settings are absent from the protected file")
         require("SERRIAN_PROBE_READ_ONLY_ROOTS" not in env, "BOOTSTRAP_CONFIG: remove no safeguards through the runtime environment")
         resources, daemon = self.resources()
         require(resources["memoryAvailable"] >= 1024 * MIB, "PREFLIGHT_MEMORY: retain the working website; reserve for the bounded probe is unavailable")
-        # Run the same built-in-only validator in the old image's host network
-        # before a build, database probe or writer stop. No auth value is rewritten.
+        # Only after positive old-container and exact env identification may the
+        # read-only planner recognize the legacy public-HTTP base. Its candidate
+        # must pass the unchanged strict validator; no active value is rewritten.
         auth_code = self.git("show", self.commit + ":ops/host-probe.mjs")
-        auth = json.loads(self.docker("run", "--rm", "-i", "--entrypoint", "node", "--network", "host", "--read-only", "--memory", "512m", "--memory-swap", "512m", "--env-file", str(self.active_env_file), old["Image"], "--max-old-space-size=256", "--input-type=module", "-", "--auth-probe", data=auth_code.encode()).stdout)
+        auth_code += "\n" + self.git("show", self.commit + ":ops/bootstrap-auth-source.mjs")
+        auth_code += '\nPromise.resolve().then(()=>bootstrapAuthPlan(process.env,origins)).then(v=>console.log(JSON.stringify(v))).catch(error=>{console.error("HOST_PROBE_FAILED: "+(error?.message==="BOOTSTRAP_AUTH_LOCAL_REQUIRED"?error.message:safeProbeFailure(error)));process.exitCode=1;});'
+        auth = json.loads(self.docker("run", "--rm", "-i", "--entrypoint", "node", "--network", "host", "--read-only", "--memory", "512m", "--memory-swap", "512m", "--env-file", str(self.active_env_file), old["Image"], "--max-old-space-size=256", "--input-type=module", "-", "--bootstrap-auth-source", data=auth_code.encode()).stdout)
         code = self.git("show", self.commit + ":ops/bootstrap-probe.mjs")
         result = json.loads(self.docker("exec", "-i", "--workdir", "/app", old["Id"], "node", "--max-old-space-size=64", "--input-type=module", "-e", code, "--", "--bootstrap-probe", data=b'{"mode":"old-storage"}').stdout)
         require(result.get("oldDefaultDirectoriesAbsent"), "BOOTSTRAP_OLD_STORAGE: no existing files may be concealed by new mounts")
@@ -144,7 +168,7 @@ class Bootstrap(Operator):
         code = self.git("show", self.commit + ":ops/host-probe.mjs")
         probe = json.loads(self.docker("run", "--rm", "-i", "--entrypoint", "node", "--network", "host", "--read-only", "--memory", "512m", "--memory-swap", "512m", "--env-file", str(self.env_file), "-e", "SERRIAN_PROBE_READ_ONLY_ROOTS=1", *self.mount_args({"mounts": mounts}), self.image_id, "--input-type=module", "-", "--probe", data=code.encode()).stdout)
         require(probe["roots"] == old["report"]["roots"] and probe["websiteListen"] in ("127.0.0.1", "0.0.0.0", "::"), "BOOTSTRAP_TARGET_CHANGED: storage or port identity differs")
-        require(probe["auth"] == old["report"]["auth"], "BOOTSTRAP_AUTH_CHANGED: preserve the original authentication configuration")
+        require(probe["auth"] == old["report"]["auth"]["candidate"], "BOOTSTRAP_AUTH_CHANGED: candidate differs from the strictly validated authentication plan")
         return {"container": old["container"], "env": parse_env(self.candidate_data), "mounts": mounts, "report": {"listen": probe["websiteListen"], "roots": probe["roots"], "auth": probe["auth"], "envSha256": sha(self.candidate_data), "database": probe["database"]}}
 
     def native_pg(self, command, *args, allow_failure=False):
@@ -218,11 +242,19 @@ class Bootstrap(Operator):
             self.recovery_verified = True
         elif self.in_cutover and not frozen:
             require(self.recovery_verified, "BOOTSTRAP_RECOVERY_REQUIRED: no unverified cutover")
+            self.authentication_check(image)
             replace_configuration(self.active_env_file, self.original_data, self.candidate_data, self.original_mode)
             self.config_activated = True
             self.env_file = self.active_env_file
             self.save("bootstrap-configuration-activated.json", {"activated": True, "originalSha256": sha(self.original_data), "activeSha256": sha(self.candidate_data), "originalPreservedAt": str(self.output / "original.env")})
         return result
+
+    def authentication_check(self, image):
+        self.stage = "real application anonymous authentication and CSRF checks"
+        request = {"deniedLegacyOrigin": self.auth_plan["originalBase"] if self.auth_plan["transition"] else None}
+        result = json.loads(self.docker("run", "--rm", "-i", "--network", "host", "--read-only", "--memory", "512m", "--memory-swap", "512m", "--env-file", str(self.env_file), image, "node", "ops/bootstrap-auth-health.mjs", "--auth-health", data=json.dumps(request).encode()).stdout)
+        require(result.get("passed"), "BOOTSTRAP_AUTH_HEALTH: new authentication checks did not pass")
+        self.save("bootstrap-authentication.json", result)
 
     def bootstrap(self, freeze):
         require(os.name == "posix" and os.geteuid() != 0, "BOOTSTRAP_OPERATOR: run as the normal Ubuntu operator, not sudo/root")
@@ -251,7 +283,8 @@ class Bootstrap(Operator):
                 self.original_mode = stat.S_IMODE(original_stat.st_mode)
                 with (self.output / "original.env").open("xb") as stream:
                     stream.write(self.original_data)
-                self.candidate_data = candidate_configuration(self.original_data, self.storage_root)
+                self.auth_plan = old["report"]["auth"]
+                self.candidate_data = candidate_configuration(self.original_data, self.storage_root, self.auth_plan)
                 self.env_file = self.output / "candidate.env"
                 with self.env_file.open("xb") as stream:
                     stream.write(self.candidate_data)
@@ -290,7 +323,7 @@ class Bootstrap(Operator):
                     raise
                 finally:
                     self.in_cutover = False
-                result.update({"bootstrap": True, "recoveryVerified": self.recovery_verified, "recoveryDirectory": str(self.recovery), "normalUpdaterReady": True, "pgAdminBackupIndependentlyVerified": False, "freshSignedBackupIndependentlyRestored": True})
+                result.update({"bootstrap": True, "recoveryVerified": self.recovery_verified, "recoveryDirectory": str(self.recovery), "normalUpdaterReady": True, "authenticationBaseTransition": self.auth_plan["transition"], "pgAdminBackupIndependentlyVerified": False, "freshSignedBackupIndependentlyRestored": True})
                 self.save("bootstrap-success.json", result)
                 return result
 

@@ -60,6 +60,8 @@ jobs:
           /usr/lib/postgresql/18/bin/initdb --version
       - name: Actual no-mount first-time bootstrap and independent source restoration
         run: python3 ops/integration_bootstrap_a5.py
+      - name: Actual legacy public-HTTP auth transition, verified TLS proxies and recovery
+        run: python3 ops/integration_bootstrap_a5.py --legacy-auth
       - name: Public-source build diagnostics only
         if: failure()
         run: |

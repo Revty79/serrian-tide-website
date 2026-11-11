@@ -1,0 +1,53 @@
+# A5 final legacy authentication bootstrap correction
+
+Starting checkpoint: `3c1a05a6d48c686c6b3cd93b58a213bd250e05b7`. Owner authorization: `30d697b2-62ee-4891-b724-3d5ecd025441`. Scope is the existing Ubuntu bootstrap; no live owner-server access or deployment is performed by the agent. Implementation and hosted verification are in progress; this is not yet a PASS receipt.
+
+## Confirmed cause and bounded transition
+
+The owner's actual running environment has a public HTTP IPv4 base URL, an explicitly configured assigned LAN origin on 3003, and two individually configured HTTPS tunnel origins. The first correction correctly rejects the public HTTP base as a new deployment configuration. It did not provide a transition from the older running configuration. The previous LAN-only fixture did not reproduce that legacy base URL.
+
+The normal `ops/host-probe.mjs` validator remains byte-for-byte unchanged and continues rejecting public HTTP IP origins. A separate `bootstrap-auth-source.mjs` planner is used only after bootstrap has positively identified the running host-network legacy container, its old image, absence of mounts/root settings, and exact protected configuration values (including both directions for auth/DB keys). It recognizes a canonical nonlocal HTTP IPv4 base on 3003 only as an original being preserved. It never authorizes a new deployment with that base.
+
+The planner selects the first already explicitly trusted HTTP on port 3003 LAN IPv4 origin that is assigned to a non-internal interface. It does not guess a public NAT address, add localhost or discover/assume an active tunnel. The complete candidate must pass the original strict validator. All existing trusted entries must independently remain valid; malformed, wildcard, insecure public, wrong-port or unassigned-LAN entries refuse the transition.
+
+The candidate file retains all original bytes except the one `BETTER_AUTH_URL` value and the three already authorized appended storage settings. Comments, line endings, secret, trusted-origin list, DB URL and unrelated settings stay exact. The original remains protected in the run directory. Active `.env.production` is not edited during preflight, build or restoration. After the new real website passes checks, activation uses the existing guarded atomic replacement. A state-verified safe rollback restores every original configuration byte, including the public base; accepted writes or unavailable equality proof still forbid automatic rollback.
+
+## Canonical base, actual Better Auth behavior and cookies
+
+The application client uses same-origin authentication requests; email and username/password login do not require redirecting the browser to the canonical base. The server retains the explicitly configured origin allowlist. An assigned LAN base is stable when a temporary tunnel expires, while either explicitly configured HTTPS tunnel can still proxy same-origin authentication. Choosing either of two tunnel URLs as canonical without knowing which remains active would introduce an unjustified availability dependency.
+
+The installed Better Auth 1.7.1 implementation derives its cookie naming/security mode from the static base URL. Changing public HTTP to LAN HTTP preserves that mode and the existing authentication secret. No application authentication code, library dependency, CSRF rule, rate limiter, cookie prefix, cookie domain, session record or credential is changed by this correction. [Better Auth's cookie documentation](https://better-auth.com/docs/concepts/cookies) and [base-URL options](https://better-auth.com/docs/reference/options) describe the relevant mechanisms; the actual installed implementation and real application tests are authoritative for this pinned release.
+
+Important explicit limit: in the existing mixed HTTP/HTTPS configuration, cookies are host-only, HttpOnly and SameSite=Lax, but their `Secure` attribute is false because the canonical base is HTTP. TLS protects their transport through the HTTPS proxy; this is **not** a claim that they are Secure-flag cookies. This correction preserves the existing policy instead of globally forcing Secure cookies and breaking required HTTP LAN access. HTTPS-only cookie hardening or a per-origin cookie policy would be a separate reviewed application change. No CSRF or cookie setting is disabled or weakened here.
+
+Existing cookies on the same LAN or tunnel hostname can survive the base transition when the secret, cookie name and database session stay unchanged. A cookie held for the former public-IP hostname cannot be transferred to a LAN address or another tunnel hostname. Those users must visit a currently permitted origin and sign in again. Sessions are neither revoked nor copied between hosts. Removing the former base's trusted-Origin status does not change firewall/listener exposure or erase existing database sessions; this is not a network-hardening operation.
+
+## Real authentication check before activation
+
+`bootstrap-auth-health.mjs` checks the actual new Next.js auth routes through loopback before activating configuration. It checks anonymous get-session, every explicit allowed origin, an unconfigured origin, absent Origin, an invalid callback and the retired public Origin when applicable. The sign-out probes send only an unrelated fixed canary cookie, never a real session cookie, token, password or account. That forces normal CSRF validation without identifying or deleting a session. A unit test runs the actual Better Auth handler with all DB calls fenced and proves this canary performs zero account/database operations.
+
+The canary does not contact external tunnel services or declare old tunnel URLs active. Real end-to-end TLS behavior is tested in the owned Ubuntu fixture; live Cloudflare availability and owner browser acceptance remain separate checks. An actual new website with missing tunnel trust must fail the auth probe, remain unactivated, stop, and permit rollback only after the unchanged complete DB/file witness passes.
+
+## Regression fixture and required evidence
+
+The existing full bootstrap fixture remains available in its original LAN configuration. An additional `--legacy-auth` run reproduces the newly confirmed shape: a synthetic nonlocal documentation IPv4 HTTP base, real assigned LAN trusted origin, two exact HTTPS trusted origins, no old storage mounts, three empty private roots, a populated PG18 source with verified 162 migrations, and existing account/session data. No actual owner IP or tunnel hostname is embedded in the new fixture.
+
+The TLS fixture uses an actual TLS listener, a newly generated certificate with both exact test names, certificate-chain and hostname verification, and an HTTP reverse proxy to the real Next.js application. Clients map only the owned fixture names to the owned loopback listener; no DNS, system trust store, Cloudflare resource or owner network is changed. Cookie jars enforce real host boundaries. The fixture checks both old HTTPS sessions after cutover, fresh username login, authenticated World reads, HttpOnly/host-only/SameSite behavior, denied CSRF and the public-host reauthentication boundary. A separate transport unit verifies the TLS proxy and cookie host isolation.
+
+All existing ledger/storage/restore/startup/configuration-activation/accepted-write/bystander assertions remain. The legacy run adds a real backup-engine refusal and a real healthy Next.js authentication-misconfiguration failure. It requires retained original configuration/image/container, successful independent signed restore, equality of new active env and container env, and ordinary A5 repeat deployment. Failed attempts remain recorded; no failure is reclassified as success.
+
+Exact results, final source identity, CI links and the owner launcher pin will be added after the complete validation gates pass. The previous reports remain historical evidence, not proof of this newly required legacy transition.
+
+## Changed-file scope and owner boundary
+
+Implementation is confined to the bootstrap, a separate read-only auth-source planner and an anonymous auth-health probe. New/extended regression helpers, tests and the existing deployment workflow cover the real legacy/TLS scenario. The strict origin validator, actual application/authentication code, normal updater, migration history, original recovery implementation and all Atlas functionality remain unchanged.
+
+The final owner block will extract the two reviewed Python launchers from its pinned Git commit and use the existing bootstrap options. No manual auth edit, DEV env copy, account change or migration is requested. The operator rechecks the real source ledger/storage, creates a fresh signed backup and independently restores it before cutover. Close other writers/pgAdmin and leave the working website/tunnel running for the initial checks. Stop for owner/Ember review before running the block on the real server.
+
+## Local pre-publication validation
+
+Full TypeScript, full ESLint (the inherited unused `LoreFamily` warning), and all 2,942 feature tests pass. Deployment validation runs 25 Python, 15 Node and two TypeScript cases; the Windows-only directory-fsync case is skipped on Windows and must run on Ubuntu. The new TLS transport case passes locally with certificate and hostname validation enabled. All changed Python sources parse, and the Git whitespace check passes.
+
+The first local TLS unit attempt failed because Git for Windows OpenSSL could not use its machine-default configuration. The helper now creates an owned minimal certificate configuration explicitly; the transport test and complete deployment unit rerun pass. That failed log remains in ignored `artifacts/deployment-a5-auth-transition/`; no test or security assertion was relaxed.
+
+A fresh comparison against the starting checkpoint confirms unchanged application/authentication sources, data/assets, migration history, dependency versions, Dockerfile, normal origin validator/updater, original deployment integration and environment recovery implementation. Hosted real PostgreSQL/Next.js/rollback verification is still required before delivery.
