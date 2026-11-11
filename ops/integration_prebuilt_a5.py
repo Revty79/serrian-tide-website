@@ -63,6 +63,25 @@ def main():
     baseline.build(archive, "serriantide:" + BASELINE)
     old_image = baseline.checked_image("serriantide:" + BASELINE, old_hash)
     baseline.docker("image", "save", "--output", str(task / "old-image.tar"), "serriantide:" + BASELINE)
+    # Measure the unchanged bounded builder before starting any additional
+    # Docker daemons. The comparison is an independent phase; it must not
+    # depend on networking state shared with the deployment/fault fixtures.
+    build = Operator(repo, commit)
+    build.output = task / "comparison-build"
+    build.output.mkdir(mode=0o700)
+    archive, source_hash = build.expected_source()
+    began = time.monotonic()
+    try:
+        build.build(archive, "serriantide:" + commit)
+    except Exception:
+        # This isolated build contains only public Git sources and no env,
+        # mounts, database or account arguments. Preserve diagnostic evidence
+        # for the build setup itself, rather than masking a timing failure.
+        failure = getattr(build, "last_failure", {})
+        print("OWNED_PUBLIC_BUILD_DIAGNOSTIC " + failure.get("stderr", "")[-6000:], flush=True)
+        raise
+    local_build_seconds = time.monotonic() - began
+    build.docker("image", "save", "--output", str(task / "comparison-image.tar"), "serriantide:" + commit)
     # A new daemon ensures the candidate is not preloaded from CI's Docker tar.
     # It shares no images/containers/socket/data-root with the primary CI daemon.
     daemon_root = task / "daemon"
@@ -230,23 +249,7 @@ def main():
         say("decline and actual failed startup use the original A5 frozen-state rollback and retain both images")
         # Compare complete prebuilt update with a bounded same-source build plus
         # the unchanged local updater's real preflight/cutover. All phases measured.
-        build = Operator(repo, commit)
-        build.output = task / "comparison-build"
-        build.output.mkdir(mode=0o700)
-        archive, source_hash = build.expected_source()
-        # Build on the CI daemon with its ordinary isolated builder network;
-        # the website daemon deliberately has no bridge or firewall authority.
-        if previous_docker_host is None:
-            os.environ.pop("DOCKER_HOST", None)
-        else:
-            os.environ["DOCKER_HOST"] = previous_docker_host
-        try:
-            began = time.monotonic()
-            build.build(archive, "serriantide:" + commit)
-            metrics["sameSourceLocalBuildSeconds"] = time.monotonic() - began
-            build.docker("image", "save", "--output", str(task / "comparison-image.tar"), "serriantide:" + commit)
-        finally:
-            os.environ["DOCKER_HOST"] = endpoint
+        metrics["sameSourceLocalBuildSeconds"] = local_build_seconds
         op.docker("image", "load", "--input", str(task / "comparison-image.tar"))
         metrics["localBuildResources"] = json.loads((build.output / "build-resources.json").read_text())
         code, text, deploy_seconds = invoke(old_package / "serrian_update.py", ["--installation", str(old_package / "installation.json")], "local-comparison", "y", original=True)
