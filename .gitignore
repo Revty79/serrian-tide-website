@@ -193,3 +193,4 @@ next-env.d.ts
 /artifacts/prebuilt-public-image/
 /artifacts/deployment-a5-prebuilt/
 artifacts/atlas-source-a3/
+/artifacts/atlas-guidance-a6/

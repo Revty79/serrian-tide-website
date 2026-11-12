@@ -363,7 +363,7 @@
 }
 @media(max-width:700px) {
  .editor.mapWorkspace {height:max(calc(50dvh + 156px),var(--atlas-workspace-height,90dvh));min-height:calc(50dvh + 156px);scroll-margin-top:4rem;padding:.25rem;gap:.25rem;}
- .mapWorkspace .editorHeader {display:flex;flex-wrap:wrap;gap:.2rem;height:132px;flex-basis:132px;}
+ .mapWorkspace .editorHeader {display:flex;flex-wrap:wrap;gap:.2rem;height:auto;min-height:132px;flex-basis:auto;flex-shrink:0;}
  .workspaceIdentity {flex:1 0 100%;}
  .mapWorkspace .editorHeader h3 {font-size:.85rem;}
  .workspaceIdentity>span {font-size:.65rem;}
@@ -374,6 +374,7 @@
  .mapWorkspace .mapColumn>.viewport {min-height:50dvh;}
  .workspaceTools,.mapWorkspace .editorInspector {top:auto;bottom:0;left:0;right:0;width:100%;height:42%;max-height:42%;border-radius:.6rem .6rem 0 0;box-shadow:0 -.4rem 1rem var(--st-shadow);}
  .mapWorkspace .editorInspector.labelsInspector {height:42%;max-height:42%;}
+ .mapWorkspace .editorInspector.guideInspector {height:75%;max-height:75%;}
  .mapWorkspace .regionSaveCard {position:relative;}
  .mapWorkspace[data-keyboard="1"] .editorInspector {top:var(--atlas-input-sheet-offset);bottom:auto;height:var(--atlas-input-sheet-height);max-height:var(--atlas-input-sheet-height);}
  .workspaceFamilies {grid-template-columns:repeat(3,minmax(0,1fr));}
@@ -388,5 +389,11 @@
 }
 
 .toolHelp{display:block;font-size:.68rem;font-weight:400;line-height:1.25;white-space:normal;margin-top:.2rem}
+.authoringGuide {display:grid;gap:.65rem;line-height:1.5;min-width:0;}
+.authoringGuide h3,.authoringGuide h4,.authoringGuide p {margin:0;}
+.authoringGuide nav {display:grid;gap:.3rem;}
+.authoringGuide nav button {justify-content:flex-start;text-align:left;white-space:normal;}
+.authoringGuide article {display:grid;gap:.8rem;border-top:1px solid var(--st-border-strong);padding-top:.75rem;}
+.activeTool {font-size:.75rem;font-weight:700;white-space:nowrap;}
 
 button:has(>.toolHelp){flex-direction:column;align-items:stretch;text-align:left}

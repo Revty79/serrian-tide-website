@@ -1,0 +1,96 @@
+import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
+import {writeFile} from "node:fs/promises";
+import path from "node:path";
+import type {Page,BrowserContext} from "playwright-core";
+import type {CollaborationFixture} from "./worlds-collaboration-fixture";
+import type {CollaborationBrowser} from "./worlds-collaboration-browser-fixture";
+import {claimOwnedWorldPage} from "./worlds-owned-world-api";
+import {closeTerrainSettings,visibleTerrainPoint} from "./worlds-terrain-browser-ui";
+import {createGrid,terrainGeometry,type TerrainDocument} from "../src/features/worlds/terrain";
+
+export async function guidanceChecks(f:CollaborationFixture,b:CollaborationBrowser,p:Page,context:BrowserContext,worldId:string){
+ const groups:string[]=[],auxiliaryErrors:string[]=[],mapId=new URL(p.url()).searchParams.get("terrainMap")!,rootUrl=p.url();assert.ok(mapId);
+ const pass=(name:string)=>{groups.push(name);console.log("PASS",name);};
+ const c=p.getByLabel("Terrain map canvas",{exact:true});
+ const read=async()=>{const response=await context.request.get(`${b.base}/api/worlds/${worldId}/terrain?terrainMap=${mapId}`);assert.equal(response.status(),200);return (await response.json()).document as TerrainDocument;};
+ const grid=(d:TerrainDocument)=>createGrid(d.baseElevation,d.tiles,terrainGeometry(d.settings)),hash=(d:TerrainDocument)=>createHash("sha256").update(new Uint8Array(grid(d).buffer)).digest("hex");
+ async function poll<T>(run:()=>Promise<T>,accept:(v:T)=>boolean,message:string){const until=Date.now()+45000;for(;;){const v=await run();if(accept(v))return v;assert.ok(Date.now()<until,message);await p.waitForTimeout(100);}}
+ const saved=(revision:number)=>poll(read,d=>d.revision>revision,"Native save must persist");
+ async function guide(topic:string,action?:string){await p.getByRole("button",{name:"Mapmaking guide",exact:true}).click();const panel=p.getByRole("region",{name:"Mapmaking guide",exact:true});await panel.getByLabel("Find a tool or task",{exact:true}).fill(topic);const choices=panel.getByRole("navigation",{name:"Mapmaking topics"}).getByRole("button");assert.equal(await choices.count(),1,"Task search must find one intended topic: "+topic);await choices.click();if(topic==="blank ocean"){await panel.getByRole("button",{name:"Open Flatten brush",exact:true}).scrollIntoViewIfNeeded();await p.screenshot({path:path.join(f.out,"desktop-guide.png")});}if(action)await panel.getByRole("button",{name:action,exact:true}).click();return panel;}
+ async function hide(){await closeTerrainSettings(p);const tools=p.getByRole("button",{name:"Tools",exact:true});if(await tools.getAttribute("aria-expanded")==="true")await tools.click();}
+ async function stroke(points:{x:number;y:number}[]){await hide();const start=await visibleTerrainPoint(p,points[0]);await p.mouse.move(start.x,start.y);await p.mouse.down();const box=(await c.boundingBox())!,view=await c.evaluate(e=>({x:Number(e.dataset.viewX),y:Number(e.dataset.viewY),scale:Number(e.dataset.zoom)}));for(const at of points.slice(1))await p.mouse.move(box.x+view.x+at.x*view.scale,box.y+view.y+at.y*view.scale,{steps:10});await p.mouse.up();}
+ async function screenshot(name:string){await p.screenshot({path:path.join(f.out,name+".png")});}
+ await p.getByRole("button",{name:"Expand editor",exact:true}).click();
+ const initial=await read(),width=initial.settings.widthKm*1000,height=initial.settings.heightKm*1000;
+ assert.equal(grid(initial).filter(z=>z>initial.seaLevel).length,0);
+ await guide("blank ocean","Open Flatten brush");await p.getByLabel("Brush size mode",{exact:true}).selectOption("samples");
+ await p.getByLabel(/^Brush radius:/).focus();await p.keyboard.press("End");await p.getByLabel(/^Brush strength:/).focus();await p.keyboard.press("End");await p.getByLabel("Level target elevation (m)",{exact:true}).fill("500");
+ await stroke([{x:width*.42,y:height*.5},{x:width*.58,y:height*.5}]);let accepted=await saved(initial.revision);const island=hash(accepted),land=grid(accepted).filter(z=>z>accepted.seaLevel).length;assert.ok(land>100&&land<grid(accepted).length*.8);
+ await screenshot("island-saved");await p.getByRole("button",{name:"Undo change",exact:true}).click();accepted=await saved(accepted.revision);assert.equal(hash(accepted),hash(initial));await p.getByRole("button",{name:"Redo change",exact:true}).click();accepted=await saved(accepted.revision);assert.equal(hash(accepted),island);
+ pass("visible World/map creation, searchable guide, mouse-authored island, autosave and exact Undo/Redo");
+ await guide("mountains","Open Raise mountains");await p.getByLabel("Brush precision",{exact:true}).selectOption("single");
+ await guide("coordinates","Find Keyboard Sculpting Mode");const dock=p.getByRole("region",{name:"Keyboard Sculpting Mode",exact:true});await dock.getByRole("button",{name:"Keyboard Sculpting Mode",exact:true}).click();await dock.getByText("Instructions & precision controls",{exact:true}).click();
+ await dock.getByLabel("Precision position X",{exact:true}).fill(String(initial.settings.gridWidth/2));await dock.getByLabel("Precision position Y",{exact:true}).fill(String(initial.settings.gridHeight/2));await dock.getByRole("button",{name:"Position precision cursor",exact:true}).click();await dock.getByRole("button",{name:"Focus map for keyboard editing",exact:true}).click();
+ await p.keyboard.press("Shift+Enter");await p.keyboard.press("ArrowRight");await p.keyboard.press("Escape");await p.waitForTimeout(1500);assert.equal(hash(await read()),island);
+ await c.focus();await p.keyboard.press("Enter");accepted=await saved(accepted.revision);assert.ok(grid(accepted).some(z=>z>500));
+ const beforeTyping=hash(accepted);await guide("coordinates");await p.getByLabel("Find a tool or task",{exact:true}).press("ArrowRight");await p.getByLabel("Find a tool or task",{exact:true}).press("Enter");await p.waitForTimeout(1500);assert.equal(hash(await read()),beforeTyping);
+ await dock.getByRole("button",{name:"Exit Keyboard Sculpting Mode",exact:true}).click();
+ pass("guide discovers A1 precision; cancelled stroke and form typing preserve terrain; deliberate stamp saves a mountain");
+ await guide("selection polygon","Open Select area");const operation=p.getByRole("dialog",{name:"Edit selected terrain",exact:true});await operation.waitFor();await operation.getByRole("button",{name:"Cancel",exact:true}).click();assert.equal(hash(await read()),beforeTyping);
+ pass("real area workshop discovered and cancelled without accepted changes");
+ await guide("source network","Open Water tools");await p.getByRole("button",{name:/^Start a river$/i}).filter({visible:true}).first().click();await hide();
+ const spring=await visibleTerrainPoint(p,{x:width*.5,y:height*.47});await p.mouse.click(spring.x,spring.y);await p.getByRole("button",{name:"Review water suggestions",exact:true}).waitFor();await p.getByRole("button",{name:"Review water suggestions",exact:true}).click();await p.getByRole("button",{name:"Accept all suggested waterways",exact:true}).click();await p.getByRole("button",{name:"Save water changes",exact:true}).filter({visible:true}).first().click();
+ await poll(async()=>(await f.pool.query("select revision,layer from world_hydrology where map_id=$1",[mapId])).rows[0],r=>!!r?.layer.edges.length,"River proposal must persist after explicit acceptance and save");await p.getByRole("button",{name:"Close suggestions; keep accepted changes",exact:true}).click();
+ await guide("source network","Open Water tools");await p.getByRole("button",{name:/^Draw a lake$/i}).filter({visible:true}).first().click();await hide();
+ for(const [x,y]of [[.44,.48],[.47,.48],[.47,.52],[.44,.52]]){const at=await visibleTerrainPoint(p,{x:width*x,y:height*y});await p.mouse.click(at.x,at.y);}
+ await p.getByRole("button",{name:"Finish / cancel lake",exact:true}).click();await p.getByLabel("Lake name",{exact:true}).fill("First Island Lake");await p.getByLabel("Lake water level (m)",{exact:true}).fill("600");await p.getByRole("button",{name:"Finish lake shoreline",exact:true}).click();await p.getByRole("button",{name:"Save water changes",exact:true}).filter({visible:true}).first().click();
+ await poll(async()=>(await f.pool.query("select revision,layer from world_hydrology where map_id=$1",[mapId])).rows[0],r=>!!r?.layer.lakes?.some((lake:{name:string})=>lake.name==="First Island Lake"),"Drawn lake must persist");assert.equal(hash(await read()),beforeTyping);
+ pass("guide-to-tool river source/proposal/accept/save and drawn lake/save preserve numerical elevations");
+ await guide("decorate","Open Ground Materials");await p.getByLabel("Ground material",{exact:true}).selectOption("sand");await stroke([{x:width*.47,y:height*.5},{x:width*.51,y:height*.5}]);
+ await poll(async()=>(await f.pool.query("select revision,layer from world_terrain_material where map_id=$1",[mapId])).rows[0],r=>!!r?.layer.strokes.length,"Ground painting must persist");assert.equal(hash(await read()),beforeTyping);
+ await guide("decorate","Open Biomes");await p.getByLabel("Biome type",{exact:true}).selectOption({label:"Hot desert"});await stroke([{x:width*.46,y:height*.49},{x:width*.54,y:height*.49}]);await p.getByRole("button",{name:"Save Changes",exact:true}).filter({visible:true}).first().click();
+ const environment=await poll(async()=>(await f.pool.query("select revision,layer from world_environment where map_id=$1",[mapId])).rows[0],r=>!!r?.layer.regions.length,"Biome painting must persist");assert.equal(hash(await read()),beforeTyping);
+ pass("ground autosave and explicit biome save persist independently without elevation changes");
+ await guide("geographic record","Create Region");await p.getByLabel("Regional map name",{exact:true}).fill("First Island Region");await hide();
+ await stroke([{x:width*.3,y:height*.3},{x:width*.7,y:height*.7}]);await p.getByRole("button",{name:"Options",exact:true}).click();await p.getByRole("button",{name:"Preview Region",exact:true}).click();await screenshot("regional-outline-preview");await p.getByRole("button",{name:"Save & Open Region",exact:true}).click();
+ await p.waitForURL(u=>!!u.searchParams.get("terrainMap")&&u.searchParams.get("terrainMap")!==mapId);const regionId=new URL(p.url()).searchParams.get("terrainMap")!;await c.waitFor();await screenshot("saved-linked-region");
+ assert.equal((await f.pool.query("select terrain_id from world_map_canvas where map_id=$1",[regionId])).rows[0].terrain_id,initial.terrainId);
+ const region=(await f.pool.query("select parent_map_id,terrain_id,width_metres,height_metres from world_map_region where map_id=$1 and world_id=$2",[regionId,worldId])).rows[0];assert.equal(region.parent_map_id,mapId);assert.equal(region.terrain_id,initial.terrainId);assert.ok(region.width_metres>0&&region.height_metres>0);
+ await p.getByRole("button",{name:"Return to World Map",exact:true}).click();await p.waitForURL(u=>u.searchParams.get("terrainMap")===mapId);await c.waitFor();
+ pass("visible rectangle preview/accept persists native regional coverage and linked map; same terrain source and parent navigation");
+ await guide("interrupted","Review unfinished changes");await p.getByRole("region",{name:"Pending Work",exact:true}).getByText("Your unfinished work is taken care of. You can continue below.",{exact:true}).waitFor();
+ const collapse=p.getByRole("button",{name:"Exit expanded editor",exact:true});if(await collapse.isVisible())await collapse.click();await p.getByRole("link",{name:"World registry",exact:true}).click();await p.getByRole("link",{name:"Open A6 First Island",exact:true}).click();await p.getByRole("button",{name:"Atlas",exact:true}).click();await claimOwnedWorldPage(p,b.base);
+ await p.getByRole("button",{name:"Switch Map",exact:true}).filter({visible:true}).click();const browser=p.getByRole("dialog",{name:"Map browser",exact:true});await browser.getByLabel("Search maps",{exact:true}).fill("First Island Map");await browser.getByRole("button",{name:/^First Island Map World map/}).click();await c.waitFor();assert.equal(new URL(p.url()).searchParams.get("terrainMap"),mapId);assert.equal(hash(await read()),beforeTyping);
+ assert.deepEqual((await f.pool.query("select revision,layer from world_environment where map_id=$1",[mapId])).rows[0],environment);
+ pass("leave through World registry and reopen same saved map with exact terrain and environment");
+ await p.getByRole("button",{name:"Expand editor",exact:true}).click();await guide("mountains","Open Raise mountains");await p.getByLabel("Brush precision",{exact:true}).selectOption("single");await hide();
+ const beforeFailure=await read(),requests:unknown[]=[];let abort=true;
+ await p.route(`**/api/worlds/${worldId}/terrain`,async route=>{const r=route.request();if(r.method()==="POST"&&r.postDataJSON()?.action==="save"){requests.push(r.postDataJSON());if(abort){abort=false;await route.abort("failed");return;}}await route.continue();});
+ const at=await visibleTerrainPoint(p,{x:width*.5,y:height*.5});await p.mouse.click(at.x,at.y);await poll(async()=>requests.length,n=>n>0,"Native save must be interrupted");await p.waitForTimeout(700);assert.equal((await read()).revision,beforeFailure.revision);
+ await p.reload();await c.waitFor();await guide("interrupted","Review unfinished changes");await p.getByRole("region",{name:"Pending Work",exact:true}).getByRole("button",{name:"Recover terrain changes",exact:true}).click();accepted=await saved(beforeFailure.revision);assert.deepEqual(requests.at(-1),requests[0]);await p.unroute(`**/api/worlds/${worldId}/terrain`);await screenshot("recovered-original-save");
+ pass("interrupted save retains browser recovery and retries identical original request through visible Review changes");
+ const expanded=p.getByRole("button",{name:"Exit expanded editor",exact:true});if(await expanded.isVisible())await expanded.click();await p.getByRole("link",{name:"World registry",exact:true}).click();
+ const mobile=await b.browser.newContext({storageState:await context.storageState(),viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});const phone=await mobile.newPage();phone.setDefaultTimeout(30000);
+ phone.on("pageerror",e=>auxiliaryErrors.push(e.message));await phone.goto(rootUrl);await claimOwnedWorldPage(phone,b.base);await phone.getByRole("button",{name:"Expand editor",exact:true}).tap();await phone.getByRole("button",{name:"Mapmaking guide",exact:true}).tap();
+ const mobileGuide=phone.getByRole("region",{name:"Mapmaking guide",exact:true});assert.ok(await mobileGuide.evaluate(el=>el.closest("#terrain-panel-guide")!.parentElement!.clientHeight)>=220,"Phone guide needs readable instruction space beneath its header");await mobileGuide.getByLabel("Find a tool or task",{exact:true}).fill("coordinates");await mobileGuide.getByRole("button",{name:"Move around and use precision",exact:true}).tap();await mobileGuide.getByRole("button",{name:"Use Pan",exact:true}).scrollIntoViewIfNeeded();await phone.screenshot({path:path.join(f.out,"phone-searchable-guide.png")});await mobileGuide.getByRole("button",{name:"Use Pan",exact:true}).tap();
+ await closeTerrainSettings(phone,true);const tools=phone.getByRole("button",{name:"Tools",exact:true});if(await tools.getAttribute("aria-expanded")==="true")await tools.tap();
+ const phoneCanvas=phone.getByLabel("Terrain map canvas",{exact:true}),phoneBox=(await phoneCanvas.boundingBox())!;assert.ok(phoneBox.height>=400,"Narrow map retains a usable canvas");assert.ok(await phone.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ const cdp=await mobile.newCDPSession(phone),x=phoneBox.x+phoneBox.width*.5,y=phoneBox.y+phoneBox.height*.7;
+ await cdp.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x:x-20,y,id:0},{x:x+20,y,id:1}]});await cdp.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:x-40,y:y-15,id:0},{x:x+40,y:y-15,id:1}]});await cdp.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});await phone.waitForTimeout(1600);assert.equal(hash(await read()),hash(accepted));
+ await phone.screenshot({path:path.join(f.out,"phone-touch-navigation.png")});
+ const regionalUrl=new URL(rootUrl);regionalUrl.searchParams.set("terrainMap",regionId);await phone.goto(regionalUrl.href);await phoneCanvas.waitFor();await phone.getByRole("button",{name:"Expand editor",exact:true}).tap();const header=phone.getByRole("region",{name:"Heightmap editor",exact:true}).locator("header").first(),headerBox=(await header.boundingBox())!;
+ for(const button of await header.getByRole("button").all()){if(!await button.isVisible())continue;const box=(await button.boundingBox())!;assert.ok(box.y+box.height<=headerBox.y+headerBox.height+1,"Narrow regional header must contain every action: "+await button.innerText());}
+ await phone.screenshot({path:path.join(f.out,"phone-linked-region.png")});await phone.getByRole("button",{name:"Return to World Map",exact:true}).tap();await phone.waitForURL(u=>u.searchParams.get("terrainMap")===mapId);assert.equal(hash(await read()),hash(accepted));await mobile.close();
+ pass("390px guide search and native touch navigation preserve saved terrain and at least 400px canvas; physical-device acceptance remains pending");
+ const review=await b.login("collab-admin"),reviewPage=await review.newPage();await reviewPage.goto(rootUrl+"&review=1");await reviewPage.getByLabel("Terrain map canvas",{exact:true}).waitFor();await reviewPage.getByRole("button",{name:"Mapmaking guide",exact:true}).click();
+ const readOnlyGuide=reviewPage.getByRole("region",{name:"Mapmaking guide",exact:true});await readOnlyGuide.getByText(/This map is read-only/).waitFor();assert.equal(await readOnlyGuide.getByRole("button",{name:"Open Flatten brush",exact:true}).isDisabled(),true);await reviewPage.screenshot({path:path.join(f.out,"administrator-readonly-guide.png")});assert.equal(hash(await read()),hash(accepted));await review.close();
+ pass("authorized administrator review can read the guide while its authoring actions stay disabled");
+ const foreign=await b.login("collab-uninvited"),foreignPage=await foreign.newPage();await foreignPage.goto(rootUrl);
+ // App Router can stream its not-found boundary with HTTP 200. Require the actual denial UI, absent private canvas and rejected mutation.
+ await foreignPage.getByRole("heading",{name:"404",exact:true}).waitFor();assert.equal(await foreignPage.getByLabel("Terrain map canvas",{exact:true}).count(),0);assert.equal(await foreignPage.getByRole("button",{name:"Mapmaking guide",exact:true}).count(),0);
+ const refused=await foreign.request.post(`${b.base}/api/worlds/${worldId}/terrain`,{headers:{Origin:b.base},data:requests[0]});assert.ok([403,404].includes(refused.status()));assert.equal(hash(await read()),hash(accepted));await foreign.close();
+ pass("uninvited actor cannot view guide/private map or replay a terrain save; accepted values remain exact");
+ assert.deepEqual(auxiliaryErrors,[]);await writeFile(path.join(f.out,"guidance-results.json"),JSON.stringify({passed:true,groups,worldId,mapId,regionId,region,revision:accepted.revision,terrainHash:hash(accepted),sourceHash:b.sourceHash,buildId:b.buildId,humanUsabilityAccepted:false},null,2));
+ console.log("PASS A6",groups.length,"workflow groups");
+}
