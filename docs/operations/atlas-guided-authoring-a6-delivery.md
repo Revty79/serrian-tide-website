@@ -1,6 +1,6 @@
 # Atlas A6 — guided native authoring
 
-Implementation and validation in progress. No owner usability acceptance is claimed.
+Technical implementation and validation pass at published source `4b3f227a31de3ce8baafa7845ecb4294824bf7ab`. All four required exact-source GitHub workflows pass. Owner usability acceptance remains pending.
 
 A3 is complete and is not being repeated. Its implementation `209b76952d7144bfc752b5e568547c01837dcae9` passed exact normal CI43150955752, recovery43150955775, Ubuntu43150955758 and signed-image publisher43150955784. Documentation `e2e96ab1615335585a787b0e9cf6cbe3f6113baa` passed normal CI43158711237. See [A3 delivery](atlas-source-rights-a3-delivery.md) for its retained failures, migration0162, source holds and limitations. No migration has been applied to owner environments by A6.
 
@@ -89,10 +89,23 @@ The 11 public paths comprise the native guide and tool-language module, four exi
 - A3's 0162 migration, conservative legacy holds, attribution obligations and notice-bearing Stage 7C restriction remain unchanged. No owner migration or deployment was performed. A3's limits remain in its delivery report.
 - Source/build preservation and disposable recovery evidence are not a new audit or backup of owner data, which was not accessed.
 
-Local technical evidence passes within this scope. Automated tests do not establish that a new human creator finds Atlas intuitive, nor physical touch-device or artistic acceptance. The recommended next milestone is a bounded owner/Ember first-island usability review, followed only by separately assigned corrections. Do not begin Earth or Tabletop from this delivery.
+Local and hosted technical evidence passes within this scope. Automated tests do not establish that a new human creator finds Atlas intuitive, nor physical touch-device or artistic acceptance. The recommended next milestone is a bounded owner/Ember first-island usability review, followed only by separately assigned corrections. Before testing this release against an existing database, verify its A3 migration0162 readiness through a separately authorized rollout; no current owner ledger is certified here. Do not begin Earth or Tabletop from this delivery.
 
 The separately ready trusted-origin command is retained in [the A5 owner instructions](deployment-a5-trusted-origin.md#ready-one-time-owner-command), pinned to973d4f57. A6 does not execute it, interrupt a running owner update, or claim real-domain login has been verified. The exact command must accompany the final owner handoff.
 
 ## Publication
 
-The reviewed implementation is ready for main publication with `[skip render]`. Exact source CI, release identity and final main parity will be recorded after the hosted checks finish; local checks are not substituted for GitHub success.
+Implementation `4b3f227a31de3ce8baafa7845ecb4294824bf7ab` is published to existing main with `[skip render]`. Its exact latest-attempt runs and jobs pass:
+
+| Required workflow | Exact successful run |
+| --- | --- |
+| Normal validation | [43166660886](https://github.com/Revty79/serrian-tide-website/actions/runs/43166660886) |
+| Environment disaster recovery | [43166660919](https://github.com/Revty79/serrian-tide-website/actions/runs/43166660919) |
+| Ubuntu website deployment regression | [43166660896](https://github.com/Revty79/serrian-tide-website/actions/runs/43166660896) |
+| Verified prebuilt website release | [43166660910](https://github.com/Revty79/serrian-tide-website/actions/runs/43166660910) |
+
+Linux normal CI independently passes all 2,947 feature tests, raster/integrity checks and deployment-safety cases without the three Windows-only platform skips. Recovery passes the real PostgreSQL/storage restoration groups and source-rights/migration/copy/restore checks. Ubuntu passes the bounded build, real Next.js authentication/cutover/rollback, installed updater, trusted-origin/session preservation, legacy/TLS transition, first-time storage bootstrap and independent restoration. No existing workflow or acceptance threshold was modified.
+
+The registry image is `ghcr.io/revty79/serrian-tide-website@sha256:6f207a32d28f99e8214566a6302a3ac28c0745aaf6c5810e62f012c3113d9992`. The publisher independently validates its exact-source provenance, actual download/deployment, registry outage, digest/signature corruption, interrupted download, failed startup/rollback, preservation and repeat no-op behavior before completing. Its new owned-Ubuntu measurement is 59.21 seconds for a cold-candidate complete prebuilt update versus 370.94 seconds for local build plus deployment. These are CI measurements, not measurements on the owner's Ryzen server. This publication does not authorize installing A3's migration or deploying the owner's website.
+
+Full logs are retained as `ci-validation.log`, `ci-recovery.log`, `ci-ubuntu.log` and `ci-prebuilt.log`; exact run/job metadata is retained beside them. The final documentation receipt changes only this report and AGENTS guidance, preserving every tested executable input. Its normal CI and clean local/origin/official-main parity are verified in the final handoff. No additional milestone is started.
