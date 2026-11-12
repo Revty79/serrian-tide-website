@@ -7,7 +7,7 @@ import {TerrainCoordinateList} from "./terrain-coordinate-list-controls";
 
 export function TerrainPolygonControls({points,onChange,shape,limit=256,fieldPrefix="points"}:{limit?:number;fieldPrefix?:string;points:TerrainPolygonPoint[];onChange:(points:TerrainPolygonPoint[])=>void;shape:TerrainGeometry}){
  return <section aria-label="Polygon selection corners">
-  <p>Click corners on the preview, or enter exact sample coordinates below. The last corner joins the first. Only samples whose centres lie inside the outline can change; inherited protected samples stay intact.</p>
+  <p>Use Add corners on the preview to place new corners, including nearby ones; choose Move corners to drag existing corners. You can also enter exact sample coordinates below. The last corner joins the first. Only samples whose centres lie inside the outline can change; inherited protected samples stay intact.</p>
   <p>{points.length} of {limit} available polygon corners. Zoom in before placing nearby corners. On a wrapping World, use a selection narrower than half the World.</p>
   <TerrainCoordinateList width={shape.width} height={shape.height} limit={limit} boundary onChange={onChange}/>
   <div className={styles.actions}>
