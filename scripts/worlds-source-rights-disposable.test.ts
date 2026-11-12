@@ -54,6 +54,9 @@ withCollaborationFixture(async f=>{
  await assert.rejects(owned(()=>exports.prepareAtlasExport(owner,f.worldA,{target:{kind:"terrain",id:mapId}})),/product attribution/);
  await review(()=>rights.changeSourceRights(admin,f.worldA,{...approval,requestId:randomUUID(),revision:1}));
  const manifest=await owned(()=>exports.prepareAtlasExport(owner,f.worldA,{target:{kind:"terrain",id:mapId}}));
+ const used=(await store.worldRightsSources(db,f.worldA)).sources.find(s=>s.id===sourceId)!;
+ const another={...used,id:randomUUID(),evidence:{...evidence,dataset:"Second original synthetic reference"},reviews:used.reviews.map(r=>({...r,credits:"Second synthetic provider"}))};
+ assert.deepEqual(store.mandatorySourceCredits([used,another]),store.mandatorySourceCredits([another,used]),"Database row order cannot change a prepared export's mandatory credits or pin");
  for(const format of ["png","jpeg","svg","pdf"] as const){const credits=exportCredits(manifest,{...DEFAULT_EXPORT_OPTIONS,format,title:false,attribution:false,context:false,dimensions:false,layers:[],bounds:{x:1,y:1,width:100,height:100}});assert.ok(credits.some(c=>c.includes("Synthetic Fixture Provider")));assert.ok(credits.some(c=>c.includes(evidence.licenseUrl)));assert.ok(!credits.some(c=>c.startsWith("Built by")));}
  groups.push("auditable administrator review; source/output gates separate; four format credit plans survive crop and optional-label hiding");
  const externalId=randomUUID();await owned(()=>assets.changeAtlasAsset(owner,f.worldA,{...importImage,requestId:randomUUID(),assetId:externalId,origin:{kind:"external",sourceId}},bytes));

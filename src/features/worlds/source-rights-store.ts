@@ -26,7 +26,7 @@ export async function rightsSources(tx:WorldConnection,ids:string[]):Promise<Rig
  return result;
 }
 export function rightsProblems(sources:RightsSource[],uses:readonly SourceUse[],output=false){return sources.flatMap(s=>uses.flatMap(use=>{const problem=sourceUseProblem(s,use,output);return problem?[`${s.evidence?.dataset??s.subjectKind}: ${problem}`]:[];}));}
-export function mandatorySourceCredits(sources:RightsSource[]){return [...new Set(sources.flatMap(s=>{const r=s.reviews[0];if(r?.decision!=="approved")return[];const e=s.evidence;return [r.credits,e?.requiredCredits,e?`${e.provider} / ${e.dataset} / ${e.edition}. Source: ${e.sourceUrl}. License: ${e.license} ${e.licenseUrl}. Changes: ${e.modifications}`:null].filter((v):v is string=>!!v?.trim()).map(v=>`External source: ${v.trim()}`);} ))];}
+export function mandatorySourceCredits(sources:RightsSource[]){return [...new Set([...sources].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0).flatMap(s=>{const r=s.reviews[0];if(r?.decision!=="approved")return[];const e=s.evidence;return [r.credits,e?.requiredCredits,e?`${e.provider} / ${e.dataset} / ${e.edition}. Source: ${e.sourceUrl}. License: ${e.license} ${e.licenseUrl}. Changes: ${e.modifications}`:null].filter((v):v is string=>!!v?.trim()).map(v=>`External source: ${v.trim()}`);} ))];}
 export async function worldRightsSources(tx:WorldConnection,worldId:string){
  const usages=await tx.select().from(atlasSourceUse).where(eq(atlasSourceUse.worldId,worldId));
  // Usage is cumulative: removing a layer never erases derivation or old versions.
