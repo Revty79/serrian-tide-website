@@ -130,6 +130,16 @@ class UpdatePolicyTests(unittest.TestCase):
             with self.assertRaisesRegex(Stopped, "MIGRATION_APPROVAL_REQUIRED"):
                 verify_ledger(rows, expected)
 
+    def test_actual_a3_release_refuses_pre_a3_ledger(self):
+        repo = Path(__file__).resolve().parent.parent
+        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo).decode().strip()
+        expected = expected_ledger(Git(repo), commit)
+        self.assertEqual(len(expected), 163)
+        previous = [{"created_at": row["created_at"], "hash": sorted(row["hashes"])[0]} for row in expected[:-1]]
+        self.assertEqual(len(previous), 162)
+        with self.assertRaisesRegex(Stopped, "MIGRATION_APPROVAL_REQUIRED"):
+            verify_ledger(previous, expected)
+
     def test_real_git_migration_bytes_and_configuration_epoch(self):
         with tempfile.TemporaryDirectory(prefix="serrian-update-git-") as directory:
             root = Path(directory)

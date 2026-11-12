@@ -21,7 +21,9 @@ import urllib.request
 from ubuntu_deploy import Operator, require
 from bootstrap_tls_fixture import require_fixture_listener_available
 
-BASELINE = "1d9fe69d0c2073ea5acd23408585540028928c22"
+# Actual A3 source with the same 163-entry schema. Pre-A3 releases are not
+# compatible ordinary-update baselines; their migration refusal stays tested.
+BASELINE = "07e2c84542328c3f7d92423dc6fd0b8282a54464"
 
 
 def main():
@@ -105,6 +107,9 @@ def main():
         # Build an actual earlier reviewed release. Do not invent an image label
         # or mutate its build receipt to simulate a previous deployment.
         old = Operator(repo, BASELINE, op.env_file)
+        from serrian_update import Git
+        for name in ("scripts/deployment-a5-fixture.ts", "drizzle/meta/_journal.json"):
+            require(Git(repo).blob(BASELINE, name) == Git(repo).blob(commit, name), "FIXTURE_BASELINE_CHANGED")
         old.output = task / "old-build"
         old.output.mkdir(mode=0o700)
         archive, old_hash = old.expected_source()
