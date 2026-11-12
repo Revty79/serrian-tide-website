@@ -2,7 +2,7 @@
 
 Owner attachment `327112ee-4d25-4eb5-a97a-170fb762ea98` authorizes a new permanent example World in the owner-selected clean local DEV environment after A3/A6. Permanent geography must be drawn through visible native Worlds/Atlas controls. External references support research and comparison; no GIS boundaries, prepared Earth map, heightmap, terrain tiles, generated editing-coordinate list, SQL write or hidden authoring endpoint may populate Earth. Production, Canon, the home server, retained restricted Earth material and Tabletop remain outside this pass.
 
-This is an intermediate software checkpoint. The private World and its native blank-ocean map have been created, saved and reopened through normal controls. No continental geography is accepted at this checkpoint. Private identities, reference bytes, actual map evidence and recovery material remain excluded from Git under `artifacts/project-earth-native-pass1-20261112/`.
+This document records a software checkpoint within ongoing native geographic authoring. The private World and map began through normal blank-ocean creation, save and reopen controls. Global geographic acceptance remains pending. Private identities, reference bytes, accuracy reports, actual map evidence and recovery material remain excluded from Git under `artifacts/project-earth-native-pass1-20261112/`.
 
 ## Readiness and preservation
 
@@ -37,7 +37,11 @@ Fresh local validation on the corrected application inputs:
 
 Owned fixtures and detailed logs are under `artifacts/collaboration-s7b-earth-pass1-*`. The first new browser-test attempt passed dense point retention but failed its drag assertion because the test reused screen coordinates after the workshop preview remounted. The corrected test locates the existing native corner in its current displayed frame and retains the exact single-point/other-points assertions. Its failed screenshot, logs and stopped-service receipts remain retained. A server-side interrupted-stream diagnostic in that earlier fixture is also retained rather than represented as a passing browser run.
 
-Publication and exact GitHub CI/parity verification are pending at this intermediate checkpoint. No software delivery is claimed before those checks pass.
+The software correction is published on main at `3d7d514a9981f73d5772bf0d5756cc25d4b22f0e` with `[skip render]`. Its exact [normal CI](https://github.com/Revty79/serrian-tide-website/actions/runs/43245257359), [offline environment recovery](https://github.com/Revty79/serrian-tide-website/actions/runs/43245257218), [full Ubuntu deployment regression](https://github.com/Revty79/serrian-tide-website/actions/runs/43245257463) and [verified image publisher](https://github.com/Revty79/serrian-tide-website/actions/runs/43245257100) all conclude success. These hosted synthetic checks do not deploy to the owner's server.
+
+Fresh independent comparison verifies all 2,164 actual application inputs against the production build used by the new polygon test and unchanged A6 regression: build `qkj5VBc57LuP7bT0FcQpX`, SHA256 `7faad6fd3d10094c26886d54a3ac96fc670bd6ad4d5701174a73720065b193ed`. Only the fixture's declared absolute Turbopack root and generated isolated-build type include differ. Subsequent documentation publication must preserve these tested executable bytes and verify its own normal CI and clean main parity.
+
+Native geographic authoring continues separately within Pass 1. Saved regional comparisons have already required rejecting and undoing displaced coastal drafts, correcting coastlines, and separating an island from an inherited coarse mainland connection through genuine local numerical editing. Detailed identities, revisions, reference comparisons, failures and actual screenshots remain private and ignored. This software receipt does not certify completed Earth geography.
 
 ## Reference and geographic limits
 
