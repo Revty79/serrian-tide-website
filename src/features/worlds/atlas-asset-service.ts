@@ -3,6 +3,7 @@ import { worldContentEditor, lockWorldForWrite } from "./world-access-service";
 import { requireWorldNativeFamily } from "./world-resource-permissions";
 import { nativeWorldScope } from "./world-permissions";
 import "server-only";
+import {recordAssetOrigin} from "./source-rights-intake";
 import {and,isNull,desc,eq,inArray,sql} from "drizzle-orm";
 import {db} from "@/db";
 import {user} from "@/db/auth-schema";
@@ -77,7 +78,9 @@ export async function changeAtlasAsset(userId:string,worldId:string,raw:unknown,
     let data:Omit<typeof atlasAssetVersion.$inferInsert,"assetId"|"version"|"metadata">;
     if(c.action==="import"){if(Number(counts.bytes)+bytes!.length>ASSET_LIMITS.creatorBytes)throw new WorldError("The private library has reached its 256 MiB allowance.",413);const decoded=await decodeAsset(bytes!,c.mime,c.filename),total=decoded.objects.reduce((n,o)=>n+o.data.length,0);if(Number(counts.bytes)+total>ASSET_LIMITS.creatorBytes)throw new WorldError("The image and its previews exceed your 256 MiB library allowance.",413);data={filename:c.filename,format:decoded.format,width:decoded.width,height:decoded.height,bytes:decoded.bytes,objects:await stageAssetObjects(decoded.objects).catch(()=>{throw new WorldError("Private artwork storage is unavailable. Your original image is retained; retry after storage is restored.",503);})};}
     else{const [old]=await tx.select().from(atlasAssetVersion).where(and(eq(atlasAssetVersion.assetId,c.assetId),eq(atlasAssetVersion.version,a.headVersion)));if(!old)throw unavailable();data={filename:old.filename,format:old.format,width:old.width,height:old.height,bytes:old.bytes,objects:old.objects};if(Number(counts.bytes)+old.objects.reduce((n,o)=>n+o.bytes,0)>ASSET_LIMITS.creatorBytes)throw new WorldError("The retained version would exceed the library allowance.",413);}
-    const version=(a?.headVersion??0)+1,revision=c.revision+1;await tx.insert(atlasAsset).values({id:c.assetId,ownerId:userId,headVersion:version,revision}).onConflictDoUpdate({target:atlasAsset.id,set:{headVersion:version,revision}});await tx.insert(atlasAssetVersion).values({...data,assetId:c.assetId,version,metadata:c.metadata});result={revision,version};
+    const version=(a?.headVersion??0)+1,revision=c.revision+1;await tx.insert(atlasAsset).values({id:c.assetId,ownerId:userId,headVersion:version,revision}).onConflictDoUpdate({target:atlasAsset.id,set:{headVersion:version,revision}});await tx.insert(atlasAssetVersion).values({...data,assetId:c.assetId,version,metadata:c.metadata});
+    if(c.action==="import"&&c.origin?.kind==="original"&&c.metadata.source.trim())throw new WorldError("Artwork with an external source needs that source registered and reviewed. Keep its provenance; do not relabel it as original.",400);
+    await recordAssetOrigin(tx,userId,c.assetId,version,data.objects.find(o=>o.type==="original")!.sha256,c.action==="import"?c.origin:undefined);result={revision,version};
    }
   }
   await tx.insert(atlasAssetOperation).values({requestId:c.requestId,worldId,ownerId:userId,inputHash:hash,result});return result;

@@ -1,6 +1,7 @@
 import { templateWorldScope } from "./world-asset-permissions";
 import { worldProtectedContent,worldContentEditor,worldScopeAllowed,lockWorldForWrite } from "./world-access-service";
 import "server-only";
+import {checkTemplateSourceRead,retainSavedTemplateSources} from "./source-rights-template";
 import {redactUnderground} from "./underground";
 import {preservePrivateCreatorNotes} from "./world-content-projection";
 import {worldMapStyle} from "@/db/world-map-style-schema";
@@ -28,6 +29,7 @@ export async function getMapTemplates(userId:string,worldId:string,o:{family?:Te
   if(o.id.startsWith("atlas-style:")){if(!worldScopeAllowed(worldId,"atlas"))throw absent();if(o.revision&&o.revision!==1)throw absent();const [style]=await db.select().from(worldMapStyle).where(and(eq(worldMapStyle.id,o.id.slice(12)),eq(worldMapStyle.worldId,worldId)));if(!style)throw absent();return {template:legacyStyle(style),history:[{revision:1}]};}
   const built=builtInTemplate(o.id);if(built){if(!worldScopeAllowed(worldId,templateWorldScope(built.family)))throw absent();if(o.revision&&o.revision!==1)throw absent();return {template:built,history:[{revision:1}]};}
   if(!available)throw absent();const [head]=await db.select().from(templates).where(and(where,eq(templates.id,o.id)));if(!head)throw absent();
+  if(!o.review&&head.worldId!==worldId)await checkTemplateSourceRead(worldId,head.worldId,head.id);
   const [version]=await db.select().from(versions).where(and(eq(versions.templateId,head.id),eq(versions.revision,o.revision??head.revision),readableTemplateVersion(worldId)));if(!version)throw absent();
   if(version.snapshot.content.family==="underground"&&version.snapshot.content.drawing&&!worldProtectedContent(worldId)&&JSON.stringify(redactUnderground(version.snapshot.content.drawing.design).features)!==JSON.stringify(version.snapshot.content.drawing.design.features))throw absent();
   return {template:version.snapshot,history:(await db.select({revision:versions.revision,createdAt:versions.createdAt}).from(versions).where(and(eq(versions.templateId,head.id),readableTemplateVersion(worldId))).orderBy(desc(versions.revision)).limit(128)).map(v=>({...v,createdAt:v.createdAt.toISOString()}))};
@@ -64,6 +66,7 @@ export async function changeMapTemplate(userId:string,worldId:string,input:unkno
   if(old)await tx.update(templates).set(row).where(eq(templates.id,old.id));else await tx.insert(templates).values(row);
   await tx.insert(versions).values({templateId:row.id,revision:row.revision,snapshot,requestId:c.requestId});
   const refs=[...new Map(snapshot.content.images.flatMap(i=>i.layer.placements).filter(p=>!artworkAsset(p.assetId)).map(p=>[p.assetId+":"+p.version,p])).values()];if(refs.length)await tx.insert(assetUsage).values(refs.map(p=>({templateId:row.id,templateRevision:row.revision,assetId:p.assetId,assetVersion:p.version})));
+  await retainSavedTemplateSources(tx,worldId,row.id,row.revision,refs);
   const result={templateId:row.id,revision:row.revision};await tx.insert(operations).values({requestId:c.requestId,ownerId:userId,worldId,inputHash,result});
   const bytes=(await tx.execute<{bytes:string}>(sql`select (coalesce((select sum(octet_length(metadata::text)) from atlas_template where owner_id=${userId}),0)+coalesce((select sum(octet_length(v.snapshot::text)) from atlas_template_version v join atlas_template t on t.id=v.template_id where t.owner_id=${userId}),0)+coalesce((select sum(octet_length(result::text)+160) from atlas_template_operation where owner_id=${userId}),0)+coalesce((select count(*)*160 from atlas_template_asset_usage u join atlas_template t on t.id=u.template_id where t.owner_id=${userId}),0))::text bytes`)).rows[0];
   if(Number(bytes.bytes)>TEMPLATE_LIMITS.ownerBytes)throw new WorldError("Your retained template history has reached its 128 MiB logical budget. This request was rolled back and your draft remains available.",413);

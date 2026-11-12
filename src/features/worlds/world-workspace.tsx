@@ -1,4 +1,5 @@
 "use client";
+import {SourceRightsPanel} from "./source-rights-panel";
 import { WorldCanonContext } from "./world-canon-client";
 import { useWorldPermission, useWorldEditorBootstrap, WorldCollaborationBar } from "./world-collaboration-client";
 import { WorldPermissionContext } from "./world-permission-context";
@@ -196,6 +197,7 @@ export function WorldWorkspace({ initialBundle, worlds, tags, review:initialRevi
     {(review || world.archived) && <p className={styles.reviewBanner}>{review ? `Administrator review · Read-only · Owner: ${world.ownerName}` : "This world is archived. Its history is preserved. Restore it from the registry to continue writing."}</p>}
     <header className={styles.worldHero}><WorldCover world={world} large/><div className={styles.worldIdentity}><p className={styles.eyebrow}>A private world of Serrian Tide</p><h1>{world.name}</h1><p className={styles.lead}>{world.description || "A world taking shape, one story at a time."}</p><div className={styles.chips}>{tags.filter((tag) => world.tagIds.includes(tag.id)).map((tag) => <span key={tag.id}>{tag.name}</span>)}</div>{bundleReady&&!ordinaryHistory&&<div className={styles.worldStats}><span><strong>{world.eraCount}</strong> historical eras</span><span><strong>{world.entryCount}</strong> entries</span></div>}{canWrite("overview") && <button className="st-button is-secondary" onClick={() => setEditor({kind:"world",record:world,section:"identity"})}>Edit identity</button>}</div></header>
     {permission&&<WorldCanonContext worldId={world.id} name={world.name} permission={permission}/>}
+    <SourceRightsPanel key={`${world.id}:${review}`} worldId={world.id} review={review}/>
     {permission&&!review&&<WorldCollaborationBar worldId={world.id} permission={permission} readOnly={ordinaryHistory||world.archived||permission.canon} onManage={()=>setAccessOpen(true)} onLatest={loadLatestForEditing} onGuard={guardCollaboration}/>}
     {review&&<button className="st-button is-secondary" onClick={()=>setAccessOpen(true)}>Inspect World access and record review</button>}
     <nav className={styles.workspaceTabs} aria-label="World workspace">{workspaceSections.filter(item=>tabAllowed(item.tab)).map(item=><button key={item.tab} aria-current={tab===item.tab?"page":undefined} className={tab===item.tab?styles.activeTab:""} onClick={()=>changeTab(item.tab)}>{item.label}{item.tab==="history"&&bundleReady&&!ordinaryHistory&&<span>{world.entryCount}</span>}</button>)}</nav>

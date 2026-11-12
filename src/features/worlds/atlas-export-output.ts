@@ -27,9 +27,17 @@ export async function createAtlasImage(data:AtlasExportData,raw:ExportOptions,su
   if(layout.lines.length){ctx.save();ctx.scale(previewScale,previewScale);ctx.fillStyle="#f4efdf";ctx.fillRect(0,o.height,layout.width,layout.height-o.height);ctx.fillStyle="#34372f";ctx.font=`${layout.font}px sans-serif`;ctx.textAlign="left";ctx.textBaseline="top";layout.lines.forEach((line,i)=>ctx.fillText(line,layout.padding,o.height+layout.padding+i*layout.lineHeight));ctx.restore();}
   const meta=exportSourceMetadata(data.manifest,o);let blob:Blob;
   if(o.format==="svg"&&previewScale===1){
-   const png=await canvasExportBlob(map),footer=layout.lines.length?`<rect y="${o.height}" width="${o.width}" height="${layout.height-o.height}" fill="#f4efdf"/>`+layout.lines.map((line,i)=>`<text x="${layout.padding}" y="${o.height+layout.padding+i*layout.lineHeight+layout.font}" font-family="sans-serif" font-size="${layout.font}" fill="#34372f">${exportXml(line)}</text>`).join(""):"",vectors=svgExportOverlays(o.bounds,o.width,o.height,o);
+   const png=await canvasExportBlob(map),vectors=svgExportOverlays(o.bounds,o.width,o.height,o);let footer="";
+   if(layout.lines.length){
+    // Font substitution in standalone SVG viewers must not clip license notices.
+    // Keep the exact displayed footer pixels and its complete accessible text.
+    probe.width=o.width;probe.height=layout.height-o.height;
+    probe.getContext("2d")!.drawImage(file,0,o.height,o.width,probe.height,0,0,o.width,probe.height);
+    const notice=await canvasExportBlob(probe),encoded=exportBase64(new Uint8Array(await notice.arrayBuffer()));
+    footer=`<image y="${o.height}" width="${o.width}" height="${probe.height}" href="data:image/png;base64,${encoded}"><desc>${exportXml(layout.lines.join("\n"))}</desc></image>`;
+   }
    if(Math.ceil(png.size/3)*4+new TextEncoder().encode(footer+vectors+exportXml(JSON.stringify(meta))).length+4096>ATLAS_EXPORT_LIMITS.svgBytes)throw Error("This embedded-artwork SVG would exceed 32 MiB. Lower the resolution or choose PNG/JPEG.");const image=exportBase64(new Uint8Array(await png.arrayBuffer()));
-   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${o.width}" height="${layout.height}" viewBox="0 0 ${o.width} ${layout.height}"><title>${exportXml(o.title?data.manifest.title:"Saved Atlas map")}</title><desc>Hybrid SVG: rendered native map artwork with vector measurement overlays and complete source text. The terrain and map illustration are embedded pixels.</desc><metadata>${exportXml(JSON.stringify(meta))}</metadata><image width="${o.width}" height="${o.height}" href="data:image/png;base64,${image}"/>${vectors}${footer}</svg>`;blob=new Blob([svg],{type:"image/svg+xml;charset=utf-8"});if(blob.size>ATLAS_EXPORT_LIMITS.svgBytes)throw Error("This embedded-artwork SVG exceeds 32 MiB. Lower the image resolution or use PNG/JPEG; no source content was dropped.");
+   const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${o.width}" height="${layout.height}" viewBox="0 0 ${o.width} ${layout.height}"><title>${exportXml(o.title?data.manifest.title:"Saved Atlas map")}</title><desc>Hybrid SVG: rendered native map artwork with vector measurement overlays and complete accessible source text. The terrain, map illustration and font-stable credit footer are embedded pixels.</desc><metadata>${exportXml(JSON.stringify(meta))}</metadata><image width="${o.width}" height="${o.height}" href="data:image/png;base64,${image}"/>${vectors}${footer}</svg>`;blob=new Blob([svg],{type:"image/svg+xml;charset=utf-8"});if(blob.size>ATLAS_EXPORT_LIMITS.svgBytes)throw Error("This embedded-artwork SVG exceeds 32 MiB. Lower the image resolution or use PNG/JPEG; no source content was dropped.");
   }else{
    // The reduced preview uses the same layout/physical frame. SVG previews show
    // its vector-equivalent overlays without embedding an additional huge SVG.

@@ -1,4 +1,5 @@
 import "server-only";
+import {assertWorldSourceUse,sourceRightsAvailable,retainArtworkSourceUses} from "./source-rights-store";
 import { worldCanonStateSql, type WorldCanonState } from "./world-canon-state";
 import {retainedWorldSourceRead} from "./world-retained-source-authority";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
@@ -59,6 +60,7 @@ export async function authorizeWorldRead(userId: string, worldId: string, review
   const retained=retainedWorldSourceRead(worldId,userId);if(retained)return retained;
   const authority=worldRequestAuthority(),scopes=typeof requested==="string"?[requested]:requested,cached=authority?.reads.get(worldId);
   if(connection===db&&!fresh&&authority?.userId===userId&&cached?.row&&review===(cached.permission.role==="administrator-review")){
+    if(cached.permission.role!=="owner"&&cached.permission.role!=="administrator-review")await assertWorldSourceUse(connection,worldId,["display","customer-access"],true);
     for(const scope of scopes)if(!hasWorldScope(cached.permission,scope))throw worldUnavailable();
     for(const scope of scopes)cached.scopes.add(scope);return{...cached.row,permission:cached.permission};
   }
@@ -87,6 +89,7 @@ export async function authorizeWorldRead(userId: string, worldId: string, review
   if (canon.revision) permission = { ...permission, canon: canon.isCanon, canonRevision: canon.revision };
   if (canon.isCanon) permission.canEdit = false;
   for (const scope of scopes) if (!hasWorldScope(permission, scope)) throw worldUnavailable();
+  if(permission.role!=="owner"&&permission.role!=="administrator-review")await assertWorldSourceUse(connection,worldId,["display","customer-access"],true);
   if (available && !canon.isCanon && authority?.proof && !review && !authority.review && permission.role !== "viewer") {
     const [lease] = await connection.select().from(worldEditorLease).where(eq(worldEditorLease.worldId, worldId));
     const now = await databaseClock(connection);
@@ -112,11 +115,12 @@ export function worldProtectedContent(worldId: string): boolean {
   return worldRequestAuthority()?.reads.get(worldId)?.permission.protectedContent ?? true;
 }
 export function worldOrdinaryContent(worldId: string, requested = false): boolean { return requested || !worldProtectedContent(worldId); }
-export async function lockWorldForWrite(tx: WorldTransaction, userId: string, worldId: string, scope: WorldOperationScope | readonly WorldOperationScope[] = "owner", allowArchived = false): Promise<AuthorizedWorld> {
+export async function lockWorldForWrite(tx: WorldTransaction, userId: string, worldId: string, scope: WorldOperationScope | readonly WorldOperationScope[] = "owner", allowArchived = false, sourceReviewOperation = false): Promise<AuthorizedWorld> {
   if(retainedWorldSourceRead(worldId,userId))throw new WorldError("Retained source construction is read-only.",403);
   const [locked] = await tx.select().from(world).where(eq(world.id, worldId)).for("update");
   if (!locked) throw worldUnavailable();
   const access = await authorizeWorldRead(userId, worldId, false, scope, tx);
+  if(!sourceReviewOperation&&await sourceRightsAvailable(tx))await assertWorldSourceUse(tx,worldId,["display","modify"]);
   if (access.permission.canon) throw new WorldError("This canon World is locked. Create a personal World to author your own maps and stories.", 403);
   if (access.archivedAt && !allowArchived) throw new WorldError("Restore this World before editing.", 400);
   if (access.permission.role === "viewer" || access.permission.role === "administrator-review") throw new WorldError("This World access is read-only.", 403);
@@ -146,6 +150,7 @@ export async function authorizedWorldWrite<T>(userId: string, worldId: string, r
   });
 }
 export async function finishWorldContentWrite(tx:WorldTransaction,userId:string,worldId:string,scope:WorldOperationScope|readonly WorldOperationScope[],result?:unknown){
+  if(await sourceRightsAvailable(tx))await retainArtworkSourceUses(tx,worldId);
   if (await collaborationAvailable(tx)) {
       await tx.update(world).set({updatedAt:await databaseClock(tx)}).where(eq(world.id,worldId));
       const requestId = worldRequestAuthority()?.operationId ?? randomUUID();

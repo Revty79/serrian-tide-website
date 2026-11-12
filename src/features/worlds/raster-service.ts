@@ -1,3 +1,4 @@
+import {verifiedGeographicSource,recordGeographicSource} from "./source-rights-intake";
 import { worldContentEditor } from "./world-access-service";
 import "server-only";
 import {createHash,randomUUID} from "node:crypto";
@@ -40,9 +41,11 @@ export async function importRaster(userId:string,worldId:string,timelineId:strin
   // Reject unauthorized calls before reading or staging any private file.
   const parent=await worldReadAccess(userId,worldId,false,"atlas");if(parent.ownerId!==userId||parent.archivedAt)throw unavailable();const staged=await stageRasterBundle(directory),m=staged.manifest,{assets,...metadata}=m;
   return worldWriteTransaction(userId,worldId,async(tx)=>{await selectedTimeline(tx,worldId,timelineId);const layer=await layerAccess(tx,worldId,mapId,timelineId,{},userId);validateRasterReference(m.grid,layer.surface.reference);
+    const rightsSource=await verifiedGeographicSource(tx,userId,{...m.source,sourceUrl:m.source.url,fileSha256:m.source.sha256});
     const [existing]=await tx.select().from(source).where(and(eq(source.worldId,worldId),eq(source.surfaceId,layer.surface.id),eq(source.externalId,m.externalId)));if(existing){const [original]=await tx.select().from(version).where(and(eq(version.sourceId,existing.id),eq(version.revision,1)));if(original.bundle!==staged.bundle)throw new WorldError("This retained source identity has different original content.",409);const [attached]=await tx.select().from(view).where(eq(view.mapId,mapId));if(!attached||attached.sourceId!==existing.id)throw new WorldError("This map already has another elevation selection.",409);return {sourceId:existing.id,versionId:original.id,created:false};}
     const [attached]=await tx.select().from(view).where(eq(view.mapId,mapId));if(attached)throw new WorldError("This map already has an elevation source.",409);
     const sourceId=randomUUID(),versionId=randomUUID();await tx.insert(source).values({id:sourceId,worldId,surfaceId:layer.surface.id,externalId:m.externalId,name:m.name});await tx.insert(version).values({id:versionId,worldId,surfaceId:layer.surface.id,sourceId,previousId:null,authorId:userId,requestId:randomUUID(),revision:1,bundle:staged.bundle,manifest:metadata,note:"Original controlled numerical source import",protected:protectedSource,archived:false});
+    await recordGeographicSource(tx,userId,worldId,rightsSource,"raster",versionId,"1");
     for(let i=0;i<assets.length;i+=100)await tx.insert(asset).values(assets.slice(i,i+100).map(a=>({...a,versionId,worldId,sourceId})));await tx.insert(head).values({sourceId,worldId,versionId,revision:1});await tx.insert(view).values({mapId,worldId,surfaceId:layer.surface.id,sourceId,preferences:DEFAULT_RASTER_PREFERENCES});return {sourceId,versionId,created:true};
   },"atlas");
 }

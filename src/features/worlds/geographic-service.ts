@@ -1,3 +1,4 @@
+import {verifiedGeographicSource,recordGeographicSource} from "./source-rights-intake";
 import { worldContentEditor,worldOrdinaryContent,worldScopeAllowed } from "./world-access-service";
 import "server-only";
 import { createHash,randomUUID } from "node:crypto";
@@ -154,8 +155,10 @@ export async function changeGeography(userId:string,worldId:string,input:unknown
       const existingPlaceIds=source.records.flatMap(r=>r.geographyId?[r.geographyId]:[]);if(new Set(existingPlaceIds).size!==existingPlaceIds.length)throw new WorldError("Use one source record per selected place in this import.",400);
       for(const record of source.records){if(record.parentId){const [parent]=await tx.select().from(worldGeography).where(and(eq(worldGeography.id,record.parentId),eq(worldGeography.worldId,worldId)));if(!parent||parent.archivedAt)throw unavailable();}}
       for(const record of source.records)checked(()=>validateSourceGeometry(record.geometry,frame.reference,("validation"in source.provenance?source.provenance.validation:undefined)));
+      const rightsSource=await verifiedGeographicSource(tx,userId,source.provenance);
       const contentSha256=digest(source),namespace=digest({provider:source.provenance.provider,dataset:source.provenance.dataset});let [imported]=await tx.select().from(dataset).where(and(eq(dataset.worldId,worldId),eq(dataset.surfaceId,frame.id),eq(dataset.contentSha256,contentSha256)));
       if(!imported){[imported]=await tx.insert(dataset).values({id:randomUUID(),worldId,surfaceId:frame.id,importerId:userId,namespace,contentSha256,provenance:source.provenance}).returning();}
+      await recordGeographicSource(tx,userId,worldId,rightsSource,"geographic",imported.id,contentSha256);
       const identities:string[]=[];let created=0;
       for(const record of source.records){
         const [retained]=await tx.select().from(feature).where(and(eq(feature.worldId,worldId),eq(feature.surfaceId,frame.id),eq(feature.namespace,namespace),eq(feature.externalId,record.externalId)));

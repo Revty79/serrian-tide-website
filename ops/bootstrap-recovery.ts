@@ -24,6 +24,8 @@ async function main(){
  requireCondition(["backup","restore"].includes(input.action)&&Number.isSafeInteger(input.uid)&&input.uid>=0&&Number.isSafeInteger(input.gid)&&input.gid>=0,"BOOTSTRAP_RECOVERY_OWNER","Explicit operator ownership is required.");
  diagnostic={root,uid:input.uid,gid:input.gid,action:input.action,phase:"validated recovery context"};
  const application={directory:process.cwd(),origin:input.origin,trustFile:trust,hosting:"ubuntu" as const};
+ const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")),expectedMigrations=journal.entries.length;
+ requireCondition(([162,163].includes(expectedMigrations))&&journal.entries.at(-1)?.tag===(expectedMigrations===162?"0161_atlas_expanded_numerical_terrain":"0162_atlas_source_rights"),"BOOTSTRAP_RELEASE_SCHEMA","Use an explicitly supported release ledger.");
  let result:unknown;
  if(input.action==="backup"){
   requireCondition(input.expected.name&&input.expected.role&&input.expected.port&&process.env.DATABASE_URL,"BOOTSTRAP_SOURCE","An explicit checked source is required.");
@@ -33,7 +35,7 @@ async function main(){
   await writeFile(path.join(root,"source-profile.json"),JSON.stringify(profile),{mode:0o600,flag:"wx"});
   diagnostic.phase="signed source backup";const backup=await backupEnvironment(profile,snapshot,key,"Ubuntu bootstrap",input.frozen);
   const manifest=await verifySnapshotArchive(profile,snapshot,await trustKey(trust));
-  requireCondition(manifest.database.migrations.length===162&&manifest.files.length===0,"BOOTSTRAP_SOURCE_CHANGED","The verified empty Atlas source changed.");
+  requireCondition(manifest.database.migrations.length===expectedMigrations&&manifest.files.length===0,"BOOTSTRAP_SOURCE_CHANGED","The verified empty Atlas source changed.");
   diagnostic.phase="encrypted snapshot verification";await sealSnapshot(snapshot,key,path.join(root,"snapshot.stenv"));
   await openSnapshot(path.join(root,"snapshot.stenv"),key,opened);
   const reopened=await verifySnapshotArchive(profile,opened,await trustKey(trust));
@@ -47,7 +49,7 @@ async function main(){
   await writeFile(path.join(root,"restore-profile.json"),JSON.stringify(profile),{mode:0o600,flag:"wx"});
   diagnostic.phase="independent database and storage restore";const restored=await restoreEnvironment(profile,opened,key,profile.environmentId+"/"+databaseName);
   diagnostic.phase="independent restored-state verification";const checked=await checkRestored(profile);
-  requireCondition(checked.migrations===162,"BOOTSTRAP_RESTORE_SCHEMA","The independently restored ledger is incomplete.");
+  requireCondition(checked.migrations===expectedMigrations,"BOOTSTRAP_RESTORE_SCHEMA","The independently restored ledger is incomplete.");
   result={passed:true,independentRestore:restored,independentCheck:checked};
  }else throw Error("Unsupported bootstrap recovery operation");
  // Only newly generated operator artifacts, never the source roots or PG cluster.

@@ -1135,6 +1135,13 @@
       "when": 1794317081391,
       "tag": "0161_atlas_expanded_numerical_terrain",
       "breakpoints": true
+    },
+    {
+      "idx": 162,
+      "version": "7",
+      "when": 1794448197695,
+      "tag": "0162_atlas_source_rights",
+      "breakpoints": true
     }
   ]
 }

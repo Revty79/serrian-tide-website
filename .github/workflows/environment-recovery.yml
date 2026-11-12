@@ -20,4 +20,6 @@ jobs:
         run: docker run --network none --name serrian-owned-recovery serrian-recovery
       - name: Signature, transfer, permission and corruption regressions
         run: docker run --network none --name serrian-owned-integrity serrian-recovery node --conditions=react-server --import tsx --test scripts/environment.test.ts
+      - name: Source licensing, immutable provenance, copies and migration rollback
+        run: docker run --network none --name serrian-owned-source-rights serrian-recovery node --conditions=react-server --import tsx scripts/worlds-source-rights-disposable.test.ts
       # No backup, keys, source data or database files are uploaded as CI artifacts.

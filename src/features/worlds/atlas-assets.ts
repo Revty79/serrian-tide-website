@@ -1,5 +1,6 @@
 import {worldClientUrl} from "./world-editor-credentials";
 import {z} from "zod";
+import {assetOriginSchema} from "./source-rights";
 import {artworkAsset} from "./terrain-artwork-assets";
 
 export const ASSET_LIMITS={fileBytes:8*1024*1024,pixels:16*1024*1024,edge:8192,creatorBytes:256*1024*1024,versions:512,placements:256,sources:32,bodyBytes:256*1024,history:30,cacheBytes:24*1024*1024} as const;
@@ -17,7 +18,7 @@ export const compositionSchema=z.object({version:z.literal(1),placements:z.array
 export type AssetComposition=z.infer<typeof compositionSchema>;
 export const emptyComposition=():AssetComposition=>({version:1,placements:[]});
 export const assetCommandSchema=z.discriminatedUnion("action",[
- z.object({action:z.literal("import"),requestId:z.string().uuid(),assetId:z.string().uuid(),revision:z.number().int().nonnegative(),metadata:assetMetadataSchema,filename:z.string().min(1).max(180),mime:z.enum(["image/png","image/jpeg","image/webp"])}).strict(),
+ z.object({action:z.literal("import"),requestId:z.string().uuid(),assetId:z.string().uuid(),revision:z.number().int().nonnegative(),metadata:assetMetadataSchema,filename:z.string().min(1).max(180),mime:z.enum(["image/png","image/jpeg","image/webp"]),origin:assetOriginSchema.optional()}).strict(),
  z.object({action:z.literal("metadata"),requestId:z.string().uuid(),assetId:z.string().uuid(),revision:z.number().int().positive(),metadata:assetMetadataSchema}).strict(),
  z.object({action:z.literal("archive"),requestId:z.string().uuid(),assetId:z.string().uuid(),revision:z.number().int().positive(),archived:z.boolean()}).strict(),
  z.object({action:z.literal("preferences"),requestId:z.string().uuid(),revision:z.number().int().nonnegative(),favorites:z.array(assetKeySchema).max(128),recent:z.array(assetKeySchema).max(32)}).strict(),

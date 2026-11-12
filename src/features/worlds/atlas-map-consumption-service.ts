@@ -1,4 +1,5 @@
 import "server-only";
+import {assertWorldSourceUse,mandatorySourceCredits} from "./source-rights-store";
 import {and,eq} from "drizzle-orm";
 import {db} from "@/db";
 import {worldCanonCopy,worldCanonCopyIdentity} from "@/db/world-canon-copy-schema";
@@ -38,6 +39,8 @@ async function ordinaryRead<T>(userId:string,worldId:string,raw:unknown,run:(tx:
  if(!authority||authority.userId!==userId)throw new WorldError("An authenticated World request is required.",401);
  const result=await db.transaction(async tx=>{
   const access=await authorizeWorldRead(userId,worldId,authority.review,["history","appearances",nativeWorldScope(request.target.kind)],tx);
+  const rights=await assertWorldSourceUse(tx,worldId,["display","customer-access","editable-data"],true);
+  if(mandatorySourceCredits(rights).length)throw new WorldError("This read-only integration contract cannot deliver mandatory source notices. Use an attributed Atlas export; the saved source remains preserved.",409);
   const reads=new Map(authority.reads),cached=reads.get(worldId)!;
   reads.set(worldId,{...cached,permission:{...access.permission,protectedContent:false,canEdit:false}});
   return withWorldRequestAuthority({...authority,proof:null,reads},async()=>{
@@ -48,7 +51,7 @@ async function ordinaryRead<T>(userId:string,worldId:string,raw:unknown,run:(tx:
  },{isolationLevel:"repeatable read",accessMode:"read only"});
  // The outer, original permission is checked after all slow serialization/I/O.
  // Narrowing the projection must neither grant access nor mask revocation.
- await revalidateWorldResponse();return result;
+ await revalidateWorldResponse();await assertWorldSourceUse(db,worldId,["display","customer-access","editable-data"],true);return result;
 }
 
 async function geometry(tx:NativeHistoryTx,c:NativeContentContext):Promise<{value:ConsumptionGeometry;key:string;parent:ConsumptionManifest["coordinates"]["parent"];records:ConsumptionManifest["records"]}>{

@@ -1,0 +1,9 @@
+"use client";
+import {useEffect,useState} from "react";
+import {worldEditorHeaders,worldFetch} from "./world-editor-credentials";
+import type {AssetOrigin,RightsSummary} from "./source-rights";
+export function AssetOriginChoice({worldId,value,onChange}:{worldId:string;value:AssetOrigin|undefined;onChange:(v:AssetOrigin|undefined)=>void}){
+ const [sources,setSources]=useState<RightsSummary>(),[error,setError]=useState("");
+ useEffect(()=>{let live=true;const load=async()=>{try{const r=await worldFetch(`/api/worlds/source-rights?world=${worldId}`,{headers:worldEditorHeaders(`/api/worlds/${worldId}`)}),v=await r.json();if(!r.ok)throw Error(v.error);if(live)setSources(v);}catch(e){if(live)setError((e as Error).message);}};void load();window.addEventListener("atlas:source-rights-changed",load);return()=>{live=false;window.removeEventListener("atlas:source-rights-changed",load);};},[worldId]);
+ return <div><label>Where did this image come from?<select className="st-control" aria-label="Artwork origin" value={value?.kind==="original"?"original":value?.kind==="external"?value.sourceId:""} onChange={e=>onChange(e.target.value==="original"?{kind:"original",attestation:true}:e.target.value?{kind:"external",sourceId:e.target.value}:undefined)}><option value="">Choose the image’s origin</option><option value="original">I created it myself, without external material</option>{sources?.sources.filter(s=>s.subjectKind==="reference"&&s.evidence).map(s=><option value={s.id} key={s.id}>{s.evidence!.dataset} — {s.reviews[0]?.decision??"needs review"}</option>)}</select></label><p>External images need an exact source in Sources &amp; rights. Uploading preserves them privately; placement, tracing and sharing require review. Revising a file keeps earlier provenance.</p>{error&&<p role="alert">{error}</p>}</div>;
+}

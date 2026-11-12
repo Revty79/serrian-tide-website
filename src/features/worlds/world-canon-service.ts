@@ -1,4 +1,5 @@
 import "server-only";
+import {assertWorldSourceUse,recordSourceUse,worldRightsSources} from "./source-rights-store";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -38,6 +39,7 @@ export async function changeWorldCanon(userId: string, worldId: string, input: u
     const before = await readWorldCanon(tx, worldId);
     if (before.revision !== command.revision) throw new WorldError("Canon status changed. Load its current revision before deciding again.", 409);
     if (parent.archivedAt && command.isCanon) throw new WorldError("Restore this World before marking it as canon.", 400);
+    if(command.isCanon)await assertWorldSourceUse(tx,worldId,["display","customer-access","editable-data"],true);
     const after = { isCanon: command.isCanon, revision: before.revision + 1, note: command.note }, now = await databaseClock(tx);
     await tx.update(leases).set({ fence: sql`${leases.fence}+1`, holderId: null, sessionId: null, clientId: null, tokenHash: null, expiresAt: null, updatedAt: now }).where(eq(leases.worldId, worldId));
     await tx.insert(audit).values({ id: randomUUID(), worldId, actorId: userId, action: "world-canon", requestId: command.requestId, inputHash: editorTokenHash(JSON.stringify(command)), outcome: "accepted", before, after, result: after, createdAt: now });
@@ -62,7 +64,10 @@ export async function canonWorldPage(userId: string, input: unknown = {}) {
   for (const row of rows.slice(0,50)) {
     const state = row.state as { revision: number };
     const current = currentStates.find(value=>value.id===row.id)?.state as {isCanon:boolean;revision:number}|undefined;
-    if (current?.isCanon && current.revision === state.revision) worlds.push({ id: row.id, name: row.name, description: row.description, ownerName: row.ownerName, revision: state.revision });
+    if (current?.isCanon && current.revision === state.revision){
+      try{await assertWorldSourceUse(db,row.id,["display","customer-access"],true);}catch(error){if(error instanceof WorldError&&error.status===409)continue;throw error;}
+      worlds.push({ id: row.id, name: row.name, description: row.description, ownerName: row.ownerName, revision: state.revision });
+    }
   }
   await worldActor(userId);
   return { worlds, hasMore: rows.length > 50 };
@@ -80,6 +85,7 @@ export async function createPersonalCanonWorld(userId: string, worldId: string, 
     const old = await exactReceipt(tx, worldId, userId, command.requestId, command);
     if (old) return old.result as { id: string };
     const source = await authorizeWorldRead(userId, worldId, false, "overview", tx, true);
+    await assertWorldSourceUse(tx,worldId,["display","modify","customer-access","editable-data"],true);
     if (!source.permission.canon || source.permission.canonRevision !== command.revision) throw new WorldError("This canon source changed or is no longer available. Reload it before creating a personal World.", 409);
     if(!options.editableGeography)throw new WorldError("Refresh Worlds before creating inherited geography. Your original request is retained.",409);
     if(!await canonCopyAvailable(tx))throw new WorldError("Migration 0160 is required to prepare an editable personal geography. Your original request is retained.",503);
@@ -112,6 +118,7 @@ export async function createPersonalCanonWorld(userId: string, worldId: string, 
       await capturePrimaryVersion(tx,targetTimeline.id,copied);
     }
     const geographyFeatures=await acceptCanonGeography(tx,job,targetTimeline.id);
+    for(const use of (await worldRightsSources(tx,worldId)).usages)await recordSourceUse(tx,id,use.sourceId,"inherited-world",worldId,use.version,`Inherited source use: ${use.note}`);
     const reference: CanonSource = { worldId, name: source.name, canonRevision: command.revision, worldRevision: source.revision, geography:"independent-native-v1" };
     await tx.insert(audit).values([
       { id: randomUUID(), worldId, actorId: userId, action: "canon-personal-world", requestId: command.requestId, inputHash: editorTokenHash(JSON.stringify(command)), outcome: "accepted", before: null, after: { personalWorldId: id, ...reference }, result: { id }, createdAt: now },

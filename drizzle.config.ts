@@ -10,6 +10,7 @@ if (!process.env.DATABASE_URL) {
 
 export default defineConfig({
   schema: [
+    "./src/db/world-source-rights-schema.ts",
     "./src/db/world-terrain-transfer-schema.ts",
     "./src/db/world-canon-copy-schema.ts",
     "./src/db/world-collaboration-schema.ts",

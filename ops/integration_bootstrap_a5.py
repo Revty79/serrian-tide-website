@@ -128,7 +128,7 @@ def main(legacy_auth=False):
         fixture("--bad-ledger")
         refused(op(), "BOOTSTRAP_MIGRATION_HASH")
         fixture("--repair-ledger")
-        say("162-entry count with an altered migration hash is refused")
+        say("Release-length ledger with an altered migration hash is refused")
         docker("run", "--rm", "--network", "none", "--mount", f"type=bind,src={storage},dst=/owned", image, "node", "-e", "require('fs').writeFileSync('/owned/terrain/fixture-only','retained')")
         refused(op(), "BOOTSTRAP_STORAGE_NOT_EMPTY")
         docker("run", "--rm", "--network", "none", "--mount", f"type=bind,src={storage},dst=/owned", image, "node", "-e", "require('fs').unlinkSync('/owned/terrain/fixture-only')")

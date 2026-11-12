@@ -1,4 +1,5 @@
 import {z} from "zod";
+import {retainTemplateSources} from "@/features/worlds/source-rights-template";
 import {worldRequest} from "@/features/worlds/http";
 import {WorldError,worldReadAccess} from "@/features/worlds/world-service";
 import {changeMapTemplate,getMapTemplates} from "@/features/worlds/map-template-service";
@@ -12,5 +13,7 @@ export async function POST(request:Request,context:{params:Promise<{worldId:stri
  const worldId=(await context.params).worldId,q=new URL(request.url).searchParams;if(q.get("review")==="1"||q.has("ordinary")||q.has("knowledge"))throw new WorldError("Template review is read-only.",403);await worldReadAccess(userId,worldId,false,"assets");
  if(!request.headers.get("content-type")?.startsWith("application/json"))throw new WorldError("Submit a supported template drawing request.",415);
  const reader=request.body?.getReader();if(!reader)throw new WorldError("Choose a template to save.",400);const parts:Uint8Array[]=[];let size=0;try{for(;;){const next=await reader.read();if(next.done)break;size+=next.value.byteLength;if(size>TEMPLATE_LIMITS.bodyBytes){await reader.cancel();throw new WorldError("This template request exceeds five MiB. Your draft is retained.",413);}parts.push(next.value);}}finally{reader.releaseLock();}
- return changeMapTemplate(userId,worldId,JSON.parse(Buffer.concat(parts).toString("utf8")));
+ const input=JSON.parse(Buffer.concat(parts).toString("utf8"));
+ if(input?.action==="retain-sources"){const c=z.object({action:z.literal("retain-sources"),templateId:z.string().min(1).max(180),revision:z.number().int().min(1).max(128).optional()}).strict().parse(input);return retainTemplateSources(userId,worldId,c.templateId,c.revision);}
+ return changeMapTemplate(userId,worldId,input);
 });}

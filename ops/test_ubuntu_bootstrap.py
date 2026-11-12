@@ -1,4 +1,6 @@
 import os
+import json
+from types import SimpleNamespace
 from pathlib import Path, PurePosixPath
 import tempfile
 import unittest
@@ -8,6 +10,21 @@ from ubuntu_deploy import Refused, parse_env
 
 
 class BootstrapTests(unittest.TestCase):
+    def test_exact_supported_release_ledger_never_accepts_an_unknown_schema(self):
+        op = Bootstrap(".", "a" * 40, "/apps/data", {"name": "synthetic", "port": 55432, "role": "postgres"})
+        for count, tag, accepted in [(162, "0161_atlas_expanded_numerical_terrain", True), (163, "0162_atlas_source_rights", True), (161, "0160_world_canon_geography_copy", False), (163, "0162_unknown", False), (164, "0163_unknown", False)]:
+            entries = [{"tag": "fixture", "when": n} for n in range(count)]
+            entries[-1]["tag"] = tag
+            with patch.object(op, "git", return_value=json.dumps({"entries": entries})), patch.object(op, "run", return_value=SimpleNamespace(stdout=b"select 1;\n")):
+                if accepted:
+                    ledger = op.ledger()
+                    self.assertEqual(len(ledger), count)
+                    self.assertEqual(ledger[-1]["timestamp"], str(count - 1))
+                    self.assertEqual(len(ledger[-1]["hashes"]), 2)
+                else:
+                    with self.assertRaisesRegex(Refused, "BOOTSTRAP_RELEASE_SCHEMA"):
+                        op.ledger()
+
     def test_legacy_auth_transition_preserves_secret_trusted_origins_and_unrelated_bytes(self):
         for ending in (b"\n", b"\r\n"):
             original = ending.join([b"\xef\xbb\xbf# retained", b"BETTER_AUTH_URL=http://198.51.100.10:3003", b"BETTER_AUTH_SECRET=keep-exact", b"BETTER_AUTH_TRUSTED_ORIGINS=http://10.23.4.5:3003,https://one.trycloudflare.com,https://two.trycloudflare.com", b"DATABASE_URL=keep-db", b"UNRELATED=keep-this", b""])
