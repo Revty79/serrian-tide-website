@@ -23,9 +23,8 @@ from ubuntu_deploy import Operator, require
 from bootstrap_tls_fixture import require_fixture_listener_available
 from prebuilt_release import Registry, GitHub, IMAGE, legacy
 from install_serrian_prebuilt_update import download_verifier
+from a5_fixture_baseline import BASELINE
 
-# Same-schema A3 baseline: no implicit migration during an ordinary update.
-BASELINE = "07e2c84542328c3f7d92423dc6fd0b8282a54464"
 
 
 def main():

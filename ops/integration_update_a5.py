@@ -20,10 +20,8 @@ import time
 import urllib.request
 from ubuntu_deploy import Operator, require
 from bootstrap_tls_fixture import require_fixture_listener_available
+from a5_fixture_baseline import BASELINE
 
-# Actual A3 source with the same 163-entry schema. Pre-A3 releases are not
-# compatible ordinary-update baselines; their migration refusal stays tested.
-BASELINE = "07e2c84542328c3f7d92423dc6fd0b8282a54464"
 
 
 def main():

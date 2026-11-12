@@ -131,9 +131,13 @@ class UpdatePolicyTests(unittest.TestCase):
                 verify_ledger(rows, expected)
 
     def test_actual_a3_release_refuses_pre_a3_ledger(self):
+        from a5_fixture_baseline import BASELINE
         repo = Path(__file__).resolve().parent.parent
         commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo).decode().strip()
-        expected = expected_ledger(Git(repo), commit)
+        history = Git(repo)
+        for name in ("scripts/deployment-a5-fixture.ts", "drizzle/meta/_journal.json"):
+            self.assertEqual(history.blob(BASELINE, name), history.blob(commit, name))
+        expected = expected_ledger(history, commit)
         self.assertEqual(len(expected), 163)
         previous = [{"created_at": row["created_at"], "hash": sorted(row["hashes"])[0]} for row in expected[:-1]]
         self.assertEqual(len(previous), 162)

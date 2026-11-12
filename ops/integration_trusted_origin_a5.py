@@ -11,8 +11,7 @@ import urllib.error
 from bootstrap_tls_fixture import OwnedTLSProxy, require_fixture_listener_available
 from ubuntu_deploy import Operator, Refused, require
 from ubuntu_trusted_origin import OriginUpdate, ORIGIN, KEY, append_origin
-
-RUNTIME_COMMIT = "1d9fe69d0c2073ea5acd23408585540028928c22"
+from a5_fixture_baseline import BASELINE as RUNTIME_COMMIT
 
 
 def main():
