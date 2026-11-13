@@ -45,6 +45,8 @@ Native geographic authoring continues separately within Pass 1. Saved regional c
 
 Subsequent authoring reproduced a fixed-coverage limitation when a required island crossed an existing detail boundary. The same authorized pass now includes the [native coverage correction](project-earth-native-coverage-correction.md), with separate migration, build, regression and publication evidence. The original corner/readiness receipt below remains historical evidence for its exact tested inputs.
 
+The coverage correction at `73b09b5649df7a056f16707c2a76152b4ac500ac` completes all four exact technical release checks. Its linked report records the tested image, retained failures and proposed owner DEV activation. Owner application of 0163 remains pending; native geography and the queued collapsed Sources & Rights display remain unfinished within this pass.
+
 ## Reference and geographic limits
 
 The exact official Natural Earth land 5.1.1 distribution was checked against the [provider's public-domain terms](https://www.naturalearthdata.com/about/terms-of-use/) and [product page](https://www.naturalearthdata.com/downloads/10m-physical-vectors/10m-land/), including its internal version file, checksum, access channel and [documented coastline lineage/accuracy issues](https://www.naturalearthdata.com/downloads/10m-physical-vectors/10m-coastline/). Evidence and an explicitly AI-assisted administrator review were recorded through A3 controls before reference-guided geography. Display/modification review does not certify customer distribution, exports, recipient-rights compliance or mixed-source commercial clearance; those uses remain held pending their applicable verification. Older held Earth material was not reused.
