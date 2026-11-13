@@ -34,7 +34,7 @@ export async function databaseProbe(expected){
   const who=(await client.query("select current_database() name,current_user role,inet_server_port() port,current_setting('server_version_num')::int version,pg_database_size(current_database())::text bytes")).rows[0];
   requireValue(who.name===expected.name&&who.role===expected.role&&who.port===expected.port&&Math.floor(who.version/10000)===18,"BOOTSTRAP_DATABASE_IDENTITY");
   const rows=(await client.query("select hash,created_at::text from drizzle.__drizzle_migrations order by id")).rows;
-  requireValue([162,163].includes(expected.ledger.length)&&rows.length===expected.ledger.length,"BOOTSTRAP_MIGRATION_REQUIRED");
+  requireValue([162,163,164].includes(expected.ledger.length)&&rows.length===expected.ledger.length,"BOOTSTRAP_MIGRATION_REQUIRED");
   for(const [i,row]of rows.entries())requireValue(row.created_at===expected.ledger[i].timestamp&&expected.ledger[i].hashes.includes(row.hash),"BOOTSTRAP_MIGRATION_HASH");
   const records={};
   for(const table of TABLES){records[table]=Number((await client.query(`select count(*)::text n from public."${table}"`)).rows[0].n);requireValue(records[table]===0,"BOOTSTRAP_EXISTING_ATLAS_DATA");}

@@ -4,6 +4,15 @@ import {createHash} from "node:crypto";
 import {readFile} from "node:fs/promises";
 import {spawnSync} from "node:child_process";
 import {migrationHashes} from "../scripts/environment/migration-hashes";
+import {bootstrapReleaseSupported} from "./bootstrap-release-schema";
+
+test("bootstrap recovery recognizes the actual coverage release and preserves explicit older and unknown-schema gates",async()=>{
+ const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8"));assert.equal(journal.entries.length,164);assert(bootstrapReleaseSupported(journal));
+ for(const count of [162,163])assert(bootstrapReleaseSupported({entries:journal.entries.slice(0,count)}));
+ assert.equal(bootstrapReleaseSupported({entries:journal.entries.slice(0,161)}),false);
+ const altered=structuredClone(journal);altered.entries[163].tag="0163_unknown";assert.equal(bootstrapReleaseSupported(altered),false);
+ assert.equal(bootstrapReleaseSupported({entries:[...journal.entries,{tag:"0164_unknown"}]}),false);
+});
 
 test("exact LF and Windows CRLF migration bytes are recognized without accepting SQL edits",async()=>{
  const sql=await readFile("drizzle/0161_atlas_expanded_numerical_terrain.sql"),lf=sql.toString().replaceAll("\r\n","\n"),crlf=lf.replaceAll("\n","\r\n"),hash=(s:string)=>createHash("sha256").update(s).digest("hex");

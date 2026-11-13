@@ -2,6 +2,7 @@
 import path from "node:path";
 import {readFile,writeFile,lstat,readdir,chown} from "node:fs/promises";
 import {requireCondition,type EnvironmentProfile} from "../scripts/environment/model";
+import {bootstrapReleaseSupported} from "./bootstrap-release-schema";
 
 let diagnostic:{root:string;uid:number;gid:number;action:string;phase:string}|undefined;
 async function main(){
@@ -25,7 +26,7 @@ async function main(){
  diagnostic={root,uid:input.uid,gid:input.gid,action:input.action,phase:"validated recovery context"};
  const application={directory:process.cwd(),origin:input.origin,trustFile:trust,hosting:"ubuntu" as const};
  const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")),expectedMigrations=journal.entries.length;
- requireCondition(([162,163].includes(expectedMigrations))&&journal.entries.at(-1)?.tag===(expectedMigrations===162?"0161_atlas_expanded_numerical_terrain":"0162_atlas_source_rights"),"BOOTSTRAP_RELEASE_SCHEMA","Use an explicitly supported release ledger.");
+ requireCondition(bootstrapReleaseSupported(journal),"BOOTSTRAP_RELEASE_SCHEMA","Use an explicitly supported release ledger.");
  let result:unknown;
  if(input.action==="backup"){
   requireCondition(input.expected.name&&input.expected.role&&input.expected.port&&process.env.DATABASE_URL,"BOOTSTRAP_SOURCE","An explicit checked source is required.");
