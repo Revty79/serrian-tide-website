@@ -14,7 +14,7 @@ Cancellation changes no accepted terrain. The first acceptance packet and its re
 
 ## Storage and compatibility
 
-Migration `0163_atlas_refinement_expansion.sql` adds one immutable geometry-history table and checked coverage-transition guards. It retains the original source identity and accepted numerical versions. Existing sources receive geometry records only when first extended. Current and older geometry are resolved explicitly by numerical revision, including child interpolation, captured dated appearances, current exports and personal Canon copies.
+Migration `0163_atlas_refinement_expansion.sql` adds one immutable geometry-history table and checked coverage-transition guards. All 406 preceding snapshot table definitions and all 163 preceding journal entries remain exact. It retains the original source identity and accepted numerical versions. Existing sources receive geometry records only when first extended. Current and older geometry are resolved explicitly by numerical revision, including child interpolation, captured dated appearances, current exports and personal Canon copies.
 
 Fresh and upgraded owned PostgreSQL 18 fixtures use 164 migrations. On a database through 0162, existing authoring remains available and extension explicitly requires 0163. The owner DEV database has **not** been migrated by this software correction. Application of 0163 requires the separately reviewed current target and paired recovery procedure; there is no automatic application or owner-data rewrite here. After using enlarged coverage, retain geometry-aware software for historical reads. An older server is not an appropriate reader for the new coverage-history format.
 
@@ -29,7 +29,7 @@ The application build is `pSEAWgUuzd5wcarvHGuNM`; its application/asset source f
 | Feature units | All 2,955 tests across 382 files pass, including eight new expansion cases. |
 | TypeScript / ESLint | Pass; one inherited unused `LoreFamily` warning remains. |
 | Portable environment and raster tests | 17 pass; the POSIX permission-bit case is explicitly skipped on Windows. |
-| Portable deployment safety tests | Both original cases pass. Full hosted deployment/recovery remain separate release gates. |
+| Portable deployment safety tests | All 84 cases pass: 67 Python, 15 JavaScript and two TypeScript cases. Full hosted deployment/recovery remain separate release gates. |
 | Owned PG18 expansion | Existing 0162 authoring and refused pre-upgrade extension, exact nonuniform-parent inheritance, all old samples/protection, immutable history, children, overviews, idempotency, failed acceptance, permissions and old-area restore pass. |
 | Dated appearances / exports / Stage 7C | Exact original geometry of older parent pins survives capture, sampling, subsequent native growth and export/integration projection. Dated editing leaves current terrain unchanged. |
 | Personal Canon copies | Expanded old/new numerical pins and geometry pass in the focused synthetic fixture; all six original complete geography-copy regression groups also pass. Only disposable Worlds were marked Canon. |
@@ -54,6 +54,10 @@ These are technical checks, not owner artistic/usability or physical-device acce
 
 ## Publication and continuation
 
-Exact normal CI, original Linux recovery, full Ubuntu deployment and signed-image publisher results will be recorded after publication. Until those complete successfully, this is a locally validated correction rather than a verified release. Earth geography, owner application of 0163 and the queued collapsed-by-default Sources & Rights display remain separate unfinished work within the same authorized pass. No Production, home-server, retained restricted Earth database or Tabletop operation is included.
+First source `da142a3d2d9af23a598a368ea3c4a89d07016616` is published. Its [Ubuntu regression](https://github.com/Revty79/serrian-tide-website/actions/runs/43485486674) failed because the ordinary-update fixture still pinned a 163-entry source and asserted equality with the new 164-entry candidate. The [publisher](https://github.com/Revty79/serrian-tide-website/actions/runs/43485486441) correctly refused it. The failure precedes application building/cutover and is retained privately.
+
+The bounded correction pins the shared synthetic runtime baseline to that genuine earlier 164-entry source, keeps exact fixture/journal equality, and explicitly recognizes only the reviewed 0163 tag in first-time bootstrap. The original A3 refusal test retains its two actual A3 commits and exact data; an additional actual-164-ledger test preserves the 163-entry prefix and refuses a host missing 0163. Disaster-recovery fixtures explicitly expect 164 while still checking the old 160-entry restoration before a separately invoked synthetic upgrade. These are fixture/schema compatibility changes; normal updater CI, migration refusal, identity, confirmation, freeze and rollback rules remain unchanged. This test baseline is not authorization to deploy the CI-failed candidate. All 2,167 tested application inputs remain exact.
+
+Exact normal CI, original Linux recovery, full Ubuntu deployment and signed-image publisher results will be recorded for the replacement source after publication. Until those complete successfully, this is a locally validated correction rather than a verified release. Earth geography, owner application of 0163 and the queued collapsed-by-default Sources & Rights display remain separate unfinished work within the same authorized pass. No Production, home-server, retained restricted Earth database or Tabletop operation is included.
 
 The separately ready trusted-origin command remains pinned to `973d4f57e10df5231f02ff6efeb1e1ad3ac04b45` in [deployment-a5-trusted-origin.md](deployment-a5-trusted-origin.md). It has not been applied here.

@@ -131,6 +131,22 @@ class UpdatePolicyTests(unittest.TestCase):
                 verify_ledger(rows, expected)
 
     def test_actual_a3_release_refuses_pre_a3_ledger(self):
+        repo = Path(__file__).resolve().parent.parent
+        history = Git(repo)
+        # Preserve the original actual-A3 regression across later additive
+        # schemas. These are its genuine first and delivered source commits.
+        first = "07e2c84542328c3f7d92423dc6fd0b8282a54464"
+        commit = "209b76952d7144bfc752b5e568547c01837dcae9"
+        for name in ("scripts/deployment-a5-fixture.ts", "drizzle/meta/_journal.json"):
+            self.assertEqual(history.blob(first, name), history.blob(commit, name))
+        expected = expected_ledger(history, commit)
+        self.assertEqual(len(expected), 163)
+        previous = [{"created_at": row["created_at"], "hash": sorted(row["hashes"])[0]} for row in expected[:-1]]
+        self.assertEqual(len(previous), 162)
+        with self.assertRaisesRegex(Stopped, "MIGRATION_APPROVAL_REQUIRED"):
+            verify_ledger(previous, expected)
+
+    def test_actual_coverage_release_refuses_a_host_missing_0163(self):
         from a5_fixture_baseline import BASELINE
         repo = Path(__file__).resolve().parent.parent
         commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo).decode().strip()
@@ -138,9 +154,10 @@ class UpdatePolicyTests(unittest.TestCase):
         for name in ("scripts/deployment-a5-fixture.ts", "drizzle/meta/_journal.json"):
             self.assertEqual(history.blob(BASELINE, name), history.blob(commit, name))
         expected = expected_ledger(history, commit)
-        self.assertEqual(len(expected), 163)
-        previous = [{"created_at": row["created_at"], "hash": sorted(row["hashes"])[0]} for row in expected[:-1]]
-        self.assertEqual(len(previous), 162)
+        self.assertEqual(len(expected), 164)
+        original = expected_ledger(history, "209b76952d7144bfc752b5e568547c01837dcae9")
+        self.assertEqual(expected[:163], original)
+        previous = [{"created_at": row["created_at"], "hash": sorted(row["hashes"])[0]} for row in expected[:163]]
         with self.assertRaisesRegex(Stopped, "MIGRATION_APPROVAL_REQUIRED"):
             verify_ledger(previous, expected)
 
