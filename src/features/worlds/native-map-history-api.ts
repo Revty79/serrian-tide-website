@@ -13,7 +13,7 @@ import { withNativeHistoryRead, nativeResource, nativeRelatedContext, type Nativ
 import { withNativeHistoryWrite } from "./native-map-history-write";
 import { nativeSavedResource, nativeResourceRevisions, assertNativeTarget } from "./native-map-history-resources";
 import { readNativeTerrain, readNativeRefinement, nativeRefinementIndex, nativeAllRefinementIndex, nativeHydrologySources, nativeTerrainSource } from "./native-map-history-terrain-read";
-import { nativeAdvancedContext, saveNativeTerrain, createNativeRefinement, restoreNativeRefinement } from "./native-map-history-terrain-write";
+import { nativeAdvancedContext, saveNativeTerrain, createNativeRefinement, expandNativeRefinement, restoreNativeRefinement } from "./native-map-history-terrain-write";
 import { nativeLayerSchemas, saveNativeLayer, type NativeLayerKey } from "./native-map-history-layers";
 import { saveNativeTown, saveNativeFloor, saveNativeUnderground, saveNativeCraft, saveNativeComposition } from "./native-map-history-shapes";
 import { readTerrainRequest } from "./terrain-http";
@@ -200,6 +200,7 @@ export async function nativeContentRequest(request: Request, userId: string) {
     if (path === "terrain/refinements") {
       const id = url.searchParams.get("refinement");
       if (!id) return createNativeRefinement(tx, context, raw);
+      if (raw && typeof raw === "object" && "action" in raw && raw.action === "expand") return expandNativeRefinement(tx, context, atlasId.parse(id), raw);
       if (raw && typeof raw === "object" && "action" in raw && raw.action === "restore") return restoreNativeRefinement(tx, context, atlasId.parse(id), raw);
       return saveNativeTerrain(tx, context, raw, atlasId.parse(id));
     }

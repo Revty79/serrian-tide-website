@@ -42,6 +42,7 @@ export function canonGeographyRow(family:string,input:Record<string,unknown>,act
     if(typeof original.__copy_parent_revision==="number")value.parent_revision=original.__copy_parent_revision;
     if(typeof original.__copy_root_revision==="number")value.root_revision=original.__copy_root_revision;
   }
+  if(family==="world_terrain_refinement_geometry"){value.from_revision=original.__copy_revision;delete value.revision;}
   if(family==="world_atlas_map"){value.generation=null;value.source_map_id=null;}
   if(family==="world_region_hierarchy")value.revision=1;
   if(family==="world_settlement_profile"){value.culture_id=null;value.government_id=null;}

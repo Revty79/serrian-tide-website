@@ -5,7 +5,7 @@ import {geographicPrivateMaps,geographicPrivatePlaces} from "./geographic-privac
 export type CanonGeographyPlan={table:string;key:SQL;source:SQL;batch:number};
 /** Only these reviewed native tables may be prepared or accepted. No catalog,
  * Campaign, invitation, asset-library or arbitrary table copying is possible. */
-export function canonGeographyPlan(worldId:string):CanonGeographyPlan[]{
+export function canonGeographyPlan(worldId:string,geometryHistory=false):CanonGeographyPlan[]{
   const privatePlaces=geographicPrivatePlaces(worldId),privateMaps=geographicPrivateMaps(worldId);
   const maps=sql`select c.map_id from world_map_canvas c join world_atlas_map m on m.id=c.map_id and m.world_id=c.world_id where c.world_id=${worldId} and m.archived_at is null and c.map_id not in (${privateMaps}) and (m.geography_id is null or m.geography_id not in (${privatePlaces})) and (c.purpose='world' or exists(select 1 from world_map_region r join world_atlas_map p on p.id=r.parent_map_id and p.world_id=r.world_id where r.map_id=c.map_id and r.world_id=c.world_id and p.archived_at is null and p.id not in (${privateMaps}) and (p.geography_id is null or p.geography_id not in (${privatePlaces}))))`;
   const terrain=sql`select distinct terrain_id from world_map_canvas where world_id=${worldId} and map_id in (${maps})`;
@@ -123,5 +123,16 @@ export function canonGeographyPlan(worldId:string):CanonGeographyPlan[]{
   add("world_geo_head","feature_id",sql`s.feature_id in (${geoFeatures})`);
   plans.push({table:"world_geo_part",key:sql`s.version_id||':'||s.part||':'||s.box`,batch:1,source:sql`select p.* from world_geo_part p join world_geo_head h on h.version_id=p.version_id where p.world_id=${worldId} and p.feature_id in (${geoFeatures})`});
   plans.push({table:"canon_landforms",key:sql`s.map_id`,batch:1,source:sql`select c.map_id,c.terrain_id from world_map_canvas c where c.world_id=${worldId} and c.purpose='world' and c.map_id in (${maps})`});
+  if(geometryHistory)plans.push({table:"world_terrain_refinement_geometry",key:sql`s.refinement_id||':'||s.__copy_revision`,batch:128,source:sql`
+    select r.id refinement_id,r.terrain_id,r.world_id,p.copy_revision __copy_revision,parent.copy_revision __copy_parent_revision,
+      p.copy_revision from_revision,parent.copy_revision parent_revision,
+      coalesce(g.x_metres,r.x_metres) x_metres,coalesce(g.y_metres,r.y_metres) y_metres,
+      coalesce(g.width_metres,r.width_metres) width_metres,coalesce(g.height_metres,r.height_metres) height_metres,
+      coalesce(g.grid_width,r.grid_width) grid_width,coalesce(g.grid_height,r.grid_height) grid_height,coalesce(g.recorded_at,v.created_at) recorded_at
+    from world_terrain_refinement r join (${numericPins}) p on p.id=r.id and p.kind='detail'
+    join world_terrain_refinement_version v on v.refinement_id=r.id and v.revision=p.revision
+    join (${numericPins}) parent on parent.id=coalesce(r.parent_id,r.terrain_id) and parent.revision=v.parent_revision
+    left join lateral(select * from world_terrain_refinement_geometry g where g.refinement_id=r.id and g.from_revision<=p.revision order by g.from_revision desc limit 1) g on true
+    where r.world_id=${worldId}`});
   return plans;
 }

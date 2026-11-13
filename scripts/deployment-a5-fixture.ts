@@ -18,7 +18,7 @@ async function main(){
  assert.equal(process.env.SERRIAN_A5_OWNED_FIXTURE,"1");
  assert(port>1024&&! [3000,3003,5432,5433].includes(port));assert(password?.length>=32);
  assert.equal(await readFile("/owned/.a5-fixture","utf8"),"OWNED_SYNTHETIC_A5_ONLY\n");
- if(process.argv.includes("--upgrade")){const before=await rows();await migrate(drizzle(pool),{migrationsFolder:"drizzle"});const after=await rows();for(const [name,value]of Object.entries(before))assert.equal(after[name],value,name);assert.equal((await pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,163);console.log(JSON.stringify({passed:true,explicitUpgrade:true,originalTablesExact:Object.keys(before).length}));return;}
+ if(process.argv.includes("--upgrade")){const before=await rows();await migrate(drizzle(pool),{migrationsFolder:"drizzle"});const after=await rows();for(const [name,value]of Object.entries(before))assert.equal(after[name],value,name);assert.equal((await pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,164);console.log(JSON.stringify({passed:true,explicitUpgrade:true,originalTablesExact:Object.keys(before).length}));return;}
  if(process.argv.includes("--mutate")){await pool.query("update \"user\" set name='Synthetic accepted post-start write' where id='a5-owner'");return;}
  stage="initdb";await writeFile(path.join(root,"pg-password"),password,{mode:0o600,flag:"wx"});
  command("initdb",["-D",data,"-U","postgres","-A","scram-sha-256","--pwfile",path.join(root,"pg-password"),"--encoding=UTF8","--locale=C"]);

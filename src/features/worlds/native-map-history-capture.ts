@@ -11,6 +11,7 @@ import { worldTerrainVersion } from "@/db/world-terrain-schema";
 import {worldCraftPlacement} from "@/db/world-craft-schema";
 import { getTerrain } from "./terrain-service";
 import { getRefinements } from "./terrain-refinement-service";
+import {refinementGeometryAtRevision} from "./terrain-refinement-geometry";
 import { getTerrainHydrology } from "./terrain-hydrology-service";
 import { getTerrainEnvironment } from "./terrain-environment-service";
 import { getTerrainMaterials } from "./terrain-material-service";
@@ -103,8 +104,9 @@ async function captureRetainedNativeBaseline(tx: NativeHistoryTx, authorId: stri
         : await tx.select().from(worldTerrainVersion).where(and(eq(worldTerrainVersion.terrainId, context.terrain.id), eq(worldTerrainVersion.worldId, worldId), eq(worldTerrainVersion.revision, pin.revision)));
       if (!version) throw nativeHistoryMissing();
       const parentRevision = "parentRevision" in version ? version.parentRevision : null;
+      const retainedMeta=meta?await refinementGeometryAtRevision(tx,meta,pin.revision):undefined;
       const value: NativeNumericPin = { ...pin, parentId: meta ? meta.parentId ?? context.terrain.id : null, parentRevision,
-        shape: meta ? frameGeometry(meta, rootShape) : rootShape, frame: meta?.frame ?? rootFrame(rootShape), baseElevation: context.terrain.baseElevation, tileObjects: objects };
+        shape: retainedMeta ? frameGeometry(retainedMeta, rootShape) : rootShape, frame: retainedMeta?.frame ?? rootFrame(rootShape), baseElevation: context.terrain.baseElevation, tileObjects: objects };
       add("source:" + key, meta ? "refinement" : "terrain", value);
       if (value.parentId && parentRevision !== null) queue.push({ id: value.parentId, revision: parentRevision });
     }

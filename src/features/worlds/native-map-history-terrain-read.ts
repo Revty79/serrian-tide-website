@@ -54,7 +54,7 @@ export async function nativeAllRefinementIndex(tx: NativeHistoryTx, context: Nat
   const value = structuredClone(stored);
   value.refinements = value.refinements.map(meta => ({ ...meta, mapId: context.scope.target.id }));
   value.rootRevision = root.document.revision; value.seaLevel = root.document.seaLevel;
-  value.sourceState = terrainSourceState(root.document.revision, value.refinements); value.canEdit = context.canEdit;
+  value.sourceState = terrainSourceState(root.document.revision, value.refinements); value.canEdit = context.canEdit; value.expansionAvailable=true;
   return value;
 }
 export async function nativeRefinementIndex(tx: NativeHistoryTx, context: NativeContentContext): Promise<RefinementIndex> {

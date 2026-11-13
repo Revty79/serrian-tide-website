@@ -36,3 +36,13 @@ export const worldTerrainRefinementTile=pgTable("world_terrain_refinement_tile",
  foreignKey({name:"world_terrain_refinement_tile_version_fk",columns:[t.refinementId,t.terrainId,t.worldId,t.revision],foreignColumns:[worldTerrainRefinementVersion.refinementId,worldTerrainRefinementVersion.terrainId,worldTerrainRefinementVersion.worldId,worldTerrainRefinementVersion.revision]}).onDelete("restrict"),
  check("world_terrain_refinement_tile_valid",sql`${t.lod} BETWEEN 0 AND 7 AND ${t.x} BETWEEN 0 AND 127 AND ${t.y} BETWEEN 0 AND 127 AND ${t.sha256} ~ '^[a-f0-9]{64}$' AND ${t.bytes}=2048 AND ${t.encoding}='i16le-v1' AND ${t.manualProtection} ~ '^[a-f0-9]+$' AND length(${t.manualProtection})=256`),
 ]);
+
+/** Immutable geometry transitions keep old tiles in their original physical frame. */
+export const worldTerrainRefinementGeometry=pgTable("world_terrain_refinement_geometry",{
+ refinementId:text("refinement_id").notNull(),terrainId:text("terrain_id").notNull(),worldId:text("world_id").notNull(),fromRevision:integer("from_revision").notNull(),parentRevision:integer("parent_revision").notNull(),
+ x:doublePrecision("x_metres").notNull(),y:doublePrecision("y_metres").notNull(),width:doublePrecision("width_metres").notNull(),height:doublePrecision("height_metres").notNull(),gridWidth:integer("grid_width").notNull(),gridHeight:integer("grid_height").notNull(),recordedAt:timestamp("recorded_at").notNull().defaultNow(),
+},t=>[
+ primaryKey({columns:[t.refinementId,t.fromRevision]}),
+ foreignKey({name:"world_refinement_geometry_version_fk",columns:[t.refinementId,t.fromRevision,t.terrainId,t.worldId],foreignColumns:[worldTerrainRefinementVersion.refinementId,worldTerrainRefinementVersion.revision,worldTerrainRefinementVersion.terrainId,worldTerrainRefinementVersion.worldId]}).onDelete("restrict"),
+ check("world_refinement_geometry_valid",sql`${t.fromRevision}>0 AND ${t.parentRevision}>0 AND ${t.x}>=0 AND ${t.x}<1000000000 AND ${t.y}>=0 AND ${t.y}<1000000000 AND ${t.width} BETWEEN 100 AND 1000000000 AND ${t.height} BETWEEN 100 AND 1000000000 AND ${t.gridWidth} IN (32,64,128,256,512,1024,2048,4096) AND ${t.gridHeight} IN (32,64,128,256,512,1024,2048,4096)`),
+]);

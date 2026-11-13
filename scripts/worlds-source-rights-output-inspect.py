@@ -9,7 +9,7 @@ import pymupdf
 parser = argparse.ArgumentParser()
 parser.add_argument("receipt", type=Path)
 root = parser.parse_args().receipt.resolve()
-assert root.parent.name == "artifacts" and root.name.startswith("collaboration-s7b-a3-browser-")
+assert root.parent.name == "artifacts" and root.name.startswith(("collaboration-s7b-a3-browser-", "collaboration-s7b-earth-pass1-expansion-seven-families-"))
 outputs = root / "outputs"
 renders = root / "pdf-renders"
 renders.mkdir(exist_ok=True)

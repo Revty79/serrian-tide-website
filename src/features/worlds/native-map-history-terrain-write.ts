@@ -2,7 +2,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { terrainCommandSchema, type TerrainTile } from "./terrain";
-import { EMPTY_PROTECTION, isProtected, protectSamples, type TerrainSource } from "./terrain-source";
+import { EMPTY_PROTECTION, isProtected, protectSamples, protectionGrid, type TerrainSource } from "./terrain-source";
+import {expandedRefinementProtection,initializeExpandedRefinement,refinementExpansionFrame,refinementExpansionSchema,restoreRetainedRefinement,type RefinementExpansionDimensions} from "./terrain-refinement-expansion";
 import { validateGenerationAcceptance } from "./terrain-generation-acceptance";
 import {assertTerrainTransferRequest} from "./terrain-transfer-authority";
 import {withTerrainResourceBudget} from "./terrain-resource-budget";
@@ -107,16 +108,54 @@ async function createNativeRefinementChecked(tx: NativeHistoryTx, context: Nativ
   const retainedParent: NativeComponentUpdate[] = context.manifest.resources.some(r => r.key === parentKey) ? [] : [{ key: parentKey, kind: meta.parentId ? "refinement" : "terrain", payload: await nativeNumericPin(tx, context, meta.parentId ?? root.document.terrainId, c.parentRevision) as unknown as Record<string, unknown> }];
   return { updates: [...retainedParent, { key: "refinement:" + meta.id, kind: "refinement", payload: fine as unknown as Record<string, unknown> }, { key: "refinements", kind: "refinement", payload: { ...original, index: { ...index, refinements: [...index.refinements, meta] }, sourceHashes: { ...original.sourceHashes as Record<string, string>, [meta.id]: sourceHash } } }], result: { id: c.mapId, refinementId: meta.id, revision: 1 } };
 }
+export async function expandNativeRefinement(tx:NativeHistoryTx,context:NativeContentContext,sourceId:string,raw:unknown):Promise<NativeWriteResult>{
+ const c=refinementExpansionSchema.parse(raw);
+ return withTerrainResourceBudget(c.gridWidth*c.gridHeight,async()=>{
+  assertNativeTarget(context,c.mapId,"terrain");
+  await assertTerrainTransferRequest(tx,context.userId,context.worldId,c.requestId);
+  if(c.refinementId!==sourceId)throw new WorldError("Choose the retained source named by this original request.",409);
+  const root=await nativeTerrainSource(tx,context),index=await nativeAllRefinementIndex(tx,context),meta=index.refinements.find(r=>r.id===sourceId);
+  if(!meta)throw new WorldError("This finer source is not retained by the dated appearance.",404);
+  assertNativeRevision(meta.revision,c.revision);
+  if(root.document.region&&c.sourceState!==index.sourceState)throw new WorldError("The dated numerical context changed. Retain the original extension request and review the accepted sources.",409);
+  const parent=meta.parentId?index.refinements.find(r=>r.id===meta.parentId):undefined;
+  if(meta.parentId&&!parent)throw new WorldError("The retained parent source is unavailable.",409);
+  const parentRevision=parent?.revision??root.document.revision;assertNativeRevision(parentRevision,c.parentRevision);
+  const [inherited,old]=await Promise.all([nativeGrid(tx,context,meta.parentId??undefined),nativeGrid(tx,context,sourceId)]);
+  if(!old.fine)throw new WorldError("The complete retained detail is unavailable.",409);
+  const dimensions:RefinementExpansionDimensions={gridWidth:c.gridWidth,gridHeight:c.gridHeight,columnsToWest:c.columnsToWest,rowsToNorth:c.rowsToNorth,...c.advancedConfirmed?{advancedConfirmed:true}:{}};
+  let frame;
+  try{frame=refinementExpansionFrame(meta,dimensions,inherited.shape,inherited.frame,root.shape);}catch(error){throw new WorldError((error as Error).message,400);}
+  if(root.document.region&&!regionContainsFrame(root.document.region,frame,root.shape))throw new WorldError("Keep the complete extended detail inside this region or open the parent World.",409);
+  if(index.refinements.some(r=>r.id!==sourceId&&r.parentId===meta.parentId&&framesOverlap(r.frame,frame,root.shape.displayWidth,root.shape.wrap)))throw new WorldError("The extended coverage overlaps another retained area at the same level.",409);
+  const {grid}=await initializeExpandedRefinement(old.grid,meta,inherited.grid,inherited.shape,inherited.frame,root.shape,dimensions);
+  const bytes=Buffer.alloc(grid.length*2);for(let i=0;i<grid.length;i++)bytes.writeInt16LE(grid[i],i*2);
+  if(createHash("sha256").update(bytes).digest("hex")!==c.previewHash)throw new WorldError("The retained source or parent no longer matches this extension preview. Keep the settings and prepare it again.",409);
+  const protection=expandedRefinementProtection(protectionGrid(old.fine.tileObjects.filter(r=>(r.lod??0)===0),meta.gridWidth,meta.gridHeight),meta,dimensions),tiles:TerrainTile[]=[],masks=new Map<string,string>();
+  for(let y=0;y<c.gridHeight/32;y++)for(let x=0;x<c.gridWidth/32;x++){
+   tiles.push(gridTile(grid,c.gridWidth,x,y));const indices:number[]=[];
+   for(let n=0;n<1024;n++)if(protection[(y*32+Math.floor(n/32))*c.gridWidth+x*32+n%32])indices.push(n);
+   masks.set(`${x}:${y}`,protectSamples(EMPTY_PROTECTION,indices));
+  }
+  const revision=meta.revision+1,sourceHash=nativeContentHash(c),updated:RefinementMeta={...meta,revision,parentRevision,frame,gridWidth:c.gridWidth,gridHeight:c.gridHeight,overviewLevels:overviewLevels(c.gridWidth,c.gridHeight),updatedAt:new Date().toISOString()};
+  const fine:NativeRefinementPayload={...old.fine,meta:updated,tileObjects:await nativePyramid(context.worldId,meta.id,c.requestId,updated,tiles,masks,old.fine.tileObjects),version:{revision,requestId:c.requestId,rootRevision:root.document.revision,parentRevision,contentHash:sourceHash,source:{kind:"manual"}}};
+  const original=(await nativeResource(tx,context,"refinements")).payload,parentKey=`source:${meta.parentId??root.document.terrainId}:${parentRevision}`;
+  const pins:NativeComponentUpdate[]=context.manifest.resources.some(r=>r.key===parentKey)?[]:[{key:parentKey,kind:meta.parentId?"refinement":"terrain",payload:await nativeNumericPin(tx,context,meta.parentId??root.document.terrainId,parentRevision) as unknown as Record<string,unknown>}];
+  return {updates:[...pins,{key:"refinement:"+meta.id,kind:"refinement",payload:fine as unknown as Record<string,unknown>},{key:"refinements",kind:"refinement",payload:{...original,index:{...index,refinements:index.refinements.map(r=>r.id===meta.id?updated:r)},sourceHashes:{...original.sourceHashes as Record<string,string>,[meta.id]:sourceHash}}}],result:{id:c.mapId,refinementId:meta.id,revision}};
+ });
+}
+
 export async function restoreNativeRefinement(tx: NativeHistoryTx, context: NativeContentContext, sourceId: string, raw: unknown) {
   const c = z.object({ action: z.literal("restore"), mapId: z.uuid(), requestId: z.uuid(), revision: z.number().int().positive(), targetRevision: z.number().int().positive(), sourceState: z.string().max(8192).optional() }).strict().parse(raw);
   if (c.targetRevision >= c.revision) throw new WorldError("Choose an earlier retained finer-source revision.", 400);
   const [old, current] = await Promise.all([nativeGrid(tx, context, sourceId, c.targetRevision), nativeGrid(tx, context, sourceId)]);
-  const tiles: TerrainTile[] = [];
-  for (let y = 0; y < old.shape.height / 32; y++) for (let x = 0; x < old.shape.width / 32; x++) {
-    const a = gridTile(old.grid, old.shape.width, x, y), b = gridTile(current.grid, old.shape.width, x, y);
+  const root = await nativeTerrainSource(tx, context);
+  if(!old.fine||!current.fine)throw new WorldError("Both complete retained detail revisions are required.",409);
+  const restored=restoreRetainedRefinement(current.grid,current.fine.meta,old.grid,old.fine.meta,root.shape),tiles: TerrainTile[] = [];
+  for (let y = 0; y < current.shape.height / 32; y++) for (let x = 0; x < current.shape.width / 32; x++) {
+    const a = gridTile(restored, current.shape.width, x, y), b = gridTile(current.grid, current.shape.width, x, y);
     if (a.samples.some((v, i) => v !== b.samples[i])) tiles.push(a);
   }
-  const root = await nativeTerrainSource(tx, context);
   return saveNativeTerrain(tx, context, { action: "save", mapId: c.mapId, requestId: c.requestId, revision: c.revision, tiles, seaLevel: root.document.seaLevel, source: { kind: "manual" }, ...c.sourceState ? { sourceState: c.sourceState } : {} }, sourceId);
 }
 

@@ -1,7 +1,7 @@
 import {z} from "zod";
 import {worldRequest} from "@/features/worlds/http";
 import {ordinaryKnowledge} from "@/features/worlds/knowledge-preview";
-import {createRefinement,getRefinements,getRefinementTiles,getRefinementHistory,sampleWorldTerrain,restoreRefinement,saveRefinement} from "@/features/worlds/terrain-refinement-service";
+import {createRefinement,expandRefinement,getRefinements,getRefinementTiles,getRefinementHistory,sampleWorldTerrain,restoreRefinement,saveRefinement} from "@/features/worlds/terrain-refinement-service";
 import {readTerrainRequest} from "@/features/worlds/terrain-http";
 export const runtime="nodejs";
 type Context={params:Promise<{worldId:string}>};
@@ -14,5 +14,6 @@ export async function GET(request:Request,context:Context){return worldRequest(r
 });}
 export async function POST(request:Request,context:Context){return worldRequest(request,true,async userId=>{
  const worldId=(await context.params).worldId,raw=await readTerrainRequest(request),id=new URL(request.url).searchParams.get("refinement");
+ if(id&&raw&&typeof raw==="object"&&"action" in raw&&raw.action==="expand")return expandRefinement(userId,worldId,id,raw);
  return id?(raw&&typeof raw==="object"&&"action" in raw&&raw.action==="restore"?restoreRefinement(userId,worldId,id,raw):saveRefinement(userId,worldId,id,raw)):createRefinement(userId,worldId,raw);
 });}

@@ -1,5 +1,6 @@
 import {terrainSourceState} from "./terrain-regions";
 import {acceptCanonNumerical} from "./world-canon-numerical-copy";
+import {refinementExpansionAvailable} from "./terrain-refinement-geometry";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -79,7 +80,7 @@ export async function prepareCanonGeography(tx:WorldTransaction,job:CanonCopyJob
     await tx.update(worldCanonCopy).set({phase:0,cursor:"",rows:0,updatedAt:new Date()}).where(eq(worldCanonCopy.requestId,job.requestId));
     return {id:job.targetWorldId,pending:true,progress:{section:retained?"Refreshing your unfinished copy. Your original request is kept.":"Preparing independent map records",prepared:0}};
   }
-  const plans=canonGeographyPlan(job.sourceWorldId),plan=plans[job.phase];
+  const plans=canonGeographyPlan(job.sourceWorldId,await refinementExpansionAvailable(tx)),plan=plans[job.phase];
   if(plan){
     const batch=(await tx.execute<{payload:Record<string,unknown>;key:string}>(sql`select to_jsonb(s) payload,${plan.key} key from (${plan.source}) s where (${plan.key})>${job.cursor} order by ${plan.key} limit ${plan.batch}`)).rows;
     let accepted=0;
@@ -190,10 +191,10 @@ export async function acceptCanonGeography(tx:WorldTransaction,job:CanonCopyJob,
     const [component]=await tx.select().from(rows).where(and(eq(rows.requestId,job.requestId),eq(rows.family,"world_map_state_component"),sql`${rows.payload}::text like ${"%"+job.targetTimelineId+"%"}`)).orderBy(rows.key).limit(1);if(!component)break;
     const payload=JSON.parse(JSON.stringify(component.payload).replaceAll(job.targetTimelineId,timelineId)) as Record<string,unknown>;payload.content_hash=nativeContentHash(payload.payload);await tx.update(rows).set({payload}).where(and(eq(rows.requestId,job.requestId),eq(rows.family,component.family),eq(rows.key,component.key)));
   }
-  const plans=canonGeographyPlan(job.sourceWorldId);
+  const plans=canonGeographyPlan(job.sourceWorldId,await refinementExpansionAvailable(tx));
   for(const plan of plans){
     if(plan.table==="world_terrain")await acceptCanonNumerical(tx,job.requestId);
-    if(plan.table==="canon_landforms"||["world_terrain","world_terrain_version","world_terrain_tile","world_terrain_refinement","world_terrain_refinement_version","world_terrain_refinement_tile"].includes(plan.table))continue;
+    if(plan.table==="canon_landforms"||["world_terrain","world_terrain_version","world_terrain_tile","world_terrain_refinement","world_terrain_refinement_version","world_terrain_refinement_tile","world_terrain_refinement_geometry"].includes(plan.table))continue;
     if(plan.table==="world_craft_placement")await tx.execute(sql`insert into world_craft_operation(request_id,world_id,author_id,input_hash,result)
       select payload->>'id',${job.targetWorldId},${job.actorId},${job.inputHash},jsonb_build_object('craftId',coalesce(payload->>'craft_id',payload->>'id'),'revision',1,'placementRevision',1)
       from world_canon_copy_row where request_id=${job.requestId} and family in ('world_craft','world_craft_deck','world_craft_connection')`);

@@ -15,7 +15,7 @@ export async function rightsMigrationRollback(f:CollaborationFixture){
   for(const e of journal.entries.slice(0,162))await copyFile(`drizzle/${e.tag}.sql`,path.join(folder,e.tag+".sql"));await migrate(drizzle(pool),{migrationsFolder:folder});
   const before=await publicTableDigests(pool),client=await pool.connect();try{await client.query("begin");for(const statement of(await readFile("drizzle/0162_atlas_source_rights.sql","utf8")).split("--> statement-breakpoint"))await client.query(statement);await assert.rejects(client.query("select a3_deliberate_failed_migration()"));await client.query("rollback");}finally{client.release();}
   assert.equal((await pool.query("select to_regclass('public.atlas_source_rights') name")).rows[0].name,null);assert.equal((await pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,162);assert.deepEqual(await publicTableDigests(pool),before);
-  await migrate(drizzle(pool),{migrationsFolder:"drizzle"});assert.equal((await pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,163);
+  await migrate(drizzle(pool),{migrationsFolder:"drizzle"});assert.equal((await pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,164);
  }finally{await pool.end();}
 }
 
