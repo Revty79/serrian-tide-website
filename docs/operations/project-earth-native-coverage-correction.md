@@ -74,7 +74,9 @@ The following documentation publication preserves the 2,167 tested application i
 
 ## Proposed owner DEV activation
 
-Status: **not applied; explicit owner approval is required.** The original Earth instruction forbids silently migrating owner environments. The current selected target remains local `localhost:5432/serrian_tide_dev`, through 0162. The older port-5433 environment is not a fallback.
+Status: **completed after explicit owner approval on 2026-11-13.** The owner closed pgAdmin and approved recovery verification and only0163 on local `localhost:5432/serrian_tide_dev`. The older port-5433 environment was not used. The original proposal below is retained as the bounded procedure, not a request to repeat the operation.
+
+The frozen paired capture, authenticated AES-256-GCM opening and independent new-fixture restoration pass:407 tables including the migration ledger,163 migrations,80,132 private files across the three roots and all36,700,160 accepted numerical samples are exact. Only0163 was rehearsed and applied. Independent actual-target verification confirms164 ledger entries and canonical SQL hash `b15a21e5b3c4861ea7880bc3c0f49ce86813ed9e04c5524f64c3ed2080caee51`, with all previous rows, sequences, numerical grids, files and configuration preserved apart from the expected migration-ledger sequence increment. Only DEV was stopped/restarted; its normal authenticated browser session remained valid. The owned restore fixture is stopped. Private signed/encrypted receipts remain ignored. This capture precedes subsequent native authoring and does not certify recovery of later edits.
 
 The bounded operation is:
 
@@ -87,3 +89,13 @@ The bounded operation is:
 This does not restore onto owner DEV, reset authentication, rotate secrets, deploy to Production or change the home server. Preserve the pre-upgrade capture and geometry-aware software after the first extension. If any equality, restore, migration or startup check fails, retain the evidence and stop the dependent operation; a tested disposable result never substitutes for verification of the actual target.
 
 The separately ready trusted-origin command remains pinned to `973d4f57e10df5231f02ff6efeb1e1ad3ac04b45` in [deployment-a5-trusted-origin.md](deployment-a5-trusted-origin.md). It has not been applied here.
+
+## Accepted-source loading and autosave correction
+
+Native authoring reproduced a separate timing defect after coverage acceptance. A server-verified geography notification could arrive while the selected numerical source was still loading. The editor compared the new index with the previous active revision and left a false other-view error after loading completed. The next edit remained recoverable but autosave paused before issuing a save request. Exporting the draft and using the ordinary visible save control succeeded without changing authentication or accepted geometry.
+
+The correction defers numerical comparisons during source loading and requests a fresh complete server revision vector afterward. Genuine changes to another source still pass through the existing conflict/reload guards. No notification is trusted as authority, no source is globally exempted, and no save/permission/recovery/capacity policy changes. This event-driven check retains the existing80ms scheduling; no polling interval was added.
+
+The new owned headed-Chrome regression deliberately holds normal tile loading across a real accepted-extension notification. The exact previous build fails with the reproduced false alert. The corrected build passes the first subsequent native single-sample edit with ordinary autosave and no retry/reload. A second native editor's root change during loading is freshly detected and loaded afterward. All2,955 feature tests, TypeScript, lint (one inherited unused-LoreFamily warning) and11 existing A6 browser groups pass. All2,167 application inputs match build `MfA6loftQ0BSZRuQb4-fL`, source `aa41b878a5592f570892ab38b3359b21589ce418cb99f5f0101713a5e9bd774c`.
+
+Failed evidence remains retained: the first direct Worlds-only test invocation omitted the normal CSS loader and fails five modules; the normal feature runner passes. An initial React hook lint error was corrected. A final-build A6 attempt reached the real Pending Work safeguard while regional recovery settled, then timed out because the harness expected immediate navigation. The harness now follows the visible Continue control only after Pending Work explicitly reports it is ready; all11 groups pass without weakening a guard. All owned fixture services are stopped. The actual owner website is its ordinary `next dev` process; this correction uses normal source compilation/refresh and requires no additional service restart. Publication and exact CI remain pending; this section does not yet claim a new verified release or completed global geography.

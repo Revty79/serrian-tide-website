@@ -4,6 +4,8 @@ Owner attachment `327112ee-4d25-4eb5-a97a-170fb762ea98` authorizes a new permane
 
 This document records a software checkpoint within ongoing native geographic authoring. The private World and map began through normal blank-ocean creation, save and reopen controls. Global geographic acceptance remains pending. Private identities, reference bytes, accuracy reports, actual map evidence and recovery material remain excluded from Git under `artifacts/project-earth-native-pass1-20261112/`.
 
+The owner-approved0163 activation is now complete on the selected local DEV, with independently verified paired recovery and preservation. A reproduced accepted-source loading/autosave race is being corrected within this same pass. See [the coverage correction receipt](project-earth-native-coverage-correction.md#accepted-source-loading-and-autosave-correction) for current validation, retained failures and pending release checks. Native global geography remains in progress; this is not a completed Earth or owner-acceptance receipt.
+
 ## Readiness and preservation
 
 The owner identified the current `serrian_tide_dev` database as the intended target. Fresh read-only checks verified local PostgreSQL 18, all 163 matching migrations including 0162, the authentic account's editing roles, zero starting Worlds and three existing private storage roots. Earlier clean-DEV receipts describe a different database/port and were not treated as evidence for this current pair.

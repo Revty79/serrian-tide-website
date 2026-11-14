@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useLayoutEffect,useRef,useState} from "react";
+import {useCallback,useEffect,useLayoutEffect,useRef,useState} from "react";
 import {worldApi} from "./client-api";
 import {GEOGRAPHY_CHANGED,GEOGRAPHY_REVISIONS,geographyChannel,type GeographyRevisions} from "./terrain-geography-notifications";
 import {hydrologyUrl} from "./terrain-hydrology-loader";
@@ -7,6 +7,7 @@ import type {RegionalAuthoring} from "./terrain-regional-scope";
 import {nativeRequestGeographyContext} from "./native-map-history";
 export function useTerrainGeographyRefresh(api:string,mapId:string,onNumerical:(packet:GeographyRevisions)=>void){
  const latest=useRef(onNumerical);useLayoutEffect(()=>{latest.current=onNumerical;});
+ const scheduledRefresh=useRef<()=>void>(()=>{});
  const [available,setAvailable]=useState<boolean>(),[error,setError]=useState(""),[snapshot,setSnapshot]=useState<GeographyRevisions>();
  useEffect(()=>{
   let live=true,busy=false,queued=false,timer:ReturnType<typeof setTimeout>|undefined;
@@ -18,11 +19,13 @@ export function useTerrainGeographyRefresh(api:string,mapId:string,onNumerical:(
    finally{busy=false;if(live&&queued){queued=false;schedule();}}
   }
   function schedule(){clearTimeout(timer);timer=setTimeout(()=>void refresh(),80);}
+  scheduledRefresh.current=schedule;
   const changed=(event:Event)=>{const hint=(event as CustomEvent<{worldId:string;historyContext?:string}>).detail;if(hint?.worldId===worldId&&hint.historyContext===historyContext)schedule();};
   geographyChannel();window.addEventListener("focus",schedule);window.addEventListener("pageshow",schedule);document.addEventListener("visibilitychange",schedule);window.addEventListener(GEOGRAPHY_CHANGED,changed);void refresh();
-  return()=>{live=false;clearTimeout(timer);window.removeEventListener("focus",schedule);window.removeEventListener("pageshow",schedule);document.removeEventListener("visibilitychange",schedule);window.removeEventListener(GEOGRAPHY_CHANGED,changed);};
+  return()=>{live=false;if(scheduledRefresh.current===schedule)scheduledRefresh.current=()=>{};clearTimeout(timer);window.removeEventListener("focus",schedule);window.removeEventListener("pageshow",schedule);document.removeEventListener("visibilitychange",schedule);window.removeEventListener(GEOGRAPHY_CHANGED,changed);};
  },[api,mapId]);
- return {available,error,snapshot};
+ const recheck=useCallback(()=>scheduledRefresh.current(),[]);
+ return {available,error,snapshot,recheck};
 }
 /** Recheck after the request as well: interaction may start while a refresh is in flight. */
 export function useLayerGeographyRefresh<T extends {regional?:RegionalAuthoring}>(options:{endpoint:string;mapId:string;kind:"materials"|"water"|"environment"|"artwork"|"labels";revision:()=>number;regional:()=>RegionalAuthoring|undefined;ready:()=>boolean;dirty:()=>boolean;apply:(value:T)=>void;conflict:(message:string)=>void}){
