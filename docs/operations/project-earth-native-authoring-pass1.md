@@ -4,7 +4,7 @@ Owner attachment `327112ee-4d25-4eb5-a97a-170fb762ea98` authorizes a new permane
 
 This document records a software checkpoint within ongoing native geographic authoring. The private World and map began through normal blank-ocean creation, save and reopen controls. Global geographic acceptance remains pending. Private identities, reference bytes, accuracy reports, actual map evidence and recovery material remain excluded from Git under `artifacts/project-earth-native-pass1-20261112/`.
 
-The owner-approved0163 activation is now complete on the selected local DEV, with independently verified paired recovery and preservation. A reproduced accepted-source loading/autosave race is being corrected within this same pass. See [the coverage correction receipt](project-earth-native-coverage-correction.md#accepted-source-loading-and-autosave-correction) for current validation, retained failures and pending release checks. Native global geography remains in progress; this is not a completed Earth or owner-acceptance receipt.
+The owner-approved0163 activation is complete on the selected local DEV, with independently verified paired recovery and preservation. The reproduced accepted-source loading/autosave correction passes all four exact release workflows at `ecd044f5fc25115dca3fe9352a42f1c3081c2a70`. See [the verified correction receipt](project-earth-native-coverage-correction.md#verified-source-loading-correction-receipt) for validation, retained failures and publication checks. Native global geography remains in progress; this is not a completed Earth or owner-acceptance receipt.
 
 ## Readiness and preservation
 
