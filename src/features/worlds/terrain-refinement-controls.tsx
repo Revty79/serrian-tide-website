@@ -3,7 +3,7 @@ import {useNativeWorldApi} from "./native-map-history-client";
 import {useEffect,useRef,useState,type RefObject} from "react";
 import {GuidedField} from "@/components/field-guidance";
 
-import {createGrid,type TerrainDocument,type TerrainGeometry} from "./terrain";
+import type {TerrainDocument,TerrainGeometry} from "./terrain";
 import {regionContainsFrame} from "./terrain-regions";
 import {frameGeometry,framesOverlap,initializeRefinementAsync,normalizeTerrainX,overviewLevels,refinementLogicalBytes,refinementSizes,rootFrame,validateRefinement,type RefinementMeta,type TerrainFrame} from "./terrain-refinement";
 import {initializeExpandedRefinement,refinementExpansionFrame,type RefinementExpansionDimensions} from "./terrain-refinement-expansion";
@@ -16,7 +16,7 @@ import {distanceEditUnit,formatDistance,inputCoordinate,toMetres,type Measuremen
 import styles from "./terrain.module.css";
 
 export type TerrainRefinementPreview={meta:RefinementMeta;grid:Int16Array;shape:TerrainGeometry};
-type Props={api:string;root:TerrainDocument;world:TerrainGeometry;current:TerrainDocument;shape:TerrainGeometry;grid:Int16Array;revision:number;index?:RefinementIndex;loadDetail:(meta:RefinementMeta,signal:AbortSignal,revision?:number)=>Promise<LoadedTerrainDetail>;preferences:MeasurementPreferences;canvas:RefObject<TerrainCanvasHandle|null>;disabled:boolean;editable:boolean;frame?:TerrainFrame;onFrame:(v:TerrainFrame|undefined)=>void;onSelect:(id:string|null)=>void;onDraw:()=>void;onPreview:(v:TerrainRefinementPreview|undefined)=>void;onDirty:(v:boolean)=>void;onAccepted:(id:string)=>Promise<void>};
+type Props={api:string;root:TerrainDocument;rootGrid:Int16Array;world:TerrainGeometry;current:TerrainDocument;shape:TerrainGeometry;grid:Int16Array;revision:number;index?:RefinementIndex;loadDetail:(meta:RefinementMeta,signal:AbortSignal,revision?:number)=>Promise<LoadedTerrainDetail>;preferences:MeasurementPreferences;canvas:RefObject<TerrainCanvasHandle|null>;disabled:boolean;editable:boolean;frame?:TerrainFrame;onFrame:(v:TerrainFrame|undefined)=>void;onSelect:(id:string|null)=>void;onDraw:()=>void;onPreview:(v:TerrainRefinementPreview|undefined)=>void;onDirty:(v:boolean)=>void;onAccepted:(id:string)=>Promise<void>};
 export function TerrainRefinementControls(p:Props){
  const worldApi=useNativeWorldApi();
  const [name,setName]=useState("Local terrain"),[width,setWidth]=useState(p.root.region?Math.min(20000,p.root.region.frame.width/2):20000),[height,setHeight]=useState(p.root.region?Math.min(20000,p.root.region.frame.height/2):20000),[east,setEast]=useState(p.root.region?p.root.region.frame.x+p.root.region.frame.width/2:p.world.displayWidth/2),[south,setSouth]=useState(p.root.region?p.root.region.frame.y+p.root.region.frame.height/2:p.world.displayHeight/2),[columns,setColumns]=useState(p.root.region?256:1024),[rows,setRows]=useState(p.root.region?256:1024),[custom,setCustom]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(""),[preview,setPreview]=useState<TerrainRefinementPreview>(),[attempt,setAttempt]=useState<RefinementAcceptance>(),[ready,setReady]=useState(false),[formEdited,setFormEdited]=useState(false),[located,setLocated]=useState<string[]>();
@@ -55,7 +55,7 @@ export function TerrainRefinementControls(p:Props){
   try{
    const parentMeta=meta.parentId?p.index.refinements.find(r=>r.id===meta.parentId):undefined;
    if(meta.parentId&&!parentMeta)throw Error("The accepted parent source is unavailable. Refresh its details before extending coverage.");
-   const parent=parentMeta?await p.loadDetail(parentMeta,controller.signal):{document:p.root,grid:createGrid(p.root.baseElevation,p.root.tiles,p.world)},parentShape=parentMeta?frameGeometry(parentMeta,p.world):p.world,parentBounds=parentMeta?.frame??rootFrame(p.world);
+   const parent=parentMeta?await p.loadDetail(parentMeta,controller.signal):{document:p.root,grid:p.rootGrid.slice()},parentShape=parentMeta?frameGeometry(parentMeta,p.world):p.world,parentBounds=parentMeta?.frame??rootFrame(p.world);
    const dimensions:RefinementExpansionDimensions={gridWidth:columns,gridHeight:rows,columnsToWest,rowsToNorth,...advanced?{advancedConfirmed:true}:{}};
    const frame=refinementExpansionFrame(meta,dimensions,parentShape,parentBounds,p.world);
    if(p.root.region&&!regionContainsFrame(p.root.region,frame,p.world))throw Error("Keep the complete extended detail inside this region, or open the parent World.");
