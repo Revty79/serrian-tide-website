@@ -1,6 +1,6 @@
 import {hydroLayerSchema,validateHydroFrame,type HydroLayer,type HydroPoint,type HydroGeometry,type HydroLake} from "./terrain-hydrology";
 import {waterDx,unwrapWaterRing,waterPoint} from "./terrain-water-geometry";
-import {connectedWater} from "./terrain-water-network";
+import {connectedWater,editWaterLake} from "./terrain-water-network";
 import {insideWaterRings} from "./terrain-water-geometry";
 
 export function interiorLakeSeed(rings:HydroPoint[][],world:HydroGeometry){
@@ -9,6 +9,21 @@ export function interiorLakeSeed(rings:HydroPoint[][],world:HydroGeometry){
  for(const ring of aligned)for(let i=0;i<ring.length;i++){const a=ring[i],b=ring[(i+1)%ring.length];if((a.y>y)!==(b.y>y))xs.push(a.x+(y-a.y)/(b.y-a.y)*(b.x-a.x));}
  xs.sort((a,b)=>a-b);for(let i=0;i+1<xs.length;i+=2)if(xs[i+1]-xs[i]>best){best=xs[i+1]-xs[i];seed=waterPoint({x:(xs[i]+xs[i+1])/2,y},world);}
  if(!seed||!insideWaterRings(seed,rings,world))throw Error("The lake needs a usable interior water position.");return seed;
+}
+
+function validateManualLakeIslands(rings:HydroPoint[][],world:HydroGeometry){
+ for(let i=1;i<rings.length;i++){
+  if(!insideWaterRings(rings[i][0],[rings[0]],world))throw Error("Keep island outlines inside the outer shoreline.");
+  for(let j=1;j<i;j++)if(insideWaterRings(rings[i][0],[rings[j]],world)||insideWaterRings(rings[j][0],[rings[i]],world))throw Error("Keep island outlines separate and unnested.");
+ }
+}
+
+/** Reuse the original lake and connections; acceptance remains a separate water save. */
+export function updateManualLake(layer:HydroLayer,world:HydroGeometry,input:{id:string;name:string;rings:HydroPoint[][];levelM:number;condition:HydroLake["condition"];authoredPins?:HydroLake["authoredPins"]}){
+ const original=layer.lakes?.find(l=>l.id===input.id);if(!original)throw Error("The original lake is unavailable. Retain this preview and review saved water.");
+ if(input.rings.length>33||input.rings.reduce((n,r)=>n+r.length,0)>1024)throw Error("Keep this drawn lake within 1,024 total corners and 32 islands.");
+ const rings=input.rings.map(r=>r.map(p=>({...p}))),result=editWaterLake(layer,input.id,{name:input.name.trim()||original.name,rings,levelM:input.levelM,condition:input.condition,...input.authoredPins?{authoredPins:input.authoredPins}:{}});
+ validateHydroFrame(result,world);validateManualLakeIslands(rings,world);result.lakes!.find(l=>l.id===input.id)!.seed=interiorLakeSeed(rings,world);return result;
 }
 
 export function appendManualLake(layer:HydroLayer,world:HydroGeometry,input:{id:string;name:string;rings:HydroPoint[][];levelM:number;condition:HydroLake["condition"];authoredPins?:HydroLake["authoredPins"]}){
@@ -20,10 +35,7 @@ export function appendManualLake(layer:HydroLayer,world:HydroGeometry,input:{id:
  const seed={...outer[0]};
  const lake:HydroLake={id:input.id,name:input.name.trim()||"Authored lake",rings,seed,levelM:input.levelM,spillM:null,condition:input.condition,mode:"closed",inletNodeIds:[],outletNodeId:null,flowKind:"manual",exceptionReason:"",protected:true,analysisId:null,sourceIds:[],...input.authoredPins?{authoredPins:input.authoredPins}: {},review:false};
  const result=hydroLayerSchema.parse({...connectedWater(layer),lakes:[...layer.lakes??[],lake]});validateHydroFrame(result,world);
- for(let i=1;i<rings.length;i++){
-  if(!insideWaterRings(rings[i][0],[rings[0]],world))throw Error("Keep island outlines inside the outer shoreline.");
-  for(let j=1;j<i;j++)if(insideWaterRings(rings[i][0],[rings[j]],world)||insideWaterRings(rings[j][0],[rings[i]],world))throw Error("Keep island outlines separate and unnested.");
- }
+ validateManualLakeIslands(rings,world);
  result.lakes!.at(-1)!.seed=interiorLakeSeed(rings,world);return result;
 }
 

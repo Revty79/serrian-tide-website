@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {appendManualLake,appendManualWaterway} from "./terrain-water-manual";
+import {appendManualLake,appendManualWaterway,updateManualLake} from "./terrain-water-manual";
+import {connectWaterLake} from "./terrain-water-network";
+import {validateHydroFrame} from "./terrain-hydrology";
 import {EMPTY_HYDROLOGY,hydroLayerSchema} from "./terrain-hydrology";
 import {insideWaterRings,nearestWaterShore} from "./terrain-water-geometry";
 const world={width:10000,height:8000,wrap:true},input={id:"manual:test",name:" Test course ",points:[{x:100,y:200},{x:300,y:400},{x:500,y:700}],widthM:40,seaOutlet:true};
@@ -38,4 +40,18 @@ test("complex reviewed lake shores remain editable within the bounded preview bu
  const ring=Array.from({length:600},(_,i)=>({x:5000+2000*Math.cos(i/600*Math.PI*2),y:4000+2000*Math.sin(i/600*Math.PI*2)})),before=structuredClone(EMPTY_HYDROLOGY),lake=appendManualLake(EMPTY_HYDROLOGY,world,{...lakeInput,rings:[ring]}).lakes![0];
  assert.deepEqual(lake.rings,[ring]);assert.equal(insideWaterRings(lake.seed,lake.rings,world),true);assert.deepEqual(EMPTY_HYDROLOGY,before);
  const excessive=Array.from({length:1025},(_,i)=>({x:5000+2000*Math.cos(i/1025*Math.PI*2),y:4000+2000*Math.sin(i/1025*Math.PI*2)}));assert.throws(()=>appendManualLake(EMPTY_HYDROLOGY,world,{...lakeInput,rings:[excessive]}),/1,024/);
+});
+
+test("adding a saved-lake island keeps its identity, prior outlines and actual connected inlet exact",()=>{
+ let original=appendManualLake(appendManualWaterway(EMPTY_HYDROLOGY,world,{...input,id:"manual:inlet",points:[{x:50,y:500},{x:100,y:500}],seaOutlet:false}),world,lakeInput);original=connectWaterLake(original,"manual:inlet",lakeInput.id,false,world);
+ const before=structuredClone(original),island=[{x:450,y:450},{x:550,y:450},{x:550,y:550},{x:450,y:550}],next=updateManualLake(original,world,{...lakeInput,rings:[...lakeInput.rings,island]});
+ assert.deepEqual(original,before);assert.deepEqual(next.nodes,original.nodes);assert.deepEqual(next.edges,original.edges);const old=original.lakes![0],lake=next.lakes![0];assert.equal(lake.id,old.id);assert.deepEqual(lake.inletNodeIds,old.inletNodeIds);assert.equal(lake.outletNodeId,old.outletNodeId);assert.equal(lake.mode,old.mode);assert.equal(lake.levelM,old.levelM);assert.deepEqual(lake.rings.slice(0,2),old.rings);assert.deepEqual(lake.rings[2],island);assert.equal(lake.review,true);assert.equal(insideWaterRings(lake.seed,lake.rings,world),true);validateHydroFrame(next,world);
+});
+test("saved-lake additions refuse missing identities, crossing, nested and external islands and excess corners",()=>{
+ const original=appendManualLake(EMPTY_HYDROLOGY,world,lakeInput),before=structuredClone(original),outside=[{x:1200,y:1200},{x:1300,y:1200},{x:1300,y:1300}],nested=[{x:320,y:320},{x:350,y:320},{x:350,y:350}],crossing=[{x:250,y:350},{x:450,y:350},{x:450,y:450}],excess=Array.from({length:1025},(_,i)=>({x:500+200*Math.cos(i/1025*Math.PI*2),y:500+200*Math.sin(i/1025*Math.PI*2)}));
+ assert.throws(()=>updateManualLake(original,world,{...lakeInput,id:"missing"}),/original lake/);for(const island of [outside,nested,crossing,excess])assert.throws(()=>updateManualLake(original,world,{...lakeInput,rings:[...lakeInput.rings,island]}));assert.deepEqual(original,before);
+});
+test("saved-lake islands retain canonical seam positions and a strict water seed",()=>{
+ const rings=[[{x:9800,y:100},{x:300,y:100},{x:300,y:900},{x:9800,y:900}],[{x:9900,y:250},{x:50,y:250},{x:50,y:350},{x:9900,y:350}]],original=appendManualLake(EMPTY_HYDROLOGY,world,{...lakeInput,rings}),before=structuredClone(original),island=[{x:150,y:600},{x:200,y:600},{x:200,y:700},{x:150,y:700}],next=updateManualLake(original,world,{...lakeInput,rings:[...rings,island]});
+ assert.deepEqual(original,before);assert.deepEqual(next.lakes![0].rings,[...rings,island]);assert.equal(next.lakes![0].id,lakeInput.id);assert.equal(insideWaterRings(next.lakes![0].seed,next.lakes![0].rings,world),true);validateHydroFrame(next,world);
 });
