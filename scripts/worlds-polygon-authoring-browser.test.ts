@@ -82,5 +82,12 @@ withCollaborationFixture(async f=>withCollaborationBrowser(f,async b=>{
  await p.goto(rootUrl);await p.getByRole("region",{name:"Heightmap editor",exact:true}).waitFor();assert.equal(hash(await read()),savedHash);assert.equal((await read()).revision,saved.revision);
  await p.screenshot({path:path.join(f.out,"dense-polygon-reopened.png")});
  pass("exact native Undo/Redo and reopened numerical samples remain editable and persistent");
+
+ ({d,c}=await openArea());await d.getByRole("button",{name:"Add corners",exact:true}).click();await c.scrollIntoViewIfNeeded();
+ const visible=await c.evaluate(e=>{const r=e.getBoundingClientRect(),a={left:Math.max(0,r.left),top:Math.max(0,r.top),right:Math.min(innerWidth,r.right),bottom:Math.min(innerHeight,r.bottom)};for(let n=e.parentElement;n;n=n.parentElement){const style=getComputedStyle(n),b=n.getBoundingClientRect();if(/(auto|scroll|hidden|clip)/.test(style.overflowX)){a.left=Math.max(a.left,b.left);a.right=Math.min(a.right,b.right);}if(/(auto|scroll|hidden|clip)/.test(style.overflowY)){a.top=Math.max(a.top,b.top);a.bottom=Math.min(a.bottom,b.bottom);}}return a;});
+ const radius=Math.min(visible.right-visible.left,visible.bottom-visible.top)*.3;
+ for(let i=0;i<300;i++){const angle=i/300*Math.PI*2,q={x:(visible.left+visible.right)/2+Math.cos(angle)*radius,y:(visible.top+visible.bottom)/2+Math.sin(angle)*radius};assert.equal(await p.evaluate(q=>document.elementFromPoint(q.x,q.y)?.getAttribute("aria-label"),q),"Terrain map canvas");await p.mouse.click(q.x,q.y);}
+ await d.getByRole("button",{name:"Area & operation",exact:true}).click();await d.getByText("256 of 256 total polygon corners; 0 of 32 exclusions.",{exact:true}).waitFor();await d.getByRole("button",{name:"Cancel",exact:true}).click();assert.equal(hash(await read()),savedHash);assert.equal((await read()).revision,saved.revision);pass("ordinary terrain polygons retain their existing 256-corner limit and cancellation changes no accepted samples");
+
  assert.deepEqual(errors,[]);await writeFile(path.join(f.out,"polygon-authoring-result.json"),JSON.stringify({passed:true,groups,sourceHash:b.sourceHash,buildId:b.buildId,worldId,mapId,revision:saved.revision,errors,ownerEnvironmentAccessed:false,externalGeometryUsed:false},null,2));
 })).catch(e=>{console.error(e);process.exitCode=1;});

@@ -18,9 +18,9 @@ export function SourceRightsPanel({worldId,review=false}:{worldId:string;review?
  return <section aria-label="Sources and rights" style={{border:"1px solid var(--st-border)",padding:"0.8rem",margin:"0.6rem 0"}}>
   <button type="button" className="st-button is-secondary" aria-expanded={open} onClick={()=>{setOpen(!open);void load().then(setData).catch(e=>setError(e.message));}}>Sources &amp; rights</button>
   <p>{!data?"Checking source rights…":data.holds.length?"Licensing review needed. Accepted content is preserved; affected uses remain blocked.":"No source hold for this World’s recorded material. Original drawing needs no extra licensing steps."}</p>
-  {!!data?.credits.length&&<div aria-label="Mandatory external source credits"><strong>External-source credits</strong>{data.credits.map(c=><p key={c} style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{c}</p>)}</div>}
   {error&&<p role="alert">{error}</p>}
   {open&&<><p>Register outside references before tracing, importing or deriving content. “Free” and an uploader’s license label do not approve a source. Creator credit stays separate. A source review is a recorded human decision, not a legal warranty.</p>
+   {!!data?.credits.length&&<div aria-label="Mandatory external source credits"><strong>External-source credits</strong>{data.credits.map(c=><p key={c} style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{c}</p>)}</div>}
    {data?.holds.map((h,i)=><p role="status" key={i}>{h}</p>)}
    <button type="button" className="st-button" disabled={busy} onClick={()=>void load().then(setData).catch(e=>setError(e.message))}>Refresh source status</button>
    {data?.sources.map(s=><article key={s.id} style={{borderTop:"1px solid var(--st-border)",padding:"0.6rem 0"}}><strong>{s.evidence?.dataset??`${s.subjectKind} ${s.subjectId} / ${s.subjectVersion}`}</strong><p>{s.reviews[0]?.decision??(s.original?"Original creator declaration":s.parentIds.length?"Inherits upstream review":"Needs review")} {s.reviews[0]?.reason}</p><p>Source ID: <code>{s.id}</code>. {data.uses.filter(u=>u.sourceId===s.id).length} retained World uses.</p>

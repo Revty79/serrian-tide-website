@@ -99,5 +99,28 @@ withCollaborationFixture(async f=>withCollaborationBrowser(f,async b=>{
  await p.goto(rootUrl);await p.getByRole("region",{name:"Heightmap editor",exact:true}).waitFor();await openWater();assert.deepEqual((await readWater()).layer,saved.layer);assert.equal(hash(await readTerrain()),terrainHash);
  await p.getByRole("button",{name:"Lake shoreline workshop",exact:true}).click();const cancelled=p.getByRole("dialog",{name:"Lake shoreline workshop",exact:true});await cancelled.getByRole("button",{name:"Cancel",exact:true}).click();assert.deepEqual((await readWater()).layer,saved.layer);
  pass("same World reopens with saved water intact and cancelled workshops preserve accepted geography");
+
+ await openWater();await p.getByRole("button",{name:"Lake shoreline workshop",exact:true}).click();
+ const budget=p.getByRole("dialog",{name:"Lake shoreline workshop",exact:true});
+ await budget.getByLabel("Drawn lake name",{exact:true}).fill("Synthetic 300-corner lake");await budget.getByLabel("Drawn lake level (m)",{exact:true}).fill("0");
+ await budget.getByRole("button",{name:"Preview",exact:true}).click();const budgetCanvas=budget.getByLabel("Terrain map canvas",{exact:true});await budgetCanvas.scrollIntoViewIfNeeded();
+ await poll(async()=>Number(await budgetCanvas.getAttribute("data-zoom"))>0&&await budgetCanvas.getAttribute("data-render-pending")==="0","Budget lake preview ready");
+ await budget.getByRole("button",{name:"Add corners",exact:true}).click();
+ await budgetCanvas.scrollIntoViewIfNeeded();
+ const visible=await budgetCanvas.evaluate(e=>{const r=e.getBoundingClientRect(),a={left:Math.max(0,r.left),top:Math.max(0,r.top),right:Math.min(innerWidth,r.right),bottom:Math.min(innerHeight,r.bottom)};for(let n=e.parentElement;n;n=n.parentElement){const style=getComputedStyle(n),b=n.getBoundingClientRect();if(/(auto|scroll|hidden|clip)/.test(style.overflowX)){a.left=Math.max(a.left,b.left);a.right=Math.min(a.right,b.right);}if(/(auto|scroll|hidden|clip)/.test(style.overflowY)){a.top=Math.max(a.top,b.top);a.bottom=Math.min(a.bottom,b.bottom);}}return a;});
+ await p.evaluate("(()=>{const canvas=document.querySelector('dialog canvas');const record=event=>{const r=canvas.getBoundingClientRect();void window.captureSyntheticLakePointer({kind:event.type,x:event.clientX,y:event.clientY,left:r.left,top:r.top,viewX:Number(canvas.dataset.viewX),viewY:Number(canvas.dataset.viewY),scale:Number(canvas.dataset.zoom)});};canvas.addEventListener('pointerdown',record);canvas.addEventListener('pointerup',record);})()");
+ const radius=Math.min(visible.right-visible.left,visible.bottom-visible.top)*.3,budgetExpected:{x:number;y:number}[]=[];
+ for(let i=0;i<300;i++){const a=i/300*Math.PI*2;budgetExpected.push(await clickObserved(visible.left+(visible.right-visible.left)*.78+Math.cos(a)*radius,(visible.top+visible.bottom)/2+Math.sin(a)*radius));}
+ const budgetCount=Number((await budget.innerText()).match(/(\d+) of 1024 corners\./)?.[1]);
+ await p.screenshot({path:path.join(f.out,"300-corner-lake-native-preview.png")});
+ if(process.env.SERRIAN_LAKE_BUDGET_BASELINE==="1"){
+  assert.equal(budgetCount,256,"Unchanged canvas reproduces the hidden 256-corner clamp");await budget.getByRole("button",{name:"Cancel",exact:true}).click();assert.deepEqual((await readWater()).layer,saved.layer);assert.equal(hash(await readTerrain()),terrainHash);
+  await writeFile(path.join(f.out,"lake-budget-baseline.json"),JSON.stringify({reproduced:true,intendedCorners:300,actualCorners:budgetCount,acceptedWaterAndTerrainUnchanged:true,sourceHash:b.sourceHash,buildId:b.buildId,ownerEnvironmentAccessed:false},null,2));return;
+ }
+ assert.equal(budgetCount,300);await budget.getByRole("button",{name:"Prepare lake preview",exact:true}).click();await poll(()=>budget.getByRole("button",{name:"Add lake to water draft",exact:true}).isEnabled(),"300-corner lake prepares");
+ const beforeBudgetSave=await readWater();await budget.getByRole("button",{name:"Add lake to water draft",exact:true}).click();assert.deepEqual((await readWater()).layer,beforeBudgetSave.layer);await p.getByRole("button",{name:"Save water changes",exact:true}).click();await poll(async()=>(await readWater()).headRevision===beforeBudgetSave.headRevision+1,"300-corner lake saves");
+ const afterBudget=await readWater(),largeLake=afterBudget.layer.lakes!.find(l=>l.name==="Synthetic 300-corner lake")!;assert.ok(largeLake);assert.equal(largeLake.rings[0].length,300);samePoints(largeLake.rings[0],budgetExpected);assert.deepEqual(afterBudget.layer.lakes!.find(l=>l.id===lake.id),lake);assert.equal(hash(await readTerrain()),terrainHash);
+ await p.goto(rootUrl);await p.getByRole("region",{name:"Heightmap editor",exact:true}).waitFor();assert.deepEqual((await readWater()).layer,afterBudget.layer);pass("explicit lake budget retains, saves and reopens 300 native corners while preserving prior lake and terrain");
+
  assert.deepEqual(errors,[]);await writeFile(path.join(f.out,"lake-authoring-result.json"),JSON.stringify({passed:true,groups,sourceHash:b.sourceHash,buildId:b.buildId,worldId,mapId,waterRevision:(await readWater()).headRevision,terrainHash,errors,ownerEnvironmentAccessed:false,externalGeometryUsed:false},null,2));
 })).catch(e=>{console.error(e);process.exitCode=1;});

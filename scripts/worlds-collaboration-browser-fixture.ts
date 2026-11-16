@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {spawn,execFileSync,type ChildProcess} from "node:child_process";
 import {createWriteStream} from "node:fs";
-import {access,appendFile,copyFile,mkdir,readFile,symlink,writeFile} from "node:fs/promises";
+import {access,appendFile,copyFile,mkdir,readFile,realpath,symlink,writeFile} from "node:fs/promises";
 import path from "node:path";
 import {chromium,type Browser,type BrowserContext} from "playwright-core";
 import {ownedFreePort} from "./worlds-regional-editing-fixture";
@@ -14,10 +14,13 @@ export async function withCollaborationBrowser(f:CollaborationFixture,run:(envir
  const checkout=path.resolve(process.env.SERRIAN_COLLAB_CHECKOUT??path.join(f.out,"production"));assert.ok(checkout.startsWith(path.resolve("artifacts/collaboration-s7b-") ));await mkdir(checkout,{recursive:true});
  assert.equal(await access(path.join(checkout,".env.local")).then(()=>true,()=>false),false);
  if(!await access(path.join(checkout,"node_modules")).then(()=>true,()=>false))await symlink(path.resolve("node_modules"),path.join(checkout,"node_modules"),"junction");
+ // Worktree dependency junctions may resolve above the source checkout. Keep
+ // the isolated build and its real dependency directory inside Turbopack's root.
+ const buildRoot=path.dirname(await realpath("node_modules"));
  const files=execFileSync("git",["ls-files","--cached","--others","--exclude-standard","-z"],{encoding:"utf8",windowsHide:true}).split("\0").filter(file=>file&&(file.startsWith("src/")||file.startsWith("data/")||file.startsWith("public/")||["package.json","package-lock.json","next.config.ts","postcss.config.mjs","tsconfig.json"].includes(file))).sort(),digest=createHash("sha256");
- for(const file of files){const bytes=await readFile(file);digest.update(file+"\0").update(bytes);const target=path.join(checkout,file);if(reuse){const built=await readFile(target);if(file==="next.config.ts")assert.equal(built.toString(),bytes.toString().replace("root: process.cwd()",`root: ${JSON.stringify(process.cwd())}`));else if(file==="tsconfig.json"){const actual=JSON.parse(built.toString()),expected=JSON.parse(bytes.toString());actual.include=actual.include.filter((entry:string)=>expected.include.includes(entry)||!/^\.next-collaboration\/(dev\/)?types\//.test(entry));assert.deepEqual(actual,expected);}else assert.ok(bytes.equals(built),"Reused build source changed: "+file);}else{await mkdir(path.dirname(target),{recursive:true});await copyFile(file,target);}}
+ for(const file of files){const bytes=await readFile(file);digest.update(file+"\0").update(bytes);const target=path.join(checkout,file);if(reuse){const built=await readFile(target);if(file==="next.config.ts")assert.equal(built.toString(),bytes.toString().replace("root: process.cwd()",`root: ${JSON.stringify(buildRoot)}`));else if(file==="tsconfig.json"){const actual=JSON.parse(built.toString()),expected=JSON.parse(bytes.toString());actual.include=actual.include.filter((entry:string)=>expected.include.includes(entry)||!/^\.next-collaboration\/(dev\/)?types\//.test(entry));assert.deepEqual(actual,expected);}else assert.ok(bytes.equals(built),"Reused build source changed: "+file);}else{await mkdir(path.dirname(target),{recursive:true});await copyFile(file,target);}}
  if(!reuse)for(const file of execFileSync("git",["ls-files","--cached","--others","--exclude-standard","-z"],{encoding:"utf8",windowsHide:true}).split("\0").filter(file=>file?.startsWith("scripts/")||file?.startsWith("ops/"))){const target=path.join(checkout,file);await mkdir(path.dirname(target),{recursive:true});await copyFile(file,target);}
- const sourceHash=digest.digest("hex"),config=path.join(checkout,"next.config.ts");if(!reuse)await writeFile(config,(await readFile(config,"utf8")).replace("root: process.cwd()",`root: ${JSON.stringify(process.cwd())}`));
+ const sourceHash=digest.digest("hex"),config=path.join(checkout,"next.config.ts");if(!reuse)await writeFile(config,(await readFile(config,"utf8")).replace("root: process.cwd()",`root: ${JSON.stringify(buildRoot)}`));
  const port=await ownedFreePort(),base=`http://127.0.0.1:${port}`,dist=".next-collaboration",env:NodeJS.ProcessEnv={...process.env,NODE_ENV:"production",RENDER:"true",DATABASE_URL:f.databaseUrl,SERRIAN_TERRAIN_ROOT:f.terrainRoot,SERRIAN_ASSET_ROOT:f.assetRoot,BETTER_AUTH_URL:base,BETTER_AUTH_SECRET:"owned-collaboration-browser-only-secret-32-characters",NEXT_TELEMETRY_DISABLED:"1",SERRIAN_TEST_NEXT_DIST_DIR:dist,NEXT_FONT_GOOGLE_MOCKED_RESPONSES:path.resolve("artifacts/regions-s42-build-error/cached-font-responses.cjs")},log=createWriteStream(path.join(f.out,"application.log"));
  let server:ChildProcess|undefined,browser:Browser|undefined;
  try{
