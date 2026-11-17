@@ -1,8 +1,8 @@
 # Project Earth Pass 1: explicit crossing coverage
 
-Status: isolated implementation and final local validation pass. This is a continuation
-of the original authorized Earth pass. Reviewed publication, the four release
-workflows and owner DEV activation remain pending.
+Status: technical release PASS at
+`73193a605330c67cc795f2624cda25245ff2cb13`. This continues the original authorized
+Earth pass. Owner DEV activation of 0164 remains unapproved and unapplied.
 Earth geography and owner acceptance are unfinished.
 
 ## Reproduced authoring limit
@@ -97,8 +97,7 @@ in this publication.
   local platform skips. The shared owned fixture baseline pins genuine initial
   schema-165 source `267fffd7f1dae5ba42a89106db04002e125c6b35`, which is test input
   and not a verified release. Actual 165-versus-164 updater refusal passes while
-  retaining the original actual A3 and 164-versus-163 refusals. Release provenance,
-  four exact workflows and clean main parity remain required. The original CPU
+  retaining the original actual A3 and 164-versus-163 refusals. The original CPU
   gates remain unchanged; no fresh complete CPU matrix or physical-device/owner
   acceptance is claimed.
 
@@ -119,6 +118,50 @@ function and row; no new recovery mechanism or relaxed validation was added.
 An initial export-QA assertion incorrectly expected extractable provider text in
 the existing raster PDFs. That failed assumption is retained; independent rendered
 page and source-information inspection supplies the actual credit evidence.
+
+## Exact published release receipt
+
+All four exact main-push workflows complete successfully, with every required
+latest-attempt job and step checked:
+
+| Workflow | Run | Successful attempt |
+| --- | --- | --- |
+| Normal validation | [43986744371](https://github.com/Revty79/serrian-tide-website/actions/runs/43986744371) | 1 |
+| Linux disaster recovery | [43986744235](https://github.com/Revty79/serrian-tide-website/actions/runs/43986744235) | 1 |
+| Full Ubuntu deployment | [43986744201](https://github.com/Revty79/serrian-tide-website/actions/runs/43986744201) | 2 |
+| Verified image publisher | [43986744403](https://github.com/Revty79/serrian-tide-website/actions/runs/43986744403) | 2 |
+
+The first Ubuntu attempt failed acquiring the public PostgreSQL dependency with
+`Network is unreachable`, before the application build/tests. The first publisher
+correctly refused that failed upstream run. Both logs remain retained; successful
+attempts rerun the unchanged source and all required checks. Success-path build
+diagnostics are the only skipped Ubuntu step.
+
+Immutable image:
+`sha256:30839381e8994653e29555cb12910d88fe41db98b88e033890e96fafe1a2df9a`.
+Linux release fingerprint:
+`b2a25f93e49ea29b784d788d3cf44eafc4b5f753b089bc370c055d2a017f2594`,
+build `o1OnXFhAeYxbWtpXGw4hk`. The unchanged verifier independently checks real
+completed GitHub results and cryptographic GitHub-hosted provenance against this
+exact source, digest and publisher attempt. These Linux identities are separate
+from the retained Windows production-build/input identity above.
+
+Fresh independent installed-command acceptance
+[43996014365](https://github.com/Revty79/serrian-tide-website/actions/runs/43996014365)
+passes every latest-attempt step against real completed GitHub checks and the
+signed GHCR image. Actual update, populated database/files, account, session and
+World preservation, interrupted transport, digest/signature refusals, failed-startup
+rollback and repeat no-op all pass. These are owned hosted fixtures; the owner's
+server was not operated or measured.
+
+All 21 new local owned fixtures are stopped and their 20 recorded ports are
+non-listening. The 2,169 local application inputs remain exact to the tested
+Windows build. This following documentation-only publication must retain every
+tested executable input, complete normal CI and verify clean local/main/remote
+parity. A documentation-only commit is not a separately published image release.
+No whole-Earth, artistic, physical-device, legal/commercial or owner acceptance is
+inferred. Actual native geography and final fresh current-geography paired
+recovery remain unfinished.
 
 ## Proposed owner DEV activation
 
