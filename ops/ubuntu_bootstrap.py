@@ -113,8 +113,8 @@ class Bootstrap(Operator):
 
     def ledger(self):
         journal = json.loads(self.git("show", self.commit + ":drizzle/meta/_journal.json"))
-        supported = {162: "0161_atlas_expanded_numerical_terrain", 163: "0162_atlas_source_rights", 164: "0163_atlas_refinement_expansion"}
-        require(supported.get(len(journal["entries"])) == journal["entries"][-1]["tag"], "BOOTSTRAP_RELEASE_SCHEMA: select a reviewed 162-, 163- or 164-entry release")
+        supported = {162: "0161_atlas_expanded_numerical_terrain", 163: "0162_atlas_source_rights", 164: "0163_atlas_refinement_expansion", 165: "0164_atlas_crossing_refinement"}
+        require(supported.get(len(journal["entries"])) == journal["entries"][-1]["tag"], "BOOTSTRAP_RELEASE_SCHEMA: select a reviewed 162-, 163-, 164- or 165-entry release")
         result = []
         for entry in journal["entries"]:
             data = self.run(["git", "show", self.commit + ":drizzle/" + entry["tag"] + ".sql"]).stdout

@@ -7,6 +7,8 @@ import {overviewLevels,type RefinementMeta} from "./terrain-refinement";
 type Connection=Pick<typeof db,"select"|"execute">;
 export async function refinementExpansionAvailable(tx:Connection){return !!(await tx.execute<{available:boolean}>(sql`SELECT to_regclass('public.world_terrain_refinement_geometry') IS NOT NULL AS available`)).rows[0].available;}
 
+export async function refinementCrossingAvailable(tx:Connection){return !!(await tx.execute<{available:boolean}>(sql`SELECT to_regprocedure('public.world_refinement_crossing_schema()') IS NOT NULL AS available`)).rows[0].available;}
+
 /** Sources without transitions retain the original immutable-coverage behaviour. */
 export async function refinementGeometryAtRevision<T extends Pick<RefinementMeta,"id"|"terrainId"|"worldId"|"revision"|"parentRevision"|"frame"|"gridWidth"|"gridHeight"|"overviewLevels">>(tx:Connection,current:T,revision:number):Promise<T>{
  if(revision===current.revision||!await refinementExpansionAvailable(tx))return {...current,revision};

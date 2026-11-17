@@ -1,4 +1,6 @@
 import "server-only";
+import {refinementCrossingAvailable} from "./terrain-refinement-geometry";
+import {crossingRefinementLevel,isCrossingRefinement,refinementOccluders} from "./terrain-refinement-crossing";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { terrainCommandSchema, type TerrainTile } from "./terrain";
@@ -88,14 +90,16 @@ async function createNativeRefinementChecked(tx: NativeHistoryTx, context: Nativ
   assertNativeRevision(parent?.revision ?? root.document.revision, c.parentRevision);
   if ((parent?.level ?? 0) >= REFINEMENT_DEPTH) throw new WorldError("This numerical source has reached the existing depth limit.", 400);
   if (root.document.region && !regionContainsFrame(root.document.region, c.frame, root.shape)) throw new WorldError("Keep the complete numerical detail inside this region's saved outline.", 409);
-  if (index.refinements.some(r => r.parentId === c.parentId && framesOverlap(r.frame, c.frame, root.shape.displayWidth, root.shape.wrap))) throw new WorldError("Choose adjacent coverage or use the overlapping retained source as parent.", 409);
+  let level=(parent?.level??0)+1;
+  if(c.acrossExisting){if(c.sourceState!==index.sourceState)throw new WorldError("The accepted dated sources changed. Retain the bounds and prepare the crossing preview again.",409);if(!await refinementCrossingAvailable(tx))throw new WorldError("Crossing coverage requires migration 0164.",503);if(c.parentId!==null)throw new WorldError("Select the Whole World base before creating crossing coverage.",400);try{level=crossingRefinementLevel(c.frame,c.gridWidth,c.gridHeight,root.shape,index.refinements);}catch(e){throw new WorldError((e as Error).message,400);}}
+  else if (index.refinements.some(r => (r.parentId === c.parentId||r.level>=level) && framesOverlap(r.frame, c.frame, root.shape.displayWidth, root.shape.wrap))) throw new WorldError("Choose adjacent coverage or use the overlapping retained source as parent.", 409);
   const inherited = await nativeGrid(tx, context, c.parentId ?? undefined);
   let grid: Int16Array;
   try { validateRefinement(c.frame, c.gridWidth, c.gridHeight, inherited.shape, inherited.frame, root.shape); grid = c.gridWidth*c.gridHeight>1048576?await initializeRefinementAsync(inherited.grid,inherited.shape,inherited.frame,c.frame,c.gridWidth,c.gridHeight,root.shape):initializeRefinement(inherited.grid,inherited.shape,inherited.frame,c.frame,c.gridWidth,c.gridHeight,root.shape); }
   catch (error) { throw new WorldError((error as Error).message, 400); }
   const bytes = Buffer.alloc(grid.length * 2); for (let i = 0; i < grid.length; i++) bytes.writeInt16LE(grid[i], i * 2);
   if (createHash("sha256").update(bytes).digest("hex") !== c.previewHash) throw new WorldError("The dated parent no longer matches this numerical preview. Retain the bounds and prepare it again.", 409);
-  const meta: RefinementMeta = { id: c.requestId, worldId: context.worldId, terrainId: root.document.terrainId, mapId: c.mapId, name: c.name, parentId: c.parentId, parentRevision: c.parentRevision, level: (parent?.level ?? 0) + 1, revision: 1, frame: c.frame, gridWidth: c.gridWidth, gridHeight: c.gridHeight, overviewLevels: overviewLevels(c.gridWidth, c.gridHeight), updatedAt: new Date().toISOString() };
+  const meta: RefinementMeta = { id: c.requestId, worldId: context.worldId, terrainId: root.document.terrainId, mapId: c.mapId, name: c.name, parentId: c.parentId, parentRevision: c.parentRevision, level, revision: 1, frame: c.frame, gridWidth: c.gridWidth, gridHeight: c.gridHeight, overviewLevels: overviewLevels(c.gridWidth, c.gridHeight), updatedAt: new Date().toISOString() };
   const tiles: TerrainTile[] = [], masks = new Map<string, string>();
   for (let y = 0; y < c.gridHeight / 32; y++) for (let x = 0; x < c.gridWidth / 32; x++) {
     tiles.push(gridTile(grid, c.gridWidth, x, y)); const protectedIndices: number[] = [];
@@ -127,7 +131,8 @@ export async function expandNativeRefinement(tx:NativeHistoryTx,context:NativeCo
   let frame;
   try{frame=refinementExpansionFrame(meta,dimensions,inherited.shape,inherited.frame,root.shape);}catch(error){throw new WorldError((error as Error).message,400);}
   if(root.document.region&&!regionContainsFrame(root.document.region,frame,root.shape))throw new WorldError("Keep the complete extended detail inside this region or open the parent World.",409);
-  if(index.refinements.some(r=>r.id!==sourceId&&r.parentId===meta.parentId&&framesOverlap(r.frame,frame,root.shape.displayWidth,root.shape.wrap)))throw new WorldError("The extended coverage overlaps another retained area at the same level.",409);
+  if(isCrossingRefinement(meta)){if(c.sourceState!==index.sourceState)throw new WorldError("The accepted dated sources changed. Retain the bounds and prepare the crossing extension again.",409);try{crossingRefinementLevel(frame,c.gridWidth,c.gridHeight,root.shape,index.refinements,meta);}catch(e){throw new WorldError((e as Error).message,400);}}
+  else if(index.refinements.some(r=>r.id!==sourceId&&(r.parentId===meta.parentId||r.level===meta.level)&&framesOverlap(r.frame,frame,root.shape.displayWidth,root.shape.wrap)))throw new WorldError("The extended coverage overlaps another retained area at the same level.",409);
   const {grid}=await initializeExpandedRefinement(old.grid,meta,inherited.grid,inherited.shape,inherited.frame,root.shape,dimensions);
   const bytes=Buffer.alloc(grid.length*2);for(let i=0;i<grid.length;i++)bytes.writeInt16LE(grid[i],i*2);
   if(createHash("sha256").update(bytes).digest("hex")!==c.previewHash)throw new WorldError("The retained source or parent no longer matches this extension preview. Keep the settings and prepare it again.",409);
@@ -178,7 +183,7 @@ export async function saveNativeTerrain(tx: NativeHistoryTx, context: NativeCont
     throw new WorldError("Keep the accepted sea level for finer terrain and selected-area operations. Change it deliberately on the dated World map.", 400);
   try { validateGenerationAcceptance(shape, source, command.seaLevel, meta ? { x: frame.x, y: frame.y, periodX: root.shape.wrap ? root.shape.displayWidth : null } : undefined); }
   catch (error) { throw new WorldError((error as Error).message, 400); }
-  const children = index.refinements.filter(r => r.parentId === (meta?.id ?? null));
+  const children = refinementOccluders(index.refinements,meta?.id??null);
   const mask = children.length || meta ? terrainEditMask(shape, frame, children, root.shape, !!meta) : null;
   const refs = meta ? fine!.tileObjects.filter(r => (r.lod ?? 0) === 0) : root.value.tileObjects;
   const before = new Map(refs.map(r => [`${r.x}:${r.y}`, r])), masks = new Map<string, string>();

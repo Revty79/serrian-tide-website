@@ -1,4 +1,5 @@
 import "server-only";
+import {refinementCrossingAvailable} from "./terrain-refinement-geometry";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { readTerrainTile } from "./terrain-storage";
@@ -54,7 +55,7 @@ export async function nativeAllRefinementIndex(tx: NativeHistoryTx, context: Nat
   const value = structuredClone(stored);
   value.refinements = value.refinements.map(meta => ({ ...meta, mapId: context.scope.target.id }));
   value.rootRevision = root.document.revision; value.seaLevel = root.document.seaLevel;
-  value.sourceState = terrainSourceState(root.document.revision, value.refinements); value.canEdit = context.canEdit; value.expansionAvailable=true;
+  value.sourceState = terrainSourceState(root.document.revision, value.refinements); value.canEdit = context.canEdit; value.expansionAvailable=true; value.crossingAvailable=await refinementCrossingAvailable(tx);
   return value;
 }
 export async function nativeRefinementIndex(tx: NativeHistoryTx, context: NativeContentContext): Promise<RefinementIndex> {

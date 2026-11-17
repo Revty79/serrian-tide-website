@@ -46,8 +46,17 @@ export async function acceptCanonNumerical(tx:WorldTransaction,requestId:string)
    const root=isRoot(entry),snapshot=version(entry,next),frame=root?undefined:geometry(entry,next);
    if(!root&&(current.get(String(parentId(entry)))??0)!==Number(snapshot.parent_revision))continue;
    if(previous&&heads.some(child=>!isRoot(child)&&parentId(child)===head.id&&(current.get(child.payload.id)??0)<child.payload.revision&&Number(version(child,(current.get(child.payload.id)??0)+1).parent_revision)===previous))continue;
+   // A Root-backed crossing source must be replayed after lower-level native
+   // geometry that existed at its pinned Root. This preserves the checked
+   // overlap/fineness guards even when random UUID order differs from authorship.
+   if(!root&&!previous&&!head.parent_id&&Number(head.detail_level)>1&&heads.some(other=>{
+    if(isRoot(other)||other.payload.id===head.id||Number(other.payload.detail_level)>=Number(head.detail_level))return false;
+    const nextOther=(current.get(other.payload.id)??0)+1;
+    return nextOther<=other.payload.revision&&Number(version(other,nextOther).root_revision)<=Number(snapshot.parent_revision);
+   }))continue;
    const table=sql.identifier(entry.family);
    await tx.execute(sql`SELECT set_config('serrian.refinement_guard',${head.id},true)`);
+   if(!root&&!head.parent_id&&Number(head.detail_level)>1)await tx.execute(sql`SELECT set_config('serrian.refinement_crossing',${head.id},true)`);
    if(!previous){
     const initial={...head,revision:1,...(root?{sea_level:snapshot.sea_level}:frame?geometryFields(frame):{})};
     await tx.execute(sql`insert into ${table} select (jsonb_populate_record(null::${table},${JSON.stringify(initial)}::jsonb)).*`);

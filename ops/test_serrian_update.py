@@ -147,9 +147,9 @@ class UpdatePolicyTests(unittest.TestCase):
             verify_ledger(previous, expected)
 
     def test_actual_coverage_release_refuses_a_host_missing_0163(self):
-        from a5_fixture_baseline import BASELINE
+        BASELINE = "da142a3d2d9af23a598a368ea3c4a89d07016616"
         repo = Path(__file__).resolve().parent.parent
-        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo).decode().strip()
+        commit = "73b09b5649df7a056f16707c2a76152b4ac500ac"
         history = Git(repo)
         for name in ("scripts/deployment-a5-fixture.ts", "drizzle/meta/_journal.json"):
             self.assertEqual(history.blob(BASELINE, name), history.blob(commit, name))

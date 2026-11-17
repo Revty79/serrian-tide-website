@@ -1,4 +1,5 @@
 "use client";
+import {refinementOccluders} from "./terrain-refinement-crossing";
 import {useTerrainReferenceBoundaries} from "./terrain-reference-boundaries-client";
 import {GeographicSourceSelect} from "./geographic-source-select";
 import {GeographyDirectoryPanel} from "./geography-directory-panel";
@@ -203,7 +204,7 @@ function Sculptor({ document: rootDocument, api:baseApi, editable, review, onDir
   useEffect(()=>{if(!regionalSourcePin.current&&details.index)regionalSourcePin.current=details.index.sourceState;},[details.index]);
   const key = `${saved.worldId}:${saved.id}${historyRecovery}${saved.refinement?":refinement:"+saved.refinement.id:""}`, active = numericalEditable && recoveryReady && !recovered && !conflict && !operation && !regeneration && !refinementPreview && !sourceLoading && !resumeDetail && !regionFrame;
   const refinementEditable=editable&&recoveryReady&&!recovered&&!conflict&&!operation&&!regeneration&&!sourceLoading&&!resumeDetail&&!locationsUnsaved&&!dirty&&!working&&!saving&&!refinementPreview;
-  const blocked=useMemo(()=>terrainEditMask(shape,saved.refinement?.frame??rootFrame(rootShape),details.index?.refinements.filter(m=>m.parentId===(saved.refinement?.id??null))??[],rootShape,!!saved.refinement),[shape,saved.refinement,details.index,rootShape]);
+  const blocked=useMemo(()=>terrainEditMask(shape,saved.refinement?.frame??rootFrame(rootShape),refinementOccluders(details.index?.refinements??[],saved.refinement?.id??null),rootShape,!!saved.refinement),[shape,saved.refinement,details.index,rootShape]);
   const detailScene=useMemo(()=>({cache:details.cache,plans:(refinementPreview&&viewport?[...details.plans,...detailViewPlan([refinementPreview.meta],viewport,rootShape)]:details.plans).map(p=>p.meta.id===saved.refinement?.id?{...p,meta:{...p.meta,revision:revision.current}}:p),tick:details.cacheTick+editTick,active:saved.refinement?{meta:{...saved.refinement,revision:revision.current},grid,shape}:undefined,preview:refinementPreview}),[details.cache,details.plans,details.cacheTick,refinementPreview,viewport,rootShape,saved.refinement,grid,shape,editTick]);
   function didSave(value:number){if(numericalAcknowledgementMatches(details.index?.sourceState,observedGeography.current,saved.refinement?rootAccepted.current.revision:value,saved.refinement?{id:saved.refinement.id,revision:value}:undefined)){setConflict(false);setError("");}if(saved.refinement){if(regionalSourcePin.current)regionalSourcePin.current=advanceTerrainSourceState(regionalSourcePin.current,saved.refinement.id,value);void details.reload().catch(()=>{});}else{rootAccepted.current={...saved,revision:value,seaLevel:sea.current,source:{kind:"manual"}};onSaved(value);void details.reload().catch(()=>{});}}
   async function selectSource(id:string|null,force=false){
