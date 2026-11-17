@@ -1,8 +1,8 @@
 # Project Earth Pass 1: explicit crossing coverage
 
 Status: isolated implementation and final local validation pass. This is a continuation
-of the original authorized Earth pass. Reviewed publication, the shared owned
-fixture baseline pin, the four release workflows and owner DEV activation remain pending.
+of the original authorized Earth pass. Reviewed publication, the four release
+workflows and owner DEV activation remain pending.
 Earth geography and owner acceptance are unfinished.
 
 ## Reproduced authoring limit
@@ -93,9 +93,11 @@ in this publication.
   pages are raster images, so no extractable-text or PDF accessibility claim is
   made. Synthetic output evidence does not approve real Earth exports or rights.
 - Bootstrap accepts the genuine 165-entry owned schema and refuses missing,
-  wrong-hash and unknown-166 ledgers. The preliminary deployment suite passes
-  with three local platform skips. The final same-schema fixture pin and actual
-  165-versus-164 updater refusal still precede publication. Release provenance,
+  wrong-hash and unknown-166 ledgers. The final deployment suite passes with three
+  local platform skips. The shared owned fixture baseline pins genuine initial
+  schema-165 source `267fffd7f1dae5ba42a89106db04002e125c6b35`, which is test input
+  and not a verified release. Actual 165-versus-164 updater refusal passes while
+  retaining the original actual A3 and 164-versus-163 refusals. Release provenance,
   four exact workflows and clean main parity remain required. The original CPU
   gates remain unchanged; no fresh complete CPU matrix or physical-device/owner
   acceptance is claimed.

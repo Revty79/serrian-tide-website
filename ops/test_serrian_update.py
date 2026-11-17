@@ -161,6 +161,20 @@ class UpdatePolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(Stopped, "MIGRATION_APPROVAL_REQUIRED"):
             verify_ledger(previous, expected)
 
+    def test_actual_crossing_release_refuses_a_host_missing_0164(self):
+        from a5_fixture_baseline import BASELINE
+        history = Git(Path(__file__).resolve().parent.parent)
+        commit = history.run("rev-parse", "HEAD")
+        for name in ("scripts/deployment-a5-fixture.ts", "drizzle/meta/_journal.json"):
+            self.assertEqual(history.blob(BASELINE, name), history.blob(commit, name))
+        expected = expected_ledger(history, commit)
+        self.assertEqual(len(expected), 165)
+        previous = expected_ledger(history, "73b09b5649df7a056f16707c2a76152b4ac500ac")
+        self.assertEqual(expected[:164], previous)
+        rows = [{"created_at": row["created_at"], "hash": sorted(row["hashes"])[0]} for row in previous]
+        with self.assertRaisesRegex(Stopped, "MIGRATION_APPROVAL_REQUIRED"):
+            verify_ledger(rows, expected)
+
     def test_real_git_migration_bytes_and_configuration_epoch(self):
         with tempfile.TemporaryDirectory(prefix="serrian-update-git-") as directory:
             root = Path(directory)
