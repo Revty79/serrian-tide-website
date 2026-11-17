@@ -1,6 +1,7 @@
 import "server-only";
 import {refinementCrossingAvailable} from "./terrain-refinement-geometry";
 import {crossingRefinementLevel,isCrossingRefinement,refinementOccluders} from "./terrain-refinement-crossing";
+import {acceptedRefinementSources,initializeAcceptedRefinement,refinementInheritance} from "./terrain-refinement-inheritance";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { terrainCommandSchema, type TerrainTile } from "./terrain";
@@ -94,8 +95,9 @@ async function createNativeRefinementChecked(tx: NativeHistoryTx, context: Nativ
   if(c.acrossExisting){if(c.sourceState!==index.sourceState)throw new WorldError("The accepted dated sources changed. Retain the bounds and prepare the crossing preview again.",409);if(!await refinementCrossingAvailable(tx))throw new WorldError("Crossing coverage requires migration 0164.",503);if(c.parentId!==null)throw new WorldError("Select the Whole World base before creating crossing coverage.",400);try{level=crossingRefinementLevel(c.frame,c.gridWidth,c.gridHeight,root.shape,index.refinements);}catch(e){throw new WorldError((e as Error).message,400);}}
   else if (index.refinements.some(r => (r.parentId === c.parentId||r.level>=level) && framesOverlap(r.frame, c.frame, root.shape.displayWidth, root.shape.wrap))) throw new WorldError("Choose adjacent coverage or use the overlapping retained source as parent.", 409);
   const inherited = await nativeGrid(tx, context, c.parentId ?? undefined);
+  const inheritedSources=c.inheritExisting?acceptedRefinementSources(c.frame,index.refinements,root.shape):[];
   let grid: Int16Array;
-  try { validateRefinement(c.frame, c.gridWidth, c.gridHeight, inherited.shape, inherited.frame, root.shape); grid = c.gridWidth*c.gridHeight>1048576?await initializeRefinementAsync(inherited.grid,inherited.shape,inherited.frame,c.frame,c.gridWidth,c.gridHeight,root.shape):initializeRefinement(inherited.grid,inherited.shape,inherited.frame,c.frame,c.gridWidth,c.gridHeight,root.shape); }
+  try { validateRefinement(c.frame, c.gridWidth, c.gridHeight, inherited.shape, inherited.frame, root.shape); grid = c.inheritExisting?await initializeAcceptedRefinement(inherited.grid,root.shape,c.frame,c.gridWidth,c.gridHeight,inheritedSources,async meta=>(await nativeGrid(tx,context,meta.id,meta.revision)).grid):c.gridWidth*c.gridHeight>1048576?await initializeRefinementAsync(inherited.grid,inherited.shape,inherited.frame,c.frame,c.gridWidth,c.gridHeight,root.shape):initializeRefinement(inherited.grid,inherited.shape,inherited.frame,c.frame,c.gridWidth,c.gridHeight,root.shape); }
   catch (error) { throw new WorldError((error as Error).message, 400); }
   const bytes = Buffer.alloc(grid.length * 2); for (let i = 0; i < grid.length; i++) bytes.writeInt16LE(grid[i], i * 2);
   if (createHash("sha256").update(bytes).digest("hex") !== c.previewHash) throw new WorldError("The dated parent no longer matches this numerical preview. Retain the bounds and prepare it again.", 409);
@@ -106,10 +108,11 @@ async function createNativeRefinementChecked(tx: NativeHistoryTx, context: Nativ
     for (let n = 0; n < 1024; n++) if (isRefinementBoundary(x * 32 + n % 32, y * 32 + Math.floor(n / 32), c.gridWidth, c.gridHeight)) protectedIndices.push(n);
     masks.set(`${x}:${y}`, protectSamples(EMPTY_PROTECTION, protectedIndices));
   }
-  const sourceHash = nativeContentHash(c), fine: NativeRefinementPayload = { meta, baselineRevision: 0, tileObjects: await nativePyramid(context.worldId, meta.id, c.requestId, meta, tiles, masks, []), version: { revision: 1, requestId: c.requestId, rootRevision: root.document.revision, parentRevision: c.parentRevision, contentHash: sourceHash, source: { kind: "manual" } } };
+  const sourceHash = nativeContentHash(c), fine: NativeRefinementPayload = { meta, baselineRevision: 0, tileObjects: await nativePyramid(context.worldId, meta.id, c.requestId, meta, tiles, masks, []), version: { revision: 1, requestId: c.requestId, rootRevision: root.document.revision, parentRevision: c.parentRevision, contentHash: sourceHash, source: { kind: "manual",...c.inheritExisting?{inheritance:refinementInheritance(c.parentRevision,c.sourceState!,inheritedSources)}:{} } } };
   const original = (await nativeResource(tx, context, "refinements")).payload;
   const parentKey = `source:${meta.parentId ?? root.document.terrainId}:${c.parentRevision}`;
   const retainedParent: NativeComponentUpdate[] = context.manifest.resources.some(r => r.key === parentKey) ? [] : [{ key: parentKey, kind: meta.parentId ? "refinement" : "terrain", payload: await nativeNumericPin(tx, context, meta.parentId ?? root.document.terrainId, c.parentRevision) as unknown as Record<string, unknown> }];
+  for(const source of inheritedSources){const key=`source:${source.id}:${source.revision}`;if(!context.manifest.resources.some(r=>r.key===key)&&!retainedParent.some(r=>r.key===key))retainedParent.push({key,kind:"refinement",payload:await nativeNumericPin(tx,context,source.id,source.revision) as unknown as Record<string,unknown>});}
   return { updates: [...retainedParent, { key: "refinement:" + meta.id, kind: "refinement", payload: fine as unknown as Record<string, unknown> }, { key: "refinements", kind: "refinement", payload: { ...original, index: { ...index, refinements: [...index.refinements, meta] }, sourceHashes: { ...original.sourceHashes as Record<string, string>, [meta.id]: sourceHash } } }], result: { id: c.mapId, refinementId: meta.id, revision: 1 } };
 }
 export async function expandNativeRefinement(tx:NativeHistoryTx,context:NativeContentContext,sourceId:string,raw:unknown):Promise<NativeWriteResult>{
