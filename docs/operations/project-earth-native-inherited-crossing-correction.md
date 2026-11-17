@@ -107,8 +107,44 @@ restore expectation failure. The bounded test-only correction checks the entire
 current canonical journal and exact source/restored ledgers rather than assuming
 an old fixed count. No runtime, bootstrap, migration or updater guard changed.
 
-Publication and four exact workflow/provenance receipts remain pending. This
-document does not yet claim a verified release.
+## Verified technical release
+
+Application commit `79d8e5e5cf73aa816a8ed573fa3ba359851720dc` passes all four
+exact workflows at attempt 1:
+
+| Workflow | Successful run |
+| --- | --- |
+| Normal validation | [44107477731](https://github.com/Revty79/serrian-tide-website/actions/runs/44107477731) |
+| Linux recovery | [44107477692](https://github.com/Revty79/serrian-tide-website/actions/runs/44107477692) |
+| Full Ubuntu deployment | [44107477664](https://github.com/Revty79/serrian-tide-website/actions/runs/44107477664) |
+| Signed image publisher | [44107477654](https://github.com/Revty79/serrian-tide-website/actions/runs/44107477654) |
+
+Every required job and step of each actual latest attempt succeeds. Only the
+Ubuntu success-path public-source diagnostics are skipped. Independent checks
+against the completed GitHub runs and cryptographic hosted provenance accept
+the immutable image
+`sha256:58fc47c2e9e9ca25bbcb427380027c101bafeafa4e91c51e22df0ac7101e6421`.
+The Linux release fingerprint is
+`78bc5908a2c60144dd0576d823273bd27a85f4e3f58b645e9934b3cec92b3dd0`;
+the separately recorded Windows local application fingerprint above remains
+unchanged. These receipts do not conflate platform-specific fingerprints.
+
+A fresh independent installed-command acceptance
+[44118318592](https://github.com/Revty79/serrian-tide-website/actions/runs/44118318592)
+passes every job and step at attempt 2, against this exact application source,
+the real completed checks and signed GHCR evidence. It verifies the actual
+original-to-prebuilt installation, update, database/files/session/World
+preservation, transport/digest/signature refusals, interrupted download,
+decline, failed-start rollback and repeat update. Retain its first attempt's
+`CI_UNAVAILABLE` GitHub transport refusal during original installation. The
+website remained unchanged; the successful rerun changed no application or
+validation guard. Cold candidate completion measured 67.83 seconds versus
+467.49 seconds for the same-source local build and deployment; repeat measured
+22.34 seconds in the owned hosted fixture. These are not owner-host timings.
+
+This documentation publication must preserve all 2,172 tested application
+inputs, pass its own normal CI and leave clean local/main/remote parity. No
+owner server is installed, updated or restarted by this technical receipt.
 
 All 20 newly owned fixtures recorded in the isolated source checkout are
 stopped; all 34 recorded database/application ports are non-listening. The
@@ -117,12 +153,15 @@ its exact recorded identity. No owner service was stopped or changed.
 
 ## Native Earth continuation
 
-Native authoring has continued in the same private Earth, with 18 separately
-drawn southern Patagonian island outlines saved and independently compared
-against the previously reviewed public-domain research. Other accepted sources,
-World terrain and water remain unchanged. These shapes use placeholder native
-land/sea elevations, not measured relief or bathymetry. The complete crossing
-island, remaining global corrections, major lakes and final fresh
+Native authoring has continued in the same private Earth. Twenty-four southern
+Patagonian island outlines, the working James Bay mainland outline and seven
+offshore shapes, finer Akimiski, Iturup and Urup outlines are saved through
+visible native controls. Separate comparisons and topology checks retain
+generalization, small shoreline offsets and raster connection limits. Earlier
+accepted sources, World terrain and water remain exact on each save. These
+shapes use placeholder native land/sea elevations, not measured relief or
+bathymetry. Belcher coverage, smaller bay features, the complete Patagonian
+crossing island, remaining global corrections, major lakes and final fresh
 current-geography paired recovery remain unfinished. Technical tests do not
 establish legal, artistic, physical-device or owner acceptance.
 
