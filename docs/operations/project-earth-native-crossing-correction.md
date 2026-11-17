@@ -2,7 +2,8 @@
 
 Status: technical release PASS at
 `73193a605330c67cc795f2624cda25245ff2cb13`. This continues the original authorized
-Earth pass. Owner DEV activation of 0164 remains unapproved and unapplied.
+Earth pass. The owner subsequently applied 0164 to local DEV; the read-only
+verification and its limits are recorded below.
 Earth geography and owner acceptance are unfinished.
 
 ## Reproduced authoring limit
@@ -163,7 +164,32 @@ No whole-Earth, artistic, physical-device, legal/commercial or owner acceptance 
 inferred. Actual native geography and final fresh current-geography paired
 recovery remain unfinished.
 
+## Owner-executed local activation
+
+The owner explicitly approved the guarded local operation, then took over the
+migration and reported it complete. A fresh read-only check on November 16 local
+time verifies `localhost:5432/serrian_tide_dev`: all 165 migration hashes and times
+match the published journal, including the exact canonical 0164 SHA-256
+`0f6aca722359783c3c1f55c70d416fc49a308a91471b0d49f9e7ad6d2102203c`.
+The crossing capability function returns true.
+
+The selected three storage roots and configuration bytes remain unchanged.
+All 77 current numerical source identities, revisions, frames, parent pins and
+decoded hashes, Root73 and water33 match the last accepted native-authoring
+witness. Ordinary authenticated reopening of the same Earth succeeds. This is
+post-application read verification; it does not supply a pre-upgrade capture or
+an owner-target rehearsal. The agent did not apply the migration or stop DEV.
+The software release's isolated rehearsal remains separate evidence.
+
+Do not repeat 0164 or switch to the older port-5433 environment. Continue the same
+native Earth pass with the crossing control now available. Global geography,
+remaining islands and final fresh current-geography paired recovery are still
+unfinished; no whole-pass, legal, artistic or owner acceptance is claimed.
+
 ## Proposed owner DEV activation
+
+The original proposal below is retained as history. The owner instead handled
+the local application, as recorded in the preceding section.
 
 This section is a concrete activation plan, not permission to execute it.
 The owner-selected target remains local `localhost:5432/serrian_tide_dev`, through
