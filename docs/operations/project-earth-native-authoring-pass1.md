@@ -1,5 +1,7 @@
 # Project Earth Pass 1: native authoring and polygon tool correction
 
+The current native coastal/island foundation and final current-geography recovery are delivered in [the Pass 1 receipt](project-earth-native-pass1-delivery.md). The earlier technical and interim authoring receipts below remain historical evidence; see the current receipt for geographic limits and the separate owner-review boundary.
+
 Owner attachment `327112ee-4d25-4eb5-a97a-170fb762ea98` authorizes a new permanent example World in the owner-selected clean local DEV environment after A3/A6. Permanent geography must be drawn through visible native Worlds/Atlas controls. External references support research and comparison; no GIS boundaries, prepared Earth map, heightmap, terrain tiles, generated editing-coordinate list, SQL write or hidden authoring endpoint may populate Earth. Production, Canon, the home server, retained restricted Earth material and Tabletop remain outside this pass.
 
 This document records a software checkpoint within ongoing native geographic authoring. The private World and map began through normal blank-ocean creation, save and reopen controls. Global geographic acceptance remains pending. Private identities, reference bytes, accuracy reports, actual map evidence and recovery material remain excluded from Git under `artifacts/project-earth-native-pass1-20261112/`.
