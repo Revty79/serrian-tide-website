@@ -1,0 +1,160 @@
+# Native profiles across accepted terrain sources
+
+## Problem and behavior
+
+A native Southern Andes profile reaches the boundary of existing finer terrain.
+Ordinary sculpting correctly protects its inherited collar and parent supports,
+but cannot join the ridge across that boundary. Accepting the Root-only preview
+would leave an artificial regional edge. A read-only audit of the retained
+native intent finds 36,184 dry collar samples requiring changes, up to 2,429 m.
+That proposal remains unaccepted; Earth is saved at Root 134 / water 48.
+
+The general **Continue profile across terrain sources** control carries the
+currently drawn or recovered Atlas profile into a joined-relief workshop.
+Creators select a native work area, prepare and inspect the numerical preview,
+compare original terrain, review affected sources and explicitly save the group.
+Existing source identities, frames, grids and numerical spacing stay unchanged.
+No external terrain, editing-coordinate list or imported operation is required.
+
+Bounded profile windows also let the existing profile workshop operate on large
+accepted grids without copying their full buffers. Shared work areas retain the
+original profile selection feather and end blending. Chunk edges do not add
+new feathering; the original final closed edge and wrapped seam remain explicit.
+Creators must review adjoining work areas before accepting successive chunks.
+
+Joined relief applies the same native profile at each source's original lattice.
+It preserves sea/coastal supports, saved water beds, settlement supports and the
+selected manual-protection policy. Additional coast checks use the original
+accepted composed World, including sea outside a fine source's frame. Ordinary
+sculpting, transfer and coverage guards remain in force.
+
+## Immutable context and history
+
+Additive `0165_atlas_shared_relief.sql` adds one empty immutable relief-group
+table and checked functions. The narrowly checked same-frame context transition
+records new parent pins in immutable geometry history. Original creation pins,
+old revisions and old numerical readers remain intact. This is necessary because
+the existing numerical reader uses a source's pinned parent beyond its grid.
+
+Acceptance rechecks the complete accepted source vector, water/site context and
+preview checksums under the existing World permission, editing-control, rights
+and write transaction. The server recomputes from native intent; callers cannot
+submit terrain tiles or choose an unchecked source vector. A deferred database
+check refuses partial group publication. Exact original-request retries do not
+create another group or revision.
+
+Group History restores all affected native heights and their original fallback
+pins exactly into new revisions. Intervening terrain, water or settlement work
+prevents group restoration. Ordinary source saves cannot forge group receipts.
+Current/dated appearances and exports retain their original numerical history.
+A personal Canon copy preserves copied numerical/current/dated history but does
+not inherit the original World's group Undo authority or private group queries.
+All Canon tests use newly owned synthetic Worlds; real Canon is untouched.
+
+## Local qualification
+
+Private receipts remain under the ignored isolated shared-relief source checkout
+and `artifacts/project-earth-pass2a-20261119/`. The final production build is
+`6KVsVjLhO0cZR0cX6C3Z_`, application SHA-256
+`c778beb81c29758296db228cc8d746a2e1e2e68697c78aa77f2f2c37d9b5c8f8`.
+All 2,205 actual application inputs match that build. The build is reused only
+after checking every actual application input byte.
+The earlier window-only and intermediate shared builds are not substituted for
+this final build.
+
+- All 3,031 feature tests / 394 files, full types and production build pass.
+  Full lint retains one inherited unused `LoreFamily` warning; changed paths
+  introduce none. Sixteen new focused shared-relief cases pass.
+- Five headed native groups pass: normal creation and unequal parent/child
+  sources, preview/rejection, six appearances, retained settings/recovery,
+  lost acknowledgement/exact Retry, atomic save, complete-grid/pin Undo/Redo
+  and settled reopening. Default and legacy-grid rehearsals are retained;
+  final-build native qualification uses the legacy 640 x 384 Root case.
+- Eight final-build large-window groups, eight original profile groups,
+  eleven A6 groups and four A3 groups pass. A3 retains all seven families and
+  19 actual outputs. All 19 PDF pages are independently rendered, visually
+  inspected and pixel-identical to the qualified window-only build.
+- Eight database/integrity groups cover populated 165-to-166 preservation,
+  atomicity and immutable-history refusals, permissions/rights holds,
+  current/dated/export reads, intervening edits, personal copies and exact
+  independent restoration. All 408 public tables, the complete 166-row ledger
+  and all three owned asset roots match; a fresh restored reader succeeds.
+- Original Root crossing, accepted-terrain crossing and coverage expansion
+  regressions pass at 166 migrations, retaining their original upgrade cases,
+  old parent readers, history, copies, refusals and independent restores.
+  Actual empty PG18 bootstrap accepts only the known 166-entry schema and
+  refuses missing migrations, changed hashes and a matching unknown 167th row.
+- Updater safety reports 69 cases, three skipped (66 executed), with no
+  failures. Original A3/164/165 mismatch refusals remain, and a genuine
+  166-versus-165 refusal is added. The shared owned fixture baseline is pinned
+  to genuine committed 166-entry source `a8abf7e516e6aeb70af1df192d15e845c0fe463d`.
+
+The maximum 16,777,216-sample source rehearsal processes 261,120 combined native
+cells / 32 segments / 8,364,033 profile-and-audit steps in 2,127 ms, with 15.39 ms
+maximum timer delay and 26,933,392 numerical working bytes. Existing 30-second,
+100 ms and 32 MiB gates remain unchanged. Real in-flight cancellation preserves
+inputs. A 129-source audit retains all unrelated heads with 14.12 ms timer delay.
+These are owned-machine measurements, not physical-device acceptance.
+All 23 owned fixture directories are stopped; all 31 recorded application and
+database ports are independently non-listening. Owner ports are excluded.
+
+Retained failures include the initial large-grid workspace refusal; schema
+generation replacement-string corruption; a faded-endpoint test assumption;
+the CSS-loader runner failure; the new immutable authorship FK classification
+failure; the original 1,033 ms source-bound stall; and native/test harness
+typing, cache-font, label, receipt and PDF-comparison failures. Integrity harness
+failures retain the incorrect rights revision lookup, correctly refused copy
+history without editing control and Windows ESM URL failure. The final helper
+uses normal copied-World control and fresh restored imports. None is relabelled
+as a passing original attempt. Early cleanup audits with zero parsed ports are
+invalid receipts; the corrected independent audit is retained separately.
+
+## Release and guarded owner activation
+
+Local qualification is complete; publication and the four exact successful
+normal/recovery/Ubuntu/publisher workflows, hosted provenance and clean main
+parity are required before claiming a verified release. Existing `f8bdd0e0`
+release receipts do not qualify this new source.
+
+**Owner DEV remains on 165 migrations through 0164. Migration 0165 is neither
+approved nor applied.** No owner frozen capture, restore, migration, restart,
+authentication/configuration change, Production or home-server operation occurs
+during these synthetic rehearsals. The previously approved one-time restart
+for `f8bdd0e0` was unnecessary and unused; it is not a blanket new-release approval.
+
+After verified publication, request only this concrete DEV activation:
+
+1. Re-read the selected local configuration without revealing credentials;
+   require `localhost:5432/serrian_tide_dev`, all 165 exact canonical migration
+   hashes/times, the three selected asset roots and the ordinary owner session.
+   Record the then-current accepted geography. Do not switch to port 5433.
+2. With specific owner approval, freeze DEV writes, preserve any native draft,
+   take a fresh signed paired capture, authenticate its encrypted opening and
+   independently restore the database plus all three roots into a new owned
+   fixture. Verify every table, ledger row, native sample/pin and asset file.
+3. Rehearse only 0165 on that exact restored current-geography fixture, compare
+   all old rows/columns/files/configuration and exercise ordinary/native/group
+   readers. Stop on a mismatch; do not repair owner data to fit a test.
+4. Recheck the owner target immediately before applying only 0165 in journal
+   order. Verify all 166 canonical hashes/times, the capability, unchanged old
+   state and ordinary authenticated reopening. Activate the verified DEV code
+   only within the exact approved service scope. Never reset the ledger or use
+   schema push.
+
+A Git rollback does not reverse this migration. Preserve the newer compatible
+writer after groups exist; prefer a reviewed forward correction. Any owner
+restore/destructive reconciliation needs its own approval. A paired backup is
+not replaced by a Git checkpoint or image receipt.
+
+## Resume the same Earth assignment
+
+After the protected activation, recover the retained Southern Andes profile
+through Atlas's normal **Recover Operation Settings**, inspect joined relief,
+save natively and verify continuity, preservation, Undo/Redo and reopening.
+Then continue the authorized global land-elevation Pass 2A. Tool completion is
+not geographic completion. No global/owner artistic, legal, usability or device
+acceptance is claimed. Negative dry basins remain a separately reproduced tool
+limitation to correct before authoring them; do not substitute +1 m elevations.
+Only Titicaca's approved 3,810 m water exception is authorized; other water levels
+remain unchanged. No Pass 2B/2C/2D or political/Canon/Tabletop work is included.
+The trusted-origin command pinned to `973d4f57` remains unapplied.
