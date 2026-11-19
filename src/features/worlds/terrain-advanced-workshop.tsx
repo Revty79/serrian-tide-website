@@ -1,4 +1,6 @@
 "use client";
+import {LandformProfileControls} from "./terrain-landform-profile-controls";
+import {frameLocalPoint,normalizeTerrainX} from "./terrain-refinement";
 import { accountWorldStorage } from "./world-draft-storage";
 import {useEffect,useMemo,useRef,useState} from "react";
 import {ZodError} from "zod";
@@ -41,6 +43,7 @@ function startingOperation(input:AdvancedTerrainInput):AdvancedOperation{
     world=input.world.shape,centre={x:regionCanonicalX(frame.x+frame.width/2,{width:world.displayWidth,height:world.displayHeight,wrap:world.wrap}),y:frame.y+frame.height/2},
     radius=Math.min(frame.width,frame.height)/6,spacing=Math.max(s.displayWidth/s.width,s.displayHeight/s.height),
     common={selection:{frame},preserveManual:true,strength:75};
+  if(input.kind==="landform-profile")return {...common,kind:"landform-profile",points:[],mode:"shape",hardness:0,endBlendM:0,featherM:spacing*2};
   if(input.kind==="river-channel")return {...common,kind:"river-channel",riverId:input.riverId??"",course:"segment",first:0,last:null,widthM:spacing*2,depthM:40,bankSoftness:.6,smoothing:.4};
   if(input.kind==="erosion")return {...common,kind:"erosion",model:"runoff",iterations:12,direction:90,directionInfluence:.6,deposition:true,maxDepthM:120,reposeDegrees:30,featherM:spacing*2};
   if(input.kind==="eruption")return {...common,kind:"eruption",volcanoId:"00000000-0000-4000-8000-000000000000",effect:"collapse",source:centre,extentM:radius/2,widthM:spacing*2,magnitudeM:150,steps:128};
@@ -56,11 +59,12 @@ export function AdvancedTerrainWorkshop(p:Props){
   const {onDirty}=p;
   const [op,setOp]=useState<AdvancedOperation>(()=>startingOperation(p.input)),[packet,setPacket]=useState<AdvancedContextPacket>(),
     [section,setSection]=useState("settings"),[tool,setTool]=useState<TerrainCanvasTool>("pan"),
+    [profileInteraction,setProfileInteraction]=useState<"draw"|"move">("draw"),
     [areaMode,setAreaMode]=useState<"rectangle"|"points"|"freehand">("rectangle"),[outline,setOutline]=useState<RegionPoint[]>([]),
     [drawing,setDrawing]=useState(false),[outlineTolerance,setOutlineTolerance]=useState(1),[proposal,setProposal]=useState<{result:AdvancedResult;fingerprint:string;elapsed:number}>(),
     [visualOnly,setVisualOnly]=useState(false),[visualReady,setVisualReady]=useState(false),[ash,setAsh]=useState<EnvironmentRegion>(),
     [before,setBefore]=useState(false),[busy,setBusy]=useState(false),[applying,setApplying]=useState(false),
-    [progress,setProgress]=useState(0),[backend,setBackend]=useState(""),[error,setError]=useState(""),
+    [renderReady,setRenderReady]=useState(false),[progress,setProgress]=useState(0),[backend,setBackend]=useState(""),[error,setError]=useState(""),
     [acknowledged,setAcknowledged]=useState(false),[inspection,setInspection]=useState<TerrainInspection>(),
     [recovery,setRecovery]=useState<{key:string;raw:string}>(),[recoveryReady,setRecoveryReady]=useState(false);
   const [preferences]=useMeasurementPreferences(),[touch,setTouch,touchEpoch]=useTerrainTouchControls(),[armed,setArmed]=useState<number|null>(null);
@@ -209,7 +213,9 @@ export function AdvancedTerrainWorkshop(p:Props){
     <div className={styles.map} data-advanced-backend={backend} data-advanced-changed={proposal?.result.metrics.changed??0} data-advanced-visual={visualOnly&&visualReady?"1":"0"}>
       <TerrainCanvas handleRef={canvas} shape={shape} grid={previewGrid} seaLevel={doc.seaLevel} brush={{tool:"raise",radius:8,strength:100}}
         worldShape={scene.worldShape} worldGrid={scene.worldGrid} frame={scene.frame} initialFrame={scene.frame} details={scene.scene} onViewport={scene.onViewport}
-        relief={relief} environment={environmentOverlay} water={waterOverlay}
+        relief={relief} environment={environmentOverlay} water={waterOverlay} onRenderReady={setRenderReady}
+        path={op.kind==="landform-profile"?op.points.map(point=>{const local=frameLocalPoint(point,doc.refinement?.frame??{x:0,y:0,width:shape.displayWidth,height:shape.displayHeight},p.input.world.shape.displayWidth,p.input.world.shape.wrap);return {x:local.x/shape.displayWidth*shape.width,y:local.y/shape.displayHeight*shape.height};}):undefined}
+        pathRadius={0} pathInteraction={profileInteraction} pathPointLimit={128} onPath={points=>{if(op.kind!=="landform-profile")return;const frame=doc.refinement?.frame??{x:0,y:0};edit({points:points.map((point,index)=>({x:normalizeTerrainX(frame.x+point.x/shape.width*shape.displayWidth,p.input.world.shape.displayWidth),y:frame.y+point.y/shape.height*shape.displayHeight,elevationM:op.points[index]?.elevationM??op.points.at(-1)?.elevationM??Math.max(shape.min,Math.min(shape.max,doc.seaLevel+1500)),widthM:op.points[index]?.widthM??op.points.at(-1)?.widthM??4*Math.max(shape.displayWidth/shape.width,shape.displayHeight/shape.height)}))});}}
         coverage={coverage} regionDrawing={regionDrawing} tool={busy||applying?"pan":tool} touchEdit={touch&&armed===touchEpoch}
         onSelect={selectRectangle} onLocation={pick} locations={emptyLocations} canEdit={false} onStroke={()=>{}} onWorking={()=>{}}
         onInspect={value=>{if(typeof value!=="string")setInspection(value);}} onMeasure={()=>{}} measurementPreferences={preferences}/>
@@ -217,6 +223,7 @@ export function AdvancedTerrainWorkshop(p:Props){
     <div className={styles.bar}>
       <button type="button" className="st-button is-secondary" onClick={()=>canvas.current?.zoom(1.4)} aria-label="Zoom in"><span className={styles.full}>Zoom in</span><span className={styles.short} aria-hidden="true">+</span></button>
       <button type="button" className="st-button is-secondary" onClick={()=>canvas.current?.zoom(1/1.4)} aria-label="Zoom out"><span className={styles.full}>Zoom out</span><span className={styles.short} aria-hidden="true">-</span></button>
+      <button type="button" className="st-button is-secondary" onClick={()=>canvas.current?.focusFrame(op.selection.frame)} aria-label="Fit selected area">Fit selected area</button>
       <button type="button" className="st-button is-secondary" onClick={()=>canvas.current?.fit()} aria-label="Fit preview"><span className={styles.full}>Fit preview</span><span className={styles.short} aria-hidden="true">Fit</span></button>
       <button type="button" className="st-button is-secondary" aria-pressed={before} onClick={()=>setBefore(v=>!v)} aria-label={before?"Show proposed terrain":"Show original terrain"}><span className={styles.full}>{before?"Show proposed terrain":"Show original terrain"}</span><span className={styles.short} aria-hidden="true">{before?"After":"Before"}</span></button>
       <button type="button" className="st-button is-secondary" onClick={()=>{setTool("pan");setDrawing(false);}} aria-label="Stop choosing / Pan"><span className={styles.full}>Stop choosing / Pan</span><span className={styles.short} aria-hidden="true">Stop / Pan</span></button>
@@ -232,7 +239,7 @@ export function AdvancedTerrainWorkshop(p:Props){
         <button type="button" className="st-button is-secondary" disabled={applying} onClick={close} aria-label="Keep settings & Close">Keep & Close</button>
         <button type="button" className="st-button is-secondary" disabled={applying} onClick={()=>{stop();setProposal(undefined);setVisualReady(false);setAcknowledged(false);}}>Reject Preview</button>
         {busy?<button type="button" className="st-button is-secondary" onClick={stop}>Cancel Processing</button>:<button type="button" className="st-button is-primary" disabled={!packet||applying||!!recovery} onClick={()=>void prepare()}>Prepare Preview</button>}
-        <button type="button" className="st-button is-primary" disabled={busy||applying||!acknowledged||!!recovery||!(visualOnly?visualReady:fresh&&!!proposal?.result.metrics.changed)} onClick={()=>void apply()}>{applying?"Retaining accepted request…":visualOnly?"Accept Visual Cover":"Accept Numerical Change"}</button>
+        <button type="button" className="st-button is-primary" disabled={busy||applying||op.kind==="landform-profile"&&!renderReady||!acknowledged||!!recovery||!(visualOnly?visualReady:fresh&&!!proposal?.result.metrics.changed)} onClick={()=>void apply()}>{applying?"Retaining accepted request…":visualOnly?"Accept Visual Cover":"Accept Numerical Change"}</button>
       </div>
     </>}>
     {recovery&&<section className={styles.review}><h3>Retained terrain proposal</h3><p>Saved geography is intact. Recover these settings for a new preview, or export the original bytes before discarding them.</p><button className="st-button is-secondary" onClick={recover}>Recover Operation Settings</button><button className="st-button is-secondary" onClick={()=>download(recovery.raw,"terrain-operation-recovery.json")}>Export Retained Settings</button><button className="st-button is-secondary" onClick={()=>{retireAdvancedDraft(localStorage,recovery.key,recovery.raw);setRecovery(undefined);}}>Discard Retained Settings</button></section>}
@@ -242,6 +249,7 @@ export function AdvancedTerrainWorkshop(p:Props){
       <label>Operation<select aria-label="Advanced operation" value={op.kind} onChange={e=>{stop();setOp(startingOperation({...p.input,kind:e.target.value as AdvancedKind}));setProposal(undefined);setVisualOnly(false);setAcknowledged(false);}}>{Object.entries(advancedNames).map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
       <label className={styles.check}><input aria-label="Protect existing manual heights" type="checkbox" checked={op.preserveManual} onChange={e=>edit({preserveManual:e.target.checked})}/> Protect existing manual heights. Clearing this explicitly permits replacement inside the selected area; finer detail and settlement/water supports remain protected.</label>
       {<AdvancedNumber key={"Terrain modification strength (%)"} label={"Terrain modification strength (%)"} value={op.strength} onChange={value=>edit({strength:value})} disabled={busy||applying||!!recovery} min={1} max={100}/>}
+      {op.kind==="landform-profile"&&<LandformProfileControls value={op} onChange={edit} onDraw={()=>{setProfileInteraction("draw");setTool("path");}} onMove={()=>{setProfileInteraction("move");setTool("path");}}/>}
       {op.kind==="river-channel"&&<>
         <label>Saved river<select aria-label="Saved river" value={op.riverId} onChange={e=>edit({riverId:e.target.value,first:0,last:null})}><option value="">Choose a saved river</option>{packet?.context.water.edges.map(e=><option key={e.id} value={e.id}>{e.name||e.id}</option>)}</select></label>
         <label>Eligible course<select aria-label="Eligible course" value={op.course} onChange={e=>edit({course:e.target.value as "segment"|"downstream"})}><option value="segment">Selected saved segment</option><option value="downstream">Connected downstream course</option></select></label>

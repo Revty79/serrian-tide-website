@@ -4,6 +4,7 @@ import type {HydroLayer,HydroPoint} from "./terrain-hydrology";
 import {insideWaterRings,waterBounds,nearestWaterShore} from "./terrain-water-geometry";
 import {regionAreaContainsPoint,regionCanonicalX,validateRegionFootprint} from "./terrain-region-geometry";
 import {ADVANCED_TERRAIN_LIMITS as LIMITS,advancedOperationSchema,type AdvancedOperation,type VolcanoOperation} from "./terrain-advanced-spec";
+import {prepareLandformProfile} from "./terrain-landform-profile";
 
 export type AuthoredVolcano={id:string;revision:number;sourceId:string|null;operation:VolcanoOperation};
 export type AdvancedTerrainContext={
@@ -66,6 +67,7 @@ export function* advancedTerrainSteps(
   const checkedPoint=op.kind==="volcano"?op.centre:op.kind==="eruption"?op.source:undefined;
   if(checkedPoint&&(checkedPoint.x>=world.width||checkedPoint.y>=world.height))throw Error("Choose a canonical location inside this World.");
   const notices:string[]=[],river=op.kind==="river-channel"?advancedRiverPath(op,context):undefined;
+  const profile=op.kind==="landform-profile"?prepareLandformProfile(op,shape,context):undefined;
   const authored=op.kind==="eruption"?context.volcanoes.find(v=>v.id===op.volcanoId):undefined;
   if(op.kind==="eruption"&&!authored)throw Error("Choose a retained authored volcano from this terrain's accepted history.");
   let influence:TerrainFrame|undefined;
@@ -91,7 +93,7 @@ export function* advancedTerrainSteps(
   for(let y=0;y<shape.height;y++){const wy=frame.y+y*sy;if(wy>=selection.frame.y-1e-6&&wy<=selection.frame.y+selection.frame.height+1e-6&&(!influence||wy>=influence.y&&wy<=influence.y+influence.height))ys.push(y);}
   const cells=xs.length*ys.length;
   if(!cells)throw Error("This selection has no native samples in the active terrain source.");
-  if(cells>LIMITS.cells||op.kind==="erosion"&&cells*op.iterations>LIMITS.work)throw Error("Choose a smaller area or fewer erosion steps. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
+  if(cells>LIMITS.cells||op.kind==="erosion"&&cells*op.iterations>LIMITS.work||op.kind==="landform-profile"&&cells*(op.points.length-1)>LIMITS.work)throw Error("Choose a smaller area or fewer operation steps or profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
   // Retain the previous source/selected-work reserves, less the full-source
   // Int32 lookup and Uint8 settlement mask that are no longer allocated.
   // Axis ranks cover wrapped/non-contiguous columns; protection stays local.
@@ -124,6 +126,15 @@ export function* advancedTerrainSteps(
     const x=xs[k%xs.length].x,y=ys[Math.floor(k/xs.length)],i=y*shape.width+x,p=position(i);indices[k]=i;bed[k]=base[i];
     if(blocked?.[i]||op.preserveManual&&manual?.[i]){protectedCount++;continue;}
     if(base[i]<=seaLevel){waterProtected++;continue;}
+    if(profile){
+      // Preserve all interpolation supports of the accepted sea boundary.
+      let shore=false;
+      for(let ey=-1;ey<=1&&!shore;ey++)for(let ex=-1;ex<=1;ex++){
+        const xx=shape.wrap?(x+ex+shape.width)%shape.width:x+ex,yy=y+ey;
+        if(xx>=0&&xx<shape.width&&yy>=0&&yy<shape.height&&base[yy*shape.width+xx]<=seaLevel){shore=true;break;}
+      }
+      if(shore){waterProtected++;continue;}
+    }
     if(selection.footprint){geometryWork+=selection.footprint.parts.reduce((n,r)=>n+r.length,0);if(geometryWork>LIMITS.work)throw Error("Simplify the selected outline or choose a smaller operation area.");if(!regionAreaContainsPoint(selection,p,world))continue;}
     let underwater=false;
     for(const water of wet)if(rectContains(water.bounds,p,world)){
@@ -134,7 +145,7 @@ export function* advancedTerrainSteps(
     if(underwater){waterProtected++;continue;}
     if(siteMask[k]){siteProtected++;continue;}
     const a=selection.frame,px=world.wrap?((p.x-a.x)%world.width+world.width)%world.width:p.x-a.x,
-      feather=op.kind==="erosion"?op.featherM:0;
+      feather=op.kind==="erosion"||op.kind==="landform-profile"?op.featherM:0;
     let edge=Math.min(px,a.width-px,p.y-a.y,a.y+a.height-p.y);
     if(feather&&selection.footprint){
       geometryWork+=selection.footprint.parts.reduce((n,r)=>n+r.length,0);
@@ -155,7 +166,16 @@ export function* advancedTerrainSteps(
     const x=shape.wrap?Math.round(gx)%shape.width:Math.min(shape.width-1,Math.round(gx)),y=Math.min(shape.height-1,Math.round(gy));
     return y*shape.width+x;
   };
-  if(op.kind==="erosion"){
+  if(op.kind==="landform-profile"){
+    for(let k=0;k<cells;k++)if(weights[k]){
+      const original=base[indices[k]],p=profile!(position(indices[k])),
+        target=op.mode==="minimum"?Math.max(original,p.target):op.mode==="maximum"?Math.min(original,p.target):p.target;
+      bed[k]=Math.max(seaLevel+1,Math.min(shape.max,original+(target-original)*p.weight*weights[k]*op.strength/100));
+      if(counts()){lastYield=performance.now();yield .12+.7*k/cells;}
+    }
+    notices.push("Profile heights and widths blend smoothly along the physical path. Shape mode may raise and lower existing land; bound modes retain heights beyond their bound. Intersections do not stack changes.");
+    notices.push("Sea, its neighboring shoreline supports, saved lake and wetland beds, finer terrain and settlement supports remain exact. End and selection blends act inside the chosen footprint; inspect its joins before acceptance.");
+  }else if(op.kind==="erosion"){
     const angle=op.direction*Math.PI/180,repose=Math.tan(op.reposeDegrees*Math.PI/180),directions=[];
     for(let east=-1;east<=1;east++)for(let south=-1;south<=1;south++)if(east||south){const length=Math.hypot(east*sx,south*sy);directions.push({east,south,length,cosine:(east*sx*Math.sin(angle)-south*sy*Math.cos(angle))/length});}
     // Reuse eight offsets; no neighbour arrays or objects are allocated per sample-step.
@@ -283,6 +303,20 @@ export function* advancedTerrainSteps(
     if(counts()){lastYield=performance.now();yield .82+.13*k/cells;}
   }
   for(let i=0;i<n;i++){min=Math.min(min,grid[i]);max=Math.max(max,grid[i]);if((i&8191)===0&&performance.now()-lastYield>4){lastYield=performance.now();yield .96;}}
+  if(profile){
+    let beforeStep=0,afterStep=0,beforeSlope=0,afterSlope=0;
+    for(let k=0;k<changed;k++){
+      const i=changedIndices[k],x=i%shape.width,y=Math.floor(i/shape.width);
+      for(let ey=-1;ey<=1;ey++)for(let ex=-1;ex<=1;ex++){
+        if(!ex&&!ey)continue;const j=globalIndex(x+ex,y+ey);if(j<0||base[j]<=seaLevel)continue;
+        const previous=Math.abs(base[i]-base[j]),next=Math.abs(grid[i]-grid[j]),run=Math.hypot(ex*sx,ey*sy);
+        beforeStep=Math.max(beforeStep,previous);afterStep=Math.max(afterStep,next);
+        beforeSlope=Math.max(beforeSlope,Math.atan(previous/run)*180/Math.PI);afterSlope=Math.max(afterSlope,Math.atan(next/run)*180/Math.PI);
+      }
+      if(counts()){lastYield=performance.now();yield .97;}
+    }
+    notices.push(`Adjacent land-sample review (including retained lake beds): maximum step ${beforeStep} → ${afterStep} m; steepest planar slope ${beforeSlope.toFixed(2)}° → ${afterSlope.toFixed(2)}°. These are diagnostics, not acceptance thresholds.`);
+  }
   if(protectedCount)notices.push(protectedCount.toLocaleString()+" protected samples were retained exactly.");
   if(waterProtected)notices.push(waterProtected.toLocaleString()+" sea/lake/wetland samples were retained exactly.");
   if(siteProtected)notices.push(siteProtected.toLocaleString()+" settlement-support samples were retained exactly.");

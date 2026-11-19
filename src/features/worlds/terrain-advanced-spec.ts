@@ -14,6 +14,13 @@ export const advancedAreaSchema=z.object({
   if(v.footprint&&v.footprint.parts.reduce((n,p)=>n+p.length,0)>128)c.addIssue({code:"custom",message:"Advanced operations support 128 selected boundary points. Simplify deliberately or choose a smaller area."});
 });
 const common={selection:advancedAreaSchema,preserveManual:z.boolean(),strength:z.number().finite().min(1).max(100)};
+export const landformProfileSchema=z.object({
+  ...common,kind:z.literal("landform-profile"),
+  points:z.array(advancedPointSchema.extend({elevationM:z.number().int().min(-30000).max(30000),widthM:metres})).min(2).max(128),
+  mode:z.enum(["shape","minimum","maximum"]),
+  hardness:z.number().finite().min(0).max(1),
+  endBlendM:z.number().finite().min(0).max(1e9),featherM:z.number().finite().min(0).max(1e9),
+}).strict();
 export const volcanoOperationSchema=z.object({
   ...common,kind:z.literal("volcano"),centre:advancedPointSchema,
   form:z.enum(["cone","shield","composite","cratered","caldera"]),
@@ -27,6 +34,7 @@ export const volcanoOperationSchema=z.object({
   if(v.blendM>v.radiusM)c.addIssue({code:"custom",message:"Keep the transition distance within the volcano radius."});
 });
 export const advancedOperationOptions=[
+  landformProfileSchema,
   z.object({...common,kind:z.literal("river-channel"),riverId:z.string().min(1).max(180),
     course:z.enum(["segment","downstream"]),first:z.number().int().min(0).max(510),last:z.number().int().min(1).max(511).nullable(),
     widthM:metres,depthM:z.number().finite().min(1).max(3000),bankSoftness:z.number().finite().min(0).max(1),
@@ -55,5 +63,6 @@ export const advancedProvenanceSchema=z.object({
 }).strict();
 export type AdvancedProvenance=z.infer<typeof advancedProvenanceSchema>;
 export const advancedNames:Record<AdvancedKind,string>={
+  "landform-profile":"Shape Landform Profile",
   "river-channel":"Carve River Channel",erosion:"Erode Selected Area",volcano:"Create Volcano",eruption:"Preview Eruption",
 };
