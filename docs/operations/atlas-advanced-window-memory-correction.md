@@ -26,10 +26,25 @@ Independent restoration passes all 407 public table digests, every one of the 16
 
 The same application bytes pass all 11 A6 groups and all four A3 groups, including seven native families, 19 actual downloads, later licensing-hold refusals and 19 independently rendered and visually inspected PDF pages. Private evidence retains the review-checkbox aria-label locator timeout separately from the earlier review-order timeout, plus the first output-inspection interpreter dependency failures. The successful inspection uses existing installed public Python packages. All owned services are stopped after their checks.
 
-Publication, all four exact completed release workflows, hosted provenance and clean main/remote parity remain pending. Do not claim a verified release from local validation alone.
+## Verified source release
+
+Technical PASS at `6cd244bc7165c223bf08263bbfa6356d7c1d7cf2`. Every required latest-attempt job and step completes successfully; only the success-path Ubuntu diagnostic upload is skipped.
+
+| Exact main-push workflow | Run | Attempt |
+| --- | --- | --- |
+| Normal validation | [44429229784](https://github.com/Revty79/serrian-tide-website/actions/runs/44429229784) | 1 |
+| Environment recovery | [44429229835](https://github.com/Revty79/serrian-tide-website/actions/runs/44429229835) | 1 |
+| Full Ubuntu deployment regression | [44429229745](https://github.com/Revty79/serrian-tide-website/actions/runs/44429229745) | 1 |
+| Signed image publisher and prebuilt acceptance | [44429229840](https://github.com/Revty79/serrian-tide-website/actions/runs/44429229840) | 1 |
+
+Immutable image `sha256:e3386db8dc74c0301d2701de70802788eb78cb94434e83d5501ce875adfee228` and Linux release fingerprint `b57c767619cd8e63fe9ad166f990db3579bc42e09fcf6297aa389eb8a93c38fb` pass independent checks against actual completed GitHub workflows and cryptographic hosted provenance. The unchanged required workflows include real installed-updater, preservation, refusal, rollback, bootstrap and prebuilt deployment acceptance in newly owned hosted fixtures. No additional repeat comparison builds are needed for this numerical-only correction; no deployment or updater code changes.
+
+All 2,172 local application inputs remain exact to the local build/source recorded above; 10,749 other tracked inputs match the prior main at source publication. Preserve these executable bytes through this documentation-only receipt and verify its normal CI and clean local/main/remote parity.
 
 ## Authoring boundary
 
 All permanent geography continues through the visible native Atlas preview, acceptance, save and history controls. Research pictures, validation grids, exported operation settings and native-field audit records remain outside Git and never become imported terrain or editing-coordinate lists. The separately authorized geographic pilot and its unfinished work are recorded privately; this software correction does not complete or accept that pilot.
+
+The native pilot is saved and independently checked as a review checkpoint. Its private receipt recommends **CORRECTIONS REQUIRED** for geographic quality and continuity, separately from software and preservation results. Stop for owner/Ember review; do not treat this release as geographic or owner acceptance, or start another physical-geography assignment automatically.
 
 No owner database restore, migration, service restart, Production, Canon, Tabletop or home-server action is included. The separate [trusted-origin command](deployment-a5-trusted-origin.md#ready-one-time-owner-command) remains pinned to `973d4f57e10df5231f02ff6efeb1e1ad3ac04b45` and unapplied.
