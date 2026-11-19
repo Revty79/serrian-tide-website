@@ -10,13 +10,15 @@ export type AuthoredVolcano={id:string;revision:number;sourceId:string|null;oper
 export type AdvancedTerrainContext={
   frame:TerrainFrame;world:{width:number;height:number;wrap:boolean};seaLevel:number;
   water:HydroLayer;sites:{id:string;x:number;y:number}[];volcanoes:AuthoredVolcano[];
+  /** Internal derived workspace only; never accepted from operation provenance. */
+  nativeLattice?:{frame:TerrainFrame;width:number;height:number;x:number;y:number};
 };
 export type AdvancedMetrics={
   changed:number;minimum:number;maximum:number;maxLoweringM:number;maxRaisingM:number;
   removedM3:number;addedM3:number;eligible:number;protected:number;waterProtected:number;siteProtected:number;
   visited:number;workingBytes:number;affected:TerrainFrame|null;notices:string[];
 };
-export type AdvancedResult={grid:Int16Array;patch:{indices:Uint32Array;before:Int16Array;after:Int16Array};metrics:AdvancedMetrics};
+export type AdvancedResult={grid:Int16Array;patch:{indices:Uint32Array;before:Int16Array;after:Int16Array};metrics:AdvancedMetrics;window?:import("./terrain-profile-window").ProfileWindow};
 const smooth=(t:number)=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
 const distance=(a:HydroPoint,b:HydroPoint,w:AdvancedTerrainContext["world"])=>Math.hypot(dx(a.x,b.x,w),b.y-a.y);
 const dx=(a:number,b:number,w:AdvancedTerrainContext["world"])=>{let v=b-a;if(w.wrap)v-=Math.round(v/w.width)*w.width;return v;};
@@ -60,7 +62,11 @@ export function* advancedTerrainSteps(
 ):Generator<number,AdvancedResult,void>{
   const op=advancedOperationSchema.parse(raw),n=shape.width*shape.height;
   if(base.length!==n||n>16777216||blocked&&blocked.length!==n||manual&&manual.length!==n)throw Error("The accepted terrain buffers do not match this bounded source.");
-  const {frame,world,seaLevel}=context,selection=op.selection,sx=frame.width/shape.width,sy=frame.height/shape.height;
+  const {frame,world,seaLevel,nativeLattice}=context,selection=op.selection,
+    sx=nativeLattice?nativeLattice.frame.width/nativeLattice.width:frame.width/shape.width,
+    sy=nativeLattice?nativeLattice.frame.height/nativeLattice.height:frame.height/shape.height,
+    nativeX=(x:number)=>nativeLattice?nativeLattice.frame.x+(nativeLattice.x+x)*sx:frame.x+x*sx,
+    nativeY=(y:number)=>nativeLattice?nativeLattice.frame.y+(nativeLattice.y+y)*sy:frame.y+y*sy;
   if(![sx,sy,world.width,world.height].every(v=>Number.isFinite(v)&&v>0)||!Number.isFinite(seaLevel))throw Error("The accepted physical terrain frame is invalid.");
   if(selection.footprint)validateRegionFootprint(selection.footprint,world,selection.frame);
   if(selection.frame.x>=world.width||selection.frame.width>world.width||selection.frame.y+selection.frame.height>world.height+1e-5||!world.wrap&&selection.frame.x+selection.frame.width>world.width+1e-5)throw Error("Keep the selection inside the World.");
@@ -84,13 +90,13 @@ export function* advancedTerrainSteps(
   }
   const xs:Array<{x:number;offset:number}>=[],ys:number[]=[];
   for(let x=0;x<shape.width;x++){
-    const wx=regionCanonicalX(frame.x+x*sx,world),p={x:wx,y:selection.frame.y};
+    const wx=regionCanonicalX(nativeX(x),world),p={x:wx,y:selection.frame.y};
     if(!rectContains({...selection.frame,y:0,height:world.height},p,world))continue;
     if(influence&&!rectContains({...influence,y:0,height:world.height},p,world))continue;
     xs.push({x,offset:world.wrap?((wx-selection.frame.x)%world.width+world.width)%world.width:wx-selection.frame.x});
   }
   xs.sort((a,b)=>a.offset-b.offset);
-  for(let y=0;y<shape.height;y++){const wy=frame.y+y*sy;if(wy>=selection.frame.y-1e-6&&wy<=selection.frame.y+selection.frame.height+1e-6&&(!influence||wy>=influence.y&&wy<=influence.y+influence.height))ys.push(y);}
+  for(let y=0;y<shape.height;y++){const wy=nativeY(y);if(wy>=selection.frame.y-1e-6&&wy<=selection.frame.y+selection.frame.height+1e-6&&(!influence||wy>=influence.y&&wy<=influence.y+influence.height))ys.push(y);}
   const cells=xs.length*ys.length;
   if(!cells)throw Error("This selection has no native samples in the active terrain source.");
   if(cells>LIMITS.cells||op.kind==="erosion"&&cells*op.iterations>LIMITS.work||op.kind==="landform-profile"&&cells*(op.points.length-1)>LIMITS.work)throw Error("Choose a smaller area or fewer operation steps or profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
@@ -108,13 +114,14 @@ export function* advancedTerrainSteps(
   let protectedCount=0,waterProtected=0,siteProtected=0,eligible=0,visited=0,geometryWork=0,lastYield=performance.now();
   const wet=[...(context.water.lakes??[]).map(l=>({rings:l.rings,bounds:waterBounds(l.rings.flat(),world)})),
     ...(context.water.features??[]).filter(f=>f.kind==="wetland").map(f=>({rings:f.rings,bounds:waterBounds(f.rings.flat(),world)}))];
-  const position=(i:number)=>({x:regionCanonicalX(frame.x+(i%shape.width)*sx,world),y:frame.y+Math.floor(i/shape.width)*sy});
+  const position=(i:number)=>({x:regionCanonicalX(nativeX(i%shape.width),world),y:nativeY(Math.floor(i/shape.width))});
   if(context.sites.length>8192)throw Error("This source exceeds 8,192 settlement supports. Choose a finer source for a bounded operation.");
   const siteMask=new Uint8Array(cells);
   for(const site of context.sites){
-    const gx=(world.wrap?((site.x-frame.x)%world.width+world.width)%world.width:site.x-frame.x)/sx,gy=(site.y-frame.y)/sy;
-    if(gx<0||gx>=shape.width||gy<0||gy>=shape.height)continue;
-    const x=shape.wrap?Math.round(gx)%shape.width:Math.min(shape.width-1,Math.round(gx)),y=Math.min(shape.height-1,Math.round(gy));
+    const sourceFrame=nativeLattice?.frame??frame,sourceWidth=nativeLattice?.width??shape.width,sourceHeight=nativeLattice?.height??shape.height,
+      gx=(world.wrap?((site.x-sourceFrame.x)%world.width+world.width)%world.width:site.x-sourceFrame.x)/sx,gy=(site.y-sourceFrame.y)/sy;
+    if(gx<0||gx>=sourceWidth||gy<0||gy>=sourceHeight)continue;
+    const x=(shape.wrap?Math.round(gx)%sourceWidth:Math.min(sourceWidth-1,Math.round(gx)))-(nativeLattice?.x??0),y=Math.min(sourceHeight-1,Math.round(gy))-(nativeLattice?.y??0);
     for(let ey=-1;ey<=1;ey++)for(let ex=-1;ex<=1;ex++){
       const xx=shape.wrap?(x+ex+shape.width)%shape.width:x+ex,yy=y+ey;
       if(xx>=0&&xx<shape.width&&yy>=0&&yy<shape.height){const k=windowIndex(yy*shape.width+xx);if(k>=0)siteMask[k]=1;}

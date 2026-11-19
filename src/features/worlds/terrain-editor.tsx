@@ -21,6 +21,7 @@ import type {WorldBundle} from "./history";
 import type {AdvancedTerrainInput} from "./terrain-advanced-workshop";
 import type {AdvancedKind,AdvancedProvenance} from "./terrain-advanced-spec";
 import type {AdvancedResult} from "./terrain-advanced";
+import {needsProfileWindow,advancedResultTile} from "./terrain-profile-window";
 import {MeasurementActions,usePreviousMeasurementTool} from "./measurement-actions";
 import {useAtlasAssets} from "./atlas-asset-client";
 import {snapCompositionPoint} from "./atlas-assets";
@@ -259,11 +260,14 @@ function Sculptor({ document: rootDocument, api:baseApi, editable, review, onDir
   function openAdvanced(kind:AdvancedKind,riverId?:string){
     if(!active||dirty||workingNow.current||savingNow.current||pendingCommand.current||locationsUnsaved||water.dirty||water.recovered||water.running||water.preview||environment.dirty||environment.recovered||environment.running||environment.proposal){setNotice("Save or resolve current terrain, water and environment work before preparing this operation. Pending Work retains each draft.");return;}
     markOperationDirty(true);
-    setOperation({document:{...saved,revision:revision.current,seaLevel:sea.current,refinement:saved.refinement?{...saved.refinement,revision:revision.current}:undefined},base:grid.slice(),world:{shape:rootShape,grid:rootGrid},blocked:blocked.slice(),manual:protectedCells.slice(),kind,riverId});
+    // The editor is locked while this workshop is open. Large profiles borrow
+    // accepted host buffers read-only, then copy only their derived workspace.
+    const windowed=needsProfileWindow(shape,{kind});
+    setOperation({document:{...saved,revision:revision.current,seaLevel:sea.current,refinement:saved.refinement?{...saved.refinement,revision:revision.current}:undefined},base:windowed?grid:grid.slice(),world:{shape:rootShape,grid:rootGrid},blocked:windowed?blocked:blocked.slice(),manual:windowed?protectedCells:protectedCells.slice(),kind,riverId});
   }
   async function applyAdvanced(result:AdvancedResult,advanced:AdvancedProvenance){
     if(!operation||!("manual" in operation)||operation.document.revision!==revision.current||pendingCommand.current||dirty||conflict)throw Error("The active source changed or has retained work. Keep these settings and preview saved terrain again.");
-    const keys=new Set(Array.from(result.patch.indices,i=>Math.floor(i/shape.width/32)*(shape.width/32)+Math.floor(i%shape.width/32))),command:NonNullable<TerrainRecovery["pending"]>={requestId:worldApi.newRequestId(),revision:revision.current,seaLevel:sea.current,tiles:[...keys].map(k=>readTile(result.grid,k,shape)),source:{kind:"manual",advanced},...(region?{sourceState:regionalSourcePin.current}:{})};
+    const keys=new Set(Array.from(result.patch.indices,i=>Math.floor(i/shape.width/32)*(shape.width/32)+Math.floor(i%shape.width/32))),command:NonNullable<TerrainRecovery["pending"]>={requestId:worldApi.newRequestId(),revision:revision.current,seaLevel:sea.current,tiles:[...keys].map(k=>advancedResultTile(result,grid,k,shape)),source:{kind:"manual",advanced},...(region?{sourceState:regionalSourcePin.current}:{})};
     await terrainRecovery("write",key,{key,revision:command.revision,seaLevel:command.seaLevel,sourceState:command.sourceState,tiles:command.tiles,pending:command,savedAt:new Date().toISOString()});
     pendingCommand.current=command;
     const touched=applyPatch(grid,result.patch,"after",shape);canvas.current?.refresh(touched);stroke(result.patch);

@@ -13,6 +13,7 @@ import {rootFrame,type TerrainFrame} from "./terrain-refinement";
 import {hydroLayerSchema,EMPTY_HYDROLOGY} from "./terrain-hydrology";
 import {advancedProvenanceSchema,ADVANCED_TERRAIN_LIMITS,type AdvancedProvenance} from "./terrain-advanced-spec";
 import {prepareAdvancedTerrainAsync,type AdvancedTerrainContext,type AuthoredVolcano} from "./terrain-advanced";
+import {planProfileWindow,copyProfileWindow,prepareWindowedProfile,profileWindowLocalIndex,advancedResultSample} from "./terrain-profile-window";
 import {isProtected,type TerrainSource} from "./terrain-source";
 import {readTerrainTile,type TerrainObject} from "./terrain-storage";
 import {worldReadAccess,WorldError} from "./world-service";
@@ -74,21 +75,33 @@ export async function validateAdvancedAcceptance(
 }
 export async function validateAdvancedTerrainTiles(packet:AdvancedContextPacket,intent:AdvancedProvenance,shape:TerrainGeometry,baseElevation:number,references:Reference[],tiles:TerrainTile[],blocked?:Uint8Array|null){
   if(packet.pin!==intent.contextPin)throw new WorldError("Water, settlement supports or authored volcano context changed. Keep the proposal and preview against saved geography again.",409);
-  const base=new Int16Array(shape.width*shape.height).fill(baseElevation),manual=new Uint8Array(base.length);
-  for(let offset=0;offset<references.length;offset+=16)await Promise.all(references.slice(offset,offset+16).map(async ref=>{
+  let window;
+  try{window=planProfileWindow(shape,intent.operation,packet.context);}
+  catch(error){throw new WorldError(error instanceof Error?error.message:"The native profile window is invalid.",400);}
+  const base=new Int16Array(window?window.width*window.height:shape.width*shape.height).fill(baseElevation),manual=new Uint8Array(base.length),
+    localReferences=window?references.filter(ref=>ref.x*32>=window.x&&ref.x*32<window.x+window.width&&ref.y*32>=window.y&&ref.y*32<window.y+window.height):references;
+  for(let offset=0;offset<localReferences.length;offset+=16)await Promise.all(localReferences.slice(offset,offset+16).map(async ref=>{
     const values=await readTerrainTile(ref);
-    for(let k=0;k<1024;k++){const i=(ref.y*32+(k>>5))*shape.width+ref.x*32+(k&31);base[i]=values[k];if(isProtected(ref.mask,k))manual[i]=1;}
+    for(let k=0;k<1024;k++){const global=(ref.y*32+(k>>5))*shape.width+ref.x*32+(k&31),i=window?profileWindowLocalIndex(window,global)!:global;base[i]=values[k];if(isProtected(ref.mask,k))manual[i]=1;}
   }));
   let result;
-  try{result=await prepareAdvancedTerrainAsync(base,shape,intent.operation,packet.context,blocked??undefined,manual);}
+  try{result=window?await prepareWindowedProfile(base,shape,intent.operation,packet.context,window,blocked?copyProfileWindow(blocked,window):undefined,manual):await prepareAdvancedTerrainAsync(base,shape,intent.operation,packet.context,blocked??undefined,manual);}
   catch(error){throw new WorldError(error instanceof Error?error.message:"The numerical proposal is invalid.",400);}
   if(intent.effect.changed!==result.metrics.changed||intent.effect.affected.footprint||JSON.stringify(intent.effect.affected.frame)!==JSON.stringify(result.metrics.affected))throw new WorldError("The retained effect summary does not match this numerical proposal.",400);
   if(!result.metrics.changed)throw new WorldError("This proposal makes no eligible numerical changes. Revise it; nothing was accepted.",400);
   const submitted=new Set(tiles.map(t=>t.y*(shape.width/32)+t.x));
   for(const i of result.patch.indices)if(!submitted.has(Math.floor(i/shape.width/32)*(shape.width/32)+Math.floor(i%shape.width/32)))throw new WorldError("The submitted tiles omit part of this numerical proposal.",400);
-  for(const tile of tiles)for(let k=0;k<1024;k++){
-    const i=(tile.y*32+(k>>5))*shape.width+tile.x*32+(k&31);
-    if(tile.samples[k]!==result.grid[i])throw new WorldError("The terrain tiles do not match the exact accepted advanced-operation parameters and saved sources.",400);
+  const referenceByKey=new Map(references.map(ref=>[ref.y*(shape.width/32)+ref.x,ref]));
+  for(const tile of tiles){
+    // Extra submitted tiles still have to equal accepted terrain exactly.
+    // Read them one at a time rather than reconstructing the full large source.
+    const outside=window&&profileWindowLocalIndex(window,tile.y*32*shape.width+tile.x*32)===undefined,
+      reference=outside?referenceByKey.get(tile.y*(shape.width/32)+tile.x):undefined,
+      accepted=reference?await readTerrainTile(reference):undefined;
+    for(let k=0;k<1024;k++){
+      const i=(tile.y*32+(k>>5))*shape.width+tile.x*32+(k&31);
+      if(tile.samples[k]!==advancedResultSample(result,i,accepted?.[k]??baseElevation))throw new WorldError("The terrain tiles do not match the exact accepted advanced-operation parameters and saved sources.",400);
+    }
   }
   return result.metrics;
 }

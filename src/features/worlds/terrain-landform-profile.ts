@@ -6,7 +6,7 @@ type Profile=Extract<AdvancedOperation,{kind:"landform-profile"}>;
 const smooth=(t:number)=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
 /** A physical path, with no global lookup or accumulated height at intersections. */
 export function prepareLandformProfile(op:Profile,shape:TerrainGeometry,context:AdvancedTerrainContext){
-  const {world,frame}=context,spacing=Math.max(frame.width/shape.width,frame.height/shape.height);
+  const {world,frame,nativeLattice}=context,spacing=nativeLattice?Math.max(nativeLattice.frame.width/nativeLattice.width,nativeLattice.frame.height/nativeLattice.height):Math.max(frame.width/shape.width,frame.height/shape.height);
   const dx=(a:number,b:number)=>{let d=b-a;if(world.wrap)d-=Math.round(d/world.width)*world.width;return d;};
   if(op.mode==="upper-envelope"){
     const base=op.envelopeBaseM;

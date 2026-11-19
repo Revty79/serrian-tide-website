@@ -1,6 +1,6 @@
 "use client";
 import {LandformProfileControls} from "./terrain-landform-profile-controls";
-import {frameLocalPoint,normalizeTerrainX} from "./terrain-refinement";
+import {frameLocalPoint,normalizeTerrainX,type RefinementMeta} from "./terrain-refinement";
 import { accountWorldStorage } from "./world-draft-storage";
 import {useEffect,useMemo,useRef,useState} from "react";
 import {ZodError} from "zod";
@@ -19,6 +19,7 @@ import {TerrainTouchSwitch,useTerrainTouchControls} from "./terrain-touch-contro
 import {useNativeWorldApi,useNativeHistoryRecovery} from "./native-map-history-client";
 import {advancedNames,advancedOperationSchema,ADVANCED_TERRAIN_LIMITS,type AdvancedKind,type AdvancedOperation,type AdvancedProvenance} from "./terrain-advanced-spec";
 import {prepareAdvancedTerrainAsync,type AdvancedResult} from "./terrain-advanced";
+import {planProfileWindow,copyProfileWindow,prepareWindowedProfile,advancedResultSample,profilePreviewMeta} from "./terrain-profile-window";
 import type {AdvancedContextPacket} from "./terrain-advanced-service";
 import type {TerrainOperationReply} from "./terrain-operation-job";
 import {parseAdvancedDraft,retireAdvancedDraft} from "./terrain-advanced-recovery";
@@ -61,7 +62,7 @@ export function AdvancedTerrainWorkshop(p:Props){
     [section,setSection]=useState("settings"),[tool,setTool]=useState<TerrainCanvasTool>("pan"),
     [profileInteraction,setProfileInteraction]=useState<"draw"|"move">("draw"),
     [areaMode,setAreaMode]=useState<"rectangle"|"points"|"freehand">("rectangle"),[outline,setOutline]=useState<RegionPoint[]>([]),
-    [drawing,setDrawing]=useState(false),[outlineTolerance,setOutlineTolerance]=useState(1),[proposal,setProposal]=useState<{result:AdvancedResult;fingerprint:string;elapsed:number}>(),
+    [drawing,setDrawing]=useState(false),[outlineTolerance,setOutlineTolerance]=useState(1),[proposal,setProposal]=useState<{result:AdvancedResult;fingerprint:string;elapsed:number;preview?:{meta:RefinementMeta;grid:Int16Array}}>(),
     [visualOnly,setVisualOnly]=useState(false),[visualReady,setVisualReady]=useState(false),[ash,setAsh]=useState<EnvironmentRegion>(),
     [before,setBefore]=useState(false),[busy,setBusy]=useState(false),[applying,setApplying]=useState(false),
     [renderReady,setRenderReady]=useState(false),[progress,setProgress]=useState(0),[backend,setBackend]=useState(""),[error,setError]=useState(""),
@@ -74,8 +75,8 @@ export function AdvancedTerrainWorkshop(p:Props){
     worker=useRef<Worker|null>(null),controller=useRef<AbortController|null>(null),serial=useRef(0),alive=useRef(true),
     watchdog=useRef<ReturnType<typeof setTimeout>|undefined>(undefined),retained=useRef(""),exported=useRef(false),storageFailed=useRef(false),origin=useRef<{key:string;raw:string}|undefined>(undefined),retired=useRef(false);
   const fingerprint=JSON.stringify({op,visualOnly}),fresh=proposal?.fingerprint===fingerprint,
-    previewGrid=!before&&fresh&&proposal?proposal.result.grid:p.input.base,
-    scene=useTerrainPreviewScene(doc.refinement,p.input.world,previewGrid),
+    previewGrid=!before&&fresh&&proposal&&!proposal.result.window?proposal.result.grid:p.input.base,
+    scene=useTerrainPreviewScene(doc.refinement,p.input.world,previewGrid,!before&&fresh?proposal?.preview:undefined),
     selectedVolcano=op.kind==="eruption"?packet?.context.volcanoes.find(v=>v.id===op.volcanoId):undefined,
     environmentOverlay=useMemo(()=>({layer:visualOnly&&visualReady&&!before&&ash?{...p.environment,regions:[ash,...p.environment.regions]}:p.environment,drawing:[]}),[p.environment,visualOnly,visualReady,before,ash]),
     waterOverlay=useMemo(()=>packet?{layer:packet.context.water,suggestions:null,selected:op.kind==="river-channel"?op.riverId:null,selectedPreview:false}:undefined,[packet,op]),
@@ -140,18 +141,28 @@ export function AdvancedTerrainWorkshop(p:Props){
         setAsh(volcanicAshCover("00000000-0000-4000-8000-000000000001",{...selectedVolcano.operation.centre},op.extentM));setVisualReady(true);setSection("review");return;
       }
     }catch(e){setError(e instanceof ZodError?e.issues.map(issue=>issue.path.join(" ")+": "+issue.message).join("; "):e instanceof Error?e.message:"Check the operation settings.");return;}
+    let workspace;
+    try{workspace=planProfileWindow(shape,op,packet.context);}
+    catch(e){setError(e instanceof Error?e.message:"Choose a supported profile area.");return;}
     const token=++serial.current,started=performance.now();let lastProgress=started;
+    setProposal(undefined);
     setBusy(true);setProgress(0);
     const publishProgress=(value:number)=>{if(alive.current&&token===serial.current&&(value===1||performance.now()-lastProgress>=100)){lastProgress=performance.now();setProgress(value);}};
     const accept=(result:AdvancedResult)=>{
       if(!alive.current||token!==serial.current)return;
-      setProposal({result,fingerprint,elapsed:performance.now()-started});setBusy(false);setSection("review");
+      const preview=result.window&&doc.refinement?{meta:profilePreviewMeta(doc.refinement,result.window),grid:result.grid}:undefined;
+      setProposal({result,fingerprint,elapsed:performance.now()-started,preview});setBusy(false);setSection("review");
     };
     const fallback=async()=>{
       if(token!==serial.current||!alive.current)return;
       worker.current?.terminate();worker.current=null;setBackend("Cooperative main-thread fallback");
       const abort=new AbortController();controller.current=abort;
-      try{accept(await prepareAdvancedTerrainAsync(p.input.base,shape,op,packet.context,p.input.blocked,p.input.manual,publishProgress,abort.signal));}
+      try{
+        // A failed worker may already own detached transfer buffers. Recreate
+        // only the bounded window from the unchanged accepted host source.
+        const local=workspace?{base:copyProfileWindow(p.input.base,workspace),blocked:copyProfileWindow(p.input.blocked,workspace),manual:copyProfileWindow(p.input.manual,workspace)}:p.input;
+        accept(workspace?await prepareWindowedProfile(local.base,shape,op,packet.context,workspace,local.blocked,local.manual,publishProgress,abort.signal):await prepareAdvancedTerrainAsync(local.base,shape,op,packet.context,local.blocked,local.manual,publishProgress,abort.signal));
+      }
       catch(e){if(alive.current&&token===serial.current){setBusy(false);setError(e instanceof Error?e.message:"The numerical preview failed.");}}
     };
     try{
@@ -163,11 +174,12 @@ export function AdvancedTerrainWorkshop(p:Props){
         if(data.type==="progress"){publishProgress(data.progress);return;}
         clearTimeout(timer);engine.terminate();worker.current=null;
         if(data.type==="error"||!data.advancedMetrics){setBusy(false);setError(data.type==="error"?data.message:"The worker returned no numerical effect summary.");return;}
-        accept({grid:new Int16Array(data.grid),patch:{indices:new Uint32Array(data.indices),before:new Int16Array(data.before),after:new Int16Array(data.after)},metrics:data.advancedMetrics});
+        accept({grid:new Int16Array(data.grid),patch:{indices:new Uint32Array(data.indices),before:new Int16Array(data.before),after:new Int16Array(data.after)},metrics:data.advancedMetrics,window:data.window});
       };
       engine.onerror=()=>{clearTimeout(timer);void fallback();};
-      const base=p.input.base.slice().buffer,blocked=p.input.blocked.slice().buffer,manual=p.input.manual.slice().buffer;
-      engine.postMessage({base,blocked,manual,shape,operation:op,context:packet.context},[base,blocked,manual]);
+      const buffers=workspace?{base:copyProfileWindow(p.input.base,workspace),blocked:copyProfileWindow(p.input.blocked,workspace),manual:copyProfileWindow(p.input.manual,workspace)}:p.input,
+        base=(workspace?buffers.base:buffers.base.slice()).buffer as ArrayBuffer,blocked=(workspace?buffers.blocked:buffers.blocked.slice()).buffer as ArrayBuffer,manual=(workspace?buffers.manual:buffers.manual.slice()).buffer as ArrayBuffer;
+      engine.postMessage({base,blocked,manual,shape,operation:op,context:packet.context,window:workspace??undefined},[base,blocked,manual]);
     }catch{await fallback();}
   }
   function selectRectangle(area:TerrainArea){
@@ -228,7 +240,7 @@ export function AdvancedTerrainWorkshop(p:Props){
       <button type="button" className="st-button is-secondary" aria-pressed={before} onClick={()=>setBefore(v=>!v)} aria-label={before?"Show proposed terrain":"Show original terrain"}><span className={styles.full}>{before?"Show proposed terrain":"Show original terrain"}</span><span className={styles.short} aria-hidden="true">{before?"After":"Before"}</span></button>
       <button type="button" className="st-button is-secondary" onClick={()=>{setTool("pan");setDrawing(false);}} aria-label="Stop choosing / Pan"><span className={styles.full}>Stop choosing / Pan</span><span className={styles.short} aria-hidden="true">Stop / Pan</span></button>
     </div>
-    <output className={styles.status} aria-label="Advanced terrain inspection">{inspection&&Number.isFinite(p.input.base[inspection.row*shape.width+inspection.column])?<><span className={styles.full}>{(inspection.mappedIslandWaterLevel!==undefined?"Mapped island: elevation unresolved; lake level "+inspection.mappedIslandWaterLevel+" m. Coarse numerical samples: saved ":"Saved ")+p.input.base[inspection.row*shape.width+inspection.column]+" m; proposed "+(fresh&&proposal?proposal.result.grid[inspection.row*shape.width+inspection.column]:p.input.base[inspection.row*shape.width+inspection.column])+" m. East "+Math.round(inspection.x)+" m, south "+Math.round(inspection.y)+" m."}</span><span className={styles.short}>{(inspection.mappedIslandWaterLevel!==undefined?"Island elevation unresolved; lake "+inspection.mappedIslandWaterLevel+" m; coarse saved ":"Saved ")+p.input.base[inspection.row*shape.width+inspection.column]+" m / proposed "+(fresh&&proposal?proposal.result.grid[inspection.row*shape.width+inspection.column]:p.input.base[inspection.row*shape.width+inspection.column])+" m"}</span></>:"Pan or tap to inspect heights."}</output>
+    <output className={styles.status} aria-label="Advanced terrain inspection">{inspection&&Number.isFinite(p.input.base[inspection.row*shape.width+inspection.column])?<><span className={styles.full}>{(inspection.mappedIslandWaterLevel!==undefined?"Mapped island: elevation unresolved; lake level "+inspection.mappedIslandWaterLevel+" m. Coarse numerical samples: saved ":"Saved ")+p.input.base[inspection.row*shape.width+inspection.column]+" m; proposed "+(fresh&&proposal?advancedResultSample(proposal.result,inspection.row*shape.width+inspection.column,p.input.base[inspection.row*shape.width+inspection.column]):p.input.base[inspection.row*shape.width+inspection.column])+" m. East "+Math.round(inspection.x)+" m, south "+Math.round(inspection.y)+" m."}</span><span className={styles.short}>{(inspection.mappedIslandWaterLevel!==undefined?"Island elevation unresolved; lake "+inspection.mappedIslandWaterLevel+" m; coarse saved ":"Saved ")+p.input.base[inspection.row*shape.width+inspection.column]+" m / proposed "+(fresh&&proposal?advancedResultSample(proposal.result,inspection.row*shape.width+inspection.column,p.input.base[inspection.row*shape.width+inspection.column]):p.input.base[inspection.row*shape.width+inspection.column])+" m"}</span></>:"Pan or tap to inspect heights."}</output>
     {busy&&<p className={styles.status} role="status">{backend+" — "+Math.round(progress*100)+"%"} <progress max={1} value={progress}/></p>}
   </div>;
   return <div className={styles.shell}><CreatorWorkshop mapFirst title={advancedNames[op.kind]} introduction="Preview, compare, then accept or cancel. Drawing water never carves automatically."
