@@ -148,3 +148,50 @@ test("polygon erosion feathers at the drawn edge and leaves outside samples exac
   assert.equal(r.grid[30*64+19],base[30*64+19]);
   assert.ok(r.grid[30*64+30]<base[30*64+30]);
 });
+
+test("bounded 2048-source erosion exactly matches the same regional samples with every support retained",async()=>{
+  const side=2048,origin=980,spacing=100,s={...shape,width:side,height:side,displayWidth:side*spacing,displayHeight:side*spacing},
+    base=new Int16Array(side*side).fill(200),localBase=slope(),blocked=new Uint8Array(base.length),manual=new Uint8Array(base.length),
+    localBlocked=new Uint8Array(4096),localManual=new Uint8Array(4096),toGlobal=(i:number)=>(origin+Math.floor(i/64))*side+origin+i%64;
+  for(let i=0;i<localBase.length;i++)base[toGlobal(i)]=localBase[i];
+  localBlocked[25*64+25]=1;blocked[toGlobal(25*64+25)]=1;localManual[26*64+26]=1;manual[toGlobal(26*64+26)]=1;
+  const c=context();c.world={width:side*spacing,height:side*spacing,wrap:false};c.frame={x:0,y:0,width:c.world.width,height:c.world.height};c.sites=[{id:"retained-town",x:101600,y:101500}];
+  c.water.lakes=[{id:"retained-lake",name:"Retained lake",rings:[[{x:100800,y:100800},{x:101200,y:100800},{x:101200,y:101200},{x:100800,y:101200}]],levelM:0,seed:{x:101000,y:101000},spillM:null,condition:"standing",mode:"closed",inletNodeIds:[],outletNodeId:null,flowKind:"manual",exceptionReason:"",protected:true,analysisId:null,sourceIds:[],review:false}];
+  const op={...erosion,selection:{frame:{x:100000,y:100000,width:2400,height:2400}},featherM:100},original=base.slice(),
+    localContext={...c,frame:{x:origin*spacing,y:origin*spacing,width:6400,height:6400}},
+    local=prepareAdvancedTerrain(localBase,shape,op,localContext,localBlocked,localManual),
+    actual=prepareAdvancedTerrain(base,s,op,c,blocked,manual),expected=original.slice();
+  for(let y=0;y<64;y++)expected.set(local.grid.subarray(y*64,(y+1)*64),(origin+y)*side+origin);
+  assert.ok(actual.metrics.changed>0);assert.deepEqual(base,original);assert.deepEqual(actual.grid,expected);
+  assert.deepEqual(Array.from(actual.patch.indices),Array.from(local.patch.indices,toGlobal));assert.deepEqual(actual.patch.before,local.patch.before);assert.deepEqual(actual.patch.after,local.patch.after);
+  for(const key of ["changed","eligible","protected","waterProtected","siteProtected","removedM3","addedM3","maxLoweringM","maxRaisingM"] as const)assert.equal(actual.metrics[key],local.metrics[key],key);
+  assert.ok(actual.metrics.waterProtected>0&&actual.metrics.siteProtected>0&&actual.metrics.protected>0);
+  assert.ok(actual.metrics.workingBytes<=32*1024*1024);assert.ok(actual.metrics.workingBytes>=base.byteLength*2);
+  const cooperative=await prepareAdvancedTerrainAsync(base,s,op,c,blocked,manual);assert.deepEqual(cooperative.grid,actual.grid);assert.deepEqual(cooperative.patch,actual.patch);
+});
+
+test("wrapped erosion and settlement supports equal a rotation away from the date-line seam",()=>{
+  const c=context();c.world.wrap=true;c.sites=[{id:"edge-town",x:6399,y:2500}];
+  const base=slope(),op={...erosion,preserveManual:false,selection:{frame:{x:6000,y:1000,width:800,height:3000}},featherM:50},
+    rotate=(g:Int16Array)=>Int16Array.from({length:g.length},(_,i)=>g[Math.floor(i/64)*64+(i%64+32)%64]),
+    shifted={...c,sites:[{id:"edge-town",x:3199,y:2500}]},a=prepareAdvancedTerrain(base,{...shape,wrap:true},op,c),
+    b=prepareAdvancedTerrain(rotate(base),{...shape,wrap:true},{...op,selection:{frame:{...op.selection.frame,x:2800}}},shifted);
+  assert.ok(a.metrics.changed>0&&a.metrics.siteProtected>0);assert.deepEqual(rotate(a.grid),b.grid);
+  for(const key of ["changed","eligible","siteProtected","removedM3","addedM3"] as const)assert.equal(a.metrics[key],b.metrics[key],key);
+});
+
+test("a tiny selection still refuses a 4096-square source beyond the unchanged 32 MiB budget",()=>{
+  const side=4096,base=new Int16Array(side*side).fill(200),c=context();c.frame={x:0,y:0,width:side*100,height:side*100};c.world={width:c.frame.width,height:c.frame.height,wrap:false};
+  assert.throws(()=>prepareAdvancedTerrain(base,{...shape,width:side,height:side,displayWidth:c.frame.width,displayHeight:c.frame.height},{...erosion,selection:{frame:{x:1000,y:1000,width:1000,height:1000}}},c),/32 MiB/);
+  assert.ok(base.every(z=>z===200));
+});
+
+test("tiny positive edge weights retain neighbour eligibility before Float32 rounding",()=>{
+  const extent=640000000,s={...shape,displayWidth:extent,displayHeight:extent},c=context();
+  c.frame={x:1e-20,y:0,width:extent,height:extent};c.world={width:1000000000,height:extent,wrap:false};
+  const base=new Int16Array(4096).fill(5000);for(let y=0;y<64;y++){base[y*64]=1;base[y*64+1]=10000;}
+  const op={...erosion,preserveManual:false,selection:{frame:{x:0,y:0,width:extent,height:extent}},strength:100,iterations:40,directionInfluence:0,deposition:false,maxDepthM:3000,featherM:1000000000},r=prepareAdvancedTerrain(base,s,op,c);
+  // The original engine admits the tiny positive boundary weight before it
+  // rounds to zero in Float32. That neighbour wins, with zero transport.
+  assert.equal(r.grid[32*64+1],10000);assert.deepEqual(base.subarray(32*64,32*64+2),Int16Array.of(1,10000));
+});

@@ -92,23 +92,30 @@ export function* advancedTerrainSteps(
   const cells=xs.length*ys.length;
   if(!cells)throw Error("This selection has no native samples in the active terrain source.");
   if(cells>LIMITS.cells||op.kind==="erosion"&&cells*op.iterations>LIMITS.work)throw Error("Choose a smaller area or fewer erosion steps. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
-  const bytes=n*12+cells*64;
+  // Retain the previous source/selected-work reserves, less the full-source
+  // Int32 lookup and Uint8 settlement mask that are no longer allocated.
+  // Axis ranks cover wrapped/non-contiguous columns; protection stays local.
+  const bytes=n*7+cells*64+(shape.width+shape.height)*Int32Array.BYTES_PER_ELEMENT;
   if(bytes>LIMITS.workingBytes)throw Error("This operation exceeds its 32 MiB numerical working-buffer budget. Choose a smaller area.");
-  const lookup=new Int32Array(n).fill(-1),indices=new Uint32Array(cells),weights=new Float32Array(cells),
+  const columns=new Int32Array(shape.width).fill(-1),rows=new Int32Array(shape.height).fill(-1),
+    indices=new Uint32Array(cells),weights=new Float32Array(cells),eligibility=new Uint8Array(cells),
     bed=new Float64Array(cells),delta=new Float64Array(cells),removed=new Float64Array(cells);
+  xs.forEach((value,index)=>{columns[value.x]=index;});ys.forEach((value,index)=>{rows[value]=index;});
+  const windowIndex=(i:number)=>{const x=columns[i%shape.width],y=rows[Math.floor(i/shape.width)];return x<0||y<0?-1:y*xs.length+x;};
+  const eligibleIndex=(i:number)=>{const k=windowIndex(i);return k>=0&&eligibility[k]?k:-1;};
   let protectedCount=0,waterProtected=0,siteProtected=0,eligible=0,visited=0,geometryWork=0,lastYield=performance.now();
   const wet=[...(context.water.lakes??[]).map(l=>({rings:l.rings,bounds:waterBounds(l.rings.flat(),world)})),
     ...(context.water.features??[]).filter(f=>f.kind==="wetland").map(f=>({rings:f.rings,bounds:waterBounds(f.rings.flat(),world)}))];
   const position=(i:number)=>({x:regionCanonicalX(frame.x+(i%shape.width)*sx,world),y:frame.y+Math.floor(i/shape.width)*sy});
   if(context.sites.length>8192)throw Error("This source exceeds 8,192 settlement supports. Choose a finer source for a bounded operation.");
-  const siteMask=new Uint8Array(n);
+  const siteMask=new Uint8Array(cells);
   for(const site of context.sites){
     const gx=(world.wrap?((site.x-frame.x)%world.width+world.width)%world.width:site.x-frame.x)/sx,gy=(site.y-frame.y)/sy;
     if(gx<0||gx>=shape.width||gy<0||gy>=shape.height)continue;
     const x=shape.wrap?Math.round(gx)%shape.width:Math.min(shape.width-1,Math.round(gx)),y=Math.min(shape.height-1,Math.round(gy));
     for(let ey=-1;ey<=1;ey++)for(let ex=-1;ex<=1;ex++){
       const xx=shape.wrap?(x+ex+shape.width)%shape.width:x+ex,yy=y+ey;
-      if(xx>=0&&xx<shape.width&&yy>=0&&yy<shape.height)siteMask[yy*shape.width+xx]=1;
+      if(xx>=0&&xx<shape.width&&yy>=0&&yy<shape.height){const k=windowIndex(yy*shape.width+xx);if(k>=0)siteMask[k]=1;}
     }
   }
   const counts=()=>{visited++;return (visited&255)===0&&performance.now()-lastYield>4;};
@@ -125,7 +132,7 @@ export function* advancedTerrainSteps(
       if(insideWaterRings(p,water.rings,world)){underwater=true;break;}
     }
     if(underwater){waterProtected++;continue;}
-    if(siteMask[i]){siteProtected++;continue;}
+    if(siteMask[k]){siteProtected++;continue;}
     const a=selection.frame,px=world.wrap?((p.x-a.x)%world.width+world.width)%world.width:p.x-a.x,
       feather=op.kind==="erosion"?op.featherM:0;
     let edge=Math.min(px,a.width-px,p.y-a.y,a.y+a.height-p.y);
@@ -135,12 +142,13 @@ export function* advancedTerrainSteps(
       edge=Math.min(edge,nearestWaterShore(p,selection.footprint.parts,world).distance);
     }
     const weight=feather?smooth(Math.max(0,edge)/feather):1;
-    if(weight>0){weights[k]=weight;lookup[i]=k;eligible++;}
+    // Preserve admission before Float32 rounding, as the original lookup did.
+    if(weight>0){weights[k]=weight;eligibility[k]=1;eligible++;}
     if(counts()){lastYield=performance.now();yield .12*k/cells;}
   }
   const globalIndex=(x:number,y:number)=>y<0||y>=shape.height||!shape.wrap&&(x<0||x>=shape.width)?-1:y*shape.width+((x%shape.width+shape.width)%shape.width);
   const nearby=(i:number)=>{const x=i%shape.width,y=Math.floor(i/shape.width),out:Array<{k:number;east:number;south:number;length:number}>=[];
-    for(let ey=-1;ey<=1;ey++)for(let ex=-1;ex<=1;ex++){if(!ex&&!ey)continue;const j=globalIndex(x+ex,y+ey),k=j<0?-1:lookup[j];if(k>=0)out.push({k,east:ex,south:ey,length:Math.hypot(ex*sx,ey*sy)});}return out;};
+    for(let ey=-1;ey<=1;ey++)for(let ex=-1;ex<=1;ex++){if(!ex&&!ey)continue;const j=globalIndex(x+ex,y+ey),k=j<0?-1:eligibleIndex(j);if(k>=0)out.push({k,east:ex,south:ey,length:Math.hypot(ex*sx,ey*sy)});}return out;};
   const sample=(p:HydroPoint)=>{
     const gx=(world.wrap?((p.x-frame.x)%world.width+world.width)%world.width:p.x-frame.x)/sx,gy=(p.y-frame.y)/sy;
     if(gx<0||gx>=shape.width||gy<0||gy>=shape.height)return null;
@@ -158,7 +166,7 @@ export function* advancedTerrainSteps(
         let best=-1,bestScore=-Infinity,bestDrop=0;
         const x=indices[k]%shape.width,y=Math.floor(indices[k]/shape.width);
         for(const q of directions){
-          const i=globalIndex(x+q.east,y+q.south),other=i<0?-1:lookup[i];if(other<0)continue;
+          const i=globalIndex(x+q.east,y+q.south),other=i<0?-1:eligibleIndex(i);if(other<0)continue;
           const drop=bed[k]-bed[other],excess=drop-(op.model==="thermal"?q.length*repose:0);
           if(excess<=0)continue;
           const score=excess/q.length*(1+op.directionInfluence*q.cosine*.95);
@@ -228,7 +236,7 @@ export function* advancedTerrainSteps(
       if(distance(op.source,authored!.operation.centre,world)>authored!.operation.radiusM+authored!.operation.blendM)throw Error("Choose a lava source on the retained volcano footprint.");
       let i=sample(op.source),length=0;const seen=new Set<number>();let reason="step limit";
       for(let step=0;i!==null&&step<op.steps;step++){
-        const k=lookup[i];if(k<0){reason="protected land, shoreline or selection boundary";break;}
+        const k=eligibleIndex(i);if(k<0){reason="protected land, shoreline or selection boundary";break;}
         if(seen.has(i)){reason="retained sink";break;}seen.add(i);paths.push(position(i));targets.push(base[i]+op.magnitudeM*op.strength/100);
         const next=nearby(i).filter(q=>base[indices[q.k]]<base[i!]).sort((a,b)=>(base[i!]-base[indices[b.k]])/b.length-(base[i!]-base[indices[a.k]])/a.length)[0];
         if(!next){reason="sink or protected boundary";break;}
@@ -247,7 +255,7 @@ export function* advancedTerrainSteps(
       const bedTarget=!lava&&j>0&&j+1<targets.length?Math.min(targets[j],targets[j]*(1-smoothing)+(targets[j-1]+targets[j+1])/2*smoothing):targets[j];
       for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
         if(counts()){lastYield=performance.now();yield .12+.7*j/paths.length;}
-        const i=globalIndex(x,y),k=i<0?-1:lookup[i];if(k<0)continue;
+        const i=globalIndex(x,y),k=i<0?-1:eligibleIndex(i);if(k<0)continue;
         const r=Math.hypot((x-cx)*sx,(y-cy)*sy)/radius;if(r>=1)continue;
         const weight=(1-r*r)**2;
         coverage[k]=Math.max(coverage[k],weight);
