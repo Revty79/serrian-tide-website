@@ -1,0 +1,14 @@
+import {describe,it} from "node:test";
+import assert from "node:assert/strict";
+import {terrainReloadBinding,retainTerrainReloadView,readTerrainReloadView,type TerrainReloadContext} from "./terrain-reload-view";
+const context:TerrainReloadContext={actorId:"creator-a",api:"/api/worlds/world-a/terrain",worldId:"world-a",mapId:"map-a",terrainId:"terrain-a",width:40000,height:20000,columns:2048,rows:1024,wrap:true,navigation:"[null,null]"};
+const viewport={left:17000,right:21000,top:8000,bottom:10000,width:1200,height:600,scale:.3};
+describe("native accepted-source reload camera",()=>{
+ it("retains the physical centre and zoom independently of viewport pixels",()=>{const key=terrainReloadBinding(context),saved=retainTerrainReloadView(key,viewport);assert.deepEqual(readTerrainReloadView(key,saved),{x:19000,y:9000,scale:.3});assert.equal(viewport.left,17000);});
+ it("isolates accounts, destinations, current/dated API scope and explicit arrivals",()=>{const saved=retainTerrainReloadView(terrainReloadBinding(context),viewport);for(const change of[{actorId:"creator-b"},{worldId:"world-b"},{mapId:"map-b"},{terrainId:"terrain-b"},{api:context.api+"?atlasYear=100"},{navigation:'["record-camera",null]'},{navigation:'[null,"explicit-arrival"]'}])assert.equal(readTerrainReloadView(terrainReloadBinding({...context,...change}),saved),undefined);});
+ it("refuses changed physical or numerical geometry",()=>{const saved=retainTerrainReloadView(terrainReloadBinding(context),viewport);for(const change of[{width:80000},{height:40000},{columns:4096},{rows:2048},{wrap:false}])assert.equal(readTerrainReloadView(terrainReloadBinding({...context,...change}),saved),undefined);});
+ it("does not retain an unbound account or an uninitialized viewport",()=>{assert.equal(terrainReloadBinding({...context,actorId:undefined}),undefined);assert.equal(retainTerrainReloadView(undefined,viewport),undefined);assert.equal(retainTerrainReloadView("bound",null),undefined);assert.equal(retainTerrainReloadView("bound",{...viewport,width:0}),undefined);});
+ it("refuses incomplete or invalid context geometry",()=>{for(const change of[{api:""},{mapId:""},{width:NaN},{height:0},{columns:1.5},{rows:Infinity}])assert.equal(terrainReloadBinding({...context,...change}),undefined);});
+ it("refuses invalid camera numbers rather than changing the destination",()=>{for(const change of[{scale:0},{scale:Infinity},{left:NaN},{bottom:viewport.top}])assert.equal(retainTerrainReloadView("bound",{...viewport,...change}),undefined);assert.equal(readTerrainReloadView("bound",{binding:"bound",x:NaN,y:0,scale:1}),undefined);});
+ it("preserves the selected wrapped copy without mutating the retained UI record",()=>{const saved=Object.freeze({binding:"bound",x:81000,y:9000,scale:.3}),read=readTerrainReloadView("bound",saved);assert.deepEqual(read,{x:81000,y:9000,scale:.3});assert.notEqual(read,saved);});
+});
