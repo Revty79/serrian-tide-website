@@ -4,7 +4,7 @@ import {terrainSourceSchema} from "./terrain-source";
 import {TERRAIN_RESOLUTION,TERRAIN_TRANSFER} from "./terrain-resolution";
 import type {NativeHistoryScope} from "./native-map-history";
 const id=z.uuid(),digest=z.string().regex(/^[a-f0-9]{64}$/);
-const save=z.object({action:z.literal("save"),requestId:id,mapId:id,revision:z.number().int().positive(),seaLevel:elevationSchema,sourceState:z.string().max(8192).optional(),source:terrainSourceSchema.optional()}).strict();
+const save=z.object({action:z.literal("save"),requestId:id,mapId:id,revision:z.number().int().positive(),seaLevel:elevationSchema,sourceState:z.string().max(8192).optional(),source:terrainSourceSchema.optional()}).strict().superRefine((v,c)=>{if(v.source?.kind==="manual"&&v.source.sharedRelief)c.addIssue({code:"custom",message:"Shared relief is accepted only by its checked atomic native workflow."});});
 const create=z.object({action:z.literal("create"),requestId:id,name:z.string().trim().min(1).max(160),initial:z.enum(["generated","imported"]),seaLevel:elevationSchema.optional(),source:terrainSourceSchema,settings:terrainSettingsSchema}).strict();
 export const terrainTransferHeaderSchema=z.discriminatedUnion("action",[save,create]);
 export type TerrainTransferHeader=z.infer<typeof terrainTransferHeaderSchema>&{nativeScope?:NativeHistoryScope};

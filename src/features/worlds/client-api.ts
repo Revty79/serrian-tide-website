@@ -19,7 +19,7 @@ async function rawWorldApi<T>(url:string,method="GET",body?:unknown,signal?:Abor
   const data = await response.json().catch(() => ({ error: "The server response could not be read. Your draft is still here." }));
   if (!response.ok || data?.error) throw new SaveError(data?.error ?? "The request failed. Your draft is still here.", response.status);
   if(actor){if(response.headers.get("X-World-Actor")!==actor)throw new SaveError("World access or the signed-in account changed. Your draft remains retained.",409);try{acceptWorldResponse(url,actor,data,editingHeaders["X-World-Editor"]?JSON.parse(editingHeaders["X-World-Editor"]).fence:undefined);}catch(error){throw new SaveError((error as Error).message,409);}}
-  const geography=method!=="GET"&&url.match(/\/api\/worlds\/([^/?]+)\/(?:terrain(?:\?|$|\/(?:refinements|hydrology|environment|materials|artwork|labels)(?:\?|$))|towns(?:\?|$)|atlas-history\/conditions(?:\?|$))/);
+  const geography=method!=="GET"&&url.match(/\/api\/worlds\/([^/?]+)\/(?:terrain(?:\?|$|\/(?:refinements|shared-relief|hydrology|environment|materials|artwork|labels)(?:\?|$))|towns(?:\?|$)|atlas-history\/conditions(?:\?|$))/);
   if(geography)notifyWorldGeography(geography[1],nativeRequestGeographyContext(url));
   return data as T;
 }

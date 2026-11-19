@@ -89,12 +89,12 @@ export function worldEditorHeaders(url:string):Record<string,string>{
   const pathname=target.pathname,id=pathname.match(/^\/api\/worlds\/([^/]+)(?:\/|$)/)?.[1],client=id?active.get(id):undefined;
   return client?{"X-World-Editor":JSON.stringify({...client.proof})}:{};
 }
-export async function worldFetch(url:string,init:RequestInit={}):Promise<Response>{
+export async function worldFetch(url:string,init:RequestInit={},options:{readOnlyPreview?:boolean}={}):Promise<Response>{
   url=worldClientUrl(url);const actor=worldRequestActor(url);
   const headers=new Headers(init.headers);for(const[key,value]of Object.entries(worldEditorHeaders(url)))headers.set(key,value);
   if(actor)headers.set("X-World-Actor",actor);
   const response=await fetch(url,{...init,headers});if(response.ok&&actor&&(response.headers.get("X-World-Actor")!==actor||worldRequestActor(url)!==actor))throw Error("World access or the signed-in account changed. The original draft is retained.");
-  if(response.ok&&typeof window!=="undefined"&&!["GET","HEAD"].includes((init.method??"GET").toUpperCase())){const path=new URL(url,window.location.href).pathname,id=path.match(/^\/api\/worlds\/([a-f0-9-]{36})(?:\/|$)/i)?.[1];if(id&&!path.endsWith("/access"))window.dispatchEvent(new CustomEvent("atlas:source-content-saved",{detail:{worldId:id}}));}
+  if(response.ok&&!options.readOnlyPreview&&typeof window!=="undefined"&&!["GET","HEAD"].includes((init.method??"GET").toUpperCase())){const path=new URL(url,window.location.href).pathname,id=path.match(/^\/api\/worlds\/([a-f0-9-]{36})(?:\/|$)/i)?.[1];if(id&&!path.endsWith("/access"))window.dispatchEvent(new CustomEvent("atlas:source-content-saved",{detail:{worldId:id}}));}
   return response;
 }
 /** New World drafts are account-bound; old owner packets are not deleted. */

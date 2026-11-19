@@ -69,7 +69,7 @@ function byConstraint<T extends { constraintName: string }>(
   return left.constraintName.localeCompare(right.constraintName);
 }
 
-test("the account plan classifies the current 158-FK User closure", () => {
+test("the account plan classifies the current 159-FK User closure", () => {
   const actual = Object.values(snapshot.tables).flatMap((table) => (
     Object.values(table.foreignKeys ?? {})
       .filter(({ tableTo }) => tableTo === "user")
@@ -88,7 +88,7 @@ test("the account plan classifies the current 158-FK User closure", () => {
   })).sort(byConstraint);
 
   assert.equal(USER_ACCOUNT_FOREIGN_KEY_PLAN.length, USER_ACCOUNT_FOREIGN_KEY_COUNT);
-  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 158);
+  assert.equal(USER_ACCOUNT_FOREIGN_KEY_COUNT, 159);
   assert.equal(new Set(planned.map(({ constraintName }) => constraintName)).size, USER_ACCOUNT_FOREIGN_KEY_COUNT);
   assert.deepEqual(planned, actual);
   assert.equal(Number(currentMigrationPrefix), currentMigration.idx, "inspect the latest journal snapshot, including type-only migrations");
@@ -113,9 +113,9 @@ test("only authentication, personal preferences, and membership associations are
   );
   assert.equal(
     USER_ACCOUNT_FOREIGN_KEY_PLAN.filter(({ disposition }) => disposition === "block").length,
-    150,
+    151,
   );
-  for (const constraint of ["world_region_footprint_author_fk", "world_regional_edit_author_fk", "world_map_region_author_fk", "world_hydrology_editor_fk", "world_hydrology_version_author_fk", "world_environment_editor_fk", "world_environment_version_author_fk"]) {
+  for (const constraint of ["world_region_footprint_author_fk", "world_regional_edit_author_fk", "world_map_region_author_fk", "world_hydrology_editor_fk", "world_hydrology_version_author_fk", "world_environment_editor_fk", "world_environment_version_author_fk", "world_terrain_relief_group_author_id_user_id_fk"]) {
     assert.equal(USER_ACCOUNT_FOREIGN_KEY_PLAN.find(entry => entry.constraintName === constraint)?.disposition, "block", "waterway attribution and accepted history remain protected");
   }
   assert.equal(

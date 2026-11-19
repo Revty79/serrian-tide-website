@@ -5,6 +5,7 @@ import {insideWaterRings,waterBounds,nearestWaterShore} from "./terrain-water-ge
 import {regionAreaContainsPoint,regionCanonicalX,validateRegionFootprint} from "./terrain-region-geometry";
 import {ADVANCED_TERRAIN_LIMITS as LIMITS,advancedOperationSchema,type AdvancedOperation,type VolcanoOperation} from "./terrain-advanced-spec";
 import {prepareLandformProfile} from "./terrain-landform-profile";
+import {profileWorkArea} from "./terrain-profile-work-area";
 
 export type AuthoredVolcano={id:string;revision:number;sourceId:string|null;operation:VolcanoOperation};
 export type AdvancedTerrainContext={
@@ -12,11 +13,14 @@ export type AdvancedTerrainContext={
   water:HydroLayer;sites:{id:string;x:number;y:number}[];volcanoes:AuthoredVolcano[];
   /** Internal derived workspace only; never accepted from operation provenance. */
   nativeLattice?:{frame:TerrainFrame;width:number;height:number;x:number;y:number};
+  /** Internal native shared-relief work area. Its east/south edges are open. */
+  processingArea?:TerrainFrame;
 };
 export type AdvancedMetrics={
   changed:number;minimum:number;maximum:number;maxLoweringM:number;maxRaisingM:number;
   removedM3:number;addedM3:number;eligible:number;protected:number;waterProtected:number;siteProtected:number;
   visited:number;workingBytes:number;affected:TerrainFrame|null;notices:string[];
+  geometryWork?:number;
 };
 export type AdvancedResult={grid:Int16Array;patch:{indices:Uint32Array;before:Int16Array;after:Int16Array};metrics:AdvancedMetrics;window?:import("./terrain-profile-window").ProfileWindow};
 const smooth=(t:number)=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
@@ -62,7 +66,7 @@ export function* advancedTerrainSteps(
 ):Generator<number,AdvancedResult,void>{
   const op=advancedOperationSchema.parse(raw),n=shape.width*shape.height;
   if(base.length!==n||n>16777216||blocked&&blocked.length!==n||manual&&manual.length!==n)throw Error("The accepted terrain buffers do not match this bounded source.");
-  const {frame,world,seaLevel,nativeLattice}=context,selection=op.selection,
+  const {frame,world,seaLevel,nativeLattice,processingArea}=context,selection=op.selection,
     sx=nativeLattice?nativeLattice.frame.width/nativeLattice.width:frame.width/shape.width,
     sy=nativeLattice?nativeLattice.frame.height/nativeLattice.height:frame.height/shape.height,
     nativeX=(x:number)=>nativeLattice?nativeLattice.frame.x+(nativeLattice.x+x)*sx:frame.x+x*sx,
@@ -88,15 +92,16 @@ export function* advancedTerrainSteps(
     influence={x:world.wrap?regionCanonicalX(b.x-r,world):b.x-r,y:b.y-r,width:Math.min(world.width,b.width+2*r),height:b.height+2*r};
     if(op.kind==="river-channel"&&op.widthM<Math.max(sx,sy))throw Error("This channel is narrower than the native sample spacing. Choose finer terrain or an explicit supported width.");
   }
-  const xs:Array<{x:number;offset:number}>=[],ys:number[]=[];
+  const xs:Array<{x:number;offset:number}>=[],ys:number[]=[],workArea=processingArea?profileWorkArea(selection.frame,processingArea,world):undefined;
   for(let x=0;x<shape.width;x++){
     const wx=regionCanonicalX(nativeX(x),world),p={x:wx,y:selection.frame.y};
     if(!rectContains({...selection.frame,y:0,height:world.height},p,world))continue;
+    if(workArea&&!workArea.containsX(wx))continue;
     if(influence&&!rectContains({...influence,y:0,height:world.height},p,world))continue;
     xs.push({x,offset:world.wrap?((wx-selection.frame.x)%world.width+world.width)%world.width:wx-selection.frame.x});
   }
   xs.sort((a,b)=>a.offset-b.offset);
-  for(let y=0;y<shape.height;y++){const wy=nativeY(y);if(wy>=selection.frame.y-1e-6&&wy<=selection.frame.y+selection.frame.height+1e-6&&(!influence||wy>=influence.y&&wy<=influence.y+influence.height))ys.push(y);}
+  for(let y=0;y<shape.height;y++){const wy=nativeY(y);if(wy>=selection.frame.y-1e-6&&wy<=selection.frame.y+selection.frame.height+1e-6&&(!workArea||workArea.containsY(wy))&&(!influence||wy>=influence.y&&wy<=influence.y+influence.height))ys.push(y);}
   const cells=xs.length*ys.length;
   if(!cells)throw Error("This selection has no native samples in the active terrain source.");
   if(cells>LIMITS.cells||op.kind==="erosion"&&cells*op.iterations>LIMITS.work||op.kind==="landform-profile"&&cells*(op.points.length-1)>LIMITS.work)throw Error("Choose a smaller area or fewer operation steps or profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
@@ -337,7 +342,7 @@ export function* advancedTerrainSteps(
   if(siteProtected)notices.push(siteProtected.toLocaleString()+" settlement-support samples were retained exactly.");
   return {grid,patch:{indices:changedIndices.slice(0,changed),before:before.slice(0,changed),after:after.slice(0,changed)},metrics:{
     changed,minimum:min,maximum:max,maxLoweringM,maxRaisingM,removedM3,addedM3,eligible,protected:protectedCount,waterProtected,siteProtected,
-    visited,workingBytes:bytes,affected:changed?{x:regionCanonicalX(affectedOrigin+left,world),y:top,width:Math.min(world.width,Math.max(sx,right-left)),height:Math.max(sy,bottom-top)}:null,notices,
+    visited,workingBytes:bytes,geometryWork,affected:changed?{x:regionCanonicalX(affectedOrigin+left,world),y:top,width:Math.min(world.width,Math.max(sx,right-left)),height:Math.max(sy,bottom-top)}:null,notices,
   }};
 }
 

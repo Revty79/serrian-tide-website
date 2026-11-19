@@ -6,12 +6,12 @@ import {spawnSync} from "node:child_process";
 import {migrationHashes} from "../scripts/environment/migration-hashes";
 import {bootstrapReleaseSupported} from "./bootstrap-release-schema";
 
-test("bootstrap recovery recognizes the actual crossing release and preserves explicit older and unknown-schema gates",async()=>{
- const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8"));assert.equal(journal.entries.length,165);assert(bootstrapReleaseSupported(journal));
- for(const count of [162,163,164])assert(bootstrapReleaseSupported({entries:journal.entries.slice(0,count)}));
+test("bootstrap recovery recognizes the actual shared-relief release and preserves explicit older and unknown-schema gates",async()=>{
+ const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8"));assert.equal(journal.entries.length,166);assert(bootstrapReleaseSupported(journal));
+ for(const count of [162,163,164,165])assert(bootstrapReleaseSupported({entries:journal.entries.slice(0,count)}));
  assert.equal(bootstrapReleaseSupported({entries:journal.entries.slice(0,161)}),false);
- const altered=structuredClone(journal);altered.entries[164].tag="0164_unknown";assert.equal(bootstrapReleaseSupported(altered),false);
- assert.equal(bootstrapReleaseSupported({entries:[...journal.entries,{tag:"0165_unknown"}]}),false);
+ const altered=structuredClone(journal);altered.entries[165].tag="0165_unknown";assert.equal(bootstrapReleaseSupported(altered),false);
+ assert.equal(bootstrapReleaseSupported({entries:[...journal.entries,{tag:"0166_unknown"}]}),false);
 });
 
 test("exact LF and Windows CRLF migration bytes are recognized without accepting SQL edits",async()=>{

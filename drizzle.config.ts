@@ -41,6 +41,7 @@ export default defineConfig({
     "./src/db/world-raster-schema.ts",
     "./src/db/world-atlas-schema.ts",
     "./src/db/world-terrain-schema.ts",
+    "./src/db/world-terrain-shared-relief-schema.ts",
     "./src/db/world-terrain-refinement-schema.ts",
     "./src/db/world-map-appearance-schema.ts",
     "./src/db/world-map-style-schema.ts",

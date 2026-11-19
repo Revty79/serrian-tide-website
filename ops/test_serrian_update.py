@@ -162,9 +162,9 @@ class UpdatePolicyTests(unittest.TestCase):
             verify_ledger(previous, expected)
 
     def test_actual_crossing_release_refuses_a_host_missing_0164(self):
-        from a5_fixture_baseline import BASELINE
+        BASELINE = "267fffd7f1dae5ba42a89106db04002e125c6b35"
         history = Git(Path(__file__).resolve().parent.parent)
-        commit = history.run("rev-parse", "HEAD")
+        commit = "73193a605330c67cc795f2624cda25245ff2cb13"
         for name in ("scripts/deployment-a5-fixture.ts", "drizzle/meta/_journal.json"):
             self.assertEqual(history.blob(BASELINE, name), history.blob(commit, name))
         expected = expected_ledger(history, commit)

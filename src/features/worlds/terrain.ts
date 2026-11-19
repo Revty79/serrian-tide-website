@@ -32,6 +32,7 @@ export const terrainCommandSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("save"), requestId: z.uuid(), mapId: z.uuid(), revision: z.number().int().positive(),sourceState:z.string().max(8192).optional(), seaLevel: elevationSchema,source:terrainSourceSchema.optional(), tiles: z.array(tileSchema).max(MAX_TILE_COUNT) }).strict().superRefine((v, ctx) => {
     if(v.source&&v.source.kind!=="manual"&&v.source.kind!=="regenerated")ctx.addIssue({code:"custom",message:"Existing terrain accepts manual edits or an explicitly selected regeneration."});
     if(v.source?.kind==="manual"&&v.source.inheritance)ctx.addIssue({code:"custom",message:"Inherited source provenance is recorded only by checked native detail creation."});
+    if(v.source?.kind==="manual"&&v.source.sharedRelief)ctx.addIssue({code:"custom",message:"Shared relief is accepted only by its checked atomic native workflow."});
     if (new Set(v.tiles.map(t => `${t.x}:${t.y}`)).size !== v.tiles.length) ctx.addIssue({ code: "custom", message: "A terrain tile was submitted more than once." });
   }),
 ]);
