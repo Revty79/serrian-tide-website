@@ -7,7 +7,9 @@ Ordinary sculpting correctly protects its inherited collar and parent supports,
 but cannot join the ridge across that boundary. Accepting the Root-only preview
 would leave an artificial regional edge. A read-only audit of the retained
 native intent finds 36,184 dry collar samples requiring changes, up to 2,429 m.
-That proposal remains unaccepted; Earth is saved at Root 134 / water 48.
+At diagnosis that proposal remains unaccepted at Root 134 / water 48.
+The guarded activation and first bounded native continuation below subsequently
+reach Root 137 / water 48; the complete Southern profile is still unfinished.
 
 The general **Continue profile across terrain sources** control carries the
 currently drawn or recovered Atlas profile into a joined-relief workshop.
@@ -131,18 +133,44 @@ follow-up. Require four exact completed workflows for the final source.
 
 ## Release and guarded owner activation
 
-Local qualification is complete; publication and the four exact successful
-normal/recovery/Ubuntu/publisher workflows, hosted provenance and clean main
-parity are required before claiming a verified release. Existing `f8bdd0e0`
-release receipts do not qualify this new source.
+The replacement release `ed33b6eab8896057f82d8eecfc0502cce598e668` passes
+normal 44592077157, recovery 44592077176, full Ubuntu 44592077079 and publisher
+44592077189, all at attempt 1 with every required latest-attempt job and step.
+Independent completed-GitHub and cryptographic hosted provenance checks pass
+image `sha256:fdd353b54d27c1852f4d9aac36f6bbd24c6ee6839fcd648e06bb16602bb9b3a9`
+and Linux fingerprint
+`8a4d5804ad827fae594c3464c6bfb9f3bd999df0e342210384f1a2cfbcc20cdd`.
+All 10,802 tracked raw inputs and all 2,205 application inputs match the tested
+source; local main and origin/main match with a clean tree before this receipt.
+The hosted fingerprint and Windows application-only fingerprint measure
+different input sets. Preserve the preceding failed release receipts.
 
-**Owner DEV remains on 165 migrations through 0164. Migration 0165 is neither
-approved nor applied.** No owner frozen capture, restore, migration, restart,
-authentication/configuration change, Production or home-server operation occurs
-during these synthetic rehearsals. The previously approved one-time restart
-for `f8bdd0e0` was unnecessary and unused; it is not a blanket new-release approval.
+The owner explicitly approves migration 0165 and the explained guarded local
+DEV activation. That operation is complete on
+`localhost:5432/serrian_tide_dev`, with 166 exact canonical migrations through
+0165. The fresh frozen signed paired capture and authenticated AES-256-GCM
+opening pass. Independent restoration of the same signed capture retains all
+408 prior total tables, 165 ledger entries, 211,749 files, three asset roots,
+128 numerical sources, 708,313,088 samples, Root 134 / water 48 and 26 lakes.
+The original and authenticated-opened signed manifests are byte-identical.
+The independent restore reads the original signed capture, not the opened
+directory; the authenticated transport and restored data therefore have an
+explicit exact binding rather than a claimed direct encrypted-source restore.
 
-After verified publication, request only this concrete DEV activation:
+Only 0165 is rehearsed on that restored current-geography fixture, then applied
+to the freshly rechecked owner target. Both checks preserve all 407 old public
+tables' rows and columns, raw prior 165 ledger rows, sequences, references,
+files, native heights and parent pins exactly. The new group table is empty;
+there are 409 total tables / 408 public tables, and the capability is true.
+No owner database restore occurs. The ordinary DEV server restarts Hidden
+within this approval, using the unchanged configuration and existing revty79
+session. The new owned fixture on 62627 is stopped and independently confirmed
+non-listening. No authentication/configuration, Production or home-server
+change occurs. The older unused `f8bdd0e0` restart approval is not reused.
+Private receipts remain under
+`artifacts/collaboration-s7b-earth-pass2a-0165-activation-20261119-1/`.
+
+The approved activation used these guards:
 
 1. Re-read the selected local configuration without revealing credentials;
    require `localhost:5432/serrian_tide_dev`, all 165 exact canonical migration
@@ -166,15 +194,30 @@ writer after groups exist; prefer a reviewed forward correction. Any owner
 restore/destructive reconciliation needs its own approval. A paired backup is
 not replaced by a Git checkpoint or image receipt.
 
-## Resume the same Earth assignment
+## Native continuation of the same Earth assignment
 
-After the protected activation, recover the retained Southern Andes profile
-through Atlas's normal **Recover Operation Settings**, inspect joined relief,
-save natively and verify continuity, preservation, Undo/Redo and reopening.
-Then continue the authorized global land-elevation Pass 2A. Tool completion is
-not geographic completion. No global/owner artistic, legal, usability or device
-acceptance is claimed. Negative dry basins remain a separately reproduced tool
-limitation to correct before authoring them; do not substitute +1 m elevations.
+The existing session recovers the original nine-point Southern Andes profile
+through **Recover Operation Settings** and **Continue profile across terrain
+sources**. The unchanged whole-area budget guard first refuses an oversized
+preview. A bounded native area retains the original feather and end blending,
+processes 49,150 samples / 12.1 MiB in 4,275 ms, and previews 12,177 height changes
+across the World and Patagonia detail. All 14,045 sea/lake/wetland samples remain
+exact. Native inspection and original/proposed Classic Elevation and Physical
+Relief comparisons precede **Save joined relief** at Root 135 / Patagonia 15.
+Whole-group Undo 136 / 16 and Redo 137 / 17 independently reproduce the complete
+original and accepted height hashes and parent pins. All 128 head vectors,
+source identities, frames, numerical resolutions, unaffected heads and water
+48 / all 26 lakes remain preserved. Saved reopening is observed.
+
+This is working broad relief, not completed Southern Andes or global geography.
+Continue adjoining native work areas and the full authorized land-elevation
+Pass 2A automatically. Read-only Chromium counters record high aggregate work
+returning to the global overview: 28.17 task seconds across 29.8 seconds, with
+fast server history publication. This is not a longest-task or device-gate
+failure receipt; first assess focused native viewport handling rather than
+making a speculative renderer change. No global/owner artistic, legal,
+usability or device acceptance is claimed. Before below-sea dry basins, reproduce
+and correct the current landform clamp; do not substitute +1 m elevations.
 Only Titicaca's approved 3,810 m water exception is authorized; other water levels
 remain unchanged. No Pass 2B/2C/2D or political/Canon/Tabletop work is included.
 The trusted-origin command pinned to `973d4f57` remains unapplied.
