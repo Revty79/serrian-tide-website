@@ -168,12 +168,20 @@ export function* advancedTerrainSteps(
   };
   if(op.kind==="landform-profile"){
     for(let k=0;k<cells;k++)if(weights[k]){
-      const original=base[indices[k]],p=profile!(position(indices[k])),
-        target=op.mode==="minimum"?Math.max(original,p.target):op.mode==="maximum"?Math.min(original,p.target):p.target;
-      bed[k]=Math.max(seaLevel+1,Math.min(shape.max,original+(target-original)*p.weight*weights[k]*op.strength/100));
+      const original=base[indices[k]],p=profile!(position(indices[k]));
+      if(op.mode==="upper-envelope"){
+        // The profile is a ceiling over the complete selected area. Outside its
+        // footprint the ceiling is the explicit base, rather than a no-op.
+        // Lower accepted terrain stays intact; no extra grid or mask is needed.
+        const floor=op.envelopeBaseM!,ceiling=floor+(p.target-floor)*p.weight,target=Math.min(original,ceiling);
+        bed[k]=Math.max(seaLevel+1,Math.min(shape.max,original+(target-original)*weights[k]*op.strength/100));
+      }else{
+        const target=op.mode==="minimum"?Math.max(original,p.target):op.mode==="maximum"?Math.min(original,p.target):p.target;
+        bed[k]=Math.max(seaLevel+1,Math.min(shape.max,original+(target-original)*p.weight*weights[k]*op.strength/100));
+      }
       if(counts()){lastYield=performance.now();yield .12+.7*k/cells;}
     }
-    notices.push("Profile heights and widths blend smoothly along the physical path. Shape mode may raise and lower existing land; bound modes retain heights beyond their bound. Intersections do not stack changes.");
+    notices.push(op.mode==="upper-envelope"?"The envelope only lowers selected unprotected land. Its heights are upper bounds, not inserted summits. Width and end blends shape the ceiling down to the explicit base; outside the path the base still applies. Strength and selection feather blend this change. Review the whole selected area, including standing-water banks.":"Profile heights and widths blend smoothly along the physical path. Shape mode may raise and lower existing land; bound modes retain heights beyond their bound. Intersections do not stack changes.");
     notices.push("Sea, its neighboring shoreline supports, saved lake and wetland beds, finer terrain and settlement supports remain exact. End and selection blends act inside the chosen footprint; inspect its joins before acceptance.");
   }else if(op.kind==="erosion"){
     const angle=op.direction*Math.PI/180,repose=Math.tan(op.reposeDegrees*Math.PI/180),directions=[];

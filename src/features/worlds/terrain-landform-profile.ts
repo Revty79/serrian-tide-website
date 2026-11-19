@@ -8,6 +8,11 @@ const smooth=(t:number)=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
 export function prepareLandformProfile(op:Profile,shape:TerrainGeometry,context:AdvancedTerrainContext){
   const {world,frame}=context,spacing=Math.max(frame.width/shape.width,frame.height/shape.height);
   const dx=(a:number,b:number)=>{let d=b-a;if(world.wrap)d-=Math.round(d/world.width)*world.width;return d;};
+  if(op.mode==="upper-envelope"){
+    const base=op.envelopeBaseM;
+    if(base===undefined||base<context.seaLevel+1||base<shape.min||base>shape.max)throw Error("Keep the envelope base at least one metre above sea level and within this saved map's limits.");
+    if(op.points.some(point=>point.elevationM<base))throw Error("Keep every profile envelope ceiling at or above its base elevation.");
+  }
   for(const point of op.points){
     if(point.x>=world.width||point.y>=world.height)throw Error("Keep every profile point inside the World.");
     if(point.elevationM<shape.min||point.elevationM>shape.max)throw Error("Keep profile elevations within this saved map's limits.");

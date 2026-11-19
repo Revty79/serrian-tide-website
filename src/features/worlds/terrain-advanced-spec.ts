@@ -17,10 +17,14 @@ const common={selection:advancedAreaSchema,preserveManual:z.boolean(),strength:z
 export const landformProfileSchema=z.object({
   ...common,kind:z.literal("landform-profile"),
   points:z.array(advancedPointSchema.extend({elevationM:z.number().int().min(-30000).max(30000),widthM:metres})).min(2).max(128),
-  mode:z.enum(["shape","minimum","maximum"]),
+  mode:z.enum(["shape","minimum","maximum","upper-envelope"]),
+  envelopeBaseM:z.number().int().min(-30000).max(30000).optional(),
   hardness:z.number().finite().min(0).max(1),
   endBlendM:z.number().finite().min(0).max(1e9),featherM:z.number().finite().min(0).max(1e9),
-}).strict();
+}).strict().superRefine((v,c)=>{
+  if(v.mode==="upper-envelope"&&v.envelopeBaseM===undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"Choose an explicit base elevation for the profile envelope."});
+  if(v.mode!=="upper-envelope"&&v.envelopeBaseM!==undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"An envelope base belongs only to the upper-envelope mode."});
+});
 export const volcanoOperationSchema=z.object({
   ...common,kind:z.literal("volcano"),centre:advancedPointSchema,
   form:z.enum(["cone","shield","composite","cratered","caldera"]),
