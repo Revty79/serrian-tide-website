@@ -1,8 +1,9 @@
+import type {HydroLayer} from "./terrain-hydrology";
 import type {TerrainGeometry} from "./terrain";
 import type {TerrainStyle} from "./terrain-style";
 import type {RefinementMeta,TerrainFrame} from "./terrain-refinement";
 import type {MaterialStroke,TerrainMaterials} from "./terrain-materials";
-export type SurfaceWorkerSource={root:Int16Array;world:TerrainGeometry;plans:{meta:RefinementMeta;lod:number;keys:number[]}[];tiles:{id:string;revision:number;lod:number;key:number;samples:Int16Array}[];active?:{meta:RefinementMeta;grid:Int16Array;shape:TerrainGeometry};preview?:{meta:RefinementMeta;grid:Int16Array;shape:TerrainGeometry}};
+export type SurfaceWorkerSource={water?:HydroLayer;sea?:number;root:Int16Array;world:TerrainGeometry;plans:{meta:RefinementMeta;lod:number;keys:number[]}[];tiles:{id:string;revision:number;lod:number;key:number;samples:Int16Array}[];active?:{meta:RefinementMeta;grid:Int16Array;shape:TerrainGeometry};preview?:{meta:RefinementMeta;grid:Int16Array;shape:TerrainGeometry}};
 export type SurfaceWorkerRequest=
  |{type:"source";source:SurfaceWorkerSource;profile:boolean}
  |{type:"retry"}

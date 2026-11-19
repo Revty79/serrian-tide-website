@@ -1,3 +1,5 @@
+import type {HydroLayer} from "./terrain-hydrology";
+import {waterSurfaceReader,waterSurfaceKey} from "./terrain-water-surface";
 import {terrainRasterFrame} from "./terrain-raster-frame";
 import {cartographicWindows,type CartographicWindow} from "./terrain-cartography-window";
 import type {TerrainGeometry,TerrainView} from "./terrain";
@@ -10,14 +12,14 @@ import {visibleTerrainDetail,detailPresentationIdentity,detailNumericalTiles} fr
 type Image={canvas:HTMLCanvasElement;frame:TerrainFrame;shape:TerrainGeometry;key:number;level:number;identity:string;window?:CartographicWindow;authority?:string;appearance?:string};
 type Job={id:string;image:Omit<Image,"canvas">;sample:HeightSampler;row:number;halo?:Float64Array;baseId?:string;colors?:CartographicColorWork};
 export function rootCartographyLodLimit(shape:TerrainGeometry){let width=shape.width,height=shape.height,lod=0;while(width%64===0&&height%64===0){width/=2;height/=2;lod++;}return lod;}
-export function overviewSampler(grid:Int16Array,source:TerrainGeometry,lod:number):HeightSampler{
+export function overviewSampler(grid:Int16Array,source:TerrainGeometry,lod:number,read?:HeightSampler):HeightSampler{
  const factor=2**lod,width=source.width/factor,height=source.height/factor,memo=new Map<number,number>();
- const average=(x:number,y:number,n:number):number=>!n?grid[y*source.width+x]:Math.round((average(x,y,n-1)+average(x+2**(n-1),y,n-1)+average(x,y+2**(n-1),n-1)+average(x+2**(n-1),y+2**(n-1),n-1))/4);
+ const average=(x:number,y:number,n:number):number=>!n?(read?read(x,y):grid[y*source.width+x]):Math.round((average(x,y,n-1)+average(x+2**(n-1),y,n-1)+average(x,y+2**(n-1),n-1)+average(x+2**(n-1),y+2**(n-1),n-1))/4);
  return (x,y)=>{x=source.wrap?((x%width)+width)%width:Math.max(0,Math.min(width-1,x));y=Math.max(0,Math.min(height-1,y));const key=y*width+x;let value=memo.get(key);if(value===undefined){value=average(x*factor,y*factor,lod);memo.set(key,value);}return value;};
 }
 /** A bounded, CPU-only visible-tile presentation cache. Never owns numerical terrain. */
 export class TerrainCartographyPainter{
- private colors=new Map<string,CartographicColorWork>();private cache=new Map<string,Image>();private jobs:Job[]=[];private wanted:string[]=[];private wantedAuthorities=new Set<string>();
+ private waterKey="";private colors=new Map<string,CartographicColorWork>();private cache=new Map<string,Image>();private jobs:Job[]=[];private wanted:string[]=[];private wantedAuthorities=new Set<string>();
  private wantedIdentities=new Set<string>();
  private versions=new Map<string,number>();private last="";private scene?:TerrainDetailScene;private root?:Int16Array;
  private activeGrids=new Map<string,Int16Array>();
@@ -32,7 +34,8 @@ export class TerrainCartographyPainter{
    for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const xx=shape.wrap?((x+i)%cols+cols)%cols:x+i;if(xx<0||xx>=cols||y+j<0||y+j>=rows)continue;const key=`${id}/${lod}/${(y+j)*cols+xx}`;this.versions.set(key,(this.versions.get(key)??0)+1);}
   }this.last="";
  }
- sync(root:Int16Array,world:TerrainGeometry,scene:TerrainDetailScene|undefined,view:TerrainViewport,sea:number,spec:MapAppearance,dpr=1){
+ sync(root:Int16Array,world:TerrainGeometry,scene:TerrainDetailScene|undefined,view:TerrainViewport,sea:number,spec:MapAppearance,dpr=1,water?:HydroLayer){
+  const waterKey=waterSurfaceKey(water);if(waterKey!==this.waterKey){this.clear();this.waterKey=waterKey;}
   if(this.root!==root){this.clear();this.root=root;}
   const activeGrids=new Map<string,Int16Array>();for(const active of [scene?.active,scene?.preview])if(active){if(this.activeGrids.get(active.meta.id)!==active.grid)this.invalidate(active.meta.id,undefined,active.shape);activeGrids.set(active.meta.id,active.grid);}this.activeGrids=activeGrids;
   const rasterScale=2**(Math.ceil(Math.log2(view.scale*dpr)*4)/4);const interval=viewContourInterval(spec,view.width/view.scale),scale=2**Math.floor(Math.log2(view.scale)),style=JSON.stringify(spec)+"/"+interval+"/"+scale+"/"+sea+"/"+rasterScale;
@@ -44,19 +47,19 @@ export class TerrainCartographyPainter{
    const cols=image.shape.width/32,tw=image.frame.width/cols,th=image.frame.height/(image.shape.height/32),x=image.frame.x+image.key%cols*tw,y=image.frame.y+Math.floor(image.key/cols)*th;
    if(y>=view.bottom||y+th<=view.top||!(world.wrap?[-world.displayWidth,0,world.displayWidth]:[0]).some(offset=>x+offset<view.right&&x+offset+tw>view.left))return;
    const authority=id.slice(id.indexOf("|")+1);this.wantedAuthorities.add(authority);this.wantedIdentities.add(image.identity);const windows=cartographicWindows(image.frame,image.shape,image.key,{...view,scale:rasterScale},world),parts=windows.length?windows:[undefined];let sampler:HeightSampler|undefined;const colors=this.colors.get(id)??{};this.colors.delete(id);this.colors.set(id,colors);
-   for(const window of parts){const cacheId=window?`${id}/window/${window.x}/${window.y}/${window.width}/${window.height}`:id;wanted.push(cacheId);const cached=this.cache.get(cacheId);if(cached){this.cache.delete(cacheId);this.cache.set(cacheId,cached);this.metrics.hits++;continue;}sampler??=sample();jobs.push(previous.get(cacheId)??{id:cacheId,image:{...image,window,authority,appearance:JSON.stringify(spec)},sample:sampler,row:0,baseId:id,colors});}
+   for(const window of parts){const cacheId=window?`${id}/window/${window.x}/${window.y}/${window.width}/${window.height}`:id;wanted.push(cacheId);const cached=this.cache.get(cacheId);if(cached){this.cache.delete(cacheId);this.cache.set(cacheId,cached);this.metrics.hits++;continue;}sampler??=waterSurfaceReader(sample(),image.shape,world,water,sea,image.frame) as HeightSampler;jobs.push(previous.get(cacheId)??{id:cacheId,image:{...image,window,authority,appearance:JSON.stringify(spec)},sample:sampler,row:0,baseId:id,colors});}
   };
   const frame={x:0,y:0,width:world.displayWidth,height:world.displayHeight},maxLod=rootCartographyLodLimit(world);let lod=Math.max(0,Math.min(maxLod,Math.floor(Math.log2(1.5/(Math.max(world.displayWidth/world.width,world.displayHeight/world.height)*view.scale))))),shape=lodGeometry(world,lod),keys=[...tileKeysForView(frame,shape,view,world)];
   while(keys.length>256&&lod<maxLod){lod++;shape=lodGeometry(world,lod);keys=[...tileKeysForView(frame,shape,view,world)];}
   this.baseSpacing=Math.max(shape.displayWidth/shape.width,shape.displayHeight/shape.height);
-  if(!coverage.covering)for(const key of keys){const id=`${style}|root/${lod}/${key}/${this.versions.get(`root/${lod}/${key}`)??0}`;add(id,{identity:"root",frame,shape,key,level:-1},()=>overviewSampler(root,world,lod));}
+  if(!coverage.covering)for(const key of keys){const id=`${style}|root/${lod}/${key}/${this.versions.get(`root/${lod}/${key}`)??0}`;add(id,{identity:"root",frame,shape,key,level:-1},()=>overviewSampler(root,world,lod,waterSurfaceReader((x,y)=>root[y*world.width+x],world,world,water,sea) as HeightSampler));}
   for(const plan of coverage.plans){
    const shape=lodGeometry(frameGeometry(plan.meta,world),plan.lod),cols=shape.width/32,active=[scene?.preview,scene?.active].find(a=>a?.meta.id===plan.meta.id),numerical=detailNumericalTiles(scene!,plan);
    for(const key of plan.keys){
     const center=numerical.get(key);if(!active&&!center)continue;
     const x=key%cols,y=Math.floor(key/cols),halo:string[]=[];for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++)halo.push(numerical.get((y+j)*cols+x+i)?.sha256??"missing");
     const version=active?`active/${this.versions.get(`${plan.meta.id}/${plan.lod}/${key}`)??0}`:halo.join(":"),id=`${style}|${plan.meta.id}/${active?"working":"snapshot"}/${plan.lod}/${key}/${version}`;
-    add(id,{identity:detailPresentationIdentity(plan,!!active),frame:plan.meta.frame,shape,key,level:plan.meta.level},()=>active?overviewSampler(active.grid,active.shape,plan.lod):(px,py)=>{px=Math.max(0,Math.min(shape.width-1,px));py=Math.max(0,Math.min(shape.height-1,py));return numerical.get(Math.floor(py/32)*cols+Math.floor(px/32))?.samples[py%32*32+px%32]??center!.samples[Math.max(0,Math.min(31,py-y*32))*32+Math.max(0,Math.min(31,px-x*32))];});
+    add(id,{identity:detailPresentationIdentity(plan,!!active),frame:plan.meta.frame,shape,key,level:plan.meta.level},()=>active?overviewSampler(active.grid,active.shape,plan.lod,waterSurfaceReader((x,y)=>active.grid[y*active.shape.width+x],active.shape,world,water,sea,plan.meta.frame) as HeightSampler):(px,py)=>{px=Math.max(0,Math.min(shape.width-1,px));py=Math.max(0,Math.min(shape.height-1,py));return numerical.get(Math.floor(py/32)*cols+Math.floor(px/32))?.samples[py%32*32+px%32]??center!.samples[Math.max(0,Math.min(31,py-y*32))*32+Math.max(0,Math.min(31,px-x*32))];});
    }
   }
   for(const job of jobs.slice(1))if(job.halo){job.halo=undefined;job.row=0;}

@@ -1,0 +1,56 @@
+/** Guarded, newly owned synthetic rights records only. Never loads owner env. */
+import assert from "node:assert/strict";
+import {randomBytes,randomUUID} from "node:crypto";
+import {writeFile} from "node:fs/promises";
+import path from "node:path";
+import {withCollaborationFixture,publicTableDigests} from "./worlds-collaboration-fixture";
+import {restoreTerrainBackup} from "./terrain-backup-restore";
+import {rightsCopies} from "./worlds-source-rights-additional";
+import type {WorldEditorProof} from "../src/features/worlds/world-permissions";
+import type {SourceEvidence,SourceReview} from "../src/features/worlds/source-rights";
+
+process.env.SERRIAN_COLLAB_OUT??="artifacts/collaboration-s7b-unused-reference-guards";
+withCollaborationFixture(async f=>{
+ const {withWorldRequestAuthority}=await import("../src/features/worlds/world-authorization-context"),rights=await import("../src/features/worlds/source-rights-service"),store=await import("../src/features/worlds/source-rights-store"),collab=await import("../src/features/worlds/world-collaboration-service"),{db}=await import("../src/db");
+ const owner="collab-owner-a",admin="collab-admin",proof:WorldEditorProof={clientId:randomUUID(),token:randomBytes(32).toString("hex")};
+ const asActor=<T>(id:string,editor:WorldEditorProof|null,run:()=>T,review=false)=>withWorldRequestAuthority({userId:id,sessionId:f.sessions.get(id)!,proof:editor,review,operationId:randomUUID(),reads:new Map()},run);
+ const own=<T>(run:()=>T)=>asActor(owner,proof,run);
+ proof.fence=(await own(()=>collab.changeWorldCollaboration(owner,f.worldA,{action:"acquire-control",requestId:randomUUID(),proof}))).access.editor.fence!;
+ const evidence:SourceEvidence={classification:"special-review",provider:"Inline owned synthetic fixture",dataset:"Mistaken unused reference",edition:"1",sourceUrl:"https://example.org/reference",license:"Synthetic evidence only",licenseUrl:"https://example.org/terms",fileSha256:"a".repeat(64),retrievedAt:new Date().toISOString(),termsEvidence:"No external material or data",serviceTerms:"No service accessed",upstream:"Inline fixture only",cost:"no-cost",requiredCredits:"Synthetic provider",modifications:"No accepted material derived",exceptions:"No actual licensing claim"};
+ const decision:SourceReview={decision:"hold",classification:"special-review",reason:"Retain original source hold",evidence:"Inline synthetic evidence",uses:[],credits:"Synthetic provider",serviceVerified:false,upstreamVerified:false,noCostVerified:false,outputVerified:false,recipientRightsVerified:false};
+ const register=async(patch:Partial<SourceEvidence>={})=>{const sourceId=randomUUID();await own(()=>rights.changeSourceRights(owner,f.worldA,{action:"register",requestId:randomUUID(),sourceId,evidence:{...evidence,...patch}}));await own(()=>rights.changeSourceRights(owner,f.worldA,{action:"attach",requestId:randomUUID(),sourceId,note:"Mistaken reference; no accepted content follows"}));return sourceId;};
+ const command=(sourceId:string)=>({action:"withdraw-unused-reference",requestId:randomUUID(),sourceId,reason:"Incorrect reference attachment before any accepted content; retain all evidence and holds",attestation:true});
+ const sourceId=await register();await asActor(admin,null,()=>rights.changeSourceRights(admin,f.worldA,{action:"review",requestId:randomUUID(),sourceId,revision:0,review:decision}),true);
+ const sourceRows=async(id:string)=>{const result:Record<string,unknown>={};for(const table of ["atlas_source_rights","atlas_source_review","atlas_source_use","atlas_source_parent"]){const field=table==="atlas_source_rights"?"id":"source_id";result[table]=(await f.pool.query(`select to_jsonb(t) value from ${table} t where ${field}=$1 order by to_jsonb(t)::text`,[id])).rows;}return result;};
+ const before=await sourceRows(sourceId),otherBefore=(await f.pool.query("select to_jsonb(w) value from world w where id=$1",[f.worldB])).rows;
+ await assert.rejects(store.assertWorldSourceUse(db,f.worldA,["display","modify"]),/licensing hold/);
+ await assert.rejects(asActor("collab-uninvited",null,()=>rights.changeSourceRights("collab-uninvited",f.worldA,command(sourceId))),/unavailable|private|control|owner/i);
+ await assert.rejects(asActor(admin,null,()=>rights.changeSourceRights(admin,f.worldA,command(sourceId)),true),/read-only|owner|unavailable/i);
+ await assert.rejects(own(()=>rights.changeSourceRights(owner,f.worldA,{...command(sourceId),attestation:false})),/true/);
+ const request=command(sourceId);await own(()=>rights.changeSourceRights(owner,f.worldA,request));await own(()=>rights.changeSourceRights(owner,f.worldA,request));
+ await assert.rejects(own(()=>rights.changeSourceRights(owner,f.worldA,{...request,reason:"Different original request"})),/different/);
+ assert.deepEqual(await sourceRows(sourceId),before);
+ await store.assertWorldSourceUse(db,f.worldA,["display","modify"]);
+ const active=await store.worldRightsSources(db,f.worldA);assert(!active.sources.some(s=>s.id===sourceId));assert(!active.usages.some(s=>s.sourceId===sourceId));assert(active.retainedUsages.some(s=>s.sourceId===sourceId));assert.equal(active.withdrawals.filter(w=>w.sourceId===sourceId).length,1);
+ const summary=await own(()=>rights.readSourceRights(owner,f.worldA));assert(summary.sources.some(s=>s.id===sourceId&&s.reviews[0]?.decision==="hold"));assert(summary.uses.some(s=>s.sourceId===sourceId));assert(summary.withdrawnReferences?.some(s=>s.sourceId===sourceId));
+ await assert.rejects(own(()=>rights.changeSourceRights(owner,f.worldA,{action:"attach",requestId:randomUUID(),sourceId,note:"Attempted reattachment"})),/withdrawn/);
+ await assert.rejects(asActor(admin,null,()=>rights.changeSourceRights(admin,f.worldA,{action:"review",requestId:randomUUID(),sourceId,revision:1,review:{...decision,decision:"approved",classification:"public-domain",uses:["display","modify"],serviceVerified:true,upstreamVerified:true,noCostVerified:true}}),true),/special-review/);
+
+ const copies=await rightsCopies(f,active.sources[0].id,proof);for(const id of [copies.copyId,copies.targetId])assert(!(await store.worldRightsSources(db,id)).sources.some(s=>s.id===sourceId),"Native copies retain actual derivation, not a never-used reference");
+ const raced=await register(),results=await Promise.allSettled([own(()=>rights.changeSourceRights(owner,f.worldA,command(raced))),own(()=>rights.changeSourceRights(owner,f.worldA,command(raced)))]);assert.equal(results.filter(r=>r.status==="fulfilled").length,1);assert.equal((await store.worldRightsSources(db,f.worldA)).withdrawals.filter(w=>w.sourceId===raced).length,1);
+ const used=await register();
+ // Historical counterproof in a new owned fixture: an accepted audit survives
+ // Undo and must conservatively prevent withdrawal, whatever its scope.
+ await f.pool.query("insert into world_access_audit(id,world_id,actor_id,action,request_id,input_hash,outcome,result,created_at) values($1,$2,$3,'content-write',$4,$5,'accepted','{}',clock_timestamp())",[randomUUID(),f.worldA,owner,randomUUID(),"b".repeat(64)]);
+ await assert.rejects(own(()=>rights.changeSourceRights(owner,f.worldA,command(used))),/content changed/);
+ const approved=await register({classification:"public-domain"});await asActor(admin,null,()=>rights.changeSourceRights(admin,f.worldA,{action:"review",requestId:randomUUID(),sourceId:approved,revision:0,review:{...decision,decision:"approved",classification:"public-domain",uses:["display","modify"],serviceVerified:true,upstreamVerified:true,noCostVerified:true}}),true);await asActor(admin,null,()=>rights.changeSourceRights(admin,f.worldA,{action:"review",requestId:randomUUID(),sourceId:approved,revision:1,review:decision}),true);await assert.rejects(own(()=>rights.changeSourceRights(owner,f.worldA,command(approved))),/any recorded approval/);
+ const linked=await register(),child=await register();await f.pool.query("insert into atlas_source_parent(source_id,parent_id) values($1,$2)",[child,linked]);await assert.rejects(own(()=>rights.changeSourceRights(owner,f.worldA,command(linked))),/ancestry|derived/);
+ const material=await register();await store.recordSourceUse(db,f.worldA,material,"synthetic-material",randomUUID(),"1","Owned negative guard");await assert.rejects(own(()=>rights.changeSourceRights(owner,f.worldA,command(material))),/exactly one/);
+ const unaudited=randomUUID();await own(()=>rights.changeSourceRights(owner,f.worldA,{action:"register",requestId:randomUUID(),sourceId:unaudited,evidence}));await store.recordSourceUse(db,f.worldA,unaudited,"world",f.worldA,"1","Owned legacy missing-audit counterexample");await assert.rejects(own(()=>rights.changeSourceRights(owner,f.worldA,command(unaudited))),/attachment audit is unavailable/);
+ const asset=await register();await f.pool.query("insert into atlas_source_rights(id,owner_id,subject_kind,subject_id,subject_version,evidence,original) values($1,$2,'asset',$1,'1',$3,false)",[randomUUID(),owner,JSON.stringify(evidence)]);const assetId=(await f.pool.query("select id from atlas_source_rights where subject_kind='asset' and owner_id=$1 order by created_at desc limit 1",[owner])).rows[0].id;await assert.rejects(own(()=>rights.changeSourceRights(owner,f.worldA,command(assetId))),/Only an unused explicit/);assert(asset);
+ assert.deepEqual((await f.pool.query("select to_jsonb(w) value from world w where id=$1",[f.worldB])).rows,otherBefore);
+ assert.deepEqual(await sourceRows(sourceId),before);
+ for(const table of ["atlas_source_rights","atlas_source_review","atlas_source_use","atlas_source_parent"])await assert.rejects(f.pool.query(`delete from ${table}`),/append-only/);
+ const retained=await publicTableDigests(f.pool),dump=path.join(f.out,"unused-reference-independent.dump");f.runPostgres("pg_dump",["-Fc","-f",dump,"--dbname",f.databaseUrl]);const target=new URL(f.restoredUrl),bin=process.env.SERRIAN_TEST_POSTGRES_BIN??"C:/Program Files/PostgreSQL/18/bin";await restoreTerrainBackup({pgRestore:path.join(bin,"pg_restore.exe"),psql:path.join(bin,"psql.exe"),dump,sql:path.join(f.out,"restored.sql"),host:target.hostname,port:Number(target.port),user:target.username,database:target.pathname.slice(1),singleTransaction:true,streaming:true});const {default:pg}=await import("pg"),restored=new pg.Pool({connectionString:f.restoredUrl});try{assert.deepEqual(await publicTableDigests(restored),retained);assert.equal((await restored.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,165);}finally{await restored.end();}
+ await writeFile(path.join(f.out,"unused-reference-guards.json"),JSON.stringify({passed:true,neverApprovedUnusedReferenceOnly:true,immutableEvidenceReviewsUsesExact:true,originalRetryExact:true,competingWithdrawalsAtomic:true,approvedThenHeldRefused:true,postAttachmentContentRefused:true,ancestryAndMaterialRefused:true,foreignAndReadOnlyRefused:true,noClearingOrReattachment:true,activeCopyInputsExcludeOnlyUnusedReference:true,allPublicTablesRestoredExact:Object.keys(retained).length,ledger:165,otherWorldExact:true,noOwnerEnvironment:true},null,2));console.log("PASS unused reference authorization, immutable rights, refusal, race and independent restoration guards");
+}).catch(e=>{console.error(e);process.exitCode=1;});

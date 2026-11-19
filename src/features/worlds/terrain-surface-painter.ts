@@ -1,3 +1,5 @@
+import type {HydroLayer} from "./terrain-hydrology";
+import {waterSurfaceKey} from "./terrain-water-surface";
 import {terrainRasterFrame} from "./terrain-raster-frame";
 import {TerrainVisualInvalidation} from "./terrain-visual-invalidation";
 import type {TerrainStyle} from "./terrain-style";
@@ -18,7 +20,7 @@ let activeSurfaceWorkers=0;
 /** Artwork tiles are independent of numerical tiles. At each visual LOD one
  * raster pixel covers at most one device pixel. The one-pixel halo filters joins. */
 export class TerrainSurfacePainter{
- private images=new Map<string,Image>();private fallback=new Map<string,string>();private jobs:Job[]=[];private wanted:{key:string;baseKey:string;frame:TerrainFrame}[]=[];
+ private waterKey="";private images=new Map<string,Image>();private fallback=new Map<string,string>();private jobs:Job[]=[];private wanted:{key:string;baseKey:string;frame:TerrainFrame}[]=[];
  private root?:Int16Array;private scene?:TerrainDetailScene;private invalidation=new TerrainVisualInvalidation();private stamp=0;private signature="";private sample?:ReturnType<typeof terrainSurfaceSampler>;private sampleStamp=-1;
  private fieldWork=surfaceFieldWork();private pixelWork=surfacePixelWork();private world?:TerrainGeometry;private sea=0;private relief=20;private layer=EMPTY_TERRAIN_MATERIALS;
  readonly profile=new TerrainSurfaceProfile(typeof window!=="undefined"&&new URLSearchParams(window.location.search).has("terrainProfile"));
@@ -64,7 +66,8 @@ export class TerrainSurfacePainter{
  invalidate(frames?:TerrainFrame[],retirePresentation=false){if(this.invalidation.invalidate(frames,retirePresentation))this.stamp++;this.signature="";this.sample=undefined;}
  get pending(){return this.jobs.length;}
  get bytes(){let n=0;for(const i of this.images.values())n+=i.canvas.width*i.canvas.height*4;return n;}
- sync(root:Int16Array,world:TerrainGeometry,scene:TerrainDetailScene|undefined,view:TerrainViewport,sea:number,relief:number,layer=EMPTY_TERRAIN_MATERIALS,dpr=1,art?:TerrainStyle){
+ sync(root:Int16Array,world:TerrainGeometry,scene:TerrainDetailScene|undefined,view:TerrainViewport,sea:number,relief:number,layer=EMPTY_TERRAIN_MATERIALS,dpr=1,art?:TerrainStyle,water?:HydroLayer){
+  const waterKey=waterSurfaceKey(water);if(waterKey!==this.waterKey||sea!==this.sea){this.waterKey=waterKey;this.invalidate(undefined,true);this.pictureBasis="";this.pictureEpoch++;this.images.clear();this.fallback.clear();}
   const artKey=JSON.stringify(art);if(artKey!==this.artKey){this.artKey=artKey;this.art=art;this.invalidate(undefined,true);}
   this.ensureWorker();
   if(root!==this.root){this.root=root;this.images.clear();this.fallback.clear();this.jobs=[];this.wanted=[];this.invalidate(undefined,true);}
@@ -78,9 +81,9 @@ export class TerrainSurfacePainter{
   const resolution=Math.max(32,Math.min(256,Math.ceil(size*view.scale*dpr)));this.metrics.generalized=level<requestedLevel||dpr<requestedDpr;
   this.fineArtwork=size/resolution<32;if(this.fineArtwork&&this.assetState==="unloaded")this.requestArtwork();
   const pixelStep=size/resolution,signature=[left,right,top,bottom,Math.floor(view.left/pixelStep/32),Math.ceil(view.right/pixelStep/32),Math.floor(view.top/pixelStep/32),Math.ceil(view.bottom/pixelStep/32),level,resolution,sea,relief,this.stamp,layer===this.layer?"retained":"changed"].join("/");if(signature===this.signature&&scene===this.scene&&layer===this.layer)return;this.signature=signature;
-  if(!this.sample||scene!==this.scene||world!==this.world||this.sampleStamp!==this.invalidation.generation){this.sample=terrainSurfaceSampler(root,world,scene);this.sampleStamp=this.invalidation.generation;}this.scene=scene;
+  if(!this.sample||scene!==this.scene||world!==this.world||this.sampleStamp!==this.invalidation.generation){this.sample=terrainSurfaceSampler(root,world,scene,water,sea);this.sampleStamp=this.invalidation.generation;}this.scene=scene;
   this.world=world;this.sea=sea;this.relief=relief;this.layer=layer;this.metrics.visualMetres=size/resolution;
-  if(this.worker){const sourceKey=this.stamp+"/"+this.invalidation.generation+"/"+surfaceDependencies({x:view.left,y:view.top,width:view.right-view.left,height:view.bottom-view.top},world,scene);if(sourceKey!==this.workerDesired){const wanted=new Map((scene?.plans??[]).map(p=>[`${p.meta.id}/${p.meta.revision}/${p.lod}`,new Set(p.keys)])),tiles=[...(scene?.cache.values()??[])].filter(t=>t.surfaceId!==scene?.active?.meta.id&&t.surfaceId!==scene?.preview?.meta.id&&wanted.get(`${t.surfaceId}/${t.revision}/${t.lod}`)?.has(t.key)).map(t=>({id:t.surfaceId,revision:t.revision,lod:t.lod,key:t.key,samples:t.samples}));this.workerSource={root,world,plans:scene?.plans??[],tiles,active:scene?.active,preview:scene?.preview};this.workerDesired=sourceKey;this.metrics.workerSourceBytes=root.byteLength+(scene?.active?.grid.byteLength??0)+(scene?.preview?.grid.byteLength??0)+tiles.reduce((n,t)=>n+t.samples.byteLength,0);}}
+  if(this.worker){const sourceKey=this.stamp+"/"+this.invalidation.generation+"/"+surfaceDependencies({x:view.left,y:view.top,width:view.right-view.left,height:view.bottom-view.top},world,scene);if(sourceKey!==this.workerDesired){const wanted=new Map((scene?.plans??[]).map(p=>[`${p.meta.id}/${p.meta.revision}/${p.lod}`,new Set(p.keys)])),tiles=[...(scene?.cache.values()??[])].filter(t=>t.surfaceId!==scene?.active?.meta.id&&t.surfaceId!==scene?.preview?.meta.id&&wanted.get(`${t.surfaceId}/${t.revision}/${t.lod}`)?.has(t.key)).map(t=>({id:t.surfaceId,revision:t.revision,lod:t.lod,key:t.key,samples:t.samples}));this.workerSource={water,sea,root,world,plans:scene?.plans??[],tiles,active:scene?.active,preview:scene?.preview};this.workerDesired=sourceKey;this.metrics.workerSourceBytes=root.byteLength+(scene?.active?.grid.byteLength??0)+(scene?.preview?.grid.byteLength??0)+tiles.reduce((n,t)=>n+t.samples.byteLength,0);}}
   const old=new Map(this.jobs.map(j=>[j.key,j])),jobs:Job[]=[],wanted:{key:string;baseKey:string;frame:TerrainFrame}[]=[],seen=new Set<string>(),period=world.wrap?world.displayWidth:null;
   for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
    const xx=world.wrap?((x%2**level)+2**level)%2**level:x;if(!world.wrap&&(xx<0||xx>=2**level))continue;

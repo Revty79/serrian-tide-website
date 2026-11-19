@@ -6,6 +6,7 @@ import {atlasAssetUsage} from "@/db/world-asset-schema";
 import {WorldError} from "./world-errors";
 import {sourceUseProblem,type RightsSource,type SourceUse} from "./source-rights";
 import type {WorldConnection} from "./world-access-service";
+import {referenceWithdrawals} from "./source-reference-withdrawal";
 
 export async function sourceRightsAvailable(tx:Pick<WorldConnection,"execute">=db){
  return !!(await tx.execute<{ok:boolean}>(sql`select to_regclass('public.atlas_source_rights') is not null and to_regclass('public.atlas_source_review') is not null and to_regclass('public.atlas_source_use') is not null and to_regclass('public.atlas_source_parent') is not null as ok`)).rows[0]?.ok;
@@ -30,8 +31,12 @@ export function mandatorySourceCredits(sources:RightsSource[]){return [...new Se
 export async function worldRightsSources(tx:WorldConnection,worldId:string){
  const usages=await tx.select().from(atlasSourceUse).where(eq(atlasSourceUse.worldId,worldId));
  // Usage is cumulative: removing a layer never erases derivation or old versions.
- const sources=await rightsSources(tx,[...new Set(usages.map(u=>u.sourceId))]);
- return {sources,usages};
+ // A never-approved, unused reference may have a separate immutable withdrawal
+ // receipt. Every original use/evidence/review row remains available to owners.
+ const withdrawals=await referenceWithdrawals(tx,worldId),withdrawn=new Set(withdrawals.map(row=>row.sourceId));
+ const active=usages.filter(u=>!withdrawn.has(u.sourceId)||u.kind!=="world"||u.targetId!==worldId);
+ const sources=await rightsSources(tx,[...new Set(active.map(u=>u.sourceId))]);
+ return {sources,usages:active,retainedUsages:usages,withdrawals};
 }
 /** Runs inside the original content transaction, covering templates and native copies too. */
 export async function retainArtworkSourceUses(tx:WorldConnection,worldId:string){

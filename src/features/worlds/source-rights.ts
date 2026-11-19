@@ -29,7 +29,9 @@ export const sourceReviewSchema=z.object({
 });
 export type SourceReview=z.infer<typeof sourceReviewSchema>;
 export type RightsSource={id:string;ownerId:string;subjectKind:string;subjectId:string;subjectVersion:string;evidence:SourceEvidence|null;original:boolean;parentIds:string[];createdAt:string;reviews:(SourceReview&{revision:number;reviewerId:string;createdAt:string})[]};
-export type RightsSummary={available:boolean;sources:RightsSource[];uses:{sourceId:string;kind:string;targetId:string;version:string;note:string}[];credits:string[];holds:string[];canRegister:boolean;canReview:boolean};
+export type ReferenceWithdrawal={sourceId:string;reason:string;createdAt:string};
+export const referenceWithdrawalReceiptSchema=z.object({sourceId:z.string().uuid(),reason:text,firstUseAt:z.iso.datetime(),proof:z.literal("never-approved-no-accepted-content-since-attachment")}).strict();
+export type RightsSummary={available:boolean;sources:RightsSource[];uses:{sourceId:string;kind:string;targetId:string;version:string;note:string}[];credits:string[];holds:string[];canRegister:boolean;canReview:boolean;withdrawnReferences?:ReferenceWithdrawal[]};
 export function sourceUseProblem(source:Pick<RightsSource,"original"|"reviews"|"parentIds">,use:SourceUse,output=false):string|null{
  const review=source.reviews[0];
  if(!review)return source.original||source.parentIds.length?null:"Needs a source-rights review.";
@@ -43,6 +45,7 @@ export function sourceUseProblem(source:Pick<RightsSource,"original"|"reviews"|"
 export const sourceRightsCommandSchema=z.discriminatedUnion("action",[
  z.object({action:z.literal("register"),requestId:z.string().uuid(),sourceId:z.string().uuid(),evidence:sourceEvidenceSchema}).strict(),
  z.object({action:z.literal("attach"),requestId:z.string().uuid(),sourceId:z.string().uuid(),note:text}).strict(),
+ z.object({action:z.literal("withdraw-unused-reference"),requestId:z.string().uuid(),sourceId:z.string().uuid(),reason:text,attestation:z.literal(true)}).strict(),
  z.object({action:z.literal("review"),requestId:z.string().uuid(),sourceId:z.string().uuid(),revision:z.number().int().nonnegative(),review:sourceReviewSchema}).strict(),
 ]);
 export const assetOriginSchema=z.discriminatedUnion("kind",[

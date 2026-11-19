@@ -11,7 +11,7 @@ export type EngravingSource=EnvironmentArtSource&{engraving:EngravingStyle};
 /** Shared immutable numerical/biome adapters; no geographic classification is written. */
 export function engravingSource(source:EngravingSource){
  const t=source.terrain,world={width:t.world.displayWidth,height:t.world.displayHeight,wrap:t.world.wrap},tiles=new Map(t.tiles.map(v=>[`${v.id}/${v.revision}/${v.lod}/${v.key}`,v]));
- const sample=terrainSurfaceSampler(t.root,t.world,{plans:t.plans,active:t.active,preview:t.preview,cache:{peek:(id,revision,lod,key)=>tiles.get(`${id}/${revision}/${lod}/${key}`)},tick:0});
+ const sample=terrainSurfaceSampler(t.root,t.world,{plans:t.plans,active:t.active,preview:t.preview,cache:{peek:(id,revision,lod,key)=>tiles.get(`${id}/${revision}/${lod}/${key}`)},tick:0},source.water,source.sea);
  const environment=environmentSampler(source.layer,world,environmentalPalette),water=environmentalWaterIndex(source.water,world),field=surfaceFieldWork(),env=environmentSampleWork();
  const bins=new Map<number,{s:MaterialStroke;i:number}[]>(),wide:{s:MaterialStroke;i:number}[]=[],layer=source.materials;
  const cell=(x:number,y:number)=>Math.max(0,Math.min(31,Math.floor(y/world.height*32)))*32+Math.max(0,Math.min(31,Math.floor(x/world.width*32)));

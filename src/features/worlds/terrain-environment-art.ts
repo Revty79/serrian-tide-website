@@ -68,8 +68,18 @@ export function createEnvironmentArtist(layer:EnvironmentLayer,world:HydroGeomet
     out[0]=clamp(r,0,255);out[1]=clamp(g,0,255);out[2]=clamp(b,0,255);out[3]=clamp(alpha*layer.opacity*e.coverage*(1-authority))*255;return out;
   };
   const dry=explicitDrySurfaceIndex(water,world);if(!showDry||!dry.has)return artist;
-  const ground=drySurfaceArtist(style,sea,relief,materials,period,art,appearance),base=[0,0,0,0],overlay=[0,0,0,0];
+  const ground=drySurfaceArtist(style,sea,relief,materials,period,art,appearance),base=[0,0,0,0],overlay=[0,0,0,0],unresolved:SurfaceField={height:0,waterHeight:sea+1,gx:0,gy:0,rough:0,spacing:0,coastLow:0,coastHigh:0};
   return (x:number,y:number,footprint:number,field:SurfaceField,out:number[]=[0,0,0,0])=>{
+    const lakeLevel=dry.unresolvedIslandLevel(x,y,field.groundHeight??field.height,footprint*3);
+    if(lakeLevel!==null){
+      // An authored island establishes dry geometry, not a measured summit.
+      // Use the lake-level lower bound with hatching; never modify samples or
+      // invent relief from the submerged coarse bed beneath a small island.
+      unresolved.height=lakeLevel+1;unresolved.spacing=field.spacing;unresolved.coastLow=unresolved.coastHigh=lakeLevel+1;
+      ground(unresolved,x,y,footprint,base);artist(x,y,footprint,unresolved,overlay);const alpha=overlay[3]/255;
+      const requested=Math.max(1,footprint*5),scale=period?period/Math.max(1,Math.round(period/requested)):requested,phase=((x+y)%scale+scale)%scale/scale,hatch=phase<.14?.8:1;
+      for(let c=0;c<3;c++)out[c]=(base[c]*(1-alpha)+overlay[c]*alpha)*hatch;out[3]=255*water.opacity;return out;
+    }
     if(field.waterHeight>sea||!dry.at(x,y,field.height))return artist(x,y,footprint,field,out);
     ground(field,x,y,footprint,base);
     // This temporary presentation field only admits the existing environment

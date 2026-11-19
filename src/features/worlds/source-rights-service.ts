@@ -11,16 +11,17 @@ import {WorldError} from "./world-errors";
 import {sourceRightsCommandSchema,type RightsSummary} from "./source-rights";
 import {mandatorySourceCredits,recordSourceUse,requireSourceRights,rightsProblems,rightsSources,sourceRightsAvailable,worldRightsSources} from "./source-rights-store";
 import {publicExportCredit} from "./atlas-export";
+import {referenceWithdrawals,unusedReferenceReceipt} from "./source-reference-withdrawal";
 
 export async function readSourceRights(userId:string,worldId:string,review=false):Promise<RightsSummary>{
  const access=await authorizeWorldRead(userId,worldId,review,"shell"),actor=await worldActor(userId);
  const manager=access.permission.role==="owner"||access.permission.role==="administrator-review";
  if(!await sourceRightsAvailable())return{available:false,sources:[],uses:[],credits:[],holds:["Source review requires migration 0162."],canRegister:false,canReview:false};
  return db.transaction(async tx=>{
-  const {sources,usages}=await worldRightsSources(tx,worldId);
+  const {sources,retainedUsages:usages,withdrawals}=await worldRightsSources(tx,worldId);
   const library=manager?await tx.select({id:atlasSource.id}).from(atlasSource).where(eq(atlasSource.ownerId,access.ownerId)):[];
   const all=manager?await rightsSources(tx,[...new Set([...sources.map(s=>s.id),...library.map(s=>s.id)])]):[];
-  return{available:true,sources:all,uses:manager?usages.map(u=>({sourceId:u.sourceId,kind:u.kind,targetId:u.targetId,version:u.version,note:u.note})):[],credits:mandatorySourceCredits(sources),holds:manager?[...new Set(rightsProblems(sources,["display","modify","customer-access","digital-images","print","editable-data"],true))]:[],canRegister:access.permission.role==="owner"&&access.permission.canEdit,canReview:manager&&actor.admin};
+  return{available:true,sources:all,uses:manager?usages.map(u=>({sourceId:u.sourceId,kind:u.kind,targetId:u.targetId,version:u.version,note:u.note})):[],credits:mandatorySourceCredits(sources),holds:manager?[...new Set(rightsProblems(sources,["display","modify","customer-access","digital-images","print","editable-data"],true))]:[],canRegister:access.permission.role==="owner"&&access.permission.canEdit,canReview:manager&&actor.admin,withdrawnReferences:manager?withdrawals:[]};
  },{accessMode:"read only",isolationLevel:"repeatable read"});
 }
 /** Review authority is administrative and auditable; it is never a content-editing lease. */
@@ -37,6 +38,7 @@ export async function changeSourceRights(userId:string,worldId:string,input:unkn
   }else await lockWorldForWrite(tx,userId,worldId,"owner",false,true);
   const [retry]=await tx.select().from(worldAccessAudit).where(and(eq(worldAccessAudit.worldId,worldId),eq(worldAccessAudit.actorId,userId),eq(worldAccessAudit.requestId,c.requestId)));
   if(retry){if(retry.inputHash!==hash)throw new WorldError("This request identity already records different source work.",409);return retry.result;}
+  let correction:Awaited<ReturnType<typeof unusedReferenceReceipt>>|undefined;
   if(c.action==="register"){
    if(c.evidence.classification==="original")throw new WorldError("Original drawing needs no external-source registration. Use the original-artwork declaration for your own uploads.",400);
    for(const notice of [c.evidence.requiredCredits,c.evidence.sourceUrl,c.evidence.licenseUrl])publicExportCredit(notice);
@@ -45,7 +47,11 @@ export async function changeSourceRights(userId:string,worldId:string,input:unkn
    const [source]=await tx.select().from(atlasSource).where(eq(atlasSource.id,c.sourceId)).for("update");
    const linked=(await worldRightsSources(tx,worldId)).sources.some(s=>s.id===c.sourceId);
    if(!source||source.ownerId!==parent.ownerId&&!linked)throw new WorldError("This source is unavailable in this World.",404);
-   if(c.action==="attach"){
+   if(c.action==="withdraw-unused-reference"){
+    if(source.ownerId!==userId)throw new WorldError("Only this reference's owner can withdraw its unused attachment.",403);
+    correction=await unusedReferenceReceipt(tx,worldId,source,c.reason);
+   }else if(c.action==="attach"){
+    if((await referenceWithdrawals(tx,worldId)).some(row=>row.sourceId===source.id))throw new WorldError("This unused reference was withdrawn from this World. Its retained evidence is not a new approval or reusable reference link.",409);
     await recordSourceUse(tx,worldId,source.id,"world",worldId,String(parent.revision),c.note);
    }else{
     const [latest]=(await rightsSources(tx,[source.id]))[0].reviews;
@@ -59,7 +65,7 @@ export async function changeSourceRights(userId:string,worldId:string,input:unkn
    }
   }
   const result={sourceId:c.sourceId,saved:true};
-  await tx.insert(worldAccessAudit).values({id:randomUUID(),worldId,actorId:userId,action:`source-rights-${c.action}`,requestId:c.requestId,inputHash:hash,outcome:"accepted",before:null,after:{sourceId:c.sourceId},result});
+  await tx.insert(worldAccessAudit).values({id:randomUUID(),worldId,actorId:userId,action:`source-rights-${c.action}`,requestId:c.requestId,inputHash:hash,outcome:"accepted",before:null,after:correction??{sourceId:c.sourceId},result});
   if(!await activeWorldSession(tx,userId,authority.sessionId,await databaseClock(tx)))throw new WorldError("Sign in again. No source-rights change was saved.",401);
   if(c.action==="review"){if(!(await worldActor(userId,tx)).admin)throw new WorldError("Administrator access changed.",403);}else await lockWorldForWrite(tx,userId,worldId,"owner",false,true);
   return result;

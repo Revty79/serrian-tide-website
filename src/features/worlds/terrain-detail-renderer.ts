@@ -1,3 +1,5 @@
+import type {HydroLayer} from "./terrain-hydrology";
+import {waterSurfaceReader,waterSurfaceKey} from "./terrain-water-surface";
 import {terrainRasterFrame} from "./terrain-raster-frame";
 import type {TerrainGeometry,TerrainView} from "./terrain";
 import {cartographicWindows,type CartographicWindow} from "./terrain-cartography-window";
@@ -19,7 +21,7 @@ type PaintJob={id:string;source:Source;window?:CartographicWindow;work?:Generato
 /** Existing numerical-tile painter, with visible visual windows for both scalar
  * appearances. The original 2048 images / 8 MiB payload budget is retained. */
 export class TerrainDetailPainter{
- private images=new Map<string,TileImage>();private jobs:PaintJob[]=[];private wanted:string[]=[];private authorities=new Set<string>();private identities=new Set<string>();private versions=new Map<string,number>();private activeGrids=new Map<string,Int16Array>();private scene?:TerrainDetailScene;private root?:Int16Array;private viewportKey="";private sea=NaN;private style="";private byteLimit=8*1048576;
+ private waterKey="";private images=new Map<string,TileImage>();private jobs:PaintJob[]=[];private wanted:string[]=[];private authorities=new Set<string>();private identities=new Set<string>();private versions=new Map<string,number>();private activeGrids=new Map<string,Int16Array>();private scene?:TerrainDetailScene;private root?:Int16Array;private viewportKey="";private sea=NaN;private style="";private byteLimit=8*1048576;
  readonly metrics={painted:0,maxTextures:0,maxBatchMs:0,visualDpr:1,generalized:false,cacheLimitBytes:8*1048576,occludedSources:0,retainedImages:0};
  constructor(readonly limit=2048){}
  get pending(){return this.jobs.length;}
@@ -31,7 +33,8 @@ export class TerrainDetailPainter{
    for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++){const xx=shape.wrap?((x+i)%columns+columns)%columns:x+i,key=(y+j)*columns+xx;if(xx>=0&&xx<columns&&y+j>=0&&y+j<shape.height/32/2**lod){const versionKey=`${id}/${lod}/${key}`;this.versions.set(versionKey,(this.versions.get(versionKey)??0)+1);}}
   }this.scene=undefined;this.viewportKey="";
  }
- sync(scene:TerrainDetailScene|undefined,world:TerrainGeometry,sea:number,relief:TerrainRelief|undefined,view?:TerrainViewport,root?:Int16Array,dpr=1,quality:TerrainRenderQuality="balanced"){
+ sync(scene:TerrainDetailScene|undefined,world:TerrainGeometry,sea:number,relief:TerrainRelief|undefined,view?:TerrainViewport,root?:Int16Array,dpr=1,quality:TerrainRenderQuality="balanced",water?:HydroLayer){
+  const waterKey=waterSurfaceKey(water);if(waterKey!==this.waterKey){this.clear();this.waterKey=waterKey;}
   if(root!==this.root){this.images.clear();this.jobs=[];this.wanted=[];this.versions.clear();this.activeGrids.clear();this.root=root;this.viewportKey="";}
   const activeGrids=new Map<string,Int16Array>();for(const active of [scene?.active,scene?.preview])if(active){if(this.activeGrids.get(active.meta.id)!==active.grid)this.invalidate(active.meta.id,undefined,active.shape);activeGrids.set(active.meta.id,active.grid);}this.activeGrids=activeGrids;
   this.byteLimit=scalarRasterBytes(quality);this.metrics.cacheLimitBytes=this.byteLimit;while(this.images.size>this.limit||this.bytes>this.byteLimit)this.images.delete(this.images.keys().next().value!);
@@ -45,10 +48,10 @@ export class TerrainDetailPainter{
     let signature:string,sample:(x:number,y:number)=>number;
     if(active){
      signature=`active/${this.versions.get(`${plan.meta.id}/${plan.lod}/${key}`)??0}`;
-     const memo=new Map<number,number>(),factor=2**plan.lod;
+     const memo=new Map<number,number>(),factor=2**plan.lod,nativeRead=waterSurfaceReader((x,y)=>active.grid[y*active.shape.width+x],active.shape,world,water,sea,plan.meta.frame);
      sample=(x,y)=>{x=Math.max(0,Math.min(shape.width-1,x));y=Math.max(0,Math.min(shape.height-1,y));const cell=y*shape.width+x,hit=memo.get(cell);if(hit!==undefined)return hit;
       // Match recursive rounded 2x2 numerical overviews exactly.
-      const average=(px:number,py:number,level:number):number=>{if(!level)return active.grid[py*active.shape.width+px];return Math.round((average(px,py,level-1)+average(px+2**(level-1),py,level-1)+average(px,py+2**(level-1),level-1)+average(px+2**(level-1),py+2**(level-1),level-1))/4);};
+      const average=(px:number,py:number,level:number):number=>{if(!level)return nativeRead(px,py)!;return Math.round((average(px,py,level-1)+average(px+2**(level-1),py,level-1)+average(px,py+2**(level-1),level-1)+average(px+2**(level-1),py+2**(level-1),level-1))/4);};
       const value=average(x*factor,y*factor,plan.lod);memo.set(cell,value);return value;};
     }else{
      const x=key%columns,y=Math.floor(key/columns),halo:string[]=[];
@@ -58,6 +61,7 @@ export class TerrainDetailPainter{
     sources.push({id:plan.meta.id,identity:detailPresentationIdentity(plan,!!active),shape,frame:plan.meta.frame,level:plan.meta.level,key,authority:`${plan.meta.id}/${plan.meta.revision}/${plan.lod}/${key}/${signature}`,sample,prepareRows:active&&plan.lod>=3?0:34});
    }
   }
+  for(const source of sources)source.sample=waterSurfaceReader(source.sample,source.shape,world,water,sea,source.frame) as Source["sample"];
   const rasterScale=view?2**(Math.ceil(Math.log2(view.scale*dpr)*4)/4):1;
   let ratio=1,parts:{source:Source;window?:CartographicWindow}[]=[];
   for(let attempt=0;attempt<12;attempt++){parts=[];let pixels=0;for(const source of sources){if(view){const cols=source.shape.width/32,tw=source.frame.width/cols,th=source.frame.height/(source.shape.height/32),x=source.frame.x+source.key%cols*tw,y=source.frame.y+Math.floor(source.key/cols)*th;if(y>=view.bottom||y+th<=view.top||!(world.wrap?[-world.displayWidth,0,world.displayWidth]:[0]).some(offset=>x+offset<view.right&&x+offset+tw>view.left))continue;}let windows:(CartographicWindow|undefined)[]=[undefined];if(view){const scale=rasterScale*ratio,tw=source.frame.width/source.shape.width*32,th=source.frame.height/source.shape.height*32;if(Math.max(tw,th)*scale>48){windows=cartographicWindows(source.frame,source.shape,source.key,{...view,scale},world);if(!windows.length)windows=[{x:0,y:0,width:32,height:32,pixelsX:Math.max(1,Math.min(256,Math.ceil(tw*scale))),pixelsY:Math.max(1,Math.min(256,Math.ceil(th*scale)))}];}}for(const window of windows){parts.push({source,window});pixels+=window?window.pixelsX*window.pixelsY:1024;}}

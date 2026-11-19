@@ -14,7 +14,7 @@ async function receive(message:SurfaceWorkerRequest){
  if(message.type==="source"){
   source=message.source;if(profile.enabled!==message.profile)profile=new TerrainSurfaceProfile(message.profile);
   const tiles=new Map(source.tiles.map(t=>[`${t.id}/${t.revision}/${t.lod}/${t.key}`,t]));
-  sample=terrainSurfaceSampler(source.root,source.world,{plans:source.plans,active:source.active,preview:source.preview,cache:{peek:(id,revision,lod,key)=>tiles.get(`${id}/${revision}/${lod}/${key}`)},tick:0});return;
+  sample=terrainSurfaceSampler(source.root,source.world,{plans:source.plans,active:source.active,preview:source.preview,cache:{peek:(id,revision,lod,key)=>tiles.get(`${id}/${revision}/${lod}/${key}`)},tick:0},source.water,source.sea);return;
  }
  if(!source||!sample)throw Error("The artwork source is unavailable.");
  if(message.fine&&!cachedSurfaceTextures()&&!assetError){try{const textures=await loadSurfaceTextures();endpoint.postMessage({type:"assets",state:"ready",bytes:textures.bytes});}catch{assetError=true;endpoint.postMessage({type:"assets",state:"error",bytes:0});}}
