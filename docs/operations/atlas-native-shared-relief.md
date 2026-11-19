@@ -88,6 +88,8 @@ this final build.
   failures. Original A3/164/165 mismatch refusals remain, and a genuine
   166-versus-165 refusal is added. The shared owned fixture baseline is pinned
   to genuine committed 166-entry source `a8abf7e516e6aeb70af1df192d15e845c0fe463d`.
+  The complete deployment-safety runner also passes all 15 JavaScript and three
+  TypeScript cases: 87 total, 84 executed, three skipped.
 
 The maximum 16,777,216-sample source rehearsal processes 261,120 combined native
 cells / 32 segments / 8,364,033 profile-and-audit steps in 2,127 ms, with 15.39 ms
@@ -95,7 +97,7 @@ maximum timer delay and 26,933,392 numerical working bytes. Existing 30-second,
 100 ms and 32 MiB gates remain unchanged. Real in-flight cancellation preserves
 inputs. A 129-source audit retains all unrelated heads with 14.12 ms timer delay.
 These are owned-machine measurements, not physical-device acceptance.
-All 23 owned fixture directories are stopped; all 31 recorded application and
+All 25 owned fixture directories are stopped; all 33 recorded application and
 database ports are independently non-listening. Owner ports are excluded.
 
 Retained failures include the initial large-grid workspace refusal; schema
@@ -108,6 +110,24 @@ history without editing control and Windows ESM URL failure. The final helper
 uses normal copied-World control and fresh restored imports. None is relabelled
 as a passing original attempt. Early cleanup audits with zero parsed ports are
 invalid receipts; the corrected independent audit is retained separately.
+
+The first published source `d2fddad5` is not a verified release. Recovery
+44590388302 fails the old 165-entry expectation in the original A3 rollback
+helper after successful 166-entry replay. Its bounded test-only correction now
+compares every canonical migration hash and timestamp, retaining the original
+162-entry rollback and exact old-table assertions. All eight actual licensing
+groups and the unused-reference/independent-restore guards pass afterward.
+Other current-schema fixture expectations are maintained at 166. Python's
+bootstrap adds only the known 0165 tag and tests both its acceptance and unknown
+166/167 refusals; no migration mismatch or owner-activation protection is waived.
+All 2,205 tested application inputs and the genuine `a8abf7e5` fixture/journal
+baseline remain unchanged through this compatibility correction.
+
+Preserve Ubuntu 44590388304 attempts 1 and 2's public-dependency
+`Network is unreachable` failure and publisher 44590388232 attempt 1's correct
+upstream refusal. The unchanged Ubuntu retry repeats that transport failure and
+does not qualify the compatibility
+follow-up. Require four exact completed workflows for the final source.
 
 ## Release and guarded owner activation
 
