@@ -10,6 +10,7 @@ import {frameContains,frameGeometry,overviewLevels,rootFrame,REFINEMENT_LIMIT,ty
 import {refinementGeometryAtRevision} from "./terrain-refinement-geometry";
 import {samplePinnedTerrainPoint,type NumericalSampleSource} from "./terrain-numerical-sampling";
 import {readTerrainTile,type TerrainObject} from "./terrain-storage";
+import {createTerrainTileReferenceCache} from "./terrain-tile-reference-cache";
 import {isProtected} from "./terrain-source";
 import {sharedReliefSnapshotSchema,type SharedReliefSnapshot} from "./terrain-shared-relief-spec";
 import type {SharedReliefPlan} from "./terrain-shared-relief";
@@ -43,20 +44,14 @@ export async function sharedReliefContext(tx:SharedReliefConnection,worldId:stri
   ...[...metas.values()].map(m=>({id:m.id,revision:m.revision,parentId:m.parentId,parentRevision:m.parentRevision,level:m.level,frame:m.frame,columns:m.gridWidth,rows:m.gridHeight,contentHash:hashById.get(m.id)!}))].map(s=>sharedReliefSnapshotSchema.parse(s));
  const sources:SharedCoastSource[]=[{id:null,revision:t.revision,level:0,shape,frame:rootFrame(shape)},...[...metas.values()].map(m=>({id:m.id,revision:m.revision,level:m.level,shape:frameGeometry(m,shape),frame:m.frame}))],
   advanced=await advancedContextInTransaction(tx,worldId,mapId),pinForSnapshots=(state:SharedReliefSnapshot[])=>sharedReliefHash({terrainId:t.id,shape,seaLevel:t.seaLevel,baseElevation:t.baseElevation,snapshots:state,advancedPin:advanced.pin}),pin=pinForSnapshots(snapshots);
- const decoded=new Map<string,Int16Array>(),references=new Map<string,SharedReliefReference|null>(),pendingReferences=new Map<string,Promise<SharedReliefReference|null>>();
+ const decoded=new Map<string,Int16Array>();
  let queryTail:Promise<unknown>=Promise.resolve();
  const serialQuery=<T>(run:()=>Promise<T>):Promise<T>=>{const result=queryTail.then(run);queryTail=result.catch(()=>{});return result;};
  const read=async(ref:TerrainObject)=>{const hit=decoded.get(ref.sha256);if(hit){lruSet(decoded,ref.sha256,hit,128);return hit;}return lruSet(decoded,ref.sha256,Int16Array.from(await readTerrainTile(ref)),128);};
- const reference=async(id:string,revision:number,x:number,y:number)=>{
-  const key=`${id}:${revision}:${x}:${y}`;
-  if(references.has(key))return lruSet(references,key,references.get(key)!,1024);
-  const existing=pendingReferences.get(key);if(existing)return existing;
-  const pending=serialQuery(async()=>{
-   const result=id===t.id?(await tx.execute<SharedReliefReference>(sql`select tile_x x,tile_y y,sha256,bytes,encoding,manual_protection mask from world_terrain_tile where terrain_id=${t.id} and world_id=${worldId} and revision<=${revision} and detail_level=0 and tile_x=${x} and tile_y=${y} order by revision desc limit 1`)).rows[0]:
-    (await tx.execute<SharedReliefReference>(sql`select tile_x x,tile_y y,sha256,bytes,encoding,manual_protection mask from world_terrain_refinement_tile where terrain_id=${t.id} and world_id=${worldId} and refinement_id=${id} and revision<=${revision} and lod=0 and tile_x=${x} and tile_y=${y} order by revision desc limit 1`)).rows[0];
-   if(!result&&id!==t.id)throw unavailable();return lruSet(references,key,result??null,1024);
-  }).finally(()=>pendingReferences.delete(key));pendingReferences.set(key,pending);return pending;
- };
+ const cachedReference=createTerrainTileReferenceCache<SharedReliefReference>((id,revision,x,y,size)=>serialQuery(async()=>id===t.id?
+  (await tx.execute<SharedReliefReference>(sql`select distinct on(tile_y,tile_x) tile_x x,tile_y y,sha256,bytes,encoding,manual_protection mask from world_terrain_tile where terrain_id=${t.id} and world_id=${worldId} and revision<=${revision} and detail_level=0 and tile_x>=${x} and tile_x<${x+size} and tile_y>=${y} and tile_y<${y+size} order by tile_y,tile_x,revision desc`)).rows:
+  (await tx.execute<SharedReliefReference>(sql`select distinct on(tile_y,tile_x) tile_x x,tile_y y,sha256,bytes,encoding,manual_protection mask from world_terrain_refinement_tile where terrain_id=${t.id} and world_id=${worldId} and refinement_id=${id} and revision<=${revision} and lod=0 and tile_x>=${x} and tile_x<${x+size} and tile_y>=${y} and tile_y<${y+size} order by tile_y,tile_x,revision desc`)).rows));
+ const reference=async(id:string,revision:number,x:number,y:number)=>{const result=await cachedReference(id,revision,x,y);if(!result&&id!==t.id)throw unavailable();return result;};
  const numerical=new Map<string,Promise<NumericalSampleSource>>();
  const load=(id:string,revision:number):Promise<NumericalSampleSource>=>{
   const key=`${id}:${revision}`;let pending=numerical.get(key);if(pending)return pending;
