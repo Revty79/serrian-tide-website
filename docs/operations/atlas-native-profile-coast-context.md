@@ -66,22 +66,52 @@ application guards. The complex owned fixture uses the existing control-renewal
 heartbeat, with no lease change. Private receipts remain ignored under
 `artifacts/project-earth-coast-audit/` and the newly owned coast fixtures.
 
-## Release gate and continuing Earth
+## Verified release and native Earth continuation
 
-Publication, all four exact completed release workflows, signed hosted provenance
-and clean main/origin parity are pending for this candidate. Preserve the tested
-application bytes through that gate. The verified camera release `18d9bbee`
-currently runs in ordinary DEV. After qualification, load this correction
-normally, verify the same authenticated Earth and resume actual native work.
+Application `3abf4abb5a67a30c92f8a7e28bfead27cf0e6197` passes all four exact
+attempt-1 workflows: normal [44650356787](https://github.com/Revty79/serrian-tide-website/actions/runs/44650356787),
+recovery [44650356680](https://github.com/Revty79/serrian-tide-website/actions/runs/44650356680),
+full Ubuntu [44650356688](https://github.com/Revty79/serrian-tide-website/actions/runs/44650356688)
+and publisher [44650356696](https://github.com/Revty79/serrian-tide-website/actions/runs/44650356696).
+Every required latest-attempt job and step passes; only success-path diagnostics
+are skipped. Independent real completed-GitHub and cryptographic hosted
+provenance checks pass immutable image
+`sha256:fe6bda29e87fcf8ea5434b512fc59372c921280dda1adaa41190e7a717202c9b`
+and Linux fingerprint
+`035346db75790f39e2d7e22523d9d15a25d48bf9a73716675c99d5c88caea405`.
+All 2,208 tested application inputs match clean main/origin after activation.
+Ordinary next-dev uses those source bytes, rather than the isolated production
+fixture binary. Its processes, configuration and Revty79 session are preserved;
+no additional restart or migration occurs.
+
+Actual native Earth drawing now shows saved fine coastlines. The previously
+timed-out 47,525-sample coastal work area prepares in 28,072.9 ms, then 28,887.6 ms
+with the revised native austral profile. Both retain the unchanged 30-second
+bound, 12.7 MiB workspace and original resolutions. This remains near the limit;
+larger or denser work areas are not thereby qualified. Rejected-preview readback
+proves no geographic change. Visible Move/Add controls correct the southern
+profile tail and extend it toward the Fuegian spine while preserving the first
+seven points and the original selection exactly. Native settings exports are
+recovery records, never imported or replayed as hidden authoring data.
+
+The first revised segment saves Root 157 / Patagonia 23, changing 65 coarse and
+23,036 fine heights. Native group Undo 158/24 and Redo 159/25 restore complete
+grids and original parent references exactly. Read-only verification confirms
+all 128 source heads, identities, frames and resolutions, unaffected sources,
+water 48 and all 26 lakes. A fresh ordinary browser reopening observes Root 159.
+The inland join reads 1,948 m north and 1,941 m south; coastal water probes remain
+unchanged. The remaining southern corridor is unfinished.
 
 Owner migration 0165 is complete: localhost 5432 / `serrian_tide_dev` has 166
 canonical entries. Do not repeat migration or the completed one-time restart.
-Earth has Root 142 / water 48, 128 sources / 708,313,088 samples and 26 lakes.
-Native southern work areas through Root 140 / Patagonia 20 are saved; actual
-Undo 141/21 and Redo 142/22 restore exact full grids and old pins while retaining
-the focused camera. The austral path still needs correction against fine coasts.
-The Brazilian plateau is being prepared independently with ordinary native area
-controls. Whole global Pass 2A and final current-geography recovery remain
-unfinished. Do not stop at this software checkpoint or claim owner acceptance.
-No imports, external editing lists, hidden geography endpoints, Production,
-Canon, Tabletop, home-server or later-pass action. Carry `973d4f57` unapplied.
+Working broad Brazilian, Guiana, Amazon, Tibetan, southern African and Mexican
+foundations are also saved, with representative exact Undo/Redo and reopening.
+These are incomplete regional starting forms, not finished or survey-accurate
+geography. The final current-geography paired recovery remains pending; the
+earlier migration capture predates these edits.
+
+Preserve all earlier failures. Continue the same full native Earth Pass 2A through
+the remaining significant continental, island and polar ice-surface systems.
+Do not stop at this software checkpoint or claim owner acceptance. No imports,
+external editing lists, hidden geography endpoints, Production, Canon, Tabletop,
+home-server or later-pass action. Carry `973d4f57` unapplied.
