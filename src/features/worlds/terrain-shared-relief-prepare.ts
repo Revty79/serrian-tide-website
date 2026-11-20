@@ -17,10 +17,10 @@ export async function prepareSharedRelief(tx:SharedReliefConnection,worldId:stri
  const started=performance.now(),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),ADVANCED_TERRAIN_LIMITS.workerMs),job=signal?AbortSignal.any([signal,controller.signal]):controller.signal;
  try{
   const context=await sharedReliefContext(tx,worldId,mapId),{root,shape}=context,budget=planSharedRelief(context.sources,operation,workArea,context.context),
-   coast=await sharedReliefCoastGuards(budget.plans,context.sources,shape,root.terrain.seaLevel,async(point,source,outside)=>{
+   coast=await sharedReliefCoastGuards(budget.plans,context.sources,shape,root.terrain.seaLevel,(point,source,outside)=>{
     if(outside)return context.sample(point);
     const p=frameLocalPoint(point,source.frame,shape.displayWidth,shape.wrap),x=Math.round(p.x/source.frame.width*source.shape.width),y=Math.round(p.y/source.frame.height*source.shape.height);
-    return (await context.load(source.id??root.terrain.id,source.revision)).at(x,y);
+    const loaded=context.load(source.id??root.terrain.id,source.revision);return loaded instanceof Promise?loaded.then(s=>s.at(x,y)):loaded.at(x,y);
    },job),windows:SharedReliefPreview["windows"]=[],results=new Map<string,AdvancedResult>();
   let protectedCount=0,waterProtected=0,siteProtected=0,geometryWork=0,changed=0;
   for(const plan of budget.plans){

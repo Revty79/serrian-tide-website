@@ -8,7 +8,7 @@ import {advancedContextInTransaction} from "./terrain-advanced-service";
 import {requireWorldGeographyWrite} from "./terrain-map-context";
 import {frameContains,frameGeometry,overviewLevels,rootFrame,REFINEMENT_LIMIT,type RefinementMeta} from "./terrain-refinement";
 import {refinementGeometryAtRevision} from "./terrain-refinement-geometry";
-import {samplePinnedTerrainPoint,type NumericalSampleSource} from "./terrain-numerical-sampling";
+import {samplePinnedTerrainPointReady,type NumericalSampleSource,type NumericalSampleLoader} from "./terrain-numerical-sampling";
 import {readTerrainTile,type TerrainObject} from "./terrain-storage";
 import {createTerrainTileReferenceCache} from "./terrain-tile-reference-cache";
 import {isProtected} from "./terrain-source";
@@ -52,23 +52,26 @@ export async function sharedReliefContext(tx:SharedReliefConnection,worldId:stri
   (await tx.execute<SharedReliefReference>(sql`select distinct on(tile_y,tile_x) tile_x x,tile_y y,sha256,bytes,encoding,manual_protection mask from world_terrain_tile where terrain_id=${t.id} and world_id=${worldId} and revision<=${revision} and detail_level=0 and tile_x>=${x} and tile_x<${x+size} and tile_y>=${y} and tile_y<${y+size} order by tile_y,tile_x,revision desc`)).rows:
   (await tx.execute<SharedReliefReference>(sql`select distinct on(tile_y,tile_x) tile_x x,tile_y y,sha256,bytes,encoding,manual_protection mask from world_terrain_refinement_tile where terrain_id=${t.id} and world_id=${worldId} and refinement_id=${id} and revision<=${revision} and lod=0 and tile_x>=${x} and tile_x<${x+size} and tile_y>=${y} and tile_y<${y+size} order by tile_y,tile_x,revision desc`)).rows));
  const reference=async(id:string,revision:number,x:number,y:number)=>{const result=await cachedReference(id,revision,x,y);if(!result&&id!==t.id)throw unavailable();return result;};
- const numerical=new Map<string,Promise<NumericalSampleSource>>();
- const load=(id:string,revision:number):Promise<NumericalSampleSource>=>{
+ const numerical=new Map<string,NumericalSampleSource|Promise<NumericalSampleSource>>();
+ const load:NumericalSampleLoader=(id,revision)=>{
   const key=`${id}:${revision}`;let pending=numerical.get(key);if(pending)return pending;
   pending=(async()=>{
    if(id===t.id){const exists=(await tx.execute<{present:boolean}>(sql`select exists(select 1 from world_terrain_version where terrain_id=${t.id} and world_id=${worldId} and revision=${revision}) present`)).rows[0];if(!exists.present)throw unavailable();}
    const current=id===t.id?undefined:metas.get(id);if(id!==t.id&&!current)throw unavailable();
    if(current&&(revision<1||revision>current.revision))throw unavailable();
    const m=current?await refinementGeometryAtRevision(tx,current,revision):undefined,geometry=m?frameGeometry(m,shape):shape;
-   return {id,revision,parentId:m?m.parentId??t.id:null,parentRevision:m?.parentRevision??null,shape:geometry,frame:m?.frame??rootFrame(shape),at:async(x:number,y:number)=>{
+   const source:NumericalSampleSource={id,revision,parentId:m?m.parentId??t.id:null,parentRevision:m?.parentRevision??null,shape:geometry,frame:m?.frame??rootFrame(shape),at:(x:number,y:number)=>{
     if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=geometry.width||y>=geometry.height)throw unavailable();
-    const ref=await reference(id,revision,Math.floor(x/32),Math.floor(y/32));return ref?(await read(ref))[y%32*32+x%32]:t.baseElevation;
-   }};
+    const tx=Math.floor(x/32),ty=Math.floor(y/32),index=y%32*32+x%32,cached=cachedReference.peek(id,revision,tx,ty);
+    if(cached===null){if(id!==t.id)throw unavailable();return t.baseElevation;}
+    if(cached){const hit=decoded.get(cached.sha256);if(hit){lruSet(decoded,cached.sha256,hit,128);return hit[index];}}
+    return reference(id,revision,tx,ty).then(ref=>ref?read(ref).then(values=>values[index]):t.baseElevation);
+   }};numerical.set(key,source);return source;
   })();numerical.set(key,pending);return pending;
  };
- const sample=async(point:{x:number;y:number})=>{
+ const sample=(point:{x:number;y:number})=>{
   const source=[...sources].reverse().find(s=>s.id!==null&&frameContains(s.frame,point,shape.displayWidth,shape.wrap))??sources[0];
-  return samplePinnedTerrainPoint(point,source.id??t.id,source.revision,shape,load);
+  return samplePinnedTerrainPointReady(point,source.id??t.id,source.revision,shape,load);
  };
  const readWindow=async(plan:SharedReliefPlan)=>{
   const w=plan.window,base=new Int16Array(w.width*w.height).fill(t.baseElevation),manual=new Uint8Array(base.length),refs:SharedReliefReference[]=[];

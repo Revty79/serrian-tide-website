@@ -112,9 +112,26 @@ The metadata improvement is qualified, but **does not solve this live case**.
 Trace the remaining current-parent/context cost in isolated fixtures; do not
 relax its time, work, sample or preservation bounds.
 
-This shoreline correction still requires reviewed main publication, all four
-exact release gates, hosted provenance and clean parity before owner use. Then
-resume native Earth authoring in the same full Pass 2A. Significant global
+The preceding pending-release statement described the qualification checkpoint.
+The shoreline correction is now verified and active at
+`9375dfeea8a5c2dff7890955084dcc3e23ccfc5e`. Exact attempt-1 normal
+[44681821937](https://github.com/Revty79/serrian-tide-website/actions/runs/44681821937),
+recovery [44681821863](https://github.com/Revty79/serrian-tide-website/actions/runs/44681821863),
+full Ubuntu [44681821809](https://github.com/Revty79/serrian-tide-website/actions/runs/44681821809)
+and publisher [44681822062](https://github.com/Revty79/serrian-tide-website/actions/runs/44681822062)
+all pass with every required latest job and step. Independent completed-GitHub
+and cryptographic hosted provenance pass image
+`sha256:da7585ccfa6bc0f21c2323d46ceec61780d4e4280efdf1e1c3ed9d92d66fa8a8`
+and Linux fingerprint
+`d4fca8acf3b2ef3c6d6b0090e5a96ae99cbc68bb7240d0d98e81796ea87b9883`.
+Actual publisher update, preservation, refusal, rollback and repeat acceptance
+pass. All 2,211 tested raw application inputs and clean main/origin parity pass
+before owner use; the native default-checked shoreline control is observed.
+Activation preserves configuration, session and running DEV processes without a
+restart. The later interruption recovery uses the owner's separate explicit DEV
+restart instruction; it does not change source, configuration or migrations.
+
+Continue native Earth authoring in the same full Pass 2A. Significant global
 relief, fine-source joins and final fresh current-geography paired recovery
 remain unfinished. Do not stop at a software checkpoint, claim owner/Ember
 acceptance, or begin later passes. No Production, Canon, Tabletop or home-server

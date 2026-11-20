@@ -11,11 +11,11 @@ type Point={x:number;y:number};
  * collar. The sampler is the original accepted, pinned World, never a proposal.
  * Work and cancellation are bounded independently of the numerical kernel. */
 export async function sharedReliefCoastGuards(plans:SharedReliefPlan[],sources:SharedCoastSource[],world:TerrainGeometry,seaLevel:number,
- sample:(point:Point,source:SharedCoastSource,outside:boolean)=>Promise<number>,signal?:AbortSignal){
+ sample:(point:Point,source:SharedCoastSource,outside:boolean)=>number|Promise<number>,signal?:AbortSignal){
  if(signal?.aborted)throw new DOMException("Numerical preview canceled before acceptance.","AbortError");
  const masks=new Map(plans.map(p=>[p.source.id,new Uint8Array(p.window.width*p.window.height)])),byId=new Map(sources.map(s=>[s.id,s]));
  let visited=0,lastYield=performance.now();
- const check=async()=>{if(++visited>ADVANCED_TERRAIN_LIMITS.work)throw Error("Choose a smaller work area. Its original shoreline-support audit exceeds 8,388,608 steps.");if(signal?.aborted)throw new DOMException("Numerical preview canceled before acceptance.","AbortError");if(performance.now()-lastYield>4){await new Promise<void>(r=>setTimeout(r,0));lastYield=performance.now();}};
+ const check=()=>{if(++visited>ADVANCED_TERRAIN_LIMITS.work)throw Error("Choose a smaller work area. Its original shoreline-support audit exceeds 8,388,608 steps.");if(signal?.aborted)throw new DOMException("Numerical preview canceled before acceptance.","AbortError");if(performance.now()-lastYield>4)return new Promise<void>(r=>setTimeout(r,0)).then(()=>{lastYield=performance.now();});};
  const position=(s:SharedCoastSource,x:number,y:number):Point=>({x:world.wrap?normalizeTerrainX(s.frame.x+x/s.shape.width*s.frame.width,world.displayWidth):Math.max(0,Math.min(world.displayWidth,s.frame.x+x/s.shape.width*s.frame.width)),y:Math.max(0,Math.min(world.displayHeight,s.frame.y+y/s.shape.height*s.frame.height))});
  const local=(p:SharedReliefPlan,point:Point)=>{const a=frameLocalPoint(point,p.source.frame,world.displayWidth,world.wrap);return {x:a.x/p.source.frame.width*p.source.shape.width,y:a.y/p.source.frame.height*p.source.shape.height};};
  const relevant=(p:SharedReliefPlan,point:Point)=>{const a=local(p,point),w=p.window;return a.x>=w.x-2&&a.x<=w.x+w.width+2&&a.y>=w.y-2&&a.y<=w.y+w.height+2;};
@@ -62,14 +62,15 @@ export async function sharedReliefCoastGuards(plans:SharedReliefPlan[],sources:S
    const spans=all?[[-1,width]]:[[-1,c-1],[width-c,width]];
    for(const [left,right] of spans)for(let x=left;x<=right;x++){
     const point=position(s,x,y);if(!targets.some(p=>relevant(p,point)))continue;
-    await check();
+    const yieldAudit=check();if(yieldAudit)await yieldAudit;
     let needed=false;
     for(let ey=-1;ey<=1&&!needed;ey++)for(let ex=-1;ex<=1&&!needed;ex++){
      const support=position(s,x+ex,y+ey);needed=targets.some(p=>missingProtection(p,support));
     }
     if(!needed)continue;
     const outside=x<0||x>=width||y<0||y>=height;
-    if(await sample(point,s,outside)>seaLevel)continue;
+    const sampled=sample(point,s,outside),nativeHeight=typeof sampled==="number"?sampled:await sampled;
+    if(nativeHeight>seaLevel)continue;
     for(let ey=-1;ey<=1;ey++)for(let ex=-1;ex<=1;ex++){
      const support=position(s,x+ex,y+ey);
      for(const p of targets)protect(p,support);

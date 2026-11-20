@@ -1,7 +1,7 @@
 import type {TerrainGeometry} from "./terrain";
 import {normalizeTerrainX,framesOverlap,type TerrainFrame} from "./terrain-refinement";
 import {profileWorkArea} from "./terrain-profile-work-area";
-import {samplePinnedTerrainPoint,type NumericalSampleSource} from "./terrain-numerical-sampling";
+import {samplePinnedTerrainPointReady,type NumericalSampleSource,type NumericalSampleLoader} from "./terrain-numerical-sampling";
 import type {SharedReliefSnapshot} from "./terrain-shared-relief-spec";
 import type {AdvancedResult} from "./terrain-advanced";
 import {ADVANCED_TERRAIN_LIMITS} from "./terrain-advanced-spec";
@@ -13,19 +13,19 @@ import {profileWindowLocalIndex} from "./terrain-profile-window";
  * silently replaced: every changed fallback support must lie inside the
  * selected work area and remain dry. Old revisions continue using old pins. */
 export async function certifySharedReliefRebase(snapshots:SharedReliefSnapshot[],results:Map<string,AdvancedResult>,world:TerrainGeometry,
- selection:SharedProfile["selection"],workArea:TerrainFrame,seaLevel:number,load:(id:string,revision:number)=>Promise<NumericalSampleSource>,signal?:AbortSignal){
+ selection:SharedProfile["selection"],workArea:TerrainFrame,seaLevel:number,load:NumericalSampleLoader,signal?:AbortSignal){
  if(signal?.aborted)throw new DOMException("Numerical preview canceled before acceptance.","AbortError");
  const root=snapshots[0],before=new Map(snapshots.map(s=>[s.id,s])),heads=new Map<string,SharedReliefSnapshot>(),active=new Set<string>([root.id]),
   dimensions={width:world.displayWidth,height:world.displayHeight,wrap:world.wrap},area=profileWorkArea(selection.frame,workArea,dimensions),
   contains=(point:{x:number;y:number})=>area.containsX(point.x)&&area.containsY(point.y)&&regionAreaContainsPoint(selection,point,dimensions);
  let steps=0,contextChanges=0,maxContextChangeM=0,lastYield=performance.now();
- const nextLoad=async(id:string,revision:number):Promise<NumericalSampleSource>=>{
+ const nextLoad:NumericalSampleLoader=(id,revision)=>{
   const head=heads.get(id),prior=before.get(id);if(!head||!prior||revision!==head.revision||!active.has(id))return load(id,revision);
-  const original=await load(id,prior.revision),result=results.get(id);
-  return {...original,revision:head.revision,parentRevision:head.parentRevision,at:async(x,y)=>{
+  const loaded=load(id,prior.revision),result=results.get(id);
+  const proposed=(original:NumericalSampleSource):NumericalSampleSource=>({...original,revision:head.revision,parentRevision:head.parentRevision,at:(x,y)=>{
    const index=y*original.shape.width+x,local=result?.window?profileWindowLocalIndex(result.window,index):index;
    return result&&local!==undefined?result.grid[local]:original.at(x,y);
-  }};
+  }});return loaded instanceof Promise?loaded.then(proposed):proposed(loaded);
  };
  heads.set(root.id,{...root,revision:root.revision+1});
  for(const source of snapshots.slice(1)){
@@ -34,7 +34,7 @@ export async function certifySharedReliefRebase(snapshots:SharedReliefSnapshot[]
   const oldParent=source.parentRevision,newParent=parentAfter.revision;
   let advance=!!results.get(source.id)?.patch.indices.length;
   const touchesFallback=[{x:source.frame.x+source.frame.width,y:source.frame.y,width:0,height:source.frame.height},{x:source.frame.x,y:source.frame.y+source.frame.height,width:source.frame.width,height:0}].some(edge=>framesOverlap(edge,workArea,world.displayWidth,world.wrap,1e-6));
-  const sample=(point:{x:number;y:number},revision:number,next:boolean)=>samplePinnedTerrainPoint(point,parentId,revision,world,next?nextLoad:load);
+  const sample=(point:{x:number;y:number},revision:number,next:boolean)=>samplePinnedTerrainPointReady(point,parentId,revision,world,next?nextLoad:load);
   // The pinned numerical reader only leaves the source through its final east
   // column / south row. These exact native nodes certify the entire bilinear
   // fallback strip, including the common corner and wrapped World seam.
@@ -47,14 +47,18 @@ export async function certifySharedReliefRebase(snapshots:SharedReliefSnapshot[]
    if(performance.now()-lastYield>4){await new Promise<void>(r=>setTimeout(r,0));lastYield=performance.now();}
    const point={x:world.wrap?normalizeTerrainX(raw.x,world.displayWidth):Math.min(world.displayWidth,raw.x),y:Math.min(world.displayHeight,raw.y)};
    if(!contains(point))continue;
-   if(await sample(point,parentBefore.revision,false)!==await sample(point,newParent,true)){advance=true;break;}
+   const oldValue=sample(point,parentBefore.revision,false),a=typeof oldValue==="number"?oldValue:await oldValue,
+    newValue=sample(point,newParent,true),b=typeof newValue==="number"?newValue:await newValue;
+   if(a!==b){advance=true;break;}
   }
   if(!advance){heads.set(source.id,source);continue;}
   if(oldParent!==newParent)for(const raw of points()){
    if(++steps>ADVANCED_TERRAIN_LIMITS.work)throw Error("Choose a smaller work area. Its native context audit exceeds 8,388,608 steps.");
    if(signal?.aborted)throw new DOMException("Numerical preview canceled before acceptance.","AbortError");
    if(performance.now()-lastYield>4){await new Promise<void>(r=>setTimeout(r,0));lastYield=performance.now();}
-   const point={x:world.wrap?normalizeTerrainX(raw.x,world.displayWidth):Math.min(world.displayWidth,raw.x),y:Math.min(world.displayHeight,raw.y)},a=await sample(point,oldParent,false),b=await sample(point,newParent,true);
+   const point={x:world.wrap?normalizeTerrainX(raw.x,world.displayWidth):Math.min(world.displayWidth,raw.x),y:Math.min(world.displayHeight,raw.y)},
+    oldValue=sample(point,oldParent,false),a=typeof oldValue==="number"?oldValue:await oldValue,
+    newValue=sample(point,newParent,true),b=typeof newValue==="number"?newValue:await newValue;
    if(a===b)continue;
    if(!contains(point))throw Error("Reconnecting this source would change an older pinned boundary outside the selected native work area. Keep the proposal and review a work area containing the whole affected join.");
    if(a<=seaLevel||b<=seaLevel)throw Error("Reconnecting this source would change a retained sea support. Its pinned coastline is preserved; revise the relief work area.");
