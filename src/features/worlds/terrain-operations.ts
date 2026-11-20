@@ -5,15 +5,17 @@ import {physicalBrushGeometry} from "./terrain-physical-brush";
 import {brushWeight,type TerrainGeometry,type TerrainPatch} from "./terrain";
 import {terrainAreaSchema,type TerrainArea} from "./terrain-source";
 import {terrainPolygonSelection} from "./terrain-polygon-selection";
+import {standingWaterProtection} from "./terrain-standing-water-protection";
 
 export type TerrainPathPoint={x:number;y:number};
 const point=z.object({x:z.number().finite(),y:z.number().finite()}).strict();
 const heightFilter=z.object({mode:z.enum(["above","at-or-below"]),level:z.number().int().min(-30000).max(30000),preserveBoundary:z.boolean().optional()}).strict().optional();
+const preserveStandingWater=z.boolean().optional();
 export const terrainOperationSchema=z.discriminatedUnion("kind",[
  ...advancedOperationOptions,
- z.object({kind:z.enum(["ridge","valley"]),points:z.array(point).min(2).max(256),radius:z.number().min(1).max(128),radiusMetres:z.number().finite().positive().max(1e9).optional(),height:z.number().int().min(1).max(30000),target:z.number().int().min(-30000).max(30000).optional(),hardness:z.number().min(0).max(1),heightFilter}).strict(),
- z.object({kind:z.literal("area"),area:terrainAreaSchema,tool:z.enum(["level","smooth","raise","lower","minimum","maximum"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32),heightFilter}).strict(),
- z.object({kind:z.literal("polygon-area"),points:z.array(point).min(3).max(256),holes:z.array(z.array(point).min(3).max(256)).max(32).optional(),tool:z.enum(["level","smooth","raise","lower","minimum","maximum"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32),heightFilter}).strict(),
+ z.object({kind:z.enum(["ridge","valley"]),points:z.array(point).min(2).max(256),radius:z.number().min(1).max(128),radiusMetres:z.number().finite().positive().max(1e9).optional(),height:z.number().int().min(1).max(30000),target:z.number().int().min(-30000).max(30000).optional(),hardness:z.number().min(0).max(1),heightFilter,preserveStandingWater}).strict(),
+ z.object({kind:z.literal("area"),area:terrainAreaSchema,tool:z.enum(["level","smooth","raise","lower","minimum","maximum"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32),heightFilter,preserveStandingWater}).strict(),
+ z.object({kind:z.literal("polygon-area"),points:z.array(point).min(3).max(256),holes:z.array(z.array(point).min(3).max(256)).max(32).optional(),tool:z.enum(["level","smooth","raise","lower","minimum","maximum"]),target:z.number().int().min(-30000).max(30000),amount:z.number().int().min(1).max(30000),strength:z.number().min(1).max(100),passes:z.number().int().min(1).max(20),feather:z.number().int().min(0).max(32),heightFilter,preserveStandingWater}).strict(),
 ]);
 export type TerrainOperation=z.infer<typeof terrainOperationSchema>;
 export function validateArea(area:TerrainArea,shape:TerrainGeometry){terrainAreaSchema.parse(area);if(area.x+area.width>shape.width||area.y+area.height>shape.height)throw Error("Keep the selected rectangle inside this map's sample grid.");}
@@ -26,14 +28,16 @@ const bounded=(v:number,s:TerrainGeometry)=>Math.round(Math.max(s.min,Math.min(s
 export function* terrainOperationSteps(base:Int16Array,shape:TerrainGeometry,raw:TerrainOperation,progress?:(p:number)=>void,blocked?:Uint8Array,advancedContext?:AdvancedTerrainContext,manual?:Uint8Array){
  const operation=terrainOperationSchema.parse(raw);if(base.length!==shape.width*shape.height)throw Error("The terrain buffer does not match this map.");
  if("selection" in operation){if(!advancedContext)throw Error("An advanced operation requires its accepted geographic context.");const r=prepareAdvancedTerrain(base,shape,operation,advancedContext,blocked,manual,progress);return {...r,...r.metrics};}
+ if(operation.preserveStandingWater&&!advancedContext)throw Error("Saved standing-water geometry is required for this protected proposal. Keep the settings and wait for it to load.");
+ const water=operation.preserveStandingWater?standingWaterProtection(shape,advancedContext!):undefined;
  const grid=base.slice(),filter=operation.heightFilter,eligible=(i:number)=>{
-  if(!filter)return true;
+  if(!filter)return !water?.protected(i);
   const above=base[i]>filter.level;
   if(filter.mode==="above"?!above:above)return false;
   // Retain the original interpolation supports on either side of the saved
   // sea boundary. Eligibility stays tied to the original field across passes.
   if(filter.preserveBoundary){const x=i%shape.width,y=Math.floor(i/shape.width);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if((base[indexAt(x+dx,y+dy,shape)]>filter.level)!==above)return false;}
-  return true;
+  return !water?.protected(i);
  };
  if(operation.kind==="area"||operation.kind==="polygon-area"){
   const polygon=operation.kind==="polygon-area"?terrainPolygonSelection(operation.points,shape,operation.holes):undefined;

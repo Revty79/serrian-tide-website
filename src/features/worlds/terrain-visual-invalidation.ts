@@ -21,3 +21,13 @@ export function terrainDirtyFrames(keys:Iterable<number>|undefined,shape:Terrain
  if(!keys)return undefined;const frames:TerrainFrame[]=[],columns=shape.width/shape.tileSize,sx=shape.displayWidth/shape.width,sy=shape.displayHeight/shape.height;
  for(const key of new Set(keys)){if(!Number.isInteger(key)||key<0||key>=shape.width*shape.height/shape.tileSize**2)continue;frames.push({x:origin.x+(key%columns*shape.tileSize-4)*sx,y:origin.y+(Math.floor(key/columns)*shape.tileSize-4)*sy,width:(shape.tileSize+8)*sx,height:(shape.tileSize+8)*sy});}return frames;
 }
+
+/** Review the changed native samples with neighboring geographic context.
+ * This is an ephemeral camera frame; it never crops or replaces source data. */
+export function terrainChangeReviewFrame(indices:Uint32Array,shape:TerrainGeometry,origin:{x:number;y:number}={x:0,y:0}):TerrainFrame|undefined{
+ if(!indices.length)return undefined;
+ let left=shape.width,top=shape.height,right=-1,bottom=-1;
+ for(const i of indices){if(i>=shape.width*shape.height)throw Error("The terrain proposal does not match this source.");const x=i%shape.width,y=Math.floor(i/shape.width);left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y);}
+ const sx=shape.displayWidth/shape.width,sy=shape.displayHeight/shape.height,padX=Math.max(2*sx,(right-left+1)*sx*.15),padY=Math.max(2*sy,(bottom-top+1)*sy*.15),x=Math.max(0,left*sx-padX),y=Math.max(0,top*sy-padY),endX=Math.min(shape.displayWidth,(right+1)*sx+padX),endY=Math.min(shape.displayHeight,(bottom+1)*sy+padY);
+ return {x:origin.x+x,y:origin.y+y,width:endX-x,height:endY-y};
+}

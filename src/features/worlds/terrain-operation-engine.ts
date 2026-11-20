@@ -14,7 +14,7 @@ export async function prepareTerrainOperationJob(data:TerrainOperationJob,progre
         before=r.patch.before.buffer as ArrayBuffer,after=r.patch.after.buffer as ArrayBuffer;
       return {type:"ready",grid,indices,before,after,...r.metrics,advancedMetrics:r.metrics,window:r.window,elapsedMs:performance.now()-started};
     }else{
-      const r=await prepareTerrainOperationAsync(base,data.shape,data.operation,report,blocked,undefined,undefined,signal),grid=r.grid.buffer as ArrayBuffer,
+      const r=await prepareTerrainOperationAsync(base,data.shape,data.operation,report,blocked,data.context,undefined,signal),grid=r.grid.buffer as ArrayBuffer,
         indices=Uint32Array.from(r.patch.indices).buffer,before=Int16Array.from(r.patch.before).buffer,after=Int16Array.from(r.patch.after).buffer;
       return {type:"ready",grid,indices,before,after,changed:r.changed,minimum:r.minimum,maximum:r.maximum,elapsedMs:performance.now()-started};
     }

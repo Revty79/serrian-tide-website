@@ -1,5 +1,35 @@
 # Native shared-relief cached sampling
 
+## Verified publication and activation (2026-11-20)
+
+Application `5700ce49433675f82ba33e0379ec02ef3ff47892` passes exact attempt-1
+normal 44752771506, recovery 44752771217, Ubuntu 44752771182 and publisher
+44752771259, with all required latest completed jobs and steps. Independent
+completed-GitHub and cryptographic hosted provenance passes immutable image
+`sha256:e776b120ccbc02ae8a3b839f1f9e860a63237c10f03cbb45bdacbdd327c67272`
+and Linux fingerprint
+`4c171ee388a8992184c163ce1684c67f12ebcbb5e0a277ea16bff053d7486eef`.
+
+Local main fast-forwards to the exact published application; all 2,211 tested
+raw application inputs and all tracked raw files match the isolated source.
+Clean main/origin parity is verified. The original activation refuses a staged
+normalization of mixed-line-ending AGENTS.md; an initial repair precondition
+also refuses. The final command-local raw re-index restores the already
+HEAD-identical AGENTS blob without changing a source byte or Git configuration.
+Both failures remain retained.
+
+Ordinary Revty79 reopening and independent readback preserve Root209/water48,
+128 sources and the exact Root grid. No new restart, migration, authentication
+or configuration change occurs. The earlier user-authorized DEV interruption
+restart is already complete and is not repeated. Actual dense Chonos preview
+performance remains pending; standalone success does not prove it is solved.
+Root209 also retains the separately discovered 30-sample Baikal bed failure;
+native restoration and protected re-authoring are pending. Global Pass2A and
+final current-geography paired recovery remain unfinished.
+
+The qualification/pending-release account below is retained as historical
+evidence; its software publication requirement is satisfied by this receipt.
+
 This is a bounded performance correction for ordinary Atlas creators continuing
 one physical profile through accepted terrain sources. It does not add an
 authoring route, import geography, replace native terrain or raise a resource

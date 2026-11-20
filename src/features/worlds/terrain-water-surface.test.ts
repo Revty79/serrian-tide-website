@@ -32,3 +32,17 @@ test("missing borrowed coastal neighbors retain raw ground rather than inventing
 test("an unresolved mapped island below sea level is dry geometry, not an unmapped ocean neighbor",()=>{const a=grid();for(let y=9;y<=22;y++)for(let x=9;x<=22;x++)a[y*32+x]=-200;const island=[{x:1150,y:1150},{x:1250,y:1150},{x:1250,y:1250},{x:1150,y:1250}],w={...water,lakes:water.lakes!.map(l=>({...l,levelM:-100,rings:[...rings,island]}))};const read=(x:number,y:number)=>a[y*32+x],surface=waterSurfaceReader(read,world,world,w,0);assert.equal(surface(11,12),-100);assert.equal(surface(12,12),-200);assert.equal(a[12*32+11],-200);});
 
 test("a high standing lake never raises another lake or unrelated dry ground to its level",()=>{const a=new Int16Array(1024).fill(200),read=(x:number,y:number)=>a[y*32+x],low={...water.lakes![0],levelM:0},high={...low,id:"second",levelM:3810,rings:[[{x:2440,y:840},{x:3040,y:840},{x:3040,y:2240},{x:2440,y:2240}]]},w={...water,lakes:[low,high]},surface=waterSurfaceReader(read,world,world,w,0);assert.equal(surface(10,10),200);assert.equal(surface(27,10),3810);assert.equal(surface(1,1),200);a[10*32+27]=4000;assert.equal(surface(27,10),4000);});
+
+test("geometry-cache pressure never retains heights or hides a newly missing coastal support",()=>{
+ const shape={...world,width:128,height:128,displayWidth:12800,displayHeight:12800},a=new Int16Array(128*128).fill(200),w={...water,lakes:water.lakes!.map(l=>({...l,rings:[[{x:3040,y:2040},{x:9840,y:2040},{x:9840,y:10840},{x:3040,y:10840}]]}))};let missing=-1;
+ const surface=waterSurfaceReader((x,y)=>y*128+x===missing?undefined:a[y*128+x],shape,shape,w,0);
+ for(let y=0;y<128;y++)for(let x=0;x<128;x++)assert.equal(surface(x,y),x>=31&&x<=98&&y>=21&&y<=108?3810:200);
+ a[64*128+64]=4200;assert.equal(surface(64,64),4200);a[64*128+64]=200;assert.equal(surface(64,64),3810);
+ a[64*128+29]=-500;assert.equal(surface(31,64),200);a[64*128+29]=200;assert.equal(surface(31,64),3810);
+ missing=64*128+29;assert.equal(surface(31,64),200);missing=-1;assert.equal(surface(31,64),3810);
+});
+
+test("blocked geometry memberships retain fractional positions and exact source-frame identity",()=>{
+ const read=()=>200,a=waterSurfaceReader(read,world,world,water,0),b=waterSurfaceReader(read,world,world,water,0,{x:100,y:0,width:3200,height:3200});
+ for(let i=0;i<200;i++){assert.equal(a(8.39,10),200);assert.equal(a(8.41,10),3810);assert.equal(a(8,10),200);assert.equal(b(8,10),3810);}
+});
