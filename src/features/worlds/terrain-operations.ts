@@ -8,7 +8,7 @@ import {terrainPolygonSelection} from "./terrain-polygon-selection";
 
 export type TerrainPathPoint={x:number;y:number};
 const point=z.object({x:z.number().finite(),y:z.number().finite()}).strict();
-const heightFilter=z.object({mode:z.enum(["above","at-or-below"]),level:z.number().int().min(-30000).max(30000)}).strict().optional();
+const heightFilter=z.object({mode:z.enum(["above","at-or-below"]),level:z.number().int().min(-30000).max(30000),preserveBoundary:z.boolean().optional()}).strict().optional();
 export const terrainOperationSchema=z.discriminatedUnion("kind",[
  ...advancedOperationOptions,
  z.object({kind:z.enum(["ridge","valley"]),points:z.array(point).min(2).max(256),radius:z.number().min(1).max(128),radiusMetres:z.number().finite().positive().max(1e9).optional(),height:z.number().int().min(1).max(30000),target:z.number().int().min(-30000).max(30000).optional(),hardness:z.number().min(0).max(1),heightFilter}).strict(),
@@ -26,7 +26,15 @@ const bounded=(v:number,s:TerrainGeometry)=>Math.round(Math.max(s.min,Math.min(s
 export function* terrainOperationSteps(base:Int16Array,shape:TerrainGeometry,raw:TerrainOperation,progress?:(p:number)=>void,blocked?:Uint8Array,advancedContext?:AdvancedTerrainContext,manual?:Uint8Array){
  const operation=terrainOperationSchema.parse(raw);if(base.length!==shape.width*shape.height)throw Error("The terrain buffer does not match this map.");
  if("selection" in operation){if(!advancedContext)throw Error("An advanced operation requires its accepted geographic context.");const r=prepareAdvancedTerrain(base,shape,operation,advancedContext,blocked,manual,progress);return {...r,...r.metrics};}
- const grid=base.slice(),filter=operation.heightFilter,eligible=(i:number)=>!filter||(filter.mode==="above"?base[i]>filter.level:base[i]<=filter.level);
+ const grid=base.slice(),filter=operation.heightFilter,eligible=(i:number)=>{
+  if(!filter)return true;
+  const above=base[i]>filter.level;
+  if(filter.mode==="above"?!above:above)return false;
+  // Retain the original interpolation supports on either side of the saved
+  // sea boundary. Eligibility stays tied to the original field across passes.
+  if(filter.preserveBoundary){const x=i%shape.width,y=Math.floor(i/shape.width);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if((base[indexAt(x+dx,y+dy,shape)]>filter.level)!==above)return false;}
+  return true;
+ };
  if(operation.kind==="area"||operation.kind==="polygon-area"){
   const polygon=operation.kind==="polygon-area"?terrainPolygonSelection(operation.points,shape,operation.holes):undefined;
   if(operation.kind==="area")validateArea(operation.area,shape);if(["level","minimum","maximum"].includes(operation.tool)&&(operation.target<shape.min||operation.target>shape.max))throw Error("Choose a target elevation within this saved map's limits.");
