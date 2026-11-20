@@ -12,10 +12,11 @@ import type {SharedReliefPreview} from "./terrain-shared-relief-packet";
 
 /** Transient windows use the existing tile cache and renderer. Native arrays,
  * accepted source identities and source resolution are never replaced. */
-export function useSharedReliefScene(worldId:string,mapId:string,world:TerrainGeometry,proposal:SharedReliefPreview|undefined,before:boolean){
+export function useSharedReliefScene(worldId:string,mapId:string,world:TerrainGeometry,proposal:SharedReliefPreview|undefined,before:boolean,options?:{enabled?:boolean;rootRevision?:number}){
  const worldApi=useNativeWorldApi(),[view,setView]=useState<TerrainViewport>(),[index,setIndex]=useState<RefinementIndex>(),[error,setError]=useState(""),[tick,setTick]=useState(0);
- const api=refinementApi(worldId,mapId);
- useEffect(()=>{const c=new AbortController();void worldApi<RefinementIndex>(api,"GET",undefined,c.signal).then(setIndex).catch(e=>{if(!c.signal.aborted)setError(e.message);});return()=>c.abort();},[api,worldApi]);
+ const api=refinementApi(worldId,mapId),enabled=options?.enabled!==false,rootRevision=options?.rootRevision,
+  contextChanged=enabled&&rootRevision!==undefined&&!!index&&index.rootRevision!==rootRevision;
+ useEffect(()=>{if(!enabled)return;const c=new AbortController();void worldApi<RefinementIndex>(api,"GET",undefined,c.signal).then(value=>{setIndex(value);setError("");}).catch(e=>{if(!c.signal.aborted)setError(e.message);});return()=>c.abort();},[api,worldApi,enabled]);
  const prepared=useMemo(()=>proposal?.header.windows.map((w,i)=>({w,i})).filter(({w})=>w.sourceId!==null).map(({w,i})=>{
   let levels=0;while(w.width%(32*2**(levels+1))===0&&w.height%(32*2**(levels+1))===0)levels++;
   const meta:RefinementMeta={id:w.id+":shared:"+proposal.header.previewHash+":"+(before?"before":"after"),worldId,mapId,terrainId:proposal.header.terrainId,name:w.name,parentId:w.id,parentRevision:w.revision,level:w.level+.5,revision:w.revision,
@@ -34,11 +35,11 @@ export function useSharedReliefScene(worldId:string,mapId:string,world:TerrainGe
  }),[api,worldApi,prepared,proposal,index?.seaLevel]);
  useEffect(()=>{const unsubscribe=cache.subscribe(()=>setTick(n=>n+1));return()=>{unsubscribe();cache.dispose();};},[cache]);
  const plans=useMemo(()=>{
-  if(!view)return [];
+  if(!enabled||contextChanged||!view)return [];
   const all=[...(proposal?.header.refinements??index?.refinements??[]),...prepared.map(p=>p.meta)];
   return sharedReliefPreviewPlans(all,view,world);
- },[view,world,index?.refinements,proposal,prepared]);
+ },[view,world,index?.refinements,proposal,prepared,enabled,contextChanged]);
  useEffect(()=>{cache.schedule(plans);},[cache,plans]);
  const scene=useMemo<TerrainDetailScene>(()=>({cache,plans,tick}),[cache,plans,tick]);
- return {scene,onViewport:setView,error:error||cache.error,ready:!!index&&!cache.loading&&plans.every(p=>p.keys.every(key=>cache.peek(p.meta.id,p.meta.revision,p.lod,key)))};
+ return {scene,onViewport:setView,error:enabled?(contextChanged?"Accepted terrain changed. Keep the profile and reopen the saved map before drawing.":error||cache.error):"",ready:enabled&&!!view&&!!index&&!contextChanged&&!error&&!cache.loading&&plans.every(p=>p.keys.every(key=>cache.peek(p.meta.id,p.meta.revision,p.lod,key)))};
 }

@@ -1,7 +1,7 @@
 "use client";
 import type {AdvancedOperation} from "./terrain-advanced-spec";
 type Profile=Extract<AdvancedOperation,{kind:"landform-profile"}>;
-export function LandformProfileControls({value,onChange,onDraw,onMove}:{value:Profile;onChange:(value:Partial<Profile>)=>void;onDraw:()=>void;onMove:()=>void}){
+export function LandformProfileControls({value,onChange,onDraw,onMove,drawingReady=true}:{value:Profile;onChange:(value:Partial<Profile>)=>void;onDraw:()=>void;onMove:()=>void;drawingReady?:boolean}){
   return <>
     <p>Draw a path, then vary its elevations and full widths. Shape can raise and lower existing terrain; Minimum and Maximum retain heights beyond the chosen bound. Inspect the numerical preview and its joins before accepting.</p>
     <label>Profile effect<select aria-label="Profile effect" value={value.mode} onChange={e=>{const mode=e.target.value as Profile["mode"];onChange({mode,...(mode!=="upper-envelope"?{envelopeBaseM:undefined}:{})});}}><option value="shape">Shape toward profile elevations</option><option value="minimum">Raise toward minimum elevations</option><option value="maximum">Lower toward maximum elevations</option><option value="upper-envelope">Limit to profile envelope</option></select></label>
@@ -10,8 +10,8 @@ export function LandformProfileControls({value,onChange,onDraw,onMove}:{value:Pr
     <label>Profile end blend (m)<input aria-label="Profile end blend (m)" type="number" min={0} value={value.endBlendM} onChange={e=>onChange({endBlendM:Number(e.target.value)})}/></label>
     <label>Selection edge feather (m)<input aria-label="Selection edge feather (m)" type="number" min={0} value={value.featherM} onChange={e=>onChange({featherM:Number(e.target.value)})}/></label>
     <p>{value.mode==="upper-envelope"?"End blend brings the envelope ceiling down to its base over the given distance at each path end.":"End blend fades the path into accepted terrain over the given distance at each end."} Widths and elevations blend smoothly between points. Sea and neighboring shoreline supports, lake beds, wetlands and finer terrain are protected. The path line shows the centre; Prepare Preview shows its actual footprint.</p>
-    <button type="button" className="st-button is-secondary" onClick={onDraw}>Add profile points on map</button>
-    <button type="button" className="st-button is-secondary" onClick={onMove}>Move profile points on map</button>
+    <button type="button" className="st-button is-secondary" disabled={!drawingReady} onClick={onDraw}>Add profile points on map</button>
+    <button type="button" className="st-button is-secondary" disabled={!drawingReady} onClick={onMove}>Move profile points on map</button>
     <button type="button" className="st-button is-secondary" onClick={()=>onChange({points:[]})}>Clear profile path</button>
     <p>{value.points.length} of 128 profile points. Draw at least two points. New points inherit the last point&apos;s height and width.</p>
     {value.points.map((point,index)=><fieldset key={index}><legend>Profile point {index+1}</legend>

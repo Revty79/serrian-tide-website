@@ -30,6 +30,21 @@ export async function sharedReliefCoastGuards(plans:SharedReliefPlan[],sources:S
    if(x>=w.x&&x<w.x+w.width&&yy>=w.y&&yy<w.y+w.height)mask[(yy-w.y)*w.width+x-w.x]=1;
   }
  };
+ // Once every possible support from this fine sea node is protected, its
+ // read-only height cannot add any mask bit. Keep counting/yielding the audit,
+ // but avoid repeating fine tile reads for already complete coarser supports.
+ const missingProtection=(p:SharedReliefPlan,point:Point)=>{
+  if(!relevant(p,point))return false;
+  const a=local(p,point),w=p.window,mask=masks.get(p.source.id)!;
+  for(let ey=0;ey<=1;ey++)for(let ex=0;ex<=1;ex++){
+   let x=Math.floor(a.x)+ex;const y=Math.floor(a.y)+ey;
+   if(p.source.shape.wrap)x=(x%p.source.shape.width+p.source.shape.width)%p.source.shape.width;
+   else x=Math.max(0,Math.min(p.source.shape.width-1,x));
+   const yy=Math.max(0,Math.min(p.source.shape.height-1,y));
+   if(x>=w.x&&x<w.x+w.width&&yy>=w.y&&yy<w.y+w.height&&!mask[(yy-w.y)*w.width+x-w.x])return true;
+  }
+  return false;
+ };
  for(const s of sources){
   if(signal?.aborted)throw new DOMException("Numerical preview canceled before acceptance.","AbortError");
   if(s.id===null)continue;
@@ -48,6 +63,11 @@ export async function sharedReliefCoastGuards(plans:SharedReliefPlan[],sources:S
    for(const [left,right] of spans)for(let x=left;x<=right;x++){
     const point=position(s,x,y);if(!targets.some(p=>relevant(p,point)))continue;
     await check();
+    let needed=false;
+    for(let ey=-1;ey<=1&&!needed;ey++)for(let ex=-1;ex<=1&&!needed;ex++){
+     const support=position(s,x+ex,y+ey);needed=targets.some(p=>missingProtection(p,support));
+    }
+    if(!needed)continue;
     const outside=x<0||x>=width||y<0||y>=height;
     if(await sample(point,s,outside)>seaLevel)continue;
     for(let ey=-1;ey<=1;ey++)for(let ex=-1;ex<=1;ex++){

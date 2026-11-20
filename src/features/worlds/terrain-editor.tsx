@@ -268,7 +268,7 @@ function Sculptor({ document: rootDocument, api:baseApi, editable, review, onDir
     // The editor is locked while this workshop is open. Large profiles borrow
     // accepted host buffers read-only, then copy only their derived workspace.
     const windowed=needsProfileWindow(shape,{kind});
-    setOperation({document:{...saved,revision:revision.current,seaLevel:sea.current,refinement:saved.refinement?{...saved.refinement,revision:revision.current}:undefined},base:windowed?grid:grid.slice(),world:{shape:rootShape,grid:rootGrid},blocked:windowed?blocked:blocked.slice(),manual:windowed?protectedCells:protectedCells.slice(),worldRevision:rootAccepted.current.revision,kind,riverId});
+    setOperation({document:{...saved,revision:revision.current,seaLevel:sea.current,refinement:saved.refinement?{...saved.refinement,revision:revision.current}:undefined},base:windowed?grid:grid.slice(),world:{shape:rootShape,grid:rootGrid},view:kind==="landform-profile"?readTerrainReloadView(reloadBinding,retainTerrainReloadView(reloadBinding,canvas.current?.viewport())):undefined,blocked:windowed?blocked:blocked.slice(),manual:windowed?protectedCells:protectedCells.slice(),worldRevision:rootAccepted.current.revision,kind,riverId});
   }
   async function applyAdvanced(result:AdvancedResult,advanced:AdvancedProvenance){
     if(!operation||!("manual" in operation)||operation.document.revision!==revision.current||pendingCommand.current||dirty||conflict)throw Error("The active source changed or has retained work. Keep these settings and preview saved terrain again.");

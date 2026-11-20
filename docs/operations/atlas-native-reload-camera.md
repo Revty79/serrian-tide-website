@@ -1,5 +1,32 @@
 # Retain the Atlas camera during accepted-source reloads
 
+## Verified release and actual native first use
+
+Application `18d9bbeea92843edab9def2df7230ed2f05c6813` is published on
+origin/main. Exact normal 44635372417, recovery 44635372361, full Ubuntu
+44635372482 and publisher 44635372506 all pass at attempt 1, with required
+latest jobs and steps. Independent completed-GitHub and cryptographic hosted
+provenance verify immutable image
+`sha256:26d276a1cdf6486cf6475128f6c19c68ee6cd4939249774ed969b7a0a60c535d`
+and Linux fingerprint
+`feaeb2047fd877644e66d8bf17cfc09ea02048e1f9b23c4d6abf4476540c15df`.
+The first Docker tag-resolution probe fails with IMAGE_TOOL_FAILED; retain it.
+Using the digest from actual publisher logs passes the unchanged cryptographic
+verification without Docker, authentication or configuration changes.
+
+All 2,207 tested Windows application inputs remain exact to the build and hash
+below. Clean main/origin parity passes. Initial Git stat-cache flags have empty
+working/staged diffs and exact raw/canonical blob hashes; scoped index refresh
+clears them without changing configuration, source or tree. Ordinary DEV loads
+the correction without another restart. Actual Earth native Group History Undo
+141/21 and Redo 142/22 restore complete Root/Patagonia grids and old parent pins,
+preserving all source identities, unaffected heads, water 48 and the focused
+7.047-million-metre camera. Centre differs only by about 2 nanometres; zoom is
+exact. Same-World reopening passes. Full global relief remains unfinished.
+
+The original qualification and pending-release account below is historical and
+superseded by this verified receipt. It remains to preserve failures and limits.
+
 Saving joined relief, retrying an acknowledged request, or restoring its whole
 group reloads accepted terrain into a new editor instance. Previously that
 instance fitted the entire World, losing the creator's focused working view.
