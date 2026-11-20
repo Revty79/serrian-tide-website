@@ -1,6 +1,16 @@
 # Native saved-water preservation and elevation recovery
 
-Status: local technical qualification passes; publication, hosted provenance and owner use are pending.
+Status: verified application release6239d521; active in DEV. Full Project Earth Pass2A remains incomplete.
+
+## Verified publication and actual native recovery
+
+All four exact workflows complete successfully at attempt1: normal44790688102, recovery44790688301, Ubuntu44790688131 and publisher44790688128. Independent latest-job/step checks and cryptographic hosted provenance pass immutable image sha256:7d2cc0b355b6b12cf6b443d7470aeb242558cc4414514fdc7b82ecbfd15dc2c8, Linux source fingerprint 72364583d5f5d852fd3c05e51fb7536312ea8ea3bd5787f38f7de31793d4ee0c. The initial optional Docker manifest lookup refuses because Docker CLI is unavailable; the exact completed publisher JSON supplies the digest, then the existing independent gh OCI attestation verifier binds it to this exact commit, main ref, repository and hosted workflow. No activation occurs before that proof. All2219 tested raw app inputs match the qualified build; normal source activation retains the ordinary Revty79 session, owner configuration, all166canonical migrations and running DEV/PostgreSQL identities. No new restart occurs.
+
+The owner then uses the visible Saved elevations workshop to compare209 with208. Its14301-sample comparison is reviewed in current/selected views and acknowledged. Native restoration saves210, exact Undo211 returns209, and exact Redo212/fresh reopening restores the complete safe206/208 grid. All original lake beds and coast supports pass independently. A first shoreline harness invocation omits the newer fine baseline and correctly refuses historical159Mediterranean8 versus current23; supplying the explicit current209fine baseline passes the unchanged original159shore test. This is retained harness evidence, not a geography failure.
+
+Mongolia is re-authored with nineteen native pointer-placed polygon corners using the approved matched NOAA visual reference, above-sea minimum1000m, interior24sample blend and both preservation controls. Numerical processing takes200.7ms for13782 changes. Native inspections read1000m inside,200m outside and280m in the transition. Save213/Undo214/Redo215/fresh215 pass complete-grid equality; every changed sample was originally200m land and rises to201-1000m. All26original Root lake-bed sample sets since142, all59947original sea-shore supports since159, all127finer heads/frames/oldpins/history and water48 remain exact. CurrentRoot215 SHA-256 is c2c5ba0efbf1c50e406765057a252b071c63476ce9e5a8ec89f8d37946526790. The original209failure is retained. This is a broad working foundation; regional massifs, valleys, basins, joins and global coverage remain unfinished. No owner/artistic or physical-device acceptance is claimed.
+
+The original qualification record below retains its pending statements and failures as historical evidence; this verified receipt supersedes those statuses.
 
 ## Problem and retained Earth failure
 
@@ -117,4 +127,4 @@ solved. No owner geography has changed.
 
 ## Continuation
 
-After exact publication gates and hosted provenance, reopen normally as Revty79 without repeating migration 0165 or the completed DEV restart. In Atlas, compare saved 208 with current 209, restore the safe elevations, verify complete grids, all lake beds, original sea supports, finer heads/history/parent pins and water, then exercise Undo/Redo and fresh reopening. Re-author Mongolia with saved-water protection and continue every authorized global Pass 2A region. Final current-geography paired recovery and owner/Ember acceptance remain separate unfinished work.
+The native208restoration and protected Mongolian foundation are now saved/reopened atRoot215. Continue the retained Southern12-point profile and bounded Chonos join with the verified tools, then all authorized globalPass2A regions automatically. New Guinea fine50 has only read-only/reference inspection and empty native settings; no geography was accepted there. Final current-geography paired recovery and owner/Ember acceptance remain separate unfinished work. Do not repeat migration0165 or the completed DEVrestart.
