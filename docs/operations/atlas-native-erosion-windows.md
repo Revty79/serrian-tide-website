@@ -1,6 +1,6 @@
 # Bounded native erosion and preserved shoreline transitions
 
-Status: implementation and focused checks pass; final qualification and publication are pending. Owner geography has not used this candidate.
+Status: local technical qualification PASS. Publication, four exact completed workflows, hosted provenance and owner DEV activation remain pending. Owner geography has not used this candidate.
 
 ## Actual limitation
 
@@ -17,6 +17,7 @@ The actual editor refuses even a 10 × 10 km erosion selection on the 4096-squar
 - Offer an explicit outflow response from 1× to 4× when deposition is off. The old response remains the default, and depositing transport retains that response. Maximum wear and the original per-step wear cap remain unchanged.
 - Extend the existing joined native operation, atomic writer, retry and whole-group history to erosion. Continue using accepted source frames and immutable parent references.
 - Retain the existing profile recovery key exactly. Erosion uses a separate key and cannot replace the retained profile intent or work area. Gate joined erosion on the new schema capability; ordinary profiles remain available on the earlier schema.
+- Prefer a retained generic advanced draft for the requested tool without changing or discarding any original packet. Preserve unreadable packets and the original fallback when no matching tool is retained.
 
 The model is stylized mapmaking transport, not a geological forecast. Numerical distances and angles use Atlas's existing flat coordinate convention. Display exaggeration does not change saved heights.
 
@@ -26,7 +27,9 @@ The model is stylized mapmaking transport, not a geological forecast. Numerical 
 
 The owner explicitly authorized necessary DEV tables/schema after this limitation was identified: “if we need new db tables, go ahead and make them... we are making this wo5rk, not half assing it”. This authorizes the necessary DEV correction after qualification, verified publication and guarded fresh recovery/rehearsal. Do not ask again for this correction. Migration 165 is already complete and must not be repeated. No owner application or restart has occurred for this candidate.
 
-## Qualification in progress
+## Earlier qualification evidence (retained)
+
+The following paragraphs record earlier attempts. Their pending statements are superseded by the final frozen qualification below; original failures remain retained.
 
 The focused suite passes 43 cases, including eight new erosion cases. Full source/window parity, original absent/false behavior, protected receivers, nonzero sea levels, wrapping shores, cancellation, strict admission and separate recovery keys are covered. The whole synthetic 1,800 m transition falls to a maximum 148 m adjacent step, about 39.96°, in one 40-step batch with the explicit 4× response. A second batch reaches 102 m, about 30.003° after metre rounding. This is numerical fixture evidence, not an Earth correction or owner acceptance.
 
@@ -35,6 +38,33 @@ The populated owned PostgreSQL rehearsal retains every old public row and column
 The first native large-source aggregate passes its original eight profile groups and five new shared-erosion groups before the single-source test selects saved sea and correctly produces no changes. Acceptance stays disabled. This is a retained harness failure, not an aggregate pass. The corrected test uses land in the affected leaf source, with unchanged product code, deadlines and guards. Final native aggregate, full unit/lint/build, performance, permissions, restoration, export checks and publication receipts remain pending.
 
 Retain the earlier unsupported-window assertion failure, initial database JSON type error, lint `prefer-const` failure, private CLI export-path failure, zero-change native test and all associated screenshots/logs. The standard-response slope test also remains visible: 40 steps alone leave a 376 m inland step. The stronger test measures the whole band rather than just its first shore pair.
+
+## Final frozen qualification
+
+Build `EH1r0_pYv67NmSuREnArL` retains 2,220 exact application inputs, SHA256 `2c2e75960d737a3f53784caed33adc9bfaed3f59d4dc32d41882c58f6d2d82c6`. Exactly47 reviewed source/test/schema/operations/documentation paths differ from parent `a9ae26cac44c7f07923c5d05b4c4be64b2065c52`; all10,783 other tracked raw files match unchanged main. Existing preview/publication/history writer code preceding its history-reader capability return is byte-identical. No original writer, older migration, numerical capacity, renderer, rights/authentication configuration or owner service changes.
+
+| Check | Final result |
+| --- | --- |
+| Feature tests | 3,083 / 401 files pass, including nine new erosion/recovery cases |
+| Types and lint | Full types, full lint and final changed-path lint pass; one inherited LoreFamily warning |
+| Deployment/bootstrap | 88 cases:85 executed, three existing skips; exact known167 release accepted and unknown schemas refused |
+| Shared/native erosion | 16 groups on2048Root/two4096-square sources;16 on2048Root/two128 sources;16 on legacy640x384/two64 sources |
+| Other native groups | A6 eleven, polygons six, shoreline six, profiles eight, large windows eight, rights four and saved-water recovery twelve |
+| Total | 103 native group executions, including repeats across source configurations; not103 distinct cases |
+| Migration/integrity | Populated166-to167 upgrade, deliberateDDLrollback, exact old rows/columns/raw ledger prefix, retained profile groups, private previews, retry, exact Undo/Redo, holds/history/copy and independent database/167-ledger/three-root restore pass |
+| Earlier features | Crossing, inherited crossing and refinement expansion/restore pass on167; expansion records and asserts its measured ledger |
+| Visual/export checks | Six final erosion appearances, single4096 worker preview and all19 independently rendered PDF pages inspected; all seven output families/19 files pass |
+| Closure | All22 owned fixtures stopped and all36 recorded owned ports independently closed |
+
+The maximum synthetic4096-source benchmark selects262,144 cells and executes8,388,608 sample-steps in4,302.4ms with24,387,584 numerical bytes. Maximum timer spacing is24.8ms. In-flight cancellation returns in32.2ms with original buffers exact. These are numerical-buffer measurements, not process RSS or physical-device acceptance.
+
+Independent Sharp/Poppler inspection verifies required SVG notices, matching PNG footer pixels, nine PDFs/nineteen pages and the multipage poster. Eighteen PDF pages are pixel-identical to the previously inspected R7 outputs. The strict19-page identity aggregate fails and remains retained:804 pixels in a33x33 Town building area differ. Actual Town feature UUIDs select roof palette0 versus3 and chimney position1 versus2. The Town renderer, export renderer and fixture-construction source are byte-identical; all other page pixels are exact. Both enlarged crops and all pages were inspected. The first diagnostic incorrectly used interior-building entity UUIDs; that diagnostic and the corrected feature-ID proof remain retained.
+
+Also retain: the full unit aggregate's five Windows-checkout line-ending failures and exact unchanged-main raw restoration; C1's post-commit status and strict raw-refresh assertions, followed by a canonical byte-proved index refresh with no source/staged-blob changes; the broad CR-unaware whitespace inspection and passing CR-aware check; superseded Native2's16-group pass; Native3's12-group pass followed by unordered cross-tool recovery, corrected generally with an insertion-order/corrupt/foreign/no-write regression before final Native4; deployment's old166 TypeScript bootstrap expectation and corrected exact167 allowlist; expansion's first functional pass with an inaccurate166 receipt and the separate measured167 rerun; Legacy1's missing child shore after the default four-sample blend moved the synthetic coast outside its frame, followed by explicit zero blend in only that fixture and all16 Legacy2 groups passing with264/128/128 original shore supports exact. No assertion, deadline or protection was weakened.
+
+The shared selection overlay retains the legacy “Native profile selection” caption; its heading and numerical summary correctly identify erosion. This nonblocking wording limitation is recorded without altering frozen bytes. These installed-Chrome/owned-fixture results do not claim owner/Ember artistic or physical-device acceptance, nor that the actual Earth coastal wall is corrected.
+
+The genuine same-schema A5 baseline is local checkpoint `d69d66339d7376d4fabf424b766ea3741b00cce0`, an ancestor of the final candidate. Current fixture/journal bytes match it. Historical0165 rollback coverage stays pinned to its original actual release. The owner has already authorized necessary0166 DEV schema work; do not ask again for it or repeat165. This does not clear an independent service/recovery/security hold. Owner DEV still has166 migrations through0165. A read-only count finds217,871 private files,6,122 above the older Root134 capture; its rough manifest estimate remains below the unchanged64MiB limit, which is not a completed capture or exact-size proof.
 
 ## Continuation
 

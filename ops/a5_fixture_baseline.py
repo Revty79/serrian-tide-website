@@ -4,4 +4,4 @@ This is test input only, never a production release selection or CI override.
 The updater, trusted-origin, and prebuilt tests share the image built from it.
 """
 
-BASELINE = "5f330ebb1331a80ea00c89cf0ec722786bc65819"
+BASELINE = "d69d66339d7376d4fabf424b766ea3741b00cce0"
