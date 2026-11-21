@@ -25,7 +25,7 @@ import {prepareAdvancedTerrainAsync,type AdvancedResult} from "./terrain-advance
 import {planProfileWindow,copyProfileWindow,prepareWindowedProfile,advancedResultSample,profilePreviewMeta} from "./terrain-profile-window";
 import type {AdvancedContextPacket} from "./terrain-advanced-service";
 import type {TerrainOperationReply} from "./terrain-operation-job";
-import {parseAdvancedDraft,retireAdvancedDraft} from "./terrain-advanced-recovery";
+import {findAdvancedDraft,parseAdvancedDraft,retireAdvancedDraft} from "./terrain-advanced-recovery";
 import {advancedTerrainReview,volcanicAshCover} from "./terrain-advanced-review";
 import type {EnvironmentLayer,EnvironmentRegion} from "./terrain-environment";
 import styles from "./terrain-advanced-workshop.module.css";
@@ -111,10 +111,10 @@ export function AdvancedTerrainWorkshop(p:Props){
         return current;
       });
     }}).catch(e=>{if(live)setError(e instanceof Error?e.message:"Could not load accepted geography.");});
-    try{for(let n=0;n<localStorage.length;n++){const candidate=localStorage.key(n);if(candidate?.startsWith(prefix)&&candidate!==key){const raw=localStorage.getItem(candidate)!;queueMicrotask(()=>{if(live)setRecovery({key:candidate,raw});});break;}}}
+    try{const candidate=findAdvancedDraft(localStorage,prefix,key,doc.id,doc.refinement?.id??null,p.input.kind);if(candidate)queueMicrotask(()=>{if(live)setRecovery(candidate);});}
     catch{queueMicrotask(()=>{if(live)setError("Browser recovery storage is unavailable. Keep this editor open or export the operation settings.");});}
     queueMicrotask(()=>{if(live)setRecoveryReady(true);});return()=>{live=false;};
-  },[doc.worldId,doc.id,doc.revision,doc.refinement,key,prefix,worldApi,localStorage]);
+  },[doc.worldId,doc.id,doc.revision,doc.refinement,key,prefix,p.input.kind,worldApi,localStorage]);
   useEffect(()=>{
     if(!recoveryReady||recovery||retired.current)return;
     const raw=JSON.stringify({version:1,mapId:doc.id,sourceId:doc.refinement?.id??null,revision:doc.revision,operation:op,visualOnly,outline,areaMode,drawing,simplificationM:outlineTolerance});

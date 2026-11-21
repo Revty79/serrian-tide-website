@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {parseAdvancedDraft,retireAdvancedDraft} from "./terrain-advanced-recovery";
+import {findAdvancedDraft,parseAdvancedDraft,retireAdvancedDraft} from "./terrain-advanced-recovery";
 import {terrainSourceSchema} from "./terrain-source";
 import {advancedProvenanceSchema} from "./terrain-advanced-spec";
 const mapId="92000000-0000-4000-8000-000000000001",frame={x:0,y:0,width:6400,height:6400};
@@ -33,4 +33,18 @@ test("retiring an acknowledged packet preserves newer work from another tab",()=
   retireAdvancedDraft(storage,"draft",raw+"changed");assert.equal(values.get("draft"),raw);
   values.set("draft",raw+"newer");retireAdvancedDraft(storage,"draft",raw);assert.equal(values.get("draft"),raw+"newer");
   values.set("draft",raw);retireAdvancedDraft(storage,"draft",raw);assert.equal(values.has("draft"),false);
+});
+
+test("recovery prefers the requested tool among retained drafts without changing any original bytes",()=>{
+  const profile=JSON.stringify({...packet,operation:{kind:"landform-profile",selection:{frame},points:[],preserveManual:true,strength:100,mode:"shape",hardness:0,endBlendM:0,featherM:0}});
+  for(const entries of [[["draft:erosion",raw],["draft:profile",profile]],[["draft:profile",profile],["draft:erosion",raw]]] as [string,string][][]){
+    const values=new Map(entries),storage={get length(){return values.size;},key:(n:number)=>[...values.keys()][n]??null,getItem:(key:string)=>values.get(key)??null},before=[...values];
+    assert.deepEqual(findAdvancedDraft(storage,"draft:","draft:new",mapId,null,"landform-profile"),{key:"draft:profile",raw:profile});
+    assert.deepEqual(findAdvancedDraft(storage,"draft:","draft:new",mapId,null,"erosion"),{key:"draft:erosion",raw});
+    assert.deepEqual([...values],before);
+  }
+  const values=new Map([["draft:broken","{unfinished"],["draft:foreign",JSON.stringify({...packet,mapId:"92000000-0000-4000-8000-000000000002"})],["draft:erosion",raw]]),storage={get length(){return values.size;},key:(n:number)=>[...values.keys()][n]??null,getItem:(key:string)=>values.get(key)??null};
+  assert.equal(findAdvancedDraft(storage,"draft:","draft:new",mapId,null,"erosion")?.key,"draft:erosion");
+  assert.equal(findAdvancedDraft(storage,"draft:","draft:new",mapId,null,"landform-profile")?.raw,"{unfinished");
+  assert.equal(findAdvancedDraft(storage,"other:","draft:new",mapId,null,"erosion"),undefined);assert.equal(values.size,3);
 });

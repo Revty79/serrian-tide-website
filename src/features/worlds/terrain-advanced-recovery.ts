@@ -24,6 +24,17 @@ export function parseAdvancedDraft(raw:string,mapId:string,sourceId:string|null)
   if(value.mapId!==mapId||value.sourceId!==sourceId)throw Error("These settings belong to another terrain source.");
   return value;
 }
+/** Prefer the requested tool without discarding older or unreadable packets. */
+export function findAdvancedDraft(storage:Pick<Storage,"length"|"key"|"getItem">,prefix:string,currentKey:string,mapId:string,sourceId:string|null,kind:AdvancedOperation["kind"]){
+  let first:{key:string;raw:string}|undefined;
+  for(let n=0;n<storage.length;n++){
+    const key=storage.key(n);if(!key?.startsWith(prefix)||key===currentKey)continue;
+    const raw=storage.getItem(key);if(raw===null)continue;
+    const candidate={key,raw};first??=candidate;
+    try{if(parseAdvancedDraft(raw,mapId,sourceId).operation.kind===kind)return candidate;}catch{/* Retain unreadable original bytes for explicit export and recovery. */}
+  }
+  return first;
+}
 export function retireAdvancedDraft(storage:Pick<Storage,"getItem"|"removeItem">,key:string,raw:string){
   if(storage.getItem(key)===raw)storage.removeItem(key);
 }
