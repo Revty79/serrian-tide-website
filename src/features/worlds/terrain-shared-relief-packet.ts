@@ -1,6 +1,7 @@
 import {z} from "zod";
 import {ADVANCED_TERRAIN_LIMITS} from "./terrain-advanced-spec";
 import {sharedReliefSnapshotSchema} from "./terrain-shared-relief-spec";
+import {sharedReliefJoinReviewSchema} from "./terrain-shared-relief-join-review";
 const hash=z.string().regex(/^[a-f0-9]{64}$/),count=z.number().int().nonnegative(),dimension=z.number().int().min(32).max(4096).multipleOf(32),frame=sharedReliefSnapshotSchema.shape.frame;
 const meta=z.object({id:z.uuid(),worldId:z.uuid(),terrainId:z.uuid(),mapId:z.uuid(),name:z.string().max(160),parentId:z.uuid().nullable(),parentRevision:z.number().int().positive(),level:z.number().int().min(1).max(8),revision:z.number().int().positive(),frame,gridWidth:dimension,gridHeight:dimension,overviewLevels:z.number().int().min(0).max(7),updatedAt:z.string().max(40)}).strict();
 export const sharedReliefPreviewHeaderSchema=z.object({
@@ -11,10 +12,11 @@ export const sharedReliefPreviewHeaderSchema=z.object({
  effects:z.array(z.object({id:z.uuid(),name:z.string().max(160),revision:z.number().int().positive(),parentRevision:z.number().int().positive().nullable(),changed:count.max(262144)}).strict()).min(1).max(129),
  cells:count.max(262144),sampleSteps:count.max(8388608),workingBytes:count.max(33554432),contextChanges:count.max(8388608),maxContextChangeM:z.number().finite().min(0).max(60000),
  elapsedMs:z.number().finite().min(0),protected:count,waterProtected:count,siteProtected:count,
+ joinReview:sharedReliefJoinReviewSchema.optional(),
 }).strict();
 export type SharedReliefPreviewHeader=z.infer<typeof sharedReliefPreviewHeaderSchema>;
 export type SharedReliefPreview={header:SharedReliefPreviewHeader;windows:{before:Int16Array;after:Int16Array}[]};
-function countSamples(header:SharedReliefPreviewHeader){let count=0;for(const w of header.windows){if(w.x%32||w.y%32||w.x+w.width>w.sourceWidth||w.y+w.height>w.sourceHeight)throw Error("The native relief preview window is outside its accepted source.");count+=w.width*w.height;}if(count*8+header.cells*8>ADVANCED_TERRAIN_LIMITS.workingBytes)throw Error("The relief preview exceeds the existing numerical memory bound.");return count;}
+function countSamples(header:SharedReliefPreviewHeader){let count=0;for(const w of header.windows){if(w.x%32||w.y%32||w.x+w.width>w.sourceWidth||w.y+w.height>w.sourceHeight)throw Error("The native relief preview window is outside its accepted source.");count+=w.width*w.height;}const review=header.joinReview?.sources.reduce((n,s)=>n+s.supports.length,0)??0;if(count*8+header.cells*8+review*512>ADVANCED_TERRAIN_LIMITS.workingBytes||review>header.cells)throw Error("The relief preview exceeds the existing numerical memory bound.");return count;}
 /** Compact native preview transport only. It cannot be submitted as authoring
  * input: acceptance carries the original operation and checked hashes alone. */
 export function encodeSharedReliefPreview(value:SharedReliefPreview){
@@ -28,6 +30,11 @@ export async function decodeSharedReliefPreview(buffer:ArrayBuffer):Promise<Shar
  const view=new DataView(buffer);if(buffer.byteLength<8||view.getUint32(0,true)!==0x31524c53)throw Error("The native relief preview could not be read.");
  const size=view.getUint32(4,true);if(size>ADVANCED_TERRAIN_LIMITS.packetCharacters||size+8>buffer.byteLength)throw Error("The relief preview metadata exceeds its existing bound.");
  const header=sharedReliefPreviewHeaderSchema.parse(JSON.parse(new TextDecoder().decode(new Uint8Array(buffer,8,size)))),samples=countSamples(header);if(buffer.byteLength!==8+size+samples*4)throw Error("The relief preview native samples are incomplete.");
+ if(header.joinReview){
+  const {reviewHash,...data}=header.joinReview,digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(data))),actual=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
+  if(actual!==reviewHash)throw Error("The complete native border review failed its checksum. Saved geography is unchanged.");
+  for(const source of data.sources){const meta=header.refinements.find(v=>v.id===source.sourceId),effect=header.effects.find(v=>v.id===source.sourceId);if(!meta||!effect||meta.parentRevision!==source.oldParentRevision||effect.parentRevision!==source.newParentRevision||meta.gridWidth!==source.columns||meta.gridHeight!==source.rows||JSON.stringify(meta.frame)!==JSON.stringify(source.frame))throw Error("The native border review does not match the accepted source and proposed parent context.");}
+ }
  let offset=8+size;const windows:SharedReliefPreview["windows"]=[];
  for(const w of header.windows){
   const bytes=w.width*w.height*2;

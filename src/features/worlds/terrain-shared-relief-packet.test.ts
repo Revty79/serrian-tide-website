@@ -5,6 +5,7 @@ import {encodeSharedReliefPreview,decodeSharedReliefPreview,type SharedReliefPre
 import {sharedReliefPreviewPlans} from "./terrain-shared-relief-preview-geometry";
 import {parseSharedReliefDraft} from "./terrain-shared-relief-recovery";
 import type {RefinementMeta} from "./terrain-refinement";
+import {sharedReliefJoinReviewDataSchema} from "./terrain-shared-relief-join-review";
 const id="10000000-0000-4000-8000-000000000001",mapId="10000000-0000-4000-8000-000000000002",worldId="10000000-0000-4000-8000-000000000003",frame={x:0,y:0,width:64000,height:38400};
 const digest=(a:Int16Array)=>createHash("sha256").update(new Uint8Array(a.buffer,a.byteOffset,a.byteLength)).digest("hex");
 function preview():SharedReliefPreview{const before=new Int16Array(32*32).fill(500),after=before.slice();after[500]=3000;return {header:{version:1,worldId,mapId,terrainId:id,rootRevision:4,contextPin:"a".repeat(64),previewHash:"b".repeat(64),refinements:[],windows:[{id,sourceId:null,name:"Native World",level:0,revision:4,frame,sourceWidth:640,sourceHeight:384,x:32,y:32,width:32,height:32,beforeHash:digest(before),afterHash:digest(after),changed:1,maxLoweringM:0,maxRaisingM:2500}],effects:[{id,name:"Native World",revision:5,parentRevision:null,changed:1}],cells:1,sampleSteps:1,workingBytes:3000000,contextChanges:0,maxContextChangeM:0,elapsedMs:100,protected:0,waterProtected:0,siteProtected:0},windows:[{before,after}]};}
@@ -22,4 +23,21 @@ test("native shared recovery binds an exact original request to its World and ma
  const operation={kind:"landform-profile",mode:"shape",selection:{frame},points:[{x:1000,y:1000,elevationM:1000,widthM:10000},{x:50000,y:30000,elevationM:2000,widthM:10000}],preserveManual:false,strength:100,hardness:0,endBlendM:0,featherM:0},pending={action:"accept",mapId,requestId:id,operation,workArea:frame,contextPin:"a".repeat(64),previewHash:"b".repeat(64)},value={version:1,worldId,mapId,operation,workArea:frame,pending},raw=JSON.stringify(value);
  assert.deepEqual(parseSharedReliefDraft(raw,worldId,mapId),value);assert.throws(()=>parseSharedReliefDraft(raw,mapId,mapId),/another World/);assert.throws(()=>parseSharedReliefDraft(raw,worldId,id),/another World/);
  assert.throws(()=>parseSharedReliefDraft(JSON.stringify({...value,pending:{...pending,mapId:id}}),worldId,mapId),/same native map/);
+});
+
+test("complete border metadata roundtrips and refuses changed evidence or mismatched source pins",async()=>{
+ const p=preview(),fineId="10000000-0000-4000-8000-000000000004",fineFrame={x:1000,y:1000,width:1000,height:1000},
+  data=sharedReliefJoinReviewDataSchema.parse({scope:"selected-dry",world:{width:64000,height:38400,wrap:false},selection:{frame},workArea:{x:3200,y:3200,width:3200,height:3200},seaLevel:0,sources:[{sourceId:fineId,frame:fineFrame,columns:32,rows:32,oldParentRevision:2,newParentRevision:5,supports:[{edge:"east",index:16,before:200,after:300,outsideWorkArea:true}]}]});
+ p.header.refinements.push({id:fineId,worldId,mapId,terrainId:id,name:"Retained native border",parentId:null,parentRevision:2,level:1,revision:2,frame:fineFrame,gridWidth:32,gridHeight:32,overviewLevels:0,updatedAt:""});
+ p.header.effects.push({id:fineId,name:"Retained native border",revision:3,parentRevision:5,changed:0});p.header.cells=2;p.header.contextChanges=1;p.header.maxContextChangeM=100;
+ p.header.joinReview={...data,reviewHash:createHash("sha256").update(JSON.stringify(data)).digest("hex")};
+ const packet=encodeSharedReliefPreview(p);assert.deepEqual(await decodeSharedReliefPreview(packet.buffer as ArrayBuffer),p);
+ const changed=structuredClone(p);changed.header.joinReview!.sources[0].supports[0].after=301;await assert.rejects(decodeSharedReliefPreview(encodeSharedReliefPreview(changed).buffer as ArrayBuffer),/border review failed its checksum/);
+ const wrongPin=structuredClone(p);wrongPin.header.refinements[0].parentRevision=3;await assert.rejects(decodeSharedReliefPreview(encodeSharedReliefPreview(wrongPin).buffer as ArrayBuffer),/does not match/);
+ const tooLarge=structuredClone(p);tooLarge.header.cells=0;assert.throws(()=>encodeSharedReliefPreview(tooLarge),/existing numerical memory bound/);
+});
+
+test("explicit border-review intent stays bound to the exact native recovery and retry request",()=>{
+ const operation={kind:"landform-profile",mode:"minimum",selection:{frame},points:[{x:1000,y:1000,elevationM:1000,widthM:10000},{x:50000,y:30000,elevationM:2000,widthM:10000}],preserveManual:false,strength:100,hardness:0,endBlendM:0,featherM:0,reviewDryBorderJoins:true},pending={action:"accept",mapId,requestId:id,operation,workArea:frame,contextPin:"a".repeat(64),previewHash:"b".repeat(64)},value={version:1,worldId,mapId,operation,workArea:frame,pending};
+ assert.deepEqual(parseSharedReliefDraft(JSON.stringify(value),worldId,mapId),value);assert.equal(parseSharedReliefDraft(JSON.stringify(value),worldId,mapId).pending?.action,"accept");
 });

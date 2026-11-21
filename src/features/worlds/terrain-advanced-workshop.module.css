@@ -18,4 +18,12 @@
 @media(max-width:700px){.full{display:none}.short{display:inline}}
 
 .shell{display:contents}
+.joinReview{margin:.75rem 0;border:1px solid var(--st-border-strong);padding:.55rem;border-radius:.4rem}
+.joinSource{margin:.5rem 0;padding:.4rem;border:1px solid var(--st-border);border-radius:.35rem}
+.joinSource summary{cursor:pointer;font-weight:600}
+.joinPlot{display:block;width:100%;height:160px;margin-top:.5rem;background:var(--st-surface-deep)}
+.joinAxis{fill:none;stroke:var(--st-border-strong);stroke-width:1}
+.joinBefore,.joinAfter{fill:none;stroke-width:1.8;vector-effect:non-scaling-stroke}
+.joinBefore{stroke:var(--st-muted);stroke-dasharray:4 3}.joinAfter{stroke:var(--st-secondary)}
+.joinLegend{display:flex;flex-wrap:wrap;gap:.75rem}
 @media(max-width:700px){.stage{gap:.2rem}.shell:has([data-settings="closed"]) header p{white-space:nowrap;max-width:23ch;overflow:hidden;text-overflow:ellipsis}}

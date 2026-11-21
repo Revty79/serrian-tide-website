@@ -46,3 +46,15 @@ test("unrelated accepted sources retain their complete state and cancellation al
  const distant=Array.from({length:128},(_,i)=>({...snapshots[1],id:"retained-"+i,frame:{x:1000+(i%16)*100,y:1000+Math.floor(i/16)*100,width:100,height:100}})),all=[snapshots[0],...distant],certified=await certifySharedReliefRebase(all,new Map(),world,operation.selection,area,0,a.load);
  assert.equal(certified.heads.length,129);assert.deepEqual(certified.heads.slice(1),distant);assert.deepEqual([...certified.active],["root"]);
 });
+
+test("explicit selected dry review reconnects the complete stale border without changing native inputs",async()=>{
+ const rootId="20000000-0000-4000-8000-000000000001",fineId="20000000-0000-4000-8000-000000000002",input=inputs(true),beforeRoot=input.root.slice(),beforeFine=input.fine.slice(),
+  state=snapshots.map(s=>({...s,id:s.id==="root"?rootId:fineId})),results=new Map([...input.results].map(([id,r])=>[id==="root"?rootId:fineId,r])),
+  load=async(id:string,revision:number)=>{const value=await input.load(id===rootId?"root":"fine",revision);return {...value,id,parentId:value.parentId?rootId:null};},
+  result=await certifySharedReliefRebase(state,results,world,operation.selection,area,0,load,undefined,{context,preserveManual:false,nativeCells:2,workingBytes:3*1048576});
+ assert.equal(result.heads[1].parentRevision,3);assert.equal(result.heads[1].revision,2);assert(result.joinReview);assert(result.joinReviewSamples!>0);assert(result.joinReviewBytes!>0);
+ assert(result.joinReview.sources[0].supports.some(p=>p.outsideWorkArea&&p.before===500&&p.after===900));
+ assert(result.joinReview.sources[0].supports.some(p=>!p.outsideWorkArea));assert.equal(result.joinReview.sources[0].sourceId,fineId);
+ assert.deepEqual(input.root,beforeRoot);assert.deepEqual(input.fine,beforeFine);assert.equal(state[1].parentRevision,1);
+ await assert.rejects(certifySharedReliefRebase(state,results,world,operation.selection,area,0,load),/outside the selected/);
+});

@@ -19,6 +19,7 @@ export const landformProfileSchema=z.object({
   points:z.array(advancedPointSchema.extend({elevationM:z.number().int().min(-30000).max(30000),widthM:metres})).min(2).max(128),
   mode:z.enum(["shape","minimum","maximum","upper-envelope"]),
   envelopeBaseM:z.number().int().min(-30000).max(30000).optional(),
+  reviewDryBorderJoins:z.boolean().optional(),
   hardness:z.number().finite().min(0).max(1),
   endBlendM:z.number().finite().min(0).max(1e9),featherM:z.number().finite().min(0).max(1e9),
 }).strict().superRefine((v,c)=>{
@@ -43,6 +44,7 @@ export const erosionOperationSchema=z.object({...common,kind:z.literal("erosion"
   deposition:z.boolean(),maxDepthM:z.number().finite().min(1).max(3000),
   reposeDegrees:z.number().finite().min(1).max(70),featherM:z.number().finite().min(0).max(1e9),
   preserveShoreline:z.boolean().optional(),
+  reviewDryBorderJoins:z.boolean().optional(),
   outflowRate:z.number().finite().min(1).max(4).optional(),
 }).strict().superRefine((v,c)=>{if(v.deposition&&v.outflowRate!==undefined&&v.outflowRate!==1)c.addIssue({code:"custom",path:["outflowRate"],message:"Faster outflow requires deposits to be off. Depositing transport keeps its original bounded response."});});
 export const sharedReliefOperationSchema=z.discriminatedUnion("kind",[landformProfileSchema,erosionOperationSchema]);
