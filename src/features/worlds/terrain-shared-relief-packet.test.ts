@@ -41,3 +41,13 @@ test("explicit border-review intent stays bound to the exact native recovery and
  const operation={kind:"landform-profile",mode:"minimum",selection:{frame},points:[{x:1000,y:1000,elevationM:1000,widthM:10000},{x:50000,y:30000,elevationM:2000,widthM:10000}],preserveManual:false,strength:100,hardness:0,endBlendM:0,featherM:0,reviewDryBorderJoins:true},pending={action:"accept",mapId,requestId:id,operation,workArea:frame,contextPin:"a".repeat(64),previewHash:"b".repeat(64)},value={version:1,worldId,mapId,operation,workArea:frame,pending};
  assert.deepEqual(parseSharedReliefDraft(JSON.stringify(value),worldId,mapId),value);assert.equal(parseSharedReliefDraft(JSON.stringify(value),worldId,mapId).pending?.action,"accept");
 });
+
+test("protected-bank review counters roundtrip and refuse altered or out-of-bound evidence",async()=>{
+ const p=preview(),data={conflictingSupports:113,maximumStepM:183};p.header.bankReinforcement={...data,reviewHash:createHash("sha256").update(JSON.stringify(data)).digest("hex")};assert.deepEqual(await decodeSharedReliefPreview(encodeSharedReliefPreview(p).buffer as ArrayBuffer),p);
+ const changed=structuredClone(p);changed.header.bankReinforcement!.conflictingSupports++;await assert.rejects(decodeSharedReliefPreview(encodeSharedReliefPreview(changed).buffer as ArrayBuffer),/protected-bank review failed its checksum/);
+ for(const change of [{conflictingSupports:8388609},{maximumStepM:60001},{maximumStepM:NaN}]){const invalid=structuredClone(p);Object.assign(invalid.header.bankReinforcement!,change);assert.throws(()=>encodeSharedReliefPreview(invalid));}
+});
+test("explicit reinforced erosion and its fill limit survive exact shared recovery and retry",()=>{
+ const operation={kind:"erosion",selection:{frame},preserveManual:false,strength:100,model:"thermal",iterations:40,direction:90,directionInfluence:.6,deposition:false,maxDepthM:2000,reposeDegrees:30,featherM:2000,preserveShoreline:true,outflowRate:4,bankReinforcementM:200},pending={action:"accept",mapId,requestId:id,operation,workArea:frame,contextPin:"a".repeat(64),previewHash:"b".repeat(64)},value={version:1,worldId,mapId,operation,workArea:frame,pending};assert.deepEqual(parseSharedReliefDraft(JSON.stringify(value),worldId,mapId,"erosion"),value);
+ const changedDraft=JSON.parse(JSON.stringify(value)) as typeof value;changedDraft.operation.bankReinforcementM=201;const recovered=parseSharedReliefDraft(JSON.stringify(changedDraft),worldId,mapId,"erosion");assert.deepEqual(recovered.pending,value.pending);assert.deepEqual(recovered.operation,changedDraft.operation);
+});

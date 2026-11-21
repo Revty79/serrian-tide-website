@@ -3,7 +3,7 @@ import type {TerrainFrame} from "./terrain-refinement";
 import type {HydroLayer,HydroPoint} from "./terrain-hydrology";
 import {insideWaterRings,waterBounds,nearestWaterShore} from "./terrain-water-geometry";
 import {regionAreaContainsPoint,regionCanonicalX,validateRegionFootprint} from "./terrain-region-geometry";
-import {ADVANCED_TERRAIN_LIMITS as LIMITS,advancedOperationSchema,type AdvancedOperation,type VolcanoOperation} from "./terrain-advanced-spec";
+import {ADVANCED_TERRAIN_LIMITS as LIMITS,advancedOperationSchema,advancedTerrainCellBytes,advancedTerrainSampleSteps,type AdvancedOperation,type VolcanoOperation} from "./terrain-advanced-spec";
 import {prepareLandformProfile} from "./terrain-landform-profile";
 import {profileWorkArea} from "./terrain-profile-work-area";
 
@@ -23,6 +23,7 @@ export type AdvancedMetrics={
   removedM3:number;addedM3:number;eligible:number;protected:number;waterProtected:number;siteProtected:number;
   visited:number;workingBytes:number;affected:TerrainFrame|null;notices:string[];
   geometryWork?:number;
+  bankSupportConflicts?:number;maxBankSupportStepM?:number;
 };
 export type AdvancedResult={grid:Int16Array;patch:{indices:Uint32Array;before:Int16Array;after:Int16Array};metrics:AdvancedMetrics;window?:import("./terrain-profile-window").ProfileWindow};
 const smooth=(t:number)=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
@@ -106,11 +107,11 @@ export function* advancedTerrainSteps(
   for(let y=0;y<shape.height;y++){const wy=nativeY(y);if(wy>=selection.frame.y-1e-6&&wy<=selection.frame.y+selection.frame.height+1e-6&&(!workArea||workArea.containsY(wy))&&(!influence||wy>=influence.y&&wy<=influence.y+influence.height))ys.push(y);}
   const cells=xs.length*ys.length;
   if(!cells)throw Error("This selection has no native samples in the active terrain source.");
-  if(cells>LIMITS.cells||op.kind==="erosion"&&cells*op.iterations>LIMITS.work||op.kind==="landform-profile"&&cells*(op.points.length-1)>LIMITS.work)throw Error("Choose a smaller area or fewer operation steps or profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
+  if(cells>LIMITS.cells||advancedTerrainSampleSteps(op,cells)>LIMITS.work)throw Error("Choose a smaller area or fewer operation steps or profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
   // Retain the previous source/selected-work reserves, less the full-source
   // Int32 lookup and Uint8 settlement mask that are no longer allocated.
   // Axis ranks cover wrapped/non-contiguous columns; protection stays local.
-  const bytes=n*7+cells*(op.kind==="erosion"&&op.preserveShoreline?65:64)+(shape.width+shape.height)*Int32Array.BYTES_PER_ELEMENT;
+  const bytes=n*7+cells*advancedTerrainCellBytes(op)+(shape.width+shape.height)*Int32Array.BYTES_PER_ELEMENT;
   if(bytes>LIMITS.workingBytes)throw Error("This operation exceeds its 32 MiB numerical working-buffer budget. Choose a smaller area.");
   const columns=new Int32Array(shape.width).fill(-1),rows=new Int32Array(shape.height).fill(-1),
     indices=new Uint32Array(cells),weights=new Float32Array(cells),eligibility=new Uint8Array(cells),
@@ -119,7 +120,9 @@ export function* advancedTerrainSteps(
   const windowIndex=(i:number)=>{const x=columns[i%shape.width],y=rows[Math.floor(i/shape.width)];return x<0||y<0?-1:y*xs.length+x;};
   const eligibleIndex=(i:number)=>{const k=windowIndex(i);return k>=0&&eligibility[k]?k:-1;};
   const shoreReceivers=op.kind==="erosion"&&op.preserveShoreline?new Uint8Array(cells):undefined;
-  let protectedCount=0,waterProtected=0,siteProtected=0,eligible=0,visited=0,geometryWork=0,lastYield=performance.now();
+  let bankFloor=op.kind==="erosion"&&op.bankReinforcementM!==undefined?new Float64Array(cells).fill(-Infinity):undefined,
+    nextBankFloor=bankFloor?new Float64Array(cells).fill(-Infinity):undefined;
+  let protectedCount=0,waterProtected=0,siteProtected=0,eligible=0,visited=0,geometryWork=0,bankSupportConflicts=0,maxBankSupportStepM=0,lastYield=performance.now();
   const wet=[...(context.water.lakes??[]).map(l=>({rings:l.rings,bounds:waterBounds(l.rings.flat(),world)})),
     ...(context.water.features??[]).filter(f=>f.kind==="wetland").map(f=>({rings:f.rings,bounds:waterBounds(f.rings.flat(),world)}))];
   const position=(i:number)=>({x:regionCanonicalX(nativeX(i%shape.width),world),y:nativeY(Math.floor(i/shape.width))});
@@ -229,24 +232,71 @@ export function* advancedTerrainSteps(
       for(let k=0;k<cells;k++){
         if(!weights[k])continue;
         let best=-1,bestScore=-Infinity,bestDrop=0,bestFixed=false;
+        let requiredBank=bankFloor?.[k]??-Infinity;
         const x=indices[k]%shape.width,y=Math.floor(indices[k]/shape.width);
         for(const q of directions){
           const i=globalIndex(x+q.east,y+q.south),normal=i<0?-1:eligibleIndex(i),fixed=normal<0&&i>=0&&!op.deposition?windowIndex(i):-1,
             isFixed=fixed>=0&&!!shoreReceivers?.[fixed],other=normal>=0?normal:isFixed?fixed:-1;
+          // Carry a fixed bank's crown into its first editable land supports;
+          // taper farther reinforcement by conservative whole-metre talus steps.
+          if(bankFloor&&i>=0&&base[i]>seaLevel)requiredBank=Math.max(requiredBank,normal>=0?bankFloor[normal]-Math.floor(q.length*repose):base[i]);
           if(other<0)continue;
-          const drop=bed[k]-bed[other],excess=drop-(op.model==="thermal"?q.length*repose:0);
+          // One metre of headroom prevents final rounding from creating a new
+          // excessive step in the explicitly reinforced transport result.
+          const drop=bed[k]-bed[other],excess=drop-(op.model==="thermal"?bankFloor?Math.max(0,Math.floor(q.length*repose)-1):q.length*repose:0);
           if(excess<=0)continue;
           const score=excess/q.length*(1+op.directionInfluence*q.cosine*.95);
           if(score>bestScore){best=other;bestScore=score;bestDrop=excess;bestFixed=isFixed;}
         }
+        let bankMinimum=-Infinity;
+        if(bankFloor){
+          nextBankFloor![k]=requiredBank;
+          if(Number.isFinite(requiredBank)){
+            const original=base[indices[k]];
+            bankMinimum=Math.ceil(original+(requiredBank-original)*weights[k]*op.strength/100);
+            if(bankMinimum-original>op.bankReinforcementM!)throw Error("The bank reinforcement exceeds its chosen maximum. Increase that limit deliberately or revise the selected area; saved terrain is unchanged.");
+          }
+        }
         if(best>=0){
-          const amount=Math.max(0,Math.min(bestDrop*.125*(op.outflowRate??1),op.maxDepthM/8,op.maxDepthM-removed[k]))*
+          const transport=Math.max(0,Math.min(bestDrop*.125*(op.outflowRate??1),op.maxDepthM/8,op.maxDepthM-removed[k]))*
             op.strength/100*(bestFixed?weights[k]:Math.min(weights[k],weights[best]));
+          const amount=bankFloor?Math.min(transport,Math.max(0,bed[k]-bankMinimum)):transport;
           delta[k]-=amount;removed[k]+=amount;if(op.deposition)delta[best]+=amount;
         }
         if(counts()){lastYield=performance.now();yield .12+.7*(step+k/cells)/op.iterations;}
       }
-      for(let k=0;k<cells;k++)if(weights[k])bed[k]=Math.max(seaLevel+1,Math.min(shape.max,bed[k]+delta[k]));
+      if(bankFloor){
+        for(let k=0;k<cells;k++){
+          if(weights[k]){
+            const floor=Number.isFinite(nextBankFloor![k])?Math.ceil(base[indices[k]]+(nextBankFloor![k]-base[indices[k]])*weights[k]*op.strength/100):-Infinity;
+            bed[k]=Math.max(seaLevel+1,Math.min(shape.max,Math.max(floor,bed[k]+delta[k])));
+          }
+          // Applying the same charged sample-step must also remain cooperative.
+          if((k&255)===0&&performance.now()-lastYield>4){lastYield=performance.now();yield .12+.7*(step+1)/op.iterations;}
+        }
+        [bankFloor,nextBankFloor]=[nextBankFloor!,bankFloor];
+      }else for(let k=0;k<cells;k++)if(weights[k])bed[k]=Math.max(seaLevel+1,Math.min(shape.max,bed[k]+delta[k]));
+    }
+    if(bankFloor){
+      // Refuse a partly reinforced join rather than accepting a new or steeper
+      // dry step. The eight-neighbour audit is charged in the original budget.
+      for(let k=0;k<cells;k++)if(weights[k]){
+        const i=indices[k],x=i%shape.width,y=Math.floor(i/shape.width),value=Math.round(bed[k]);
+        for(const q of directions){
+          if(counts()){lastYield=performance.now();yield .84+.04*k/cells;}
+          const j=globalIndex(x+q.east,y+q.south);if(j<0||base[j]<=seaLevel)continue;
+          const other=eligibleIndex(j),next=other>=0?Math.round(bed[other]):base[j],allowed=Math.max(Math.abs(base[i]-base[j]),Math.floor(q.length*repose));
+          if(Math.abs(value-next)>allowed){
+            if(other<0&&value>next&&value>base[i]){
+              // Conflicting fixed heights can make a gentle bank impossible.
+              // Keep them exact and expose the raised shoulder's sharp join.
+              bankSupportConflicts++;maxBankSupportStepM=Math.max(maxBankSupportStepM,value-next);
+            }else throw Error("Bank reinforcement cannot finish a safe join at these settings. Review a larger adjoining area, more duration or the selection blend; saved terrain is unchanged.");
+          }
+        }
+      }
+      notices.push("Bank reinforcement may raise eligible land beside fixed protected ground and selection boundaries. Added material is limited by the explicit maximum and blended by strength and selection feather; it is not conserved eroded material. Saved supports remain exact. New or steeper joins between editable samples are refused.");
+      if(bankSupportConflicts)notices.push(`${bankSupportConflicts.toLocaleString()} reinforced supports meet lower fixed ground with sharp steps up to ${maxBankSupportStepM} m. Conflicting protected heights are unchanged; inspect these bank joins before acceptance.`);
     }
     notices.push(op.model==="thermal"?"Stylized downhill talus transport above the chosen repose angle; this is not a geological forecast.":"Stylized directional runoff detaches material toward the steepest weighted downhill neighbour; it is not a hydraulic simulation.");
     notices.push(op.deposition?"Transport retains material inside eligible samples before metre rounding and elevation bounds. Reported cut/fill volumes include that quantization.":"Deposition is off: eroded material leaves the model. Material conservation is not claimed.");
@@ -349,7 +399,7 @@ export function* advancedTerrainSteps(
     if(difference<0)removedM3-=difference*sx*sy;else addedM3+=difference*sx*sy;
     const p=position(i),offset=world.wrap?((p.x-affectedOrigin)%world.width+world.width)%world.width:p.x-affectedOrigin;
     left=Math.min(left,offset);right=Math.max(right,offset);top=Math.min(top,p.y);bottom=Math.max(bottom,p.y);
-    if(counts()){lastYield=performance.now();yield .82+.13*k/cells;}
+    if(counts()){lastYield=performance.now();yield bankFloor ? .89+.06*k/cells : .82+.13*k/cells;}
   }
   for(let i=0;i<n;i++){min=Math.min(min,grid[i]);max=Math.max(max,grid[i]);if((i&8191)===0&&performance.now()-lastYield>4){lastYield=performance.now();yield .96;}}
   if(profile){
@@ -371,7 +421,7 @@ export function* advancedTerrainSteps(
   if(siteProtected)notices.push(siteProtected.toLocaleString()+" settlement-support samples were retained exactly.");
   return {grid,patch:{indices:changedIndices.slice(0,changed),before:before.slice(0,changed),after:after.slice(0,changed)},metrics:{
     changed,minimum:min,maximum:max,maxLoweringM,maxRaisingM,removedM3,addedM3,eligible,protected:protectedCount,waterProtected,siteProtected,
-    visited,workingBytes:bytes,geometryWork,affected:changed?{x:regionCanonicalX(affectedOrigin+left,world),y:top,width:Math.min(world.width,Math.max(sx,right-left)),height:Math.max(sy,bottom-top)}:null,notices,
+    visited,workingBytes:bytes,geometryWork,...bankFloor?{bankSupportConflicts,maxBankSupportStepM}:{},affected:changed?{x:regionCanonicalX(affectedOrigin+left,world),y:top,width:Math.min(world.width,Math.max(sx,right-left)),height:Math.max(sy,bottom-top)}:null,notices,
   }};
 }
 

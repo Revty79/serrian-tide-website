@@ -13,6 +13,7 @@ export const sharedReliefPreviewHeaderSchema=z.object({
  cells:count.max(262144),sampleSteps:count.max(8388608),workingBytes:count.max(33554432),contextChanges:count.max(8388608),maxContextChangeM:z.number().finite().min(0).max(60000),
  elapsedMs:z.number().finite().min(0),protected:count,waterProtected:count,siteProtected:count,
  joinReview:sharedReliefJoinReviewSchema.optional(),
+ bankReinforcement:z.object({conflictingSupports:count.max(ADVANCED_TERRAIN_LIMITS.work),maximumStepM:count.max(60000),reviewHash:hash}).strict().optional(),
 }).strict();
 export type SharedReliefPreviewHeader=z.infer<typeof sharedReliefPreviewHeaderSchema>;
 export type SharedReliefPreview={header:SharedReliefPreviewHeader;windows:{before:Int16Array;after:Int16Array}[]};
@@ -36,6 +37,10 @@ export async function decodeSharedReliefPreview(buffer:ArrayBuffer):Promise<Shar
   for(const source of data.sources){const meta=header.refinements.find(v=>v.id===source.sourceId),effect=header.effects.find(v=>v.id===source.sourceId);if(!meta||!effect||meta.parentRevision!==source.oldParentRevision||effect.parentRevision!==source.newParentRevision||meta.gridWidth!==source.columns||meta.gridHeight!==source.rows||JSON.stringify(meta.frame)!==JSON.stringify(source.frame))throw Error("The native border review does not match the accepted source and proposed parent context.");}
  }
  let offset=8+size;const windows:SharedReliefPreview["windows"]=[];
+ if(header.bankReinforcement){
+  const {reviewHash,...data}=header.bankReinforcement,digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify(data))),actual=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
+  if(actual!==reviewHash)throw Error("The protected-bank review failed its checksum. Saved geography is unchanged.");
+ }
  for(const w of header.windows){
   const bytes=w.width*w.height*2;
   for(const [n,expected] of [w.beforeHash,w.afterHash].entries()){

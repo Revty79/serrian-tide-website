@@ -2,7 +2,7 @@ import {z} from "zod";
 import type {TerrainGeometry} from "./terrain";
 import type {TerrainFrame} from "./terrain-refinement";
 import {REFINEMENT_LIMIT} from "./terrain-refinement";
-import {ADVANCED_TERRAIN_LIMITS,landformProfileSchema,sharedReliefOperationSchema} from "./terrain-advanced-spec";
+import {ADVANCED_TERRAIN_LIMITS,landformProfileSchema,sharedReliefOperationSchema,advancedTerrainCellBytes,advancedTerrainSampleSteps} from "./terrain-advanced-spec";
 import type {AdvancedTerrainContext,AdvancedResult} from "./terrain-advanced";
 import {planProfileWindow,type ProfileWindow,prepareWindowedProfile} from "./terrain-profile-window";
 
@@ -25,10 +25,10 @@ export function planSharedRelief(sources:SharedReliefSource[],raw:SharedReliefOp
  }
  if(!cells)throw Error("This work area contains no native samples from the selected profile.");
  const rootPlan=plans.find(p=>p.source.id===null),rootPreviewBytes=rootPlan&&(rootPlan.window.width!==rootPlan.source.shape.width||rootPlan.window.height!==rootPlan.source.shape.height)?rootPlan.source.shape.width*rootPlan.source.shape.height*2:0,
-  sampleSteps=cells*(op.kind==="erosion"?op.iterations:op.points.length-1),binaryBytes=8+n*4,
+  sampleSteps=advancedTerrainSampleSteps(op,cells),binaryBytes=8+n*4,
   // Reserve the existing numerical kernel and binary before/after transport.
   // This is a combined bound over all affected sources, not a per-source reset.
-  workingBytes=Math.max(n*10+cells*(op.kind==="erosion"&&op.preserveShoreline?65:64)+axes,n*8+cells*8+rootPreviewBytes)+ADVANCED_TERRAIN_LIMITS.packetCharacters+2*1048576;
+  workingBytes=Math.max(n*10+cells*advancedTerrainCellBytes(op)+axes,n*8+cells*8+rootPreviewBytes)+ADVANCED_TERRAIN_LIMITS.packetCharacters+2*1048576;
  if(cells>ADVANCED_TERRAIN_LIMITS.cells||sampleSteps>ADVANCED_TERRAIN_LIMITS.work)throw Error("Choose a smaller native work area. Across all sources the limit is 262,144 samples and 8,388,608 sample-steps; every source keeps its native resolution.");
  if(workingBytes>ADVANCED_TERRAIN_LIMITS.workingBytes)throw Error("Choose a smaller native work area. Its combined numerical windows exceed the existing 32 MiB budget.");
  return {plans,cells,sampleSteps,workingBytes,binaryBytes,rootPreviewBytes};

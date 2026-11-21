@@ -1,7 +1,7 @@
 import type {TerrainGeometry, TerrainTile} from "./terrain";
 import type {TerrainFrame, RefinementMeta} from "./terrain-refinement";
 import {regionCanonicalX} from "./terrain-region-geometry";
-import {ADVANCED_TERRAIN_LIMITS, advancedOperationSchema, type AdvancedOperation} from "./terrain-advanced-spec";
+import {ADVANCED_TERRAIN_LIMITS, advancedOperationSchema,advancedTerrainCellBytes,advancedTerrainSampleSteps, type AdvancedOperation} from "./terrain-advanced-spec";
 import {prepareAdvancedTerrainAsync, type AdvancedTerrainContext, type AdvancedResult} from "./terrain-advanced";
 import {profileWorkArea} from "./terrain-profile-work-area";
 
@@ -34,7 +34,7 @@ export function planProfileWindow(shape:TerrainGeometry,raw:AdvancedOperation,co
   for(let y=0;y<shape.height;y++){const wy=frame.y+y*sy;if(wy>=s.y-1e-6&&wy<=s.y+s.height+1e-6&&(!workArea||workArea.containsY(wy)))ys.push(y);}
   const cells=xs.length*ys.length;
   if(!cells){if(options)return null;throw Error("This selection has no native samples in the active terrain source.");}
-  if(cells>ADVANCED_TERRAIN_LIMITS.cells||cells*(op.kind==="erosion"?op.iterations:op.points.length-1)>ADVANCED_TERRAIN_LIMITS.work)
+  if(cells>ADVANCED_TERRAIN_LIMITS.cells||advancedTerrainSampleSteps(op,cells)>ADVANCED_TERRAIN_LIMITS.work)
     throw Error(op.kind==="landform-profile"?"Choose a smaller area or fewer profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.":"Choose a smaller area or fewer erosion steps. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
   const axis=(indices:number[],size:number)=>{
     const first=Math.max(0,Math.floor(indices[0]/32)*32-32),last=Math.min(size,Math.ceil((indices[indices.length-1]+1)/32)*32+32),
@@ -42,7 +42,7 @@ export function planProfileWindow(shape:TerrainGeometry,raw:AdvancedOperation,co
     return {start,count};
   };
   const seam=shape.wrap&&(xs[0]<32||xs[xs.length-1]>=shape.width-32),x=seam?{start:0,count:shape.width}:axis(xs,shape.width),y=axis(ys,shape.height),n=x.count*y.count,
-    bytes=n*7+cells*(op.kind==="erosion"&&op.preserveShoreline?65:64)+(x.count+y.count)*Int32Array.BYTES_PER_ELEMENT;
+    bytes=n*7+cells*advancedTerrainCellBytes(op)+(x.count+y.count)*Int32Array.BYTES_PER_ELEMENT;
   if(bytes>ADVANCED_TERRAIN_LIMITS.workingBytes)throw Error("This native profile window exceeds the 32 MiB numerical working-buffer budget. Choose a smaller area or one side of the wrapped seam; fidelity is unchanged.");
   return {x:x.start,y:y.start,width:x.count,height:y.count,sourceWidth:shape.width,sourceHeight:shape.height,sourceFrame:{...frame},...options?{shared:true as const,sourceWrap:shape.wrap,processingArea:{...options.processingArea},nativeCells:cells}:{}};
 }

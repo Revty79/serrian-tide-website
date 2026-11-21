@@ -46,7 +46,11 @@ export const erosionOperationSchema=z.object({...common,kind:z.literal("erosion"
   preserveShoreline:z.boolean().optional(),
   reviewDryBorderJoins:z.boolean().optional(),
   outflowRate:z.number().finite().min(1).max(4).optional(),
-}).strict().superRefine((v,c)=>{if(v.deposition&&v.outflowRate!==undefined&&v.outflowRate!==1)c.addIssue({code:"custom",path:["outflowRate"],message:"Faster outflow requires deposits to be off. Depositing transport keeps its original bounded response."});});
+  bankReinforcementM:z.number().int().min(1).max(3000).optional(),
+}).strict().superRefine((v,c)=>{
+  if(v.deposition&&v.outflowRate!==undefined&&v.outflowRate!==1)c.addIssue({code:"custom",path:["outflowRate"],message:"Faster outflow requires deposits to be off. Depositing transport keeps its original bounded response."});
+  if(v.bankReinforcementM!==undefined&&(v.model!=="thermal"||!v.preserveShoreline||v.deposition))c.addIssue({code:"custom",path:["bankReinforcementM"],message:"Bank reinforcement requires gravity / talus transport, saved shoreline supports and deposits off."});
+});
 export const sharedReliefOperationSchema=z.discriminatedUnion("kind",[landformProfileSchema,erosionOperationSchema]);
 export const advancedOperationOptions=[
   landformProfileSchema,
@@ -67,6 +71,10 @@ export const advancedOperationSchema=z.discriminatedUnion("kind",advancedOperati
 export type AdvancedOperation=z.infer<typeof advancedOperationSchema>;
 export type VolcanoOperation=z.infer<typeof volcanoOperationSchema>;
 export type AdvancedKind=AdvancedOperation["kind"];
+/** Reinforcement keeps two bounded floor buffers and audits eight native
+ * neighbours after transport. It never enlarges the existing resource limits. */
+export function advancedTerrainCellBytes(op:AdvancedOperation){return 64+(op.kind==="erosion"&&op.preserveShoreline?1:0)+(op.kind==="erosion"&&op.bankReinforcementM!==undefined?16:0);}
+export function advancedTerrainSampleSteps(op:AdvancedOperation,cells:number){return cells*(op.kind==="erosion"?op.iterations+(op.bankReinforcementM!==undefined?8:0):op.kind==="landform-profile"?op.points.length-1:1);}
 export const advancedProvenanceSchema=z.object({
   version:z.literal(1),contextPin:z.string().regex(/^[a-f0-9]{64}$/),operation:advancedOperationSchema,
   effect:z.object({changed:z.number().int().positive().max(ADVANCED_TERRAIN_LIMITS.cells),affected:advancedAreaSchema}).strict(),
