@@ -1,6 +1,20 @@
 # Native shared-relief continuation
 
-Local qualification passes; publication and release gates are pending. The owner editor still uses qualified application `432053ca43f5ed1c9c4f983413d11110782b74ef`. Do not use this candidate on Earth before all four exact completed release workflows, independent hosted provenance and clean tested-byte parity pass.
+Application `8d1f158aff597e86d0d59d624a4f6977a73532f1` is verified and active. The earlier pending-release account below is historical. Full Earth Pass 2A remains unfinished and continues through native controls.
+
+## Verified publication and actual native continuation
+
+Exact normal run `44882791115` and recovery `44882791184` pass attempt 1. Ubuntu `44882791199` and publisher `44882791221` pass attempt 2, with every required latest completed job and step. Ubuntu attempt 1 failed while downloading a public signed dependency with Network unreachable; publisher attempt 1 correctly refused SOURCE_CI_FAILED. Their original failed logs remain retained. Unchanged failed-job retries passed without source or guard changes.
+
+Independent actual completed-GitHub verification and cryptographic hosted OCI provenance pass image `sha256:3eedb0041b4e7804acd5fae530cd263aef10b5bc12825b57a4bd68b7080e9f2e`, Linux source fingerprint `27fff613b384a8ae6b85a25232723a3674a5e1a3550c797267a79efe3dc7d432`, exact source, repository, main branch, push event and publisher attempt 2 invocation. The separately qualified Windows raw application fingerprint remains the frozen 2,222-input value below; no cross-platform raw-byte identity is claimed.
+
+The guarded ordinary main fast-forward activates only the ten reviewed source/test/documentation paths, retaining all 10,824 other tracked raw inputs and all 2,222 tested application inputs. Clean main/origin parity passes. Configuration, DEV process 26276, PostgreSQL process 5296 and ordinary Revty79 session remain unchanged. No restart, migration or authentication/configuration change occurs. Pushed `checkpoint/project-earth-before-native-continuation-20261121` retains the prior code; it is not a database or private-asset backup.
+
+Before/after read-only native snapshots prove exact complete Root263, all 127 finer heads/frames/pins/history and water48/26 lakes. The retained original twelve-point Southern profile and pending native work area recover exactly. Opt-in actual Save264 returns to the same focused workshop in **17,406 ms**, preserving settings and requiring a new preview and review. Native Undo265 and Redo266 restore all three complete grids and original parent references exactly, continuing in **13,224/13,484 ms**. Returning to the classic workshop shows the actual original profile; a fresh ordinary reopening observes Root266. Subsequent native erosion saves Root267/Patagonia68/Chonos130 with all original shoreline supports, source frames, unaffected heads and water exact.
+
+These actual timings cover this session and work area. They do not establish owner artistic acceptance or completion of Southern/global geography. Current regional forms, broader land systems, fine-source joins, islands/ice surfaces and final fresh current-geography paired recovery remain unfinished. The Root229 signed capture predates these edits. Continue the full authorized Pass 2A after this software receipt.
+
+Retain the first readiness node-e PowerShell quoting failure, which happened before any write, and the first Recover click timeout during accepted-source drawing. Structured readiness and unchanged ordinary recovery succeeded. Native private evidence is retained under the ignored continuation release directory and `artifacts/project-earth-pass2a-20261119/`; no terrain array is used as authoring input.
 
 ## Problem and resulting workflow
 
