@@ -104,8 +104,8 @@ export async function getSharedReliefHistory(userId:string,worldId:string,mapId:
  return db.transaction(async tx=>{
   const capability=(await tx.execute<{available:boolean}>(sql`select to_regprocedure('public.world_native_shared_relief_schema()') is not null available`)).rows[0];if(!capability.available)return {available:false,current:null};
   const context=await sharedReliefContext(tx,worldId,mapId),[group]=await tx.select().from(groups).where(and(eq(groups.terrainId,context.root.terrain.id),eq(groups.worldId,worldId),eq(groups.mapId,mapId),sql`(${groups.afterState}->0->>'revision')::integer=${context.root.terrain.revision}`));
-  if(!group)return {available:true,current:null};
+  if(!group)return {available:true,erosionAvailable:context.erosionAvailable,current:null};
   const current=sharedReliefHash(context.snapshots)===sharedReliefHash(group.afterState)&&context.pinForSnapshots(group.beforeState)===group.contextPin;
-  return {available:true,current:{groupId:group.id,action:group.action,revision:group.afterState[0].revision,canUndo:current&&group.action!=="undo",canRedo:current&&group.action==="undo",effects:group.effects},...!current?{unavailableReason:"Later terrain, water or settlement work is preserved. Shared relief history cannot overwrite it."}:{}};
+  return {available:true,erosionAvailable:context.erosionAvailable,current:{groupId:group.id,action:group.action,revision:group.afterState[0].revision,canUndo:current&&group.action!=="undo",canRedo:current&&group.action==="undo",effects:group.effects},...!current?{unavailableReason:"Later terrain, water or settlement work is preserved. Shared relief history cannot overwrite it."}:{}};
  },{isolationLevel:"repeatable read",accessMode:"read only"});
 }

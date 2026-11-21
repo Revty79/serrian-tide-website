@@ -14,7 +14,7 @@ export type ProfileWindow = {
 };
 const LARGE_SOURCE = 4_194_304;
 export const needsProfileWindow=(shape:TerrainGeometry,op:Pick<AdvancedOperation,"kind">)=>
-  op.kind==="landform-profile" && shape.width*shape.height>LARGE_SOURCE && !shape.wrap;
+  (op.kind==="landform-profile"||op.kind==="erosion") && shape.width*shape.height>LARGE_SOURCE && !shape.wrap;
 
 /** Derive the workspace from accepted geometry and the original native selection.
  * Keep complete native tiles and a reconstruction/shore-support halo. Powers of
@@ -22,7 +22,7 @@ export const needsProfileWindow=(shape:TerrainGeometry,op:Pick<AdvancedOperation
 export function planProfileWindow(shape:TerrainGeometry,raw:AdvancedOperation,context:AdvancedTerrainContext,options?:{shared:true;processingArea:TerrainFrame}):ProfileWindow|null {
   if(!options&&!needsProfileWindow(shape,raw))return null;
   const op=advancedOperationSchema.parse(raw);
-  if(op.kind!=="landform-profile")throw Error("Choose a landform profile.");
+  if(op.kind!=="landform-profile"&&op.kind!=="erosion")throw Error("Choose a landform profile or erosion operation.");
   const {frame,world}=context,sx=frame.width/shape.width,sy=frame.height/shape.height;
   if(![sx,sy,world.width,world.height].every(v=>Number.isFinite(v)&&v>0))throw Error("The accepted physical terrain frame is invalid.");
   if(options){const a=options.processingArea;if(![a.x,a.y,a.width,a.height].every(Number.isFinite)||a.x<0||a.x>=world.width||a.y<0||a.width<=0||a.width>world.width||a.height<=0||a.y+a.height>world.height||!world.wrap&&a.x+a.width>world.width)throw Error("Keep the native work area inside this World.");}
@@ -34,15 +34,15 @@ export function planProfileWindow(shape:TerrainGeometry,raw:AdvancedOperation,co
   for(let y=0;y<shape.height;y++){const wy=frame.y+y*sy;if(wy>=s.y-1e-6&&wy<=s.y+s.height+1e-6&&(!workArea||workArea.containsY(wy)))ys.push(y);}
   const cells=xs.length*ys.length;
   if(!cells){if(options)return null;throw Error("This selection has no native samples in the active terrain source.");}
-  if(cells>ADVANCED_TERRAIN_LIMITS.cells||cells*(op.points.length-1)>ADVANCED_TERRAIN_LIMITS.work)
-    throw Error("Choose a smaller area or fewer profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
+  if(cells>ADVANCED_TERRAIN_LIMITS.cells||cells*(op.kind==="erosion"?op.iterations:op.points.length-1)>ADVANCED_TERRAIN_LIMITS.work)
+    throw Error(op.kind==="landform-profile"?"Choose a smaller area or fewer profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.":"Choose a smaller area or fewer erosion steps. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
   const axis=(indices:number[],size:number)=>{
     const first=Math.max(0,Math.floor(indices[0]/32)*32-32),last=Math.min(size,Math.ceil((indices[indices.length-1]+1)/32)*32+32),
       count=Math.min(size,2**Math.ceil(Math.log2(Math.max(32,last-first)))),start=Math.min(first,size-count);
     return {start,count};
   };
   const seam=shape.wrap&&(xs[0]<32||xs[xs.length-1]>=shape.width-32),x=seam?{start:0,count:shape.width}:axis(xs,shape.width),y=axis(ys,shape.height),n=x.count*y.count,
-    bytes=n*7+cells*64+(x.count+y.count)*Int32Array.BYTES_PER_ELEMENT;
+    bytes=n*7+cells*(op.kind==="erosion"&&op.preserveShoreline?65:64)+(x.count+y.count)*Int32Array.BYTES_PER_ELEMENT;
   if(bytes>ADVANCED_TERRAIN_LIMITS.workingBytes)throw Error("This native profile window exceeds the 32 MiB numerical working-buffer budget. Choose a smaller area or one side of the wrapped seam; fidelity is unchanged.");
   return {x:x.start,y:y.start,width:x.count,height:y.count,sourceWidth:shape.width,sourceHeight:shape.height,sourceFrame:{...frame},...options?{shared:true as const,sourceWrap:shape.wrap,processingArea:{...options.processingArea},nativeCells:cells}:{}};
 }

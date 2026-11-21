@@ -52,7 +52,7 @@ function startingOperation(input:AdvancedTerrainInput):AdvancedOperation{
     common={selection:{frame},preserveManual:true,strength:75};
   if(input.kind==="landform-profile")return {...common,kind:"landform-profile",points:[],mode:"shape",hardness:0,endBlendM:0,featherM:spacing*2};
   if(input.kind==="river-channel")return {...common,kind:"river-channel",riverId:input.riverId??"",course:"segment",first:0,last:null,widthM:spacing*2,depthM:40,bankSoftness:.6,smoothing:.4};
-  if(input.kind==="erosion")return {...common,kind:"erosion",model:"runoff",iterations:12,direction:90,directionInfluence:.6,deposition:true,maxDepthM:120,reposeDegrees:30,featherM:spacing*2};
+  if(input.kind==="erosion")return {...common,kind:"erosion",preserveShoreline:true,model:"runoff",iterations:12,direction:90,directionInfluence:.6,deposition:true,maxDepthM:120,reposeDegrees:30,featherM:spacing*2};
   if(input.kind==="eruption")return {...common,kind:"eruption",volcanoId:"00000000-0000-4000-8000-000000000000",effect:"collapse",source:centre,extentM:radius/2,widthM:spacing*2,magnitudeM:150,steps:128};
   return {...common,kind:"volcano",centre,form:"cone",radiusM:radius,heightM:1200,craterDiameterM:radius*.5,craterDepthM:400,profile:1,blendM:radius*.2,summitEastM:0,summitSouthM:0};
 }
@@ -140,7 +140,7 @@ export function AdvancedTerrainWorkshop(p:Props){
   }
 
   async function prepare(){
-    stop();setError("");setAcknowledged(false);setBefore(false);
+    stop();setError("");setAcknowledged(false);setBefore(false);setRenderReady(false);
     if(!packet||recovery)return;
     try{advancedOperationSchema.parse(op);if(!packet.canEdit)throw Error("Only the World owner can accept numerical operations.");
       if(visualOnly){
@@ -209,7 +209,7 @@ export function AdvancedTerrainWorkshop(p:Props){
     onTrace:(points,phase)=>{if(points.length>8192){setError("Finish the trace within the existing 8,192 raw-point limit.");return;}setOutline(points);if(phase==="cancel")setDrawing(false);},
   }:undefined;
   async function apply(){
-    if(!packet||!acknowledged||applying)return;
+    if(!packet||!acknowledged||applying||(op.kind==="landform-profile"||op.kind==="erosion")&&!renderReady)return;
     setApplying(true);setError("");
     try{
       if(visualOnly&&visualReady&&ash){
@@ -252,7 +252,7 @@ export function AdvancedTerrainWorkshop(p:Props){
     <output className={styles.status} aria-label="Advanced terrain inspection">{inspection&&Number.isFinite(p.input.base[inspection.row*shape.width+inspection.column])?<><span className={styles.full}>{(inspection.mappedIslandWaterLevel!==undefined?"Mapped island: elevation unresolved; lake level "+inspection.mappedIslandWaterLevel+" m. Coarse numerical samples: saved ":"Saved ")+p.input.base[inspection.row*shape.width+inspection.column]+" m; proposed "+(fresh&&proposal?advancedResultSample(proposal.result,inspection.row*shape.width+inspection.column,p.input.base[inspection.row*shape.width+inspection.column]):p.input.base[inspection.row*shape.width+inspection.column])+" m. East "+Math.round(inspection.x)+" m, south "+Math.round(inspection.y)+" m."}</span><span className={styles.short}>{(inspection.mappedIslandWaterLevel!==undefined?"Island elevation unresolved; lake "+inspection.mappedIslandWaterLevel+" m; coarse saved ":"Saved ")+p.input.base[inspection.row*shape.width+inspection.column]+" m / proposed "+(fresh&&proposal?advancedResultSample(proposal.result,inspection.row*shape.width+inspection.column,p.input.base[inspection.row*shape.width+inspection.column]):p.input.base[inspection.row*shape.width+inspection.column])+" m"}</span></>:"Pan or tap to inspect heights."}</output>
     {busy&&<p className={styles.status} role="status">{backend+" — "+Math.round(progress*100)+"%"} <progress max={1} value={progress}/></p>}
   </div>;
-  if(shared&&op.kind==="landform-profile"&&packet&&p.onSharedSaved&&p.input.worldRevision!==undefined)return <SharedReliefWorkshop document={doc} world={p.input.world} rootRevision={p.input.worldRevision} operation={op} water={packet.context.water} relief={p.relief} onClose={()=>setShared(false)} onSaved={p.onSharedSaved}/>;
+  if(shared&&(op.kind==="landform-profile"||op.kind==="erosion")&&packet&&p.onSharedSaved&&p.input.worldRevision!==undefined)return <SharedReliefWorkshop document={doc} world={p.input.world} rootRevision={p.input.worldRevision} operation={op} water={packet.context.water} relief={p.relief} onClose={()=>setShared(false)} onSaved={p.onSharedSaved}/>;
   return <div className={styles.shell}><CreatorWorkshop mapFirst title={advancedNames[op.kind]} introduction="Preview, compare, then accept or cancel. Drawing water never carves automatically."
     sections={[{id:"settings",label:"Operation"},{id:"area",label:"Choose Area"},{id:"review",label:"Review Changes"}]} section={section} onSection={setSection} onClose={close}
     preview={viewport} footer={<>
@@ -261,7 +261,7 @@ export function AdvancedTerrainWorkshop(p:Props){
         <button type="button" className="st-button is-secondary" disabled={applying} onClick={close} aria-label="Keep settings & Close">Keep & Close</button>
         <button type="button" className="st-button is-secondary" disabled={applying} onClick={()=>{stop();setProposal(undefined);setVisualReady(false);setAcknowledged(false);}}>Reject Preview</button>
         {busy?<button type="button" className="st-button is-secondary" onClick={stop}>Cancel Processing</button>:<button type="button" className="st-button is-primary" disabled={!packet||applying||!!recovery} onClick={()=>void prepare()}>Prepare Preview</button>}
-        <button type="button" className="st-button is-primary" disabled={busy||applying||op.kind==="landform-profile"&&!renderReady||!acknowledged||!!recovery||!(visualOnly?visualReady:fresh&&!!proposal?.result.metrics.changed)} onClick={()=>void apply()}>{applying?"Retaining accepted request…":visualOnly?"Accept Visual Cover":"Accept Numerical Change"}</button>
+        <button type="button" className="st-button is-primary" disabled={busy||applying||(op.kind==="landform-profile"||op.kind==="erosion")&&!renderReady||!acknowledged||!!recovery||!(visualOnly?visualReady:fresh&&!!proposal?.result.metrics.changed)} onClick={()=>void apply()}>{applying?"Retaining accepted request…":visualOnly?"Accept Visual Cover":"Accept Numerical Change"}</button>
       </div>
     </>}>
     {recovery&&<section className={styles.review}><h3>Retained terrain proposal</h3><p>Saved geography is intact. Recover these settings for a new preview, or export the original bytes before discarding them.</p><button className="st-button is-secondary" onClick={recover}>Recover Operation Settings</button><button className="st-button is-secondary" onClick={()=>download(recovery.raw,"terrain-operation-recovery.json")}>Export Retained Settings</button><button className="st-button is-secondary" onClick={()=>{retireAdvancedDraft(localStorage,recovery.key,recovery.raw);setRecovery(undefined);}}>Discard Retained Settings</button></section>}
@@ -272,7 +272,7 @@ export function AdvancedTerrainWorkshop(p:Props){
       <label className={styles.check}><input aria-label="Protect existing manual heights" type="checkbox" checked={op.preserveManual} onChange={e=>edit({preserveManual:e.target.checked})}/> Protect existing manual heights. Clearing this explicitly permits replacement inside the selected area; finer detail and settlement/water supports remain protected.</label>
       {<AdvancedNumber key={"Terrain modification strength (%)"} label={"Terrain modification strength (%)"} value={op.strength} onChange={value=>edit({strength:value})} disabled={busy||applying||!!recovery} min={1} max={100}/>}
       {op.kind==="landform-profile"&&<LandformProfileControls value={op} onChange={edit} drawingReady={!showAcceptedContext||accepted.ready} onDraw={()=>{setProfileInteraction("draw");setTool("path");}} onMove={()=>{setProfileInteraction("move");setTool("path");}}/>}
-      {op.kind==="landform-profile"&&p.canShareRelief&&p.onSharedSaved&&p.input.worldRevision!==undefined&&<><button type="button" className="st-button is-secondary" disabled={!packet?.canEdit} onClick={()=>{try{advancedOperationSchema.parse(op);stop();setProposal(undefined);setShared(true);setError("");}catch(e){setError(e instanceof Error?e.message:"Finish the native profile first.");}}}>Continue profile across terrain sources</button><p>Join this profile through the World and finer sources at their original resolutions. The shared workshop previews and saves the entire affected group together.</p></>}
+      {(op.kind==="landform-profile"||op.kind==="erosion")&&p.canShareRelief&&p.onSharedSaved&&p.input.worldRevision!==undefined&&<><button type="button" className="st-button is-secondary" disabled={!packet?.canEdit} onClick={()=>{try{advancedOperationSchema.parse(op);stop();setProposal(undefined);setShared(true);setError("");}catch(e){setError(e instanceof Error?e.message:"Finish the native profile first.");}}}>{op.kind==="erosion"?"Continue erosion across terrain sources":"Continue profile across terrain sources"}</button><p>Join this {op.kind==="erosion"?"erosion operation":"profile"} through the World and finer sources at their original resolutions. The shared workshop previews and saves the entire affected group together.</p></>}
       {op.kind==="river-channel"&&<>
         <label>Saved river<select aria-label="Saved river" value={op.riverId} onChange={e=>edit({riverId:e.target.value,first:0,last:null})}><option value="">Choose a saved river</option>{packet?.context.water.edges.map(e=><option key={e.id} value={e.id}>{e.name||e.id}</option>)}</select></label>
         <label>Eligible course<select aria-label="Eligible course" value={op.course} onChange={e=>edit({course:e.target.value as "segment"|"downstream"})}><option value="segment">Selected saved segment</option><option value="downstream">Connected downstream course</option></select></label>
@@ -285,6 +285,7 @@ export function AdvancedTerrainWorkshop(p:Props){
         <p>Only saved downhill courses are eligible. Narrow channels need sufficient native samples; select finer terrain when needed. Carving preserves sea, lake and wetland samples.</p>
       </>}
       {op.kind==="erosion"&&<>
+        <label className={styles.check}><input aria-label="Keep saved sea shoreline" type="checkbox" checked={op.preserveShoreline??false} onChange={e=>edit({preserveShoreline:e.target.checked})}/> Keep saved sea and neighbouring shoreline support heights.</label><p>With deposition off, shoreline land can receive outflow while its height stays fixed. Other protected terrain remains excluded.</p>
         <label>Erosion model<select aria-label="Erosion model" value={op.model} onChange={e=>edit({model:e.target.value as "runoff"|"thermal"})}><option value="runoff">Directional downhill runoff</option><option value="thermal">Gravity / talus transport</option></select></label>
         {<AdvancedNumber key={"Duration (erosion steps)"} label={"Duration (erosion steps)"} value={op.iterations} onChange={value=>edit({iterations:value})} disabled={busy||applying||!!recovery} min={1} max={40}/>}
         {<AdvancedNumber key={"Runoff direction (degrees clockwise from north)"} label={"Runoff direction (degrees clockwise from north)"} value={op.direction} onChange={value=>edit({direction:value})} disabled={busy||applying||!!recovery} min={0} max={360}/>}
@@ -292,7 +293,8 @@ export function AdvancedTerrainWorkshop(p:Props){
         {<AdvancedNumber key={"Maximum wear at each sample (m)"} label={"Maximum wear at each sample (m)"} value={op.maxDepthM} onChange={value=>edit({maxDepthM:value})} disabled={busy||applying||!!recovery} min={1} max={3000}/>}
         {<AdvancedNumber key={"Talus repose angle (degrees)"} label={"Talus repose angle (degrees)"} value={op.reposeDegrees} onChange={value=>edit({reposeDegrees:value})} disabled={busy||applying||!!recovery} min={1} max={70}/>}
         {<AdvancedNumber key={"Selection edge feather (m)"} label={"Selection edge feather (m)"} value={op.featherM} onChange={value=>edit({featherM:value})} disabled={busy||applying||!!recovery} min={0}/>}
-        <label className={styles.check}><input aria-label="Retain eroded material as local deposits" type="checkbox" checked={op.deposition} onChange={e=>edit({deposition:e.target.checked})}/> Retain eroded material as local downhill deposits</label>
+        <label className={styles.check}><input aria-label="Retain eroded material as local deposits" type="checkbox" checked={op.deposition} onChange={e=>edit({deposition:e.target.checked,...e.target.checked?{outflowRate:undefined}:{}})}/> Retain eroded material as local downhill deposits</label>
+        {!op.deposition&&<><AdvancedNumber label="Outflow response multiplier" value={op.outflowRate??1} onChange={value=>edit({outflowRate:value})} disabled={busy||applying||!!recovery} min={1} max={4}/><p>A faster response removes downhill material sooner. The maximum wear, sea level and protected heights keep their existing limits.</p></>}
         <p>Stylized mapmaking transport, not a geological forecast. Duration counts model steps, not years. Deposits retain material before metre rounding and bounds; with deposition off, material is removed from the model.</p>
       </>}
       {op.kind==="volcano"&&<>

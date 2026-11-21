@@ -176,15 +176,29 @@ class UpdatePolicyTests(unittest.TestCase):
             verify_ledger(rows, expected)
 
     def test_actual_shared_relief_release_refuses_a_host_missing_0165(self):
-        from a5_fixture_baseline import BASELINE
+        BASELINE = "a8abf7e516e6aeb70af1df192d15e845c0fe463d"
         history = Git(Path(__file__).resolve().parent.parent)
-        commit = history.run("rev-parse", "HEAD")
+        commit = BASELINE
         for name in ("scripts/deployment-a5-fixture.ts", "drizzle/meta/_journal.json"):
             self.assertEqual(history.blob(BASELINE, name), history.blob(commit, name))
         expected = expected_ledger(history, commit)
         self.assertEqual(len(expected), 166)
         previous = expected_ledger(history, "73193a605330c67cc795f2624cda25245ff2cb13")
         self.assertEqual(expected[:165], previous)
+        rows = [{"created_at": row["created_at"], "hash": sorted(row["hashes"])[0]} for row in previous]
+        with self.assertRaisesRegex(Stopped, "MIGRATION_APPROVAL_REQUIRED"):
+            verify_ledger(rows, expected)
+
+    def test_actual_shared_erosion_release_refuses_a_host_missing_0166(self):
+        from a5_fixture_baseline import BASELINE
+        history = Git(Path(__file__).resolve().parent.parent)
+        commit = history.run("rev-parse", "HEAD")
+        for name in ("scripts/deployment-a5-fixture.ts", "drizzle/meta/_journal.json"):
+            self.assertEqual(history.blob(BASELINE, name), history.blob(commit, name))
+        expected = expected_ledger(history, commit)
+        self.assertEqual(len(expected), 167)
+        previous = expected_ledger(history, "a9ae26cac44c7f07923c5d05b4c4be64b2065c52")
+        self.assertEqual(expected[:166], previous)
         rows = [{"created_at": row["created_at"], "hash": sorted(row["hashes"])[0]} for row in previous]
         with self.assertRaisesRegex(Stopped, "MIGRATION_APPROVAL_REQUIRED"):
             verify_ledger(rows, expected)

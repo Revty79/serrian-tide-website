@@ -15,6 +15,8 @@ export type AdvancedTerrainContext={
   nativeLattice?:{frame:TerrainFrame;width:number;height:number;x:number;y:number};
   /** Internal native shared-relief work area. Its east/south edges are open. */
   processingArea?:TerrainFrame;
+  /** Internal accepted cross-source shoreline supports; never authored input. */
+  shoreSupports?:Uint8Array;
 };
 export type AdvancedMetrics={
   changed:number;minimum:number;maximum:number;maxLoweringM:number;maxRaisingM:number;
@@ -65,7 +67,7 @@ export function* advancedTerrainSteps(
   blocked?:Uint8Array,manual?:Uint8Array,
 ):Generator<number,AdvancedResult,void>{
   const op=advancedOperationSchema.parse(raw),n=shape.width*shape.height;
-  if(base.length!==n||n>16777216||blocked&&blocked.length!==n||manual&&manual.length!==n)throw Error("The accepted terrain buffers do not match this bounded source.");
+  if(base.length!==n||n>16777216||blocked&&blocked.length!==n||manual&&manual.length!==n||context.shoreSupports&&context.shoreSupports.length!==n)throw Error("The accepted terrain buffers do not match this bounded source.");
   const {frame,world,seaLevel,nativeLattice,processingArea}=context,selection=op.selection,
     sx=nativeLattice?nativeLattice.frame.width/nativeLattice.width:frame.width/shape.width,
     sy=nativeLattice?nativeLattice.frame.height/nativeLattice.height:frame.height/shape.height,
@@ -108,7 +110,7 @@ export function* advancedTerrainSteps(
   // Retain the previous source/selected-work reserves, less the full-source
   // Int32 lookup and Uint8 settlement mask that are no longer allocated.
   // Axis ranks cover wrapped/non-contiguous columns; protection stays local.
-  const bytes=n*7+cells*64+(shape.width+shape.height)*Int32Array.BYTES_PER_ELEMENT;
+  const bytes=n*7+cells*(op.kind==="erosion"&&op.preserveShoreline?65:64)+(shape.width+shape.height)*Int32Array.BYTES_PER_ELEMENT;
   if(bytes>LIMITS.workingBytes)throw Error("This operation exceeds its 32 MiB numerical working-buffer budget. Choose a smaller area.");
   const columns=new Int32Array(shape.width).fill(-1),rows=new Int32Array(shape.height).fill(-1),
     indices=new Uint32Array(cells),weights=new Float32Array(cells),eligibility=new Uint8Array(cells),
@@ -116,6 +118,7 @@ export function* advancedTerrainSteps(
   xs.forEach((value,index)=>{columns[value.x]=index;});ys.forEach((value,index)=>{rows[value]=index;});
   const windowIndex=(i:number)=>{const x=columns[i%shape.width],y=rows[Math.floor(i/shape.width)];return x<0||y<0?-1:y*xs.length+x;};
   const eligibleIndex=(i:number)=>{const k=windowIndex(i);return k>=0&&eligibility[k]?k:-1;};
+  const shoreReceivers=op.kind==="erosion"&&op.preserveShoreline?new Uint8Array(cells):undefined;
   let protectedCount=0,waterProtected=0,siteProtected=0,eligible=0,visited=0,geometryWork=0,lastYield=performance.now();
   const wet=[...(context.water.lakes??[]).map(l=>({rings:l.rings,bounds:waterBounds(l.rings.flat(),world)})),
     ...(context.water.features??[]).filter(f=>f.kind==="wetland").map(f=>({rings:f.rings,bounds:waterBounds(f.rings.flat(),world)}))];
@@ -136,6 +139,28 @@ export function* advancedTerrainSteps(
   for(let k=0;k<cells;k++){
     if(counts()){lastYield=performance.now();yield .12*k/cells;}
     const x=xs[k%xs.length].x,y=ys[Math.floor(k/xs.length)],i=y*shape.width+x,p=position(i);indices[k]=i;bed[k]=base[i];
+    if(shoreReceivers&&base[i]>seaLevel){
+      let shore=!!context.shoreSupports?.[i];
+      for(let ey=-1;ey<=1&&!shore;ey++)for(let ex=-1;ex<=1;ex++){
+        const xx=shape.wrap?(x+ex+shape.width)%shape.width:x+ex,yy=y+ey;
+        if(xx>=0&&xx<shape.width&&yy>=0&&yy<shape.height&&base[yy*shape.width+xx]<=seaLevel){shore=true;break;}
+      }
+      if(shore){
+        let receiver=!siteMask[k]&&(!blocked?.[i]||!!context.shoreSupports?.[i])&&!(op.preserveManual&&manual?.[i]);
+        if(receiver&&selection.footprint){
+          geometryWork+=selection.footprint.parts.reduce((n,r)=>n+r.length,0);
+          if(geometryWork>LIMITS.work)throw Error("Simplify the selected outline or choose a smaller operation area.");
+          receiver=regionAreaContainsPoint(selection,p,world);
+        }
+        for(const water of wet)if(receiver&&rectContains(water.bounds,p,world)){
+          geometryWork+=water.rings.reduce((n,r)=>n+r.length,0);
+          if(geometryWork>LIMITS.work)throw Error("This area contains too much shoreline detail for one operation. Select a smaller area.");
+          if(insideWaterRings(p,water.rings,world))receiver=false;
+        }
+        if(receiver)shoreReceivers[k]=1;
+        waterProtected++;continue;
+      }
+    }
     if(blocked?.[i]||op.preserveManual&&manual?.[i]){protectedCount++;continue;}
     if(base[i]<=seaLevel){waterProtected++;continue;}
     if(profile){
@@ -203,18 +228,20 @@ export function* advancedTerrainSteps(
       delta.fill(0);
       for(let k=0;k<cells;k++){
         if(!weights[k])continue;
-        let best=-1,bestScore=-Infinity,bestDrop=0;
+        let best=-1,bestScore=-Infinity,bestDrop=0,bestFixed=false;
         const x=indices[k]%shape.width,y=Math.floor(indices[k]/shape.width);
         for(const q of directions){
-          const i=globalIndex(x+q.east,y+q.south),other=i<0?-1:eligibleIndex(i);if(other<0)continue;
+          const i=globalIndex(x+q.east,y+q.south),normal=i<0?-1:eligibleIndex(i),fixed=normal<0&&i>=0&&!op.deposition?windowIndex(i):-1,
+            isFixed=fixed>=0&&!!shoreReceivers?.[fixed],other=normal>=0?normal:isFixed?fixed:-1;
+          if(other<0)continue;
           const drop=bed[k]-bed[other],excess=drop-(op.model==="thermal"?q.length*repose:0);
           if(excess<=0)continue;
           const score=excess/q.length*(1+op.directionInfluence*q.cosine*.95);
-          if(score>bestScore){best=other;bestScore=score;bestDrop=excess;}
+          if(score>bestScore){best=other;bestScore=score;bestDrop=excess;bestFixed=isFixed;}
         }
         if(best>=0){
-          const amount=Math.max(0,Math.min(bestDrop*.125,op.maxDepthM/8,op.maxDepthM-removed[k]))*
-            op.strength/100*Math.min(weights[k],weights[best]);
+          const amount=Math.max(0,Math.min(bestDrop*.125*(op.outflowRate??1),op.maxDepthM/8,op.maxDepthM-removed[k]))*
+            op.strength/100*(bestFixed?weights[k]:Math.min(weights[k],weights[best]));
           delta[k]-=amount;removed[k]+=amount;if(op.deposition)delta[best]+=amount;
         }
         if(counts()){lastYield=performance.now();yield .12+.7*(step+k/cells)/op.iterations;}
@@ -223,6 +250,8 @@ export function* advancedTerrainSteps(
     }
     notices.push(op.model==="thermal"?"Stylized downhill talus transport above the chosen repose angle; this is not a geological forecast.":"Stylized directional runoff detaches material toward the steepest weighted downhill neighbour; it is not a hydraulic simulation.");
     notices.push(op.deposition?"Transport retains material inside eligible samples before metre rounding and elevation bounds. Reported cut/fill volumes include that quantization.":"Deposition is off: eroded material leaves the model. Material conservation is not claimed.");
+    if(op.preserveShoreline)notices.push("Saved sea and eight-neighbour shoreline support heights remain exact. With deposition off, shoreline land may receive outflow without changing its height; protected water, sites and finer terrain are not transport receivers.");
+    if((op.outflowRate??1)>1)notices.push(`Outflow response is ${op.outflowRate} times the original response. The existing per-step and total wear, sea-level and numerical work limits remain in force.`);
   }else if(op.kind==="volcano"){
     const summit={x:regionCanonicalX(op.centre.x+op.summitEastM,world),y:op.centre.y+op.summitSouthM},
       centreIndex=sample(op.centre);

@@ -59,7 +59,7 @@ withCollaborationFixture(async f=>{
   await writeFile(path.join(f.out,'advanced-window-results.json'),JSON.stringify({passed:true,groups,sourceSamples:after.length,changed,outside,acceptedHash,mapId,world:f.worldA,rootRevision:5,finerCount:1,originalFinerExact:true,review,browserMemory:memory,buildId:b.buildId,sourceHash:b.sourceHash,gpuDisabled:true,allAuthoringViaVisibleNativeControls:true,externalGeographyUsed:false,ownerEnvironmentAccessed:false},null,2));
  });
  if(refusal)return;
- assert(build&&mapId&&acceptedHash);const paired=path.join(f.out,'paired-owned-restore');await mkdir(paired);const dump=path.join(paired,'database.dump');const oldTables=await publicTableDigests(f.pool),ledger=(await f.pool.query('select * from drizzle.__drizzle_migrations order by id')).rows;assert.equal(ledger.length,166);
+ assert(build&&mapId&&acceptedHash);const paired=path.join(f.out,'paired-owned-restore');await mkdir(paired);const dump=path.join(paired,'database.dump');const oldTables=await publicTableDigests(f.pool),ledger=(await f.pool.query('select * from drizzle.__drizzle_migrations order by id')).rows;assert.equal(ledger.length,167);
  f.runPostgres('pg_dump',['-Fc','-f',dump,'--dbname',f.databaseUrl]);
  const target=new URL(f.restoredUrl);assert.equal(target.hostname,'127.0.0.1');assert(!['5432','5433'].includes(target.port));assert.equal(target.pathname,'/collaboration_restored');
  const bin=process.env.SERRIAN_TEST_POSTGRES_BIN??'C:/Program Files/PostgreSQL/18/bin',exe=(name:string)=>path.join(bin,name+(process.platform==='win32'?'.exe':''));

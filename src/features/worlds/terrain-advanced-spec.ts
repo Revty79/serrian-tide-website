@@ -37,6 +37,15 @@ export const volcanoOperationSchema=z.object({
   if(Math.hypot(v.summitEastM,v.summitSouthM)>v.radiusM*.4)c.addIssue({code:"custom",message:"Keep the summit within 40% of the volcano radius."});
   if(v.blendM>v.radiusM)c.addIssue({code:"custom",message:"Keep the transition distance within the volcano radius."});
 });
+export const erosionOperationSchema=z.object({...common,kind:z.literal("erosion"),model:z.enum(["runoff","thermal"]),
+  iterations:z.number().int().min(1).max(ADVANCED_TERRAIN_LIMITS.iterations),
+  direction:z.number().finite().min(0).max(360),directionInfluence:z.number().finite().min(0).max(1),
+  deposition:z.boolean(),maxDepthM:z.number().finite().min(1).max(3000),
+  reposeDegrees:z.number().finite().min(1).max(70),featherM:z.number().finite().min(0).max(1e9),
+  preserveShoreline:z.boolean().optional(),
+  outflowRate:z.number().finite().min(1).max(4).optional(),
+}).strict().superRefine((v,c)=>{if(v.deposition&&v.outflowRate!==undefined&&v.outflowRate!==1)c.addIssue({code:"custom",path:["outflowRate"],message:"Faster outflow requires deposits to be off. Depositing transport keeps its original bounded response."});});
+export const sharedReliefOperationSchema=z.discriminatedUnion("kind",[landformProfileSchema,erosionOperationSchema]);
 export const advancedOperationOptions=[
   landformProfileSchema,
   z.object({...common,kind:z.literal("river-channel"),riverId:z.string().min(1).max(180),
@@ -44,12 +53,7 @@ export const advancedOperationOptions=[
     widthM:metres,depthM:z.number().finite().min(1).max(3000),bankSoftness:z.number().finite().min(0).max(1),
     smoothing:z.number().finite().min(0).max(1),
   }).strict(),
-  z.object({...common,kind:z.literal("erosion"),model:z.enum(["runoff","thermal"]),
-    iterations:z.number().int().min(1).max(ADVANCED_TERRAIN_LIMITS.iterations),
-    direction:z.number().finite().min(0).max(360),directionInfluence:z.number().finite().min(0).max(1),
-    deposition:z.boolean(),maxDepthM:z.number().finite().min(1).max(3000),
-    reposeDegrees:z.number().finite().min(1).max(70),featherM:z.number().finite().min(0).max(1e9),
-  }).strict(),
+  erosionOperationSchema,
   volcanoOperationSchema,
   z.object({...common,kind:z.literal("eruption"),volcanoId:z.uuid(),
     effect:z.enum(["collapse","lava"]),source:advancedPointSchema,

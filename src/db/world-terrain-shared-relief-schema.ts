@@ -2,7 +2,7 @@ import {sql} from "drizzle-orm";
 import {check,foreignKey,index,integer,jsonb,pgTable,text,timestamp,unique} from "drizzle-orm/pg-core";
 import {user} from "./auth-schema";
 import {worldMapCanvas,worldTerrain} from "./world-terrain-schema";
-import type {SharedProfile} from "@/features/worlds/terrain-shared-relief";
+import type {SharedReliefOperation} from "@/features/worlds/terrain-shared-relief";
 import type {SharedReliefSnapshot,SharedReliefEffect} from "@/features/worlds/terrain-shared-relief-spec";
 import type {TerrainFrame} from "@/features/worlds/terrain-refinement";
 
@@ -11,7 +11,7 @@ export const worldTerrainReliefGroup=pgTable("world_terrain_relief_group",{
  id:text("id").primaryKey(),worldId:text("world_id").notNull(),terrainId:text("terrain_id").notNull(),mapId:text("map_id").notNull(),
  mapPurpose:text("map_purpose").notNull().default("world"),action:text("action").$type<"apply"|"undo"|"redo">().notNull(),targetId:text("target_id"),
  contentHash:text("content_hash").notNull(),contextPin:text("context_pin").notNull(),previewHash:text("preview_hash").notNull(),seaLevel:integer("sea_level").notNull(),
- operation:jsonb("operation").$type<SharedProfile>().notNull(),workArea:jsonb("work_area").$type<TerrainFrame>().notNull(),
+ operation:jsonb("operation").$type<SharedReliefOperation>().notNull(),workArea:jsonb("work_area").$type<TerrainFrame>().notNull(),
  beforeState:jsonb("before_state").$type<SharedReliefSnapshot[]>().notNull(),afterState:jsonb("after_state").$type<SharedReliefSnapshot[]>().notNull(),
  effects:jsonb("effects").$type<SharedReliefEffect[]>().notNull(),authorId:text("author_id").notNull().references(()=>user.id,{onDelete:"restrict"}),createdAt:timestamp("created_at").notNull().defaultNow(),
 },t=>[
@@ -25,7 +25,7 @@ export const worldTerrainReliefGroup=pgTable("world_terrain_relief_group",{
  check("world_terrain_relief_group_context_pin_check",sql`${t.contextPin} ~ '^[a-f0-9]{64}$'`),
  check("world_terrain_relief_group_preview_hash_check",sql`${t.previewHash} ~ '^[a-f0-9]{64}$'`),
  check("world_terrain_relief_group_sea_level_check",sql`${t.seaLevel} BETWEEN -30000 AND 30000`),
- check("world_terrain_relief_group_operation_check",sql`jsonb_typeof(${t.operation})='object' AND coalesce(${t.operation}->>'kind','')='landform-profile'`),
+ check("world_terrain_relief_group_operation_check",sql`jsonb_typeof(${t.operation})='object' AND coalesce(${t.operation}->>'kind','') IN ('landform-profile','erosion')`),
  check("world_terrain_relief_group_work_area_check",sql`jsonb_typeof(${t.workArea})='object'`),
  check("world_terrain_relief_group_before_state_check",sql`jsonb_typeof(${t.beforeState})='array' AND jsonb_array_length(${t.beforeState}) BETWEEN 1 AND 129`),
  check("world_terrain_relief_group_after_state_check",sql`jsonb_typeof(${t.afterState})='array' AND jsonb_array_length(${t.afterState}) BETWEEN 1 AND 129`),

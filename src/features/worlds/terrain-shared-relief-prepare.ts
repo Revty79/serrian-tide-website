@@ -4,7 +4,7 @@ import type {AdvancedResult} from "./terrain-advanced";
 import {ADVANCED_TERRAIN_LIMITS} from "./terrain-advanced-spec";
 import {frameLocalPoint} from "./terrain-refinement";
 import {numericalBytes} from "./terrain-refinement-cache";
-import {planSharedRelief,prepareSharedReliefSource,type SharedProfile} from "./terrain-shared-relief";
+import {planSharedRelief,prepareSharedReliefSource,type SharedReliefOperation} from "./terrain-shared-relief";
 import type {TerrainFrame} from "./terrain-refinement";
 import {sharedReliefCoastGuards} from "./terrain-shared-relief-coast";
 import {certifySharedReliefRebase} from "./terrain-shared-relief-rebase";
@@ -13,10 +13,12 @@ import {sharedReliefPreviewHeaderSchema,type SharedReliefPreview} from "./terrai
 import {WorldError} from "./world-errors";
 
 /** Both preview and the atomic acceptance independently execute this path. */
-export async function prepareSharedRelief(tx:SharedReliefConnection,worldId:string,mapId:string,operation:SharedProfile,workArea:TerrainFrame,signal?:AbortSignal){
+export async function prepareSharedRelief(tx:SharedReliefConnection,worldId:string,mapId:string,operation:SharedReliefOperation,workArea:TerrainFrame,signal?:AbortSignal){
  const started=performance.now(),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),ADVANCED_TERRAIN_LIMITS.workerMs),job=signal?AbortSignal.any([signal,controller.signal]):controller.signal;
  try{
-  const context=await sharedReliefContext(tx,worldId,mapId),{root,shape}=context,budget=planSharedRelief(context.sources,operation,workArea,context.context),
+  const context=await sharedReliefContext(tx,worldId,mapId);
+  if(operation.kind==="erosion"&&!context.erosionAvailable)throw new WorldError("Joined erosion requires additive migration 0166. Your settings and saved geography are unchanged; single-source erosion and joined profiles remain available.",409);
+  const {root,shape}=context,budget=planSharedRelief(context.sources,operation,workArea,context.context),
    coast=await sharedReliefCoastGuards(budget.plans,context.sources,shape,root.terrain.seaLevel,(point,source,outside)=>{
     if(outside)return context.sample(point);
     const p=frameLocalPoint(point,source.frame,shape.displayWidth,shape.wrap),x=Math.round(p.x/source.frame.width*source.shape.width),y=Math.round(p.y/source.frame.height*source.shape.height);

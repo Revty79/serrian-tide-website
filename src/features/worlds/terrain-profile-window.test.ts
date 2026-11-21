@@ -68,10 +68,10 @@ test("wrapped accepted frames retain canonical sample selection and unsupported 
   const bad={...op,points:[op.points[0],op.points[0]]};await assert.rejects(prepareWindowedProfile(new Int16Array(w.width*w.height),s,bad,c,planProfileWindow(s,bad,c)!),/Separate consecutive/);
 });
 
-test("cancellation retains source buffers and unrelated advanced effects keep their original admission",async()=>{
+test("cancellation retains source buffers and eligible erosion uses the bounded native workspace",async()=>{
   const c=context(),op=profile(c),w=planProfileWindow(shape,op,c)!,base=new Int16Array(w.width*w.height).fill(200),before=hash(base),abort=new AbortController();abort.abort();
   await assert.rejects(prepareWindowedProfile(base,shape,op,c,w,undefined,undefined,undefined,abort.signal),/cancel/i);assert.equal(hash(base),before);
   assert.equal(planProfileWindow({...shape,width:2048},op,c),null);
   assert.equal(planProfileWindow({...shape,wrap:true},op,c),null);
-  assert.equal(planProfileWindow(shape,{kind:"erosion",model:"thermal",iterations:1,direction:0,directionInfluence:0,deposition:true,maxDepthM:1,reposeDegrees:30,featherM:0,selection:op.selection,preserveManual:false,strength:100},c),null);
+  assert(planProfileWindow(shape,{kind:"erosion",model:"thermal",iterations:1,direction:0,directionInfluence:0,deposition:true,maxDepthM:1,reposeDegrees:30,featherM:0,selection:op.selection,preserveManual:false,strength:100},c));
 });

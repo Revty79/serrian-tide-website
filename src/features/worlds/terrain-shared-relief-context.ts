@@ -27,7 +27,7 @@ function lruSet<K,V>(map:Map<K,V>,key:K,value:V,limit:number){map.delete(key);ma
 /** Private, immutable accepted inputs. Numerical tiles are verified lazily in
  * bounded caches; this never constructs a whole high-resolution source grid. */
 export async function sharedReliefContext(tx:SharedReliefConnection,worldId:string,mapId:string){
- const capability=(await tx.execute<{available:boolean}>(sql`select to_regprocedure('public.world_native_shared_relief_schema()') is not null as available`)).rows[0];
+ const capability=(await tx.execute<{available:boolean;erosion:boolean}>(sql`select to_regprocedure('public.world_native_shared_relief_schema()') is not null as available,to_regprocedure('public.world_native_shared_erosion_schema()') is not null as erosion`)).rows[0];
  if(!capability?.available)throw new WorldError("Shared relief requires additive migration 0165. Saved geography and ordinary tools remain available.",409);
  const root=await requireWorldGeographyWrite(tx,worldId,mapId),t=root.terrain,
   shape=terrainGeometry({gridWidth:t.gridWidth,gridHeight:t.gridHeight,widthKm:t.widthMetres/1000,heightKm:t.heightMetres/1000,wrap:t.wrap,minElevation:t.minElevation,maxElevation:t.maxElevation}),
@@ -81,6 +81,6 @@ export async function sharedReliefContext(tx:SharedReliefConnection,worldId:stri
   }
   return {base,manual,refs};
  };
- return {root,shape,metas,sources,snapshots,pin,pinForSnapshots,context:advanced.context,load,read,reference,readWindow,sample};
+ return {root,shape,metas,sources,snapshots,pin,pinForSnapshots,context:advanced.context,load,read,reference,readWindow,sample,erosionAvailable:!!capability.erosion};
 }
 export type SharedReliefContext=Awaited<ReturnType<typeof sharedReliefContext>>;

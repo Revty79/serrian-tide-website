@@ -12,7 +12,7 @@ from ubuntu_deploy import Refused, parse_env
 class BootstrapTests(unittest.TestCase):
     def test_exact_supported_release_ledger_never_accepts_an_unknown_schema(self):
         op = Bootstrap(".", "a" * 40, "/apps/data", {"name": "synthetic", "port": 55432, "role": "postgres"})
-        for count, tag, accepted in [(162, "0161_atlas_expanded_numerical_terrain", True), (163, "0162_atlas_source_rights", True), (164, "0163_atlas_refinement_expansion", True), (165, "0164_atlas_crossing_refinement", True), (166, "0165_atlas_shared_relief", True), (161, "0160_world_canon_geography_copy", False), (163, "0162_unknown", False), (164, "0163_unknown", False), (165, "0164_unknown", False), (166, "0165_unknown", False), (167, "0166_unknown", False)]:
+        for count, tag, accepted in [(162, "0161_atlas_expanded_numerical_terrain", True), (163, "0162_atlas_source_rights", True), (164, "0163_atlas_refinement_expansion", True), (165, "0164_atlas_crossing_refinement", True), (166, "0165_atlas_shared_relief", True), (167, "0166_atlas_shared_erosion", True), (161, "0160_world_canon_geography_copy", False), (163, "0162_unknown", False), (164, "0163_unknown", False), (165, "0164_unknown", False), (166, "0165_unknown", False), (167, "0166_unknown", False), (168, "0167_unknown", False)]:
             entries = [{"tag": "fixture", "when": n} for n in range(count)]
             entries[-1]["tag"] = tag
             with patch.object(op, "git", return_value=json.dumps({"entries": entries})), patch.object(op, "run", return_value=SimpleNamespace(stdout=b"select 1;\n")):
