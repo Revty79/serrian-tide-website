@@ -1,6 +1,14 @@
 # Native protected-bank reinforcement
 
-Status: local technical qualification passed. Publication, four exact completed workflows, hosted provenance and ordinary activation remain required. Qualified owner application remains `b7bf24e8`. Full Project Earth Pass 2A is incomplete.
+Status: VERIFIED and active at `9ad314cc977747f9db8db9db2456c15903b2fab3`. Full Project Earth Pass 2A remains incomplete.
+
+## Verified publication and ordinary activation
+
+Application 9ad314cc977747f9db8db9db2456c15903b2fab3 is VERIFIED and active. Exact attempt1 normal44957070827/recovery44957070865/Ubuntu44957070824/publisher44957070808 pass all required latest completed jobs and steps. Independent actual completed-GitHub and cryptographic hosted provenance pass image sha256:9c03e21a49fefde1cafa644164bab3d288c867c1b09a426f1f13f6c54812ec70, Linux fingerprint e7a5d92db4afd4353e7f94a5700d3b217897e1ae5f8ba48b04c9bbe794554f72. All2226 tested raw app inputs remain 7e3f4421e5f35fd513de1d7453187743f6ee7fe9e785e549bf954a91dac71594, build q09BukhU2d_c-aNZMnmAM. Only15 reviewed paths activated;10828 other parent raw files and cleanmain/origin parity passed. SameDEV26276/3000,PG5296/5432,config8ba2de22 and ordinaryRevty79; no restart, migration, authentication or configuration change. Native bank controls are visible on the same ordinary owner World. See docs/operations/atlas-native-bank-reinforcement.md.
+
+Actual Earth is Root463/water48/128sources/26lakes. Eastern Sayan Save458/Undo459/Redo460 and Western Sayan Save461/Undo462/Redo463 pass complete-grid history and fresh ordinary reopening, all127fineheads/frames/pins/history/shores/water exact. These remain working forms. The restored original native100x3km joined bank work area refuses its200m cap without accepting geography. FullRoot463 readback confirms zero changes and all fine histories/water exact. Target the affected fine source through normal native controls and audit original31 pair identities before Southern extension. Preserve the original1143new boundary pairs and rejected679new Lofoten border pairs; neither is geographic PASS. Global relief, fine joins, islands, ice and final fresh paired recovery remain unfinished; Root229capture is outdated. No wholePass/owner/Ember acceptance.
+
+The earlier local/pending account is retained as qualification history. The pushed checkpoint preserves code, not the database or private assets. This documentation-only receipt requires normal CI and clean parity with all application bytes unchanged.
 
 ## Reproduced limitation
 
