@@ -1,6 +1,7 @@
 "use client";
 import {LandformProfileControls} from "./terrain-landform-profile-controls";
 import {SharedReliefWorkshop} from "./terrain-shared-relief-workshop";
+import type {ReadSharedReliefContinuation,SharedReliefSavedContinuation} from "./terrain-shared-relief-continuation";
 import {frameLocalPoint,normalizeTerrainX,type RefinementMeta} from "./terrain-refinement";
 import { accountWorldStorage } from "./world-draft-storage";
 import {useEffect,useMemo,useRef,useState} from "react";
@@ -35,13 +36,14 @@ export type AdvancedTerrainInput={
   world:TerrainPreviewWorld;kind:AdvancedKind;riverId?:string;
   worldRevision?:number;
   view?:TerrainCamera;
+  sharedContinuation?:ReadSharedReliefContinuation;
 };
 type Props={
   input:AdvancedTerrainInput;relief?:TerrainRelief;environment:EnvironmentLayer;
   onClose:()=>void;onDirty:(value:boolean)=>void;
   onApply:(result:AdvancedResult,provenance:AdvancedProvenance)=>Promise<void>;
   onVisual:(layer:EnvironmentLayer)=>boolean;onWater:()=>void;
-  canShareRelief?:boolean;onSharedSaved?:()=>void;
+  canShareRelief?:boolean;onSharedSaved?:(continuation?:SharedReliefSavedContinuation)=>void;
 };
 const emptyLocations={markers:[],selectedId:null,point:null};
 function AdvancedNumber({label,value,onChange,min,max,step=1,disabled}:{label:string;value:number;onChange:(value:number)=>void;min?:number;max?:number;step?:number;disabled:boolean}){return <label>{label}<input aria-label={label} type="number" value={value} min={min} max={max} step={step} disabled={disabled} onChange={event=>onChange(Number(event.target.value))}/></label>;}
@@ -64,8 +66,8 @@ export function AdvancedTerrainWorkshop(p:Props){
  const localStorage=accountWorldStorage();
   const worldApi=useNativeWorldApi(),historyRecovery=useNativeHistoryRecovery();
   const {onDirty}=p;
-  const [op,setOp]=useState<AdvancedOperation>(()=>startingOperation(p.input)),[packet,setPacket]=useState<AdvancedContextPacket>(),
-    [section,setSection]=useState("settings"),[tool,setTool]=useState<TerrainCanvasTool>("pan"),[shared,setShared]=useState(false),
+  const [op,setOp]=useState<AdvancedOperation>(()=>p.input.sharedContinuation?.draft.operation??startingOperation(p.input)),[packet,setPacket]=useState<AdvancedContextPacket>(),
+    [section,setSection]=useState("settings"),[tool,setTool]=useState<TerrainCanvasTool>("pan"),[shared,setShared]=useState(!!p.input.sharedContinuation),[sharedContinuation,setSharedContinuation]=useState(p.input.sharedContinuation),
     [profileInteraction,setProfileInteraction]=useState<"draw"|"move">("draw"),
     [areaMode,setAreaMode]=useState<"rectangle"|"points"|"freehand">("rectangle"),[outline,setOutline]=useState<RegionPoint[]>([]),
     [drawing,setDrawing]=useState(false),[outlineTolerance,setOutlineTolerance]=useState(1),[proposal,setProposal]=useState<{result:AdvancedResult;fingerprint:string;elapsed:number;preview?:{meta:RefinementMeta;grid:Int16Array}}>(),
@@ -111,16 +113,16 @@ export function AdvancedTerrainWorkshop(p:Props){
         return current;
       });
     }}).catch(e=>{if(live)setError(e instanceof Error?e.message:"Could not load accepted geography.");});
-    try{const candidate=findAdvancedDraft(localStorage,prefix,key,doc.id,doc.refinement?.id??null,p.input.kind);if(candidate)queueMicrotask(()=>{if(live)setRecovery(candidate);});}
+    try{if(!p.input.sharedContinuation){const candidate=findAdvancedDraft(localStorage,prefix,key,doc.id,doc.refinement?.id??null,p.input.kind);if(candidate)queueMicrotask(()=>{if(live)setRecovery(candidate);});}}
     catch{queueMicrotask(()=>{if(live)setError("Browser recovery storage is unavailable. Keep this editor open or export the operation settings.");});}
     queueMicrotask(()=>{if(live)setRecoveryReady(true);});return()=>{live=false;};
-  },[doc.worldId,doc.id,doc.revision,doc.refinement,key,prefix,p.input.kind,worldApi,localStorage]);
+  },[doc.worldId,doc.id,doc.revision,doc.refinement,key,prefix,p.input.kind,p.input.sharedContinuation,worldApi,localStorage]);
   useEffect(()=>{
-    if(!recoveryReady||recovery||retired.current)return;
+    if(!recoveryReady||recovery||retired.current||p.input.sharedContinuation&&shared)return;
     const raw=JSON.stringify({version:1,mapId:doc.id,sourceId:doc.refinement?.id??null,revision:doc.revision,operation:op,visualOnly,outline,areaMode,drawing,simplificationM:outlineTolerance});
     try{if(raw.length>ADVANCED_TERRAIN_LIMITS.packetCharacters)throw Error("Operation recovery exceeds 250,000 characters.");localStorage.setItem(key,raw);retained.current=raw;exported.current=false;storageFailed.current=false;}
     catch{storageFailed.current=true;queueMicrotask(()=>{if(alive.current)setError("The settings could not be retained in browser recovery. Export them before closing; accepted terrain is unchanged.");});}
-  },[op,visualOnly,outline,areaMode,drawing,outlineTolerance,recoveryReady,recovery,key,doc,localStorage]);
+  },[op,visualOnly,outline,areaMode,drawing,outlineTolerance,recoveryReady,recovery,key,doc,localStorage,p.input.sharedContinuation,shared]);
   function close(){
     if(applying)return;
     if((storageFailed.current||!retained.current&&!recovery)&&!exported.current){setError("Export these settings before closing because browser recovery is unavailable.");return;}
@@ -252,7 +254,7 @@ export function AdvancedTerrainWorkshop(p:Props){
     <output className={styles.status} aria-label="Advanced terrain inspection">{inspection&&Number.isFinite(p.input.base[inspection.row*shape.width+inspection.column])?<><span className={styles.full}>{(inspection.mappedIslandWaterLevel!==undefined?"Mapped island: elevation unresolved; lake level "+inspection.mappedIslandWaterLevel+" m. Coarse numerical samples: saved ":"Saved ")+p.input.base[inspection.row*shape.width+inspection.column]+" m; proposed "+(fresh&&proposal?advancedResultSample(proposal.result,inspection.row*shape.width+inspection.column,p.input.base[inspection.row*shape.width+inspection.column]):p.input.base[inspection.row*shape.width+inspection.column])+" m. East "+Math.round(inspection.x)+" m, south "+Math.round(inspection.y)+" m."}</span><span className={styles.short}>{(inspection.mappedIslandWaterLevel!==undefined?"Island elevation unresolved; lake "+inspection.mappedIslandWaterLevel+" m; coarse saved ":"Saved ")+p.input.base[inspection.row*shape.width+inspection.column]+" m / proposed "+(fresh&&proposal?advancedResultSample(proposal.result,inspection.row*shape.width+inspection.column,p.input.base[inspection.row*shape.width+inspection.column]):p.input.base[inspection.row*shape.width+inspection.column])+" m"}</span></>:"Pan or tap to inspect heights."}</output>
     {busy&&<p className={styles.status} role="status">{backend+" — "+Math.round(progress*100)+"%"} <progress max={1} value={progress}/></p>}
   </div>;
-  if(shared&&(op.kind==="landform-profile"||op.kind==="erosion")&&packet&&p.onSharedSaved&&p.input.worldRevision!==undefined)return <SharedReliefWorkshop document={doc} world={p.input.world} rootRevision={p.input.worldRevision} operation={op} water={packet.context.water} relief={p.relief} onClose={()=>setShared(false)} onSaved={p.onSharedSaved}/>;
+  if(shared&&(op.kind==="landform-profile"||op.kind==="erosion")&&packet?.canEdit&&p.canShareRelief&&p.onSharedSaved&&p.input.worldRevision!==undefined)return <SharedReliefWorkshop document={doc} world={p.input.world} rootRevision={p.input.worldRevision} operation={op} water={packet.context.water} relief={p.relief} continuation={sharedContinuation} onClose={()=>{setSharedContinuation(undefined);setShared(false);}} onSaved={p.onSharedSaved}/>;
   return <div className={styles.shell}><CreatorWorkshop mapFirst title={advancedNames[op.kind]} introduction="Preview, compare, then accept or cancel. Drawing water never carves automatically."
     sections={[{id:"settings",label:"Operation"},{id:"area",label:"Choose Area"},{id:"review",label:"Review Changes"}]} section={section} onSection={setSection} onClose={close}
     preview={viewport} footer={<>
