@@ -203,6 +203,19 @@ class UpdatePolicyTests(unittest.TestCase):
         with self.assertRaisesRegex(Stopped, "MIGRATION_APPROVAL_REQUIRED"):
             verify_ledger(rows, expected)
 
+    def test_actual_source_capacity_release_refuses_a_host_missing_0167(self):
+        # A real retrievable168-entry checkpoint; owner DEV remains167.
+        history = Git(Path(__file__).resolve().parent.parent)
+        commit = "15cf08213eb52c874b8b84de6287a7e1199c4e4b"
+        expected = expected_ledger(history, commit)
+        self.assertEqual(len(expected), 168)
+        previous = expected_ledger(history, "d3272e2cf15fe48d2246edb43fcfed89a9eae94f")
+        self.assertEqual(len(previous), 167)
+        self.assertEqual(expected[:167], previous)
+        rows = [{"created_at": row["created_at"], "hash": sorted(row["hashes"])[0]} for row in previous]
+        with self.assertRaisesRegex(Stopped, "MIGRATION_APPROVAL_REQUIRED"):
+            verify_ledger(rows, expected)
+
     def test_real_git_migration_bytes_and_configuration_epoch(self):
         with tempfile.TemporaryDirectory(prefix="serrian-update-git-") as directory:
             root = Path(directory)
