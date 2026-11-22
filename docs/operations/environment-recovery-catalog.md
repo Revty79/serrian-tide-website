@@ -30,6 +30,12 @@ Full types and lint pass. The owned production compile/typegen/production-typech
 
 All2232qualified application inputs retain SHA84863e3777f04db9649d1da1c8fa286c7dfe7a3fc598941e7fa03888d38cb939;10847other original raw files were independently exact before this new receipt. Numerical kernels, renderers, geography writers, source rights, endpoints, authentication and owner configuration are unchanged. No migration or package/dependency change is introduced. The recovery workflow enables the large physical-file case inside its existing offline owned image without increasing its40-minute job timeout.
 
+## Combined release checks
+
+The recovery changes are combined with the installed-gated source-capacity candidate at `f0014cbc7d79b0664f28976440a76034e58e8466`. The final exact combined source passes 26 integrity tests, full types/lint and the stamped production build. A second, standard 168-ledger recovery rehearsal passes 15 groups, restoring 409 tables, 135 files and all three roots, then proving fresh-production authentication and native reads. It has two synthetic Worlds and richFixturefalse. This complements the original large 167-ledger physical rehearsal; the exact final 168-ledger large case remains required in the unchanged40-minute hosted workflow.
+
+Combined review preserves all old SQL files, old167 journal entries, 2,234 frozen application inputs (SHA256 `7568bc22dde3036bf58edbeb6584f33bc11925f7c62bcd0267eee6daacb3b875`) and 10,800 other parent raw inputs across 66 reviewed paths. The historical 2,232-input statement below describes the standalone recovery candidate. Final hosted workflows, independent provenance, parity and any protected owner operation remain pending.
+
 ## Required publication and owner use
 
 Complete final reviewed-byte checks and exact hosted normal/recovery/Ubuntu/publisher workflows, latest completed jobs/steps, independent actual GitHub/cryptographic image provenance and clean parity before owner use. Code checkpoints do not back up databases or private assets. Publish only explicitly reviewed source/test/workflow/documentation paths.
