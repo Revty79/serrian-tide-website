@@ -1,6 +1,20 @@
 # Native selected reconstruction review
 
-Status: isolated candidate. Publication, all four exact completed workflows, cryptographic hosted provenance and ordinary activation remain required. Earth continues on qualified application `9ad314cc`. Full Pass 2A is unfinished.
+Status: verified and active; the earlier qualification and pending-release account below is historical.
+
+## Verified release receipt
+
+Native selected reconstruction VERIFIED; continue ALL Earth2A (2026-11-22)
+
+Application cbf821dbb027a4d807bf4fb83789e7abf9b57bce is VERIFIED and active. Exact attempt1 normal44974907311/recovery44974907273/Ubuntu44974907256/publisher44974907258 pass every required latest completed job and step. Independent actual completed-GitHub and cryptographic hosted provenance pass immutable image sha256:ae2ad8627b87be205f49da62a6700023cca269a08ffa85ab6ea29bfbf41b377d and Linux fingerprint38091b0b7a2ce60dfafb4abed081452767a84395a5277d282052fc46c99b8e56. All2231tested raw application inputs remain SHA773133cc344be4ac5bcf33145f6e5e7833076892b25cc08c753cd864a294599c/buildzHe55g1HTEAphXp9XCj_w. Clean main/origin parity and all10850tracked raw inputs pass before this two-file documentation receipt. OwnerDEV26276/3000,PG5296/5432,configuration8ba2de22 and ordinaryRevty79 remain unchanged; no restart/auth/config/migration action. Code checkpoint checkpoint/project-earth-before-native-support-review-20261122 preserves4fafcd9a; it is not a database/private-asset backup. The older candidate/pending account below is historical.
+
+Actual ordinary native Greenland southern preview takes4455.4425ms/58356cells/14338616bytes. All887changed inherited supports are independently checked, including17beyond the work window and8selected-contribution reconstruction proofs beyond the outline. Complete border/own-height auditing finds zero new or steepened45degree pairs. Save476/Undo477/Redo478 restores complete Root/Canadian Arctic grids and old parent pins exactly; fresh ordinary478reopening/SaveDisabled and read-only lake-bed audit pass. Current Earth is Root478/water48/Canadian Arctic133(parent476),128sources/26lakes. Original59947Root shores, all unaffected source heads/frames/history and all26Root lake beds since142 remain exact. This is a working southern ice area; adjacent Greenland fronts remain unfinished. The new control does not repair the rejected Patagonian bank47/Undo48 or Lofoten679pairs.
+
+While gates ran, native Chad lowland Save470/Undo471/Redo472 adds4176raises toward300m while237excluded construction-ground samples remain exact; native Bodele working core Save473/Undo474/Redo475 lowers219old200m samples toward160m. Both have zero new/steepened45degree pairs, exact complete-grid history/reopening/outside/shores/fines/water; regional rims and gradients remain unfinished. No Ennedi geography was accepted. Preserve the cancelled24sample Chad blend, private corner-versus-centre QA failure (classic polygon selects cell centres; corrected independent audit passes), negative crop-offset failure, guessed-preview-button timeout, Root nullable-sourceId lookup and CJS top-level-await private harness failures. These were corrected in separate private QA versions without changing Atlas/geography. Original failed/superseded receipts remain.
+
+Continue all authorized native Pass 2A through visible Atlas controls. Significant remaining geography and final current-geography recovery are unfinished. No whole-pass or owner acceptance is claimed.
+
+Historical status: isolated candidate. Publication, all four exact completed workflows, cryptographic hosted provenance and ordinary activation remain required. Earth continues on qualified application `9ad314cc`. Full Pass 2A is unfinished.
 
 ## Reproduced native limitation
 
