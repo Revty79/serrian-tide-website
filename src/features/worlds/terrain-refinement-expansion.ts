@@ -1,3 +1,4 @@
+import {TERRAIN_SOURCE_STATE_CHARACTERS} from "./terrain-source-limits";
 import {z} from "zod";
 import type {TerrainGeometry} from "./terrain";
 import {frameInside,initializeRefinementAsync,normalizeTerrainX,REFINEMENT_COLLAR,refinementGridSize,validateRefinement,type RefinementMeta,type TerrainFrame} from "./terrain-refinement";
@@ -6,7 +7,7 @@ const tileOffset=z.number().int().min(0).max(4096).refine(n=>n%32===0,"Move the 
 const fields={gridWidth:refinementGridSize,gridHeight:refinementGridSize,columnsToWest:tileOffset,rowsToNorth:tileOffset,advancedConfirmed:z.literal(true).optional()};
 const confirmed=(v:{gridWidth:number;gridHeight:number;advancedConfirmed?:true})=>v.gridWidth<=2048&&v.gridHeight<=2048||v.advancedConfirmed===true;
 const dimensions=z.object(fields).strict().refine(confirmed,"Confirm the advanced terrain requirements before extending to a 4096-axis grid.");
-export const refinementExpansionSchema=z.object({action:z.literal("expand"),requestId:z.uuid(),mapId:z.uuid(),refinementId:z.uuid(),revision:z.number().int().positive(),parentRevision:z.number().int().positive(),sourceState:z.string().max(8192).optional(),previewHash:z.string().regex(/^[a-f0-9]{64}$/),...fields}).strict().refine(confirmed,"Confirm the advanced terrain requirements before extending to a 4096-axis grid.");
+export const refinementExpansionSchema=z.object({action:z.literal("expand"),requestId:z.uuid(),mapId:z.uuid(),refinementId:z.uuid(),revision:z.number().int().positive(),parentRevision:z.number().int().positive(),sourceState:z.string().max(TERRAIN_SOURCE_STATE_CHARACTERS).optional(),previewHash:z.string().regex(/^[a-f0-9]{64}$/),...fields}).strict().refine(confirmed,"Confirm the advanced terrain requirements before extending to a 4096-axis grid.");
 export type RefinementExpansion=z.infer<typeof refinementExpansionSchema>;
 export type RefinementExpansionDimensions=z.infer<typeof dimensions>;
 

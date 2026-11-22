@@ -1,4 +1,5 @@
 import "server-only";
+import {LEGACY_TERRAIN_REFINEMENT_LIMIT,TERRAIN_REFINEMENT_LIMIT} from "./terrain-source-limits";
 import {and,desc,eq,lte,sql} from "drizzle-orm";
 import {db} from "@/db";
 import {worldTerrainRefinementGeometry as geometry} from "@/db/world-terrain-refinement-schema";
@@ -8,6 +9,15 @@ type Connection=Pick<typeof db,"select"|"execute">;
 export async function refinementExpansionAvailable(tx:Connection){return !!(await tx.execute<{available:boolean}>(sql`SELECT to_regclass('public.world_terrain_refinement_geometry') IS NOT NULL AS available`)).rows[0].available;}
 
 export async function refinementCrossingAvailable(tx:Connection){return !!(await tx.execute<{available:boolean}>(sql`SELECT to_regprocedure('public.world_refinement_crossing_schema()') IS NOT NULL AS available`)).rows[0].available;}
+
+/** Code can qualify before the separately approved database addition. */
+export async function refinementCapacity(tx:Connection){
+ const available=(await tx.execute<{available:boolean}>(sql`SELECT to_regprocedure('public.world_refinement_capacity_schema()') IS NOT NULL AS available`)).rows[0]?.available;
+ if(!available)return LEGACY_TERRAIN_REFINEMENT_LIMIT;
+ const capacity=(await tx.execute<{capacity:number}>(sql`SELECT public.world_refinement_capacity_schema() AS capacity`)).rows[0]?.capacity;
+ if(capacity!==TERRAIN_REFINEMENT_LIMIT)throw Error("The installed terrain-source capacity is unsupported. Existing drafts are retained.");
+ return capacity;
+}
 
 /** Sources without transitions retain the original immutable-coverage behaviour. */
 export async function refinementGeometryAtRevision<T extends Pick<RefinementMeta,"id"|"terrainId"|"worldId"|"revision"|"parentRevision"|"frame"|"gridWidth"|"gridHeight"|"overviewLevels">>(tx:Connection,current:T,revision:number):Promise<T>{

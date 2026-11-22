@@ -1,9 +1,10 @@
+import {TERRAIN_SOURCE_STATE_CHARACTERS} from "./terrain-source-limits";
 import {z} from "zod";
 import type {TerrainGeometry,TerrainPatch} from "./terrain";
 import {ADVANCED_TERRAIN_LIMITS} from "./terrain-advanced-spec";
 
 export const SAVED_ELEVATION_TILE_LIMIT=ADVANCED_TERRAIN_LIMITS.cells/1024;
-const identity={worldId:z.uuid(),mapId:z.uuid(),terrainId:z.uuid(),headRevision:z.number().int().positive(),sourceState:z.string().min(1).max(8192),waterRevision:z.number().int().nonnegative(),width:z.number().int().positive(),height:z.number().int().positive()};
+const identity={worldId:z.uuid(),mapId:z.uuid(),terrainId:z.uuid(),headRevision:z.number().int().positive(),sourceState:z.string().min(1).max(TERRAIN_SOURCE_STATE_CHARACTERS),waterRevision:z.number().int().nonnegative(),width:z.number().int().positive(),height:z.number().int().positive()};
 export const savedElevationListSchema=z.object({...identity,versions:z.array(z.object({revision:z.number().int().positive(),previousRevision:z.number().int().positive().nullable(),createdAt:z.string(),kind:z.string().max(40)}).strict()).max(50)}).strict();
 const samples=z.array(z.number().int().min(-30000).max(30000)).length(1024);
 const tileSchema=z.object({x:z.number().int().nonnegative(),y:z.number().int().nonnegative(),before:samples,after:samples}).strict();

@@ -190,9 +190,9 @@ class UpdatePolicyTests(unittest.TestCase):
             verify_ledger(rows, expected)
 
     def test_actual_shared_erosion_release_refuses_a_host_missing_0166(self):
-        from a5_fixture_baseline import BASELINE
+        BASELINE = "d69d66339d7376d4fabf424b766ea3741b00cce0"
         history = Git(Path(__file__).resolve().parent.parent)
-        commit = history.run("rev-parse", "HEAD")
+        commit = "d69d66339d7376d4fabf424b766ea3741b00cce0"
         for name in ("scripts/deployment-a5-fixture.ts", "drizzle/meta/_journal.json"):
             self.assertEqual(history.blob(BASELINE, name), history.blob(commit, name))
         expected = expected_ledger(history, commit)

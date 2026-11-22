@@ -1,4 +1,5 @@
 "use client";
+import {LEGACY_TERRAIN_REFINEMENT_LIMIT} from "./terrain-source-limits";
 import {CROSSING_REFINEMENT_NOTICE,crossingRefinementLevel,isCrossingRefinement} from "./terrain-refinement-crossing";
 import {ACCEPTED_REFINEMENT_NOTICE,acceptedRefinementSources,initializeAcceptedRefinement} from "./terrain-refinement-inheritance";
 import {useNativeWorldApi} from "./native-map-history-client";
@@ -25,6 +26,7 @@ export function TerrainRefinementControls(p:Props){
  const [acrossExisting,setAcrossExisting]=useState(false);
  const [inheritExisting,setInheritExisting]=useState(false);
  const crossing=acrossExisting&&!p.current.refinement;
+ const refinementLimit=p.index?.refinementLimit??LEGACY_TERRAIN_REFINEMENT_LIMIT,refinementCount=p.index?.refinementCount??p.index?.refinements.length??0,capacityReached=refinementCount>=refinementLimit;
  const crossingNotice=(attempt?.action==="create"?attempt.inheritExisting:crossing&&inheritExisting)?ACCEPTED_REFINEMENT_NOTICE:CROSSING_REFINEMENT_NOTICE;
  const [expanding,setExpanding]=useState(false),[columnsToWest,setColumnsToWest]=useState(0),[rowsToNorth,setRowsToNorth]=useState(0);
  const [confirmedSize,setConfirmedSize]=useState(""),[previewProgress,setPreviewProgress]=useState(0);const fallbackAbort=useRef<AbortController|null>(null),advanced=advancedResolution(columns,rows),sizeKey=columns+"x"+rows,confirmed=!advanced||confirmedSize===sizeKey;
@@ -42,6 +44,7 @@ export function TerrainRefinementControls(p:Props){
  async function prepare(){
   if(busy||attempt||p.disabled||!ready)return;setError("");if(!confirmed){setError("Confirm the advanced terrain warning before preparing this source.");return;}
   if(expanding){await prepareExtension();return;}
+  if(capacityReached){setError(`This World has reached its ${refinementLimit} terrain-detail areas. Existing areas remain editable and can extend their coverage.`);return;}
   const frame={x:p.world.wrap?normalizeTerrainX(east-width/2,p.world.displayWidth):east-width/2,y:south-height/2,width,height};
   let level=(p.current.refinement?.level??0)+1;
   try{if(crossing){if(!p.index?.crossingAvailable)throw Error("Crossing coverage is awaiting a server upgrade. Existing terrain remains available.");level=crossingRefinementLevel(frame,columns,rows,p.world,p.index.refinements);}if(!name.trim())throw Error("Give this refined area a useful label.");validateRefinement(frame,columns,rows,p.shape,parentFrame,p.world);if(p.root.region&&!regionContainsFrame(p.root.region,frame,p.world))throw Error("Keep the complete numerical refinement inside this region’s saved extent.");if(!crossing&&p.index?.refinements.some(meta=>(meta.parentId===(p.current.refinement?.id??null)||meta.level>=level)&&framesOverlap(meta.frame,frame,p.world.displayWidth,p.world.wrap)))throw Error("This coverage overlaps an existing area at the same level. Select that area to extend its coverage or add finer detail inside it.");}catch(e){setError(e instanceof Error?e.message:"Check the bounds and sample dimensions.");return;}
@@ -92,11 +95,12 @@ export function TerrainRefinementControls(p:Props){
   <button type="button" className="st-button is-secondary" disabled={busy} onClick={locate}>Find detail at view centre</button>
   {located&&<div aria-label="Terrain sources at view centre">{located.length?located.map(id=>{const detail=p.index?.refinements.find(value=>value.id===id);return detail&&<button key={id} type="button" className="st-button is-secondary" disabled={p.disabled||busy||!!preview||!!attempt} onClick={()=>p.onSelect(id)}>{detail.name}{p.root.region&&!regionContainsFrame(p.root.region,detail.frame,p.world)?" · view only, extends outside region":" · available to sculpt"}</button>;}):<p>No existing numerical detail covers this point. Refine Terrain Here adds samples only after preview and acceptance.</p>}</div>}
   <div className={styles.actions}><button type="button" className="st-button is-secondary" onClick={()=>p.canvas.current?.focusFrame(p.current.refinement?.frame??p.root.region?.frame??parentFrame)}>Go to active terrain</button><button type="button" className="st-button is-secondary" onClick={()=>p.canvas.current?.fit()}>{p.root.region?"Fit regional extent":"View whole World"}</button></div>
+  {p.index?.available&&<p role="status">Terrain-detail areas: {refinementCount} of {refinementLimit}.{capacityReached?" Existing areas remain editable and can extend their coverage.":""}</p>}
   <p>Inherited edge samples stay connected to their parent. Parent samples beneath finer coverage are protected; choose that finer source to sculpt there. Other parent terrain remains editable.</p>
   {p.editable&&(p.current.refinement||expanding)&&<div className={styles.actions}>{p.current.refinement&&<button type="button" className="st-button is-secondary" disabled={p.disabled||busy||!!preview||!!attempt||!p.index?.expansionAvailable} onClick={extend}>Extend coverage</button>}{expanding&&<button type="button" className="st-button is-secondary" disabled={busy||!!preview||!!attempt} onClick={()=>{cancel();setExpanding(false);}}>New detail</button>}</div>}
   {p.editable&&p.current.refinement&&p.index?.available&&!p.index.expansionAvailable&&<p>Coverage extension is awaiting a server upgrade. Existing terrain remains available.</p>}
   {advanced&&<aside role="note"><strong>Advanced Terrain Resolution — {columns} × {rows}</strong><p>{ADVANCED_TERRAIN_WARNING}</p><label><input type="checkbox" checked={confirmedSize===sizeKey} disabled={busy} onChange={e=>setConfirmedSize(e.target.checked?sizeKey:"")}/>I understand the advanced terrain requirements</label></aside>}
-  {!p.index?.available?<p>Terrain detail requires the pending database upgrade. The existing base map remains available.</p>:p.editable&&<fieldset className={styles.townFields} disabled={busy||p.disabled||!!attempt}>
+  {!p.index?.available?<p>Terrain detail requires the pending database upgrade. The existing base map remains available.</p>:p.editable&&<fieldset className={styles.townFields} disabled={busy||p.disabled||!!attempt||!expanding&&capacityReached}>
    <legend>{expanding?"Extend existing coverage":"Refine terrain here"}</legend>{p.root.region&&(p.root.region.frame.width<100||p.root.region.frame.height<100)&&<p role="status">A numerical refinement needs at least 100 m on each side. This region is too narrow to contain a new grid. Use an existing contained source, or return to the World map and choose a wider region. Opening this view creates no samples.</p>}
    {!expanding&&<>
    {!p.current.refinement&&<><label><input type="checkbox" checked={crossing} disabled={!p.index.crossingAvailable} onChange={e=>{setAcrossExisting(e.target.checked);setFormEdited(true);}}/>Refine across existing areas</label>{!p.index.crossingAvailable&&<p>Crossing coverage is awaiting a server upgrade. Ordinary detail remains available.</p>}</>}

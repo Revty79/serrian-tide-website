@@ -1,5 +1,6 @@
 import "server-only";
-import {refinementCrossingAvailable} from "./terrain-refinement-geometry";
+import {refinementCapacity,refinementCrossingAvailable} from "./terrain-refinement-geometry";
+import {TERRAIN_REFINEMENT_LIMIT} from "./terrain-source-limits";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { readTerrainTile } from "./terrain-storage";
@@ -52,10 +53,12 @@ export async function nativeAllRefinementIndex(tx: NativeHistoryTx, context: Nat
   const root = await nativeTerrainSource(tx, context);
   const component = await nativeResource(tx, context, "refinements"), stored = (component.payload as unknown as { index: RefinementIndex }).index;
   if (!stored || !Array.isArray(stored.refinements)) throw new WorldError("The retained finer-source index is unavailable.", 409);
+  if(stored.refinements.length>TERRAIN_REFINEMENT_LIMIT||new Set(stored.refinements.map(meta=>meta.id)).size!==stored.refinements.length)throw new WorldError("The complete retained finer-source index is invalid. No sources were omitted.",409);
   const value = structuredClone(stored);
   value.refinements = value.refinements.map(meta => ({ ...meta, mapId: context.scope.target.id }));
   value.rootRevision = root.document.revision; value.seaLevel = root.document.seaLevel;
   value.sourceState = terrainSourceState(root.document.revision, value.refinements); value.canEdit = context.canEdit; value.expansionAvailable=true; value.crossingAvailable=await refinementCrossingAvailable(tx);
+  value.refinementLimit=await refinementCapacity(tx);value.refinementCount=value.refinements.length;
   return value;
 }
 export async function nativeRefinementIndex(tx: NativeHistoryTx, context: NativeContentContext): Promise<RefinementIndex> {

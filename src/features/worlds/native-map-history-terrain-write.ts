@@ -1,3 +1,5 @@
+import {LEGACY_TERRAIN_REFINEMENT_LIMIT} from "./terrain-source-limits";
+import {TERRAIN_SOURCE_STATE_CHARACTERS} from "./terrain-source-limits";
 import "server-only";
 import {refinementCrossingAvailable} from "./terrain-refinement-geometry";
 import {crossingRefinementLevel,isCrossingRefinement,refinementOccluders} from "./terrain-refinement-crossing";
@@ -10,7 +12,7 @@ import {expandedRefinementProtection,initializeExpandedRefinement,refinementExpa
 import { validateGenerationAcceptance } from "./terrain-generation-acceptance";
 import {assertTerrainTransferRequest} from "./terrain-transfer-authority";
 import {withTerrainResourceBudget} from "./terrain-resource-budget";
-import { frameGeometry, rootFrame, terrainEditMask, overviewTile, refinementCreateSchema, validateRefinement, initializeRefinement, initializeRefinementAsync, framesOverlap, overviewLevels, gridTile, isRefinementBoundary, REFINEMENT_DEPTH, REFINEMENT_LIMIT, type RefinementMeta } from "./terrain-refinement";
+import { frameGeometry, rootFrame, terrainEditMask, overviewTile, refinementCreateSchema, validateRefinement, initializeRefinement, initializeRefinementAsync, framesOverlap, overviewLevels, gridTile, isRefinementBoundary, REFINEMENT_DEPTH, type RefinementMeta } from "./terrain-refinement";
 import { regionContainsFrame } from "./terrain-regions";
 import { readTerrainTile, stageTerrainTiles } from "./terrain-storage";
 import { nativeResource, type NativeContentContext } from "./native-map-history-context";
@@ -85,7 +87,8 @@ async function createNativeRefinementChecked(tx: NativeHistoryTx, context: Nativ
   const c = refinementCreateSchema.parse(raw);
   assertNativeTarget(context, c.mapId, "terrain");
   const root = await nativeTerrainSource(tx, context), index = await nativeAllRefinementIndex(tx, context);
-  if (index.refinements.length >= REFINEMENT_LIMIT || index.refinements.some(r => r.id === c.requestId)) throw new WorldError("Choose an unused finer-source identity within the existing 128-source capacity.", 409);
+  const capacity=index.refinementLimit??LEGACY_TERRAIN_REFINEMENT_LIMIT;
+  if (index.refinements.length >= capacity || index.refinements.some(r => r.id === c.requestId)) throw new WorldError(`Choose an unused finer-source identity within the supported ${capacity}-source capacity.`, 409);
   const parent = c.parentId ? index.refinements.find(r => r.id === c.parentId) : undefined;
   if (c.parentId && !parent) throw new WorldError("Choose the retained dated parent source.", 404);
   assertNativeRevision(parent?.revision ?? root.document.revision, c.parentRevision);
@@ -154,7 +157,7 @@ export async function expandNativeRefinement(tx:NativeHistoryTx,context:NativeCo
 }
 
 export async function restoreNativeRefinement(tx: NativeHistoryTx, context: NativeContentContext, sourceId: string, raw: unknown) {
-  const c = z.object({ action: z.literal("restore"), mapId: z.uuid(), requestId: z.uuid(), revision: z.number().int().positive(), targetRevision: z.number().int().positive(), sourceState: z.string().max(8192).optional() }).strict().parse(raw);
+  const c = z.object({ action: z.literal("restore"), mapId: z.uuid(), requestId: z.uuid(), revision: z.number().int().positive(), targetRevision: z.number().int().positive(), sourceState: z.string().max(TERRAIN_SOURCE_STATE_CHARACTERS).optional() }).strict().parse(raw);
   if (c.targetRevision >= c.revision) throw new WorldError("Choose an earlier retained finer-source revision.", 400);
   const [old, current] = await Promise.all([nativeGrid(tx, context, sourceId, c.targetRevision), nativeGrid(tx, context, sourceId)]);
   const root = await nativeTerrainSource(tx, context);

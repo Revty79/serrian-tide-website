@@ -1,3 +1,4 @@
+import {TERRAIN_SOURCE_STATE_CHARACTERS} from "./terrain-source-limits";
 import {z} from "zod";
 import type {TerrainFrame} from "./terrain-refinement";
 import {regionAreaContainsPath,regionAreaContainsFrame,regionCanonicalX,type RegionFootprint} from "./terrain-region-geometry";
@@ -5,7 +6,7 @@ import {regionAreaContainsPath,regionAreaContainsFrame,regionCanonicalX,type Reg
 /** A retained request pins accepted identities; bounds are always resolved by the server. */
 export const regionalAuthoringSchema=z.object({
  version:z.literal(1),regionMapId:z.uuid(),parentMapId:z.uuid(),terrainId:z.uuid(),regionRevision:z.number().int().positive(),
- sourceState:z.string().min(2).max(8192),compositionRevision:z.number().int().nonnegative().optional(),
+ sourceState:z.string().min(2).max(TERRAIN_SOURCE_STATE_CHARACTERS),compositionRevision:z.number().int().nonnegative().optional(),
 }).strict();
 export type RegionalAuthoring=z.infer<typeof regionalAuthoringSchema>;
 export type RegionalScope={frame:TerrainFrame;footprint?:RegionFootprint;world:{width:number;height:number;wrap:boolean}};

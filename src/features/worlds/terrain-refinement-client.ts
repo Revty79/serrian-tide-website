@@ -10,7 +10,7 @@ import {sharedTerrainDetails} from "./terrain-shared-detail-cache";
 import {detailViewPlan} from "./terrain-detail-presentation";
 export {detailViewPlan} from "./terrain-detail-presentation";
 
-export type RefinementIndex={sourceState?:string;available:boolean;expansionAvailable?:boolean;crossingAvailable?:boolean;refinements:RefinementMeta[];rootRevision:number;seaLevel:number;canEdit:boolean};
+export type RefinementIndex={sourceState?:string;available:boolean;expansionAvailable?:boolean;crossingAvailable?:boolean;refinementLimit?:number;refinementCount?:number;refinements:RefinementMeta[];rootRevision:number;seaLevel:number;canEdit:boolean};
 export type LoadedTerrainDetail={document:TerrainDocument;grid:Int16Array;protection:Uint8Array};
 export function refinementApi(worldId:string,mapId:string,review=false){return `/api/worlds/${worldId}/terrain/refinements?terrainMap=${encodeURIComponent(mapId)}${review?"&review=1":""}`;}
 

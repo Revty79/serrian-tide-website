@@ -16,7 +16,7 @@ export async function rightsMigrationRollback(f:CollaborationFixture){
   const before=await publicTableDigests(pool),client=await pool.connect();try{await client.query("begin");for(const statement of(await readFile("drizzle/0162_atlas_source_rights.sql","utf8")).split("--> statement-breakpoint"))await client.query(statement);await assert.rejects(client.query("select a3_deliberate_failed_migration()"));await client.query("rollback");}finally{client.release();}
   assert.equal((await pool.query("select to_regclass('public.atlas_source_rights') name")).rows[0].name,null);assert.equal((await pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,162);assert.deepEqual(await publicTableDigests(pool),before);
   await migrate(drizzle(pool),{migrationsFolder:"drizzle"});
-  assert.equal(journal.entries.length,167);
+  assert.equal(journal.entries.length,168);
   const expected=[];
   for(const entry of journal.entries)expected.push({hash:createHash("sha256").update(await readFile(`drizzle/${entry.tag}.sql`)).digest("hex"),created_at:String(entry.when)});
   const ledger=(await pool.query("select hash,created_at::text from drizzle.__drizzle_migrations order by id")).rows;

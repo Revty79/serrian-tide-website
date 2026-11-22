@@ -1,3 +1,4 @@
+import {TERRAIN_SOURCE_LIMIT} from "./terrain-source-limits";
 import {z} from "zod";
 
 const id=z.string().min(1).max(160).regex(/^[a-zA-Z0-9:._-]+$/);
@@ -10,7 +11,7 @@ export const lakeArtworkSchema=z.object({tone:z.enum(["natural","blue","turquois
 export const waterPresentationSchema=z.object({detail:z.enum(["major","balanced","all"]),banks:z.boolean(),symbols:z.boolean()}).strict();
 export type WaterPresentation=z.infer<typeof waterPresentationSchema>;
 const evidence=z.object({spacingM:z.number().finite().positive(),distanceM:z.number().finite().positive(),dropM:z.number().finite().min(0),slope:z.number().finite().min(0),confidence:z.enum(["potential","coarse"]),reason:z.string().min(1).max(1000)}).strict();
-const common={id,name:z.string().max(120),description:z.string().max(2000),flowKind:z.enum(["derived","manual","exception"]),exceptionReason:z.string().max(1000),protected:z.boolean(),analysisId:id.nullable(),sourceIds:z.array(z.string().uuid()).max(129),authoredPins:z.array(pin).max(129).optional(),review:z.boolean(),evidence:evidence.optional()};
+const common={id,name:z.string().max(120),description:z.string().max(2000),flowKind:z.enum(["derived","manual","exception"]),exceptionReason:z.string().max(1000),protected:z.boolean(),analysisId:id.nullable(),sourceIds:z.array(z.string().uuid()).max(TERRAIN_SOURCE_LIMIT),authoredPins:z.array(pin).max(TERRAIN_SOURCE_LIMIT).optional(),review:z.boolean(),evidence:evidence.optional()};
 export const waterFeatureSchema=z.discriminatedUnion("kind",[
   z.object({...common,kind:z.literal("spring"),point,riverId:id.nullable()}).strict(),
   z.object({...common,kind:z.enum(["waterfall","rapids"]),point,riverId:id.nullable()}).strict(),

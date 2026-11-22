@@ -50,7 +50,7 @@ test("original crossing acceptance retains the real bounded native revision vect
  const sourceState="1;43000000-0000-4000-8000-000000000013:2";
  assert.equal(refinementCreateSchema.parse({...command,sourceState}).sourceState,sourceState);
  assert.throws(()=>refinementCreateSchema.parse(command),/accepted source state/);
- assert.throws(()=>refinementCreateSchema.parse({...command,sourceState:"x".repeat(8193)}));
+ assert.throws(()=>refinementCreateSchema.parse({...command,sourceState:"x".repeat(16385)}));
 });
 test("ordinary creation remains compatible without a crossing revision vector",()=>{
  const {acrossExisting,...ordinary}=command;assert(acrossExisting);

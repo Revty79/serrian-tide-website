@@ -1,8 +1,9 @@
+import {TERRAIN_SOURCE_STATE_CHARACTERS} from "./terrain-source-limits";
 import {z} from "zod";
 import type {TerrainDocument,TerrainGeometry,TerrainTile} from "./terrain";
 import {DETAIL_RESOLUTIONS} from "./terrain-resolution";
 
-export const REFINEMENT_LIMIT=128;
+export {TERRAIN_REFINEMENT_LIMIT as REFINEMENT_LIMIT} from "./terrain-source-limits";
 export const REFINEMENT_DEPTH=8;
 export const REFINEMENT_COLLAR=4;
 export const refinementSizes=DETAIL_RESOLUTIONS;
@@ -10,7 +11,7 @@ const finite=z.number().finite(),dimension=finite.min(100).max(1e9);
 export const refinementFrameSchema=z.object({x:finite.min(0).max(1e9),y:finite.min(0).max(1e9),width:dimension,height:dimension}).strict();
 export type TerrainFrame=z.infer<typeof refinementFrameSchema>;
 export const refinementGridSize=z.number().int().refine(n=>(refinementSizes as readonly number[]).includes(n),"Choose 32, 64, 128, 256, 512, 1024, 2048 or advanced 4096 samples.");
-export const refinementCreateSchema=z.object({action:z.literal("create"),requestId:z.uuid(),mapId:z.uuid(),parentId:z.uuid().nullable(),parentRevision:z.number().int().positive(),name:z.string().trim().min(1).max(160),acrossExisting:z.literal(true).optional(),inheritExisting:z.literal(true).optional(),sourceState:z.string().min(1).max(8192).optional(),frame:refinementFrameSchema,gridWidth:refinementGridSize,gridHeight:refinementGridSize,advancedConfirmed:z.literal(true).optional(),previewHash:z.string().regex(/^[a-f0-9]{64}$/)}).strict().refine(v=>v.gridWidth<=2048&&v.gridHeight<=2048||v.advancedConfirmed===true,"Confirm the advanced terrain requirements before accepting a 4096-axis source.").refine(v=>!v.acrossExisting||v.parentId===null&&!!v.sourceState,"Crossing coverage must retain the Whole World parent and accepted source state.").refine(v=>!v.inheritExisting||!!v.acrossExisting,"Keeping accepted terrain requires explicit crossing coverage and its original source state.");
+export const refinementCreateSchema=z.object({action:z.literal("create"),requestId:z.uuid(),mapId:z.uuid(),parentId:z.uuid().nullable(),parentRevision:z.number().int().positive(),name:z.string().trim().min(1).max(160),acrossExisting:z.literal(true).optional(),inheritExisting:z.literal(true).optional(),sourceState:z.string().min(1).max(TERRAIN_SOURCE_STATE_CHARACTERS).optional(),frame:refinementFrameSchema,gridWidth:refinementGridSize,gridHeight:refinementGridSize,advancedConfirmed:z.literal(true).optional(),previewHash:z.string().regex(/^[a-f0-9]{64}$/)}).strict().refine(v=>v.gridWidth<=2048&&v.gridHeight<=2048||v.advancedConfirmed===true,"Confirm the advanced terrain requirements before accepting a 4096-axis source.").refine(v=>!v.acrossExisting||v.parentId===null&&!!v.sourceState,"Crossing coverage must retain the Whole World parent and accepted source state.").refine(v=>!v.inheritExisting||!!v.acrossExisting,"Keeping accepted terrain requires explicit crossing coverage and its original source state.");
 export type RefinementCreate=z.infer<typeof refinementCreateSchema>;
 export type RefinementMeta={id:string;worldId:string;terrainId:string;mapId:string;name:string;parentId:string|null;parentRevision:number;level:number;revision:number;frame:TerrainFrame;gridWidth:number;gridHeight:number;overviewLevels:number;updatedAt:string};
 export type RefinementDocument=TerrainDocument&{refinement:RefinementMeta};

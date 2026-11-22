@@ -1,3 +1,4 @@
+import {TERRAIN_REFINEMENT_LIMIT,TERRAIN_SOURCE_LIMIT} from "./terrain-source-limits";
 import {z} from "zod";
 import {ADVANCED_TERRAIN_LIMITS} from "./terrain-advanced-spec";
 import {sharedReliefSnapshotSchema} from "./terrain-shared-relief-spec";
@@ -6,10 +7,10 @@ const hash=z.string().regex(/^[a-f0-9]{64}$/),count=z.number().int().nonnegative
 const meta=z.object({id:z.uuid(),worldId:z.uuid(),terrainId:z.uuid(),mapId:z.uuid(),name:z.string().max(160),parentId:z.uuid().nullable(),parentRevision:z.number().int().positive(),level:z.number().int().min(1).max(8),revision:z.number().int().positive(),frame,gridWidth:dimension,gridHeight:dimension,overviewLevels:z.number().int().min(0).max(7),updatedAt:z.string().max(40)}).strict();
 export const sharedReliefPreviewHeaderSchema=z.object({
  version:z.literal(1),worldId:z.uuid(),mapId:z.uuid(),terrainId:z.uuid(),rootRevision:z.number().int().positive(),contextPin:hash,previewHash:hash,
- refinements:z.array(meta).max(128),
+ refinements:z.array(meta).max(TERRAIN_REFINEMENT_LIMIT),
  windows:z.array(z.object({id:z.uuid(),sourceId:z.uuid().nullable(),name:z.string().max(160),level:z.number().int().min(0).max(8),revision:z.number().int().positive(),frame,
-  sourceWidth:dimension,sourceHeight:dimension,x:count,y:count,width:dimension,height:dimension,beforeHash:hash,afterHash:hash,changed:count.max(262144),maxLoweringM:count.max(60000),maxRaisingM:count.max(60000)}).strict()).min(1).max(129),
- effects:z.array(z.object({id:z.uuid(),name:z.string().max(160),revision:z.number().int().positive(),parentRevision:z.number().int().positive().nullable(),changed:count.max(262144)}).strict()).min(1).max(129),
+  sourceWidth:dimension,sourceHeight:dimension,x:count,y:count,width:dimension,height:dimension,beforeHash:hash,afterHash:hash,changed:count.max(262144),maxLoweringM:count.max(60000),maxRaisingM:count.max(60000)}).strict()).min(1).max(TERRAIN_SOURCE_LIMIT),
+ effects:z.array(z.object({id:z.uuid(),name:z.string().max(160),revision:z.number().int().positive(),parentRevision:z.number().int().positive().nullable(),changed:count.max(262144)}).strict()).min(1).max(TERRAIN_SOURCE_LIMIT),
  cells:count.max(262144),sampleSteps:count.max(8388608),workingBytes:count.max(33554432),contextChanges:count.max(8388608),maxContextChangeM:z.number().finite().min(0).max(60000),
  elapsedMs:z.number().finite().min(0),protected:count,waterProtected:count,siteProtected:count,
  joinReview:sharedReliefJoinReviewSchema.optional(),

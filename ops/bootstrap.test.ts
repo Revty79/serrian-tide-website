@@ -7,12 +7,18 @@ import {migrationHashes} from "../scripts/environment/migration-hashes";
 import {bootstrapReleaseSupported} from "./bootstrap-release-schema";
 
 test("bootstrap recovery recognizes the actual shared-erosion release and preserves explicit older and unknown-schema gates",async()=>{
- const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8"));assert.equal(journal.entries.length,167);assert(bootstrapReleaseSupported(journal));
+ const current=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")),journal={...current,entries:current.entries.slice(0,167)};assert.equal(journal.entries.length,167);assert.equal(journal.entries[166].tag,"0166_atlas_shared_erosion");assert(bootstrapReleaseSupported(journal));
  for(const count of [162,163,164,165,166])assert(bootstrapReleaseSupported({entries:journal.entries.slice(0,count)}));
  assert.equal(bootstrapReleaseSupported({entries:journal.entries.slice(0,161)}),false);
  const altered=structuredClone(journal);altered.entries[166].tag="0166_unknown";assert.equal(bootstrapReleaseSupported(altered),false);
  const oldAltered={entries:structuredClone(journal.entries.slice(0,166))};oldAltered.entries[165].tag="0165_unknown";assert.equal(bootstrapReleaseSupported(oldAltered),false);
  assert.equal(bootstrapReleaseSupported({entries:[...journal.entries,{tag:"0167_unknown"}]}),false);
+});
+
+test("bootstrap recovery recognizes the exact168-entry source-capacity release and refuses unknown current or later schemas",async()=>{
+ const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8"));assert.equal(journal.entries.length,168);assert.equal(journal.entries[167].tag,"0167_atlas_source_capacity");assert(bootstrapReleaseSupported(journal));
+ const altered=structuredClone(journal);altered.entries[167].tag="0167_unknown";assert.equal(bootstrapReleaseSupported(altered),false);
+ assert.equal(bootstrapReleaseSupported({entries:[...journal.entries,{tag:"0168_unknown"}]}),false);
 });
 
 test("exact LF and Windows CRLF migration bytes are recognized without accepting SQL edits",async()=>{
