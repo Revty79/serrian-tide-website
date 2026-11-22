@@ -1,6 +1,6 @@
 # Bounded native volcano, river and eruption tools
 
-Status: locally qualified; exact hosted release gates remain pending, 2026-11-22. This candidate is **not yet verified or active on the owner's editor**. The qualified owner application remains14e049fd until the exact published commit passes every required hosted gate and tested-byte activation check.
+Status: exact hosted source20d70 is verified,2026-11-22; actual owner guarded save remains refused before acceptance. See the continuation record below. Earlier local/pending statements are historical.
 
 ## Demonstrated problems and correction
 
@@ -49,3 +49,19 @@ Publish only the seven reviewed implementation/test paths plus AGENTS, this rece
 After qualification, retry the original Hualālai operation through the visible editor with the new shoreline control. Independently verify the saved shore and slope result, complete Undo/Redo and reopening. Continue complete U.S.2A and the entire adopted roadmap; do not stop at a software checkpoint or resume worldwide authoring. Non-U.S. work stays parked intact.
 
 Root229 paired recovery is outdated. A fresh current-geography paired capture and independent restore remain part of the final review. Code checkpoints are not database/private-asset backups. Completed0165/0166 and their one approved freeze/restart must not be repeated or reused; carry973d4f57unapplied. No Production, Canon, Tabletop rebuild, owner service, authentication or configuration action occurs in this qualification.
+
+## Exact hosted result and actual owner continuation
+
+On2026-11-22, source20d70b50c25c996f6ef4e7692ebc814e2a7a83f7 passes normal45057966573, recovery45057966516, Ubuntu45057966510 and publisher45057966603, all attempt1 and all required latest completed jobs and steps. Independent completed-GitHub/cryptographic OCI verification passes image `sha256:44fef7d654c453afb9ee0c1584d907ea9cfe8e657c28d3a516721c6306450a98`, Linux fingerprint `40903e692060b040f2a52d6ac9bbddd4ff653e22871eaba2848858d0958c3598`. Guarded main activation preserves the qualified2,232 raw application inputs,10 reviewed paths and10,847 other raw parent files. The pushed pre-release code checkpoint preserves7d7fa6 and is not a paired database/private-asset backup.
+
+A normal owner reload freshly reopens Hawaii44. Complete selected grid/metadata/history, Root517, all126 other finer heads/frames/pins/history,12,229 original Hawaiian shoreline supports, water48 and all26 Root lake beds stay exact. No restart, migration, configuration or authentication change occurred.
+
+The actual checked Hualālai preview raises10,966 samples toward the2,523m working summit. Its new shoreline control is visible and checked. **The native save is not accepted:** the owner's local route returns400, `Unrecognized key: "preserveShoreline"`. Original-request retries give the same refusal; there is no45 revision. A complete readback proves saved44 and all other geography exact. The qualified source and compiled route include the field, and owned fresh-production/development native saves pass. Stale local development-route validation is suspected; this has not been proven. Rewriting six dependency files with identical bytes retains all hashes and does not resolve the refusal.
+
+The original native terrain draft was exported through the visible editor and remains recoverable. A separate DEV-only normal restart decision has been requested because the project protects service actions and the old0166 approval cannot be reused. That approval is still pending. No owner new-flag Save/Undo/Redo or successful route refresh is claimed. The initial expectation that a normal reload would suffice is superseded by this actual failure; do not erase the earlier qualification receipts.
+
+While hosted gates ran, native Kīlauea work reaches44 with full history and fresh reopening: reviewed broad shield36/Undo37/Redo38, upper working floor39/40/41, central working level42/43/44. The named Uēkahuna rim1,247m, older upper-floor1,075m reference and dated November18 mean lava elevation1,019m are separate geographic definitions. They are working native representations, not a uniform lava plane or a detailed survey reconstruction. The dated reference is the [USGS November20 summit map](https://www.usgs.gov/media/images/november-20-2026-kilauea-summit-eruption-reference-map), formally registered, reviewed and attached before this authoring. The current source has roughly380m by244m samples; zoom does not add detail.
+
+The coupled caldera audit has123 changed samples, maximum adjoining angle16.97degrees, zero new or steepened45degree pairs, exact old high terrain and exact outside-path/coast/other-source/water preservation. Keep superseded shield32/Undo33,34's incorrect whole-footprint summit predicate and Undo35, then the freshly reviewed36 proof. Keep the first coupled private verifier's kilometre/metre error and corrected unit-assertingv2; the individual saved checks already used the correct units. These private QA corrections changed no geography or application.
+
+All Hawaii regional detail, other islands, U.S. physical coverage and full roadmap acceptance remain unfinished. A new capacity candidate, including unapplied0167, exists only in an isolated research checkout; it is not part of20d70 or an approved DEV migration. Continue the [full requirement audit](worlds-atlas-us-completion-audit.md), preserving non-U.S. work and every failed or superseded receipt.
