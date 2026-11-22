@@ -42,3 +42,71 @@ test("portable environment signatures, private files, encrypted transfer and fai
   await t.test("CLI rejects extra options without printing sensitive option values",()=>{const sentinel="DO_NOT_PRINT_PRIVATE_CREDENTIAL_123",r=spawnSync(process.execPath,["--conditions=react-server","--import","tsx","scripts/environment.ts","backup","--unsafe",sentinel],{encoding:"utf8",windowsHide:true});assert.equal(r.status,1);assert.ok(r.stderr.includes("COMMAND"));assert.equal((r.stdout+r.stderr).includes(sentinel),false);});
   await t.test("filesystem authority audit requires review of any new server-side file reader/writer",async()=>{const found:string[]=[];async function walk(directory:string){for(const e of await readdir(directory,{withFileTypes:true})){const full=path.join(directory,e.name);if(e.isDirectory())await walk(full);else if(/\.tsx?$/.test(e.name)&&!e.name.includes(".test.")){const text=await readFile(full,"utf8");if(/(?:from\s*["'](?:node:)?fs(?:\/promises)?["']|import\(\s*["'](?:node:)?fs)/.test(text))found.push(full.replaceAll("\\","/"));}}}await walk("src");assert.deepEqual(found.sort(),["src/features/worlds/atlas-asset-storage.ts","src/features/worlds/raster-numerical.ts","src/features/worlds/raster-storage.ts","src/features/worlds/terrain-storage.ts"]);});
 });
+
+test("versioned recovery catalogs retain legacy bytes and authenticate compressed metadata before restoring files",async t=>{
+ const f=await import("./environment/private-files"),s=await import("./environment/snapshot"),transfer=await import("./environment/transfer"),catalog=await import("./environment/catalog"),model=await import("./environment/model");
+ const out=path.resolve(`artifacts/infrastructure-catalog-unit-${randomUUID()}`);await f.createPrivateDirectory(out);
+ const keyFile=path.join(out,"operator.key"),trustFile=path.join(out,"trust.json");await f.keygen(keyFile,trustFile);const key=await f.privateKey(keyFile),trust=await f.trustKey(trustFile);
+ const plain=path.join(out,"plain");await f.createPrivateDirectory(plain);await f.createPrivateDirectory(path.join(plain,"files"));const roots=s.snapshotRoots(plain);for(const r of Object.values(roots))await f.createPrivateDirectory(r);
+ const data=Buffer.alloc(2048,7),sha=digest(data),tile=`objects/${sha.slice(0,2)}/${sha}.i16`;await mkdir(path.dirname(path.join(roots.terrain,tile)),{recursive:true,mode:0o700});await writeFile(path.join(roots.terrain,tile),data,{mode:0o600});await link(path.join(roots.terrain,tile),path.join(roots.terrain,"same-tile.i16"));
+ const archive=Buffer.from("PGDMP catalog unit fixture; real database restoration is exercised separately"),manifest:SnapshotManifest={format:"serrian-environment",version:1,snapshotId:randomUUID(),createdAt:new Date().toISOString(),sourceEnvironment:"catalog-unit",sourceDatabaseName:"catalog_unit",applicationCommit:null,database:{serverMajor:18,serverVersion:"18 catalog unit",encoding:"UTF8",databaseBytes:0,locale:{provider:"c",collate:"C",ctype:"C",locale:null,version:null},tables:[],sequences:[],largeObjects:[],schemaSha256:digest("schema"),extensions:[],migrations:[],references:{terrain:[{sha256:sha,bytes:2048,encoding:"i16le-v1"}],artwork:[],rasters:[]}},archive:{key:"database.dump",bytes:archive.length,sha256:digest(archive)},files:await f.inventoryFiles(roots),freeze:{operator:"Owned catalog fixture",statement:"ALL_APPLICATION_JOB_IMPORT_AND_DIRECT_WRITERS_STOPPED",checkedOtherClients:0,tableWriteLocks:true,beforeAfterIdentical:true}};
+ await writeFile(path.join(plain,"database.dump"),archive,{mode:0o600});
+ await t.test("ordinary signed snapshots keep the original pretty JSON and metadata frame order",async()=>{
+  const encoded=await catalog.writeSnapshotManifest(plain,manifest,key);assert.equal(encoded.storageVersion,1);assert((await readFile(path.join(plain,"manifest.json"))).equals(Buffer.from(JSON.stringify(manifest,null,2)+"\n")));
+  await f.signJson(path.join(plain,"complete.json"),{version:1,snapshotId:manifest.snapshotId,manifestSha256:encoded.manifestSha256},key);
+  assert.deepEqual(await catalog.snapshotMetadataNames(plain,trust),["manifest.json","manifest.json.signature","complete.json","complete.json.signature"]);assert.equal(canonicalJson(await s.verifySnapshot(plain,trust)),canonicalJson(manifest));
+ });
+ const packed=path.join(out,"packed");await f.createPrivateDirectory(packed);await f.createPrivateDirectory(path.join(packed,"files"));const packedRoots=s.snapshotRoots(packed);for(const r of Object.values(packedRoots))await f.createPrivateDirectory(r);await f.copyFiles(manifest.files,roots,packedRoots);await writeFile(path.join(packed,"database.dump"),archive,{mode:0o600});
+ const encoded=await catalog.writePackedSnapshotManifest(packed,manifest,key);await f.signJson(path.join(packed,"complete.json"),{version:1,snapshotId:manifest.snapshotId,manifestSha256:encoded.manifestSha256},key);const packedFile=path.join(packed,model.MANIFEST_CATALOG_KEY),validPacked=await readFile(packedFile);
+ await t.test("cancelled catalog, inventory and transfer operations cannot certify or publish completion",async()=>{
+  const controller=new AbortController();controller.abort();const signal=controller.signal,dir=path.join(out,"cancelled-catalog");await f.createPrivateDirectory(dir);
+  const aborted=(error:unknown)=>error instanceof Error&&error.name==="AbortError";
+  await assert.rejects(catalog.writeSnapshotManifest(dir,manifest,key,signal),aborted);await assert.rejects(catalog.writePackedSnapshotManifest(dir,manifest,key,signal),aborted);
+  await assert.rejects(catalog.readSnapshotManifest(packed,trust,signal),aborted);await assert.rejects(s.verifySnapshot(packed,trust,true,signal),aborted);
+  await assert.rejects(f.inventoryFiles(roots,model.CATALOG_FILE_LIMIT,signal),aborted);
+  const sealed=path.join(out,"cancelled-transfer.stenv");await assert.rejects(transfer.sealSnapshot(packed,keyFile,sealed,signal),aborted);
+  for(const file of [path.join(dir,"manifest.json"),path.join(dir,"complete.json"),sealed])assert.equal(await lstat(file).then(()=>true,()=>false),false);
+ });
+ await t.test("a signed version-two descriptor binds the exact catalog and original logical snapshot",async()=>{
+  const header=await catalog.readSnapshotHeader(packed,trust);assert.equal(header.version,2);assert.equal(canonicalJson(await s.verifySnapshot(packed,trust)),canonicalJson(manifest));assert.equal(encoded.expandedBytes,Buffer.byteLength(JSON.stringify(manifest)+"\n"));
+ });
+ const sealed=path.join(out,"catalog.stenv"),opened=path.join(out,"opened");
+ await t.test("compressed metadata, original database/archive bytes and hardlinks round-trip through authenticated AES transfer",async()=>{
+  await transfer.sealSnapshot(packed,keyFile,sealed);await transfer.openSnapshot(sealed,keyFile,opened);
+  assert.equal(canonicalJson(await s.verifySnapshot(opened,trust)),canonicalJson(manifest));
+  for(const name of await catalog.snapshotMetadataNames(packed,trust))assert((await readFile(path.join(packed,name))).equals(await readFile(path.join(opened,name))),name);
+  assert((await readFile(path.join(opened,"database.dump"))).equals(archive));const r=s.snapshotRoots(opened);assert.equal((await lstat(path.join(r.terrain,tile))).ino,(await lstat(path.join(r.terrain,"same-tile.i16"))).ino);
+ });
+ await t.test("catalog corruption refuses before decompression and cannot replace original accepted metadata",async()=>{
+  const bad=Buffer.from(validPacked);bad[Math.floor(bad.length/2)]^=1;await writeFile(packedFile,bad);await assert.rejects(catalog.readSnapshotManifest(packed,trust),(error:unknown)=>error instanceof model.EnvironmentError&&error.code==="CATALOG_INTEGRITY");await writeFile(packedFile,validPacked);assert.equal(canonicalJson(await s.verifySnapshot(packed,trust)),canonicalJson(manifest));
+ });
+ await t.test("the original completion receipt cannot certify a different physical metadata encoding",async()=>{
+  const complete=await readFile(path.join(packed,"complete.json")),signature=await readFile(path.join(packed,"complete.json.signature"));await writeFile(path.join(packed,"complete.json"),await readFile(path.join(plain,"complete.json")));await writeFile(path.join(packed,"complete.json.signature"),await readFile(path.join(plain,"complete.json.signature")));await assert.rejects(s.verifySnapshot(packed,trust),/completion receipt/);await writeFile(path.join(packed,"complete.json"),complete);await writeFile(path.join(packed,"complete.json.signature"),signature);
+ });
+ await t.test("tampered version-two ciphertext publishes neither a manifest nor accepted data",async()=>{
+  const bad=await readFile(sealed);bad[Math.floor(bad.length/2)]^=1;const file=path.join(out,"bad.stenv"),dest=path.join(out,"bad-open");await writeFile(file,bad,{mode:0o600});await assert.rejects(transfer.openSnapshot(file,keyFile,dest));assert.equal(await lstat(path.join(dest,"manifest.json")).then(()=>true,()=>false),false);assert.equal(await lstat(path.join(dest,"complete.json")).then(()=>true,()=>false),false);
+ });
+ await t.test("fixed catalog paths, declared decode lengths and absolute decode bounds fail closed",async()=>{
+  const header=await catalog.readSnapshotHeader(packed,trust);assert(header.version===2);
+  for(const[name,change]of [["path",{key:"../not-a-catalog"}],["absolute-size",{expandedBytes:model.MAX_CATALOG_JSON_BYTES+1}],["overrun",{expandedBytes:1}]] as const){
+   const dir=path.join(out,name);await f.createPrivateDirectory(dir);await writeFile(path.join(dir,model.MANIFEST_CATALOG_KEY),validPacked,{mode:0o600});await f.signJson(path.join(dir,"manifest.json"),{...header,catalog:{...header.catalog,...change}},key);
+   await assert.rejects(catalog.readSnapshotManifest(dir,trust),(error:unknown)=>name==="overrun"?error instanceof model.EnvironmentError&&error.code==="CATALOG_LIMIT":error instanceof Error&&error.name==="ZodError");
+  }
+ });
+ await t.test("legacy version-one readers retain their250000-record bound while the explicit catalog schema refuses500001",async()=>{
+  const base=manifest.files[0],large={...manifest,files:Array.from({length:250001},(_,i)=>({...base,key:"metadata-only/file-"+i}))},dir=path.join(out,"invalid-legacy");await f.createPrivateDirectory(dir);await f.signJson(path.join(dir,"manifest.json"),large,key);
+  await assert.rejects(catalog.readSnapshotManifest(dir,trust),(error:unknown)=>error instanceof Error&&error.name==="ZodError");
+  assert.throws(()=>model.catalogManifestSchema.parse({...manifest,files:Array(500001).fill(base)}),(error:unknown)=>error instanceof Error&&error.name==="ZodError");
+  await assert.rejects(f.inventoryFiles(roots,500001),/supported/);
+ });
+ await t.test("a metadata-only catalog beyond64MiB encodes and fully reopens without increasing the plain or compressed bound",async()=>{
+  const count=200000,prefix="metadata-only/"+ "x".repeat(180)+"/",files=Array.from({length:count},(_,i)=>({root:"terrain" as const,key:prefix+"file-"+String(i).padStart(6,"0"),bytes:2048,sha256:digest("owned-catalog-"+i)}));
+  const value=model.catalogManifestSchema.parse({...manifest,snapshotId:randomUUID(),files,database:{...manifest.database,references:{...manifest.database.references,terrain:files.map(v=>({sha256:v.sha256,bytes:2048 as const,encoding:"i16le-v1" as const}))}}}),dir=path.join(out,"large-metadata-only");await f.createPrivateDirectory(dir);
+  const expected=catalog.measureSnapshotCatalog(value);assert(expected.bytes>model.MAX_MANIFEST_BYTES);const result=await catalog.writeSnapshotManifest(dir,value,key);assert.equal(result.storageVersion,2);assert(result.expandedBytes<=model.MAX_CATALOG_JSON_BYTES);
+  const decoded=await catalog.readSnapshotManifest(dir,trust);assert.equal(decoded.files.length,count);assert.equal(decoded.database.references.terrain.length,count);assert.deepEqual(catalog.measureSnapshotCatalog(decoded),expected);
+  const header=await catalog.readSnapshotHeader(dir,trust);assert(header.version===2);assert(header.catalog.bytes<=model.MAX_MANIFEST_BYTES);assert.equal(model.MAX_MANIFEST_BYTES,67108864);
+  const cancelled=path.join(out,"large-cancelled");await f.createPrivateDirectory(cancelled);const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),5);
+  try{await assert.rejects(catalog.writeSnapshotManifest(cancelled,value,key,abort.signal),(error:unknown)=>error instanceof Error&&error.name==="AbortError");}finally{clearTimeout(timer);}
+  assert.equal(await lstat(path.join(cancelled,"manifest.json")).then(()=>true,()=>false),false);assert.equal(await lstat(path.join(cancelled,"complete.json")).then(()=>true,()=>false),false);
+ });
+});

@@ -17,7 +17,7 @@ jobs:
       - name: Build exact release and owned PG18 recovery image
         run: docker build --target recovery-test --build-arg SERRIAN_BUILD_COMMIT="$(git rev-parse HEAD)" -t serrian-recovery .
       - name: Real database plus all storage roots, offline runtime
-        run: docker run --network none --name serrian-owned-recovery serrian-recovery
+        run: docker run --network none --env SERRIAN_INFRA_LARGE_CATALOG=1 --name serrian-owned-recovery serrian-recovery
       - name: Signature, transfer, permission and corruption regressions
         run: docker run --network none --name serrian-owned-integrity serrian-recovery node --conditions=react-server --import tsx --test scripts/environment.test.ts
       - name: Source licensing, immutable provenance, copies and migration rollback

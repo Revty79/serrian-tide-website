@@ -40,6 +40,23 @@ export const MAX_MANIFEST_BYTES=64*1024*1024;
 export const ROOT_KINDS=["terrain","artwork","raster"] as const;
 export const quoteIdentifier=(name:string)=>'"'+name.replaceAll('"','""')+'"';
 export const fileIdentity=(file:Pick<StoredFile,"root"|"key">)=>file.root+"/"+file.key;
+
+/** The original plain format keeps its 250,000-record/64 MiB contract.
+ * Only the signed version-two catalog may use these additional bounds. */
+export const CATALOG_FILE_LIMIT=500000;
+export const MAX_CATALOG_JSON_BYTES=256*1024*1024;
+export const MANIFEST_CATALOG_KEY="manifest.catalog.json.gz";
+export const catalogDatabaseStateSchema=databaseStateSchema.extend({
+  references:databaseStateSchema.shape.references.extend({
+    terrain:databaseStateSchema.shape.references.shape.terrain.max(CATALOG_FILE_LIMIT),
+    artwork:databaseStateSchema.shape.references.shape.artwork.max(CATALOG_FILE_LIMIT),
+  }),
+});
+export const catalogManifestSchema=manifestSchema.extend({database:catalogDatabaseStateSchema,files:z.array(fileSchema).max(CATALOG_FILE_LIMIT)});
+export const catalogDescriptorSchema=z.object({
+  format:z.literal("serrian-environment"),version:z.literal(2),snapshotId:z.string().uuid(),
+  catalog:z.object({key:z.literal(MANIFEST_CATALOG_KEY),encoding:z.literal("gzip-json-v1"),bytes:z.number().int().positive().max(MAX_MANIFEST_BYTES),sha256:hash,expandedBytes:z.number().int().positive().max(MAX_CATALOG_JSON_BYTES),expandedSha256:hash}).strict(),
+}).strict();
 export function safeKey(key:string){
   requireCondition(key.length<=1100&&!key.includes("\\")&&!key.includes(":")&&!/[\x00-\x1f]/.test(key),"UNSAFE_PATH","The snapshot contains an unsafe file path.");
   requireCondition(key.split("/").every(p=>p&&p!=="."&&p!==".."&&!/[. ]$/.test(p)&&! /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(p)),"UNSAFE_PATH","A snapshot path is not portable between Windows and Linux.");return key;
