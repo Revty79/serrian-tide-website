@@ -4,13 +4,13 @@ import path from "node:path";
 import {randomUUID} from "node:crypto";
 import {execFileSync,spawn,type ChildProcess} from "node:child_process";
 import {createWriteStream} from "node:fs";
-import {access,cp,readFile,writeFile,copyFile,mkdir,chmod} from "node:fs/promises";
+import {access,cp,readFile,writeFile,copyFile,mkdir,chmod,link} from "node:fs/promises";
 import pg from "pg";
 import {drizzle} from "drizzle-orm/node-postgres";
 import {migrate} from "drizzle-orm/node-postgres/migrator";
 import {request} from "playwright-core";
 import {withRegionalEditingFixture,ownedFreePort} from "./worlds-regional-editing-fixture";
-import {canonicalJson,type EnvironmentProfile} from "./environment/model";
+import {canonicalJson,CATALOG_FILE_LIMIT,MAX_MANIFEST_BYTES,type EnvironmentProfile} from "./environment/model";
 
 async function main(){
 process.env.DATABASE_URL="postgresql://operator_inert:unused@127.0.0.1:1/no_implicit_database";
@@ -95,7 +95,29 @@ async function exercise(sourceUrl:string,roots:EnvironmentProfile["roots"],rich:
  const plan=await ops.prepareCutover(target,snapshot,path.join(out,"source-unchanged"),keyFile,path.join(out,"plan.json"),"owned test");assert.equal(plan.approved,false);assert.equal(plan.trafficSwitched,false);await assert.rejects(ops.startEnvironment(target,3000,"0.0.0.0"),/approval/i);await assert.rejects(ops.startEnvironment(target,3000,"0.0.0.0",path.join(out,"plan.json"),"0".repeat(64)),/approval/i);});
  }
  await restoredHttp(target,rich);
- await writeFile(path.join(out,"receipt.json"),JSON.stringify({passed:true,checks,families,richFixture:rich,snapshotId:m.snapshotId,tables:m.database.tables.length,migrations:m.database.migrations.length,files:m.files.length,terrainObjects:m.database.references.terrain.length,artworkObjects:m.database.references.artwork.length,rasterBundles:m.database.references.rasters.length,largeObjects:m.database.largeObjects.length,sharedAccess:false,sourceUnchanged:true},null,2));
+ let largeCatalog:{files:number;expandedBytes:number;catalogBytes:number;snapshotId:string;independentlyRestored:boolean;encryptedRoundTrip:boolean}|null=null;
+ if(process.env.SERRIAN_INFRA_LARGE_CATALOG==="1")await check("a real database and more than250000 physical files capture, independently restore and transfer without metadata loss",async()=>{
+  // Clone only the owned signed fixture. The original source and its small
+  // recovery evidence stay unchanged, including every earlier failed receipt.
+  const source=makeTarget("catalog-source"),confirm=source.environmentId+"/"+source.database.expectedName;
+  await restore.restoreEnvironment(source,snapshot,keyFile,confirm);
+  const prefix=path.join(source.roots.artwork,"retained-large-catalog","unfinished-private-authoring-and-recovery"),count=250001;
+  await mkdir(prefix,{recursive:true,mode:0o700});let anchor="";
+  for(let i=0;i<count;i++){
+   const group=Math.floor(i/256),directory=path.join(prefix,"group-"+String(group).padStart(5,"0")),file=path.join(directory,"original-unfinished-"+String(i).padStart(6,"0")+".bin");
+   if(i%256===0){await mkdir(directory,{mode:0o700});await writeFile(file,Buffer.from("owned-catalog-group-"+group),{flag:"wx",mode:0o600});anchor=file;}else await link(anchor,file);
+  }
+  console.log("LARGE_CATALOG_PHYSICAL_FILES_CREATED "+count);
+  const capture=path.join(out,"large-original-signed-capture");await snap.backupEnvironment(source,capture,keyFile,"owned large catalog fixture",freeze);
+  const catalog=await import("./environment/catalog"),header=await catalog.readSnapshotHeader(capture,trust);assert.equal(header.version,2);assert(header.version===2);assert(header.catalog.expandedBytes>MAX_MANIFEST_BYTES);assert(header.catalog.bytes<=MAX_MANIFEST_BYTES);
+  const captured=await snap.verifySnapshotArchive(source,capture,trust);assert.equal(captured.files.length,m.files.length+count);assert(captured.files.length>250000&&captured.files.length<=CATALOG_FILE_LIMIT);assert.equal(canonicalJson(db.comparableDatabase(captured.database)),canonicalJson(db.comparableDatabase(m.database)));
+  const independent=makeTarget("catalog-independent");await restore.restoreEnvironment(independent,capture,keyFile,independent.environmentId+"/"+independent.database.expectedName);await restore.checkRestored(independent);
+  assert.equal(canonicalJson(await files.inventoryFiles(independent.roots,CATALOG_FILE_LIMIT)),canonicalJson(captured.files));
+  const transfer=await import("./environment/transfer"),sealed=path.join(out,"large-catalog.stenv"),opened=path.join(out,"large-catalog-opened");await transfer.sealSnapshot(capture,keyFile,sealed);await transfer.openSnapshot(sealed,keyFile,opened);assert.equal(canonicalJson(await snap.verifySnapshot(opened,trust)),canonicalJson(captured));
+  for(const name of await catalog.snapshotMetadataNames(capture,trust))assert((await readFile(path.join(capture,name))).equals(await readFile(path.join(opened,name))),name);
+  largeCatalog={files:captured.files.length,expandedBytes:header.catalog.expandedBytes,catalogBytes:header.catalog.bytes,snapshotId:captured.snapshotId,independentlyRestored:true,encryptedRoundTrip:true};
+ });
+ await writeFile(path.join(out,"receipt.json"),JSON.stringify({passed:true,checks,families,richFixture:rich,snapshotId:m.snapshotId,tables:m.database.tables.length,migrations:m.database.migrations.length,files:m.files.length,terrainObjects:m.database.references.terrain.length,artworkObjects:m.database.references.artwork.length,rasterBundles:m.database.references.rasters.length,largeObjects:m.database.largeObjects.length,largeCatalog,sharedAccess:false,sourceUnchanged:true},null,2));
 }
 
 async function restoredHttp(p:EnvironmentProfile,rich:boolean){
