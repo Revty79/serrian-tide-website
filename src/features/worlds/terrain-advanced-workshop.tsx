@@ -26,7 +26,7 @@ import {prepareAdvancedTerrainAsync,type AdvancedResult} from "./terrain-advance
 import {planProfileWindow,copyProfileWindow,prepareWindowedProfile,advancedResultSample,profilePreviewMeta} from "./terrain-profile-window";
 import type {AdvancedContextPacket} from "./terrain-advanced-service";
 import type {TerrainOperationReply} from "./terrain-operation-job";
-import {findAdvancedDraft,parseAdvancedDraft,retireAdvancedDraft} from "./terrain-advanced-recovery";
+import {findAdvancedDraft,listAdvancedDrafts,readUnchangedAdvancedDraft,parseAdvancedDraft,retireAdvancedDraft,type AdvancedDraftChoice} from "./terrain-advanced-recovery";
 import {advancedTerrainReview,volcanicAshCover} from "./terrain-advanced-review";
 import type {EnvironmentLayer,EnvironmentRegion} from "./terrain-environment";
 import styles from "./terrain-advanced-workshop.module.css";
@@ -75,7 +75,7 @@ export function AdvancedTerrainWorkshop(p:Props){
     [before,setBefore]=useState(false),[busy,setBusy]=useState(false),[applying,setApplying]=useState(false),
     [renderReady,setRenderReady]=useState(false),[progress,setProgress]=useState(0),[backend,setBackend]=useState(""),[error,setError]=useState(""),
     [acknowledged,setAcknowledged]=useState(false),[inspection,setInspection]=useState<TerrainInspection>(),
-    [recovery,setRecovery]=useState<{key:string;raw:string}>(),[recoveryReady,setRecoveryReady]=useState(false);
+    [recovery,setRecovery]=useState<{key:string;raw:string}>(),[recoveryChoices,setRecoveryChoices]=useState<AdvancedDraftChoice[]>([]),[recoveryReady,setRecoveryReady]=useState(false);
   const [preferences]=useMeasurementPreferences(),[touch,setTouch,touchEpoch]=useTerrainTouchControls(),[armed,setArmed]=useState<number|null>(null);
   const doc=p.input.document,[shape]=useState(()=>terrainGeometry(p.input.document.settings)),
     prefix="st:terrain-advanced:v1"+historyRecovery+":"+doc.worldId+":"+doc.id+":"+(doc.refinement?.id??"root")+":",
@@ -113,7 +113,7 @@ export function AdvancedTerrainWorkshop(p:Props){
         return current;
       });
     }}).catch(e=>{if(live)setError(e instanceof Error?e.message:"Could not load accepted geography.");});
-    try{if(!p.input.sharedContinuation){const candidate=findAdvancedDraft(localStorage,prefix,key,doc.id,doc.refinement?.id??null,p.input.kind);if(candidate)queueMicrotask(()=>{if(live)setRecovery(candidate);});}}
+    try{if(!p.input.sharedContinuation){const choices=listAdvancedDrafts(localStorage,prefix,key,doc.id,doc.refinement?.id??null),candidate=findAdvancedDraft(localStorage,prefix,key,doc.id,doc.refinement?.id??null,p.input.kind);queueMicrotask(()=>{if(live){setRecoveryChoices(choices);if(candidate)setRecovery(candidate);}});}}
     catch{queueMicrotask(()=>{if(live)setError("Browser recovery storage is unavailable. Keep this editor open or export the operation settings.");});}
     queueMicrotask(()=>{if(live)setRecoveryReady(true);});return()=>{live=false;};
   },[doc.worldId,doc.id,doc.revision,doc.refinement,key,prefix,p.input.kind,p.input.sharedContinuation,worldApi,localStorage]);
@@ -131,11 +131,22 @@ export function AdvancedTerrainWorkshop(p:Props){
   function recover(){
     if(!recovery)return;
     try{
+      readUnchangedAdvancedDraft(localStorage,recovery);
       const value=parseAdvancedDraft(recovery.raw,doc.id,doc.refinement?.id??null);
       setOp(value.operation);setVisualOnly(value.visualOnly);setOutline(value.outline??[]);setAreaMode(value.areaMode??"rectangle");setDrawing(value.drawing??false);setOutlineTolerance(value.simplificationM??1);setTool(value.drawing?(value.areaMode==="rectangle"?"select":"region"):"pan");origin.current=recovery;setRecovery(undefined);
       if(value.revision!==doc.revision)setError("These settings came from an older revision. They are restored for a new preview against the currently saved terrain; no old result is accepted.");
       else setError("");
     }catch(e){setError((e instanceof Error?e.message:"Unreadable recovery")+". The original bytes remain available to export.");}
+  }
+  function chooseRecovery(selectedKey:string){
+    const choice=recoveryChoices.find(value=>value.key===selectedKey);if(!choice)return;
+    try{readUnchangedAdvancedDraft(localStorage,choice);setRecovery({key:choice.key,raw:choice.raw});setError("");}
+    catch(e){setError(e instanceof Error?e.message:"The retained settings could not be read. Their original bytes remain available to export.");}
+  }
+  function discardRecovery(){
+    if(!recovery)return;
+    try{readUnchangedAdvancedDraft(localStorage,recovery);retireAdvancedDraft(localStorage,recovery.key,recovery.raw);setRecoveryChoices(listAdvancedDrafts(localStorage,prefix,key,doc.id,doc.refinement?.id??null));setRecovery(findAdvancedDraft(localStorage,prefix,key,doc.id,doc.refinement?.id??null,p.input.kind));setError("");}
+    catch(e){setError(e instanceof Error?e.message:"The retained settings could not be discarded. Their original bytes remain available to export.");}
   }
   function edit(value:Partial<AdvancedOperation>){
     stop();setAcknowledged(false);setVisualReady(false);setOp(current=>({...current,...value} as AdvancedOperation));
@@ -266,7 +277,9 @@ export function AdvancedTerrainWorkshop(p:Props){
         <button type="button" className="st-button is-primary" disabled={busy||applying||(op.kind==="landform-profile"||op.kind==="erosion")&&!renderReady||!acknowledged||!!recovery||!(visualOnly?visualReady:fresh&&!!proposal?.result.metrics.changed)} onClick={()=>void apply()}>{applying?"Retaining accepted request…":visualOnly?"Accept Visual Cover":"Accept Numerical Change"}</button>
       </div>
     </>}>
-    {recovery&&<section className={styles.review}><h3>Retained terrain proposal</h3><p>Saved geography is intact. Recover these settings for a new preview, or export the original bytes before discarding them.</p><button className="st-button is-secondary" onClick={recover}>Recover Operation Settings</button><button className="st-button is-secondary" onClick={()=>download(recovery.raw,"terrain-operation-recovery.json")}>Export Retained Settings</button><button className="st-button is-secondary" onClick={()=>{retireAdvancedDraft(localStorage,recovery.key,recovery.raw);setRecovery(undefined);}}>Discard Retained Settings</button></section>}
+    {recovery&&<section className={styles.review}><h3>Retained terrain proposal</h3><p>Saved geography is intact. Recover these settings for a new preview, or export the original bytes before discarding them.</p>
+      {recoveryChoices.length>1&&<label>Saved draft<select aria-label="Retained operation settings" value={recovery.key} onChange={e=>chooseRecovery(e.target.value)}>{recoveryChoices.map((choice,index)=><option key={choice.key} value={choice.key}>{choice.info?`Revision ${choice.info.revision}${choice.info.points!==undefined?`, ${choice.info.points} points`:""}: ${advancedNames[choice.info.kind]} (draft ${index+1})`:`Draft ${index+1}: Unreadable settings; original bytes retained`}</option>)}</select></label>}
+      <button className="st-button is-secondary" onClick={recover}>Recover Operation Settings</button><button className="st-button is-secondary" onClick={()=>{setRecovery(undefined);setError("");}}>Start new operation</button><button className="st-button is-secondary" onClick={()=>download(recovery.raw,"terrain-operation-recovery.json")}>Export Retained Settings</button><button className="st-button is-secondary" onClick={discardRecovery}>Discard Retained Settings</button></section>}
     {!packet&&<p role="status">Loading accepted water, settlement supports and volcano history…</p>}
     <fieldset className={styles.fields} disabled={busy||applying||!!recovery} hidden={section!=="settings"}>
       <legend>Physical operation settings</legend>

@@ -18,11 +18,29 @@ export const advancedDraftSchema=z.object({
   simplificationM:z.number().finite().nonnegative().optional(),
 }).strict();
 export type AdvancedDraft=z.infer<typeof advancedDraftSchema>;
+export type AdvancedDraftChoice={key:string;raw:string;info?:{kind:AdvancedOperation["kind"];revision:number;points?:number}};
 export function parseAdvancedDraft(raw:string,mapId:string,sourceId:string|null){
   if(raw.length>ADVANCED_TERRAIN_LIMITS.packetCharacters)throw Error("The retained operation settings exceed their 250,000-character recovery budget.");
   const value=advancedDraftSchema.parse(JSON.parse(raw));
   if(value.mapId!==mapId||value.sourceId!==sourceId)throw Error("These settings belong to another terrain source.");
   return value;
+}
+/** Enumerate this exact native recovery scope without rewriting any packet.
+ * Unreadable originals remain available for explicit export or discard. */
+export function listAdvancedDrafts(storage:Pick<Storage,"length"|"key"|"getItem">,prefix:string,currentKey:string,mapId:string,sourceId:string|null):AdvancedDraftChoice[]{
+  const choices:AdvancedDraftChoice[]=[],seen=new Set<string>();
+  for(let n=0;n<storage.length;n++){
+    const key=storage.key(n);if(!key?.startsWith(prefix)||key===currentKey||seen.has(key))continue;seen.add(key);
+    const raw=storage.getItem(key);if(raw===null)continue;const choice:AdvancedDraftChoice={key,raw};
+    try{const value=parseAdvancedDraft(raw,mapId,sourceId);choice.info={kind:value.operation.kind,revision:value.revision,...(value.operation.kind==="landform-profile"?{points:value.operation.points.length}:{})};}catch{/* Keep the exact original for export; numerical admission remains separate. */}
+    choices.push(choice);
+  }
+  return choices;
+}
+/** Choosing or recovering an old list entry must not replace a newer tab's work. */
+export function readUnchangedAdvancedDraft(storage:Pick<Storage,"getItem">,choice:{key:string;raw:string}){
+  if(storage.getItem(choice.key)!==choice.raw)throw Error("These retained settings changed in another tab. Export the selected original if needed, then close and reopen the editor to load the latest drafts.");
+  return choice;
 }
 /** Prefer the requested tool without discarding older or unreadable packets. */
 export function findAdvancedDraft(storage:Pick<Storage,"length"|"key"|"getItem">,prefix:string,currentKey:string,mapId:string,sourceId:string|null,kind:AdvancedOperation["kind"]){
