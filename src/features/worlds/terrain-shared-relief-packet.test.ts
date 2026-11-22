@@ -8,6 +8,21 @@ import type {RefinementMeta} from "./terrain-refinement";
 import {sharedReliefJoinReviewDataSchema} from "./terrain-shared-relief-join-review";
 const id="10000000-0000-4000-8000-000000000001",mapId="10000000-0000-4000-8000-000000000002",worldId="10000000-0000-4000-8000-000000000003",frame={x:0,y:0,width:64000,height:38400};
 const digest=(a:Int16Array)=>createHash("sha256").update(new Uint8Array(a.buffer,a.byteOffset,a.byteLength)).digest("hex");
+
+test("selected reconstruction proof roundtrips and remains bound to exact border metadata",async()=>{
+ const p=preview(),fineId="10000000-0000-4000-8000-000000000004",fineFrame={x:975,y:1000,width:1000,height:1000},
+  data=sharedReliefJoinReviewDataSchema.parse({scope:"selected-dry",reconstructionSupports:true,world:{width:64000,height:38400,wrap:false},selection:{frame:{x:0,y:0,width:1950,height:3200}},workArea:{x:1800,y:1400,width:300,height:200},seaLevel:0,sources:[{sourceId:fineId,frame:fineFrame,columns:32,rows:32,oldParentRevision:2,newParentRevision:5,supports:[{edge:"east",index:16,before:200,after:225,outsideWorkArea:true,reconstruction:[{sourceId:id,beforeRevision:2,afterRevision:5,x:1900,y:1500,weight:.25,before:200,after:300}]}]}]});
+ p.header.refinements.push({id:fineId,worldId,mapId,terrainId:id,name:"Native reconstruction proof",parentId:null,parentRevision:2,level:1,revision:2,frame:fineFrame,gridWidth:32,gridHeight:32,overviewLevels:0,updatedAt:""});p.header.effects.push({id:fineId,name:"Native reconstruction proof",revision:3,parentRevision:5,changed:0});p.header.cells=3;p.header.contextChanges=1;p.header.maxContextChangeM=25;p.header.joinReview={...data,reviewHash:createHash("sha256").update(JSON.stringify(data)).digest("hex")};
+ const bytes=encodeSharedReliefPreview(p);assert.deepEqual(await decodeSharedReliefPreview(bytes.buffer as ArrayBuffer),p);
+ const changed=structuredClone(p);changed.header.joinReview!.sources[0].supports[0].reconstruction![0].x=1899;await assert.rejects(decodeSharedReliefPreview(encodeSharedReliefPreview(changed).buffer as ArrayBuffer),/border review failed its checksum/);
+ const omitted=structuredClone(p);delete omitted.header.joinReview!.reconstructionSupports;assert.throws(()=>encodeSharedReliefPreview(omitted));
+ const cells=structuredClone(p);cells.header.cells=1;assert.throws(()=>encodeSharedReliefPreview(cells),/memory bound/);
+});
+
+test("pending reconstruction authorization remains exact when separate recovered draft settings differ",()=>{
+ const operation={kind:"landform-profile",mode:"minimum",selection:{frame},points:[{x:1000,y:1000,elevationM:1000,widthM:10000},{x:50000,y:30000,elevationM:2000,widthM:10000}],preserveManual:false,strength:100,hardness:0,endBlendM:0,featherM:0,reviewDryBorderJoins:true,reviewDryReconstructionSupports:true},pending={action:"accept",mapId,requestId:id,operation,workArea:frame,contextPin:"a".repeat(64),previewHash:"b".repeat(64)},value={version:1,worldId,mapId,operation,workArea:frame,pending};
+ assert.deepEqual(parseSharedReliefDraft(JSON.stringify(value),worldId,mapId),value);const changed={...value,operation:{...operation,reviewDryReconstructionSupports:false}},recovered=parseSharedReliefDraft(JSON.stringify(changed),worldId,mapId);assert.deepEqual(recovered.pending,pending);assert.equal(recovered.operation.reviewDryReconstructionSupports,false);
+});
 function preview():SharedReliefPreview{const before=new Int16Array(32*32).fill(500),after=before.slice();after[500]=3000;return {header:{version:1,worldId,mapId,terrainId:id,rootRevision:4,contextPin:"a".repeat(64),previewHash:"b".repeat(64),refinements:[],windows:[{id,sourceId:null,name:"Native World",level:0,revision:4,frame,sourceWidth:640,sourceHeight:384,x:32,y:32,width:32,height:32,beforeHash:digest(before),afterHash:digest(after),changed:1,maxLoweringM:0,maxRaisingM:2500}],effects:[{id,name:"Native World",revision:5,parentRevision:null,changed:1}],cells:1,sampleSteps:1,workingBytes:3000000,contextChanges:0,maxContextChangeM:0,elapsedMs:100,protected:0,waterProtected:0,siteProtected:0},windows:[{before,after}]};}
 test("bounded native binary preview verifies all heights and refuses corruption, truncation and impossible windows",async()=>{
  const p=preview(),packet=encodeSharedReliefPreview(p),actual=await decodeSharedReliefPreview(packet.buffer as ArrayBuffer);assert.deepEqual(actual,p);

@@ -35,7 +35,7 @@ export async function prepareSharedRelief(tx:SharedReliefConnection,worldId:stri
   }
   coast.masks.clear();
   if(!changed)throw new WorldError("This native work area makes no eligible relief changes. Keep the operation and choose another area or revise its profile.",400);
-  const rebase=await certifySharedReliefRebase(context.snapshots,results,shape,operation.selection,workArea,root.terrain.seaLevel,context.load,job,operation.reviewDryBorderJoins?{context:context.context,preserveManual:operation.preserveManual,nativeCells:budget.cells,workingBytes:budget.workingBytes}:undefined),
+  const rebase=await certifySharedReliefRebase(context.snapshots,results,shape,operation.selection,workArea,root.terrain.seaLevel,context.load,job,operation.reviewDryBorderJoins?{context:context.context,preserveManual:operation.preserveManual,nativeCells:budget.cells,workingBytes:budget.workingBytes,...operation.reviewDryReconstructionSupports?{allowReconstruction:true}: {}}:undefined),
    work=budget.sampleSteps+geometryWork+coast.visited+rebase.steps;
   if(work>ADVANCED_TERRAIN_LIMITS.work)throw new WorldError("Choose a smaller native work area. The combined profile and preservation audit exceed 8,388,608 steps.",400);
   if(job.aborted||performance.now()-started>ADVANCED_TERRAIN_LIMITS.workerMs)throw new WorldError("The native relief preview reached its 30-second bound. Your accepted geography is unchanged; choose a smaller work area.",400);

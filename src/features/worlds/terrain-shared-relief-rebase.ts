@@ -8,7 +8,8 @@ import {ADVANCED_TERRAIN_LIMITS} from "./terrain-advanced-spec";
 import type {SharedProfile} from "./terrain-shared-relief";
 import {regionAreaContainsPoint} from "./terrain-region-geometry";
 import {profileWindowLocalIndex} from "./terrain-profile-window";
-import {createSelectedDryJoinReview,type SelectedDryJoinOptions} from "./terrain-shared-relief-join-review";
+import {createSelectedDryJoinReview,type SelectedDryJoinOptions,type SelectedReconstructionReview} from "./terrain-shared-relief-join-review";
+import {selectedNativeReconstruction} from "./terrain-selected-reconstruction";
 
 /** Certify a native same-frame context transition. A stale parent pin is never
  * silently replaced: every changed fallback support must lie inside the
@@ -69,7 +70,15 @@ export async function certifySharedReliefRebase(snapshots:SharedReliefSnapshot[]
     const original=load(source.id,source.revision),result=results.get(source.id),proposed=(value:NumericalSampleSource):NumericalSampleSource=>({...value,revision:source.revision+1,parentRevision:newParent,at:(x,y)=>{const i=y*value.shape.width+x,local=result?.window?profileWindowLocalIndex(result.window,i):i;return result&&local!==undefined?result.grid[local]:value.at(x,y);}}),
      afterLoad:NumericalSampleLoader=(id,revision)=>id===source.id&&revision===source.revision+1?(original instanceof Promise?original.then(proposed):proposed(original)):nextLoad(id,revision),
      counted=(reader:NumericalSampleLoader):NumericalSampleLoader=>(id,revision)=>{const value=reader(id,revision),wrap=(s:NumericalSampleSource):NumericalSampleSource=>({...s,at:(x,y)=>{reviewWork(1);return s.at(x,y);}});return value instanceof Promise?value.then(wrap):wrap(value);};
-    await reviewer.add(source,point,{edge:raw.edge,index:raw.index,before:a,after:b,outsideWorkArea:!contains(point)},oldParent,newParent,(point,next)=>samplePinnedTerrainPointReady(point,source.id,source.revision+(next?1:0),world,counted(next?afterLoad:load)));
+    let reconstruction:SelectedReconstructionReview|undefined;
+    if(selectedDryJoins?.allowReconstruction&&!regionAreaContainsPoint(selection,point,dimensions)){
+     const supports=await selectedNativeReconstruction(point,parentId,oldParent,newParent,world,selection,seaLevel,load,nextLoad,{before:a,after:b},reviewWork);
+     reconstruction={supports,read:async node=>{
+      reviewWork(1);const native=await load(node.sourceId,node.beforeRevision);
+      return {frame:native.frame,columns:native.shape.width,rows:native.shape.height,sample:(p,next)=>samplePinnedTerrainPointReady(p,node.sourceId,next?node.afterRevision:node.beforeRevision,world,counted(next?nextLoad:load))};
+     }};
+    }
+    await reviewer.add(source,point,{edge:raw.edge,index:raw.index,before:a,after:b,outsideWorkArea:!contains(point)},oldParent,newParent,(point,next)=>samplePinnedTerrainPointReady(point,source.id,source.revision+(next?1:0),world,counted(next?afterLoad:load)),reconstruction);
    }
    contextChanges++;maxContextChangeM=Math.max(maxContextChangeM,Math.abs(a-b));
   }

@@ -17,7 +17,7 @@ export const sharedReliefPreviewHeaderSchema=z.object({
 }).strict();
 export type SharedReliefPreviewHeader=z.infer<typeof sharedReliefPreviewHeaderSchema>;
 export type SharedReliefPreview={header:SharedReliefPreviewHeader;windows:{before:Int16Array;after:Int16Array}[]};
-function countSamples(header:SharedReliefPreviewHeader){let count=0;for(const w of header.windows){if(w.x%32||w.y%32||w.x+w.width>w.sourceWidth||w.y+w.height>w.sourceHeight)throw Error("The native relief preview window is outside its accepted source.");count+=w.width*w.height;}const review=header.joinReview?.sources.reduce((n,s)=>n+s.supports.length,0)??0;if(count*8+header.cells*8+review*512>ADVANCED_TERRAIN_LIMITS.workingBytes||review>header.cells)throw Error("The relief preview exceeds the existing numerical memory bound.");return count;}
+function countSamples(header:SharedReliefPreviewHeader){let count=0;for(const w of header.windows){if(w.x%32||w.y%32||w.x+w.width>w.sourceWidth||w.y+w.height>w.sourceHeight)throw Error("The native relief preview window is outside its accepted source.");count+=w.width*w.height;}const review=header.joinReview?.sources.reduce((n,s)=>n+s.supports.length,0)??0,reconstruction=header.joinReview?.sources.reduce((n,s)=>n+s.supports.reduce((n,p)=>n+(p.reconstruction?.length??0),0),0)??0;if(count*8+header.cells*8+review*512+reconstruction*256>ADVANCED_TERRAIN_LIMITS.workingBytes||review+reconstruction>header.cells)throw Error("The relief preview exceeds the existing numerical memory bound.");return count;}
 /** Compact native preview transport only. It cannot be submitted as authoring
  * input: acceptance carries the original operation and checked hashes alone. */
 export function encodeSharedReliefPreview(value:SharedReliefPreview){

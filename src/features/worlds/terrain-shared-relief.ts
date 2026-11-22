@@ -5,6 +5,7 @@ import {REFINEMENT_LIMIT} from "./terrain-refinement";
 import {ADVANCED_TERRAIN_LIMITS,landformProfileSchema,sharedReliefOperationSchema,advancedTerrainCellBytes,advancedTerrainSampleSteps} from "./terrain-advanced-spec";
 import type {AdvancedTerrainContext,AdvancedResult} from "./terrain-advanced";
 import {planProfileWindow,type ProfileWindow,prepareWindowedProfile} from "./terrain-profile-window";
+import {SELECTED_RECONSTRUCTION_TRACE_BYTES} from "./terrain-selected-reconstruction";
 
 export type SharedProfile=z.infer<typeof landformProfileSchema>;
 export type SharedReliefOperation=z.infer<typeof sharedReliefOperationSchema>;
@@ -28,7 +29,7 @@ export function planSharedRelief(sources:SharedReliefSource[],raw:SharedReliefOp
   sampleSteps=advancedTerrainSampleSteps(op,cells),binaryBytes=8+n*4,
   // Reserve the existing numerical kernel and binary before/after transport.
   // This is a combined bound over all affected sources, not a per-source reset.
-  workingBytes=Math.max(n*10+cells*advancedTerrainCellBytes(op)+axes,n*8+cells*8+rootPreviewBytes)+ADVANCED_TERRAIN_LIMITS.packetCharacters+2*1048576;
+  workingBytes=Math.max(n*10+cells*advancedTerrainCellBytes(op)+axes,n*8+cells*8+rootPreviewBytes)+ADVANCED_TERRAIN_LIMITS.packetCharacters+2*1048576+(op.reviewDryReconstructionSupports?SELECTED_RECONSTRUCTION_TRACE_BYTES:0);
  if(cells>ADVANCED_TERRAIN_LIMITS.cells||sampleSteps>ADVANCED_TERRAIN_LIMITS.work)throw Error("Choose a smaller native work area. Across all sources the limit is 262,144 samples and 8,388,608 sample-steps; every source keeps its native resolution.");
  if(workingBytes>ADVANCED_TERRAIN_LIMITS.workingBytes)throw Error("Choose a smaller native work area. Its combined numerical windows exceed the existing 32 MiB budget.");
  return {plans,cells,sampleSteps,workingBytes,binaryBytes,rootPreviewBytes};

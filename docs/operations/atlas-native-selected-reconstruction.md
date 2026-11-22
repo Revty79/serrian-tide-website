@@ -1,0 +1,57 @@
+# Native selected reconstruction review
+
+Status: isolated candidate. Publication, all four exact completed workflows, cryptographic hosted provenance and ordinary activation remain required. Earth continues on qualified application `9ad314cc`. Full Pass 2A is unfinished.
+
+## Reproduced native limitation
+
+The saved Greenland central working area joins Root and the Canadian Arctic refinement. Its adjacent southern area refuses because eight inherited fine-border points fall just outside the original native outline. Read-only tracing establishes that their changes come entirely from eight changed native Root samples inside that outline. The existing selection guard correctly refuses without that evidence; expanding or bypassing the outline would obscure the actual cause.
+
+The optional **Review selected reconstruction supports at outline edges** control proves this specific native interpolation case. It requires the existing complete dry-border review and is off by default. Absent/false behavior remains exact. The original selection continues to constrain every stored height change.
+
+For each affected outside-outline point, a bounded reader repeats the established bilinear arithmetic with the original and proposed immutable parent revisions. It retains only nonzero contributing weights, checks unchanged source frames and weights, and requires every changed contributing native sample to be selected and dry. An unrelated old parent change outside the selection still refuses. Each contributing sample independently receives the existing eight-neighbour sea/shore, standing-water, wetland and settlement checks. No invented halo heights or imported terrain enter the operation.
+
+The complete review includes source IDs, revisions, positions, weights and before/after heights. Its weighted delta must reproduce the inherited change. Existing hashes bind the proof to the preview and proposal; authoritative acceptance independently recomputes it. The native inspector shows the selected contributing heights, and the existing geography and complete-border review acknowledgements remain required. Changing intent clears review. Lost acknowledgement retains the exact original request.
+
+## Resource and preservation boundaries
+
+The optional trace reserves 65,536 bytes. Each retained proof node adds one charged cell and 256 bytes; existing reviewed border points retain their 512-byte charge. A trace permits at most 64 contributing samples and the existing eight-level parent bound. Reads, geometry, guards and cooperative cancellation remain charged. Existing limits stay at 262,144 cells, 8,388,608 sample steps, 32 MiB numerical workspace, 30 seconds and 250,000 metadata characters. No capacity increase is made.
+
+The ordinary hot sampler, numerical height kernels, renderer, atomic writer, endpoints, group history, rights, source identities/frames/resolutions and old parent pins are unchanged. No schema, migration, authentication, configuration or owner service restart is introduced. Recovery uses the existing versioned intent; no new terrain store is added.
+
+## Frozen qualification
+
+Parent is `4fafcd9a044e0500867fb9d27d5b722791a7d2c3`. All 10,843 parent Windows raw files matched at isolation. No owner environment or geography was copied into synthetic fixtures. Final v3 freezes 2,231 application inputs, SHA-256 `773133cc344be4ac5bcf33145f6e5e7833076892b25cc08c753cd864a294599c`, build `zHe55g1HTEAphXp9XCj_w`.
+
+All 3,133 units across 407 files, full types, build and full lint pass; the only lint warning is inherited LoreFamily code. New cases cover exact bilinear weights, nested fallback, wrapping, zero-weight supports, unselected/wet contributions, unrelated parent changes, tampered proof, native sea neighbours, lakes, wetlands, settlements, unchanged legacy plans, bounded allocation/work and cancellation. Six final native appearances and proof inspectors are visually inspected. Synthetic fixture edges are test inputs, not Earth artistic acceptance.
+
+Five new native groups pass in each of four contexts: ordinary 2048-square Root with 128-square refinements, actual 4096-square refinements, legacy 640-by-384 Root with 64-square refinements, and DEV StrictMode. These are 20 executions. The 39 existing joined-relief/bank/erosion/continuation groups pass in those same four contexts: 156 further executions. Eleven A6 and two source-refresh groups pass. The total is 189 group executions, not 189 distinct cases. Actual 4096 dimensions are asserted and recorded. All complete-grid, old-pin, shoreline, saved-water, unrelated-child, retry/history and fresh-reopening checks pass.
+
+All 13 owned fixtures are stopped and all 25 recorded ports are independently closed. Owner DEV26276/3000, PG5296/5432 and configuration8ba2de22 remain unchanged. Renderer/export/writer/rights bytes retain their previous evidence; no new PDF suite is claimed.
+
+## Actual Earth and limits
+
+Current Earth is Root469/water48 with 128 sources and 26 lakes. Native Greenland Save464/Undo465/Redo466 restores complete Root/Canadian Arctic grids and old parent pins exactly. The Canadian refinement is 130, parent464. The 68,263 changes form a working central strip; temporary work-area fronts require adjacent areas before geographic completion. The same ordinary Revty79 page reopens the saved World. All original shore supports, unaffected source heads/frames/history and water remain exact.
+
+While the final isolated DEV repeat runs, the existing qualified native area tool adds a ten-corner, minimum400m Congo central-lowland foundation with 24-sample interior blending. Save467/Undo468/Redo469 and fresh ordinary469 reopening restore exact complete grids. Only 7,231 original200m samples rise to201–400m, with 1,696 samples reaching400m. The largest adjacent changed step is18m; no new or steepened45-degree pairs occur. All higher old forms, samples outside the observed native polygon, 59,947 original Root shore supports, all127fineheads/frames/pins/history and water remain exact. Plateau rims, basin gradients and final regional review remain unfinished. Existing approved NOAA imagery supplies visual comparison; primary-paper facts are paraphrased without reproducing assets or datasets. No new rights approval, attachment or hydrology action occurs.
+
+A read-only repeatable-read rehearsal of the retained refused southern native operation reproduces the disabled-control refusal. Enabled preparation takes 3,789.782 ms, 58,356 charged cells, 14,338,616 numerical bytes and 3,881,188 steps. It checks 887 reviewed border points, including eight reconstructed points with eight selected native proof nodes. Complete before/after grid hashes are checked. This accepts no geography and does not prove live owner DEV success or qualify a larger work area. A subsequent complete owner readback confirms zero change.
+
+A fresh final-v3 rehearsal first verifies all 2,231 frozen application hashes and the reviewed test/source hashes. It reproduces the same baseline refusal and identical complete before/after window hashes, proof counts and resource charges. Enabled preparation takes 4,426.1994 ms. The transaction and connection remain read-only; no authoring endpoint, writer or history action is called.
+
+The earlier Root-only Greenland proposal was cancelled because it left an artificial source boundary. A fast first polygon drawing captured only 13 of 25 intended native clicks; clearing and redrawing with observed corner counts corrected it. Preserve both attempts. The central strip's first private quality audit used window dimensions as full-source spacing. Corrected full-source geometry finds all 104 new steep pairs at temporary work-area fronts and none in the area interior. Preserve the failed audits and scope correction; the unfinished fronts are not geographic PASS.
+
+The rejected Lofoten proposal still has 679 new inherited-border steep pairs. Patagonian bank revision47 still introduces 21 new steep pairs and steepens one; native Undo48 restores revision46 exactly. No bank geography is retained. This reconstruction control does not repair those geographic joins. A separate general constraint against lower fixed banks remains necessary before Southern extension.
+
+Global relief, islands, polar ice surfaces, fine joins and final fresh current-geography paired recovery remain unfinished. Root229 recovery predates the current relief. No whole-pass, owner/Ember or physical-device acceptance is claimed.
+
+## Retained failures and release boundary
+
+Keep the initial recovery-test expectation failure: existing recovery correctly preserves its original pending request even when separate draft settings differ. Product recovery was not changed. Preserve superseded v1/v2 freezes and v2 typing/native-build failures from test-only ArrayBuffer/callback typing, plus its unused test-argument lint warning. Final v3 corrects the tests and strengthens complete-grid, original-selection, work-area and shore assertions; application behavior was not relaxed to pass them. Preserve all earlier bank, coastline, harness and aggregate failures in their original reports.
+
+Preserve the first concurrent full large-source regression's cancelled existing erosion preview and DEV regression's unsettled existing terrain renderer. Concurrent load may contribute but is not established as the cause. Separate unchanged repeats are required; no bound, renderer readiness guard or deadline is relaxed. Keep the actual owner recovery-click/close timeouts and interrupted read-only DOM observation. Native recovery/export verifies the exact seven points, 28 outline corners and southern work area before ordinary page reload; fresh ordinary Root466 reopens with no dialog and Save disabled. Complete readback confirms all 127 fine heads/history and water exact, and all 26 Root lake beds exact since142. No general UI performance repair is claimed.
+
+The separate unchanged large and DEV repeats pass all39groups each. Preserve the first Congo six-corner entry made after toolbar scrolling shifted the canvas origin; the seventh-click wait times out. The incorrect outline is visibly inspected and cleared without preview or acceptance. Correct canvas-relative native clicks produce the reviewed ten-corner outline. Keep both the failed entry and corrected proof.
+
+Private evidence is under `artifacts/project-earth-native-support/` in the isolated checkout, with the owner journal under ignored `artifacts/project-earth-pass2a-20261119/`. Publish only the 15 reviewed source/test paths, this document and AGENTS; preserve the other 10,833 parent raw files. Require exact completed normal/recovery/Ubuntu/publisher workflows, latest jobs/steps, independent completed-GitHub and cryptographic hosted provenance, clean parity and exact tested bytes before owner use.
+
+After qualification, load normally without restart and recover the original seven-point profile, 28-point outline and southern work area through visible Atlas controls. Review, save, Undo/Redo and freshly reopen the actual result before completing adjacent Greenland areas and the rest of authorized Pass 2A. Do not stop at this software checkpoint. No imports, external editing lists, SQL/hidden-endpoint geography, later passes, Production, Canon, Tabletop or home-server action. Completed 0165/0166 activation and its DEV freeze/restart must not be repeated, reasked or reused. Carry `973d4f57` unapplied.

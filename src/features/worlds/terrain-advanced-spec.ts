@@ -20,9 +20,11 @@ export const landformProfileSchema=z.object({
   mode:z.enum(["shape","minimum","maximum","upper-envelope"]),
   envelopeBaseM:z.number().int().min(-30000).max(30000).optional(),
   reviewDryBorderJoins:z.boolean().optional(),
+  reviewDryReconstructionSupports:z.boolean().optional(),
   hardness:z.number().finite().min(0).max(1),
   endBlendM:z.number().finite().min(0).max(1e9),featherM:z.number().finite().min(0).max(1e9),
 }).strict().superRefine((v,c)=>{
+  if(v.reviewDryReconstructionSupports&&!v.reviewDryBorderJoins)c.addIssue({code:"custom",path:["reviewDryReconstructionSupports"],message:"Selected reconstruction supports require complete dry border review."});
   if(v.mode==="upper-envelope"&&v.envelopeBaseM===undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"Choose an explicit base elevation for the profile envelope."});
   if(v.mode!=="upper-envelope"&&v.envelopeBaseM!==undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"An envelope base belongs only to the upper-envelope mode."});
 });
@@ -45,9 +47,11 @@ export const erosionOperationSchema=z.object({...common,kind:z.literal("erosion"
   reposeDegrees:z.number().finite().min(1).max(70),featherM:z.number().finite().min(0).max(1e9),
   preserveShoreline:z.boolean().optional(),
   reviewDryBorderJoins:z.boolean().optional(),
+  reviewDryReconstructionSupports:z.boolean().optional(),
   outflowRate:z.number().finite().min(1).max(4).optional(),
   bankReinforcementM:z.number().int().min(1).max(3000).optional(),
 }).strict().superRefine((v,c)=>{
+  if(v.reviewDryReconstructionSupports&&!v.reviewDryBorderJoins)c.addIssue({code:"custom",path:["reviewDryReconstructionSupports"],message:"Selected reconstruction supports require complete dry border review."});
   if(v.deposition&&v.outflowRate!==undefined&&v.outflowRate!==1)c.addIssue({code:"custom",path:["outflowRate"],message:"Faster outflow requires deposits to be off. Depositing transport keeps its original bounded response."});
   if(v.bankReinforcementM!==undefined&&(v.model!=="thermal"||!v.preserveShoreline||v.deposition))c.addIssue({code:"custom",path:["bankReinforcementM"],message:"Bank reinforcement requires gravity / talus transport, saved shoreline supports and deposits off."});
 });
