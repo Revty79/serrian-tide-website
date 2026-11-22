@@ -29,7 +29,7 @@ export const landformProfileSchema=z.object({
   if(v.mode!=="upper-envelope"&&v.envelopeBaseM!==undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"An envelope base belongs only to the upper-envelope mode."});
 });
 export const volcanoOperationSchema=z.object({
-  ...common,kind:z.literal("volcano"),centre:advancedPointSchema,
+  ...common,kind:z.literal("volcano"),centre:advancedPointSchema,preserveShoreline:z.boolean().optional(),
   form:z.enum(["cone","shield","composite","cratered","caldera"]),
   radiusM:metres,heightM:z.number().finite().min(1).max(20000),
   craterDiameterM:z.number().finite().min(0).max(1e9),craterDepthM:z.number().finite().min(0).max(20000),
@@ -58,14 +58,14 @@ export const erosionOperationSchema=z.object({...common,kind:z.literal("erosion"
 export const sharedReliefOperationSchema=z.discriminatedUnion("kind",[landformProfileSchema,erosionOperationSchema]);
 export const advancedOperationOptions=[
   landformProfileSchema,
-  z.object({...common,kind:z.literal("river-channel"),riverId:z.string().min(1).max(180),
+  z.object({...common,kind:z.literal("river-channel"),riverId:z.string().min(1).max(180),preserveShoreline:z.boolean().optional(),
     course:z.enum(["segment","downstream"]),first:z.number().int().min(0).max(510),last:z.number().int().min(1).max(511).nullable(),
     widthM:metres,depthM:z.number().finite().min(1).max(3000),bankSoftness:z.number().finite().min(0).max(1),
     smoothing:z.number().finite().min(0).max(1),
   }).strict(),
   erosionOperationSchema,
   volcanoOperationSchema,
-  z.object({...common,kind:z.literal("eruption"),volcanoId:z.uuid(),
+  z.object({...common,kind:z.literal("eruption"),volcanoId:z.uuid(),preserveShoreline:z.boolean().optional(),
     effect:z.enum(["collapse","lava"]),source:advancedPointSchema,
     extentM:metres,widthM:metres,magnitudeM:z.number().finite().min(1).max(3000),
     steps:z.number().int().min(1).max(2048),
@@ -78,7 +78,10 @@ export type AdvancedKind=AdvancedOperation["kind"];
 /** Reinforcement keeps two bounded floor buffers and audits eight native
  * neighbours after transport. It never enlarges the existing resource limits. */
 export function advancedTerrainCellBytes(op:AdvancedOperation){return 64+(op.kind==="erosion"&&op.preserveShoreline?1:0)+(op.kind==="erosion"&&op.bankReinforcementM!==undefined?16:0);}
-export function advancedTerrainSampleSteps(op:AdvancedOperation,cells:number){return cells*(op.kind==="erosion"?op.iterations+(op.bankReinforcementM!==undefined?8:0):op.kind==="landform-profile"?op.points.length-1:1);}
+/** New optional coastal guards reserve all eight native neighbours. Legacy
+ * absent/false operations retain their original admission and arithmetic. */
+export function advancedTerrainShoreSteps(op:AdvancedOperation,cells:number){return cells*(op.kind!=="landform-profile"&&op.kind!=="erosion"&&op.preserveShoreline?8:0);}
+export function advancedTerrainSampleSteps(op:AdvancedOperation,cells:number){return cells*(op.kind==="erosion"?op.iterations+(op.bankReinforcementM!==undefined?8:0):op.kind==="landform-profile"?op.points.length-1:1)+advancedTerrainShoreSteps(op,cells);}
 export const advancedProvenanceSchema=z.object({
   version:z.literal(1),contextPin:z.string().regex(/^[a-f0-9]{64}$/),operation:advancedOperationSchema,
   effect:z.object({changed:z.number().int().positive().max(ADVANCED_TERRAIN_LIMITS.cells),affected:advancedAreaSchema}).strict(),

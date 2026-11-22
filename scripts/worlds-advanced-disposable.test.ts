@@ -18,7 +18,7 @@ import {restoreTerrainBackup} from "./terrain-backup-restore";
 const out=path.resolve(process.env.SERRIAN_REGIONAL_EDIT_EVIDENCE??"artifacts/terrain-s6d-database-1");
 assert.ok(out.startsWith(path.resolve("artifacts/terrain-s6d-")));
 process.env.SERRIAN_REGIONAL_EDIT_EVIDENCE=out;
-let beforeUpgradeRows:unknown,beforeUpgradeFiles:unknown;
+let beforeUpgradeRows:unknown,beforeUpgradeFiles:unknown,advancedUpgradeVerified=false;
 async function retainedRows(f:RegionalFixture){const names=(await f.pool.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows.map(row=>row.tablename as string);return stageRowRecords(f,names);}
 async function beforeAdvancedUpgrade(f:RegionalFixture){
   assert.equal((await f.pool.query("select to_regclass('world_terrain_advanced_volcano_idx') as value")).rows[0].value,null);
@@ -26,6 +26,14 @@ async function beforeAdvancedUpgrade(f:RegionalFixture){
   await assert.rejects(advanced.getAdvancedTerrainContext("world-god",f.world,ids.parent),/0157/);
   beforeUpgradeRows=await retainedRows(f);beforeUpgradeFiles=await files(f.terrainRoot);
   f.runPostgres("pg_dump",["-Fc","-f",path.join(f.out,"before-0157.dump"),"--dbname",f.databaseUrl]);
+}
+async function afterAdvancedUpgrade(f:RegionalFixture){
+  // This hook runs immediately after canonical0157, before later migrations
+  // and their explicit fixture rights/session setup. Compare the actual pair.
+  assert.deepEqual(await retainedRows(f),beforeUpgradeRows);assert.deepEqual(await files(f.terrainRoot),beforeUpgradeFiles);
+  assert.equal((await f.pool.query("select count(*)::int n from drizzle.__drizzle_migrations")).rows[0].n,158);
+  assert.equal((await f.pool.query("select count(*)::int n from pg_indexes where indexname in ('world_terrain_advanced_volcano_idx','world_refinement_advanced_volcano_idx')")).rows[0].n,2);
+  advancedUpgradeVerified=true;
 }
 async function files(root:string){
   const result=[];for(const name of(await readdir(root,{recursive:true})).sort()){
@@ -37,7 +45,7 @@ async function run(f:RegionalFixture){
   assert.equal(uri.hostname,"127.0.0.1");assert.notEqual(uri.port,"5432");
   assert.ok(path.resolve(f.root).startsWith(path.join(out,"owned-temp")+path.sep));
   assert.equal(process.env.DATABASE_URL,f.databaseUrl);
-  assert.deepEqual(await retainedRows(f),beforeUpgradeRows);assert.deepEqual(await files(f.terrainRoot),beforeUpgradeFiles);
+  assert(advancedUpgradeVerified,"The isolated populated0156-to0157 preservation check must finish before current-schema service tests.");
   const journal=JSON.parse(await readFile("drizzle/meta/_journal.json","utf8")),entry=journal.entries.find((e:{idx:number})=>e.idx===157),migration=await readFile("drizzle/0157_advanced_terrain_indexes.sql");
   assert.equal(entry.idx,157);assert.ok(!migration.includes(13));
   assert.equal((await f.pool.query("select hash from drizzle.__drizzle_migrations where created_at=$1",[entry.when])).rows[0].hash,createHash("sha256").update(migration).digest("hex"));
@@ -177,5 +185,5 @@ async function run(f:RegionalFixture){
   if(process.env.SERRIAN_ADVANCED_TERRAIN_BROWSER==="production"){process.env.SERRIAN_UNDERGROUND_BROWSER="production";process.env.SERRIAN_ADVANCED_TERRAIN_CHECKOUT??="artifacts/terrain-s6d-validation";await(await import("./worlds-underground-browser")).undergroundBrowser(f);}
   console.log(JSON.stringify({passed:true,groups:groups.length,out:f.out}));
 }
-async function main(){await mkdir(path.join(out,"owned-temp"),{recursive:true});process.env.TEMP=path.join(out,"owned-temp");process.env.TMP=process.env.TEMP;await withRegionalEditingFixture(run,undefined,undefined,undefined,undefined,undefined,undefined,undefined,beforeAdvancedUpgrade);}
+async function main(){await mkdir(path.join(out,"owned-temp"),{recursive:true});process.env.TEMP=path.join(out,"owned-temp");process.env.TMP=process.env.TEMP;await withRegionalEditingFixture(run,undefined,undefined,undefined,undefined,undefined,undefined,undefined,beforeAdvancedUpgrade,afterAdvancedUpgrade);}
 main().catch(error=>{console.error(error);process.exitCode=1;});

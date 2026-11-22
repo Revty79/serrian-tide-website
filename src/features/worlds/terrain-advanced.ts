@@ -3,7 +3,7 @@ import type {TerrainFrame} from "./terrain-refinement";
 import type {HydroLayer,HydroPoint} from "./terrain-hydrology";
 import {insideWaterRings,waterBounds,nearestWaterShore} from "./terrain-water-geometry";
 import {regionAreaContainsPoint,regionCanonicalX,validateRegionFootprint} from "./terrain-region-geometry";
-import {ADVANCED_TERRAIN_LIMITS as LIMITS,advancedOperationSchema,advancedTerrainCellBytes,advancedTerrainSampleSteps,type AdvancedOperation,type VolcanoOperation} from "./terrain-advanced-spec";
+import {ADVANCED_TERRAIN_LIMITS as LIMITS,advancedOperationSchema,advancedTerrainCellBytes,advancedTerrainSampleSteps,advancedTerrainShoreSteps,type AdvancedOperation,type VolcanoOperation} from "./terrain-advanced-spec";
 import {prepareLandformProfile} from "./terrain-landform-profile";
 import {profileWorkArea} from "./terrain-profile-work-area";
 
@@ -120,6 +120,8 @@ export function* advancedTerrainSteps(
   const windowIndex=(i:number)=>{const x=columns[i%shape.width],y=rows[Math.floor(i/shape.width)];return x<0||y<0?-1:y*xs.length+x;};
   const eligibleIndex=(i:number)=>{const k=windowIndex(i);return k>=0&&eligibility[k]?k:-1;};
   const shoreReceivers=op.kind==="erosion"&&op.preserveShoreline?new Uint8Array(cells):undefined;
+  const fixedNativeShore=op.kind!=="erosion"&&op.kind!=="landform-profile"&&op.preserveShoreline,
+    shoreGuardWork=advancedTerrainShoreSteps(op,cells);
   let bankFloor=op.kind==="erosion"&&op.bankReinforcementM!==undefined?new Float64Array(cells).fill(-Infinity):undefined,
     nextBankFloor=bankFloor?new Float64Array(cells).fill(-Infinity):undefined;
   let protectedCount=0,waterProtected=0,siteProtected=0,eligible=0,visited=0,geometryWork=0,bankSupportConflicts=0,maxBankSupportStepM=0,lastYield=performance.now();
@@ -164,6 +166,16 @@ export function* advancedTerrainSteps(
         waterProtected++;continue;
       }
     }
+    if(fixedNativeShore&&base[i]>seaLevel){
+      let shore=!!context.shoreSupports?.[i];
+      for(let ey=-1;ey<=1&&!shore;ey++)for(let ex=-1;ex<=1;ex++){
+        if(!ex&&!ey)continue;
+        if(counts()){lastYield=performance.now();yield .12*k/cells;}
+        const xx=shape.wrap?(x+ex+shape.width)%shape.width:x+ex,yy=y+ey;
+        if(xx>=0&&xx<shape.width&&yy>=0&&yy<shape.height&&base[yy*shape.width+xx]<=seaLevel){shore=true;break;}
+      }
+      if(shore){waterProtected++;continue;}
+    }
     if(blocked?.[i]||op.preserveManual&&manual?.[i]){protectedCount++;continue;}
     if(base[i]<=seaLevel){waterProtected++;continue;}
     if(profile){
@@ -201,9 +213,12 @@ export function* advancedTerrainSteps(
   const nearby=(i:number)=>{const x=i%shape.width,y=Math.floor(i/shape.width),out:Array<{k:number;east:number;south:number;length:number}>=[];
     for(let ey=-1;ey<=1;ey++)for(let ex=-1;ex<=1;ex++){if(!ex&&!ey)continue;const j=globalIndex(x+ex,y+ey),k=j<0?-1:eligibleIndex(j);if(k>=0)out.push({k,east:ex,south:ey,length:Math.hypot(ex*sx,ey*sy)});}return out;};
   const sample=(p:HydroPoint)=>{
-    const gx=(world.wrap?((p.x-frame.x)%world.width+world.width)%world.width:p.x-frame.x)/sx,gy=(p.y-frame.y)/sy;
-    if(gx<0||gx>=shape.width||gy<0||gy>=shape.height)return null;
-    const x=shape.wrap?Math.round(gx)%shape.width:Math.min(shape.width-1,Math.round(gx)),y=Math.min(shape.height-1,Math.round(gy));
+    const sourceFrame=nativeLattice?.frame??frame,sourceWidth=nativeLattice?.width??shape.width,sourceHeight=nativeLattice?.height??shape.height,
+      gx=(world.wrap?((p.x-sourceFrame.x)%world.width+world.width)%world.width:p.x-sourceFrame.x)/sx,gy=(p.y-sourceFrame.y)/sy;
+    if(gx<0||gx>=sourceWidth||gy<0||gy>=sourceHeight)return null;
+    const x=(shape.wrap?Math.round(gx)%sourceWidth:Math.min(sourceWidth-1,Math.round(gx)))-(nativeLattice?.x??0),
+      y=Math.min(sourceHeight-1,Math.round(gy))-(nativeLattice?.y??0);
+    if(x<0||x>=shape.width||y<0||y>=shape.height)throw Error("The numerical workspace omits a required accepted source sample.");
     return y*shape.width+x;
   };
   if(op.kind==="landform-profile"){
@@ -368,14 +383,15 @@ export function* advancedTerrainSteps(
     if(radius>Math.min(sx,sy)*128)throw Error("This influence is wider than the native 128-sample operation bound. Choose a narrower channel/deposit or a coarser eligible source.");
     const target=new Float64Array(cells).fill(lava?-Infinity:Infinity),coverage=new Float32Array(cells);let work=0;
     for(let j=0;j<paths.length;j++){
-      const p=paths[j],cx=(world.wrap?((p.x-frame.x)%world.width+world.width)%world.width:p.x-frame.x)/sx,cy=(p.y-frame.y)/sy,
-        rx=Math.ceil(radius/sx),ry=Math.ceil(radius/sy),left=Math.floor(cx-rx),right=Math.ceil(cx+rx),top=Math.max(0,Math.floor(cy-ry)),bottom=Math.min(shape.height-1,Math.ceil(cy+ry));
-      work+=(right-left+1)*(bottom-top+1);if(work>LIMITS.work)throw Error("Choose a shorter or narrower channel/deposit; its corridor exceeds the bounded visit budget.");
+      const p=paths[j],sourceFrame=nativeLattice?.frame??frame,ox=nativeLattice?.x??0,oy=nativeLattice?.y??0,
+        cx=(world.wrap?((p.x-sourceFrame.x)%world.width+world.width)%world.width:p.x-sourceFrame.x)/sx,cy=(p.y-sourceFrame.y)/sy,
+        rx=Math.ceil(radius/sx),ry=Math.ceil(radius/sy),left=Math.floor(cx-rx)-ox,right=Math.ceil(cx+rx)-ox,top=Math.max(0,Math.floor(cy-ry)-oy),bottom=Math.min(shape.height-1,Math.ceil(cy+ry)-oy);
+      work+=(right-left+1)*(bottom-top+1);if(work+shoreGuardWork>LIMITS.work)throw Error("Choose a shorter or narrower channel/deposit; its corridor exceeds the bounded visit budget.");
       const bedTarget=!lava&&j>0&&j+1<targets.length?Math.min(targets[j],targets[j]*(1-smoothing)+(targets[j-1]+targets[j+1])/2*smoothing):targets[j];
       for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
         if(counts()){lastYield=performance.now();yield .12+.7*j/paths.length;}
         const i=globalIndex(x,y),k=i<0?-1:eligibleIndex(i);if(k<0)continue;
-        const r=Math.hypot((x-cx)*sx,(y-cy)*sy)/radius;if(r>=1)continue;
+        const r=Math.hypot((x+ox-cx)*sx,(y+oy-cy)*sy)/radius;if(r>=1)continue;
         const weight=(1-r*r)**2;
         coverage[k]=Math.max(coverage[k],weight);
         if(lava)target[k]=Math.max(target[k],bedTarget);else target[k]=Math.min(target[k],bedTarget);
@@ -419,6 +435,7 @@ export function* advancedTerrainSteps(
   if(protectedCount)notices.push(protectedCount.toLocaleString()+" protected samples were retained exactly.");
   if(waterProtected)notices.push(waterProtected.toLocaleString()+" sea/lake/wetland samples were retained exactly.");
   if(siteProtected)notices.push(siteProtected.toLocaleString()+" settlement-support samples were retained exactly.");
+  if(fixedNativeShore)notices.push("Saved sea and eight-neighbour shoreline support heights stay exact. Inspect the adjoining land slopes; this guard does not automatically reshape a coastal bank.");
   return {grid,patch:{indices:changedIndices.slice(0,changed),before:before.slice(0,changed),after:after.slice(0,changed)},metrics:{
     changed,minimum:min,maximum:max,maxLoweringM,maxRaisingM,removedM3,addedM3,eligible,protected:protectedCount,waterProtected,siteProtected,
     visited,workingBytes:bytes,geometryWork,...bankFloor?{bankSupportConflicts,maxBankSupportStepM}:{},affected:changed?{x:regionCanonicalX(affectedOrigin+left,world),y:top,width:Math.min(world.width,Math.max(sx,right-left)),height:Math.max(sy,bottom-top)}:null,notices,

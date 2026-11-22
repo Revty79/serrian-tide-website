@@ -2,7 +2,7 @@ import type {TerrainGeometry, TerrainTile} from "./terrain";
 import type {TerrainFrame, RefinementMeta} from "./terrain-refinement";
 import {regionCanonicalX} from "./terrain-region-geometry";
 import {ADVANCED_TERRAIN_LIMITS, advancedOperationSchema,advancedTerrainCellBytes,advancedTerrainSampleSteps, type AdvancedOperation} from "./terrain-advanced-spec";
-import {prepareAdvancedTerrainAsync, type AdvancedTerrainContext, type AdvancedResult} from "./terrain-advanced";
+import {advancedRiverPath,prepareAdvancedTerrainAsync, type AdvancedTerrainContext, type AdvancedResult} from "./terrain-advanced";
 import {profileWorkArea} from "./terrain-profile-work-area";
 
 /** Transient numerical workspace, never a new saved source or authoring input. */
@@ -14,7 +14,7 @@ export type ProfileWindow = {
 };
 const LARGE_SOURCE = 4_194_304;
 export const needsProfileWindow=(shape:TerrainGeometry,op:Pick<AdvancedOperation,"kind">)=>
-  (op.kind==="landform-profile"||op.kind==="erosion") && shape.width*shape.height>LARGE_SOURCE && !shape.wrap;
+  ["landform-profile","erosion","volcano","eruption","river-channel"].includes(op.kind) && shape.width*shape.height>LARGE_SOURCE && !shape.wrap;
 
 /** Derive the workspace from accepted geometry and the original native selection.
  * Keep complete native tiles and a reconstruction/shore-support halo. Powers of
@@ -22,7 +22,7 @@ export const needsProfileWindow=(shape:TerrainGeometry,op:Pick<AdvancedOperation
 export function planProfileWindow(shape:TerrainGeometry,raw:AdvancedOperation,context:AdvancedTerrainContext,options?:{shared:true;processingArea:TerrainFrame}):ProfileWindow|null {
   if(!options&&!needsProfileWindow(shape,raw))return null;
   const op=advancedOperationSchema.parse(raw);
-  if(op.kind!=="landform-profile"&&op.kind!=="erosion")throw Error("Choose a landform profile or erosion operation.");
+  if(options&&op.kind!=="landform-profile"&&op.kind!=="erosion")throw Error("Shared relief uses a landform profile or erosion operation.");
   const {frame,world}=context,sx=frame.width/shape.width,sy=frame.height/shape.height;
   if(![sx,sy,world.width,world.height].every(v=>Number.isFinite(v)&&v>0))throw Error("The accepted physical terrain frame is invalid.");
   if(options){const a=options.processingArea;if(![a.x,a.y,a.width,a.height].every(Number.isFinite)||a.x<0||a.x>=world.width||a.y<0||a.width<=0||a.width>world.width||a.height<=0||a.y+a.height>world.height||!world.wrap&&a.x+a.width>world.width)throw Error("Keep the native work area inside this World.");}
@@ -35,7 +35,17 @@ export function planProfileWindow(shape:TerrainGeometry,raw:AdvancedOperation,co
   const cells=xs.length*ys.length;
   if(!cells){if(options)return null;throw Error("This selection has no native samples in the active terrain source.");}
   if(cells>ADVANCED_TERRAIN_LIMITS.cells||advancedTerrainSampleSteps(op,cells)>ADVANCED_TERRAIN_LIMITS.work)
-    throw Error(op.kind==="landform-profile"?"Choose a smaller area or fewer profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.":"Choose a smaller area or fewer erosion steps. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
+    throw Error(op.kind==="landform-profile"?"Choose a smaller area or fewer profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.":op.kind==="erosion"?"Choose a smaller area or fewer erosion steps. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.":"Choose a smaller area. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
+  // A selection can cover only one flank of a volcano or river. Retain every
+  // source sample consulted by the unchanged kernel, including route checks
+  // outside the selected area. The halo and these reads consume the same budget.
+  const required=op.kind==="volcano"?[op.centre]:op.kind==="river-channel"?advancedRiverPath(op,context):op.kind==="eruption"&&op.effect==="lava"?[op.source]:[];
+  for(const p of required){
+    const gx=(world.wrap?((p.x-frame.x)%world.width+world.width)%world.width:p.x-frame.x)/sx,gy=(p.y-frame.y)/sy;
+    if(gx<0||gx>=shape.width||gy<0||gy>=shape.height)continue; // The kernel retains its original outside-source refusal.
+    xs.push(Math.min(shape.width-1,Math.round(gx)));ys.push(Math.min(shape.height-1,Math.round(gy)));
+  }
+  xs.sort((a,b)=>a-b);ys.sort((a,b)=>a-b);
   const axis=(indices:number[],size:number)=>{
     const first=Math.max(0,Math.floor(indices[0]/32)*32-32),last=Math.min(size,Math.ceil((indices[indices.length-1]+1)/32)*32+32),
       count=Math.min(size,2**Math.ceil(Math.log2(Math.max(32,last-first)))),start=Math.min(first,size-count);

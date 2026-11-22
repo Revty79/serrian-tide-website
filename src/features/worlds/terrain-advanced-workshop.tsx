@@ -317,6 +317,7 @@ export function AdvancedTerrainWorkshop(p:Props){
         </>}
         <p>Stylized mapmaking transport, not a geological forecast. Duration counts model steps, not years. Deposits retain material before metre rounding and bounds; with deposition off, material is removed from the model.</p>
       </>}
+      {(op.kind==="volcano"||op.kind==="river-channel"||op.kind==="eruption"&&!visualOnly)&&<label className={styles.check}><input aria-label="Keep saved sea shoreline" type="checkbox" checked={op.preserveShoreline??false} disabled={busy||applying||!!recovery} onChange={e=>edit({preserveShoreline:e.target.checked})}/> Keep saved sea and neighbouring shoreline support heights. Inspect the adjoining land slopes before accepting.</label>}
       {op.kind==="volcano"&&<>
         <label>Volcano form<select aria-label="Volcano form" value={op.form} onChange={e=>edit({form:e.target.value as typeof op.form})}><option value="cone">Conical volcano</option><option value="shield">Broad shield</option><option value="composite">Steep composite</option><option value="cratered">Cratered mountain</option><option value="caldera">Collapsed caldera</option></select></label>
         <button type="button" className="st-button is-secondary" onClick={()=>setTool("locations")}>Choose Volcano Location</button>
