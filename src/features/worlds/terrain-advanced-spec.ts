@@ -23,6 +23,7 @@ export const landformProfileSchema=z.object({
   reviewDryReconstructionSupports:z.boolean().optional(),
   hardness:z.number().finite().min(0).max(1),
   endBlendM:z.number().finite().min(0).max(1e9),featherM:z.number().finite().min(0).max(1e9),
+  continuousEndBlend:z.boolean().optional(),
 }).strict().superRefine((v,c)=>{
   if(v.reviewDryReconstructionSupports&&!v.reviewDryBorderJoins)c.addIssue({code:"custom",path:["reviewDryReconstructionSupports"],message:"Selected reconstruction supports require complete dry border review."});
   if(v.mode==="upper-envelope"&&v.envelopeBaseM===undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"Choose an explicit base elevation for the profile envelope."});
