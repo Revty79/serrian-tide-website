@@ -1,6 +1,6 @@
 # Worlds/Atlas completion audit using the United States
 
-Status: **in progress**, 2026-11-22. Neither U.S. Pass 2A nor the full mapmaker has passed completion review. This audit follows the [current owner direction](worlds-atlas-us-completion-direction.md); it does not replace any original acceptance criterion.
+Status: **in progress**, 2026-11-23. Neither U.S. Pass 2A nor the full mapmaker has passed completion review. This audit follows the [current owner direction](worlds-atlas-us-completion-direction.md); it does not replace any original acceptance criterion.
 
 ## Evidence and acceptance
 
@@ -16,12 +16,12 @@ The inventory below reconciles the 41 original requirements recorded in the [S6C
 | 02 | Raise/lower | Native terrain editor/operations and retained Earth history receipts | Verify ordinary brush behaviour, units, protected samples and history in the U.S. journey. |
 | 03 | Smooth/flatten | Native sculpt operations | Verify edge joins and protection; smoothing is not evidence of localized erosion. |
 | 04 | Adjustable sea level and preview | Terrain source controls/editor | Replay preview/reject/recovery/save on a verification World; do not change Earth's accepted coastlines for a capability test. |
-| 05 | Shoreline and terrain editing | Native coast-land/coast-water/coast-smooth operations | Preserve accepted Earth shore geometry and review neighbouring slopes; dedicated tools' missing dry-shore guard is under correction. |
+| 05 | Shoreline and terrain editing | Native coast-land/coast-water/coast-smooth operations | Preserve accepted Earth shore geometry and review neighbouring slopes; dedicated eight-neighbour shoreline preservation is qualified in the existing release; full U.S. continuity and geographic quality remain open. |
 | 06 | Downhill river authoring | Hydrology flow, mesh, controls and service | Reverify actual U.S. outlets, sinks, direction, crossings and terrain dependencies in the hydrology pass. |
-| 07 | Optional numerical river carving | [S6D advanced terrain](worlds-atlas-advanced-terrain-s6d-delivery.md) | Existing tool: qualify bounded large-source execution and optional shoreline protection, then exercise a real U.S. course. |
+| 07 | Optional numerical river carving | [S6D advanced terrain](worlds-atlas-advanced-terrain-s6d-delivery.md) | Bounded large-source execution and optional shoreline protection are qualified; exercise a genuine U.S. course during the applicable later pass. |
 | 08 | Localized erosion controls | S6D, subsequent shared erosion/window/bank tools | Preserve qualified algorithms and bounds; audit actual U.S. erosion, transitions, source joins and history. |
-| 09 | Dedicated volcano authoring | S6D volcano workshop | Current native Hawaii shield/caldera forms exercise it; full geography remains unfinished. Qualify large-source/shore correction before use. |
-| 10 | Optional eruption effects | S6D numerical collapse/lava and separate visual ash | Qualify numerical large-source/shore behaviour; verify numerical versus visual provenance without rewriting real Earth as a speculative eruption. |
+| 09 | Dedicated volcano authoring | S6D volcano workshop | Current native Hawaii shield/caldera forms exercise it; full geography remains unfinished. Large-source/shore correction is qualified; this does not complete the regional geography. |
+| 10 | Optional eruption effects | S6D numerical collapse/lava and separate visual ash | Large-source/shore numerical behaviour is qualified; verify numerical versus visual provenance without rewriting real Earth as a speculative eruption. |
 | 11 | Selected-area regeneration/manual protection | Source workshop, regional scope, native guards | Verify seed/selection/manual/finer/water/site protections and reject/retry/recovery. |
 | 12 | World/regional performance | Renderer quality limits and matched-input performance matrices | Retain original gates; recheck relevant final geographic views and supported hardware paths. |
 | 13 | Numerical geography versus appearance | Terrain, appearance, environment and template geography contracts | Check all six appearances against the same saved numerical source; visual classification is not elevation. |
@@ -38,7 +38,7 @@ The inventory below reconciles the 41 original requirements recorded in the [S6C
 | 24 | Independent visible/locked layers | Native family layer controls | Verify locks versus presentation, source state, export and protected-content redaction. |
 | 25 | Preview/revise/accept | Native numerical and map-family workshops | Verify explicit acceptance, changed-intent invalidation and no writes on reject. |
 | 26 | Recoverable unsaved work | Recovery, retained-draft chooser and retry controls | Replay reload/navigation/conflict/lost acknowledgment and exact retained-operation selection. |
-| 27 | Undo/Redo and saved revisions | Native saved versions/history and S7A | Retain whole-grid exact numerical proofs; add connected-family saved-version journeys and old parent pins. |
+| 27 | Undo/Redo and saved revisions | Native saved versions/history and S7A | Retain whole-grid proofs and old pins. The locally qualified finer-source saved-elevation repair awaits hosted qualification and actual owner use; connected-family saved-version journeys remain open. |
 | 28 | Close-zoom clarity/stable rendering | Renderer, LOD and artwork contracts | Audit genuine source resolution, stable labels/materials and final regional/extreme views. |
 | 29 | Accessible tools/minimal scrolling | UX-0A workspace and subsequent controls | Recheck discoverability, keyboard/accessibility, desktop/phone layout and unfamiliar-creator tasks. Sources & rights remains collapsible. |
 | 30 | Town and City workflows | [S5A delivery](worlds-atlas-town-city-maps-s5a-delivery.md) and later usability corrections | Inspect current implementation first; replay a real U.S. settlement with editable streets/buildings/districts and saved links. |
@@ -95,7 +95,17 @@ All 50 state reviews remain open. Broad western/Rocky Mountain/Sierra/Cascade/Ap
 
 Use regional physical divisions as a complementary coverage checklist, including lowlands and plains, rather than a list of completed mountain operations. The [USGS physiographic-divisions description](https://catalog.data.gov/dataset/physiographic-divisions-of-the-conterminous-u-s) supplies a reference taxonomy for the conterminous U.S.; it does not cover Alaska/Hawaii or substitute for their review. This is factual reference research, not permission to import its polygons or derive editing-coordinate lists.
 
-### Current Hawaii working checkpoint
+### Latest saved Earth and native-history checkpoint (2026-11-23)
+
+Earth is Root517/Hawaii45(parent73)/water48, with all128original numerical sources and26lakes retained. The separately approved DEV-only restart was consumed once; ordinary Revty79 remains signed in with configuration unchanged. The original retained Hualalai draft saved as45:10,966raises, maximum2,323m, exact original request/provenance and complete reviewed preview grid. All12,229old Hawaii shoreline supports, original sea classifications, protected old high samples, outside native work-area samples, Root517 and126other finer heads/frames/pins/history remain exact. Fresh ordinary45 reopening passes. NO46 exists; owner saved-version reversal/Undo/Redo using the repair is still pending. This is a working shield, not a completed Hawaii review.
+
+The [native fine recovery repair](atlas-native-saved-fine-elevations.md) is locally qualified on2236application inputs/SHA73cba478d53ef5ea44f2b6e3fe17617b3ce0d861689e6b0b633bda4780f1f66d/buildGfSUOst8--0TXWXSypVW0:3163units/410files/types/lint;88group executions covering80distinctgroups, including8new native groups in DEVStrictMode and production. All15ownedfixtures/28ports/actualPGpidfiles/processinventory independently closed; no owner/artistic/physical-device acceptance inferred. Candidate remains unpublished/unactivated until exact4hosted/latestjobssteps/cryptographicprovenance/parity gates pass. Preserve failed and superseded receipts. Its inherited50-version UI bound does not complete full historical browsing or whole-Earth appearance capture.
+
+Rights are25sources/25reviews/22uses, with the earlier Hawaii intake timing gap retained. Two approved CONUS/Alaska references are not yet attached to Earth and have zero uses; attach natively before new derivation. Current owner167ledger lacks0167: installed legacy128-finer gating remains, and no0167 application is authorized by the consumed restart grant. A separate concrete0167 decision remains pending. Fresh current-geography signed paired capture/independent ORIGINAL restore/encrypted opening remain required; Root229 is outdated. Whole-Earth historical-capture sizing, physical registration, data-library and genuine10m-classification requirements remain open. The historical entries below do not override this current status.
+
+All50state/D.C./necessary adjacent-area reviews and all2A/2B/2C/2D remain open. Finish each stage in order, then report for owner review before politics or later Atlas milestones. Preserve parked non-U.S. work and the entire later roadmap; no worldwide or Tabletop automatic resumption.
+
+### Early Hawaii working checkpoint (revision29; historical)
 
 Earth remains Root517/water48, 128 total sources and 26 lakes. Hawaii is29 with Root parent pin73. Mauna Kea10/Undo11/Redo12, Mauna Loa13/Undo14/Redo15, Moku‘āweoweo16/Undo17/Redo18, Kohala21/Undo22/Redo23, the inland Mauna Loa northeast-rift transition24/Undo25/Redo26 and southwest transition27/Undo28/Redo29 have complete selected-grid/history/old-pin checks. Root, all126 other finer heads/frames/pins/history and water remain exact. Fresh ordinary29 reopening passes.
 

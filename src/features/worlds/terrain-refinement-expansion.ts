@@ -53,12 +53,17 @@ export function expandedRefinementProtection(previous:Uint8Array,current:Refinem
 }
 
 /** Restore an older retained area while preserving subsequently added coverage. */
-export function restoreRetainedRefinement(currentGrid:Int16Array,current:RefinementMeta,oldGrid:Int16Array,old:RefinementMeta,world:TerrainGeometry){
- if(currentGrid.length!==current.gridWidth*current.gridHeight||oldGrid.length!==old.gridWidth*old.gridHeight)throw Error("Both complete accepted grids are required to restore retained coverage.");
+export function retainedRefinementPlacement(current:RefinementMeta,old:RefinementMeta,world:TerrainGeometry){
  const dx=current.frame.width/current.gridWidth,dy=current.frame.height/current.gridHeight;
  if(Math.abs(old.frame.width/old.gridWidth-dx)>dx*1e-10||Math.abs(old.frame.height/old.gridHeight-dy)>dy*1e-10)throw Error("The retained revision has incompatible numerical spacing.");
  const rawX=(world.wrap?normalizeTerrainX(old.frame.x-current.frame.x,world.displayWidth):old.frame.x-current.frame.x)/dx,rawY=(old.frame.y-current.frame.y)/dy,x=Math.round(rawX),y=Math.round(rawY);
  if(Math.abs(rawX-x)>1e-6||Math.abs(rawY-y)>1e-6||x<0||y<0||x+old.gridWidth>current.gridWidth||y+old.gridHeight>current.gridHeight)throw Error("The complete older coverage must remain aligned inside the current detail.");
+ return {x,y};
+}
+
+export function restoreRetainedRefinement(currentGrid:Int16Array,current:RefinementMeta,oldGrid:Int16Array,old:RefinementMeta,world:TerrainGeometry){
+ if(currentGrid.length!==current.gridWidth*current.gridHeight||oldGrid.length!==old.gridWidth*old.gridHeight)throw Error("Both complete accepted grids are required to restore retained coverage.");
+ const {x,y}=retainedRefinementPlacement(current,old,world);
  if(x===0&&y===0&&old.gridWidth===current.gridWidth&&old.gridHeight===current.gridHeight)return oldGrid;
  const grid=currentGrid.slice();
  for(let row=0;row<old.gridHeight;row++)grid.set(oldGrid.subarray(row*old.gridWidth,(row+1)*old.gridWidth),(row+y)*current.gridWidth+x);
