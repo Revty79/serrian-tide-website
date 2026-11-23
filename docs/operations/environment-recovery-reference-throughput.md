@@ -1,0 +1,23 @@
+# Bounded recovery reference verification
+
+Locally qualified candidate,2026-11-23. Hosted gates and owner activation are pending. The actual ONLY0167 recovery used the prior qualified SDK throughout; this candidate did not alter that maintenance.
+
+Complete immutable terrain-reference verification previously awaited each2KiB object serially. The existing reader still performs the same complete path, byte-size, encoding and SHA256 checks. A fixed16-object group now overlaps I/O, drains every started read with allSettled before roots can be restored, reports the first failed input deterministically and starts no later group after failure. Cancellation is checked before and after each group, including an empty pre-aborted input. Decoded values are discarded between groups. There is no configurable concurrency override.
+
+The three reviewed implementation/test paths are scripts/environment/database.ts, new scripts/environment/reference-reader.ts and scripts/environment.test.ts. Application, renderer, numerical authoring, writers, rights, endpoints, schema, capacity, profile, authentication and configuration are unchanged. Artwork and raster reads, inventory/copy, manifests, signatures and catalog limits retain their existing paths. No owner backup, service action, migration, restore or deployment is authorized by this candidate.
+
+## Local evidence
+
+The final core bytes pass30environment-integrity tests, full types, full lint with one inherited LoreFamily warning, and all3,163feature tests in410files. Four new regressions cover the16-read bound/draining, deterministic failure/draining, cancellation and real33-object reads with corrupt bytes/invalid metadata/root restoration.
+
+A fresh owned standard recovery run passes14groups:409tables,168ledgerentries,135files,122terrainobjects,2artworkobjects,1rasterbundle and1largeobject. It includes ordinary production authentication and restored native reads using the unchanged qualified GfSUOst8--0TXWXSypVW0 application build. This is build reuse with exact2,236application-input parity, not a new application compile. RichFixture is false: floors, underground, crafts, whole-World history and Canon-copy counts are zero. LargeCatalog is null; no new250k-physical-file test or optional signed build-cutover group was run. The recorded owned PostgreSQL55639/web55824ports, PGpidfile and relevant processes independently verify closed. Owner DEV/PostgreSQL were not used by the candidate.
+
+An8192-object/16MiB standalone synthetic benchmark compares the old serial reader and final bounded production reader in ABBA order. Serial runs take5388.60/5487.60ms; bounded runs1891.05/1988.98ms. Maximum timer delay is1.93ms; process peakRSS is299,964KiB. Both readers reject actual corruption and restore all prior root variables. This is Windows synthetic reference-reader evidence, not owner-size, Linux, browser or end-to-end backup performance acceptance. Inventory and copying remain serial.
+
+Preserve failed evidence: the first full-unit aggregate displayed unchanged auth-client-ip/auth-origins child-spawn30s ETIMEDOUT failures while other work ran; exact final counts/full raw output were truncated and are not invented. Later unchanged full-unit rerun passes; contention remains suspected, not proven. First types failed only intentionally invalid test-fixture typing, corrected in test code before final checks. A private Unicode regex/wrapper failed before tests; corrected ASCII wrappers retain that refusal. No timeout, guard or acceptance threshold was relaxed. All earlier owner recovery, geographic, operator and qualification failures remain retained.
+
+## Publication and use
+
+The source checkpoint4f190bb257ff9e42d0cea2d0a906557235b31236 is pushed but is not an active main release or database/private-asset backup. Owner0167 documentation309641da60e737eabe24f0a4a0815e0981e02f0f is merged without changing the tested core. Publish only the three reviewed core paths plus AGENTS.md, environment-recovery-catalog.md, worlds-atlas-us-completion-audit.md and this receipt. Preserve all2,236application inputs and all unrelated parent raw files.
+
+Require four exact completed workflows/latest jobs and steps, independent actual GitHub/cryptographic OCI provenance and clean tested-byte main/origin parity before owner SDK use. Do not restart DEV or repeat0167. Continue native U.S.2A->2B->2C->2D during qualification; all-state/DC detail, accuracy, lowlands, joins and full-mapmaker review remain open. Park non-U.S.work intact and stop after verified2D for owner review before politics/laterAtlas or Tabletop.
