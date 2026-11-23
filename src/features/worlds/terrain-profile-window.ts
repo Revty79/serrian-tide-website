@@ -1,7 +1,7 @@
 import type {TerrainGeometry, TerrainTile} from "./terrain";
 import type {TerrainFrame, RefinementMeta} from "./terrain-refinement";
 import {regionCanonicalX} from "./terrain-region-geometry";
-import {ADVANCED_TERRAIN_LIMITS, advancedOperationSchema,advancedTerrainCellBytes,advancedTerrainSampleSteps, type AdvancedOperation} from "./terrain-advanced-spec";
+import {ADVANCED_TERRAIN_LIMITS, advancedOperationSchema,advancedTerrainCellBytes,advancedTerrainMaximumCellBytes,advancedTerrainWorkingBytes,advancedTerrainSampleSteps, type AdvancedOperation} from "./terrain-advanced-spec";
 import {advancedRiverPath,prepareAdvancedTerrainAsync, type AdvancedTerrainContext, type AdvancedResult} from "./terrain-advanced";
 import {profileWorkArea} from "./terrain-profile-work-area";
 
@@ -12,9 +12,11 @@ export type ProfileWindow = {
   /** Derived only by the native shared-relief planner. */
   shared?:true;sourceWrap?:boolean;processingArea?:TerrainFrame;nativeCells?:number;
 };
-const LARGE_SOURCE = 4_194_304;
+/** Borrow accepted host buffers only when a legal operation could require a
+ * window. The planner keeps the original whole-source path whenever it fits. */
 export const needsProfileWindow=(shape:TerrainGeometry,op:Pick<AdvancedOperation,"kind">)=>
-  ["landform-profile","erosion","volcano","eruption","river-channel"].includes(op.kind) && shape.width*shape.height>LARGE_SOURCE && !shape.wrap;
+  ["landform-profile","erosion","volcano","eruption","river-channel"].includes(op.kind) && !shape.wrap &&
+  advancedTerrainWorkingBytes(shape.width,shape.height,ADVANCED_TERRAIN_LIMITS.cells,advancedTerrainMaximumCellBytes(op.kind))>ADVANCED_TERRAIN_LIMITS.workingBytes;
 
 /** Derive the workspace from accepted geometry and the original native selection.
  * Keep complete native tiles and a reconstruction/shore-support halo. Powers of
@@ -33,6 +35,9 @@ export function planProfileWindow(shape:TerrainGeometry,raw:AdvancedOperation,co
   }
   for(let y=0;y<shape.height;y++){const wy=frame.y+y*sy;if(wy>=s.y-1e-6&&wy<=s.y+s.height+1e-6&&(!workArea||workArea.containsY(wy)))ys.push(y);}
   const cells=xs.length*ys.length;
+  // A dense source can fit by itself while its selected work buffers do not.
+  // Keep all previously admitted whole-source operations on that exact path.
+  if(!options&&advancedTerrainWorkingBytes(shape.width,shape.height,cells,advancedTerrainCellBytes(op))<=ADVANCED_TERRAIN_LIMITS.workingBytes)return null;
   if(!cells){if(options)return null;throw Error("This selection has no native samples in the active terrain source.");}
   if(cells>ADVANCED_TERRAIN_LIMITS.cells||advancedTerrainSampleSteps(op,cells)>ADVANCED_TERRAIN_LIMITS.work)
     throw Error(op.kind==="landform-profile"?"Choose a smaller area or fewer profile points. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.":op.kind==="erosion"?"Choose a smaller area or fewer erosion steps. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.":"Choose a smaller area. The limit is 262,144 samples and 8,388,608 sample-steps; fidelity is unchanged.");
@@ -51,8 +56,8 @@ export function planProfileWindow(shape:TerrainGeometry,raw:AdvancedOperation,co
       count=Math.min(size,2**Math.ceil(Math.log2(Math.max(32,last-first)))),start=Math.min(first,size-count);
     return {start,count};
   };
-  const seam=shape.wrap&&(xs[0]<32||xs[xs.length-1]>=shape.width-32),x=seam?{start:0,count:shape.width}:axis(xs,shape.width),y=axis(ys,shape.height),n=x.count*y.count,
-    bytes=n*7+cells*advancedTerrainCellBytes(op)+(x.count+y.count)*Int32Array.BYTES_PER_ELEMENT;
+  const seam=shape.wrap&&(xs[0]<32||xs[xs.length-1]>=shape.width-32),x=seam?{start:0,count:shape.width}:axis(xs,shape.width),y=axis(ys,shape.height),
+    bytes=advancedTerrainWorkingBytes(x.count,y.count,cells,advancedTerrainCellBytes(op));
   if(bytes>ADVANCED_TERRAIN_LIMITS.workingBytes)throw Error("This native profile window exceeds the 32 MiB numerical working-buffer budget. Choose a smaller area or one side of the wrapped seam; fidelity is unchanged.");
   return {x:x.start,y:y.start,width:x.count,height:y.count,sourceWidth:shape.width,sourceHeight:shape.height,sourceFrame:{...frame},...options?{shared:true as const,sourceWrap:shape.wrap,processingArea:{...options.processingArea},nativeCells:cells}:{}};
 }

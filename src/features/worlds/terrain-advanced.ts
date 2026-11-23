@@ -3,7 +3,7 @@ import type {TerrainFrame} from "./terrain-refinement";
 import type {HydroLayer,HydroPoint} from "./terrain-hydrology";
 import {insideWaterRings,waterBounds,nearestWaterShore} from "./terrain-water-geometry";
 import {regionAreaContainsPoint,regionCanonicalX,validateRegionFootprint} from "./terrain-region-geometry";
-import {ADVANCED_TERRAIN_LIMITS as LIMITS,advancedOperationSchema,advancedTerrainCellBytes,advancedTerrainSampleSteps,advancedTerrainShoreSteps,type AdvancedOperation,type VolcanoOperation} from "./terrain-advanced-spec";
+import {ADVANCED_TERRAIN_LIMITS as LIMITS,advancedOperationSchema,advancedTerrainCellBytes,advancedTerrainWorkingBytes,advancedTerrainSampleSteps,advancedTerrainShoreSteps,type AdvancedOperation,type VolcanoOperation} from "./terrain-advanced-spec";
 import {prepareLandformProfile} from "./terrain-landform-profile";
 import {profileWorkArea} from "./terrain-profile-work-area";
 
@@ -111,7 +111,7 @@ export function* advancedTerrainSteps(
   // Retain the previous source/selected-work reserves, less the full-source
   // Int32 lookup and Uint8 settlement mask that are no longer allocated.
   // Axis ranks cover wrapped/non-contiguous columns; protection stays local.
-  const bytes=n*7+cells*advancedTerrainCellBytes(op)+(shape.width+shape.height)*Int32Array.BYTES_PER_ELEMENT;
+  const bytes=advancedTerrainWorkingBytes(shape.width,shape.height,cells,advancedTerrainCellBytes(op));
   if(bytes>LIMITS.workingBytes)throw Error("This operation exceeds its 32 MiB numerical working-buffer budget. Choose a smaller area.");
   const columns=new Int32Array(shape.width).fill(-1),rows=new Int32Array(shape.height).fill(-1),
     indices=new Uint32Array(cells),weights=new Float32Array(cells),eligibility=new Uint8Array(cells),

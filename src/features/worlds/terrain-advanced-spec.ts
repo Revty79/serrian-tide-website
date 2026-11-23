@@ -77,7 +77,12 @@ export type VolcanoOperation=z.infer<typeof volcanoOperationSchema>;
 export type AdvancedKind=AdvancedOperation["kind"];
 /** Reinforcement keeps two bounded floor buffers and audits eight native
  * neighbours after transport. It never enlarges the existing resource limits. */
-export function advancedTerrainCellBytes(op:AdvancedOperation){return 64+(op.kind==="erosion"&&op.preserveShoreline?1:0)+(op.kind==="erosion"&&op.bankReinforcementM!==undefined?16:0);}
+const BASE_CELL_BYTES=64,EROSION_SHORE_BYTES=1,BANK_BUFFER_BYTES=16;
+export function advancedTerrainCellBytes(op:AdvancedOperation){return BASE_CELL_BYTES+(op.kind==="erosion"&&op.preserveShoreline?EROSION_SHORE_BYTES:0)+(op.kind==="erosion"&&op.bankReinforcementM!==undefined?BANK_BUFFER_BYTES:0);}
+/** Eligibility may reserve optional buffers; admission charges only the actual operation. */
+export function advancedTerrainMaximumCellBytes(kind:AdvancedKind){return BASE_CELL_BYTES+(kind==="erosion"?EROSION_SHORE_BYTES+BANK_BUFFER_BYTES:0);}
+/** The unchanged numerical-buffer accounting used by whole sources and native windows. */
+export function advancedTerrainWorkingBytes(width:number,height:number,cells:number,cellBytes:number){return width*height*7+cells*cellBytes+(width+height)*Int32Array.BYTES_PER_ELEMENT;}
 /** New optional coastal guards reserve all eight native neighbours. Legacy
  * absent/false operations retain their original admission and arithmetic. */
 export function advancedTerrainShoreSteps(op:AdvancedOperation,cells:number){return cells*(op.kind!=="landform-profile"&&op.kind!=="erosion"&&op.preserveShoreline?8:0);}
