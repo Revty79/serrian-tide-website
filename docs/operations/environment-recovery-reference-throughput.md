@@ -1,6 +1,6 @@
 # Bounded recovery reference verification
 
-Locally qualified candidate,2026-11-23. Hosted gates and owner activation are pending. The actual ONLY0167 recovery used the prior qualified SDK throughout; this candidate did not alter that maintenance.
+Hosted verified and active,2026-11-23, at integrated source f0330827f2e75b350b27910bebc60a3eed59fb47. The completed ONLY0167 recovery used the prior qualified SDK throughout. This SDK release adds no owner maintenance action.
 
 Complete immutable terrain-reference verification previously awaited each2KiB object serially. The existing reader still performs the same complete path, byte-size, encoding and SHA256 checks. A fixed16-object group now overlaps I/O, drains every started read with allSettled before roots can be restored, reports the first failed input deterministically and starts no later group after failure. Cancellation is checked before and after each group, including an empty pre-aborted input. Decoded values are discarded between groups. There is no configurable concurrency override.
 
@@ -21,3 +21,9 @@ Preserve failed evidence: the first full-unit aggregate displayed unchanged auth
 The source checkpoint4f190bb257ff9e42d0cea2d0a906557235b31236 is pushed but is not an active main release or database/private-asset backup. Owner0167 documentation309641da60e737eabe24f0a4a0815e0981e02f0f is merged without changing the tested core. Publish only the three reviewed core paths plus AGENTS.md, environment-recovery-catalog.md, worlds-atlas-us-completion-audit.md and this receipt. Preserve all2,236application inputs and all unrelated parent raw files.
 
 Require four exact completed workflows/latest jobs and steps, independent actual GitHub/cryptographic OCI provenance and clean tested-byte main/origin parity before owner SDK use. Do not restart DEV or repeat0167. Continue native U.S.2A->2B->2C->2D during qualification; all-state/DC detail, accuracy, lowlands, joins and full-mapmaker review remain open. Park non-U.S.work intact and stop after verified2D for owner review before politics/laterAtlas or Tabletop.
+
+## Completed hosted verification and guarded activation
+
+The exact attempt 1 workflows normal45129620680, recovery45129620594, Ubuntu45129620406 and publisher45129620432 pass every required latest completed job and step. Independent actual GitHub and cryptographic OCI provenance pass image sha256:7b15927879ec82c20f6f1013dc02490fd25252c4b86c55843810efc29b7483d4 and Linux fingerprint a1f9cce7102ef9d461588923846bfda004e98ea5f8b58f52917f1042b9a46b2d. All2,236application inputs remain unchanged; all3reviewedSDKcorepaths retain their final tested bytes. The seven-path main fast-forward preserves10,866otherparentrawfiles and cleanmain/originparity. No restart, owner capture, restore, migration, authentication/configuration change or host cutover occurred for this SDK release. The prior local publication plan above is retained as historical preparation; its required gates are now complete.
+
+The synthetic benchmark and local standard14-group fixture limitations remain exactly as stated. Do not claim owner-size/end-to-end acceleration, a new local App compile, rich-family/large-catalog reruns or physical-device/owner acceptance from this qualification. Continue actual native U.S.authoring and preserve all earlier failures.
