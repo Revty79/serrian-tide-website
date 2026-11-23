@@ -27,6 +27,15 @@ export async function publicTableDigests(pool: pg.Pool) {
   return result;
 }
 async function freePort(){const server=createServer();await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));const address=server.address();assert.ok(address&&typeof address==="object");const port=address.port;await new Promise<void>(resolve=>server.close(()=>resolve()));assert.notEqual(port,5432);return port;}
+/** Pool shutdown may resolve before the server has observed every socket close.
+ * Verify the owned cluster is drained before its synchronous fast shutdown. */
+async function drainOwnedClients(databaseUrl:string,out:string){
+ const target=new URL(databaseUrl);assert.equal(target.hostname,"127.0.0.1");assert.equal(target.username,"postgres");assert.equal(target.pathname,"/collaboration_upgrade");assert.ok(![3000,5432].includes(Number(target.port)));
+ const client=new pg.Client({connectionString:databaseUrl,application_name:"owned-fixture-client-drain",connectionTimeoutMillis:5000,query_timeout:5000,options:"-c default_transaction_read_only=on"}),start=Date.now(),deadline=start+10000;
+ let passed=false,checks=0,remaining=-1,maximumRemaining=0;
+ try{await client.connect();for(;;){remaining=(await client.query<{n:number}>("select count(*)::int n from pg_stat_activity where backend_type='client backend' and pid<>pg_backend_pid()")).rows[0].n;checks++;maximumRemaining=Math.max(maximumRemaining,remaining);if(remaining===0){passed=true;break;}assert.ok(Date.now()<deadline,"Owned fixture still has client sessions after pool shutdown; PostgreSQL cannot be stopped as a successful cleanup.");await new Promise(resolve=>setTimeout(resolve,10));}}
+ finally{await client.end();await writeFile(path.join(out,"owned-database-client-drain.json"),JSON.stringify({passed,checks,remainingClientBackends:remaining,maximumRemainingClientBackends:maximumRemaining,elapsedMs:Date.now()-start,readOnly:true,ownedPort:Number(target.port),noBackendTerminationOrErrorSuppression:true},null,2));}
+}
 export async function withCollaborationFixture(run:(fixture:CollaborationFixture)=>Promise<void>,options:{beforeCrossingUpgrade?:(fixture:CollaborationFixture)=>Promise<void>;beforeSharedReliefUpgrade?:(fixture:CollaborationFixture)=>Promise<void>;beforeSharedErosionUpgrade?:(fixture:CollaborationFixture)=>Promise<void>;beforeSourceCapacityUpgrade?:(fixture:CollaborationFixture)=>Promise<void>}={}){
   const out=path.resolve(process.env.SERRIAN_COLLAB_OUT??"artifacts/collaboration-s7b-foundation-1"),artifacts=path.resolve("artifacts");assert.ok(out.startsWith(artifacts+path.sep)&&/^collaboration-s7b-/.test(path.basename(out)));assert.equal(await access(out).then(()=>true,()=>false),false,"Use a new evidence target");
   const root=path.join(out,"owned"),data=path.join(root,"data"),terrainRoot=path.join(root,"terrain"),assetRoot=path.join(root,"private-artwork");await mkdir(root,{recursive:true});await mkdir(terrainRoot);await mkdir(assetRoot);const port=await freePort();
@@ -90,8 +99,10 @@ export async function withCollaborationFixture(run:(fixture:CollaborationFixture
     }
     await run(fixture);
   }finally{
-    if(process.env.DATABASE_URL===databaseUrl){try{await(await import("../src/db")).pool.end();}catch{}}
-    await pool?.end();if(started)runPostgres("pg_ctl",["-D",data,"-m","fast","-w","stop"]);
-    await writeFile(path.join(out,"owned-services-stopped.json"),JSON.stringify({stopped:true,ownedDataPath:data,noSharedServiceTouched:true}));
+    let clientsDrained=false;
+    try{if(process.env.DATABASE_URL===databaseUrl){try{await(await import("../src/db")).pool.end();}catch{}}
+      await pool?.end();if(started){await drainOwnedClients(databaseUrl,out);clientsDrained=true;}
+    }finally{if(started)runPostgres("pg_ctl",["-D",data,"-m","fast","-w","stop"]);
+      await writeFile(path.join(out,"owned-services-stopped.json"),JSON.stringify({stopped:true,clientsDrained,ownedDataPath:data,noSharedServiceTouched:true}));}
   }
 }
