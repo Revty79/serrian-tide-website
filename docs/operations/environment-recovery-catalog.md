@@ -2,7 +2,7 @@
 
 ## Status
 
-This is a locally tested, isolated recovery candidate, not a qualified hosted release or a fresh owner backup. Owner Earth remains Root517/Hawaii44/water48 with128 sources and26 lakes. The valid signed Root229 capture is outdated. No owner database capture, restore, migration, restart, authentication or configuration change was performed for this candidate.
+The integrated recovery application is hosted verified and has a fresh actual owner paired recovery proof under the explicit ONLY0167 maintenance approval. Signed snapshot eae04eae-d2fd-4d39-9ace-322b4de6b7ea covers254,828physicalfiles,409tables and167originalmigrationentries. An independent restoration from the ORIGINAL signed capture verifies all128numericalgrids/708,313,088samples, old public data, rights, history, frames, pins and all three storage roots. Separate AES256GCM sealing and authenticated opening reproduce the signed metadata/archive/roots. The owned fixture is independently closed. Owner Root517/Hawaii49/water48 and26lakes are preserved. ONLY0167 passed rehearsal before application; normal DEV restarted with login/configuration preserved. The owner database was never restored. See the [activation receipt](project-earth-us0167-owner-activation.md). Root229 recovery remains retained and outdated; the current checkpoint is not final geographic or whole-mapmaker acceptance.
 
 Read-only current sizing found254802private files and a74649720-byte strict lower bound for the logical manifest. Both exceed the original250000-file/64MiB plain-format limits. Files/history must not be pruned to fit a capture. This change extends the existing recovery tools with a bounded, signed metadata encoding; it does not change any geographic source.
 

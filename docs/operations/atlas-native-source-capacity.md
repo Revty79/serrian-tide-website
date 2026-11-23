@@ -2,13 +2,13 @@
 
 ## Status and purpose
 
-This is an isolated, **locally qualified but hosted-unqualified and unactivated candidate**. It is not an owner DEV migration approval or a completed geographic pass. The published application at `20d70b50c25c996f6ef4e7692ebc814e2a7a83f7` remains the qualified application; its actual Hualalai save remains pending at Hawaii44, with the exact native request retained after the `preserveShoreline` refusal. See [that separate receipt](atlas-native-dedicated-tools-windows.md).
+The integrated application afcc7c08b2d80a88f9900dd4309b94640dc8c066 is hosted verified. ONLY0167 is installed in the explicitly approved owner DEV database after fresh signed recovery, independent original restoration, encrypted opening and exact rehearsal. The owner ledger has168entries, the capacity marker is256, and the normal native editor shows127of256fineareas. All2,236tested application inputs remain unchanged. See the [complete activation and preservation receipt](project-earth-us0167-owner-activation.md). U.S.Pass2A remains incomplete. Hualalai45 is saved; its separate native saved-history journey freshly reopens49.
 
-Earth already has 127 finer sources under the legacy 128-source limit. Completing U.S. regional detail, including Alaska and Hawaii, needs additional native coverage while preserving all existing worldwide work. This candidate supports 256 finer sources, 257 source pins including Root, and 16,384-character exact source-state vectors. It does not add permanent geography.
+Earth had 127 finer sources under the legacy 128-source limit before activation. Completing U.S. regional detail, including Alaska and Hawaii, needs additional native coverage while preserving all existing worldwide work. The qualified addition supports 256 finer sources, 257 source pins including Root, and 16,384-character exact source-state vectors. It does not add permanent geography.
 
 ## Installed capability and unchanged bounds
 
-Migration `0167_atlas_source_capacity` adds the explicit installed-capability marker, changes only the source-count predicate of the existing frame validator, and widens only the regional source-state length predicate. Every other predicate and all old migration bytes remain retained. The journal becomes 168 entries. No migration has been applied to owner DEV.
+Migration `0167_atlas_source_capacity` adds the explicit installed-capability marker, changes only the source-count predicate of the existing frame validator, and widens only the regional source-state length predicate. Every other predicate and all old migration bytes remain retained. The journal becomes 168 entries. Owner DEV now has this one migration, applied after the separately approved exact current-data recovery and rehearsal; the old 167-entry ledger prefix and all existing data remain exact.
 
 The server keeps the legacy 128-source limit when the marker is absent and refuses invalid marker values. Native controls show the installed limit and global source count; existing sources remain selectable when creation reaches capacity. Current and dated indices retain complete source identities rather than silently truncating them. Regional state, recovery, transfer, native history, water and environmental pins use the same bounded source contract.
 
