@@ -110,3 +110,39 @@ test("versioned recovery catalogs retain legacy bytes and authenticate compresse
   assert.equal(await lstat(path.join(cancelled,"manifest.json")).then(()=>true,()=>false),false);assert.equal(await lstat(path.join(cancelled,"complete.json")).then(()=>true,()=>false),false);
  });
 });
+
+
+test("reference verification keeps at most16reads active and fully drains each group",async()=>{
+ const {verifyReferenceGroups}=await import("./environment/reference-reader"),tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
+ const gates=Array.from({length:33},()=>{let release!:()=>void;const promise=new Promise<void>(resolve=>{release=resolve;});return {promise,release};}),started:number[]=[];let active=0,maximum=0;
+ const pending=verifyReferenceGroups(gates.map((_,i)=>i),async i=>{started.push(i);active++;maximum=Math.max(maximum,active);await gates[i].promise;active--;});
+ await tick();assert.equal(started.length,16);for(let i=0;i<15;i++)gates[i].release();await tick();assert.equal(started.length,16,"A later group cannot start while an earlier read remains pending");
+ gates[15].release();await tick();assert.equal(started.length,32);for(let i=16;i<32;i++)gates[i].release();await tick();assert.equal(started.length,33);gates[32].release();await pending;assert.equal(maximum,16);assert.equal(active,0);
+});
+
+test("reference verification drains a failing group and preserves the first input error",async()=>{
+ const {verifyReferenceGroups}=await import("./environment/reference-reader"),tick=()=>new Promise<void>(resolve=>setImmediate(resolve)),first=new Error("first reference"),second=new Error("second reference");
+ let release!:()=>void,settled=false,active=0;const gate=new Promise<void>(resolve=>{release=resolve;}),started:number[]=[];
+ const pending=verifyReferenceGroups(Array.from({length:17},(_,i)=>i),async i=>{started.push(i);active++;try{if(i===1)throw second;await gate;if(i===0)throw first;}finally{active--;}});
+ const outcome=pending.then(()=>undefined,error=>error).finally(()=>{settled=true;});await tick();assert.equal(settled,false,"Callers must not restore storage roots while a read is pending");assert.equal(started.length,16);release();assert.equal(await outcome,first);assert.equal(active,0);assert.equal(started.length,16,"No next group starts after a failed group");
+});
+
+test("reference verification cancellation prevents later groups and also refuses an empty pre-aborted read",async()=>{
+ const {verifyReferenceGroups}=await import("./environment/reference-reader"),tick=()=>new Promise<void>(resolve=>setImmediate(resolve)),controller=new AbortController(),reason=new Error("cancel reference verification");
+ let release!:()=>void;const gate=new Promise<void>(resolve=>{release=resolve;}),started:number[]=[];
+ const pending=verifyReferenceGroups(Array.from({length:17},(_,i)=>i),async i=>{started.push(i);await gate;},controller.signal),outcome=pending.then(()=>undefined,error=>error);
+ await tick();assert.equal(started.length,16);controller.abort(reason);release();assert.equal(await outcome,reason);assert.equal(started.length,16);
+ let calls=0;await assert.rejects(verifyReferenceGroups([],async()=>{calls++;},controller.signal),error=>error===reason);assert.equal(calls,0);
+});
+
+test("multiple terrain-reference groups retain complete file guards and restore all storage roots",async()=>{
+ const f=await import("./environment/private-files"),{verifyReferences}=await import("./environment/database"),out=path.resolve(`artifacts/infrastructure-reference-readers-${randomUUID()}`);await f.createPrivateDirectory(out);
+ const roots={terrain:path.join(out,"terrain"),artwork:path.join(out,"artwork"),raster:path.join(out,"raster")};for(const root of Object.values(roots))await f.createPrivateDirectory(root);
+ const references=[] as import("./environment/model").DatabaseState["references"]["terrain"],originals:Buffer[]=[];
+ for(let i=0;i<33;i++){const bytes=Buffer.alloc(2048,i+1),sha256=digest(bytes),file=path.join(roots.terrain,"objects",sha256.slice(0,2),sha256+".i16");await mkdir(path.dirname(file),{recursive:true,mode:0o700});await writeFile(file,bytes,{flag:"wx",mode:0o600});references.push({sha256,bytes:2048,encoding:"i16le-v1"});originals.push(bytes);}
+ const state={references:{terrain:references,artwork:[],rasters:[]}} as unknown as import("./environment/model").DatabaseState,keys=["SERRIAN_TERRAIN_ROOT","SERRIAN_ASSET_ROOT","SERRIAN_RASTER_ROOT"],before=keys.map(key=>process.env[key]);
+ await verifyReferences(state,roots);assert.deepEqual(keys.map(key=>process.env[key]),before);
+ for(const change of [{bytes:2},{encoding:"unknown"}]){const refs=references.map((ref,i)=>i===32?{...ref,...change}:ref);await assert.rejects(verifyReferences({...state,references:{...state.references,terrain:refs}} as unknown as import("./environment/model").DatabaseState,roots),/unavailable/);assert.deepEqual(keys.map(key=>process.env[key]),before);}
+ const last=references[32],file=path.join(roots.terrain,"objects",last.sha256.slice(0,2),last.sha256+".i16");await writeFile(file,Buffer.alloc(2048,255));await assert.rejects(verifyReferences(state,roots),/checksum/);assert.deepEqual(keys.map(key=>process.env[key]),before);await writeFile(file,originals[32]);await verifyReferences(state,roots);
+ const controller=new AbortController();controller.abort();await assert.rejects(verifyReferences(state,roots,controller.signal),error=>error instanceof Error&&error.name==="AbortError");assert.deepEqual(keys.map(key=>process.env[key]),before);
+});
