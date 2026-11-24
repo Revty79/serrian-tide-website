@@ -93,10 +93,12 @@ export function TerrainCanvas({ handleRef, ...props }: Props) {
     // a completed small tile must not synchronously repaint the entire atlas.
     function requestArtworkDraw(){if(disposed||artworkTimer!==undefined)return;artworkTimer=setTimeout(()=>{artworkTimer=undefined;if(disposed||renderFrame)return;renderFrame=requestAnimationFrame(()=>{renderFrame=0;lastArtworkDraw=performance.now();draw();});},Math.max(0,48-(performance.now()-lastArtworkDraw)));}
     function outlineHandleAt(point:{x:number;y:number},drawing:RegionOutlineDrawing,radius=12){const hit=regionVertexAt(drawing.parts,point,view,{width:shape.displayWidth,wrap:shape.wrap},radius);if(hit&&drawing.method==="freehand"&&drawing.operation==="append"&&hit.part===drawing.activePart&&!drawing.parts[hit.part].closed&&hit.vertex===drawing.parts[hit.part].points.length-1)return;return hit;}
+    let reportedTo:Props["onRenderReady"];
     function reportRenderReady(ready:boolean){
       const report=current.current.onRenderReady;
-      if(!report){reportedReadiness=undefined;return;}
-      if(reportedReadiness===ready)return;
+      if(!report){reportedReadiness=undefined;reportedTo=undefined;return;}
+      if(reportedReadiness===ready&&reportedTo===report)return;
+      reportedTo=report;
       reportedReadiness=ready;report(ready);
     }
     function draw() {
@@ -238,6 +240,7 @@ export function TerrainCanvas({ handleRef, ...props }: Props) {
   useEffect(() => { api.current?.refreshWorld(); }, [props.seaLevel,props.relief?.mode,props.relief?.exaggeration,baseArt,surfaceWaterKey ]);
   useEffect(()=>{api.current?.redraw();},[props.paused,props.referenceBoundaries,props.crafts,props.composition,props.renderQuality,props.presentationPreview,props.labels,props.artworkMaterials,props.artwork,props.artworkGrid,props.artworkEnvironment,props.artworkWater,props.artworkSea,props.environment,props.environmentBrush,props.water,props.materials,props.materialBrush,props.relief?.appearance,props.locations,props.tool,props.selection,props.path,props.pathOutlines,props.pathInteraction,props.brush,props.pathRadiusMetres,props.measurement,props.measurementPreferences,props.frameSelection,props.details,props.canEdit,props.blocked]);
   useEffect(()=>{if(!props.worldGrid||props.frame)api.current?.refresh();else api.current?.redraw();},[props.grid,props.frame,props.worldGrid]);
+  useEffect(()=>{api.current?.redraw();},[props.onRenderReady]);
   useEffect(()=>{if(!props.touchEdit)api.current?.cancelTouch();},[props.touchEdit]);
   useEffect(()=>{keyboardNow.current=keyboardSettings;api.current?.keyboardSync?.();},[keyboardSettings]);
   const brushSummary=keyboardSculptTools.has(props.tool)?`${props.tool.replaceAll("-"," ")} · ${props.brush.precision==="single"?"one numerical sample":props.brush.radiusMetres!==undefined?`diameter ${props.brush.radiusMetres*2} m`:`radius ${brushRadius(props.shape,props.brush.radius)} samples`} · strength ${props.brush.strength}${props.tool==="level"?` · target ${props.brush.target??0} m`:""}`:`Selected tool: ${props.tool}. Use Sculpt for height changes; V adjusts supported outline/path points.`;

@@ -5,6 +5,7 @@ import {insideWaterRings,waterBounds,nearestWaterShore} from "./terrain-water-ge
 import {regionAreaContainsPoint,regionCanonicalX,validateRegionFootprint} from "./terrain-region-geometry";
 import {ADVANCED_TERRAIN_LIMITS as LIMITS,advancedOperationSchema,advancedTerrainCellBytes,advancedTerrainWorkingBytes,advancedTerrainSampleSteps,advancedTerrainShoreSteps,type AdvancedOperation,type VolcanoOperation} from "./terrain-advanced-spec";
 import {prepareLandformProfile} from "./terrain-landform-profile";
+import {preserveProfileJoins} from "./terrain-profile-joins";
 import {profileWorkArea} from "./terrain-profile-work-area";
 
 export type AuthoredVolcano={id:string;revision:number;sourceId:string|null;operation:VolcanoOperation};
@@ -404,12 +405,18 @@ export function* advancedTerrainSteps(
     }
   }
   const grid=base.slice();let changed=0,min=Infinity,max=-Infinity,maxLoweringM=0,maxRaisingM=0,removedM3=0,addedM3=0;
+  const rounded=(k:number)=>Math.round(Math.max(shape.min,Math.min(shape.max,bed[k])));
+  const gradualProfile=op.kind==="landform-profile"&&op.preserveGradualJoins;
+  if(gradualProfile){
+    const joins=preserveProfileJoins(base,grid,shape,indices,weights,eligibleIndex,rounded,op.mode==="minimum"?-1:1,sx,sy,counts);
+    for(;;){const next=joins.next();if(next.done){notices.push(`Gradual native-grid joins withheld part of the effect at ${next.value.adjusted.toLocaleString()} samples (up to ${next.value.maximumWithheldM} m). No new or steeper neighbouring steps above 45 degrees were introduced. Existing steep steps are not steepened; protected heights stay exact. Review the resulting landform; this does not establish surveyed ground slopes.`);break;}lastYield=performance.now();yield .82;}
+  }
   const changedIndices=new Uint32Array(cells),before=new Int16Array(cells),after=new Int16Array(cells);
   let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
   const affectedOrigin=world.wrap?(influence?.x??selection.frame.x):selection.frame.x;
   for(let k=0;k<cells;k++){
     if(!weights[k])continue;
-    const i=indices[k],value=Math.round(Math.max(shape.min,Math.min(shape.max,bed[k]))),difference=value-base[i];
+    const i=indices[k],value=gradualProfile?grid[i]:rounded(k),difference=value-base[i];
     if(!difference)continue;grid[i]=value;changedIndices[changed]=i;before[changed]=base[i];after[changed]=value;changed++;
     maxLoweringM=Math.max(maxLoweringM,-difference);maxRaisingM=Math.max(maxRaisingM,difference);
     if(difference<0)removedM3-=difference*sx*sy;else addedM3+=difference*sx*sy;

@@ -4,7 +4,7 @@ import {SharedReliefWorkshop} from "./terrain-shared-relief-workshop";
 import type {ReadSharedReliefContinuation,SharedReliefSavedContinuation} from "./terrain-shared-relief-continuation";
 import {frameLocalPoint,normalizeTerrainX,type RefinementMeta} from "./terrain-refinement";
 import { accountWorldStorage } from "./world-draft-storage";
-import {useEffect,useMemo,useRef,useState} from "react";
+import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import {ZodError} from "zod";
 import {CreatorWorkshop} from "./creator-workshop";
 import {TerrainCanvas,type TerrainCanvasHandle,type TerrainCanvasTool} from "./terrain-canvas";
@@ -73,10 +73,14 @@ export function AdvancedTerrainWorkshop(p:Props){
     [drawing,setDrawing]=useState(false),[outlineTolerance,setOutlineTolerance]=useState(1),[proposal,setProposal]=useState<{result:AdvancedResult;fingerprint:string;elapsed:number;preview?:{meta:RefinementMeta;grid:Int16Array}}>(),
     [visualOnly,setVisualOnly]=useState(false),[visualReady,setVisualReady]=useState(false),[ash,setAsh]=useState<EnvironmentRegion>(),
     [before,setBefore]=useState(false),[busy,setBusy]=useState(false),[applying,setApplying]=useState(false),
-    [renderReady,setRenderReady]=useState(false),[progress,setProgress]=useState(0),[backend,setBackend]=useState(""),[error,setError]=useState(""),
+    [renderedProposal,setRenderedProposal]=useState<typeof proposal>(),[progress,setProgress]=useState(0),[backend,setBackend]=useState(""),[error,setError]=useState(""),
     [acknowledged,setAcknowledged]=useState(false),[inspection,setInspection]=useState<TerrainInspection>(),
     [recovery,setRecovery]=useState<{key:string;raw:string}>(),[recoveryChoices,setRecoveryChoices]=useState<AdvancedDraftChoice[]>([]),[recoveryReady,setRecoveryReady]=useState(false);
   const [preferences]=useMeasurementPreferences(),[touch,setTouch,touchEpoch]=useTerrainTouchControls(),[armed,setArmed]=useState<number|null>(null);
+  // A readiness notification belongs to the exact proposal drawn by the canvas.
+  // An earlier completed preview cannot make a newly prepared result acceptable.
+  const reportPreviewReady=useCallback((ready:boolean)=>setRenderedProposal(ready?proposal:undefined),[proposal]),
+    renderReady=!!proposal&&renderedProposal===proposal;
   const doc=p.input.document,[shape]=useState(()=>terrainGeometry(p.input.document.settings)),
     prefix="st:terrain-advanced:v1"+historyRecovery+":"+doc.worldId+":"+doc.id+":"+(doc.refinement?.id??"root")+":",
     [key]=useState(()=>prefix+crypto.randomUUID()),canvas=useRef<TerrainCanvasHandle>(null),
@@ -153,7 +157,7 @@ export function AdvancedTerrainWorkshop(p:Props){
   }
 
   async function prepare(){
-    stop();setError("");setAcknowledged(false);setBefore(false);setRenderReady(false);
+    stop();setError("");setAcknowledged(false);setBefore(false);setRenderedProposal(undefined);
     if(!packet||recovery)return;
     try{advancedOperationSchema.parse(op);if(!packet.canEdit)throw Error("Only the World owner can accept numerical operations.");
       if(visualOnly){
@@ -246,7 +250,7 @@ export function AdvancedTerrainWorkshop(p:Props){
     <div className={styles.map} data-advanced-backend={backend} data-advanced-changed={proposal?.result.metrics.changed??0} data-advanced-visual={visualOnly&&visualReady?"1":"0"}>
       <TerrainCanvas handleRef={canvas} shape={shape} grid={previewGrid} seaLevel={doc.seaLevel} brush={{tool:"raise",radius:8,strength:100}}
         worldShape={scene.worldShape} worldGrid={scene.worldGrid} frame={scene.frame} initialFrame={scene.frame} initialView={p.input.view} details={showAcceptedContext?accepted.scene:scene.scene} onViewport={v=>{scene.onViewport(v);accepted.onViewport(v);}}
-        relief={relief} environment={environmentOverlay} water={waterOverlay} onRenderReady={setRenderReady}
+        relief={relief} environment={environmentOverlay} water={waterOverlay} onRenderReady={reportPreviewReady}
         path={op.kind==="landform-profile"?op.points.map(point=>{const local=frameLocalPoint(point,doc.refinement?.frame??{x:0,y:0,width:shape.displayWidth,height:shape.displayHeight},p.input.world.shape.displayWidth,p.input.world.shape.wrap);return {x:local.x/shape.displayWidth*shape.width,y:local.y/shape.displayHeight*shape.height};}):undefined}
         pathRadius={0} pathInteraction={profileInteraction} pathPointLimit={128} onPath={points=>{if(op.kind!=="landform-profile"||showAcceptedContext&&!accepted.ready)return;const frame=doc.refinement?.frame??{x:0,y:0};edit({points:points.map((point,index)=>({x:normalizeTerrainX(frame.x+point.x/shape.width*shape.displayWidth,p.input.world.shape.displayWidth),y:frame.y+point.y/shape.height*shape.displayHeight,elevationM:op.points[index]?.elevationM??op.points.at(-1)?.elevationM??Math.max(shape.min,Math.min(shape.max,doc.seaLevel+1500)),widthM:op.points[index]?.widthM??op.points.at(-1)?.widthM??4*Math.max(shape.displayWidth/shape.width,shape.displayHeight/shape.height)}))});}}
         coverage={coverage} regionDrawing={regionDrawing} tool={busy||applying||tool==="path"&&showAcceptedContext&&!accepted.ready?"pan":tool} touchEdit={touch&&armed===touchEpoch}

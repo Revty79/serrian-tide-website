@@ -24,7 +24,9 @@ export const landformProfileSchema=z.object({
   hardness:z.number().finite().min(0).max(1),
   endBlendM:z.number().finite().min(0).max(1e9),featherM:z.number().finite().min(0).max(1e9),
   continuousEndBlend:z.boolean().optional(),
+  preserveGradualJoins:z.boolean().optional(),
 }).strict().superRefine((v,c)=>{
+  if(v.preserveGradualJoins&&v.mode!=="minimum"&&v.mode!=="maximum")c.addIssue({code:"custom",path:["preserveGradualJoins"],message:"Gradual joins require a minimum or maximum profile elevation bound."});
   if(v.reviewDryReconstructionSupports&&!v.reviewDryBorderJoins)c.addIssue({code:"custom",path:["reviewDryReconstructionSupports"],message:"Selected reconstruction supports require complete dry border review."});
   if(v.mode==="upper-envelope"&&v.envelopeBaseM===undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"Choose an explicit base elevation for the profile envelope."});
   if(v.mode!=="upper-envelope"&&v.envelopeBaseM!==undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"An envelope base belongs only to the upper-envelope mode."});
@@ -78,16 +80,16 @@ export type VolcanoOperation=z.infer<typeof volcanoOperationSchema>;
 export type AdvancedKind=AdvancedOperation["kind"];
 /** Reinforcement keeps two bounded floor buffers and audits eight native
  * neighbours after transport. It never enlarges the existing resource limits. */
-const BASE_CELL_BYTES=64,EROSION_SHORE_BYTES=1,BANK_BUFFER_BYTES=16;
-export function advancedTerrainCellBytes(op:AdvancedOperation){return BASE_CELL_BYTES+(op.kind==="erosion"&&op.preserveShoreline?EROSION_SHORE_BYTES:0)+(op.kind==="erosion"&&op.bankReinforcementM!==undefined?BANK_BUFFER_BYTES:0);}
+const BASE_CELL_BYTES=64,EROSION_SHORE_BYTES=1,BANK_BUFFER_BYTES=16,PROFILE_JOIN_BYTES=8;
+export function advancedTerrainCellBytes(op:AdvancedOperation){return BASE_CELL_BYTES+(op.kind==="erosion"&&op.preserveShoreline?EROSION_SHORE_BYTES:0)+(op.kind==="erosion"&&op.bankReinforcementM!==undefined?BANK_BUFFER_BYTES:0)+(op.kind==="landform-profile"&&op.preserveGradualJoins?PROFILE_JOIN_BYTES:0);}
 /** Eligibility may reserve optional buffers; admission charges only the actual operation. */
-export function advancedTerrainMaximumCellBytes(kind:AdvancedKind){return BASE_CELL_BYTES+(kind==="erosion"?EROSION_SHORE_BYTES+BANK_BUFFER_BYTES:0);}
+export function advancedTerrainMaximumCellBytes(kind:AdvancedKind){return BASE_CELL_BYTES+(kind==="erosion"?EROSION_SHORE_BYTES+BANK_BUFFER_BYTES:kind==="landform-profile"?PROFILE_JOIN_BYTES:0);}
 /** The unchanged numerical-buffer accounting used by whole sources and native windows. */
 export function advancedTerrainWorkingBytes(width:number,height:number,cells:number,cellBytes:number){return width*height*7+cells*cellBytes+(width+height)*Int32Array.BYTES_PER_ELEMENT;}
 /** New optional coastal guards reserve all eight native neighbours. Legacy
  * absent/false operations retain their original admission and arithmetic. */
 export function advancedTerrainShoreSteps(op:AdvancedOperation,cells:number){return cells*(op.kind!=="landform-profile"&&op.kind!=="erosion"&&op.preserveShoreline?8:0);}
-export function advancedTerrainSampleSteps(op:AdvancedOperation,cells:number){return cells*(op.kind==="erosion"?op.iterations+(op.bankReinforcementM!==undefined?8:0):op.kind==="landform-profile"?op.points.length-1:1)+advancedTerrainShoreSteps(op,cells);}
+export function advancedTerrainSampleSteps(op:AdvancedOperation,cells:number){return cells*(op.kind==="erosion"?op.iterations+(op.bankReinforcementM!==undefined?8:0):op.kind==="landform-profile"?op.points.length-1+(op.preserveGradualJoins?26:0):1)+advancedTerrainShoreSteps(op,cells);}
 export const advancedProvenanceSchema=z.object({
   version:z.literal(1),contextPin:z.string().regex(/^[a-f0-9]{64}$/),operation:advancedOperationSchema,
   effect:z.object({changed:z.number().int().positive().max(ADVANCED_TERRAIN_LIMITS.cells),affected:advancedAreaSchema}).strict(),
