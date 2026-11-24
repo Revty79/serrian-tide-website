@@ -26,7 +26,7 @@ export const landformProfileSchema=z.object({
   continuousEndBlend:z.boolean().optional(),
   preserveGradualJoins:z.boolean().optional(),
 }).strict().superRefine((v,c)=>{
-  if(v.preserveGradualJoins&&v.mode!=="minimum"&&v.mode!=="maximum")c.addIssue({code:"custom",path:["preserveGradualJoins"],message:"Gradual joins require a minimum or maximum profile elevation bound."});
+  if(v.preserveGradualJoins&&v.mode==="shape")c.addIssue({code:"custom",path:["preserveGradualJoins"],message:"Gradual joins require a one-way profile elevation bound or an upper envelope."});
   if(v.reviewDryReconstructionSupports&&!v.reviewDryBorderJoins)c.addIssue({code:"custom",path:["reviewDryReconstructionSupports"],message:"Selected reconstruction supports require complete dry border review."});
   if(v.mode==="upper-envelope"&&v.envelopeBaseM===undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"Choose an explicit base elevation for the profile envelope."});
   if(v.mode!=="upper-envelope"&&v.envelopeBaseM!==undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"An envelope base belongs only to the upper-envelope mode."});

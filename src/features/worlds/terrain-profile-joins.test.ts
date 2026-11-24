@@ -31,6 +31,26 @@ test("absent and false gradual-join flags retain the entire legacy numerical res
   const base=field(),op=operation();assert.deepEqual(prepareAdvancedTerrain(base,shape,op,context()),prepareAdvancedTerrain(base,shape,{...op,preserveGradualJoins:false},context()));
   assert.equal(advancedTerrainCellBytes(op),64);assert.equal(advancedTerrainCellBytes({...op,preserveGradualJoins:false}),64);
 });
+test("an upper envelope can be guarded without changing legacy cuts or protected terrain",()=>{
+  const base=field(),manual=new Uint8Array(base.length),blocked=new Uint8Array(base.length);
+  for(let y=20;y<44;y++)manual[y*shape.width+30]=1;
+  blocked[30*shape.width+31]=1;
+  const op:Profile={...operation("upper-envelope"),envelopeBaseM:400,preserveManual:true};
+  const legacy=prepareAdvancedTerrain(base,shape,op,context(),blocked,manual);
+  const disabled=prepareAdvancedTerrain(base,shape,{...op,preserveGradualJoins:false},context(),blocked,manual);
+  const guarded=prepareAdvancedTerrain(base,shape,{...op,preserveGradualJoins:true},context(),blocked,manual);
+  assert.deepEqual(disabled,legacy);
+  assert(violations(base,legacy.grid)>0);
+  assert.equal(violations(base,guarded.grid),0);
+  assert(guarded.metrics.changed>0);
+  for(let i=0;i<base.length;i++){
+    assert(guarded.grid[i]>=legacy.grid[i]&&guarded.grid[i]<=base[i]);
+    if(manual[i]||blocked[i])assert.equal(guarded.grid[i],base[i]);
+  }
+  // The envelope still lowers eligible terrain outside the profile itself.
+  const away=10*shape.width+10;
+  assert(guarded.grid[away]<base[away]);
+});
 test("fixed sea, lake beds, finer sources, manual and settlement supports stay exact",()=>{
   const base=field(),blocked=new Uint8Array(4096),manual=new Uint8Array(4096),c=context(),at=(x:number,y:number)=>y*64+x;
   base[at(25,30)]=-500;blocked[at(32,30)]=1;manual[at(35,30)]=1;c.sites.push({id:"site",x:400,y:225});
@@ -71,8 +91,10 @@ test("guard admission reserves its exact buffers and work without enlarging any 
 test("guarded async work is deterministic, cancellable and strictly bound to a one-way operation",async()=>{
   const base=field(),op={...operation(),preserveGradualJoins:true},expected=prepareAdvancedTerrain(base,shape,op,context());assert.deepEqual((await prepareAdvancedTerrainAsync(base,shape,op,context())).grid,expected.grid);
   const signal=new AbortController();let turns=0;await assert.rejects(prepareAdvancedTerrainAsync(base,shape,op,context(),undefined,undefined,()=>{if(++turns===2)signal.abort();},signal.signal),{name:"AbortError"});
-  assert.throws(()=>advancedOperationSchema.parse({...op,mode:"shape"}));assert.throws(()=>advancedOperationSchema.parse({...op,mode:"upper-envelope",envelopeBaseM:200}));
+  assert.throws(()=>advancedOperationSchema.parse({...op,mode:"shape"}));assert.throws(()=>advancedOperationSchema.parse({...op,mode:"upper-envelope"}));
   const packet={version:1,mapId:"92000000-0000-4000-8000-000000000001",sourceId:null,revision:3,operation:op,visualOnly:false};assert.deepEqual(parseAdvancedDraft(JSON.stringify(packet),packet.mapId,null),packet);
+  const envelope={...packet,operation:{...op,mode:"upper-envelope",envelopeBaseM:200}};
+  assert.deepEqual(parseAdvancedDraft(JSON.stringify(envelope),packet.mapId,null),envelope);
 });
 test("sub-metre integer grids may withhold the complete local effect without changing fixed supports",()=>{
   const s={...shape,width:8,height:8,displayWidth:4,displayHeight:4},base=new Int16Array(64).fill(200),grid=base.slice(),indices=Uint32Array.from(base,(_,i)=>i),weights=Float32Array.from(base,(_,i)=>i%8>0&&i%8<7&&i>=8&&i<56?1:0),work=preserveProfileJoins(base,grid,s,indices,weights,i=>weights[i]?i:-1,()=>100,1,.5,.5,()=>false);

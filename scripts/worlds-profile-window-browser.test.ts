@@ -30,6 +30,11 @@ process.env.SERRIAN_COLLAB_OUT??=`artifacts/collaboration-s7b-profile-window-nat
 const denseSource=process.env.SERRIAN_PROFILE_DENSE_SOURCE==="1";
 const gradualEnds=process.env.SERRIAN_PROFILE_GRADUAL_ENDS==="1";
 const gradualJoins=process.env.SERRIAN_PROFILE_GRADUAL_JOINS==="1";
+const gradualEnvelope=process.env.SERRIAN_PROFILE_GRADUAL_ENVELOPE==="1";
+const guardedMode=gradualEnvelope?"upper-envelope":"minimum";
+const profileElevation=gradualEnvelope?"55":"1800";
+const envelopeBase="1";
+assert(!gradualEnvelope||gradualJoins,"Envelope qualification requires the gradual-join workflow");
 const initialFallback=process.env.SERRIAN_PROFILE_INITIAL_FALLBACK==="1";
 const hash=(g:Int16Array)=>createHash("sha256").update(new Uint8Array(g.buffer,g.byteOffset,g.byteLength)).digest("hex");
 withCollaborationFixture(async f=>withCollaborationBrowser(f,async b=>{
@@ -75,10 +80,19 @@ withCollaborationFixture(async f=>withCollaborationBrowser(f,async b=>{
  await terrainPanel(p,"Terrain detail");await p.getByLabel("Editing terrain source",{exact:true}).selectOption(large.id);await until(()=>p.getByTestId("terrain-active-detail").innerText(),v=>v.includes(large.name),"Parent active");
  async function open(){await terrainTool(p,"raise");const summary=p.getByText("Landforms & areas",{exact:true});if(!await summary.isVisible())await p.getByRole("button",{name:"Tools",exact:true}).click();if(!await summary.evaluate(e=>(e.parentElement as HTMLDetailsElement).open))await summary.click();await p.getByRole("button",{name:"Shape Landform Profile",exact:true}).click();const editor=p.getByRole("dialog",{name:"Shape Landform Profile",exact:true});await until(()=>editor.innerText(),v=>!v.includes("Loading accepted water"),"Accepted context ready");return editor;}
  d=await open();await d.getByRole("button",{name:"Choose Area",exact:true}).click();await d.getByLabel("Selected x (m)",{exact:true}).fill("19100000");await d.getByLabel("Selected y (m)",{exact:true}).fill("9800000");await d.getByLabel("Selected width (m)",{exact:true}).fill("100000");await d.getByLabel("Selected height (m)",{exact:true}).fill("100000");await d.getByRole("button",{name:"Fit selected area",exact:true}).click();await d.getByRole("button",{name:"Operation",exact:true}).click();await d.getByRole("checkbox",{name:"Protect existing manual heights",exact:true}).uncheck();await d.getByLabel("Terrain modification strength (%)",{exact:true}).fill("100");await d.getByRole("button",{name:"Add profile points on map",exact:true}).click();c=d.getByLabel("Terrain map canvas",{exact:true});await click(c,19110000,9820000);if(gradualEnds)await click(c,19150000,9855000);await click(c,19190000,9890000);
- for(let i=1;i<=(gradualEnds?3:2);i++){await d.getByLabel(`Profile point ${i} elevation (m)`,{exact:true}).fill("1800");await d.getByLabel(`Profile point ${i} full width (m)`,{exact:true}).fill(gradualJoins?"2500":gradualEnds?"160000":"80000");}
+ for(let i=1;i<=(gradualEnds?3:2);i++){await d.getByLabel(`Profile point ${i} elevation (m)`,{exact:true}).fill(profileElevation);await d.getByLabel(`Profile point ${i} full width (m)`,{exact:true}).fill(gradualJoins?"2500":gradualEnds?"160000":"80000");}
  if(gradualJoins){await d.getByLabel("Profile effect",{exact:true}).selectOption("minimum");await d.getByLabel("Keep adjoining slopes gradual",{exact:true}).check();await d.getByLabel("Profile effect",{exact:true}).selectOption("shape");assert.equal(await d.getByLabel("Keep adjoining slopes gradual",{exact:true}).count(),0);await d.getByLabel("Profile effect",{exact:true}).selectOption("minimum");assert.equal(await d.getByLabel("Keep adjoining slopes gradual",{exact:true}).isChecked(),false);await d.getByLabel("Keep adjoining slopes gradual",{exact:true}).check();}
+ if(gradualEnvelope){
+  await d.getByLabel("Profile effect",{exact:true}).selectOption(guardedMode);
+  assert(await d.getByLabel("Keep adjoining slopes gradual",{exact:true}).isChecked());
+  await d.getByLabel("Envelope base elevation (m)",{exact:true}).fill(envelopeBase);
+ }
  if(gradualEnds){await d.getByLabel("Profile end blend (m)",{exact:true}).fill("25000");await d.getByLabel("Keep both profile ends gradual",{exact:true}).check();}
- await d.getByLabel("Selection edge feather (m)",{exact:true}).fill("2000");await d.getByRole("button",{name:"Keep settings & Close",exact:true}).click();d=await open();await d.getByRole("button",{name:"Recover Operation Settings",exact:true}).click();assert.equal(await d.getByLabel("Profile point 1 elevation (m)",{exact:true}).inputValue(),"1800");
+ await d.getByLabel("Selection edge feather (m)",{exact:true}).fill(gradualEnvelope?"0":"2000");await d.getByRole("button",{name:"Keep settings & Close",exact:true}).click();d=await open();await d.getByRole("button",{name:"Recover Operation Settings",exact:true}).click();assert.equal(await d.getByLabel("Profile point 1 elevation (m)",{exact:true}).inputValue(),profileElevation);
+ if(gradualEnvelope){
+  assert.equal(await d.getByLabel("Profile effect",{exact:true}).inputValue(),guardedMode);
+  assert.equal(await d.getByLabel("Envelope base elevation (m)",{exact:true}).inputValue(),envelopeBase);
+ }
  if(gradualEnds)assert(await d.getByLabel("Keep both profile ends gradual",{exact:true}).isChecked());
  if(gradualJoins)assert(await d.getByLabel("Keep adjoining slopes gradual",{exact:true}).isChecked());
  async function fitPreviewSource(expected=previewFrame,rootWorld=false){
@@ -104,12 +118,14 @@ withCollaborationFixture(async f=>withCollaborationBrowser(f,async b=>{
  const reconstructed=original.grid.slice();for(let k=0;k<expected.patch.indices.length;k++)reconstructed[expected.patch.indices[k]]=expected.patch.after[k];assert.equal(hash(reconstructed),after.hash);assert.equal((await readFine(child.id)).hash,childBefore.hash);assert.deepEqual((await readFine(child.id)).meta,childBefore.meta);assert.deepEqual(await readWater(),waterBefore);assert.equal(hash(createGrid((await readRoot()).baseElevation,(await readRoot()).tiles,rootShape)),rootHash);
  await pass("server recomputation, exact original-request retry, unchanged source identity/pins, child, lake and Root verified");
  if(gradualJoins){
-  assert(provenance.operation.kind==="landform-profile");assert.equal(provenance.operation.preserveGradualJoins,true);assert.equal(provenance.operation.mode,"minimum");
+  assert(provenance.operation.kind==="landform-profile");assert.equal(provenance.operation.preserveGradualJoins,true);assert.equal(provenance.operation.mode,guardedMode);
+  if(gradualEnvelope)assert.equal(provenance.operation.envelopeBaseM,Number(envelopeBase));
   const legacyOperation={...provenance.operation,preserveGradualJoins:false},legacyWindow=planProfileWindow(shape,legacyOperation,packet.context)!;
   const legacy=await prepareWindowedProfile(copyProfileWindow(original.grid,legacyWindow),shape,legacyOperation,packet.context,legacyWindow,copyProfileWindow(mask,legacyWindow)),legacyGrid=original.grid.slice();for(let k=0;k<legacy.patch.indices.length;k++)legacyGrid[legacy.patch.indices[k]]=legacy.patch.after[k];
   let adjusted=0,legacyUnsafe=0,guardedUnsafe=0;const sx=shape.displayWidth/shape.width,sy=shape.displayHeight/shape.height;
   for(let y=0;y<shape.height;y++)for(let x=0;x<shape.width;x++){const i=y*shape.width+x;if(after.grid[i]!==legacyGrid[i])adjusted++;if(after.grid[i]===original.grid[i]&&legacyGrid[i]===original.grid[i])continue;for(let ey=-1;ey<=1;ey++)for(let ex=-1;ex<=1;ex++){if(!ex&&!ey)continue;const xx=x+ex,yy=y+ey;if(xx<0||yy<0||xx>=shape.width||yy>=shape.height)continue;const j=yy*shape.width+xx,allowed=Math.max(Math.abs(original.grid[i]-original.grid[j]),Math.floor(Math.hypot(ex*sx,ey*sy)));if(Math.abs(legacyGrid[i]-legacyGrid[j])>allowed)legacyUnsafe++;if(Math.abs(after.grid[i]-after.grid[j])>allowed)guardedUnsafe++;}}
   assert(adjusted>0);assert(legacyUnsafe>0);assert.equal(guardedUnsafe,0);
+  if(gradualEnvelope)assert(after.grid.every((height,index)=>height<=original.grid[index]),"A saved envelope must never raise terrain");
   await writeFile(path.join(f.out,"native-gradual-join-proof.json"),JSON.stringify({passed:true,adjusted,legacyUnsafe,guardedUnsafe,sourceSamples:original.grid.length,allGridSamplesChecked:true,flag:true,wholeSourceEqualAuthoritativeReplay:true},null,2));
   await pass("visible gradual-join choice survives mode changes, exact draft recovery and authoritative saved replay; complete-grid legacy steep joins become zero");
  }
