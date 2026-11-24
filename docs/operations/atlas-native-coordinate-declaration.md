@@ -1,5 +1,7 @@
 # Native map coordinate declaration and inspection
 
+**Owner DEV active, November 24, 2026.** The owner restored the previously verified local DEV configuration. The clean local `main` synced to `origin/main` with all 2,244 qualified app inputs exact. Normal reopening and the live PostgreSQL connection check passed. The first native Earth surface and map association both returned 200. The saved Measure declaration reopened with the exact Wheeler source extent. Locator placement and terrain preservation were checked separately. The targeting hold below is historical. See the [current U.S. audit](worlds-atlas-us-completion-audit.md).
+
 ## Verified software; owner target held
 
 Application a30a36edb1e681db04ea64212df781860fe808cd is hosted-qualified. Exact completed workflows are validate.yml 45330803071 attempt 1; environment-recovery.yml 45330803324 attempt 1; deployment-a5.yml 45330805287 attempt 2; prebuilt-release.yml 45330803105 attempt 2; every required latest completed job and step passes. Independent actual GitHub and cryptographic OCI verification pass image sha256:a931882d58e9de193fdec976399a55ea9797a6251e72bd77e19847abf9d85a40, Linux fingerprint c83177bc2a4226ccef9eeb2ea4ba9ed624f149d103ecbe788879e08a4f60ddea. This qualification is tied to a30 and its exact software bytes. No owner activation occurred.
