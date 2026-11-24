@@ -4,6 +4,8 @@ import {ordinaryKnowledge} from "@/features/worlds/knowledge-preview";
 import {boundsSchema,geographicSemanticSchema,geographicThemeSchema,geographicNamespaceSchema,geoId} from "@/features/worlds/geographic";
 import {changeGeography,geographicCatalog,geographicReading,geographicViewport,geographicViewportStatus,geographicSourceChoices} from "@/features/worlds/geographic-service";
 import {WorldError,worldReadAccess} from "@/features/worlds/world-service";
+import {geographicAuthoringCommand} from "@/features/worlds/geographic-authoring";
+import {authorGeography} from "@/features/worlds/geographic-authoring-service";
 export const dynamic="force-dynamic";
 type Context={params:Promise<{worldId:string}>};
 /** Native reference geometry is independent of numerical terrain and dated appearances. */
@@ -23,5 +25,12 @@ export async function POST(request:Request,context:Context){return worldRequest(
  if(Number(request.headers.get("content-length"))>8_000_000)throw new WorldError("Geographic sources are limited to eight megabytes per atomic batch.",413);
  const text=await request.text();if(Buffer.byteLength(text,"utf8")>8_000_000)throw new WorldError("Geographic sources are limited to eight megabytes per atomic batch.",413);
  const q=new URL(request.url).searchParams;
- return changeGeography(userId,worldId,JSON.parse(text),{ordinary:ordinaryKnowledge(q),review:q.get("review")==="1"});
+ const body=JSON.parse(text);
+ if(body?.action==="attach"){
+  if(q.has("year")||q.has("state"))throw new WorldError("Coordinate association changes a shared baseline map reference, not a dated appearance.",403);
+  const command=geographicAuthoringCommand.parse(body);
+  if(command.action!=="attach")throw new WorldError("Choose an existing map and coordinate surface.",400);
+  return authorGeography(userId,worldId,command);
+ }
+ return changeGeography(userId,worldId,body,{ordinary:ordinaryKnowledge(q),review:q.get("review")==="1"});
 });}
