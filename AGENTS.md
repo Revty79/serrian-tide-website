@@ -1,3 +1,11 @@
+## Central Cascades working revision 10 (2026-11-24)
+
+The Central Cascades and Columbia Gorge source adds a 2,048-square grid in a 503 by 380 km frame pinned to Root 517. Its complete inherited grid and seven overviews match on creation and ordinary reopening. No older fine frame overlaps this new source. Earth has 138 numerical sources, 137 fine grids and 762,839,040 heights. At Cascades 10, all 136 other fine histories, Root 517, water 48, all 26 lakes and all 102,724 inherited sea-level or below samples remain exact. The rights checkpoint has 66 sources, 69 reviews and 64 uses.
+
+Native Rainier 2/3/4, St. Helens 5/6/7 and Hood 8/9/10 Save, Undo and Redo sequences verify the complete grids, all seven overviews, immutable operations and normal reopening. Working summit and rim heights are Rainier 4,390 m, St. Helens 2,544 m and Hood 3,421 m. The selected St. Helens interior reads 2,102 m and the northern opening 1,759 m. Preserve the initial Rainier proposal with 84 conditional steep pairs and the initial St. Helens proposal that overfilled the cavity. The accepted working terrain has 26,025 net changes and 58,729 protected heights. All six same-camera appearances and matched originals were inspected. All 139,264 pinned border readings match inheritance, with a 0.500 m maximum sub-cell difference. Measured ground registration, regional geography and presentation remain open.
+
+Continue Mount Adams and the rest of U.S. 2A land work, then complete 2B, 2C and 2D in order. Preserve every parked non-U.S. result, all original criteria and failed evidence. Complete fresh paired capture and independent isolated restoration, then stop after verified 2D for owner review. Publish only to origin/main. Application qualification remains 9ccf025d and its exact tested bytes.
+
 ## Yosemite and San Joaquin working revision 13 (2026-11-24)
 
 Sierra Nevada and Central Valley reopens at 13. Root 517, Alaska 10, 135 older fine histories, water 48, 26 lakes and all 46,277 original sea-level or below samples remain exact. Earth has 137 numerical sources, 136 fine grids and 758,644,736 samples. Rights are 61 sources, 64 reviews and 59 uses, with all prior rows preserved.
