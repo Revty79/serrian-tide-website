@@ -4,6 +4,18 @@ import type {TerrainViewport} from "./terrain-refinement";
 import type {TerrainFrame} from "./terrain-refinement";
 export type ReferenceBoundaryWorld={displayWidth:number;displayHeight:number;wrap:boolean};
 
+function validReferenceWorld(world:ReferenceBoundaryWorld){return [world.displayWidth,world.displayHeight].every(n=>Number.isFinite(n)&&n>0);}
+/** The same full-angular declaration used by the boundary overlay, never a survey transform. */
+export function terrainReferenceCoordinate(world:ReferenceBoundaryWorld,point:{x:number;y:number}){
+ if(!validReferenceWorld(world)||![point.x,point.y].every(Number.isFinite)||point.y<0||point.y>world.displayHeight||!world.wrap&&(point.x<0||point.x>world.displayWidth))return null;
+ const x=world.wrap?((point.x%world.displayWidth)+world.displayWidth)%world.displayWidth:point.x;
+ return {longitude:x/world.displayWidth*360-180,latitude:90-point.y/world.displayHeight*180};
+}
+export function terrainReferencePosition(world:ReferenceBoundaryWorld,coordinate:{longitude:number;latitude:number}){
+ if(!validReferenceWorld(world)||![coordinate.longitude,coordinate.latitude].every(Number.isFinite)||Math.abs(coordinate.longitude)>180||Math.abs(coordinate.latitude)>90)return null;
+ return {x:(coordinate.longitude+180)/360*world.displayWidth,y:(90-coordinate.latitude)/180*world.displayHeight};
+}
+
 /** Explicit full angular-surface alignment; no terrain samples are resampled. */
 export function terrainReferenceExtent(world:ReferenceBoundaryWorld,view:Pick<TerrainViewport,"left"|"right"|"top"|"bottom">):GeographicBounds|null{
  const width=Math.min(world.displayWidth,view.right-view.left),top=Math.max(0,view.top),bottom=Math.min(world.displayHeight,view.bottom);
