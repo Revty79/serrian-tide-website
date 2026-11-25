@@ -485,6 +485,14 @@ The longer dry southern shoulder saves at 2, undoes at 3, redoes and normally re
 
 The first version reached 42.778 conditional degrees despite meeting approximate contour tolerance. Its native draft and matched relief remain retained along with the complete unchanged original grid. Actual old settings and footprint are exact before save and after the successful normal reopening. The summit, wider transition, Marys River and Willamette lowlands, presentation joins and surveyed registration remain open.
 
+## District of Columbia Fort Reno working dry crown
+
+The 5.2 by 4.6 km native child pins to Potomac 16. Actual creation and normal opening match all 4,194,304 inherited dry 39?188 m heights and seven levels. Earth at this checkpoint has 178 numerical sources and 922,746,880 heights. All 176 earlier fine histories, Potomac 16, Root 517, water 48 and 26 lakes verify. The identical already approved Washington West 2023 original provides scoped 10-foot NAVD 88 dry contours from the 2020 National Elevation Dataset. The National Park Service's 409-foot natural elevation fact was registered, approved and linked before native use. Rights total 169 sources, 172 reviews and 167 uses. [USGS Washington West 2023](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/DC/DC_Washington_West_20230612_TM_geo.pdf) [National Park Service Fort Reno natural elevation](https://www.nps.gov/places/000/fort-reno-park-highest-point-in-district-of-columbia.htm)
+
+The native northwest dry crown saves at 2, undoes at 3, redoes and normally reopens at 4. The entire grids, seven levels and immutable operation agree. It raises 11,077 heights by up to 6 m. The modeled point goes from 119 to 125 m, the largest step is 1 m and conditionally steepest touched pair is 26.830 degrees. No 45-degree pairs are new or worsened. All manual protections, collar, outside area, 16 approximate mapped drainage checks and 139,264 inherited numerical edge readings stay exact, with an unrounded residual under 0.5 m. All six actual styles and matched physical relief were inspected.
+
+The 664,637 higher inherited samples and 188 m source maximum remain exact for further geographic review. The result covers a small working dry crown. Wider District land and coastal alignment, nearby lowlands, genuine ground registration, source presentation joins and all completion gates remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
