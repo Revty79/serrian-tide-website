@@ -541,6 +541,16 @@ The lower Red Gulch dry fan saves 2, undoes 3, redoes and normally reopens 4, wi
 
 This covers a working dry fan. Horse Creek, wider basin and foothill detail, source presentation, actual ground registration and all U.S. geographic stages remain open.
 
+## Florida Chiefland eastern dry terrace
+
+The actual native 14 by 13.1 km Chiefland child pins to Northern Florida 7 and Root 517. Creation and ordinary reopening verified the full 4,194,304-sample inherited 200 m construction grade and seven numerical levels. The other 181 fine histories, full parent and Root, water 48 and 26 lakes remain exact. Earth has 183 numerical sources and 943,718,400 heights. Scoped dry facts from August 7, 2024 USGS Chiefland were reviewed and attached before use. Its 5-foot NAVD 88 contours use NED 2022. The 2021 sheet was consulted to avoid mapped wet geography. Rights total 175 sources, 178 reviews and 173 uses, all earlier rows exact. [USGS Chiefland 2024](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/FL/FL_Chiefland_20240807_TM_geo.pdf), [USGS Chiefland 2021](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/FL/FL_Chiefland_20210131_TM_geo.pdf)
+
+The eastern dry terrace lowers 124,475 heights by up to 185 m and reads 15 m at four approximate 50-foot contours. Save 2, Undo 3, Redo 4 and normal reopening verified full grids, all seven independently reconstructed levels and the immutable native operation. The maximum 5 m step and conditional 33.889779-degree slope introduce or steepen zero 45-degree pairs. All 216 samples around 24 mapped exclusions and all 139,264 pinned readings stay exact. All six actual appearances and matched relief were reviewed under the unchanged deadline. Wider lowland accuracy, surrounding construction-height transitions, measured registration and presentation joins remain open.
+
+## Delmarva bounded registration diagnostic
+
+The verified unchanged Root 517 and Delmarva 7 grids were tested read-only at five dry or offshore stations and four previously accepted Dover dry controls. Across 3,294,225 discrete combinations of rotation, uniform scale and translation, 540,518 placed the stations on the expected land or water. None held all four Dover controls exactly. The smallest tested centre displacement among the sign fits, 15.81 native km, places all four Dover controls at minus 500 m. The best tested control error was 4 m at 59.14 native km displacement. The original pure-translation counts reproduce exactly. The test samples a finite set under a provisional coordinate conversion. Absolute ground registration and a viable protected-coast solution remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
