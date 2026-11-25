@@ -75,3 +75,32 @@ test("cancellation retains source buffers and eligible erosion uses the bounded 
   assert.equal(planProfileWindow({...shape,wrap:true},op,c),null);
   assert(planProfileWindow(shape,{kind:"erosion",model:"thermal",iterations:1,direction:0,directionInfluence:0,deposition:true,maxDepthM:1,reposeDegrees:30,featherM:0,selection:op.selection,preserveManual:false,strength:100},c));
 });
+
+test("the bounded window applies the same manual edit rectangle as whole-source replay",async()=>{
+  const c=context(),base=new Int16Array(shape.width*shape.height).fill(200),manual=new Uint8Array(base.length),blocked=new Uint8Array(base.length);
+  const {frame}=profile(c).selection,sx=c.frame.width/shape.width,sy=c.frame.height/shape.height;
+  const inside=860*shape.width+860,outside=860*shape.width+890,finer=860*shape.width+861;
+  for(const index of [inside,outside,finer])manual[index]=1;
+  blocked[finer]=1;
+  const operation:Profile={
+    ...profile(c),manualEditArea:{x:frame.x+45*sx,y:frame.y+45*sy,width:30*sx,height:30*sy},
+  };
+  const window=planProfileWindow(shape,operation,c)!;
+  const result=await prepareWindowedProfile(
+    copyProfileWindow(base,window),shape,operation,c,window,copyProfileWindow(blocked,window),copyProfileWindow(manual,window),
+  );
+  const halfWidth=shape.width/2,halfShape={...shape,width:halfWidth,displayWidth:shape.displayWidth/2};
+  const halfContext={...c,frame:{...c.frame,width:c.frame.width/2}};
+  const halfBase=new Int16Array(halfWidth*shape.height).fill(200),halfBlocked=new Uint8Array(halfBase.length),halfManual=new Uint8Array(halfBase.length);
+  const halfIndex=(index:number)=>Math.floor(index/shape.width)*halfWidth+index%shape.width;
+  for(const index of [inside,outside,finer])halfManual[halfIndex(index)]=1;
+  halfBlocked[halfIndex(finer)]=1;
+  const actual=prepareAdvancedTerrain(halfBase,halfShape,operation,halfContext,halfBlocked,halfManual);
+  assert.equal(window.sourceWidth,shape.width);
+  assert.deepEqual(result.patch.before,actual.patch.before);
+  assert.deepEqual(result.patch.after,actual.patch.after);
+  assert.deepEqual([...result.patch.indices].map(halfIndex),[...actual.patch.indices]);
+  assert.deepEqual(result.metrics.notices,actual.metrics.notices);
+  assert(advancedResultSample(result,inside,200)>200);
+  for(const index of [outside,finer])assert.equal(advancedResultSample(result,index,200),200);
+});

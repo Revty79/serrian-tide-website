@@ -2,7 +2,7 @@
 import {LandformProfileControls} from "./terrain-landform-profile-controls";
 import {SharedReliefWorkshop} from "./terrain-shared-relief-workshop";
 import type {ReadSharedReliefContinuation,SharedReliefSavedContinuation} from "./terrain-shared-relief-continuation";
-import {frameLocalPoint,normalizeTerrainX,type RefinementMeta} from "./terrain-refinement";
+import {frameLocalPoint,normalizeTerrainX,type RefinementMeta,type TerrainFrame} from "./terrain-refinement";
 import { accountWorldStorage } from "./world-draft-storage";
 import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import {ZodError} from "zod";
@@ -46,6 +46,26 @@ type Props={
   canShareRelief?:boolean;onSharedSaved?:(continuation?:SharedReliefSavedContinuation)=>void;
 };
 const emptyLocations={markers:[],selectedId:null,point:null};
+function ProfileManualEditArea({value,selected,onChange}:{
+  value:TerrainFrame|undefined;
+  selected:TerrainFrame;
+  onChange:(area:TerrainFrame|undefined)=>void;
+}){
+  return <>
+    <label className={styles.check}>
+      <input type="checkbox" checked={!!value} onChange={e=>onChange(e.target.checked?{x:selected.x,y:selected.y,width:0,height:0}:undefined)}/> Allow changes to earlier manual heights in a smaller rectangle
+    </label>
+    {value&&<fieldset>
+      <legend>Manual edit rectangle</legend>
+      <p>Enter World coordinates inside the selected area. Other manual heights and the existing finer detail, water and settlement protections stay in effect.</p>
+      {([["x","east"],["y","south"],["width","width"],["height","height"]] as const).map(([axis,name])=>
+        <label key={axis}>{`Manual edit rectangle ${name} (m)`}
+          <input type="number" min={axis==="width"||axis==="height"?1:0} step="any" value={value[axis]} onChange={e=>onChange({...value,[axis]:Number(e.target.value)})}/>
+        </label>
+      )}
+    </fieldset>}
+  </>;
+}
 function AdvancedNumber({label,value,onChange,min,max,step=1,disabled}:{label:string;value:number;onChange:(value:number)=>void;min?:number;max?:number;step?:number;disabled:boolean}){return <label>{label}<input aria-label={label} type="number" value={value} min={min} max={max} step={step} disabled={disabled} onChange={event=>onChange(Number(event.target.value))}/></label>;}
 function startingOperation(input:AdvancedTerrainInput):AdvancedOperation{
   const s=terrainGeometry(input.document.settings),frame=input.document.refinement?.frame??{x:0,y:0,width:s.displayWidth,height:s.displayHeight},
@@ -288,7 +308,8 @@ export function AdvancedTerrainWorkshop(p:Props){
     <fieldset className={styles.fields} disabled={busy||applying||!!recovery} hidden={section!=="settings"}>
       <legend>Physical operation settings</legend>
       <label>Operation<select aria-label="Advanced operation" value={op.kind} onChange={e=>{stop();setOp(startingOperation({...p.input,kind:e.target.value as AdvancedKind}));setProposal(undefined);setVisualOnly(false);setAcknowledged(false);}}>{Object.entries(advancedNames).map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
-      <label className={styles.check}><input aria-label="Protect existing manual heights" type="checkbox" checked={op.preserveManual} onChange={e=>edit({preserveManual:e.target.checked})}/> Protect existing manual heights. Clearing this explicitly permits replacement inside the selected area; finer detail and settlement/water supports remain protected.</label>
+      <label className={styles.check}><input aria-label="Protect existing manual heights" type="checkbox" checked={op.preserveManual} disabled={op.kind==="landform-profile"&&!!op.manualEditArea} onChange={e=>edit({preserveManual:e.target.checked})}/> Protect existing manual heights. Clearing this allows replacement inside the selected area. Finer detail, water and settlement supports stay protected.</label>
+      {op.kind==="landform-profile"&&op.preserveManual&&<ProfileManualEditArea value={op.manualEditArea} selected={op.selection.frame} onChange={manualEditArea=>edit({manualEditArea})}/>}
       {<AdvancedNumber key={"Terrain modification strength (%)"} label={"Terrain modification strength (%)"} value={op.strength} onChange={value=>edit({strength:value})} disabled={busy||applying||!!recovery} min={1} max={100}/>}
       {op.kind==="landform-profile"&&<LandformProfileControls value={op} onChange={edit} drawingReady={!showAcceptedContext||accepted.ready} onDraw={()=>{setProfileInteraction("draw");setTool("path");}} onMove={()=>{setProfileInteraction("move");setTool("path");}}/>}
       {(op.kind==="landform-profile"||op.kind==="erosion")&&p.canShareRelief&&p.onSharedSaved&&p.input.worldRevision!==undefined&&<><button type="button" className="st-button is-secondary" disabled={!packet?.canEdit} onClick={()=>{try{advancedOperationSchema.parse(op);stop();setProposal(undefined);setShared(true);setError("");}catch(e){setError(e instanceof Error?e.message:"Finish the native profile first.");}}}>{op.kind==="erosion"?"Continue erosion across terrain sources":"Continue profile across terrain sources"}</button><p>Join this {op.kind==="erosion"?"erosion operation":"profile"} through the World and finer sources at their original resolutions. The shared workshop previews and saves the entire affected group together.</p></>}

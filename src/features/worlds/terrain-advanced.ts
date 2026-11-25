@@ -1,5 +1,5 @@
 import type {TerrainGeometry} from "./terrain";
-import type {TerrainFrame} from "./terrain-refinement";
+import {frameContains,frameInside,type TerrainFrame} from "./terrain-refinement";
 import type {HydroLayer,HydroPoint} from "./terrain-hydrology";
 import {insideWaterRings,waterBounds,nearestWaterShore} from "./terrain-water-geometry";
 import {regionAreaContainsPoint,regionCanonicalX,validateRegionFootprint} from "./terrain-region-geometry";
@@ -78,6 +78,12 @@ export function* advancedTerrainSteps(
   if(![sx,sy,world.width,world.height].every(v=>Number.isFinite(v)&&v>0)||!Number.isFinite(seaLevel))throw Error("The accepted physical terrain frame is invalid.");
   if(selection.footprint)validateRegionFootprint(selection.footprint,world,selection.frame);
   if(selection.frame.x>=world.width||selection.frame.width>world.width||selection.frame.y+selection.frame.height>world.height+1e-5||!world.wrap&&selection.frame.x+selection.frame.width>world.width+1e-5)throw Error("Keep the selection inside the World.");
+  const manualEditArea=op.kind==="landform-profile"?op.manualEditArea:undefined;
+  if(manualEditArea&&(manualEditArea.x>=world.width||manualEditArea.width>world.width
+    ||!frameInside(manualEditArea,selection.frame,world.width,world.wrap)
+    ||manualEditArea.width>=selection.frame.width&&manualEditArea.height>=selection.frame.height)){
+    throw Error("Keep the manual edit rectangle smaller than and inside the selected area.");
+  }
   const checkedPoint=op.kind==="volcano"?op.centre:op.kind==="eruption"?op.source:undefined;
   if(checkedPoint&&(checkedPoint.x>=world.width||checkedPoint.y>=world.height))throw Error("Choose a canonical location inside this World.");
   const notices:string[]=[],river=op.kind==="river-channel"?advancedRiverPath(op,context):undefined;
@@ -177,7 +183,8 @@ export function* advancedTerrainSteps(
       }
       if(shore){waterProtected++;continue;}
     }
-    if(blocked?.[i]||op.preserveManual&&manual?.[i]){protectedCount++;continue;}
+    if(blocked?.[i]||op.preserveManual&&manual?.[i]&&
+      (!manualEditArea||!frameContains(manualEditArea,p,world.width,world.wrap))){protectedCount++;continue;}
     if(base[i]<=seaLevel){waterProtected++;continue;}
     if(profile){
       // Preserve all interpolation supports of the accepted sea boundary.
@@ -412,12 +419,13 @@ export function* advancedTerrainSteps(
     for(;;){const next=joins.next();if(next.done){notices.push(`Gradual native-grid joins withheld part of the effect at ${next.value.adjusted.toLocaleString()} samples (up to ${next.value.maximumWithheldM} m). No new or steeper neighbouring steps above 45 degrees were introduced. Existing steep steps are not steepened; protected heights stay exact. Review the resulting landform; this does not establish surveyed ground slopes.`);break;}lastYield=performance.now();yield .82;}
   }
   const changedIndices=new Uint32Array(cells),before=new Int16Array(cells),after=new Int16Array(cells);
-  let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
+  let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity,manualChanges=0;
   const affectedOrigin=world.wrap?(influence?.x??selection.frame.x):selection.frame.x;
   for(let k=0;k<cells;k++){
     if(!weights[k])continue;
     const i=indices[k],value=gradualProfile?grid[i]:rounded(k),difference=value-base[i];
     if(!difference)continue;grid[i]=value;changedIndices[changed]=i;before[changed]=base[i];after[changed]=value;changed++;
+    if(manualEditArea&&manual?.[i])manualChanges++;
     maxLoweringM=Math.max(maxLoweringM,-difference);maxRaisingM=Math.max(maxRaisingM,difference);
     if(difference<0)removedM3-=difference*sx*sy;else addedM3+=difference*sx*sy;
     const p=position(i),offset=world.wrap?((p.x-affectedOrigin)%world.width+world.width)%world.width:p.x-affectedOrigin;
@@ -439,6 +447,7 @@ export function* advancedTerrainSteps(
     }
     notices.push(`Adjacent land-sample review (including retained lake beds): maximum step ${beforeStep} → ${afterStep} m; steepest planar slope ${beforeSlope.toFixed(2)}° → ${afterSlope.toFixed(2)}°. These are diagnostics, not acceptance thresholds.`);
   }
+  if(manualEditArea)notices.push(manualChanges.toLocaleString()+" earlier manual heights changed within the smaller rectangle.");
   if(protectedCount)notices.push(protectedCount.toLocaleString()+" protected samples were retained exactly.");
   if(waterProtected)notices.push(waterProtected.toLocaleString()+" sea/lake/wetland samples were retained exactly.");
   if(siteProtected)notices.push(siteProtected.toLocaleString()+" settlement-support samples were retained exactly.");

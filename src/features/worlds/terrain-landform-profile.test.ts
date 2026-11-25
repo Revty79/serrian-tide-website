@@ -71,3 +71,55 @@ test("unfinished native profile drafts recover without authorizing an incomplete
   const mapId="00000000-0000-4000-8000-000000000001",op={...operation(),points:[]},raw=JSON.stringify({version:1,mapId,sourceId:null,revision:1,operation:op,visualOnly:false});
   assert.deepEqual(parseAdvancedDraft(raw,mapId,null).operation,op);assert.throws(()=>advancedOperationSchema.parse(op));
 });
+
+test("a smaller manual edit rectangle retains manual heights outside it and hard supports inside it",()=>{
+  const base=new Int16Array(4096).fill(200),c=context(),blocked=new Uint8Array(4096),manual=new Uint8Array(4096);
+  for(const x of [10,21,22,24,25,30,34,35])manual[at(x,32)]=1;
+  blocked[at(22,32)]=1;
+  base[at(25,32)]=-500;
+  c.sites.push({id:"retained-site",x:6000,y:3200});
+
+  const op:Profile={
+    ...operation(),preserveManual:true,
+    manualEditArea:{x:4000,y:3100,width:3000,height:300},
+  };
+  const result=prepareAdvancedTerrain(base,shape,op,c,blocked,manual);
+
+  for(const x of [10,22,24,25,30,35])assert.equal(result.grid[at(x,32)],base[at(x,32)]);
+  for(const x of [21,34,46])assert(result.grid[at(x,32)]>base[at(x,32)]);
+  assert(result.metrics.notices.includes("2 earlier manual heights changed within the smaller rectangle."));
+});
+
+test("manual edit rectangles validate bounds and recover unfinished settings without authorizing a preview",()=>{
+  const base=new Int16Array(4096).fill(200),c=context(),op:Profile={
+    ...operation(),preserveManual:true,selection:{frame:{x:1000,y:1000,width:10000,height:4000}},
+    manualEditArea:{x:4000,y:2800,width:1100,height:400},
+  };
+  assert.deepEqual(advancedOperationSchema.parse(op),op);
+  assert.throws(()=>advancedOperationSchema.parse({...op,preserveManual:false}),/Keep manual protection enabled/);
+  for(const area of [op.selection.frame,{x:800,y:3000,width:1100,height:400},{x:10400,y:3000,width:1100,height:400}]){
+    assert.throws(()=>prepareAdvancedTerrain(base,shape,{...op,manualEditArea:area},c),/smaller than and inside/);
+  }
+
+  const mapId="00000000-0000-4000-8000-000000000001";
+  const unfinished={...op,manualEditArea:{x:4000,y:2800,width:0,height:0}};
+  const raw=JSON.stringify({version:1,mapId,sourceId:null,revision:1,operation:unfinished,visualOnly:false});
+  assert.deepEqual(parseAdvancedDraft(raw,mapId,null).operation,unfinished);
+  assert.throws(()=>advancedOperationSchema.parse(unfinished));
+});
+
+test("manual edit rectangles use canonical World metres across the wrap seam",()=>{
+  const c=context();
+  c.world.wrap=true;
+  const wrapShape={...shape,wrap:true};
+  const base=new Int16Array(4096).fill(200),manual=new Uint8Array(4096);
+  for(const x of [0,1,60,62,63])manual[at(x,32)]=1;
+  const op:Profile={
+    ...operation(),preserveManual:true,selection:{frame:{x:11600,y:2800,width:2400,height:800}},
+    manualEditArea:{x:12400,y:3100,width:600,height:300},
+    points:[{x:11800,y:3200,elevationM:3000,widthM:1200},{x:800,y:3200,elevationM:3500,widthM:1200}],
+  };
+  const result=prepareAdvancedTerrain(base,wrapShape,op,c,undefined,manual);
+  for(const x of [0,62,63])assert(result.grid[at(x,32)]>base[at(x,32)]);
+  for(const x of [1,60])assert.equal(result.grid[at(x,32)],base[at(x,32)]);
+});

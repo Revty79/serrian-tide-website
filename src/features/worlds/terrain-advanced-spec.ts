@@ -7,8 +7,9 @@ export const ADVANCED_TERRAIN_LIMITS={
 } as const;
 const metres=z.number().finite().positive().max(1e9);
 export const advancedPointSchema=z.object({x:z.number().finite().min(0).max(1e9),y:z.number().finite().min(0).max(1e9)}).strict();
+const advancedFrameSchema=z.object({x:z.number().finite().min(0),y:z.number().finite().min(0),width:metres,height:metres}).strict();
 export const advancedAreaSchema=z.object({
-  frame:z.object({x:z.number().finite().min(0),y:z.number().finite().min(0),width:metres,height:metres}).strict(),
+  frame:advancedFrameSchema,
   footprint:regionFootprintSchema.optional(),
 }).strict().superRefine((v,c)=>{
   if(v.footprint&&v.footprint.parts.reduce((n,p)=>n+p.length,0)>128)c.addIssue({code:"custom",message:"Advanced operations support 128 selected boundary points. Simplify deliberately or choose a smaller area."});
@@ -19,6 +20,7 @@ export const landformProfileSchema=z.object({
   points:z.array(advancedPointSchema.extend({elevationM:z.number().int().min(-30000).max(30000),widthM:metres})).min(2).max(128),
   mode:z.enum(["shape","minimum","maximum","upper-envelope"]),
   envelopeBaseM:z.number().int().min(-30000).max(30000).optional(),
+  manualEditArea:advancedFrameSchema.optional(),
   reviewDryBorderJoins:z.boolean().optional(),
   reviewDryReconstructionSupports:z.boolean().optional(),
   hardness:z.number().finite().min(0).max(1),
@@ -26,6 +28,7 @@ export const landformProfileSchema=z.object({
   continuousEndBlend:z.boolean().optional(),
   preserveGradualJoins:z.boolean().optional(),
 }).strict().superRefine((v,c)=>{
+  if(v.manualEditArea&&!v.preserveManual)c.addIssue({code:"custom",path:["manualEditArea"],message:"Keep manual protection enabled when allowing edits in a smaller area."});
   if(v.preserveGradualJoins&&v.mode==="shape")c.addIssue({code:"custom",path:["preserveGradualJoins"],message:"Gradual joins require a one-way profile elevation bound or an upper envelope."});
   if(v.reviewDryReconstructionSupports&&!v.reviewDryBorderJoins)c.addIssue({code:"custom",path:["reviewDryReconstructionSupports"],message:"Selected reconstruction supports require complete dry border review."});
   if(v.mode==="upper-envelope"&&v.envelopeBaseM===undefined)c.addIssue({code:"custom",path:["envelopeBaseM"],message:"Choose an explicit base elevation for the profile envelope."});
@@ -89,7 +92,7 @@ export function advancedTerrainWorkingBytes(width:number,height:number,cells:num
 /** New optional coastal guards reserve all eight native neighbours. Legacy
  * absent/false operations retain their original admission and arithmetic. */
 export function advancedTerrainShoreSteps(op:AdvancedOperation,cells:number){return cells*(op.kind!=="landform-profile"&&op.kind!=="erosion"&&op.preserveShoreline?8:0);}
-export function advancedTerrainSampleSteps(op:AdvancedOperation,cells:number){return cells*(op.kind==="erosion"?op.iterations+(op.bankReinforcementM!==undefined?8:0):op.kind==="landform-profile"?op.points.length-1+(op.preserveGradualJoins?26:0):1)+advancedTerrainShoreSteps(op,cells);}
+export function advancedTerrainSampleSteps(op:AdvancedOperation,cells:number){return cells*(op.kind==="erosion"?op.iterations+(op.bankReinforcementM!==undefined?8:0):op.kind==="landform-profile"?op.points.length-1+(op.preserveGradualJoins?26:0)+(op.manualEditArea?1:0):1)+advancedTerrainShoreSteps(op,cells);}
 export const advancedProvenanceSchema=z.object({
   version:z.literal(1),contextPin:z.string().regex(/^[a-f0-9]{64}$/),operation:advancedOperationSchema,
   effect:z.object({changed:z.number().int().positive().max(ADVANCED_TERRAIN_LIMITS.cells),affected:advancedAreaSchema}).strict(),
