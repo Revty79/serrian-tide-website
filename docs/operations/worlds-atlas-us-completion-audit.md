@@ -559,6 +559,14 @@ Save 2, Undo 3, Redo 4 and normal reopening verify the whole grid, all seven lev
 
 Both preceding previews exceeded the geographic slope checks. Matched original images, complete unchanged revision 1 and byte-exact native settings before and after revision 4 preserve both refusals. This is a working plateau grade. The surrounding grades, natural detail, ground registration, presentation joins and all U.S. stages remain open.
 
+## Tennessee Daus Stone Cave shoulder and Condra low terrace
+
+The 29 km square Daus source pins to Root 517. Native creation and ordinary reopening verified all 4,194,304 inherited 200 m heights and seven levels. Earth has 185 numerical sources and 952,107,008 heights. All 183 older fine histories, full Root, water 48 and all 26 lakes remain exact. Scoped federal dry contour and geographic name facts from the September 16, 2022 Daus sheet were attached before use. Its 20-foot NAVD 88 contours use NED 2022. Rights total 177 sources, 180 reviews and 175 uses, all older rows exact. [USGS Daus 2022](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/TN/TN_Daus_20220916_TM_geo.pdf)
+
+Stone Cave's western dry shoulder raises 3,175 heights by up to 74 m. Three approximate contour contacts are within 6 m, with a 274 m working maximum. The maximum step is 14 m and conditional slope reaches 37.881736 degrees. All 306 heights around 34 mapped drainage witnesses remain exact. An earlier draft exceeded the working slope limit and changed four tributary neighborhoods. It remains rejected, with a complete unchanged readback and byte-exact native settings before and after both accepted grades.
+
+The separate Condra terrace raises 2,619 heights by up to 13 m, reaching 213 m at three approximate 700-foot contours. The maximum step is 4 m, conditional slope reaches 12.348401 degrees, and it preserves the complete Stone Cave work and 261 heights around 29 mapped drainage witnesses. Both operations verify actual Save, Undo, Redo and normal reopening, whole grids, seven numerical overviews, immutable settings, 139,264 exact pinned edge readings and zero new or worsened 45-degree pairs. All six views and both matched relief comparisons were inspected under the original deadline. Full valley and escarpment detail, ground registration, terrain presentation joins and all U.S. stages remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
