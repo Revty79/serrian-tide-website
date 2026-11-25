@@ -1,3 +1,11 @@
+## Oklahoma Wichita Mountains terrain source at revision 1 (2026-11-24)
+
+The Wichita Mountains and adjacent plains source e600af53-f929-444c-bf39-55158a782d72 opened normally at revision 1 after native acceptance. The 185 by 135 km frame in Oklahoma uses a 2,048-square grid pinned to Root 517. All 4,194,304 inherited heights (240 to 696 m) and seven numerical levels matched the independent calculation. All 155 prior fine heads, frames, pins and complete version and tile rows, Root 517, water 48 and 26 lakes, and all 144 source rights, 147 reviews and 142 uses were exact at creation. Earth has 157 numerical sources with 834,666,496 heights. This adds a working surface for U.S. terrain authoring. The initial operator receipt check looked for the wrong result field after HTTP 200. The original action is retained, with complete verification and normal reopening of the same accepted source.
+
+Both Uniontown West dry drafts were rejected and retained. The second improved the conditional maximum slope to 29.525 degrees but a declared interior support stayed at 105 m against an approximate 76 m reference. Exact native exports and full unchanged Alabama 4 preserve the accepted eastern edits. Earlier Uniontown and Marion Junction terrain detail remains open.
+
+The application remains qualified at 9ccf025d on the originally verified 2,244 app inputs. All states and D.C., source joins, ground registration, full U.S. 2A and follow-on stages 2B through 2D remain open. Preserve non-U.S. work, Root and the accepted coastline, water and fine histories. Continue native U.S. 2A. After verified 2D require the fresh paired recovery and owner review before political geography or later milestones. Earlier receipts are historical where superseded.
+
 ## Alabama Black Prairie and Uniontown working terrain at revision 4 (2026-11-24)
 
 United States Pass 2A continues. The 227 by 176 km Alabama Black Prairie and adjoining Coastal Plain native source b76194b2-f107-4e19-aebd-c54088a1963f is a 2,048-square grid pinned to Root 517. Creation and normal reopening match the full inherited 200?799 m grid and all seven numerical levels. The source has no inherited sea samples or overlap with older finer sources. Earth now has 156 numerical sources including 155 refinements.
