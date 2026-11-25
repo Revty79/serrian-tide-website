@@ -307,6 +307,14 @@ Uniontown West's first native dry interfluve proposal was too high and reached 3
 
 The qualified application is still `9ccf025d`. The complete U.S. land stage and all later U.S. stages remain open, including the inherited coast registration conflict. These checks provide working terrain and preservation evidence.
 
+## Oklahoma Mount Scott and Hunting Horse Hill working terrain at revision 7
+
+The native Mount Scott crest raises 310 heights by up to 245 m. Four interior working controls are 703, 747, 706 and 627 m, with a local modeled maximum of 748 m. The first two native draft variants reached 44.343 and 42.463 conditional degrees and were rejected. The third uses a longer transition to the inherited surface and reaches 41.178 degrees and an 83 m maximum step. The Hunting Horse Hill dry southern shoulder raises another 93 heights by up to 78 m. Its interior controls are 582, 571, 558 and 542 m. It reaches 27.086 conditional degrees and a 45 m maximum step, after the earlier 32.862-degree draft was rejected. Neither accepted operation introduces or worsens a 45-degree pair. The approximate heights describe working terrain and leave the rest of each landform open.
+
+Both saved operations match all 4,194,304 heights and seven levels, their immutable settings, actual native Undo and Redo and normal reopening. All 310 crest elevations remain exact after the shoulder. Six native appearances and matched Physical Relief originals were inspected within the existing render deadline. All rejected drafts were kept and confirmed against their original exports. An older recovery chooser initialized after the first operator check in the shoulder editor. Its drafts were preserved, and the operation started from the visible chooser. The 258,048-sample outside collar, 139,264 pinned numerical positions, 155 earlier complete fine histories, Root 517, all 26 lakes and water 48 remain exact.
+
+The scoped federal 10-foot NAVD88 contour and name facts were reviewed and linked to Earth before any derived edits. The 2022 map cites the 2015 National Elevation Dataset. Source rights are 145 sources, 148 reviews and 143 uses, with the older rows preserved. Clearance applies to private display and modification of the scoped facts. Ground registration, wider slopes, statewide coverage and the rest of the U.S. physical stages remain open. [Mount Scott US Topo](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/OK/OK_Mount_Scott_20220415_TM_geo.pdf)
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
