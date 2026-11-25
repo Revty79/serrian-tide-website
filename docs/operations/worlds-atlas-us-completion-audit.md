@@ -421,6 +421,14 @@ The southeastern Jacks working body lowers 6,056 heights by up to 346 m. Its app
 
 All complete native save, undo, redo and ordinary reopen grids and seven levels match at revisions 2 to 4 and 5 to 7. Immutable settings, earlier version and tile rows, all original protected heights, the first working flank, outside height data and complete numerical source border were verified. The whole frame is still geographically incomplete. The main ridges and crests, the intervening valley and surrounding lowlands, cross-source presentation and actual ground placement remain open.
 
+## Rhode Island western uplands and Jerimoth Hill working dry crown
+
+The 36 by 26 km, 2,048-square Jerimoth Hill frame is pinned to Root 517. Ordinary creation and reopening match all 4,194,304 inherited dry 200 m heights and all seven levels. Earth has 170 sources and 889,192,448 heights. All 168 older fine histories, complete Root 517, water 48 and 26 lakes verify. The current official dated sheet supplies scoped 10-foot NAVD 88 federal dry contours and physical name facts from the 2021 to 2024 National Elevation Dataset. Review and attachment preceded derivation. Rights total 161 sources, 164 reviews and 159 uses. [USGS East Killingly 2024](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CT/CT_East_Killingly_20240814_TM_geo.pdf)
+
+The bounded dry crown saves at 2, undoes at 3, redoes and normally reopens at 4. Fully reconstructed heights and overviews match at each stage and bind the immutable native settings. The crown raises 2,549 heights by up to 47 m. Four approximate dry contour sites read 243, 247, 245 and 244 m. Working high point is 247 m. Largest step is 7 m and maximum conditional slope is 24.586 degrees with zero added or worsened 45-degree pairs. The old protection mask, collar, outside scope, ten mapped drainage checks and all 139,264 pinned numerical boundary samples verify. All six actual styles and the matched original relief were inspected within the existing deadline.
+
+This completes the bounded working detail. The western uplands, surrounding lower landforms and coastal transitions, broader source connections, actual ground placement and state or pass acceptance remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
