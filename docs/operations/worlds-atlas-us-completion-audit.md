@@ -243,6 +243,12 @@ The first upper polygon left three intended core heights above tolerance and rem
 
 The scoped USGS Port Hudson 2024 5-foot NAVD 88 contours from NED 2023 were registered, reviewed and linked before derivation. Rights are 133 sources, 136 reviews and 131 uses, with older records exact. The physical scope excludes wet areas, mapped channels, engineered terrain, facilities, imagery and other nonterrain content. The initial timed-out download is preserved beside the independently verified actual original. [USGS Port Hudson](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/LA/LA_Port_Hudson_20240717_TM_geo.pdf)
 
+## Comite dry Prairie Terrace, Louisiana
+
+Native Save 11, Undo 12, Redo 13 and ordinary reopening verify a small working dry terrace at Comite. The operation lowers 532 samples by up to 176 m, retuning locally high inherited construction terrain to working controls of 26 and 25 m. Maximum touched step is 26 m, conditional maximum 28.884 degrees and zero 45-degree pairs are added or worsened. The complete grids and seven numerical levels, immutable operation, all six settled appearances and matched original passed. All 2,230 earlier Louisiana edited positions remain exact, with an overall 2,762 cuts since inheritance. The collar, 139,264 numerical pins, 151 other fine histories, Root 517 and unchanged water 48 with 26 lakes remain exact.
+
+Scoped dry 5-foot NAVD 88 contour facts from the 2024 Comite sheet's NED 2019 terrain were reviewed and linked before derivation. Rights are 134 sources, 137 reviews and 132 uses. The scope covers selected dry physical terrain and excludes mapped water and wetlands, engineered elevations, development, features, compiled imagery and third-party material. The prior rejected Port Hudson western draft re-export matches its original native packet exactly. Broader dry and coastal lowlands, natural transitions, ground registration, presentation joins and full state review remain open. [USGS Comite](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/LA/LA_Comite_20240717_TM_geo.pdf)
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
