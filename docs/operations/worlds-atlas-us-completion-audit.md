@@ -357,6 +357,14 @@ The working Boston Heights dry upland saves at 2, undoes at 3, redoes at 4 and r
 
 The 2023 Ohio reference was approved and linked before deriving terrain. Its manually interpreted federal dry facts come from the 10-foot NAVD 88 contours credited to the 2010 National Elevation Dataset. Registry counts are 151 sources, 154 reviews and 149 uses, with all prior rows exact. Wider dry relief, the full valley geography, source joins, true ground placement and state closeout remain open. [USGS Peninsula 2023](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/OH/OH_Peninsula_20230719_TM_geo.pdf)
 
+## Kentucky Mammoth uplands and Jim Lee Ridge working form
+
+The native Mammoth uplands frame is 52 by 34 km with 2,048-square elevations pinned to Root 517. Its creation and normal reopening match the inherited 200 m height at all 4,194,304 samples and all seven levels. All 160 earlier fine heads, frames, pins and full version and tile rows, Root 517, water 48 and 26 lakes verify. The source is disjoint from earlier fine frames. Earth now has 162 numerical sources and 855,638,016 elevations.
+
+The dry upper shoulder of Jim Lee Ridge saves at 2, undoes at 3, redoes at 4 and normally reopens with exact complete grids, overviews and immutable native settings. The edit raises 2,866 elevations by at most 53 m. Four central working samples read 248, 252, 252 and 251 m. Highest touched elevation is 253 m, largest step is 6 m and the conditional slope diagnostic is 13.865 degrees. There are zero new or worsened 45-degree pairs. The full 32-cell collar, 32,704 previously protected samples and all terrain outside the selected dry outline remain exact. The 139,264 pinned numerical border readings agree with inheritance within floating-point precision. All six native appearances and the matched original relief were inspected under the existing deadline.
+
+The 2022 quadrangle's federal dry contour and surface name facts were registered, reviewed and linked before local derivation. The 20-foot NAVD 88 contours use the 2002 National Elevation Dataset. Rights total 152 sources, 155 reviews and 150 uses, preserving all original rows. The surrounding landform connections, Green River valley terrain, source joins, ground placement and Kentucky closeout remain open. [USGS Mammoth Cave 2022](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/KY/KY_Mammoth_Cave_20221006_TM_geo.pdf)
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
