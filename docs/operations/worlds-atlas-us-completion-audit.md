@@ -501,6 +501,14 @@ The dry eastern Eagle Mountain shoulder saves 2, undoes 3, redoes and normally r
 
 The result covers a working dry shoulder. Wider Colorado detail and lowlands, prior rejected areas, genuine registration and presentation joins remain open.
 
+## Georgia Jacks Gap and working Duck Knob lower dry shoulder
+
+The separate 44.5 by 34 km north Georgia Blue Ridge native source pins to Root 517. Native creation returned 200 and ordinary reopening matched all 4,194,304 inherited dry 525?773 m heights and seven levels. Earth at this checkpoint has 179 numerical sources and 926,941,184 heights. Root 517, the other 177 fine histories, water 48 and all 26 lakes match. The dated and current July 23, 2024 USGS Jacks Gap originals agree. The 40-foot NAVD 88 dry contours use the 2022 National Elevation Dataset. The scoped facts were approved and linked before use. Rights total 171 sources, 174 reviews and 169 uses with every older row exact. [USGS Jacks Gap 2024](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/GA/GA_Jacks_Gap_20240723_TM_geo.pdf)
+
+The lower western Duck Knob working shoulder saves 2, undoes 3, redoes and ordinarily reopens 4. The entire grids, all seven levels and immutable operation match. It raises 912 heights by up to 100 m, with four approximate dry contours within 5 m of their references and a 754 m local working maximum. The 773 m inherited source maximum remains. The largest step is 19 m and conditional ground slope reaches 41.865774 degrees. Zero 45-degree pairs are new or worsened. All prior protections, the collar, outside terrain, 22 drainage locations and 187 distinct nearby heights stay exact. All 139,264 inherited numerical edge positions stay exact with an unrounded residual under 0.5 m. All six actual appearances and matched physical relief were inspected. Both earlier drafts exceeded the unchanged slope guard and were retained with complete unchanged readbacks and exact before-and-after exports. The separate Pine Mountain source and its two rejected drafts are retained.
+
+The result covers a lower working shoulder. The upper ridge, wider Georgia and U.S. land, absolute registration, lower terrain and presentation joins remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
