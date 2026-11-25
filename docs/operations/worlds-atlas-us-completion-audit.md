@@ -517,6 +517,14 @@ The upper western dry fan saves 2, undoes 3, redoes and ordinarily reopens 4. Th
 
 The working stretch covers part of the upper fan. Wider inherited construction-height valley floor, lower fan, absolute registration, terrain presentation joins and all U.S. geographic stage acceptance remain open.
 
+## O?ahu Wahiaw? and Huliwai dry plateau shoulder
+
+The 14.5 by 12.5 km native central O?ahu child pins to Hawai?i 85. Hawai?i 85 still pins to historical Root 73 and current Root 517 remains exact. An initial private assumption of a Root 517 parent was refused. The corrected independent proof reconstructs all Root 73 heights from 1,695 immutable references and 682 verified objects. Actual creation and normal opening match all 4,194,304 inherited 200 m construction heights and seven numerical levels. Earth at this checkpoint has 181 numerical sources and 935,329,792 heights. All 179 earlier fine histories, Hawai?i 85, current Root 517, water 48 and 26 lakes remain exact. The September 26, 2024 USGS dry physical contour and place-name facts were scoped and linked before native use. The 40-foot local mean sea level contours use 2015 elevation input. Rights total 173 sources, 176 reviews and 171 uses, with every earlier row exact. [USGS Schofield Barracks 2024](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/HI/HI_Schofield_Barracks_20240926_TM_geo.pdf)
+
+The dry shoulder north of Huliwai Gulch saves 2, undoes 3, redoes and normally reopens 4. Full grids, seven levels and immutable operations agree. It raises 9,601 heights by up to 42 m with no lowering. Four approximate contacts are within 2 m of their contour references, with maximum 242 m, step 6 m and conditional slope 33.781395 degrees. There are zero new or worsened 45-degree pairs. All prior protections, the collar, outside heights, 24 mapped drainage locations with 216 adjacent heights, and 139,264 historically pinned edge readings remain exact. Actual views for all six appearances and matched original/proposed physical relief were inspected.
+
+Wider plateau and adjoining relief, all islands, genuine ground registration, presentation joins and overall U.S. geographic acceptance remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
