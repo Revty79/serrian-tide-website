@@ -477,6 +477,14 @@ The revised east dry shoulder saves at 2, undoes at 3, redoes and normally reope
 
 The original shorter proposal hit the contour tolerance but reached 50.944 conditional degrees with 91 new steep pairs. Its matched relief, complete unchanged revision 1 and exact native settings and outline were preserved. The higher crest, broader landform transitions, state lowlands, source presentation joins and ground registration remain open.
 
+## Oregon Corvallis Dimple Hill working dry shoulder
+
+The native 48.5 by 46 km child pins to Cascades 16. Actual creation and ordinary opening verify all 4,194,304 inherited heights at 255?334 m and seven numerical levels. At this checkpoint Earth has 177 numerical sources and 918,552,576 heights. All 175 earlier fine histories, Cascades 16, Root 517, water 48 and all 26 lakes verify. The dated and current original use 20-foot NAVD 88 contours from the 2011 National Elevation Dataset. Scoped government dry contour and physical name facts were approved and linked before derivation. Rights now comprise 168 sources, 171 reviews and 166 uses. [USGS Corvallis 2024](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/OR/OR_Corvallis_20240507_TM_geo.pdf)
+
+The longer dry southern shoulder saves at 2, undoes at 3, redoes and normally reopens at 4. All complete grids, seven levels and immutable native operation match. It raises 622 heights by up to 48 m to a working high of 338 m. Approximate contacts are 309, 320, 332 and 338 m. Maximum step is 13 m, conditional slope reaches 25.350 degrees and zero 45-degree pairs arise or worsen. All prior manual protections, collars, outside heights, 18 representative drainage checks and all 139,264 inherited numerical boundary readings remain exact, with an unrounded residual of at most 0.5 m. All six native styles and matched relief were inspected within the existing deadline.
+
+The first version reached 42.778 conditional degrees despite meeting approximate contour tolerance. Its native draft and matched relief remain retained along with the complete unchanged original grid. Actual old settings and footprint are exact before save and after the successful normal reopening. The summit, wider transition, Marys River and Willamette lowlands, presentation joins and surveyed registration remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
