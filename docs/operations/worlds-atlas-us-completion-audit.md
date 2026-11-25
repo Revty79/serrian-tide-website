@@ -533,6 +533,14 @@ The separate Highwood Creek dry bench saves 2, undoes 3, redoes and normally reo
 
 This covers a small working dry bench. Wider Highwood and Montana, Comers Butte, genuine ground registration, presentation joins and all U.S. geographic stages remain open.
 
+## Wyoming Shell Creek and Red Gulch dry fan
+
+The native 41 by 26.5 km Bighorn Basin child pins to Western 13 and Root 517. The first Western route and the single creation-response observation exceeded their existing 60-second deadlines. A subsequent distinct signed observation and immutable saved history preserve exactly one creation that matches the exact emitted request. Reopening matches all 4,194,304 inherited dry 1,084?1,425 m heights and seven levels. Earth has 182 numerical sources and 939,524,096 heights. All 180 earlier fine histories, Western 13, Root 517, water 48 and all 26 lakes remain exact. Scoped dry facts from the August 5, 2021 Shell sheet were approved and attached before use. Its 20-foot NAVD 88 contours use 2002 elevation inputs. Rights total 174 sources, 177 reviews and 172 uses, with every earlier row preserved. [USGS Shell 2021](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/WY/WY_Shell_20210805_TM_geo.pdf)
+
+The lower Red Gulch dry fan saves 2, undoes 3, redoes and normally reopens 4, with full grids, seven levels and immutable native settings exact. It raises 2,476 heights by up to 97 m, with a working local 1,289 m high. The three approximate contour checks are within 13 m. The maximum touched step is 16 m and conditional ground slope reaches 40.371100 degrees, with zero new or worsened 45-degree pairs. All earlier protections, the collar, outside terrain, 28 mapped drainage and roadway groups and 252 distinct nearby heights remain exact. All six native appearances and matched physical relief were inspected. Horse Creek and the first two Red Gulch drafts exceeded the unchanged geographic limit. Their original visual and complete unchanged readbacks remain, with exact archives before and after revision 4.
+
+This covers a working dry fan. Horse Creek, wider basin and foothill detail, source presentation, actual ground registration and all U.S. geographic stages remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
