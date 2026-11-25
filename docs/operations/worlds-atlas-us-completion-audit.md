@@ -575,6 +575,14 @@ On the dry southern Big Star Run flank, Save 2, Undo 3, Redo 4 and normal reopen
 
 The original Bear Rocks dry-crest draft exceeded slope criteria and changed 12 mapped wet neighborhoods. The first narrower Jordan Run bench met the contour and drainage checks and exceeded the slope criteria. Complete unchanged revision 1, original physical comparison and byte-exact native settings preserve both failed proposals before and after revision 4. The whole highland, surrounding slopes, registration, visual joins and all U.S. geographic stages remain open.
 
+## West Virginia Dolly Sods working highland foundation
+
+The separate north Dolly Sods grade passes actual Save 5, Undo 6, Redo 7 and normal reopening. The whole saved grid, seven numerical overviews and immutable settings match the reviewed native preview. It raises 165,306 heights by up to 425 m. Three approximate dry 3,900 and 4,000-foot contours read 1,189, 1,219 and 1,215 m. A nearby 3,800-foot context reads 1,155 m. The maximum step is 12 m and conditional slope reaches 41.913337 degrees with zero new or worsened 45-degree pairs. Full preservation includes all 3,116 earlier Jordan Run heights, the previous mask and collar, all samples outside the footprint and 139,264 pinned readings. Root 517, Central Appalachians 7, 184 earlier fine histories, water 48, all 26 lakes and the rights register remain exact. [USGS Blackbird Knob 2023](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/WV/WV_Blackbird_Knob_20230602_TM_geo.pdf)
+
+The first broader shape retained abrupt angular wedges in the matched physical view. The 23-corner revision exceeded the existing geometry budget. The 15-corner alternative fit that budget and retained a localized southwest grade above 42 degrees. The final wider end taper passes under the original thresholds and all six original-deadline appearance checks. All five prior rejected native settings re-export byte-exact after revision 7. Original failed observations and unchanged terrain reads remain.
+
+Four other contour witnesses outside the working core show substantial deficits in the west, east-facing slope and south. Wider headwater land grades, escarpment detail, presentation joins, absolute registration and all U.S. geographic stages remain open. The accepted work changes land heights only. Later hydrology retains its own stage.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
