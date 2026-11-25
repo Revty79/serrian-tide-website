@@ -453,6 +453,14 @@ The revised western crown saves at 2, undoes at 3, redoes and normally reopens a
 
 The first compact dry crown is retained after reaching 47.589 conditional degrees and eight new 45-degree pairs. The unchanged original, earlier unmatched image assembly and both matched relief strengths remain recorded. The original draft's actual native settings are exact before and after the successful save. Remaining Woodall shoulders, saddle, broader Iuka slopes and lowlands, presentation joins and surveyed registration remain open.
 
+## Montana Highwood Mountains inherited frame and Comers Butte review
+
+The 70 by 53 km native inland source is pinned to Root 517. Actual creation and normal reopening confirm all 4,194,304 inherited heights at 1,115?1,500 m and all seven levels. All 172 older finer histories, Root 517, water 48 and 26 lakes remain exact. The first private protection observer refused an unset source ID. Its corrected independent check validates all 32,704 original protected heights on the actual source. At this checkpoint Earth has 174 numerical sources and 905,969,664 heights.
+
+Federal dry contour and physical name facts were scoped, approved and linked before native use. The exact dated and current original use 40-foot NAVD 88 contours from the 2006 National Elevation Dataset. Rights comprise 165 sources, 168 reviews and 163 uses with every older row unchanged. The separate 2020 sheet remains research. [USGS Highwood Baldy 2024](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MT/MT_Highwood_Baldy_20240530_TM_geo.pdf)
+
+Four dry north shoulder and lower bench drafts were refused with conditional maxima of 50.399, 49.019, 50.400 and 55.722 degrees and 67, 32, 41 and 111 new 45-degree pairs. Only the second matches the four approximate contour contacts. Matched physical relief at strength 1 and full unchanged revision 1 prove each refusal. All four actual native packet exports match their originals. Wider receiving slopes around the inherited 1,210 m ground near the bench, the broader landscape, full geographic registration and state review remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
