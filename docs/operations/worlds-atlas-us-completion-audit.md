@@ -349,6 +349,14 @@ The local dry fan between Cedar Creek and the Thousand Springs Valley wet floor 
 
 Three earlier Borah western shelf drafts and the first Cedar fan draft were kept. The three Borah slope diagnostics are 46.256, 44.923 and 40.526 degrees, above the 38-degree limit. The first Cedar proposal met its slope limit but fell 38 m short at the southwest contour check. All four have matched physical images, exact retained settings and complete unchanged baseline readbacks. The original nested UI observer and archive recovery operator failures remain separate evidence. The full valley and basin relief, connections, higher Lost River Range, ground registration and U.S. geographic stages remain open.
 
+## Ohio Cuyahoga Valley and Boston Heights dry upland
+
+A native 49 by 31 km 2,048-square Ohio fine source starts from Central Appalachians 7. Creation and normal reopening at 1 match all 4,194,304 inherited 200 m elevations and seven overviews. The child overlaps only its parent. Full parent and Root 517 heights and histories, all 159 earlier fine heads, frames, pins, version and tile rows, water 48 and all 26 lakes verify. Earth has 161 sources and 851,443,712 elevations.
+
+The working Boston Heights dry upland saves at 2, undoes at 3, redoes at 4 and reopens with complete exact native grids, seven overviews and immutable operation. It raises 3,480 heights by up to 126 m. The four approximate controls read 321, 324, 326 and 318 m against working dry contour estimates of 318, 322, 324 and 322 m. Maximum touched step is 13 m. The conditional slope diagnostic reaches 31.400 degrees with zero new or worse 45-degree pairs. The full 258,048-sample collar, 32,704 prior protective heights, all terrain outside the dry selection and all 139,264 numerical pinned boundary samples verify. All six native appearances and the matched original relief were inspected under the original deadline.
+
+The 2023 Ohio reference was approved and linked before deriving terrain. Its manually interpreted federal dry facts come from the 10-foot NAVD 88 contours credited to the 2010 National Elevation Dataset. Registry counts are 151 sources, 154 reviews and 149 uses, with all prior rows exact. Wider dry relief, the full valley geography, source joins, true ground placement and state closeout remain open. [USGS Peninsula 2023](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/OH/OH_Peninsula_20230719_TM_geo.pdf)
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
