@@ -1,3 +1,13 @@
+## Port Hudson upper dry shoulder at revision 10 (2026-11-24)
+
+United States Pass 2A continues in Louisiana. The Lower Mississippi source 33e10271-61d5-4b9d-b159-1823ffd7111c, pinned to Root 517, passes Port Hudson Save 8, Undo 9, Redo 10 and ordinary reopening. The wider 14-point dry polygon lowers 690 samples by up to 164 m. Its four dry working guides read 39, 40, 40 and 39 m. Maximum touched step is 36 m, the conditional maximum is 27.986 degrees and zero 45-degree pairs are added or worsened. The complete saved grids, all seven numerical levels, immutable native operation and full history cycle match. All six settled appearances and the matched original were inspected.
+
+The first 11-point proposal reaches 40, 52, 63 and 62 m at its core and remains rejected. Its original visual comparison, exact native retained packet, and unchanged revision 7 proof remain. The separate western proposal also remains rejected. Its conditional maximum is 33.935 degrees and it would alter 19 earlier low positions, including a verified 40 m guide. Preserve its actual matched images, native packet and complete unchanged revision 10 proof. The native one-metre simplification retains 11 of the 12 drawn west corners, with all 12 raw points stored. The initial corner-count oracle and draft opening timeout remain recorded.
+
+The 1,540 earlier Saint Francisville and Baton Rouge cuts, complete collar, 139,264 numerical boundary readings, 151 other fine histories, Root 517, water 48 and 26 lakes stay exact. Port Hudson's 2024 dry government contour facts, with 5-foot NAVD 88 contours and NED 2023, were scoped, reviewed and linked before derivation. Rights are 133 sources, 136 reviews and 131 uses. The area still needs adjoining dry and coastal transitions, broader relief, source presentation joins, ground registration and state review.
+
+Keep parked non-U.S. work. Finish U.S. 2A across all 50 states and Washington, D.C., then U.S. 2B?2D in order and fresh paired recovery with independent isolated restoration. Stop for owner review before politics or later Atlas/Tabletop. This documentation update preserves all 2,244 tested application inputs and requires exact normal CI and local main/origin parity. Keep 973d4f57 unapplied.
+
 ## Lower Mississippi dry bluff and Prairie Terrace at revision 7 (2026-11-24)
 
 United States Pass 2A continues in Louisiana. The Lower Mississippi bluffs and Baton Rouge terrace source 33e10271-61d5-4b9d-b159-1823ffd7111c is pinned to Root 517. Creation and ordinary reopening at revision 1 match the complete inherited 4,194,304-sample, 200 m starting grid and all seven numerical levels. Its 112 by 106 km native frame has no prior fine-source overlap.
