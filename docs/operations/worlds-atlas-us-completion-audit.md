@@ -525,6 +525,14 @@ The dry shoulder north of Huliwai Gulch saves 2, undoes 3, redoes and normally r
 
 Wider plateau and adjoining relief, all islands, genuine ground registration, presentation joins and overall U.S. geographic acceptance remain open.
 
+## Montana Highwood Creek dry bench
+
+The existing 70 by 53 km Highwood source remains pinned to Root 517. Normal revision 1 opening matched all 4,194,304 dry inherited 1,115?1,500 m heights and seven numerical levels. This checkpoint has 181 Earth numerical sources and 935,329,792 heights. The other 179 fine histories, Root 517, water 48 and all 26 lakes remain exact. The prior scoped May 30, 2024 USGS Highwood Baldy approval and reference link were reused. The 40-foot NAVD 88 dry contours use elevation input from 2006. All current rights remain at 173 sources, 176 reviews and 171 uses. [USGS Highwood Baldy 2024](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MT/MT_Highwood_Baldy_20240530_TM_geo.pdf)
+
+The separate Highwood Creek dry bench saves 2, undoes 3, redoes and normally reopens 4. Complete heights, seven levels and immutable settings match. It raises 569 local heights up to 94 m, with a working local high of 1,286 m. The inherited 1,500 m source maximum remains. The maximum touched step is 25 m and conditional slope reaches 39.386100 degrees. No 45-degree pairs are new or worsened. Prior protections, whole collar, outside heights, 27 nearby drainage checks and all 139,264 inherited edge positions stay exact, with an unrounded residual below 0.5 m. All six actual appearances and matched physical relief were inspected. The first separate bench missed the unchanged 42-degree slope limit. It and all four older rejected Comers Butte drafts were exactly retained before and after the saved edit.
+
+This covers a small working dry bench. Wider Highwood and Montana, Comers Butte, genuine ground registration, presentation joins and all U.S. geographic stages remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
