@@ -265,6 +265,14 @@ The southern outline preserves all 422 older samples below 1,150 m, including th
 
 The complete collar, all 139,264 numerical boundary positions, Root 517, all 152 unrelated fine histories, water 48, 26 lakes and rights 137 sources, 140 reviews and 135 uses remain exact. The result remains local working terrain. Regional accuracy, ground registration, broader joins and all U.S. statewide closeouts are open.
 
+## Western Iowa and the Missouri River plain working controls
+
+The manually selected 156 by 156 km source is pinned to Root 517 and has no overlap with the 153 older finer sources. The native creation and ordinary revision 1 reopening match all 4,194,304 inherited heights at 200 m with no sea samples, plus all seven numerical levels. The first dry inland area east of Little Sioux adds approximate dry plain elevation controls within the inherited construction surface. Its 13-point polygon raises 186 samples by up to 117 m on native Save 2. Undo 3, Redo 4 and ordinary reopening match the complete reviewed numerical grid, seven levels and immutable native operation.
+
+Four working interior values read 312, 316, 315 and 316 m. The maximum step is 42 m and the conditional maximum is 28.596 degrees, with zero new or worsened 45-degree pairs. All six settled appearances and the matched physical original were inspected. The initial under-height variant and the subsequent variant with a 324 m maximum were retained without saving. Both complete unchanged revision 1 checks and native archive exports pass. The initial private replay assumed a window for this minimum operation. The compatible full-grid observer verifies the same exact native inputs.
+
+Root 517, the full source collar, all 139,264 checked numerical boundary positions, all 153 other fine histories, water 48 and 26 lakes stay exact. The scoped 5-foot NAVD 88 Little Sioux contours from NED 2012 and 20-foot NAVD 88 Pisgah contours from NED 2008 were separately approved and attached before derivation. Rights are 139 sources, 142 reviews and 137 uses with older records exact. The 2022 editions carry earlier elevation inputs. Area-wide lowlands, bluff transitions, neighboring joins and measured ground accuracy remain open. [USGS Little Sioux](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/IA/IA_Little_Sioux_20220221_TM_geo.pdf) ? [USGS Pisgah](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/IA/IA_Pisgah_20220225_TM_geo.pdf)
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
