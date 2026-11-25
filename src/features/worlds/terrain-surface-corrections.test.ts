@@ -22,8 +22,8 @@ test("precomputed bicubic coefficients preserve the published surface and physic
 });
 test("fine interiors replace hidden parents while collars, nested coverage and wrap retain known fields",()=>{
  const world={width:32,height:32,tileSize:32,displayWidth:1000,displayHeight:1000,min:-30000,max:30000,wrap:true},root=new Int16Array(1024).fill(100),meta:RefinementMeta={id:"parent",worldId:"world",terrainId:"terrain",mapId:"map",name:"Accepted fine",parentId:null,parentRevision:1,level:1,revision:1,frame:{x:100,y:100,width:400,height:400},gridWidth:32,gridHeight:32,overviewLevels:0,updatedAt:"fixed"},child={...meta,id:"child",parentId:meta.id,level:2,frame:{x:200,y:200,width:100,height:100}},cache=new TerrainDetailCache(async()=>{throw Error("Active source must not fetch");}),shape={...world,wrap:false,width:32,height:32,displayWidth:400,displayHeight:400},scene={cache,tick:0,plans:[{meta,lod:0,keys:[0]}],active:{meta,shape,grid:new Int16Array(1024).fill(1000)}},sample=terrainSurfaceSampler(root,world,scene),out=surfaceFieldWork();
- assert.equal(sample(300,300,undefined,out),out);assert.equal(out.height,1000);assert.equal(sample(112.5,300).height,550);assert.equal(sample(99,300).height,100);
- const nested=terrainSurfaceSampler(root,world,{...scene,plans:[...scene.plans,{meta:child,lod:0,keys:[0]}],preview:{meta:child,shape:{...shape,displayWidth:100,displayHeight:100},grid:new Int16Array(1024).fill(2000)}});assert.equal(nested(250,250).height,2000);assert.equal(nested(201.5625,250).height,1156.25);
+ assert.equal(sample(300,300,undefined,out),out);assert.equal(out.height,1000);assert.equal(sample(112.5,300).height,138.671875);assert.equal(sample(99,300).height,100);
+ const nested=terrainSurfaceSampler(root,world,{...scene,plans:[...scene.plans,{meta:child,lod:0,keys:[0]}],preview:{meta:child,shape:{...shape,displayWidth:100,displayHeight:100},grid:new Int16Array(1024).fill(2000)}});assert.equal(nested(250,250).height,2000);assert.equal(nested(201.5625,250).height,1011.23046875);
  const wrapped={...meta,frame:{x:950,y:100,width:100,height:100}},seam=terrainSurfaceSampler(root,world,{...scene,plans:[{meta:wrapped,lod:0,keys:[0]}],active:{...scene.active,meta:wrapped,shape:{...shape,displayWidth:100,displayHeight:100}}});assert.deepEqual(seam(20,150),seam(1020,150));assert.equal(seam(20,150).height,1000);
 });
 
@@ -35,6 +35,38 @@ test("saved surface snapshots index pinned tiles once, including cached neighbor
  const read=(x:number,y:number)=>values[Math.max(0,Math.min(63,y))*64+Math.max(0,Math.min(63,x))];
  for(let i=0;i<100;i++){const x=30.25+i%8*.125,y=31.5+Math.floor(i/8)*.125;assert.deepEqual(sample(100+x*10,100+y*10),reconstructSurface(read,x,y,10,10));}
  assert.ok(reads<=4,`Expected one pinned lookup per tile, got ${reads}`);
+});
+
+test("fine collars limit adjacent presentation steps and retain coarse blending", () => {
+ const world = { width:32, height:32, tileSize:32, displayWidth:3000, displayHeight:3000, min:-30000, max:30000, wrap:false };
+ const root = new Int16Array(1024).fill(100);
+ const meta:RefinementMeta = {
+  id:"detail", worldId:"world", terrainId:"terrain", mapId:"map", name:"Detail", parentId:null, parentRevision:1,
+  level:1, revision:1, frame:{ x:500, y:500, width:1280, height:1280 },
+  gridWidth:128, gridHeight:128, overviewLevels:2, updatedAt:"fixed",
+ };
+ const fineGrid = new Int16Array(128 * 128).fill(124);
+ const coarseTile = { samples:new Int16Array(1024).fill(124) };
+ const cache = { peek:(_id:string, _revision:number, lod:number) => lod === 2 ? coarseTile : undefined };
+ const detailed = terrainSurfaceSampler(root, world, {
+  cache, tick:0, plans:[{ meta, lod:0, keys:[] }],
+  active:{ meta, shape:{ ...world, width:128, height:128, displayWidth:1280, displayHeight:1280 }, grid:fineGrid },
+ });
+ const coarse = terrainSurfaceSampler(root, world, { cache, tick:0, plans:[{ meta, lod:2, keys:[0] }] });
+
+ let previous = detailed(500, 1000).height;
+ assert.equal(previous, 100);
+ for (let x = 510; x <= 580; x += 10) {
+  const next = detailed(x, 1000).height;
+  assert.ok(next >= previous && next - previous <= 5, `Abrupt presentation step at ${x}: ${next - previous} m`);
+  previous = next;
+ }
+ assert.equal(previous, 124);
+ assert.equal(detailed(900, 1000).height, 124);
+ assert.equal(coarse(540, 1000).height, 112);
+ assert.equal(coarse(580, 1000).height, 124);
+ assert.ok(root.every(height => height === 100));
+ assert.ok(fineGrid.every(height => height === 124));
 });
 
 test("new surface snapshots observe arriving and revised tiles without changing prior samples",()=>{

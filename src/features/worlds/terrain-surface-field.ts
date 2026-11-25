@@ -38,19 +38,22 @@ export function terrainSurfaceSampler(root:Int16Array,world:TerrainGeometry,scen
  const rootRead=waterSurfaceReader((x:number,y:number)=>root[Math.max(0,Math.min(world.height-1,y))*world.width+(world.wrap?((x%world.width)+world.width)%world.width:Math.max(0,Math.min(world.width-1,x)))],world,world,water,sea);
  const cellLimit=Math.max(1,Math.floor(cellBudget/((scene?.plans.length??0)+1))),rootSample=cachedSurfaceReconstructor(rootRead,world.displayWidth/world.width,world.displayHeight/world.height,cellLimit,world.width+2);
  const plans=[...(scene?.plans??[])].sort((a,b)=>a.meta.level-b.meta.level).map(plan=>{const active=[scene?.preview,scene?.active].find(a=>a?.meta.id===plan.meta.id),shape=active?.shape??lodGeometry(frameGeometry(plan.meta,world),plan.lod),cols=shape.width/32;
+  // Spread differences between parent and fine reconstruction over eight native
+  // samples. Coarser overviews still need at least two visible samples.
+  const blendCells=Math.max(2,8*shape.width/plan.meta.gridWidth);
   // Pin borrowed immutable tiles once per synchronization. Include cached halos
   // outside the request plan; workers expose the same peek-only cache contract.
   // A subsequent tile arrival, revision or edit creates a fresh sampler.
   const tiles=new Map<number,Int16Array>();if(!active)for(let key=0;key<cols*(shape.height/32);key++){const tile=scene?.cache.peek(plan.meta.id,plan.meta.revision,plan.lod,key);if(tile)tiles.set(key,tile.samples);}
-  const read=(x:number,y:number)=>{x=Math.max(0,Math.min(shape.width-1,x));y=Math.max(0,Math.min(shape.height-1,y));return active?active.grid[y*shape.width+x]:tiles.get(Math.floor(y/32)*cols+Math.floor(x/32))?.[y%32*32+x%32];};return {plan,shape,sample:cachedSurfaceReconstructor(waterSurfaceReader(read,shape,world,water,sea,plan.meta.frame),plan.meta.frame.width/shape.width,plan.meta.frame.height/shape.height,cellLimit,shape.width+2),work:surfaceFieldWork()};
+  const read=(x:number,y:number)=>{x=Math.max(0,Math.min(shape.width-1,x));y=Math.max(0,Math.min(shape.height-1,y));return active?active.grid[y*shape.width+x]:tiles.get(Math.floor(y/32)*cols+Math.floor(x/32))?.[y%32*32+x%32];};return {plan,shape,blendCells,sample:cachedSurfaceReconstructor(waterSurfaceReader(read,shape,world,water,sea,plan.meta.frame),plan.meta.frame.width/shape.width,plan.meta.frame.height/shape.height,cellLimit,shape.width+2),work:surfaceFieldWork()};
  });
  return (east:number,south:number,profile?:TerrainSurfaceProfile,out:SurfaceField=surfaceFieldWork()):SurfaceField=>{
   const x=world.wrap?((east%world.displayWidth)+world.displayWidth)%world.displayWidth:Math.max(0,Math.min(world.displayWidth,east)),y=Math.max(0,Math.min(world.displayHeight,south));
   let base:SurfaceField|undefined,edges:{fine:SurfaceField;mix:number}[]|undefined;
   // A complete interior of finer accepted coverage replaces its parent exactly.
   // Only coverage-edge blends need both fields; avoid reconstructing hidden parents.
-  for(let index=plans.length-1;index>=0;index--){const {plan,shape,sample,work}=plans[index],f=plan.meta.frame,px=world.wrap?((x-f.x)%world.displayWidth+world.displayWidth)%world.displayWidth:x-f.x,py=y-f.y;if(px<0||px>=f.width||py<0||py>=f.height)continue;
-   const dx=f.width/shape.width,dy=f.height/shape.height,fine=sample(px/dx,py/dy,profile,work);if(!fine)continue;const edge=Math.min(px/dx,py/dy,(f.width-px)/dx,(f.height-py)/dy)/2,t=Math.max(0,Math.min(1,edge)),mix=t*t*(3-2*t);
+  for(let index=plans.length-1;index>=0;index--){const {plan,shape,blendCells,sample,work}=plans[index],f=plan.meta.frame,px=world.wrap?((x-f.x)%world.displayWidth+world.displayWidth)%world.displayWidth:x-f.x,py=y-f.y;if(px<0||px>=f.width||py<0||py>=f.height)continue;
+   const dx=f.width/shape.width,dy=f.height/shape.height,fine=sample(px/dx,py/dy,profile,work);if(!fine)continue;const edge=Math.min(px/dx,py/dy,(f.width-px)/dx,(f.height-py)/dy)/blendCells,t=Math.max(0,Math.min(1,edge)),mix=t*t*(3-2*t);
    if(mix===1){base=fine;break;}(edges??=[]).push({fine,mix});
   }
   if(base)Object.assign(out,base);else rootSample(x/world.displayWidth*world.width,y/world.displayHeight*world.height,profile,out);
