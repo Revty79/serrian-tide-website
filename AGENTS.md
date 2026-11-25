@@ -1,3 +1,15 @@
+## Palouse and Steptoe working crown at revision 4 (2026-11-24)
+
+United States Pass 2A continues. The native Palouse Slope and interior Columbia Plateau source f86c920c-1229-41be-b79a-fae8a47feed2 is pinned to Root 517. The manually selected 190 by 145 km source inherits 4,194,304 heights from 1,437 to 1,667 m with no sea samples. Initial creation, all seven numerical levels and ordinary revision 1 reopening match the complete inherited grid.
+
+Steptoe Save 2, Undo 3, Redo 4 and ordinary reopening verify the 12-point native dry polygon. It lowers 3,301 samples by up to 589 m. Three reference-relative upper controls read 1,018, 1,096 and 1,051 m. The actual maximum touched step is 51 m and the conditional maximum is 28.225 degrees, with zero added or worsened 45-degree pairs. Independently replayed complete grids, all seven levels, immutable native operation, all six settled appearances and matched physical original pass. The crown working height is approximate. The underlying construction terrain outside the selected area, wider dry rolling shoulder and lowland geography, absolute ground registration, visual and source joins and full state review remain open.
+
+Three earlier proposals remain rejected at 44.664, 33.547 and 30.668 conditional degrees. Preserve all actual matched original/proposed pairs, exact unchanged revision 1 readbacks and native drafts. An initial ordinal guessed the incorrect archived variant. Re-exporting every exact visible choice matches all three original packets. The accepted version alters one native ceiling relative to the third preview. Preview heights under the 2,290 m selection feather are checked independently against physical targets.
+
+The complete collar, 139,264 numerical boundary readings, Root 517, all 152 other fine histories, water 48 and 26 lakes remain exact. Before derivation, the 2023 Steptoe and Colfax North dry 20-foot NAVD 88 contour facts from NED 2021 and separately scoped USGS SIR 2011?5124 printed page 4 qualitative dry facts were reviewed and attached. Rights are 137 sources, 140 reviews and 135 uses, with every older record exact.
+
+Keep parked non-U.S. work. Finish U.S. 2A across all 50 states and Washington, D.C., then U.S. 2B?2D in order and fresh paired recovery with independent isolated restoration. Stop for owner review before politics or later Atlas/Tabletop. This two-path receipt preserves all 2,244 tested application inputs and requires exact normal CI and local main/origin parity. Keep 973d4f57 unapplied.
+
 ## Comite dry Prairie Terrace at revision 13 (2026-11-24)
 
 United States Pass 2A continues. The Louisiana Lower Mississippi source 33e10271-61d5-4b9d-b159-1823ffd7111c, pinned to Root 517, passes native Comite Save 11, Undo 12, Redo 13 and ordinary reopening. The dry working area lowers 532 samples up to 176 m. Two working heights read 26 and 25 m. Maximum touched step is 26 m and conditional maximum 28.884 degrees, with zero new or worsened 45-degree pairs.
