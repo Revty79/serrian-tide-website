@@ -437,6 +437,14 @@ The native Brown Hill dry crown saves at 2, undoes at 3, redoes and reopens at 4
 
 The original higher Wachusett apron and the first Brown Hill draft were retained after missing contour checks. Their matched physical views, complete unchanged original revision and exact retained native packets verify. The main Wachusett and Little Wachusett summits, broader slopes, lowlands, full source joins and measured ground registration remain open.
 
+## Michigan southern Porcupine Mountains working dry shoulder
+
+The 44.5 by 29 km native inland source is pinned to Root 517. Its exact 4,194,304 dry inherited 200 m heights and seven levels verify on creation and normal reopening. Earth has 172 numerical sources and 897,581,056 heights. All 170 older finer histories, Root 517, water 48 and 26 lakes verify. The scoped official dry contour and physical name evidence was approved and linked before native use. The 2023 sheet uses 20-foot NAVD 88 contours from the 1999 National Elevation Dataset. Rights total 163 sources, 166 reviews and 161 uses. [USGS Government Peak 2023](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MI/MI_Government_Peak_20230701_TM_geo.pdf)
+
+The third bounded lower eastern shoulder saves at 2, undoes at 3, redoes and normally reopens at 4. Complete height grids, all seven levels and immutable operation agree through each native history step. It raises 9,342 heights by up to 243 m, reaching a working 443 m. Dry contacts are 439, 435, 430 and 426 m against 445, 439, 433 and 427 m. Maximum step is 15 m and conditional slope is 41.083 degrees, with zero new or worsened 45-degree pairs. All prior manual protections, 32-cell collars, outside heights, 16 approximate mapped drainage and standing-water checks and 139,264 pinned numerical values stay exact. All six native styles and matched original relief were inspected under the existing limit.
+
+The original dry spur missed three contour contacts. The first lower shoulder exceeded the 42-degree conditional slope limit. Both rejected matched views and unchanged original readbacks remain archived, with actual earlier settings exported exactly before save and after the accepted revision reopened. The main summit, regional lowlands, wider transitions, presentation joins and surveyed registration remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
