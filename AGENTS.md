@@ -1,3 +1,13 @@
+## Southern Palouse working loess relief at revision 7 (2026-11-24)
+
+United States Pass 2A continues. Southern Palouse Save 5, Undo 6, Redo 7 and ordinary reopening match the complete reviewed native grid and all seven numerical levels. The 13-point dry polygon lowers 6,586 samples by up to 838 m, with working heights of 782, 787 and 790 m. The maximum touched step is 47 m, corresponding to a 29.594 degree conditional maximum. No 45-degree pair was added or worsened. All six settled appearances and the matched original at physical relief 1 were inspected. This is local working relief within the coarse inherited surroundings.
+
+All 422 earlier samples below 1,150 m stay exact, including the 1,018, 1,096 and 1,051 m Steptoe controls. The new selection adjusts 599 earlier upper apron samples from at least 1,204 m by at most 271 m. It preserves 2,702 other earlier edits. The two operations account for 9,288 net cuts from inherited revision 1. The first preview would have altered 40 protected lower samples and reached a conditional 34.768 degrees. The second preserves those earlier samples but has 12 eastern steps above the 30-degree review target. Both previews were retained and closed without saving. Complete unchanged revision 4 and exact native archive exports verify each original. The initial border observer selected an unrelated receipt schema. The existing compatible verifier passes against the same saved inputs.
+
+The entire 258,048-sample collar, all 139,264 checked parent boundary positions, Root 517, all 152 other fine histories, water 48, 26 lakes and rights 137 sources, 140 reviews and 135 uses stay exact. The approved dry Steptoe and Colfax North physical facts cover the local reference. Native displayed working heights are approximate. Full Palouse coverage, registered ground measurements and broader regional joins remain open.
+
+Keep parked non-U.S. work. Continue U.S. 2A across all 50 states and Washington, D.C., then verified U.S. 2B?2D in order and fresh paired recovery with independent isolated restoration. Stop for owner review before politics or later Atlas/Tabletop. This two-path receipt preserves every tested application input and requires exact normal CI and local main/origin parity. Keep 973d4f57 unapplied.
+
 ## Palouse and Steptoe working crown at revision 4 (2026-11-24)
 
 United States Pass 2A continues. The native Palouse Slope and interior Columbia Plateau source f86c920c-1229-41be-b79a-fae8a47feed2 is pinned to Root 517. The manually selected 190 by 145 km source inherits 4,194,304 heights from 1,437 to 1,667 m with no sea samples. Initial creation, all seven numerical levels and ordinary revision 1 reopening match the complete inherited grid.
