@@ -509,6 +509,14 @@ The lower western Duck Knob working shoulder saves 2, undoes 3, redoes and ordin
 
 The result covers a lower working shoulder. The upper ridge, wider Georgia and U.S. land, absolute registration, lower terrain and presentation joins remain open.
 
+## Alaska Matanuska and working upper dry fan transition
+
+The 27 by 22.6 km native Matanuska child pins to Central Alaska Range 10. Creation and normal reopening match all 4,194,304 inherited 200 m heights and seven numerical levels. Earth at this checkpoint has 180 numerical sources and 931,135,488 heights. The 178 earlier finer histories, Central Alaska 10, Root 517, water 48 and 26 lakes match. The scoped August 3, 2023 Anchorage C-6 SE dry contour and name facts were approved and linked before use. Its 80-foot NAVD 88 contours use 2013 elevation input. All earlier rights stayed exact, with 172 sources, 175 reviews and 170 uses. [USGS Anchorage C-6 SE 2023](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/AK/AK_Anchorage_C-6_SE_20230803_TM_geo.pdf)
+
+The upper western dry fan saves 2, undoes 3, redoes and ordinarily reopens 4. The complete heights, seven levels and immutable native operation match. It lowers 5,742 heights up to 52 m and raises none. The three approximate contacts are within 5 m of the checked analogues. The maximum step is 9 m and the conditional slope reaches 35.269227 degrees, with zero new or worsened 45-degree pairs. All prior protections, outside area, collar, 24 mapped drainage and wetland locations with 216 nearby samples, and 139,264 inherited edge readings remain exact. Actual views for all six appearances and matched physical relief were inspected. An earlier lower fan exceeded the unchanged geographic slope guard. The rejected draft remains exact and its complete unchanged revision 1 was verified.
+
+The working stretch covers part of the upper fan. Wider inherited construction-height valley floor, lower fan, absolute registration, terrain presentation joins and all U.S. geographic stage acceptance remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
