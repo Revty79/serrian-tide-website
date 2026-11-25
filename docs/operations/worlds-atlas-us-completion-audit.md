@@ -429,6 +429,14 @@ The bounded dry crown saves at 2, undoes at 3, redoes and normally reopens at 4.
 
 This completes the bounded working detail. The western uplands, surrounding lower landforms and coastal transitions, broader source connections, actual ground placement and state or pass acceptance remain open.
 
+## Massachusetts Wachusett frame and Brown Hill working dry crown
+
+The Massachusetts native 50 by 34 km frame is pinned to Root 517. Its 4,194,304 dry inherited 200 m heights and all seven levels match on creation and ordinary reopening. Earth has 171 numerical sources and 893,386,752 heights. All 169 older finer histories, Root 517, water 48 and 26 lakes verify. The scoped 10-foot NAVD 88 federal dry contour and physical-name facts come from the 2023 National Elevation Dataset. The original was reviewed and linked before derivation. Rights total 162 sources, 165 reviews and 160 uses. [USGS Wachusett Mountain 2024](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MA/MA_Wachusett_Mountain_20240507_TM_geo.pdf)
+
+The native Brown Hill dry crown saves at 2, undoes at 3, redoes and reopens at 4. Exact full height grids, all overviews and immutable settings match. It raises 2,737 heights by at most 203 m and reaches a 403 m working high point. Its four approximate dry contour contacts are 394, 402, 397 and 385 m. The 20 m maximum step and 39.214-degree conditional slope add or worsen zero 45-degree pairs. Prior protections, the whole collar, the full outside area, twelve approximate physical drainage and pond sites and all 139,264 pinned numerical boundary readings stayed exact. All six styles and matched relief were inspected within the existing deadline.
+
+The original higher Wachusett apron and the first Brown Hill draft were retained after missing contour checks. Their matched physical views, complete unchanged original revision and exact retained native packets verify. The main Wachusett and Little Wachusett summits, broader slopes, lowlands, full source joins and measured ground registration remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
