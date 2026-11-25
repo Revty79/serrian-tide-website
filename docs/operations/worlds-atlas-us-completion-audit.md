@@ -445,6 +445,14 @@ The third bounded lower eastern shoulder saves at 2, undoes at 3, redoes and nor
 
 The original dry spur missed three contour contacts. The first lower shoulder exceeded the 42-degree conditional slope limit. Both rejected matched views and unchanged original readbacks remain archived, with actual earlier settings exported exactly before save and after the accepted revision reopened. The main summit, regional lowlands, wider transitions, presentation joins and surveyed registration remain open.
 
+## Mississippi Woodall Mountain working dry crown
+
+The 27.5 by 25 km native inland frame pins to Root 517. Its complete 4,194,304 dry 200 m inherited heights and seven levels verify through creation and normal reopening. Earth has 173 numerical sources and 901,775,360 heights. All 171 older fine histories, Root 517, water 48 and 26 lakes stay exact. Scoped federal dry contour and physical name facts were approved and linked before use. The original uses 20-foot NAVD 88 contours from the 2017 National Elevation Dataset. Rights total 164 sources, 167 reviews and 162 uses. [USGS Iuka 2024](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/MS/MS_Iuka_20240729_TM_geo.pdf)
+
+The revised western crown saves at 2, undoes at 3, redoes and normally reopens at 4. Immutable settings, full saved grids and seven numerical levels match each applicable state. It raises 602 heights by at most 45 m, with a working 245 m maximum, four approximate dry contacts at 245, 239, 234 and 226 m, a maximum 11 m step, a conditional 39.188-degree slope and zero new or worsened 45-degree pairs. All prior protections, collar, outside heights, 16 representative drainage points and all 139,264 numerical pins remain exact. Six native styles and matched relief were inspected within the existing deadline.
+
+The first compact dry crown is retained after reaching 47.589 conditional degrees and eight new 45-degree pairs. The unchanged original, earlier unmatched image assembly and both matched relief strengths remain recorded. The original draft's actual native settings are exact before and after the successful save. Remaining Woodall shoulders, saddle, broader Iuka slopes and lowlands, presentation joins and surveyed registration remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
