@@ -493,6 +493,14 @@ The native northwest dry crown saves at 2, undoes at 3, redoes and normally reop
 
 The 664,637 higher inherited samples and 188 m source maximum remain exact for further geographic review. The result covers a small working dry crown. Wider District land and coastal alignment, nearby lowlands, genuine ground registration, source presentation joins and all completion gates remain open.
 
+## Colorado Eagle Mountain working dry shoulder
+
+The existing 56 by 44 km native Colorado source remains pinned to Western 13. Revisiting the inherited baseline verifies all 4,194,304 heights and seven levels. This checkpoint has 178 Earth numerical sources and 922,746,880 heights, with the other 176 fine histories, Root 517, Western 13, water 48 and 26 lakes exact. The July 17, 2026 Manitou Springs physical dry contours and names were scoped, approved and linked before native derivation. The 40-foot NAVD 88 contours use 2010 elevation inputs. Rights total 170 sources, 173 reviews and 168 uses, with every older row exact. [USGS Manitou Springs 2026](https://prd-tnm.s3.amazonaws.com/StagedProducts/Maps/USTopo/PDF/CO/CO_Manitou_Springs_20260717_TM_geo.pdf)
+
+The dry eastern Eagle Mountain shoulder saves 2, undoes 3, redoes and normally reopens 4. All full grids, seven numerical levels and the immutable operation agree. It raises 707 local heights by up to 103 m. The working local maximum is 2,554 m and the four approximate dry contours are within 6 m of the chosen analogues. The largest touched step is 21 m and conditional slope is 34.951330 degrees, with zero new or worsened 45-degree pairs. The 2,913 m source maximum, prior protections, collar, outside heights, 19 mapped drainage checks and all 139,264 inherited numerical edge positions stay exact. All six native appearances and matched physical relief were inspected. Both original rejected Trachyte operations were re-exported exactly before and after.
+
+The result covers a working dry shoulder. Wider Colorado detail and lowlands, prior rejected areas, genuine registration and presentation joins remain open.
+
 ## Evidence and acceptance
 
 An implemented feature, a historical automated delivery receipt, a current technical replay, a geographic review and human acceptance are separate results. The five original standards remain capability, discoverability, usability, output quality and reliability. Keep the original unfamiliar-creator journeys, independent technical/artwork review and owner acceptance. Do not infer artistic, Ember, physical-device or printer acceptance from browser automation.
