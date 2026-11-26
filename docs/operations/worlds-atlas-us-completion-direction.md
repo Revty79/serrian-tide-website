@@ -1,6 +1,6 @@
 # United States Pass 2 completion within the full Worlds/Atlas roadmap
 
-Owner direction: 2026-11-22. This is an active work contract, not a completion receipt.
+Owner direction: 2026-11-22; **paused by the owner on 2026-11-25, America/Denver**. The later instruction is to reach a workable stopping point and close Atlas for now. The [pause checkpoint](worlds-atlas-paused-checkpoint-20261125.md) governs the current stopping and resume boundary. The full contract below is preserved for a future explicit resumption; its automatic continuation instructions are suspended. Neither this pause nor the documentation closeout completes Pass 2 or supplies owner acceptance.
 
 ## Objective and sequence
 
